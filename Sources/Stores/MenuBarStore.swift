@@ -131,7 +131,21 @@ final class MenuBarStore {
     func refreshAccountData(for account: CodexAccount) async {
         await perform("Refreshing account data for \(account.name)...") {
             let remote = try await appServerClient.readCurrentAccountStatus()
-            mutateAccount(account) { stored in
+            let matchOutcome = accountMatcher.match(
+                liveAuthFingerprint: authService.currentAuthFingerprint(),
+                liveRemoteIdentity: remote.remoteIdentity,
+                accounts: accounts
+            )
+
+            guard let matchedAccountID = matchOutcome.matchedAccountID else {
+                throw MenuBarStoreError.refreshTargetResolutionFailed(matchOutcome)
+            }
+
+            guard let matchedAccount = accounts.first(where: { $0.id == matchedAccountID }) else {
+                throw MenuBarStoreError.refreshTargetMissing
+            }
+
+            mutateAccount(matchedAccount) { stored in
                 stored.applyRemoteMetadata(
                     email: remote.email,
                     planType: remote.planType,
@@ -297,11 +311,23 @@ final class MenuBarStore {
 
 private enum MenuBarStoreError: LocalizedError {
     case duplicateAccountName
+    case refreshTargetResolutionFailed(CodexAccountMatchOutcome)
+    case refreshTargetMissing
 
     var errorDescription: String? {
         switch self {
         case .duplicateAccountName:
             "An account with that name already exists."
+        case .refreshTargetResolutionFailed(.ambiguousSnapshotFingerprint):
+            "Could not refresh the active account because more than one saved account matches the current auth snapshot."
+        case .refreshTargetResolutionFailed(.ambiguousRemoteIdentity):
+            "Could not refresh the active account because more than one saved account matches the current Codex account identity."
+        case .refreshTargetResolutionFailed(.noMatch):
+            "Could not refresh the active account because the current Codex account does not match any saved account."
+        case .refreshTargetResolutionFailed(.exactSnapshot), .refreshTargetResolutionFailed(.uniqueRemoteIdentity):
+            "Could not refresh the active account."
+        case .refreshTargetMissing:
+            "Could not refresh the active account because the matched saved account is missing."
         }
     }
 }
