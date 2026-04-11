@@ -18,6 +18,18 @@ let project = Project(
             ),
             sources: ["Sources/**"],
             resources: ["Resources/**"]
+        ),
+        .target(
+            name: "CodexPillTests",
+            destinations: .macOS,
+            product: .unitTests,
+            bundleId: "com.raphhgg.codex-switchboard.tests",
+            deploymentTargets: .macOS("14.0"),
+            infoPlist: .default,
+            sources: ["Tests/**"],
+            dependencies: [
+                .target(name: "CodexPill")
+            ]
         )
     ]
 )

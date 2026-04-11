@@ -4,6 +4,10 @@ struct CodexAccountStatus {
     var email: String?
     var planType: String?
     var rateLimits: CodexRateLimitSnapshot?
+
+    var remoteIdentity: CodexRemoteAccountIdentity? {
+        CodexRemoteAccountIdentity(emailAddress: email)
+    }
 }
 
 final class CodexAppServerClient {

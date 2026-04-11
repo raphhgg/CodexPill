@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import OSLog
 
@@ -28,10 +29,12 @@ struct CodexAuthSnapshotService {
             updatedAt: Date(),
             email: nil,
             planType: nil,
-            rateLimits: nil
+            rateLimits: nil,
+            identity: .empty
         )
         account.name = name
         account.updatedAt = Date()
+        account.identity.snapshotFingerprint = Self.snapshotFingerprint(for: authData)
         try repository.writeSnapshot(data: authData, for: account)
         return account
     }
@@ -55,13 +58,36 @@ struct CodexAuthSnapshotService {
     }
 
     func isActive(_ account: CodexAccount) -> Bool {
-        guard
-            let current = try? Data(contentsOf: repository.paths.codexAuthFile),
-            let snapshot = try? repository.readSnapshot(for: account)
-        else {
-            return false
-        }
+        guard let currentFingerprint = currentAuthFingerprint() else { return false }
+        return account.identity.snapshotFingerprint == currentFingerprint
+    }
 
-        return current == snapshot
+    func currentAuthFingerprint() -> String? {
+        guard let current = try? Data(contentsOf: repository.paths.codexAuthFile) else {
+            return nil
+        }
+        return Self.snapshotFingerprint(for: current)
+    }
+
+    func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {
+        accounts.map { account in
+            var reconciled = account
+
+            if reconciled.identity.snapshotFingerprint == nil,
+               let snapshot = try? repository.readSnapshot(for: account) {
+                reconciled.identity.snapshotFingerprint = Self.snapshotFingerprint(for: snapshot)
+            }
+
+            if reconciled.identity.remoteIdentity == nil {
+                reconciled.identity.remoteIdentity = CodexRemoteAccountIdentity(emailAddress: reconciled.email)
+            }
+
+            return reconciled
+        }
+    }
+
+    private static func snapshotFingerprint(for data: Data) -> String {
+        let digest = SHA256.hash(data: data)
+        return digest.map { String(format: "%02x", $0) }.joined()
     }
 }

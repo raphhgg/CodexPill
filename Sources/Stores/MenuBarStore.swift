@@ -15,6 +15,7 @@ final class MenuBarStore {
     private let authService: CodexAuthSnapshotService
     private let appController: CodexAppController
     private let appServerClient: CodexAppServerClient
+    private let accountMatcher = CodexAccountMatcher()
 
     private(set) var accounts: [CodexAccount] = []
     private(set) var activeAccountID: UUID?
@@ -38,7 +39,12 @@ final class MenuBarStore {
     func load() {
         do {
             try repository.bootstrapStorage()
-            accounts = try repository.loadAccounts()
+            let loadedAccounts = try repository.loadAccounts()
+            let reconciledAccounts = authService.reconcileStoredAccountIdentities(loadedAccounts)
+            accounts = reconciledAccounts
+            if reconciledAccounts != loadedAccounts {
+                try repository.saveAccounts(reconciledAccounts)
+            }
             refreshActiveAccount()
             statusMessage = "Loaded \(accounts.count) account(s)"
             menuBarStoreLogger.log("Loaded \(self.accounts.count, privacy: .public) saved account(s)")
@@ -62,9 +68,11 @@ final class MenuBarStore {
                 existing: nil
             )
             var enriched = saved
-            enriched.email = remote.email
-            enriched.planType = remote.planType
-            enriched.rateLimits = remote.rateLimits
+            enriched.applyRemoteMetadata(
+                email: remote.email,
+                planType: remote.planType,
+                rateLimits: remote.rateLimits
+            )
 
             if let index = accounts.firstIndex(where: { $0.id == saved.id }) {
                 accounts[index] = enriched
@@ -96,9 +104,11 @@ final class MenuBarStore {
             var enriched = saved
 
             if let remote = try? await appServerClient.readCurrentAccountStatus() {
-                enriched.email = remote.email
-                enriched.planType = remote.planType
-                enriched.rateLimits = remote.rateLimits
+                enriched.applyRemoteMetadata(
+                    email: remote.email,
+                    planType: remote.planType,
+                    rateLimits: remote.rateLimits
+                )
             }
 
             accounts.append(enriched)
@@ -122,9 +132,11 @@ final class MenuBarStore {
         await perform("Refreshing account data for \(account.name)...") {
             let remote = try await appServerClient.readCurrentAccountStatus()
             mutateAccount(account) { stored in
-                stored.email = remote.email
-                stored.planType = remote.planType
-                stored.rateLimits = remote.rateLimits
+                stored.applyRemoteMetadata(
+                    email: remote.email,
+                    planType: remote.planType,
+                    rateLimits: remote.rateLimits
+                )
             }
         }
     }
@@ -143,7 +155,11 @@ final class MenuBarStore {
     }
 
     func refreshActiveAccount() {
-        activeAccountID = accounts.first(where: { authService.isActive($0) })?.id
+        activeAccountID = accountMatcher.match(
+            liveAuthFingerprint: authService.currentAuthFingerprint(),
+            liveRemoteIdentity: nil,
+            accounts: accounts
+        ).matchedAccountID
     }
 
     func isActive(_ account: CodexAccount) -> Bool {
