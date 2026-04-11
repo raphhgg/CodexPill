@@ -17,6 +17,7 @@ final class MenuBarStore {
     private let appServerClient: CodexAppServerClient
     private let accountMatcher = CodexAccountMatcher()
     private let switchAccountWorkflow: SwitchAccountWorkflow
+    private let saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow
 
     private(set) var accounts: [CodexAccount] = []
     private(set) var activeAccountID: UUID?
@@ -39,6 +40,11 @@ final class MenuBarStore {
             authService: authService,
             repository: repository,
             appController: appController
+        )
+        self.saveCurrentAccountWorkflow = SaveCurrentAccountWorkflow(
+            appServerClient: appServerClient,
+            authService: authService,
+            repository: repository
         )
     }
 
@@ -64,31 +70,17 @@ final class MenuBarStore {
 
     func saveCurrentAccountSnapshot(named customName: String?) async {
         await perform("Saving current Codex auth...") {
-            let remote = try await appServerClient.readCurrentAccountStatus()
-            let resolvedName = resolvedAccountName(customName, fallbackEmail: remote.email)
-            guard !accounts.contains(where: { $0.name.caseInsensitiveCompare(resolvedName) == .orderedSame }) else {
-                throw MenuBarStoreError.duplicateAccountName
-            }
-            let saved = try authService.saveCurrentAuthSnapshot(
-                named: resolvedName,
-                existing: nil
+            let result = try await saveCurrentAccountWorkflow.run(
+                customName: customName,
+                existingAccounts: accounts
             )
-            var enriched = saved
-            enriched.applyRemoteMetadata(
-                email: remote.email,
-                planType: remote.planType,
-                rateLimits: remote.rateLimits
-            )
-
-            if let index = accounts.firstIndex(where: { $0.id == saved.id }) {
-                accounts[index] = enriched
+            if let index = accounts.firstIndex(where: { $0.id == result.savedAccount.id }) {
+                accounts[index] = result.savedAccount
             } else {
-                accounts.append(enriched)
+                accounts.append(result.savedAccount)
             }
-
             accounts.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-            try repository.saveAccounts(accounts)
-            refreshActiveAccount()
+            activeAccountID = result.activeAccountID
         }
     }
 
@@ -103,7 +95,7 @@ final class MenuBarStore {
         await perform("Saving signed-in account...") {
             let resolvedName = resolvedAccountName(pendingSignedInAccountName, fallbackEmail: nil)
             guard !accounts.contains(where: { $0.name.caseInsensitiveCompare(resolvedName) == .orderedSame }) else {
-                throw MenuBarStoreError.duplicateAccountName
+                throw SaveCurrentAccountWorkflowError.duplicateAccountName
             }
 
             let saved = try authService.saveCurrentAuthSnapshot(named: resolvedName, existing: nil)
@@ -316,14 +308,11 @@ final class MenuBarStore {
 }
 
 private enum MenuBarStoreError: LocalizedError {
-    case duplicateAccountName
     case refreshTargetResolutionFailed(CodexAccountMatchOutcome)
     case refreshTargetMissing
 
     var errorDescription: String? {
         switch self {
-        case .duplicateAccountName:
-            "An account with that name already exists."
         case .refreshTargetResolutionFailed(.ambiguousSnapshotFingerprint):
             "Could not refresh the active account because more than one saved account matches the current auth snapshot."
         case .refreshTargetResolutionFailed(.ambiguousRemoteIdentity):
