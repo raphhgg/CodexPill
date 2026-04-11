@@ -48,7 +48,7 @@ Questions to answer:
 
 Reduce the current orchestration load in:
 
-- `Sources/Stores/MenuBarStore.swift`
+- `Sources/Features/Accounts/MenuBarStore.swift`
 - `Sources/App/CodexPillAppDelegate.swift`
 
 Target direction:
@@ -56,6 +56,7 @@ Target direction:
 - thin UI/menu layer
 - application-level use cases for save/switch/refresh/sign-in-another flows
 - infrastructure adapters for file I/O, process control, and app-server reads
+- feature-oriented grouping for product logic and platform-oriented grouping for integrations
 
 ### 4. Add behavior tests before new breadth
 
@@ -79,6 +80,6 @@ After `PRD` and architecture are written:
 ## Suggested First Issues
 
 1. Define stable account identity and matching rules
-2. Extract account orchestration from `MenuBarStore`
+2. Continue extracting account orchestration from `MenuBarStore`
 3. Add tests for switching and refresh behavior
 4. Normalize naming and remove remaining legacy repo drift
