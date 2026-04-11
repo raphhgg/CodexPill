@@ -13,11 +13,11 @@ extension Notification.Name {
 final class MenuBarStore {
     private let repository: AccountRepository
     private let authService: CodexAuthSnapshotService
-    private let appController: CodexAppController
     private let appServerClient: CodexAppServerClient
-    private let accountMatcher = CodexAccountMatcher()
+    private let activeAccountResolver: ActiveAccountResolver
     private let switchAccountWorkflow: SwitchAccountWorkflow
     private let saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow
+    private let signInAnotherWorkflow: SignInAnotherWorkflow
 
     private(set) var accounts: [CodexAccount] = []
     private(set) var activeAccountID: UUID?
@@ -34,8 +34,8 @@ final class MenuBarStore {
     ) {
         self.repository = repository
         self.authService = authService
-        self.appController = appController
         self.appServerClient = appServerClient
+        self.activeAccountResolver = ActiveAccountResolver(authService: authService)
         self.switchAccountWorkflow = SwitchAccountWorkflow(
             authService: authService,
             repository: repository,
@@ -45,6 +45,13 @@ final class MenuBarStore {
             appServerClient: appServerClient,
             authService: authService,
             repository: repository
+        )
+        self.signInAnotherWorkflow = SignInAnotherWorkflow(
+            authService: authService,
+            appController: appController,
+            appServerClient: appServerClient,
+            repository: repository,
+            activeAccountResolver: self.activeAccountResolver
         )
     }
 
@@ -90,29 +97,17 @@ final class MenuBarStore {
             self.pendingSignedInAccountName = nil
             return
         }
-        guard (try? authService.readCurrentAuthData()) != nil else { return }
 
         await perform("Saving signed-in account...") {
-            let resolvedName = resolvedAccountName(pendingSignedInAccountName, fallbackEmail: nil)
-            guard !accounts.contains(where: { $0.name.caseInsensitiveCompare(resolvedName) == .orderedSame }) else {
-                throw SaveCurrentAccountWorkflowError.duplicateAccountName
+            guard let result = try await signInAnotherWorkflow.completePendingSignIn(
+                pendingAccountName: pendingSignedInAccountName,
+                existingAccounts: accounts
+            ) else {
+                return
             }
-
-            let saved = try authService.saveCurrentAuthSnapshot(named: resolvedName, existing: nil)
-            var enriched = saved
-
-            if let remote = try? await appServerClient.readCurrentAccountStatus() {
-                enriched.applyRemoteMetadata(
-                    email: remote.email,
-                    planType: remote.planType,
-                    rateLimits: remote.rateLimits
-                )
-            }
-
-            accounts.append(enriched)
+            accounts.append(result.savedAccount)
             accounts.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-            try repository.saveAccounts(accounts)
-            refreshActiveAccount()
+            activeAccountID = result.activeAccountID
             self.pendingSignedInAccountName = nil
         }
     }
@@ -129,10 +124,9 @@ final class MenuBarStore {
     func refreshAccountData(for account: CodexAccount) async {
         await perform("Refreshing account data for \(account.name)...") {
             let remote = try await appServerClient.readCurrentAccountStatus()
-            let matchOutcome = accountMatcher.match(
-                liveAuthFingerprint: authService.currentAuthFingerprint(),
-                liveRemoteIdentity: remote.remoteIdentity,
-                accounts: accounts
+            let matchOutcome = activeAccountResolver.resolve(
+                accounts: accounts,
+                liveRemoteIdentity: remote.remoteIdentity
             )
 
             guard let matchedAccountID = matchOutcome.matchedAccountID else {
@@ -156,22 +150,17 @@ final class MenuBarStore {
     func startSignInAnotherAccountFlow(named pendingAccountName: String?) async {
         menuBarStoreLogger.log("Starting sign-in-another flow")
         await perform("Preparing Codex sign-in...") {
-            pendingSignedInAccountName = resolvedAccountName(pendingAccountName, fallbackEmail: nil)
-            try authService.prepareForNewSignIn()
-            menuBarStoreLogger.log("Auth state cleared for sign-in-another flow")
+            let result = try signInAnotherWorkflow.prepare(named: pendingAccountName)
+            pendingSignedInAccountName = result.pendingAccountName
             activeAccountID = nil
             stateDidChange()
-            try await appController.relaunchCodex()
+            try await signInAnotherWorkflow.relaunchCodex()
             menuBarStoreLogger.log("Sign-in-another relaunch finished")
         }
     }
 
     func refreshActiveAccount() {
-        activeAccountID = accountMatcher.match(
-            liveAuthFingerprint: authService.currentAuthFingerprint(),
-            liveRemoteIdentity: nil,
-            accounts: accounts
-        ).matchedAccountID
+        activeAccountID = activeAccountResolver.resolveActiveAccountID(accounts: accounts)
     }
 
     func isActive(_ account: CodexAccount) -> Bool {

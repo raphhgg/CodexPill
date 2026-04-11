@@ -1,8 +1,7 @@
 import Foundation
 
-protocol CodexAuthActivating {
+protocol CodexAuthActivating: CodexAuthFingerprintReading {
     func activate(_ account: CodexAccount) throws
-    func currentAuthFingerprint() -> String?
 }
 
 extension CodexAuthSnapshotService: CodexAuthActivating {}
