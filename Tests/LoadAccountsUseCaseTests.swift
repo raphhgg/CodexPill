@@ -16,7 +16,7 @@ struct LoadAccountsUseCaseTests {
 
         let repository = LoadingRepositorySpy(accountsToLoad: [saved])
         let auth = ReconcileSpy(reconciledAccounts: [reconciled])
-        let resolver = ActiveAccountResolver(authService: CurrentFingerprintStub(fingerprint: "live"))
+        let resolver = ActiveAccountResolver(authService: CurrentFingerprintStub(fingerprint: "live", stableAccountID: nil))
         let useCase = LoadAccountsUseCase(
             repository: repository,
             authService: auth,
@@ -38,7 +38,7 @@ struct LoadAccountsUseCaseTests {
         let saved = makeAccount(name: "Work", fingerprint: "live")
         let repository = LoadingRepositorySpy(accountsToLoad: [saved])
         let auth = ReconcileSpy(reconciledAccounts: [saved])
-        let resolver = ActiveAccountResolver(authService: CurrentFingerprintStub(fingerprint: nil))
+        let resolver = ActiveAccountResolver(authService: CurrentFingerprintStub(fingerprint: nil, stableAccountID: nil))
         let useCase = LoadAccountsUseCase(
             repository: repository,
             authService: auth,
@@ -50,6 +50,55 @@ struct LoadAccountsUseCaseTests {
         #expect(repository.savedAccounts == nil)
         #expect(result.accounts == [saved])
         #expect(result.activeAccountID == nil)
+    }
+
+    @Test
+    func runPersistsBackfilledStableAccountIDForExistingSnapshot() throws {
+        let id = UUID()
+        let saved = CodexAccount(
+            id: id,
+            name: "Work",
+            snapshotFileName: "\(id.uuidString).json",
+            createdAt: .distantPast,
+            updatedAt: .distantPast,
+            email: "work@example.com",
+            planType: nil,
+            rateLimits: nil,
+            identity: CodexAccountIdentity(
+                stableAccountID: nil,
+                snapshotFingerprint: "legacy-fingerprint",
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "work@example.com")
+            )
+        )
+        let reconciled = CodexAccount(
+            id: id,
+            name: "Work",
+            snapshotFileName: "\(id.uuidString).json",
+            createdAt: .distantPast,
+            updatedAt: .distantPast,
+            email: "work@example.com",
+            planType: nil,
+            rateLimits: nil,
+            identity: CodexAccountIdentity(
+                stableAccountID: "acct-123",
+                snapshotFingerprint: "legacy-fingerprint",
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "work@example.com")
+            )
+        )
+
+        let repository = LoadingRepositorySpy(accountsToLoad: [saved])
+        let auth = ReconcileSpy(reconciledAccounts: [reconciled])
+        let resolver = ActiveAccountResolver(authService: CurrentFingerprintStub(fingerprint: nil, stableAccountID: "acct-123"))
+        let useCase = LoadAccountsUseCase(
+            repository: repository,
+            authService: auth,
+            activeAccountResolver: resolver
+        )
+
+        let result = try useCase.run()
+
+        #expect(repository.savedAccounts == [reconciled])
+        #expect(result.activeAccountID == id)
     }
 
     private func makeAccount(
@@ -68,6 +117,7 @@ struct LoadAccountsUseCaseTests {
             planType: nil,
             rateLimits: nil,
             identity: CodexAccountIdentity(
+                stableAccountID: nil,
                 snapshotFingerprint: fingerprint,
                 remoteIdentity: CodexRemoteAccountIdentity(emailAddress: email)
             )
@@ -115,8 +165,13 @@ private final class ReconcileSpy: StoredAccountReconciling {
 
 private struct CurrentFingerprintStub: CodexAuthFingerprintReading {
     let fingerprint: String?
+    let stableAccountID: String?
 
     func currentAuthFingerprint() -> String? {
         fingerprint
+    }
+
+    func currentStableAccountID() -> String? {
+        stableAccountID
     }
 }

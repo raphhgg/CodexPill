@@ -5,7 +5,7 @@ BUILD_ROOT := build
 DERIVED_DATA := $(BUILD_ROOT)/DerivedData/$(AGENT_NAME)
 RESULT_BUNDLE := $(BUILD_ROOT)/results/$(AGENT_NAME)/$(APP_NAME).xcresult
 
-.PHONY: diagnose generate build run clean
+.PHONY: diagnose generate build test run verify-ui verify-ui-live clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -26,8 +26,24 @@ build: generate
 		-derivedDataPath "$(DERIVED_DATA)" \
 		-resultBundlePath "$(RESULT_BUNDLE)"
 
+test: generate
+	mkdir -p $(dir $(RESULT_BUNDLE))
+	xcodebuild test \
+		-project $(PROJECT_PATH) \
+		-scheme $(APP_NAME) \
+		-configuration Debug \
+		-destination "platform=macOS" \
+		-derivedDataPath "$(DERIVED_DATA)" \
+		-resultBundlePath "$(RESULT_BUNDLE)"
+
 run:
-	./run-menubar.sh
+	./script/run_menubar.sh
+
+verify-ui:
+	./script/verify_ui.sh
+
+verify-ui-live:
+	SCENARIO=live-menu-open ./script/verify_ui.sh
 
 clean:
 	rm -rf build

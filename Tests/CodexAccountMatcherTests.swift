@@ -10,14 +10,17 @@ struct CodexAccountMatcherTests {
     func exactSnapshotMatchWinsOverRemoteIdentityFallback() {
         let exact = makeAccount(
             email: "exact@example.com",
-            snapshotFingerprint: "live-fingerprint"
+            snapshotFingerprint: "live-fingerprint",
+            stableAccountID: nil
         )
         let fallback = makeAccount(
             email: "current@example.com",
-            snapshotFingerprint: "other-fingerprint"
+            snapshotFingerprint: "other-fingerprint",
+            stableAccountID: nil
         )
 
         let outcome = matcher.match(
+            liveStableAccountID: nil,
             liveAuthFingerprint: "live-fingerprint",
             liveRemoteIdentity: CodexRemoteAccountIdentity(emailAddress: "current@example.com"),
             accounts: [exact, fallback]
@@ -30,10 +33,12 @@ struct CodexAccountMatcherTests {
     func uniqueRemoteIdentityMatchIsUsedWhenNoSnapshotMatchExists() {
         let account = makeAccount(
             email: "person@example.com",
-            snapshotFingerprint: "saved-fingerprint"
+            snapshotFingerprint: "saved-fingerprint",
+            stableAccountID: nil
         )
 
         let outcome = matcher.match(
+            liveStableAccountID: nil,
             liveAuthFingerprint: "different-fingerprint",
             liveRemoteIdentity: CodexRemoteAccountIdentity(emailAddress: "PERSON@example.com"),
             accounts: [account]
@@ -44,10 +49,11 @@ struct CodexAccountMatcherTests {
 
     @Test
     func ambiguousRemoteIdentityIsExplicit() {
-        let first = makeAccount(email: "shared@example.com", snapshotFingerprint: "one")
-        let second = makeAccount(email: "shared@example.com", snapshotFingerprint: "two")
+        let first = makeAccount(email: "shared@example.com", snapshotFingerprint: "one", stableAccountID: nil)
+        let second = makeAccount(email: "shared@example.com", snapshotFingerprint: "two", stableAccountID: nil)
 
         let outcome = matcher.match(
+            liveStableAccountID: nil,
             liveAuthFingerprint: nil,
             liveRemoteIdentity: CodexRemoteAccountIdentity(emailAddress: "shared@example.com"),
             accounts: [first, second]
@@ -58,9 +64,10 @@ struct CodexAccountMatcherTests {
 
     @Test
     func noMatchIsExplicitWhenNoTrustedSignalMatches() {
-        let account = makeAccount(email: "saved@example.com", snapshotFingerprint: "saved-fingerprint")
+        let account = makeAccount(email: "saved@example.com", snapshotFingerprint: "saved-fingerprint", stableAccountID: nil)
 
         let outcome = matcher.match(
+            liveStableAccountID: nil,
             liveAuthFingerprint: "other-fingerprint",
             liveRemoteIdentity: CodexRemoteAccountIdentity(emailAddress: "other@example.com"),
             accounts: [account]
@@ -69,9 +76,28 @@ struct CodexAccountMatcherTests {
         #expect(outcome == .noMatch)
     }
 
+    @Test
+    func stableAccountIDMatchWinsOverFingerprintMismatch() {
+        let account = makeAccount(
+            email: "saved@example.com",
+            snapshotFingerprint: "stale-fingerprint",
+            stableAccountID: "acct-123"
+        )
+
+        let outcome = matcher.match(
+            liveStableAccountID: "acct-123",
+            liveAuthFingerprint: "different-fingerprint",
+            liveRemoteIdentity: CodexRemoteAccountIdentity(emailAddress: "other@example.com"),
+            accounts: [account]
+        )
+
+        #expect(outcome == .exactStableAccountID(account.id))
+    }
+
     private func makeAccount(
         email: String,
-        snapshotFingerprint: String
+        snapshotFingerprint: String,
+        stableAccountID: String?
     ) -> CodexAccount {
         CodexAccount(
             id: UUID(),
@@ -83,6 +109,7 @@ struct CodexAccountMatcherTests {
             planType: nil,
             rateLimits: nil,
             identity: CodexAccountIdentity(
+                stableAccountID: stableAccountID,
                 snapshotFingerprint: snapshotFingerprint,
                 remoteIdentity: CodexRemoteAccountIdentity(emailAddress: email)
             )

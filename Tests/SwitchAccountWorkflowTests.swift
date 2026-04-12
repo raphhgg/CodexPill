@@ -9,7 +9,7 @@ struct SwitchAccountWorkflowTests {
         let target = makeAccount(name: "Target", fingerprint: "live-fingerprint")
         let other = makeAccount(name: "Other", fingerprint: "other-fingerprint")
 
-        let auth = AuthSpy(currentFingerprint: "live-fingerprint")
+        let auth = AuthSpy(currentFingerprint: "live-fingerprint", currentStableAccountID: nil)
         let repository = RepositorySpy()
         let appController = AppControllerSpy()
         let workflow = SwitchAccountWorkflow(
@@ -30,7 +30,7 @@ struct SwitchAccountWorkflowTests {
     func runStillRelaunchesEvenWhenMatcherCannotResolveActiveAccount() async throws {
         let target = makeAccount(name: "Target", fingerprint: "saved-fingerprint")
 
-        let auth = AuthSpy(currentFingerprint: "different-fingerprint")
+        let auth = AuthSpy(currentFingerprint: "different-fingerprint", currentStableAccountID: nil)
         let repository = RepositorySpy()
         let appController = AppControllerSpy()
         let workflow = SwitchAccountWorkflow(
@@ -56,6 +56,7 @@ struct SwitchAccountWorkflowTests {
             planType: nil,
             rateLimits: nil,
             identity: CodexAccountIdentity(
+                stableAccountID: nil,
                 snapshotFingerprint: fingerprint,
                 remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "\(name.lowercased())@example.com")
             )
@@ -66,9 +67,11 @@ struct SwitchAccountWorkflowTests {
 private final class AuthSpy: CodexAuthActivating {
     var activatedAccountID: UUID?
     private let fingerprint: String?
+    private let stableAccountID: String?
 
-    init(currentFingerprint: String?) {
+    init(currentFingerprint: String?, currentStableAccountID: String?) {
         self.fingerprint = currentFingerprint
+        self.stableAccountID = currentStableAccountID
     }
 
     func activate(_ account: CodexAccount) throws {
@@ -77,6 +80,10 @@ private final class AuthSpy: CodexAuthActivating {
 
     func currentAuthFingerprint() -> String? {
         fingerprint
+    }
+
+    func currentStableAccountID() -> String? {
+        stableAccountID
     }
 }
 

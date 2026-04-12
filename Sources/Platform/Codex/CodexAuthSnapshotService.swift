@@ -34,6 +34,7 @@ struct CodexAuthSnapshotService {
         )
         account.name = name
         account.updatedAt = Date()
+        account.identity.stableAccountID = Self.stableAccountID(for: authData)
         account.identity.snapshotFingerprint = Self.snapshotFingerprint(for: authData)
         try repository.writeSnapshot(data: authData, for: account)
         return account
@@ -58,6 +59,11 @@ struct CodexAuthSnapshotService {
     }
 
     func isActive(_ account: CodexAccount) -> Bool {
+        if let currentStableAccountID = currentStableAccountID(),
+           let savedStableAccountID = account.identity.stableAccountID {
+            return currentStableAccountID == savedStableAccountID
+        }
+
         guard let currentFingerprint = currentAuthFingerprint() else { return false }
         return account.identity.snapshotFingerprint == currentFingerprint
     }
@@ -69,13 +75,25 @@ struct CodexAuthSnapshotService {
         return Self.snapshotFingerprint(for: current)
     }
 
+    func currentStableAccountID() -> String? {
+        guard let current = try? Data(contentsOf: repository.paths.codexAuthFile) else {
+            return nil
+        }
+        return Self.stableAccountID(for: current)
+    }
+
     func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {
         accounts.map { account in
             var reconciled = account
 
-            if reconciled.identity.snapshotFingerprint == nil,
+            if (reconciled.identity.stableAccountID == nil || reconciled.identity.snapshotFingerprint == nil),
                let snapshot = try? repository.readSnapshot(for: account) {
-                reconciled.identity.snapshotFingerprint = Self.snapshotFingerprint(for: snapshot)
+                if reconciled.identity.stableAccountID == nil {
+                    reconciled.identity.stableAccountID = Self.stableAccountID(for: snapshot)
+                }
+                if reconciled.identity.snapshotFingerprint == nil {
+                    reconciled.identity.snapshotFingerprint = Self.snapshotFingerprint(for: snapshot)
+                }
             }
 
             if reconciled.identity.remoteIdentity == nil {
@@ -89,5 +107,18 @@ struct CodexAuthSnapshotService {
     private static func snapshotFingerprint(for data: Data) -> String {
         let digest = SHA256.hash(data: data)
         return digest.map { String(format: "%02x", $0) }.joined()
+    }
+
+    private static func stableAccountID(for data: Data) -> String? {
+        guard
+            let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let tokens = object["tokens"] as? [String: Any]
+        else {
+            return nil
+        }
+
+        let accountID = tokens["account_id"] as? String
+        let trimmed = accountID?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed?.isEmpty == false ? trimmed : nil
     }
 }

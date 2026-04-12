@@ -8,7 +8,7 @@ struct ActiveAccountResolverTests {
     func resolveUsesCurrentAuthFingerprintByDefault() {
         let account = makeAccount(name: "Work", fingerprint: "live-fingerprint", email: "work@example.com")
         let resolver = ActiveAccountResolver(
-            authService: AuthFingerprintSpy(currentFingerprint: "live-fingerprint")
+            authService: AuthFingerprintSpy(currentFingerprint: "live-fingerprint", stableAccountID: nil)
         )
 
         let result = resolver.resolve(accounts: [account])
@@ -20,7 +20,7 @@ struct ActiveAccountResolverTests {
     func resolveFallsBackToRemoteIdentityWhenFingerprintDoesNotMatch() {
         let account = makeAccount(name: "Work", fingerprint: "stale-fingerprint", email: "work@example.com")
         let resolver = ActiveAccountResolver(
-            authService: AuthFingerprintSpy(currentFingerprint: "live-fingerprint")
+            authService: AuthFingerprintSpy(currentFingerprint: "live-fingerprint", stableAccountID: nil)
         )
 
         let result = resolver.resolve(
@@ -42,6 +42,7 @@ struct ActiveAccountResolverTests {
             planType: nil,
             rateLimits: nil,
             identity: CodexAccountIdentity(
+                stableAccountID: nil,
                 snapshotFingerprint: fingerprint,
                 remoteIdentity: CodexRemoteAccountIdentity(emailAddress: email)
             )
@@ -51,8 +52,13 @@ struct ActiveAccountResolverTests {
 
 private struct AuthFingerprintSpy: CodexAuthFingerprintReading {
     let currentFingerprint: String?
+    let stableAccountID: String?
 
     func currentAuthFingerprint() -> String? {
         currentFingerprint
+    }
+
+    func currentStableAccountID() -> String? {
+        stableAccountID
     }
 }

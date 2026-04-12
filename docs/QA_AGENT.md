@@ -6,7 +6,7 @@ Exercise the current `CodexPill` behavior from an agent workflow and distinguish
 
 ## Preconditions
 
-- Build from the current working tree with `./run-menubar.sh`.
+- Build from the current working tree with `./script/run_menubar.sh`.
 - Use a fresh `xcodebuild` result bundle path for any test run.
 - If Codex plugin-manifest warnings appear on stderr, log them separately unless they block a product workflow.
 
@@ -30,13 +30,25 @@ Exercise the current `CodexPill` behavior from an agent workflow and distinguish
 1. Launch the app with:
 
    ```bash
-   ./run-menubar.sh
+   ./script/run_menubar.sh
    ```
 
 2. Confirm:
    - the app appears in the menu bar
    - startup completes without the store getting stuck busy
    - account load finishes and the menu renders
+
+3. Capture repo-standard validation artifacts:
+
+   ```bash
+   make verify-ui
+   make verify-ui-live
+   ```
+
+4. Confirm the artifact directories contain:
+   - hosted screenshots and `ui-tree.json` fixtures for deterministic menu states
+   - a live `live-menu-snapshot.json` emitted by the running app
+   - a live screenshot and `summary.json`
 
 ## Workflow Smoke
 
@@ -99,7 +111,7 @@ Verify:
 1. Stop the app with:
 
    ```bash
-   ./stop-menubar.sh
+   ./script/stop_menubar.sh
    ```
 
 2. Confirm no stray `CodexPill` process remains.

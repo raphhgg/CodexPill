@@ -12,6 +12,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
     private let cliProcessInspector: CodexCLIProcessInspector
     private let alertPresenter: MenuBarAlertPresenter
     private let alertFactory: MenuBarAlertFactory
+    private let validationSink: MenuBarValidationSink?
     private let menuBuilder = MenuBarMenuBuilder()
     private var autoRefreshTimer: Timer?
     private var pendingSignInMonitorTimer: Timer?
@@ -25,7 +26,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
         iconRenderer: StatusBarIconRenderer = StatusBarIconRenderer(),
         cliProcessInspector: CodexCLIProcessInspector = CodexCLIProcessInspector(),
         alertPresenter: MenuBarAlertPresenter,
-        alertFactory: MenuBarAlertFactory = MenuBarAlertFactory()
+        alertFactory: MenuBarAlertFactory = MenuBarAlertFactory(),
+        validationSink: MenuBarValidationSink? = nil
     ) {
         self.statusItem = statusItem
         self.store = store
@@ -34,6 +36,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
         self.cliProcessInspector = cliProcessInspector
         self.alertPresenter = alertPresenter
         self.alertFactory = alertFactory
+        self.validationSink = validationSink
     }
 
     func start() {
@@ -183,7 +186,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
     }
 
     private func rebuildMenu() {
-        statusItem.menu = menuBuilder.makeMenu(state: menuState(), target: self)
+        let state = menuState()
+        statusItem.menu = menuBuilder.makeMenu(state: state, target: self)
+        recordValidationSnapshot(for: state)
     }
 
     private func menuState() -> MenuBarMenuState {
@@ -241,6 +246,16 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
     private func presentPendingErrorIfNeeded() {
         guard let message = store.consumePendingErrorMessage() else { return }
         alertPresenter.presentInfo(alertFactory.makeErrorRequest(message: message))
+    }
+
+    private func recordValidationSnapshot(for state: MenuBarMenuState) {
+        guard let validationSink else { return }
+
+        do {
+            try validationSink.record(MenuBarValidationSupport.makeSnapshot(state: state))
+        } catch {
+            menuBarCoordinatorLogger.error("Failed to record validation snapshot: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     private func syncBackgroundState() {

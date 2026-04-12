@@ -9,7 +9,7 @@ struct DeleteSavedAccountUseCaseTests {
         let current = makeAccount(name: "Current", fingerprint: "live")
         let other = makeAccount(name: "Other", fingerprint: "other")
         let repository = SnapshotDeletingRepositorySpy()
-        let resolver = ActiveAccountResolver(authService: CurrentFingerprintStub(fingerprint: "other"))
+        let resolver = ActiveAccountResolver(authService: CurrentFingerprintStub(fingerprint: "other", stableAccountID: nil))
         let useCase = DeleteSavedAccountUseCase(repository: repository, activeAccountResolver: resolver)
 
         let result = try useCase.run(account: current, accounts: [current, other])
@@ -32,6 +32,7 @@ struct DeleteSavedAccountUseCaseTests {
             planType: nil,
             rateLimits: nil,
             identity: CodexAccountIdentity(
+                stableAccountID: nil,
                 snapshotFingerprint: fingerprint,
                 remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "\(name.lowercased())@example.com")
             )
@@ -54,8 +55,13 @@ private final class SnapshotDeletingRepositorySpy: AccountSnapshotDeleting {
 
 private struct CurrentFingerprintStub: CodexAuthFingerprintReading {
     let fingerprint: String?
+    let stableAccountID: String?
 
     func currentAuthFingerprint() -> String? {
         fingerprint
+    }
+
+    func currentStableAccountID() -> String? {
+        stableAccountID
     }
 }

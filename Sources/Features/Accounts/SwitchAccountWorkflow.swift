@@ -44,6 +44,7 @@ struct SwitchAccountWorkflow {
         try repository.saveAccounts(accounts)
 
         let activeAccountID = accountMatcher.match(
+            liveStableAccountID: authService.currentStableAccountID(),
             liveAuthFingerprint: authService.currentAuthFingerprint(),
             liveRemoteIdentity: nil,
             accounts: accounts

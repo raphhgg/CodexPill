@@ -67,6 +67,93 @@ struct SignInAnotherWorkflowTests {
         #expect(result?.activeAccountID == auth.savedAccount.id)
     }
 
+    @Test
+    func completePendingSignInUpdatesMatchedExistingAccountInsteadOfAppendingDuplicate() async throws {
+        let existing = makeAccount(name: "Business 1", fingerprint: "live-fingerprint")
+        let auth = SignInAnotherAuthSpy(
+            savedAccount: existing,
+            currentAuthData: Data("auth".utf8),
+            currentFingerprint: "live-fingerprint"
+        )
+        let repository = RepositorySpy()
+        let workflow = SignInAnotherWorkflow(
+            authService: auth,
+            appController: AppControllerSpy(),
+            appServerClient: AppServerSpy(status: CodexAccountStatus(email: "admin@raphh.me", planType: "team", rateLimits: nil)),
+            repository: repository,
+            activeAccountResolver: ActiveAccountResolver(authService: auth)
+        )
+
+        let result = try await workflow.completePendingSignIn(
+            pendingAccountName: "Business 2",
+            existingAccounts: [existing]
+        )
+
+        #expect(auth.savedNames == ["Business 1"])
+        #expect(repository.savedAccounts?.count == 1)
+        #expect(repository.savedAccounts?.first?.id == existing.id)
+        #expect(repository.savedAccounts?.first?.name == "Business 1")
+        #expect(result?.activeAccountID == existing.id)
+    }
+
+    @Test
+    func completePendingSignInDoesNotReuseExistingAccountBasedOnlyOnSharedEmail() async throws {
+        let personal = CodexAccount(
+            id: UUID(),
+            name: "Personal",
+            snapshotFileName: "\(UUID().uuidString).json",
+            createdAt: .distantPast,
+            updatedAt: .distantPast,
+            email: "raphaelgrau@gmail.com",
+            planType: "plus",
+            rateLimits: nil,
+            identity: CodexAccountIdentity(
+                stableAccountID: "personal-account",
+                snapshotFingerprint: "personal-fingerprint",
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@gmail.com")
+            )
+        )
+        let business = CodexAccount(
+            id: UUID(),
+            name: "Business 2",
+            snapshotFileName: "\(UUID().uuidString).json",
+            createdAt: .distantPast,
+            updatedAt: .distantPast,
+            email: nil,
+            planType: nil,
+            rateLimits: nil,
+            identity: CodexAccountIdentity(
+                stableAccountID: "business-account",
+                snapshotFingerprint: "business-fingerprint",
+                remoteIdentity: nil
+            )
+        )
+        let auth = SignInAnotherAuthSpy(
+            savedAccount: business,
+            currentAuthData: Data("auth".utf8),
+            currentFingerprint: "business-fingerprint",
+            currentStableAccountID: "business-account"
+        )
+        let repository = RepositorySpy()
+        let workflow = SignInAnotherWorkflow(
+            authService: auth,
+            appController: AppControllerSpy(),
+            appServerClient: AppServerSpy(status: CodexAccountStatus(email: "raphaelgrau@gmail.com", planType: "team", rateLimits: nil)),
+            repository: repository,
+            activeAccountResolver: ActiveAccountResolver(authService: auth)
+        )
+
+        let result = try await workflow.completePendingSignIn(
+            pendingAccountName: "Business 2",
+            existingAccounts: [personal]
+        )
+
+        #expect(repository.savedAccounts?.count == 2)
+        #expect(repository.savedAccounts?.contains(where: { $0.id == personal.id }) == true)
+        #expect(repository.savedAccounts?.contains(where: { $0.id == business.id }) == true)
+        #expect(result?.activeAccountID == business.id)
+    }
+
     private func makeAccount(name: String, fingerprint: String) -> CodexAccount {
         CodexAccount(
             id: UUID(),
@@ -78,6 +165,7 @@ struct SignInAnotherWorkflowTests {
             planType: nil,
             rateLimits: nil,
             identity: CodexAccountIdentity(
+                stableAccountID: nil,
                 snapshotFingerprint: fingerprint,
                 remoteIdentity: nil
             )
@@ -89,17 +177,20 @@ private final class SignInAnotherAuthSpy: CodexSignInAnotherAuthHandling {
     let savedAccount: CodexAccount
     let currentAuthData: Data?
     let currentFingerprint: String?
+    let stableAccountIDValue: String?
     var prepareForNewSignInCount = 0
     var savedNames: [String] = []
 
     init(
         savedAccount: CodexAccount,
         currentAuthData: Data? = nil,
-        currentFingerprint: String? = nil
+        currentFingerprint: String? = nil,
+        currentStableAccountID: String? = nil
     ) {
         self.savedAccount = savedAccount
         self.currentAuthData = currentAuthData
         self.currentFingerprint = currentFingerprint
+        self.stableAccountIDValue = currentStableAccountID
     }
 
     func prepareForNewSignIn() throws {
@@ -115,6 +206,10 @@ private final class SignInAnotherAuthSpy: CodexSignInAnotherAuthHandling {
 
     func currentAuthFingerprint() -> String? {
         currentFingerprint
+    }
+
+    func currentStableAccountID() -> String? {
+        stableAccountIDValue
     }
 
     func saveCurrentAuthSnapshot(named name: String, existing: CodexAccount?) throws -> CodexAccount {

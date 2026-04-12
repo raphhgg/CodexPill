@@ -1,17 +1,19 @@
 import Foundation
 
 enum CodexAccountMatchOutcome: Equatable {
+    case exactStableAccountID(UUID)
     case exactSnapshot(UUID)
     case uniqueRemoteIdentity(UUID)
+    case ambiguousStableAccountID([UUID])
     case ambiguousSnapshotFingerprint([UUID])
     case ambiguousRemoteIdentity([UUID])
     case noMatch
 
     var matchedAccountID: UUID? {
         switch self {
-        case .exactSnapshot(let id), .uniqueRemoteIdentity(let id):
+        case .exactStableAccountID(let id), .exactSnapshot(let id), .uniqueRemoteIdentity(let id):
             return id
-        case .ambiguousSnapshotFingerprint, .ambiguousRemoteIdentity, .noMatch:
+        case .ambiguousStableAccountID, .ambiguousSnapshotFingerprint, .ambiguousRemoteIdentity, .noMatch:
             return nil
         }
     }
@@ -19,10 +21,26 @@ enum CodexAccountMatchOutcome: Equatable {
 
 struct CodexAccountMatcher {
     func match(
+        liveStableAccountID: String?,
         liveAuthFingerprint: String?,
         liveRemoteIdentity: CodexRemoteAccountIdentity?,
         accounts: [CodexAccount]
     ) -> CodexAccountMatchOutcome {
+        if let liveStableAccountID {
+            let stableMatches = accounts
+                .filter { $0.identity.stableAccountID == liveStableAccountID }
+                .map(\.id)
+
+            switch stableMatches.count {
+            case 1:
+                return .exactStableAccountID(stableMatches[0])
+            case let count where count > 1:
+                return .ambiguousStableAccountID(stableMatches.sorted(by: uuidSort))
+            default:
+                break
+            }
+        }
+
         if let liveAuthFingerprint {
             let snapshotMatches = accounts
                 .filter { $0.identity.snapshotFingerprint == liveAuthFingerprint }

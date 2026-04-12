@@ -57,13 +57,15 @@ enum RefreshActiveAccountUseCaseError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
+        case .targetResolutionFailed(.ambiguousStableAccountID):
+            "Could not refresh the active account because more than one saved account matches the current Codex account id."
         case .targetResolutionFailed(.ambiguousSnapshotFingerprint):
             "Could not refresh the active account because more than one saved account matches the current auth snapshot."
         case .targetResolutionFailed(.ambiguousRemoteIdentity):
             "Could not refresh the active account because more than one saved account matches the current Codex account identity."
         case .targetResolutionFailed(.noMatch):
             "Could not refresh the active account because the current Codex account does not match any saved account."
-        case .targetResolutionFailed(.exactSnapshot), .targetResolutionFailed(.uniqueRemoteIdentity):
+        case .targetResolutionFailed(.exactStableAccountID), .targetResolutionFailed(.exactSnapshot), .targetResolutionFailed(.uniqueRemoteIdentity):
             "Could not refresh the active account."
         case .targetMissing:
             "Could not refresh the active account because the matched saved account is missing."

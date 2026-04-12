@@ -1,5 +1,4 @@
 import Foundation
-
 struct CodexAccountStatus {
     var email: String?
     var planType: String?
@@ -11,23 +10,99 @@ struct CodexAccountStatus {
 }
 
 final class CodexAppServerClient {
-    private let decoder = JSONDecoder()
+    typealias StatusReader = @Sendable (_ refreshToken: Bool) async throws -> CodexAccountStatus
+    typealias Sleeper = @Sendable (_ duration: Duration) async -> Void
+    private let statusReader: StatusReader
+    private let sleeper: Sleeper
 
     init() {
+        let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
+        statusReader = { refreshToken in
+            try await Self.readAccountStatus(
+                decoder: decoder,
+                executableURL: URL(fileURLWithPath: "/usr/bin/env"),
+                arguments: ["codex", "app-server"],
+                refreshToken: refreshToken
+            )
+        }
+        sleeper = { duration in
+            try? await Task.sleep(for: duration)
+        }
+    }
+
+    init(
+        statusReader: @escaping StatusReader,
+        sleeper: @escaping Sleeper
+    ) {
+        self.statusReader = statusReader
+        self.sleeper = sleeper
     }
 
     func readCurrentAccountStatus() async throws -> CodexAccountStatus {
-        try await readAccountStatus(
-            executableURL: URL(fileURLWithPath: "/usr/bin/env"),
-            arguments: ["codex", "app-server"]
+        let attempts: [(refreshToken: Bool, delay: Duration)] = [
+            (false, .zero),
+            (true, .seconds(1))
+        ]
+
+        var latestPartialStatus: CodexAccountStatus?
+        var latestError: Error?
+
+        for (index, attempt) in attempts.enumerated() {
+            if attempt.delay > .zero {
+                await sleeper(attempt.delay)
+            }
+
+            do {
+                let status = try await statusReader(attempt.refreshToken)
+                latestPartialStatus = mergeStatuses(previous: latestPartialStatus, current: status)
+
+                guard shouldRetry(status: latestPartialStatus, attemptIndex: index, totalAttempts: attempts.count) else {
+                    return latestPartialStatus ?? status
+                }
+            } catch {
+                latestError = error
+
+                guard index < attempts.count - 1 else {
+                    if let latestPartialStatus {
+                        return latestPartialStatus
+                    }
+                    throw error
+                }
+            }
+        }
+
+        if let latestPartialStatus {
+            return latestPartialStatus
+        }
+
+        throw latestError ?? CocoaError(.coderReadCorrupt)
+    }
+
+    private func shouldRetry(status: CodexAccountStatus?, attemptIndex: Int, totalAttempts: Int) -> Bool {
+        guard attemptIndex < totalAttempts - 1 else { return false }
+        guard let status else { return true }
+        return status.email != nil && status.rateLimits == nil
+    }
+
+    private func mergeStatuses(previous: CodexAccountStatus?, current: CodexAccountStatus) -> CodexAccountStatus {
+        CodexAccountStatus(
+            email: current.email ?? previous?.email,
+            planType: current.planType ?? previous?.planType,
+            rateLimits: current.rateLimits ?? previous?.rateLimits
         )
     }
 
-    private func readAccountStatus(executableURL: URL, arguments: [String]) async throws -> CodexAccountStatus {
+    private static func readAccountStatus(
+        decoder: JSONDecoder,
+        executableURL: URL,
+        arguments: [String],
+        refreshToken: Bool
+    ) async throws -> CodexAccountStatus {
         try await withCheckedThrowingContinuation { continuation in
             let process = Process()
             let inputPipe = Pipe()
+            let inputHandle = inputPipe.fileHandleForWriting
             let outputPipe = Pipe()
             let errorPipe = Pipe()
             let state = AppServerSessionState()
@@ -36,6 +111,7 @@ final class CodexAppServerClient {
                 guard state.markFinished() else { return }
                 outputPipe.fileHandleForReading.readabilityHandler = nil
                 errorPipe.fileHandleForReading.readabilityHandler = nil
+                try? inputHandle.close()
                 if process.isRunning {
                     process.terminate()
                 }
@@ -46,29 +122,12 @@ final class CodexAppServerClient {
                 let data = handle.availableData
                 guard !data.isEmpty else { return }
 
-                for line in state.appendOutput(data) {
-                    guard let lineData = line.data(using: .utf8) else { continue }
-                    do {
-                        let envelope = try self.decoder.decode(AppServerEnvelope.self, from: lineData)
-                        switch envelope.id {
-                        case 2:
-                            let accountResponse = try self.decoder.decode(AppServerAccountResponse.self, from: envelope.result)
-                            state.setAccountResponse(accountResponse)
-                        case 3:
-                            let rateLimitResponse = try self.decoder.decode(AppServerRateLimitsResponse.self, from: envelope.result)
-                            state.setRateLimitResponse(rateLimitResponse)
-                        default:
-                            continue
-                        }
-
-                        if let snapshot = state.completeStatus() {
-                            finish(.success(snapshot))
-                            return
-                        }
-                    } catch {
-                        finish(.failure(error))
-                        return
+                do {
+                    if let snapshot = try consumeOutputData(data, decoder: decoder, state: state) {
+                        finish(.success(snapshot))
                     }
+                } catch {
+                    finish(.failure(error))
                 }
             }
 
@@ -84,6 +143,24 @@ final class CodexAppServerClient {
             process.standardOutput = outputPipe
             process.standardError = errorPipe
             process.terminationHandler = { process in
+                let trailingOutput = outputPipe.fileHandleForReading.readDataToEndOfFile()
+                if !trailingOutput.isEmpty {
+                    do {
+                        if let snapshot = try consumeOutputData(trailingOutput, decoder: decoder, state: state) {
+                            finish(.success(snapshot))
+                            return
+                        }
+                    } catch {
+                        finish(.failure(error))
+                        return
+                    }
+                }
+
+                let trailingError = errorPipe.fileHandleForReading.readDataToEndOfFile()
+                if !trailingError.isEmpty {
+                    state.appendErrorOutput(trailingError)
+                }
+
                 if process.terminationStatus == 0, let partialStatus = state.partialStatus() {
                     finish(.success(partialStatus))
                     return
@@ -101,11 +178,12 @@ final class CodexAppServerClient {
                 try process.run()
                 let requests = [
                     #"{"method":"initialize","id":1,"params":{"clientInfo":{"name":"codexpill","title":"CodexPill","version":"0.1.0"},"capabilities":{"experimentalApi":true}}}"#,
-                    #"{"method":"account/read","id":2,"params":{"refreshToken":false}}"#,
-                    #"{"method":"account/rateLimits/read","id":3,"params":null}"#
+                    #"{"method":"initialized","params":{}}"#,
+                    #"{"method":"account/read","id":2,"params":{"refreshToken":\#(refreshToken ? "true" : "false")}}"#,
+                    #"{"method":"account/rateLimits/read","id":3,"params":{}}"#
                 ]
                 let payload = requests.joined(separator: "\n") + "\n"
-                inputPipe.fileHandleForWriting.write(Data(payload.utf8))
+                inputHandle.write(Data(payload.utf8))
 
                 Task {
                     try? await Task.sleep(for: .seconds(4))
@@ -126,7 +204,35 @@ final class CodexAppServerClient {
     }
 }
 
-private final class AppServerSessionState: @unchecked Sendable {
+func consumeOutputData(
+    _ data: Data,
+    decoder: JSONDecoder,
+    state: AppServerSessionState
+) throws -> CodexAccountStatus? {
+    for line in state.appendOutput(data) {
+        guard let lineData = line.data(using: .utf8) else { continue }
+
+        let envelope = try decoder.decode(AppServerEnvelope.self, from: lineData)
+        switch envelope.id {
+        case 2:
+            let accountResponse = try decoder.decode(AppServerAccountResponse.self, from: envelope.result)
+            state.setAccountResponse(accountResponse)
+        case 3:
+            let rateLimitResponse = try decoder.decode(AppServerRateLimitsResponse.self, from: envelope.result)
+            state.setRateLimitResponse(rateLimitResponse)
+        default:
+            continue
+        }
+
+        if let snapshot = state.completeStatus() {
+            return snapshot
+        }
+    }
+
+    return nil
+}
+
+final class AppServerSessionState: @unchecked Sendable {
     private let lock = NSLock()
     private var buffer = Data()
     private var errorBuffer = Data()
@@ -170,6 +276,7 @@ private final class AppServerSessionState: @unchecked Sendable {
     func completeStatus() -> CodexAccountStatus? {
         lock.lock()
         defer { lock.unlock() }
+        guard accountResponse != nil, rateLimitResponse != nil else { return nil }
         return makeAccountStatus(account: accountResponse, rateLimits: rateLimitResponse)
     }
 
@@ -216,7 +323,7 @@ private func splitLines(from buffer: inout Data) -> [String] {
     return lines
 }
 
-private struct AppServerEnvelope: Decodable {
+struct AppServerEnvelope: Decodable {
     let id: Int
     let result: Data
 
@@ -233,7 +340,7 @@ private struct AppServerEnvelope: Decodable {
     }
 }
 
-private struct AppServerAccountResponse: Decodable {
+struct AppServerAccountResponse: Decodable {
     let account: Account?
 
     struct Account: Decodable {
@@ -242,11 +349,11 @@ private struct AppServerAccountResponse: Decodable {
     }
 }
 
-private struct AppServerRateLimitsResponse: Decodable {
+struct AppServerRateLimitsResponse: Decodable {
     let rateLimits: RateLimitSnapshot
 }
 
-private struct RateLimitSnapshot: Decodable {
+struct RateLimitSnapshot: Decodable {
     let limitId: String?
     let limitName: String?
     let planType: String?
@@ -265,7 +372,7 @@ private struct RateLimitSnapshot: Decodable {
     }
 }
 
-private struct RateLimitWindow: Decodable {
+struct RateLimitWindow: Decodable {
     let usedPercent: Int
     let resetsAt: Int?
     let windowDurationMins: Int?

@@ -22,6 +22,7 @@ final class MenuBarStore {
     private(set) var accounts: [CodexAccount] = []
     private(set) var activeAccountID: UUID?
     private var pendingSignedInAccountName: String?
+    private var isCompletingPendingSignedInAccount = false
     private(set) var pendingErrorMessage: String?
     var statusMessage = "Ready"
     var isBusy = false
@@ -94,15 +95,20 @@ final class MenuBarStore {
             }
             accounts.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
             activeAccountID = result.activeAccountID
+            await silentlyRefreshActiveAccountData(after: .zero)
         }
     }
 
     func completePendingSignedInAccountIfNeeded() async {
         guard let pendingSignedInAccountName else { return }
+        guard !isCompletingPendingSignedInAccount else { return }
         guard activeAccountID == nil else {
             self.pendingSignedInAccountName = nil
             return
         }
+
+        isCompletingPendingSignedInAccount = true
+        defer { isCompletingPendingSignedInAccount = false }
 
         await perform("Saving signed-in account...") {
             guard let result = try await signInAnotherWorkflow.completePendingSignIn(
@@ -111,10 +117,15 @@ final class MenuBarStore {
             ) else {
                 return
             }
-            accounts.append(result.savedAccount)
+            if let index = accounts.firstIndex(where: { $0.id == result.savedAccount.id }) {
+                accounts[index] = result.savedAccount
+            } else {
+                accounts.append(result.savedAccount)
+            }
             accounts.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
             activeAccountID = result.activeAccountID
             self.pendingSignedInAccountName = nil
+            await silentlyRefreshActiveAccountData(after: .seconds(2))
         }
     }
 
@@ -124,6 +135,7 @@ final class MenuBarStore {
                 account: account,
                 accounts: accounts
             )
+            await silentlyRefreshActiveAccountData(after: .seconds(2))
         }
     }
 
@@ -205,6 +217,23 @@ final class MenuBarStore {
 
     private func stateDidChange() {
         NotificationCenter.default.post(name: .codexSwitchboardStoreDidChange, object: self)
+    }
+
+    private func silentlyRefreshActiveAccountData(after delay: Duration) async {
+        guard activeAccountID != nil else { return }
+
+        if delay > .zero {
+            try? await Task.sleep(for: delay)
+        }
+
+        do {
+            let result = try await refreshActiveAccountUseCase.run(accounts: accounts)
+            accounts = result.accounts
+            activeAccountID = result.refreshedAccountID
+            stateDidChange()
+        } catch {
+            menuBarStoreLogger.log("Silent post-activation refresh skipped: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     private func compareInactiveAccounts(_ lhs: CodexAccount, _ rhs: CodexAccount) -> Bool {

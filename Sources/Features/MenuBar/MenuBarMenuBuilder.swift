@@ -61,7 +61,6 @@ struct MenuBarMenuBuilder {
         } else {
             menu.addItem(sectionHeaderItem("Current Account", bottomPadding: 4))
             menu.addItem(disabledInfoItem("No active saved account"))
-            menu.addItem(disabledInfoItem("Use Add Current Account… while logged into Codex."))
         }
 
         if !state.visibleInactiveAccounts.isEmpty {
@@ -298,13 +297,8 @@ private struct ActiveAccountMenuContent: View {
                 .padding(.top, -2)
             }
 
-            if let primary = account.rateLimits?.primary {
-                ActiveLimitRow(title: "Session", window: primary)
-            }
-
-            if let secondary = account.rateLimits?.secondary {
-                ActiveLimitRow(title: "Weekly", window: secondary)
-            }
+            ActiveLimitRow(title: "Session", window: account.rateLimits?.primary)
+            ActiveLimitRow(title: "Weekly", window: account.rateLimits?.secondary)
         }
         .padding(.horizontal, 14)
         .padding(.top, 4)
@@ -315,21 +309,25 @@ private struct ActiveAccountMenuContent: View {
 
 private struct ActiveLimitRow: View {
     let title: String
-    let window: CodexRateLimitWindow
+    let window: CodexRateLimitWindow?
 
     var body: some View {
-        let displayedUsedPercent = window.displayedUsedPercent()
+        let displayedUsedPercent = window?.displayedUsedPercent() ?? 0
+        let usageText = window.map { "\($0.displayedUsedPercent())% used" } ?? "--"
 
         VStack(alignment: .leading, spacing: 5) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
             ProgressView(value: Double(displayedUsedPercent), total: 100)
             HStack {
-                Text("\(displayedUsedPercent)% used")
+                Text(usageText)
                     .monospacedDigit()
                 Spacer()
-                if let resetStatus = resetStatusText(for: window) {
+                if let window, let resetStatus = resetStatusText(for: window) {
                     Text(resetStatus)
+                        .foregroundStyle(.secondary)
+                } else if window == nil {
+                    Text("Unavailable")
                         .foregroundStyle(.secondary)
                 }
             }

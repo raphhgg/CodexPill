@@ -55,14 +55,20 @@ struct SignInAnotherWorkflow {
             return nil
         }
 
-        let resolvedName = resolveAccountName(pendingAccountName, fallbackEmail: nil)
-        guard !existingAccounts.contains(where: { $0.name.caseInsensitiveCompare(resolvedName) == .orderedSame }) else {
+        let remote = try? await appServerClient.readCurrentAccountStatus()
+        let matchedAccountID = activeAccountResolver.resolveActiveAccountID(accounts: existingAccounts)
+        let existing = matchedAccountID.flatMap { id in
+            existingAccounts.first(where: { $0.id == id })
+        }
+        let resolvedName = existing?.name ?? resolveAccountName(pendingAccountName, fallbackEmail: nil)
+
+        if matchedAccountID == nil,
+           existingAccounts.contains(where: { $0.name.caseInsensitiveCompare(resolvedName) == .orderedSame }) {
             throw SaveCurrentAccountWorkflowError.duplicateAccountName
         }
 
-        let saved = try authService.saveCurrentAuthSnapshot(named: resolvedName, existing: nil)
+        let saved = try authService.saveCurrentAuthSnapshot(named: resolvedName, existing: existing)
         var enriched = saved
-        let remote = try? await appServerClient.readCurrentAccountStatus()
 
         if let remote {
             enriched.applyRemoteMetadata(
@@ -73,18 +79,18 @@ struct SignInAnotherWorkflow {
         }
 
         var updatedAccounts = existingAccounts
-        updatedAccounts.append(enriched)
+        if let matchedAccountID,
+           let existingIndex = updatedAccounts.firstIndex(where: { $0.id == matchedAccountID }) {
+            updatedAccounts[existingIndex] = enriched
+        } else {
+            updatedAccounts.append(enriched)
+        }
         updatedAccounts.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         try repository.saveAccounts(updatedAccounts)
 
-        let activeAccountID = activeAccountResolver.resolveActiveAccountID(
-            accounts: updatedAccounts,
-            liveRemoteIdentity: remote?.remoteIdentity
-        )
-
         return CompletePendingSignedInAccountResult(
             savedAccount: enriched,
-            activeAccountID: activeAccountID
+            activeAccountID: enriched.id
         )
     }
 

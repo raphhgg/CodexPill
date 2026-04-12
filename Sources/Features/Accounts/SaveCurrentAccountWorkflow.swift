@@ -70,6 +70,7 @@ struct SaveCurrentAccountWorkflow {
         try repository.saveAccounts(updatedAccounts)
 
         let activeAccountID = accountMatcher.match(
+            liveStableAccountID: saved.identity.stableAccountID,
             liveAuthFingerprint: saved.identity.snapshotFingerprint,
             liveRemoteIdentity: remote.remoteIdentity,
             accounts: updatedAccounts

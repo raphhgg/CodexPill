@@ -1,10 +1,11 @@
 import Foundation
 
 struct CodexAccountIdentity: Codable, Hashable {
+    var stableAccountID: String?
     var snapshotFingerprint: String?
     var remoteIdentity: CodexRemoteAccountIdentity?
 
-    static let empty = Self(snapshotFingerprint: nil, remoteIdentity: nil)
+    static let empty = Self(stableAccountID: nil, snapshotFingerprint: nil, remoteIdentity: nil)
 }
 
 struct CodexRemoteAccountIdentity: Codable, Hashable {
@@ -76,6 +77,7 @@ struct CodexAccount: Identifiable, Codable, Hashable {
         rateLimits = try container.decodeIfPresent(CodexRateLimitSnapshot.self, forKey: .rateLimits)
         identity = try container.decodeIfPresent(CodexAccountIdentity.self, forKey: .identity)
             ?? CodexAccountIdentity(
+                stableAccountID: nil,
                 snapshotFingerprint: nil,
                 remoteIdentity: CodexRemoteAccountIdentity(emailAddress: email)
             )

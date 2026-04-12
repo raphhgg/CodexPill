@@ -27,7 +27,8 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
             statusItem: statusItem,
             store: store,
             settings: settings,
-            alertPresenter: MenuBarAlertPresenter()
+            alertPresenter: MenuBarAlertPresenter(),
+            validationSink: MenuBarValidationConfiguration.makeSink()
         )
 
         storeObserver = NotificationCenter.default.addObserver(

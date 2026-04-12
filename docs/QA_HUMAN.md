@@ -9,11 +9,19 @@ Manually verify that `CodexPill` still behaves correctly after the recent archit
 1. Launch the app:
 
    ```bash
-   ./run-menubar.sh
+   ./script/run_menubar.sh
    ```
 
 2. Keep `CodexPill` visible in the menu bar while testing.
 3. Have at least two Codex accounts available if you want full switch-flow coverage.
+4. If you want the same proof bundle the agent uses, run:
+
+   ```bash
+   make verify-ui
+   make verify-ui-live
+   ```
+
+   The artifacts land in `build/verification/local/`.
 
 ## Test Cases
 

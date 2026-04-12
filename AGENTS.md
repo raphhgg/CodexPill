@@ -3,14 +3,14 @@
 ## Read First
 
 1. Read this file first.
-2. Read [docs/BOOTSTRAP.md](/Users/raphaelgrau/Projects/codex-usage-menubar-app/docs/BOOTSTRAP.md) for current product truth.
-3. For shared standards, load `/Users/raphaelgrau/agent-standards/AGENTS.md`.
+2. Read `$HOME/Projects/codex-usage-menubar-app/docs/BOOTSTRAP.md` for current product truth.
+3. For shared standards, load `$HOME/agent-standards/AGENTS.md`.
 
 ## Shared Standards
 
 - This repo is a prototype-first bootstrap.
 - Prefer the `bootstrap-orchestrator` path for day-zero changes and the `macos-menubar-tuist-app` skill for scaffold/build loop work.
-- Load one shape doc and only the minimum matching capability docs from `/Users/raphaelgrau/agent-standards`.
+- Load one shape doc and only the minimum matching capability docs from `$HOME/agent-standards`.
 
 ## Project Shape
 
