@@ -7,6 +7,7 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var storeObserver: NSObjectProtocol?
     private var settingsObserver: NSObjectProtocol?
+    private var wakeObserver: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let repository = try! AccountRepository()
@@ -47,6 +48,15 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
                 self?.coordinator.handleSettingsChange()
             }
         }
+        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.coordinator.handleSystemDidWake()
+            }
+        }
 
         store.load()
         coordinator.start()
@@ -58,6 +68,9 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
         }
         if let settingsObserver {
             NotificationCenter.default.removeObserver(settingsObserver)
+        }
+        if let wakeObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver)
         }
         coordinator.invalidate()
     }

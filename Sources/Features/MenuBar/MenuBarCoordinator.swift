@@ -14,6 +14,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
     private let alertFactory: MenuBarAlertFactory
     private let menuBuilder = MenuBarMenuBuilder()
     private var autoRefreshTimer: Timer?
+    private var pendingSignInMonitorTimer: Timer?
+    private var wakeRefreshTask: Task<Void, Never>?
+    private var hasPromptedForEmptyState = false
 
     init(
         statusItem: NSStatusItem,
@@ -37,16 +40,23 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
         updateStatusItemAppearance()
         rebuildMenu()
         scheduleAutoRefresh()
+        syncBackgroundState()
     }
 
     func invalidate() {
         autoRefreshTimer?.invalidate()
+        pendingSignInMonitorTimer?.invalidate()
+        wakeRefreshTask?.cancel()
     }
 
     func handleStoreChange() {
+        if !store.accounts.isEmpty {
+            hasPromptedForEmptyState = false
+        }
         updateStatusItemAppearance()
         rebuildMenu()
         presentPendingErrorIfNeeded()
+        syncBackgroundState()
     }
 
     func handleSettingsChange() {
@@ -58,7 +68,18 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
     func menuWillOpen(_ menu: NSMenu) {
         store.refreshActiveAccount()
         rebuildMenu()
-        Task { await store.completePendingSignedInAccountIfNeeded() }
+    }
+
+    func handleSystemDidWake() {
+        scheduleAutoRefresh()
+        wakeRefreshTask?.cancel()
+        wakeRefreshTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(6))
+            await MainActor.run {
+                guard let self else { return }
+                self.performScheduledRefresh()
+            }
+        }
     }
 
     @objc
@@ -85,6 +106,25 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
 
         menuBarCoordinatorLogger.log("Dispatching sign-in-another task to store")
         Task { await store.startSignInAnotherAccountFlow(named: name) }
+    }
+
+    @objc
+    func removeAccount(_ sender: NSMenuItem) {
+        guard
+            let idString = sender.representedObject as? String,
+            let id = UUID(uuidString: idString),
+            let account = store.accounts.first(where: { $0.id == id })
+        else {
+            return
+        }
+
+        let request = alertFactory.makeRemoveAccountRequest(
+            accountName: account.name,
+            isCurrent: account.id == store.activeAccountID
+        )
+
+        guard alertPresenter.presentConfirmation(request) else { return }
+        Task { await store.removeSavedAccount(account) }
     }
 
     @objc
@@ -181,8 +221,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
     }
 
     private func updateStatusItemAppearance() {
-        let primary = store.activeAccount?.rateLimits?.primary?.usedPercent
-        let secondary = store.activeAccount?.rateLimits?.secondary?.usedPercent
+        let primary = store.activeAccount?.rateLimits?.primary?.displayedUsedPercent()
+        let secondary = store.activeAccount?.rateLimits?.secondary?.displayedUsedPercent()
         statusItem.button?.image = iconRenderer.makeImage(
             style: settings.statusBarIndicatorStyle,
             primaryPercent: primary,
@@ -201,5 +241,40 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
     private func presentPendingErrorIfNeeded() {
         guard let message = store.consumePendingErrorMessage() else { return }
         alertPresenter.presentInfo(alertFactory.makeErrorRequest(message: message))
+    }
+
+    private func syncBackgroundState() {
+        schedulePendingSignInMonitorIfNeeded()
+        promptForEmptyStateIfNeeded()
+    }
+
+    private func schedulePendingSignInMonitorIfNeeded() {
+        guard store.hasPendingSignedInAccount else {
+            pendingSignInMonitorTimer?.invalidate()
+            pendingSignInMonitorTimer = nil
+            return
+        }
+
+        guard pendingSignInMonitorTimer == nil else { return }
+
+        pendingSignInMonitorTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                await self.store.completePendingSignedInAccountIfNeeded()
+                if !self.store.hasPendingSignedInAccount {
+                    self.pendingSignInMonitorTimer?.invalidate()
+                    self.pendingSignInMonitorTimer = nil
+                }
+            }
+        }
+    }
+
+    private func promptForEmptyStateIfNeeded() {
+        guard store.accounts.isEmpty, !store.isBusy, !store.hasPendingSignedInAccount, !hasPromptedForEmptyState else { return }
+        hasPromptedForEmptyState = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.store.accounts.isEmpty, !self.store.isBusy, !self.store.hasPendingSignedInAccount else { return }
+            self.addCurrentAccount()
+        }
     }
 }

@@ -25,6 +25,14 @@ struct MenuBarMenuState {
         !isBusy
     }
 
+    var canRemoveSavedAccounts: Bool {
+        !isBusy && allSavedAccounts.count > 0
+    }
+
+    var allSavedAccounts: [CodexAccount] {
+        [activeAccount].compactMap { $0 } + inactiveAccounts
+    }
+
     var visibleInactiveAccounts: [CodexAccount] {
         guard visibleInactiveAccountCount > 0 else { return inactiveAccounts }
         return Array(inactiveAccounts.prefix(visibleInactiveAccountCount))
@@ -72,8 +80,7 @@ struct MenuBarMenuBuilder {
         }
 
         menu.addItem(.separator())
-        menu.addItem(addAccountMenuItem(state: state, target: target))
-        menu.addItem(visibleAccountsMenuItem(state: state, target: target))
+        menu.addItem(accountsMenuItem(state: state, target: target))
         menu.addItem(refreshIntervalMenuItem(state: state, target: target))
         menu.addItem(statusBarStyleMenuItem(state: state, target: target))
         menu.addItem(actionItem(title: "About", systemImage: "info.circle", action: #selector(MenuBarCoordinator.showAbout), state: state, target: target))
@@ -147,6 +154,47 @@ struct MenuBarMenuBuilder {
         signInAnother.target = target
         signInAnother.isEnabled = state.canSignInAnotherAccount
         submenu.addItem(signInAnother)
+
+        item.submenu = submenu
+        return item
+    }
+
+    private func accountsMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Accounts", action: nil, keyEquivalent: "")
+        item.image = NSImage(systemSymbolName: "person.2.circle", accessibilityDescription: "Accounts")
+
+        let submenu = NSMenu(title: "Accounts")
+        submenu.addItem(addAccountMenuItem(state: state, target: target))
+        submenu.addItem(removeAccountMenuItem(state: state, target: target))
+        submenu.addItem(visibleAccountsMenuItem(state: state, target: target))
+
+        item.submenu = submenu
+        return item
+    }
+
+    private func removeAccountMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Remove Account", action: nil, keyEquivalent: "")
+        item.image = NSImage(systemSymbolName: "trash", accessibilityDescription: "Remove Account")
+        item.isEnabled = state.canRemoveSavedAccounts
+
+        let submenu = NSMenu(title: "Remove Account")
+        for account in state.allSavedAccounts {
+            let option = NSMenuItem(
+                title: account.id == state.activeAccount?.id ? "\(account.name) (Current)" : account.name,
+                action: #selector(MenuBarCoordinator.removeAccount(_:)),
+                keyEquivalent: ""
+            )
+            option.target = target
+            option.representedObject = account.id.uuidString
+            option.isEnabled = state.canRemoveSavedAccounts
+            submenu.addItem(option)
+        }
+
+        if submenu.items.isEmpty {
+            let empty = NSMenuItem(title: "No saved accounts", action: nil, keyEquivalent: "")
+            empty.isEnabled = false
+            submenu.addItem(empty)
+        }
 
         item.submenu = submenu
         return item
@@ -272,12 +320,14 @@ private struct ActiveLimitRow: View {
     let window: CodexRateLimitWindow
 
     var body: some View {
+        let displayedUsedPercent = window.displayedUsedPercent()
+
         VStack(alignment: .leading, spacing: 5) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
-            ProgressView(value: Double(window.usedPercent), total: 100)
+            ProgressView(value: Double(displayedUsedPercent), total: 100)
             HStack {
-                Text("\(window.usedPercent)% used")
+                Text("\(displayedUsedPercent)% used")
                     .monospacedDigit()
                 Spacer()
                 if let resetStatus = resetStatusText(for: window) {
@@ -341,8 +391,8 @@ private func inactiveAccountTitle(for account: CodexAccount) -> NSAttributedStri
 }
 
 private func inactiveAccountLine(title: String, window: CodexRateLimitWindow?) -> String {
-    let percentText = window.map { "\($0.usedPercent)% used" } ?? "--"
-    guard let window, window.usedPercent > 0 else {
+    let percentText = window.map { "\($0.displayedUsedPercent())% used" } ?? "--"
+    guard let window, window.displayedUsedPercent() > 0 else {
         return "\(title): \(percentText)"
     }
     guard let resetStatus = resetStatusText(for: window) else {

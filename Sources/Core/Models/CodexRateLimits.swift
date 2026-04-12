@@ -13,4 +13,9 @@ struct CodexRateLimitWindow: Codable, Hashable {
     var usedPercent: Int
     var resetsAt: Date?
     var windowDurationMinutes: Int?
+
+    func displayedUsedPercent(at now: Date = .now) -> Int {
+        guard let resetsAt else { return usedPercent }
+        return resetsAt <= now ? 0 : usedPercent
+    }
 }

@@ -13,6 +13,7 @@ diagnose:
 	command -v swift >/dev/null
 
 generate: diagnose
+	# Shell-first workflow: generate the project without opening Xcode.
 	TUIST_SKIP_UPDATE_CHECK=1 tuist generate --no-open
 
 build: generate

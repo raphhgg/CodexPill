@@ -61,12 +61,8 @@ final class CodexAppServerClient {
                             continue
                         }
 
-                        if let snapshot = state.snapshot() {
-                            finish(.success(CodexAccountStatus(
-                                email: snapshot.account.account?.email,
-                                planType: snapshot.account.account?.planType,
-                                rateLimits: snapshot.rateLimits.rateLimits.toModel()
-                            )))
+                        if let snapshot = state.completeStatus() {
+                            finish(.success(snapshot))
                             return
                         }
                     } catch {
@@ -88,6 +84,11 @@ final class CodexAppServerClient {
             process.standardOutput = outputPipe
             process.standardError = errorPipe
             process.terminationHandler = { process in
+                if process.terminationStatus == 0, let partialStatus = state.partialStatus() {
+                    finish(.success(partialStatus))
+                    return
+                }
+
                 guard process.terminationStatus != 0 else { return }
                 finish(.failure(appServerFailure(
                     stderr: state.capturedStderr(),
@@ -108,6 +109,10 @@ final class CodexAppServerClient {
 
                 Task {
                     try? await Task.sleep(for: .seconds(4))
+                    if let partialStatus = state.partialStatus() {
+                        finish(.success(partialStatus))
+                        return
+                    }
                     finish(.failure(appServerFailure(
                         stderr: state.capturedStderr(),
                         terminationStatus: nil,
@@ -162,11 +167,17 @@ private final class AppServerSessionState: @unchecked Sendable {
         return stderr.isEmpty ? nil : stderr
     }
 
-    func snapshot() -> (account: AppServerAccountResponse, rateLimits: AppServerRateLimitsResponse)? {
+    func completeStatus() -> CodexAccountStatus? {
         lock.lock()
         defer { lock.unlock() }
-        guard let accountResponse, let rateLimitResponse else { return nil }
-        return (accountResponse, rateLimitResponse)
+        return makeAccountStatus(account: accountResponse, rateLimits: rateLimitResponse)
+    }
+
+    func partialStatus() -> CodexAccountStatus? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let accountResponse else { return nil }
+        return makeAccountStatus(account: accountResponse, rateLimits: rateLimitResponse)
     }
 
     func markFinished() -> Bool {
@@ -176,6 +187,18 @@ private final class AppServerSessionState: @unchecked Sendable {
         finished = true
         return true
     }
+}
+
+private func makeAccountStatus(
+    account: AppServerAccountResponse?,
+    rateLimits: AppServerRateLimitsResponse?
+) -> CodexAccountStatus? {
+    guard let account else { return nil }
+    return CodexAccountStatus(
+        email: account.account?.email,
+        planType: account.account?.planType,
+        rateLimits: rateLimits?.rateLimits.toModel()
+    )
 }
 
 private func splitLines(from buffer: inout Data) -> [String] {

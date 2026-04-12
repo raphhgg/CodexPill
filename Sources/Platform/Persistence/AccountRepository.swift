@@ -46,4 +46,10 @@ struct AccountRepository {
     func readSnapshot(for account: CodexAccount) throws -> Data {
         try Data(contentsOf: snapshotURL(for: account))
     }
+
+    func deleteSnapshot(for account: CodexAccount) throws {
+        let url = snapshotURL(for: account)
+        guard fileManager.fileExists(atPath: url.path) else { return }
+        try fileManager.removeItem(at: url)
+    }
 }

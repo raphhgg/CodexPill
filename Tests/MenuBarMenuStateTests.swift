@@ -57,6 +57,22 @@ struct MenuBarMenuStateTests {
         #expect(shown.shouldShowStatusMessage)
     }
 
+    @Test
+    func removeAccountsIsAvailableWhenSavedAccountsExist() {
+        let state = makeState(activeAccount: makeAccount(name: "Active"), inactiveAccounts: [makeAccount(name: "Other")])
+
+        #expect(state.canRemoveSavedAccounts)
+        #expect(state.allSavedAccounts.map(\.name) == ["Active", "Other"])
+    }
+
+    @Test
+    func saveCurrentAccountIsAllowedWhenThereAreNoSavedAccounts() {
+        let state = makeState(activeAccount: nil, inactiveAccounts: [], isBusy: false)
+
+        #expect(state.canSaveCurrentAccount)
+        #expect(state.allSavedAccounts.isEmpty)
+    }
+
     private func makeState(
         activeAccount: CodexAccount? = nil,
         inactiveAccounts: [CodexAccount],

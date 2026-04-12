@@ -12,6 +12,8 @@ command -v tuist >/dev/null || {
   exit 1
 }
 
+# Keep the loop shell-first. Generated Xcode artifacts are transient
+# build intermediates for xcodebuild, not something we open in Xcode.
 ./stop-menubar.sh >/dev/null 2>&1 || true
 
 TUIST_SKIP_UPDATE_CHECK=1 tuist generate --no-open

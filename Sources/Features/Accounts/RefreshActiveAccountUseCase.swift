@@ -39,7 +39,7 @@ struct RefreshActiveAccountUseCase {
         updatedAccounts[matchedIndex].applyRemoteMetadata(
             email: remote.email,
             planType: remote.planType,
-            rateLimits: remote.rateLimits
+            rateLimits: remote.rateLimits ?? updatedAccounts[matchedIndex].rateLimits
         )
         updatedAccounts[matchedIndex].updatedAt = .now
         try repository.saveAccounts(updatedAccounts)

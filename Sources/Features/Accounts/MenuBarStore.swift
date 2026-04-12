@@ -14,6 +14,7 @@ final class MenuBarStore {
     private let activeAccountResolver: ActiveAccountResolver
     private let loadAccountsUseCase: LoadAccountsUseCase
     private let refreshActiveAccountUseCase: RefreshActiveAccountUseCase
+    private let deleteSavedAccountUseCase: DeleteSavedAccountUseCase
     private let switchAccountWorkflow: SwitchAccountWorkflow
     private let saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow
     private let signInAnotherWorkflow: SignInAnotherWorkflow
@@ -41,6 +42,10 @@ final class MenuBarStore {
             appServerClient: appServerClient,
             activeAccountResolver: self.activeAccountResolver,
             repository: repository
+        )
+        self.deleteSavedAccountUseCase = DeleteSavedAccountUseCase(
+            repository: repository,
+            activeAccountResolver: self.activeAccountResolver
         )
         self.switchAccountWorkflow = SwitchAccountWorkflow(
             authService: authService,
@@ -122,6 +127,14 @@ final class MenuBarStore {
         }
     }
 
+    func removeSavedAccount(_ account: CodexAccount) async {
+        await perform("Removing \(account.name)...") {
+            let result = try deleteSavedAccountUseCase.run(account: account, accounts: accounts)
+            accounts = result.accounts
+            activeAccountID = result.activeAccountID
+        }
+    }
+
     func refreshAccountData(for account: CodexAccount) async {
         await perform("Refreshing account data for \(account.name)...") {
             let result = try await refreshActiveAccountUseCase.run(accounts: accounts)
@@ -160,6 +173,10 @@ final class MenuBarStore {
 
     var sortedInactiveAccounts: [CodexAccount] {
         inactiveAccounts.sorted(by: compareInactiveAccounts)
+    }
+
+    var hasPendingSignedInAccount: Bool {
+        pendingSignedInAccountName != nil
     }
 
     private func perform(_ status: String, operation: () async throws -> Void) async {
@@ -221,8 +238,8 @@ final class MenuBarStore {
         let now = Date()
         let sessionWindow = account.rateLimits?.primary
         let weeklyWindow = account.rateLimits?.secondary
-        let sessionUsedPercent = sessionWindow?.usedPercent ?? 100
-        let weeklyUsedPercent = weeklyWindow?.usedPercent ?? 100
+        let sessionUsedPercent = sessionWindow?.displayedUsedPercent(at: now) ?? 100
+        let weeklyUsedPercent = weeklyWindow?.displayedUsedPercent(at: now) ?? 100
 
         let weeklyConstraintRank: Int
         switch weeklyUsedPercent {

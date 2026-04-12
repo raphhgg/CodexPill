@@ -39,6 +39,15 @@ struct MenuBarAlertFactoryTests {
     }
 
     @Test
+    func removeAccountWarningMentionsCurrentAccountConsequence() {
+        let request = factory.makeRemoveAccountRequest(accountName: "Work", isCurrent: true)
+
+        #expect(request.informativeText.contains("saved snapshot for Work"))
+        #expect(request.informativeText.contains("live Codex session will remain logged in"))
+        #expect(request.confirmTitle == "Remove")
+    }
+
+    @Test
     func errorRequestUsesWarningStyle() {
         let request = factory.makeErrorRequest(message: "Boom")
 

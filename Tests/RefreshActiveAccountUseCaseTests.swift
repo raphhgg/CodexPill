@@ -6,7 +6,21 @@ import Testing
 struct RefreshActiveAccountUseCaseTests {
     @Test
     func runRefreshesMatchedAccountAndPersistsUpdatedState() async throws {
+        let existingRateLimits = CodexRateLimitSnapshot(
+            limitID: "codex",
+            limitName: nil,
+            planType: "plus",
+            primary: CodexRateLimitWindow(
+                usedPercent: 25,
+                resetsAt: .now.addingTimeInterval(3600),
+                windowDurationMinutes: 300
+            ),
+            secondary: nil,
+            fetchedAt: .distantPast
+        )
         let account = makeAccount(name: "Work", fingerprint: "live", email: "old@example.com")
+        var accountWithRateLimits = account
+        accountWithRateLimits.rateLimits = existingRateLimits
         let repository = PersistingRepositorySpy()
         let useCase = RefreshActiveAccountUseCase(
             appServerClient: RefreshAppServerSpy(
@@ -20,11 +34,12 @@ struct RefreshActiveAccountUseCaseTests {
             repository: repository
         )
 
-        let result = try await useCase.run(accounts: [account])
+        let result = try await useCase.run(accounts: [accountWithRateLimits])
 
         #expect(result.refreshedAccountID == account.id)
         #expect(result.accounts.first?.email == "new@example.com")
         #expect(result.accounts.first?.planType == "pro")
+        #expect(result.accounts.first?.rateLimits == existingRateLimits)
         #expect(repository.savedAccounts == result.accounts)
         #expect(result.accounts.first?.updatedAt != .distantPast)
     }

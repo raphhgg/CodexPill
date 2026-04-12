@@ -32,6 +32,16 @@ struct MenuBarAlertFactory {
         )
     }
 
+    func makeRemoveAccountRequest(accountName: String, isCurrent: Bool) -> MenuBarConfirmationAlertRequest {
+        let suffix = isCurrent ? " The live Codex session will remain logged in, but it will no longer match a saved account." : ""
+        return MenuBarConfirmationAlertRequest(
+            messageText: "Remove saved account?",
+            informativeText: "This will remove the saved snapshot for \(accountName).\n\nThis action cannot be undone.\(suffix)",
+            confirmTitle: "Remove",
+            cancelTitle: "Cancel"
+        )
+    }
+
     func makeAboutRequest() -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
             messageText: "About CodexPill",
