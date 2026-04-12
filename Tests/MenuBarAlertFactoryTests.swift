@@ -48,6 +48,15 @@ struct MenuBarAlertFactoryTests {
     }
 
     @Test
+    func renameAccountRequestUsesCurrentNameAsPlaceholder() {
+        let request = factory.makeRenameAccountRequest(accountName: "Business 1")
+
+        #expect(request.messageText == "Rename saved account")
+        #expect(request.placeholder == "Business 1")
+        #expect(request.confirmTitle == "Rename")
+    }
+
+    @Test
     func errorRequestUsesWarningStyle() {
         let request = factory.makeErrorRequest(message: "Boom")
 

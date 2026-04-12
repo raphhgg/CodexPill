@@ -44,6 +44,7 @@ enum MenuBarValidationSupport {
             items: [
                 state.canSaveCurrentAccount ? "Save Current Account" : "Save Current Account (disabled)",
                 state.canSignInAnotherAccount ? "Sign In Another Account…" : "Sign In Another Account… (disabled)",
+                "Rename Account",
                 "Remove Account",
                 "Visible Other Accounts: \(state.visibleInactiveAccountCount == 0 ? "All" : "\(state.visibleInactiveAccountCount)")"
             ]

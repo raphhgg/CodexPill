@@ -15,6 +15,7 @@ final class MenuBarStore {
     private let loadAccountsUseCase: LoadAccountsUseCase
     private let refreshActiveAccountUseCase: RefreshActiveAccountUseCase
     private let deleteSavedAccountUseCase: DeleteSavedAccountUseCase
+    private let renameSavedAccountUseCase: RenameSavedAccountUseCase
     private let switchAccountWorkflow: SwitchAccountWorkflow
     private let saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow
     private let signInAnotherWorkflow: SignInAnotherWorkflow
@@ -50,6 +51,7 @@ final class MenuBarStore {
             repository: repository,
             identityResolver: self.identityResolver
         )
+        self.renameSavedAccountUseCase = RenameSavedAccountUseCase(repository: repository)
         self.switchAccountWorkflow = SwitchAccountWorkflow(
             authService: authService,
             repository: repository,
@@ -148,6 +150,17 @@ final class MenuBarStore {
             let result = try deleteSavedAccountUseCase.run(account: account, accounts: accounts)
             accounts = result.accounts
             activeAccountID = result.activeAccountID
+        }
+    }
+
+    func renameSavedAccount(_ account: CodexAccount, to newName: String) async {
+        await perform("Renaming \(account.name)...") {
+            let result = try renameSavedAccountUseCase.run(
+                account: account,
+                newName: newName,
+                accounts: accounts
+            )
+            accounts = result.accounts
         }
     }
 

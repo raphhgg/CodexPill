@@ -29,6 +29,10 @@ struct MenuBarMenuState {
         !isBusy && allSavedAccounts.count > 0
     }
 
+    var canRenameSavedAccounts: Bool {
+        !isBusy && allSavedAccounts.count > 0
+    }
+
     var allSavedAccounts: [CodexAccount] {
         [activeAccount].compactMap { $0 } + inactiveAccounts
     }
@@ -164,6 +168,7 @@ struct MenuBarMenuBuilder {
 
         let submenu = NSMenu(title: "Accounts")
         submenu.addItem(addAccountMenuItem(state: state, target: target))
+        submenu.addItem(renameAccountMenuItem(state: state, target: target))
         submenu.addItem(removeAccountMenuItem(state: state, target: target))
         submenu.addItem(visibleAccountsMenuItem(state: state, target: target))
 
@@ -186,6 +191,34 @@ struct MenuBarMenuBuilder {
             option.target = target
             option.representedObject = account.id.uuidString
             option.isEnabled = state.canRemoveSavedAccounts
+            submenu.addItem(option)
+        }
+
+        if submenu.items.isEmpty {
+            let empty = NSMenuItem(title: "No saved accounts", action: nil, keyEquivalent: "")
+            empty.isEnabled = false
+            submenu.addItem(empty)
+        }
+
+        item.submenu = submenu
+        return item
+    }
+
+    private func renameAccountMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Rename Account", action: nil, keyEquivalent: "")
+        item.image = NSImage(systemSymbolName: "pencil", accessibilityDescription: "Rename Account")
+        item.isEnabled = state.canRenameSavedAccounts
+
+        let submenu = NSMenu(title: "Rename Account")
+        for account in state.allSavedAccounts {
+            let option = NSMenuItem(
+                title: account.id == state.activeAccount?.id ? "\(account.name) (Current)" : account.name,
+                action: #selector(MenuBarCoordinator.renameAccount(_:)),
+                keyEquivalent: ""
+            )
+            option.target = target
+            option.representedObject = account.id.uuidString
+            option.isEnabled = state.canRenameSavedAccounts
             submenu.addItem(option)
         }
 

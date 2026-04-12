@@ -131,6 +131,21 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
     }
 
     @objc
+    func renameAccount(_ sender: NSMenuItem) {
+        guard
+            let idString = sender.representedObject as? String,
+            let id = UUID(uuidString: idString),
+            let account = store.accounts.first(where: { $0.id == id })
+        else {
+            return
+        }
+
+        let request = alertFactory.makeRenameAccountRequest(accountName: account.name)
+        guard let newName = alertPresenter.presentTextInput(request) else { return }
+        Task { await store.renameSavedAccount(account, to: newName) }
+    }
+
+    @objc
     func selectRefreshInterval(_ sender: NSMenuItem) {
         guard let minutes = sender.representedObject as? Int else { return }
         settings.refreshIntervalMinutes = minutes

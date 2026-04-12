@@ -99,6 +99,7 @@ struct MenuBarUIValidationTests {
             #expect(snapshot.statusMessage == "Refreshing account data...")
             #expect(snapshot.sections[1].items.contains("Save Current Account (disabled)"))
             #expect(snapshot.sections[1].items.contains("Sign In Another Account… (disabled)"))
+            #expect(snapshot.sections[1].items.contains("Rename Account"))
             #expect(snapshot.sections[1].items.contains("Remove Account"))
 
         case "hosted-menu-empty":
@@ -109,6 +110,7 @@ struct MenuBarUIValidationTests {
             ])
             #expect(snapshot.sections[0].items == ["No active saved account"])
             #expect(snapshot.sections[1].items.contains("Save Current Account"))
+            #expect(snapshot.sections[1].items.contains("Rename Account"))
             #expect(snapshot.sections[1].items.contains("Remove Account"))
             #expect(snapshot.statusMessage == nil)
 

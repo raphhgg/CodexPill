@@ -62,6 +62,7 @@ struct MenuBarMenuStateTests {
         let state = makeState(activeAccount: makeAccount(name: "Active"), inactiveAccounts: [makeAccount(name: "Other")])
 
         #expect(state.canRemoveSavedAccounts)
+        #expect(state.canRenameSavedAccounts)
         #expect(state.allSavedAccounts.map(\.name) == ["Active", "Other"])
     }
 
