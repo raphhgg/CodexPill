@@ -376,16 +376,16 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
         ).shouldShowTitle
     }
 
-    private func statusItemTooltip(primary: Int?, secondary: Int?) -> String {
-        let session = primary.map { "Session \($0)%" } ?? "Session --"
-        let weekly = secondary.map { "Weekly \($0)%" } ?? "Weekly --"
-        return "CodexPill\n\(session)\n\(weekly)"
+    private func statusItemTooltip(primary: Int?, secondary: Int?) -> String? {
+        let _ = primary
+        let _ = secondary
+        return statusItemTooltipText(for: store.activeAccount)
     }
 
     private func hoverStatusTitle(primary: Int?, secondary: Int?) -> String {
-        let session = primary.map { "\($0)%" } ?? "--"
-        let weekly = secondary.map { "\($0)%" } ?? "--"
-        return "S \(session) W \(weekly)"
+        let _ = primary
+        let _ = secondary
+        return statusItemHoverTitle(for: store.activeAccount)
     }
 
     private func configureStatusItemButton() {
