@@ -8,7 +8,7 @@ let project = Project(
             name: "CodexPill",
             destinations: .macOS,
             product: .app,
-            bundleId: "com.raphhgg.codex-switchboard",
+            bundleId: "com.raphhgg.codexpill",
             deploymentTargets: .macOS("14.0"),
             infoPlist: .extendingDefault(
                 with: [
@@ -23,7 +23,7 @@ let project = Project(
             name: "CodexPillTests",
             destinations: .macOS,
             product: .unitTests,
-            bundleId: "com.raphhgg.codex-switchboard.tests",
+            bundleId: "com.raphhgg.codexpill.tests",
             deploymentTargets: .macOS("14.0"),
             infoPlist: .default,
             sources: ["Tests/**"],

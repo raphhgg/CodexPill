@@ -37,13 +37,13 @@ test: generate
 		-resultBundlePath "$(RESULT_BUNDLE)"
 
 run:
-	./script/run_menubar.sh
+	./scripts/run_menubar.sh
 
 verify-ui:
-	./script/verify_ui.sh
+	./scripts/verify_ui.sh
 
 verify-ui-live:
-	SCENARIO=live-menu-open ./script/verify_ui.sh
+	SCENARIO=live-menu-open ./scripts/verify_ui.sh
 
 clean:
 	rm -rf build

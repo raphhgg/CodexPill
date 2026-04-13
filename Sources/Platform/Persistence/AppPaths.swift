@@ -1,7 +1,7 @@
 import Foundation
 import OSLog
 
-private let appPathsLogger = Logger(subsystem: "com.raphhgg.codex-switchboard", category: "AppPaths")
+private let appPathsLogger = Logger(subsystem: "com.raphhgg.codexpill", category: "AppPaths")
 
 struct AppPaths {
     let appSupportDirectory: URL

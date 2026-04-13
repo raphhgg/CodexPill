@@ -25,14 +25,14 @@ CodexPill is a macOS menubar app that snapshots Codex accounts, swaps the active
 ## Current Run Command
 
 ```bash
-./script/run_menubar.sh
+./scripts/run_menubar.sh
 ```
 
 The local build loop is shell-first:
 
 - `tuist generate --no-open`
 - `xcodebuild build/test`
-- `./script/run_menubar.sh`
+- `./scripts/run_menubar.sh`
 - `make verify-ui`
 - `make verify-ui-live`
 
@@ -45,7 +45,7 @@ Generated `.xcodeproj` and `.xcworkspace` files are transient build artifacts fo
 ## Current Stop Command
 
 ```bash
-./script/stop_menubar.sh
+./scripts/stop_menubar.sh
 ```
 
 ## Constraints And Assumptions

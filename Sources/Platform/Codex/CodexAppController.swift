@@ -1,7 +1,7 @@
 import AppKit
 import OSLog
 
-private let appControllerLogger = Logger(subsystem: "com.raphhgg.codex-switchboard", category: "CodexAppController")
+private let appControllerLogger = Logger(subsystem: "com.raphhgg.codexpill", category: "CodexAppController")
 
 struct CodexAppController {
     let bundleIdentifier = "com.openai.codex"

@@ -27,7 +27,7 @@ cat > "${REQUEST_FILE}" <<EOF
 EOF
 
 cat > "${ARTIFACT_ROOT}/command.txt" <<EOF
-AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./script/verify_ui.sh
+AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/verify_ui.sh
 EOF
 
 if [[ "${SCENARIO}" != "hosted-menu-default" ]]; then
@@ -36,7 +36,7 @@ if [[ "${SCENARIO}" != "hosted-menu-default" ]]; then
       ;;
     live-menu-open)
       ARTIFACT_ROOT="${BUILD_ROOT}/verification/${AGENT_NAME}/${SCENARIO}" \
-      ./script/live_menubar_smoke.sh
+      ./scripts/live_menubar_smoke.sh
       exit $?
       ;;
     *)
@@ -44,7 +44,7 @@ if [[ "${SCENARIO}" != "hosted-menu-default" ]]; then
 {
   "artifacts": [],
   "assertions": [],
-  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./script/verify_ui.sh",
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/verify_ui.sh",
   "gaps": [
     "Unknown scenario '${SCENARIO}'",
     "Try SCENARIO=hosted-menu-default, hosted-menu-busy, hosted-menu-empty, or live-menu-open"
@@ -113,7 +113,7 @@ cat > "${ARTIFACT_ROOT}/summary.json" <<EOF
     "logs/xcodebuild.log"
   ],
   "assertions": ${ASSERTIONS_JSON},
-  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./script/verify_ui.sh",
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/verify_ui.sh",
   "gaps": [],
   "scenario": "${SCENARIO}",
   "status": "passed"

@@ -9,7 +9,7 @@ Manually verify that `CodexPill` still behaves correctly after the recent archit
 1. Launch the app:
 
    ```bash
-   ./script/run_menubar.sh
+   ./scripts/run_menubar.sh
    ```
 
 2. Keep `CodexPill` visible in the menu bar while testing.

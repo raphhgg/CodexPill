@@ -6,7 +6,7 @@ Exercise the current `CodexPill` behavior from an agent workflow and distinguish
 
 ## Preconditions
 
-- Build from the current working tree with `./script/run_menubar.sh`.
+- Build from the current working tree with `./scripts/run_menubar.sh`.
 - Use a fresh `xcodebuild` result bundle path for any test run.
 - If Codex plugin-manifest warnings appear on stderr, log them separately unless they block a product workflow.
 
@@ -30,7 +30,7 @@ Exercise the current `CodexPill` behavior from an agent workflow and distinguish
 1. Launch the app with:
 
    ```bash
-   ./script/run_menubar.sh
+   ./scripts/run_menubar.sh
    ```
 
 2. Confirm:
@@ -111,7 +111,7 @@ Verify:
 1. Stop the app with:
 
    ```bash
-   ./script/stop_menubar.sh
+   ./scripts/stop_menubar.sh
    ```
 
 2. Confirm no stray `CodexPill` process remains.

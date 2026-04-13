@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import OSLog
 
-private let accountsControllerLogger = Logger(subsystem: "com.raphhgg.codex-switchboard", category: "AccountsController")
+private let accountsControllerLogger = Logger(subsystem: "com.raphhgg.codexpill", category: "AccountsController")
 
 @MainActor
 @Observable

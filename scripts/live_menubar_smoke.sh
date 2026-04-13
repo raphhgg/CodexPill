@@ -14,11 +14,11 @@ LIVE_SNAPSHOT_PATH="${ARTIFACT_ROOT}/live-menu-snapshot.json"
 mkdir -p "${ARTIFACT_ROOT}/screenshots" "${ARTIFACT_ROOT}/logs"
 
 cat > "${COMMAND_PATH}" <<EOF
-AGENT_NAME=${AGENT_NAME} ./script/live_menubar_smoke.sh
+AGENT_NAME=${AGENT_NAME} ./scripts/live_menubar_smoke.sh
 EOF
 
 CODEXPILL_VALIDATION_OUTPUT="${PWD}/${LIVE_SNAPSHOT_PATH}" \
-  ./script/run_menubar.sh > "${ARTIFACT_ROOT}/logs/run-menubar.log" 2>&1
+  ./scripts/run_menubar.sh > "${ARTIFACT_ROOT}/logs/run-menubar.log" 2>&1
 
 for _ in $(seq 1 20); do
   if pgrep -x "${APP_NAME}" >/dev/null 2>&1; then
@@ -34,7 +34,7 @@ if ! pgrep -x "${APP_NAME}" >/dev/null 2>&1; then
     "logs/run-menubar.log"
   ],
   "assertions": [],
-  "command": "AGENT_NAME=${AGENT_NAME} ./script/live_menubar_smoke.sh",
+  "command": "AGENT_NAME=${AGENT_NAME} ./scripts/live_menubar_smoke.sh",
   "gaps": [
     "The menubar app process did not appear after launch."
   ],
@@ -62,7 +62,7 @@ if [[ ! -f "${LIVE_SNAPSHOT_PATH}" ]]; then
   "assertions": [
     "CodexPill process launched successfully"
   ],
-  "command": "AGENT_NAME=${AGENT_NAME} ./script/live_menubar_smoke.sh",
+  "command": "AGENT_NAME=${AGENT_NAME} ./scripts/live_menubar_smoke.sh",
   "gaps": [
     "The app started but did not emit a live menu snapshot to ${LIVE_SNAPSHOT_PATH}.",
     "Validation mode is wired through CODEXPILL_VALIDATION_OUTPUT; if this file is missing the runtime proof path is broken."
@@ -84,7 +84,7 @@ if printf '%s' "${MENU_BAR_COUNT_OUTPUT}" | rg -q "assistive access|not allowed 
     "logs/run-menubar.log"
   ],
   "assertions": [],
-  "command": "AGENT_NAME=${AGENT_NAME} ./script/live_menubar_smoke.sh",
+  "command": "AGENT_NAME=${AGENT_NAME} ./scripts/live_menubar_smoke.sh",
   "gaps": [
     "osascript is not allowed assistive access on this machine.",
     "Grant Accessibility access to osascript or Terminal in System Settings > Privacy & Security > Accessibility."
@@ -104,7 +104,7 @@ if ! printf '%s' "${MENU_BAR_COUNT_OUTPUT}" | rg -q '^[0-9]+$'; then
     "logs/run-menubar.log"
   ],
   "assertions": [],
-  "command": "AGENT_NAME=${AGENT_NAME} ./script/live_menubar_smoke.sh",
+  "command": "AGENT_NAME=${AGENT_NAME} ./scripts/live_menubar_smoke.sh",
   "gaps": [
     "Unexpected Accessibility probe output: ${MENU_BAR_COUNT_OUTPUT//$'\n'/ }"
   ],
@@ -179,7 +179,7 @@ if [[ "${MENU_ITEM_COUNT}" == "0" ]]; then
     "Accessibility probe reached the menubar process",
     "The status item on menu bar 2 was targeted"
   ],
-  "command": "AGENT_NAME=${AGENT_NAME} ./script/live_menubar_smoke.sh",
+  "command": "AGENT_NAME=${AGENT_NAME} ./scripts/live_menubar_smoke.sh",
   "gaps": [
     "The live status item is reachable, but Accessibility exposes zero menu items after opening it on this machine.",
     "Runtime snapshot proof is present, so this is an Accessibility inspection gap rather than missing app evidence."
@@ -206,7 +206,7 @@ cat > "${SUMMARY_PATH}" <<EOF
     "Accessibility probe reached the menubar process",
     "The status item on menu bar 2 opened and returned menu item titles"
   ],
-  "command": "AGENT_NAME=${AGENT_NAME} ./script/live_menubar_smoke.sh",
+  "command": "AGENT_NAME=${AGENT_NAME} ./scripts/live_menubar_smoke.sh",
   "gaps": [],
   "scenario": "${SCENARIO}",
   "status": "passed"

@@ -2,7 +2,7 @@ import CryptoKit
 import Foundation
 import OSLog
 
-private let authSnapshotLogger = Logger(subsystem: "com.raphhgg.codex-switchboard", category: "AuthSnapshot")
+private let authSnapshotLogger = Logger(subsystem: "com.raphhgg.codexpill", category: "AuthSnapshot")
 
 struct CodexAuthSnapshotService {
     private let repository: AccountRepository
