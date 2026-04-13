@@ -26,7 +26,8 @@ enum MenuBarValidationSupport {
             title: "Preferences",
             items: [
                 "Refresh Time: \(state.refreshIntervalMinutes) minutes",
-                "Status Bar Style: \(state.statusBarIndicatorStyle.menuTitle)",
+                "Status Item Content: \(state.statusBarDisplayMode.menuTitle)",
+                "Status Item Appearance: \(state.statusBarIndicatorStyle.menuTitle)",
                 state.statusBarMonochrome ? "Monochrome: On" : "Monochrome: Off",
                 state.canShowAbout ? "About" : "About (disabled)"
             ]

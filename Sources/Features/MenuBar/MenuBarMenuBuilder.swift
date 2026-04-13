@@ -25,6 +25,7 @@ struct MenuBarMenuState {
     let refreshIntervalOptions: [Int]
     let statusBarMonochrome: Bool
     let statusBarIndicatorStyle: StatusBarIndicatorStyle
+    let statusBarDisplayMode: StatusBarDisplayMode
     let isBusy: Bool
     let statusMessage: String
 
@@ -100,7 +101,7 @@ struct MenuBarMenuBuilder {
         menu.addItem(.separator())
         menu.addItem(manageAccountsMenuItem(state: state, target: target))
         menu.addItem(refreshIntervalMenuItem(state: state, target: target))
-        menu.addItem(statusBarStyleMenuItem(state: state, target: target))
+        menu.addItem(statusBarMenuItem(state: state, target: target))
         menu.addItem(actionItem(title: "About", systemImage: "info.circle", action: #selector(MenuBarCoordinator.showAbout), state: state, target: target))
 
         if state.shouldShowStatusMessage {
@@ -295,11 +296,23 @@ struct MenuBarMenuBuilder {
         return item
     }
 
-    private func statusBarStyleMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Status Bar Style", action: nil, keyEquivalent: "")
-        item.image = NSImage(systemSymbolName: "square.2.layers.3d.top.filled", accessibilityDescription: "Status Bar Style")
+    private func statusBarMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Status Item", action: nil, keyEquivalent: "")
+        item.image = NSImage(systemSymbolName: "menubar.rectangle", accessibilityDescription: "Status Item")
 
-        let submenu = NSMenu(title: "Status Bar Style")
+        let submenu = NSMenu(title: "Status Item")
+        submenu.addItem(statusBarDisplayMenuItem(state: state, target: target))
+        submenu.addItem(statusBarStyleMenuItem(state: state, target: target))
+
+        item.submenu = submenu
+        return item
+    }
+
+    private func statusBarStyleMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Appearance", action: nil, keyEquivalent: "")
+        item.image = NSImage(systemSymbolName: "square.2.layers.3d.top.filled", accessibilityDescription: "Appearance")
+
+        let submenu = NSMenu(title: "Appearance")
         let monochrome = NSMenuItem(title: "Monochrome", action: #selector(MenuBarCoordinator.toggleStatusBarMonochrome(_:)), keyEquivalent: "")
         monochrome.target = target
         monochrome.state = state.statusBarMonochrome ? .on : .off
@@ -311,6 +324,23 @@ struct MenuBarMenuBuilder {
             option.target = target
             option.representedObject = style.rawValue
             option.state = state.statusBarIndicatorStyle == style ? .on : .off
+            submenu.addItem(option)
+        }
+
+        item.submenu = submenu
+        return item
+    }
+
+    private func statusBarDisplayMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Content", action: nil, keyEquivalent: "")
+        item.image = NSImage(systemSymbolName: "character.textbox", accessibilityDescription: "Content")
+
+        let submenu = NSMenu(title: "Content")
+        for mode in StatusBarDisplayMode.allCases {
+            let option = NSMenuItem(title: mode.menuTitle, action: #selector(MenuBarCoordinator.selectStatusBarDisplayMode(_:)), keyEquivalent: "")
+            option.target = target
+            option.representedObject = mode.rawValue
+            option.state = state.statusBarDisplayMode == mode ? .on : .off
             submenu.addItem(option)
         }
 
@@ -330,48 +360,37 @@ private extension Array {
 
 private struct ActiveAccountMenuContent: View {
     let account: CodexAccount
-    @State private var isHovered = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
             HStack(alignment: .firstTextBaseline) {
                 Text(account.name)
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(primaryTextColor)
                 Spacer()
                 Text(menuPlanDisplayName(account.planType))
-                    .foregroundStyle(secondaryTextColor)
+                    .foregroundStyle(.secondary)
             }
 
             HStack(alignment: .firstTextBaseline) {
                 Text("Updated \(RelativeDateTimeFormatter().localizedString(for: account.lastRemoteRefreshAt, relativeTo: .now))")
                     .font(.caption)
-                    .foregroundStyle(secondaryTextColor)
+                    .foregroundStyle(.secondary)
                 Spacer()
                 Text(accountMetadataLine)
                     .font(.caption)
-                    .foregroundStyle(secondaryTextColor)
+                    .foregroundStyle(.secondary)
                     .multilineTextAlignment(.trailing)
             }
             .padding(.top, -2)
 
             ActiveLimitRow(title: "Session", window: account.rateLimits?.primary)
-                .menuRowHovered(isHovered)
             ActiveLimitRow(title: "Weekly", window: account.rateLimits?.secondary)
-                .menuRowHovered(isHovered)
         }
         .padding(.horizontal, 14)
         .padding(.top, 4)
         .padding(.bottom, 10)
         .frame(width: 340, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(rowBackgroundColor)
-        )
         .padding(.horizontal, 4)
-        .onHover { hovering in
-            isHovered = hovering
-        }
     }
 
     private var accountMetadataLine: String {
@@ -381,24 +400,11 @@ private struct ActiveAccountMenuContent: View {
         return email
     }
 
-    private var rowBackgroundColor: Color {
-        isHovered ? Color.accentColor.opacity(0.22) : .clear
-    }
-
-    private var primaryTextColor: Color {
-        isHovered ? .white : .primary
-    }
-
-    private var secondaryTextColor: Color {
-        isHovered ? Color.white.opacity(0.9) : .secondary
-    }
-
 }
 
 private struct ActiveLimitRow: View {
     let title: String
     let window: CodexRateLimitWindow?
-    @Environment(\.menuRowHovered) private var isHovered
 
     var body: some View {
         let displayedUsedPercent = window?.displayedUsedPercent() ?? 0
@@ -407,49 +413,24 @@ private struct ActiveLimitRow: View {
         VStack(alignment: .leading, spacing: 5) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(primaryTextColor)
+                .foregroundStyle(.primary)
             ProgressView(value: Double(displayedUsedPercent), total: 100)
-                .tint(isHovered ? .white : .accentColor)
+                .tint(.accentColor)
             HStack {
                 Text(usageText)
                     .monospacedDigit()
-                    .foregroundStyle(primaryTextColor)
+                    .foregroundStyle(.primary)
                 Spacer()
                 if let window, let resetStatus = resetStatusText(for: window) {
                     Text(resetStatus)
-                        .foregroundStyle(secondaryTextColor)
+                        .foregroundStyle(.secondary)
                 } else if window == nil {
                     Text("Unavailable")
-                        .foregroundStyle(secondaryTextColor)
+                        .foregroundStyle(.secondary)
                 }
             }
             .font(.caption)
         }
-    }
-
-    private var primaryTextColor: Color {
-        isHovered ? .white : .primary
-    }
-
-    private var secondaryTextColor: Color {
-        isHovered ? Color.white.opacity(0.9) : .secondary
-    }
-}
-
-private struct MenuRowHoveredKey: EnvironmentKey {
-    static let defaultValue = false
-}
-
-private extension EnvironmentValues {
-    var menuRowHovered: Bool {
-        get { self[MenuRowHoveredKey.self] }
-        set { self[MenuRowHoveredKey.self] = newValue }
-    }
-}
-
-private extension View {
-    func menuRowHovered(_ hovered: Bool) -> some View {
-        environment(\.menuRowHovered, hovered)
     }
 }
 
@@ -507,6 +488,9 @@ private func inactiveAccountTitle(for account: CodexAccount) -> NSAttributedStri
 
 private func detailLine(title: String, window: CodexRateLimitWindow?) -> String {
     let usedText = window.map { "\($0.displayedUsedPercent())%" } ?? "--"
+    if let window, window.displayedUsedPercent() == 0 {
+        return "\(title): \(usedText)"
+    }
     guard let window, let resetStatus = resetStatusText(for: window) else {
         return "\(title): \(usedText)"
     }
@@ -518,7 +502,7 @@ private func resetStatusText(for window: CodexRateLimitWindow) -> String? {
 
     let now = Date()
     if resetsAt <= now {
-        return "Resets now"
+        return nil
     }
 
     let formatter = RelativeDateTimeFormatter()

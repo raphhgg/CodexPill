@@ -1,5 +1,24 @@
 import Foundation
 
+enum StatusBarDisplayMode: String, CaseIterable, Identifiable {
+    case iconOnly
+    case iconAndText
+    case textOnHover
+
+    var id: String { rawValue }
+
+    var menuTitle: String {
+        switch self {
+        case .iconOnly:
+            "Icon Only"
+        case .iconAndText:
+            "Icon + Text"
+        case .textOnHover:
+            "Text on Hover"
+        }
+    }
+}
+
 enum StatusBarIndicatorStyle: String, CaseIterable, Identifiable {
     case dualArcBadge
     case stackedBars

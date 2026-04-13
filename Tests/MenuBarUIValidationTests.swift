@@ -216,6 +216,7 @@ struct MenuBarUIValidationTests {
                 refreshIntervalOptions: [1, 2, 5, 10, 15, 30],
                 statusBarMonochrome: false,
                 statusBarIndicatorStyle: .dualArcBadge,
+                statusBarDisplayMode: .textOnHover,
                 isBusy: false,
                 statusMessage: "Ready"
             )
@@ -239,6 +240,7 @@ struct MenuBarUIValidationTests {
                 refreshIntervalOptions: [1, 2, 5, 10, 15, 30],
                 statusBarMonochrome: true,
                 statusBarIndicatorStyle: .twinPills,
+                statusBarDisplayMode: .textOnHover,
                 isBusy: true,
                 statusMessage: "Refreshing account data..."
             )
@@ -253,6 +255,7 @@ struct MenuBarUIValidationTests {
                 refreshIntervalOptions: [1, 2, 5, 10, 15, 30],
                 statusBarMonochrome: false,
                 statusBarIndicatorStyle: .stackedBars,
+                statusBarDisplayMode: .textOnHover,
                 isBusy: false,
                 statusMessage: "Ready"
             )

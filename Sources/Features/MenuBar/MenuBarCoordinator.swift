@@ -17,7 +17,13 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
     private var autoRefreshTimer: Timer?
     private var pendingSignInMonitorTimer: Timer?
     private var wakeRefreshTask: Task<Void, Never>?
+    private var hoverActivationTimer: Timer?
+    private weak var hoverView: StatusItemHoverView?
     private var hasPromptedForEmptyState = false
+    private var isMenuOpen = false
+    private var isStatusItemHovered = false
+    private var keepsStatusTitleWhileMenuOpen = false
+    private var keepsStatusTitleForNextMenuOpen = false
 
     init(
         statusItem: NSStatusItem,
@@ -40,6 +46,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
     }
 
     func start() {
+        configureStatusItemButton()
         updateStatusItemAppearance()
         rebuildMenu()
         scheduleAutoRefresh()
@@ -50,6 +57,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
         autoRefreshTimer?.invalidate()
         pendingSignInMonitorTimer?.invalidate()
         wakeRefreshTask?.cancel()
+        hoverActivationTimer?.invalidate()
     }
 
     func handleStoreChange() {
@@ -69,8 +77,18 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
     }
 
     func menuWillOpen(_ menu: NSMenu) {
+        isMenuOpen = true
+        keepsStatusTitleWhileMenuOpen = keepsStatusTitleForNextMenuOpen || isStatusItemHovered
+        keepsStatusTitleForNextMenuOpen = false
+        updateStatusItemAppearance()
         store.refreshActiveAccount()
         rebuildMenu()
+    }
+
+    func menuDidClose(_ menu: NSMenu) {
+        isMenuOpen = false
+        keepsStatusTitleWhileMenuOpen = false
+        updateStatusItemAppearance()
     }
 
     func handleSystemDidWake() {
@@ -174,6 +192,17 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
     }
 
     @objc
+    func selectStatusBarDisplayMode(_ sender: NSMenuItem) {
+        guard
+            let rawValue = sender.representedObject as? String,
+            let mode = StatusBarDisplayMode(rawValue: rawValue)
+        else {
+            return
+        }
+        settings.statusBarDisplayMode = mode
+    }
+
+    @objc
     func switchAccount(_ sender: NSMenuItem) {
         guard
             let idString = sender.representedObject as? String,
@@ -212,6 +241,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
             refreshIntervalOptions: settings.refreshIntervalOptions,
             statusBarMonochrome: settings.statusBarMonochrome,
             statusBarIndicatorStyle: settings.statusBarIndicatorStyle,
+            statusBarDisplayMode: settings.statusBarDisplayMode,
             isBusy: store.isBusy,
             statusMessage: store.statusMessage
         )
@@ -250,21 +280,122 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
     }
 
     private func updateStatusItemAppearance() {
+        guard let button = statusItem.button else { return }
         let primary = store.activeAccount?.rateLimits?.primary?.displayedUsedPercent()
         let secondary = store.activeAccount?.rateLimits?.secondary?.displayedUsedPercent()
-        statusItem.button?.image = iconRenderer.makeImage(
+        applyStatusItemAppearance(
+            to: button,
+            primary: primary,
+            secondary: secondary
+        )
+    }
+
+    private func applyStatusItemAppearance(to button: NSStatusBarButton, primary: Int?, secondary: Int?) {
+        button.image = iconRenderer.makeImage(
             style: settings.statusBarIndicatorStyle,
             primaryPercent: primary,
             secondaryPercent: secondary,
             monochrome: settings.statusBarMonochrome
         )
-        statusItem.button?.toolTip = statusItemTooltip(primary: primary, secondary: secondary)
+        if shouldShowStatusTitle {
+            button.imagePosition = .imageLeading
+            button.attributedTitle = NSAttributedString(
+                string: hoverStatusTitle(primary: primary, secondary: secondary),
+                attributes: [
+                    .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .medium),
+                    .foregroundColor: NSColor.labelColor
+                ]
+            )
+        } else {
+            button.imagePosition = .imageOnly
+            button.attributedTitle = NSAttributedString(string: "")
+        }
+        button.toolTip = statusItemTooltip(primary: primary, secondary: secondary)
+    }
+
+    private func animateStatusItemAppearanceUpdate() {
+        updateStatusItemAppearance()
+    }
+
+    private var shouldShowStatusTitle: Bool {
+        StatusItemTitleVisibilityPolicy(
+            displayMode: settings.statusBarDisplayMode,
+            isStatusItemHovered: isStatusItemHovered,
+            isMenuOpen: isMenuOpen,
+            keepsStatusTitleWhileMenuOpen: keepsStatusTitleWhileMenuOpen
+        ).shouldShowTitle
     }
 
     private func statusItemTooltip(primary: Int?, secondary: Int?) -> String {
         let session = primary.map { "Session \($0)%" } ?? "Session --"
         let weekly = secondary.map { "Weekly \($0)%" } ?? "Weekly --"
         return "CodexPill\n\(session)\n\(weekly)"
+    }
+
+    private func hoverStatusTitle(primary: Int?, secondary: Int?) -> String {
+        let session = primary.map { "\($0)%" } ?? "--"
+        let weekly = secondary.map { "\($0)%" } ?? "--"
+        return "S \(session) W \(weekly)"
+    }
+
+    private func configureStatusItemButton() {
+        guard let button = statusItem.button else { return }
+        button.target = self
+        button.action = nil
+        button.sendAction(on: [])
+        button.imageHugsTitle = true
+        if hoverView?.superview !== button {
+            hoverView?.removeFromSuperview()
+            let hoverView = StatusItemHoverView(button: button)
+            hoverView.onHoverChanged = { [weak self] isHovered in
+                guard let self else { return }
+                if isHovered {
+                    self.handleStatusItemHoverEnter()
+                } else {
+                    self.cancelStatusItemHover()
+                }
+            }
+            hoverView.onMouseDown = { [weak self] in
+                self?.handleStatusItemMouseDown()
+            }
+            hoverView.translatesAutoresizingMaskIntoConstraints = false
+            button.addSubview(hoverView)
+            NSLayoutConstraint.activate([
+                hoverView.leadingAnchor.constraint(equalTo: button.leadingAnchor),
+                hoverView.trailingAnchor.constraint(equalTo: button.trailingAnchor),
+                hoverView.topAnchor.constraint(equalTo: button.topAnchor),
+                hoverView.bottomAnchor.constraint(equalTo: button.bottomAnchor)
+            ])
+            self.hoverView = hoverView
+        }
+    }
+
+    private func handleStatusItemHoverEnter() {
+        guard !isMenuOpen else {
+            isStatusItemHovered = true
+            updateStatusItemAppearance()
+            return
+        }
+        hoverActivationTimer?.invalidate()
+        hoverActivationTimer = Timer.scheduledTimer(withTimeInterval: 0.18, repeats: false) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self, !self.isMenuOpen else { return }
+                self.isStatusItemHovered = true
+                self.animateStatusItemAppearanceUpdate()
+            }
+        }
+    }
+
+    private func cancelStatusItemHover() {
+        hoverActivationTimer?.invalidate()
+        hoverActivationTimer = nil
+        guard isStatusItemHovered else { return }
+        isStatusItemHovered = false
+        animateStatusItemAppearanceUpdate()
+    }
+
+    private func handleStatusItemMouseDown() {
+        keepsStatusTitleForNextMenuOpen = shouldShowStatusTitle
     }
 
     private func presentPendingErrorIfNeeded() {
@@ -317,4 +448,69 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
         }
     }
 
+}
+
+struct StatusItemTitleVisibilityPolicy {
+    let displayMode: StatusBarDisplayMode
+    let isStatusItemHovered: Bool
+    let isMenuOpen: Bool
+    let keepsStatusTitleWhileMenuOpen: Bool
+
+    var shouldShowTitle: Bool {
+        switch displayMode {
+        case .iconOnly:
+            false
+        case .iconAndText:
+            true
+        case .textOnHover:
+            isStatusItemHovered || (isMenuOpen && keepsStatusTitleWhileMenuOpen)
+        }
+    }
+}
+
+private final class StatusItemHoverView: NSView {
+    private weak var button: NSStatusBarButton?
+    var onHoverChanged: ((Bool) -> Void)?
+    var onMouseDown: (() -> Void)?
+    private var trackingArea: NSTrackingArea?
+
+    init(button: NSStatusBarButton) {
+        self.button = button
+        super.init(frame: .zero)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+
+        if let trackingArea {
+            removeTrackingArea(trackingArea)
+        }
+
+        let trackingArea = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(trackingArea)
+        self.trackingArea = trackingArea
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        onHoverChanged?(true)
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        onHoverChanged?(false)
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        onMouseDown?()
+        button?.mouseDown(with: event)
+    }
 }

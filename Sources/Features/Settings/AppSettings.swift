@@ -29,6 +29,13 @@ final class AppSettings: ObservableObject {
         }
     }
 
+    @Published var statusBarDisplayMode: StatusBarDisplayMode {
+        didSet {
+            UserDefaults.standard.set(statusBarDisplayMode.rawValue, forKey: Self.statusBarDisplayModeKey)
+            NotificationCenter.default.post(name: .codexSwitchboardSettingsDidChange, object: self)
+        }
+    }
+
     @Published var visibleInactiveAccountCount: Int {
         didSet {
             UserDefaults.standard.set(visibleInactiveAccountCount, forKey: Self.visibleInactiveAccountCountKey)
@@ -42,6 +49,7 @@ final class AppSettings: ObservableObject {
     private static let refreshIntervalKey = "refreshIntervalMinutes"
     private static let statusBarIndicatorStyleKey = "statusBarIndicatorStyle"
     private static let statusBarMonochromeKey = "statusBarMonochrome"
+    private static let statusBarDisplayModeKey = "statusBarDisplayMode"
     private static let visibleInactiveAccountCountKey = "visibleInactiveAccountCount"
 
     private init() {
@@ -56,6 +64,8 @@ final class AppSettings: ObservableObject {
             statusBarIndicatorStyle = storedStyle.flatMap(StatusBarIndicatorStyle.init(rawValue:)) ?? .dualArcBadge
         }
         statusBarMonochrome = UserDefaults.standard.bool(forKey: Self.statusBarMonochromeKey)
+        statusBarDisplayMode = UserDefaults.standard.string(forKey: Self.statusBarDisplayModeKey)
+            .flatMap { StatusBarDisplayMode(rawValue: $0) } ?? .textOnHover
         let storedVisibleInactiveAccountCount = UserDefaults.standard.integer(forKey: Self.visibleInactiveAccountCountKey)
         visibleInactiveAccountCount = visibleInactiveAccountCountOptions.contains(storedVisibleInactiveAccountCount)
             ? storedVisibleInactiveAccountCount

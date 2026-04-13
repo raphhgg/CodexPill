@@ -90,6 +90,70 @@ struct MenuBarMenuStateTests {
         #expect(state.allSavedAccounts.isEmpty)
     }
 
+    @Test
+    func iconOnlyNeverShowsStatusItemTitle() {
+        let hovered = StatusItemTitleVisibilityPolicy(
+            displayMode: .iconOnly,
+            isStatusItemHovered: true,
+            isMenuOpen: false,
+            keepsStatusTitleWhileMenuOpen: false
+        )
+        let pinnedMenu = StatusItemTitleVisibilityPolicy(
+            displayMode: .iconOnly,
+            isStatusItemHovered: false,
+            isMenuOpen: true,
+            keepsStatusTitleWhileMenuOpen: true
+        )
+
+        #expect(!hovered.shouldShowTitle)
+        #expect(!pinnedMenu.shouldShowTitle)
+    }
+
+    @Test
+    func iconAndTextAlwaysShowsStatusItemTitle() {
+        let idle = StatusItemTitleVisibilityPolicy(
+            displayMode: .iconAndText,
+            isStatusItemHovered: false,
+            isMenuOpen: false,
+            keepsStatusTitleWhileMenuOpen: false
+        )
+        let menuOpen = StatusItemTitleVisibilityPolicy(
+            displayMode: .iconAndText,
+            isStatusItemHovered: false,
+            isMenuOpen: true,
+            keepsStatusTitleWhileMenuOpen: false
+        )
+
+        #expect(idle.shouldShowTitle)
+        #expect(menuOpen.shouldShowTitle)
+    }
+
+    @Test
+    func textOnHoverShowsStatusItemTitleWhenHoveredOrPinned() {
+        let hovered = StatusItemTitleVisibilityPolicy(
+            displayMode: .textOnHover,
+            isStatusItemHovered: true,
+            isMenuOpen: false,
+            keepsStatusTitleWhileMenuOpen: false
+        )
+        let pinnedMenu = StatusItemTitleVisibilityPolicy(
+            displayMode: .textOnHover,
+            isStatusItemHovered: false,
+            isMenuOpen: true,
+            keepsStatusTitleWhileMenuOpen: true
+        )
+        let idle = StatusItemTitleVisibilityPolicy(
+            displayMode: .textOnHover,
+            isStatusItemHovered: false,
+            isMenuOpen: false,
+            keepsStatusTitleWhileMenuOpen: false
+        )
+
+        #expect(hovered.shouldShowTitle)
+        #expect(pinnedMenu.shouldShowTitle)
+        #expect(!idle.shouldShowTitle)
+    }
+
     private func makeState(
         activeAccount: CodexAccount? = nil,
         inactiveAccounts: [CodexAccount],
@@ -106,6 +170,7 @@ struct MenuBarMenuStateTests {
             refreshIntervalOptions: [1, 5, 10],
             statusBarMonochrome: false,
             statusBarIndicatorStyle: .dualArcBadge,
+            statusBarDisplayMode: .textOnHover,
             isBusy: isBusy,
             statusMessage: statusMessage
         )
