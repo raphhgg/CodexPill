@@ -3,10 +3,9 @@ import AppKit
 @MainActor
 final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
     private var coordinator: MenuBarCoordinator!
-    private let settings = AppSettings.shared
+    private let settings = AppSettings()
     private var statusItem: NSStatusItem!
     private var storeObserver: NSObjectProtocol?
-    private var settingsObserver: NSObjectProtocol?
     private var wakeObserver: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -40,15 +39,6 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
                 self?.coordinator.handleStoreChange()
             }
         }
-        settingsObserver = NotificationCenter.default.addObserver(
-            forName: .codexSwitchboardSettingsDidChange,
-            object: settings,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                self?.coordinator.handleSettingsChange()
-            }
-        }
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didWakeNotification,
             object: nil,
@@ -66,9 +56,6 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         if let storeObserver {
             NotificationCenter.default.removeObserver(storeObserver)
-        }
-        if let settingsObserver {
-            NotificationCenter.default.removeObserver(settingsObserver)
         }
         if let wakeObserver {
             NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver)

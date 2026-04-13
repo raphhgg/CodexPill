@@ -1,4 +1,5 @@
 import AppKit
+import Observation
 import OSLog
 
 private let menuBarCoordinatorLogger = Logger(subsystem: "com.raphhgg.codex-switchboard", category: "MenuBarCoordinator")
@@ -20,6 +21,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
     private var hoverActivationTimer: Timer?
     private weak var hoverView: StatusItemHoverView?
     private var hasPromptedForEmptyState = false
+    private var isObservingSettings = false
     private var isMenuOpen = false
     private var isStatusItemHovered = false
     private var keepsStatusTitleWhileMenuOpen = false
@@ -47,6 +49,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
 
     func start() {
         configureStatusItemButton()
+        startObservingSettings()
         updateStatusItemAppearance()
         rebuildMenu()
         scheduleAutoRefresh()
@@ -311,6 +314,28 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
             button.attributedTitle = NSAttributedString(string: "")
         }
         button.toolTip = statusItemTooltip(primary: primary, secondary: secondary)
+    }
+
+    private func startObservingSettings() {
+        guard !isObservingSettings else { return }
+        isObservingSettings = true
+        observeSettingsChanges()
+    }
+
+    private func observeSettingsChanges() {
+        withObservationTracking {
+            _ = settings.refreshIntervalMinutes
+            _ = settings.statusBarIndicatorStyle
+            _ = settings.statusBarMonochrome
+            _ = settings.statusBarDisplayMode
+            _ = settings.visibleInactiveAccountCount
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.handleSettingsChange()
+                self.observeSettingsChanges()
+            }
+        }
     }
 
     private func animateStatusItemAppearanceUpdate() {

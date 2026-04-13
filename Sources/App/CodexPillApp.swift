@@ -4,9 +4,5 @@ import SwiftUI
 struct CodexPillApp: App {
     @NSApplicationDelegateAdaptor(CodexPillAppDelegate.self) private var appDelegate
 
-    var body: some Scene {
-        Settings {
-            SettingsView(settings: .shared)
-        }
-    }
+    var body: some Scene { Settings {} }
 }
