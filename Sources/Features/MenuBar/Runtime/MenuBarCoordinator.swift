@@ -7,7 +7,7 @@ private let menuBarCoordinatorLogger = Logger(subsystem: "com.raphhgg.codex-swit
 @MainActor
 final class MenuBarCoordinator: NSObject, NSMenuDelegate {
     private let statusItem: NSStatusItem
-    private let store: MenuBarStore
+    private let store: MenuBarAccountsStore
     private let settings: AppSettings
     private let iconRenderer: StatusBarIconRenderer
     private let cliProcessInspector: CodexCLIProcessInspector
@@ -22,6 +22,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
     private weak var hoverView: StatusItemHoverView?
     private var hasPromptedForEmptyState = false
     private var isObservingSettings = false
+    private var isObservingStore = false
     private var isMenuOpen = false
     private var isStatusItemHovered = false
     private var keepsStatusTitleWhileMenuOpen = false
@@ -29,7 +30,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
 
     init(
         statusItem: NSStatusItem,
-        store: MenuBarStore,
+        store: MenuBarAccountsStore,
         settings: AppSettings,
         iconRenderer: StatusBarIconRenderer = StatusBarIconRenderer(),
         cliProcessInspector: CodexCLIProcessInspector = CodexCLIProcessInspector(),
@@ -49,6 +50,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
 
     func start() {
         configureStatusItemButton()
+        startObservingStore()
         startObservingSettings()
         updateStatusItemAppearance()
         rebuildMenu()
@@ -61,37 +63,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
         pendingSignInMonitorTimer?.invalidate()
         wakeRefreshTask?.cancel()
         hoverActivationTimer?.invalidate()
-    }
-
-    func handleStoreChange() {
-        if !store.accounts.isEmpty {
-            hasPromptedForEmptyState = false
-        }
-        updateStatusItemAppearance()
-        rebuildMenu()
-        presentPendingErrorIfNeeded()
-        syncBackgroundState()
-    }
-
-    func handleSettingsChange() {
-        updateStatusItemAppearance()
-        scheduleAutoRefresh()
-        rebuildMenu()
-    }
-
-    func menuWillOpen(_ menu: NSMenu) {
-        isMenuOpen = true
-        keepsStatusTitleWhileMenuOpen = keepsStatusTitleForNextMenuOpen || isStatusItemHovered
-        keepsStatusTitleForNextMenuOpen = false
-        updateStatusItemAppearance()
-        store.refreshActiveAccount()
-        rebuildMenu()
-    }
-
-    func menuDidClose(_ menu: NSMenu) {
-        isMenuOpen = false
-        keepsStatusTitleWhileMenuOpen = false
-        updateStatusItemAppearance()
     }
 
     func handleSystemDidWake() {
@@ -228,6 +199,26 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
         NSApplication.shared.terminate(nil)
     }
 
+    func menuWillOpen(_ menu: NSMenu) {
+        isMenuOpen = true
+        keepsStatusTitleWhileMenuOpen = keepsStatusTitleForNextMenuOpen || isStatusItemHovered
+        keepsStatusTitleForNextMenuOpen = false
+        updateStatusItemAppearance()
+        store.refreshActiveAccount()
+        rebuildMenu()
+    }
+
+    func menuDidClose(_ menu: NSMenu) {
+        isMenuOpen = false
+        keepsStatusTitleWhileMenuOpen = false
+        updateStatusItemAppearance()
+    }
+
+    func requestSwitch(toAccountID accountID: UUID) {
+        guard let account = store.accounts.first(where: { $0.id == accountID }) else { return }
+        requestSwitch(to: account)
+    }
+
     private func rebuildMenu() {
         let state = menuState()
         statusItem.menu = menuBuilder.makeMenu(state: state, target: self)
@@ -235,7 +226,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
     }
 
     private func menuState() -> MenuBarMenuState {
-        return MenuBarMenuState(
+        MenuBarMenuState(
             activeAccount: store.activeAccount,
             inactiveAccounts: store.sortedInactiveAccounts,
             visibleInactiveAccountCount: settings.visibleInactiveAccountCount,
@@ -248,11 +239,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
             isBusy: store.isBusy,
             statusMessage: store.statusMessage
         )
-    }
-
-    func requestSwitch(toAccountID accountID: UUID) {
-        guard let account = store.accounts.first(where: { $0.id == accountID }) else { return }
-        requestSwitch(to: account)
     }
 
     private func requestSwitch(to account: CodexAccount) {
@@ -316,6 +302,39 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
         button.toolTip = statusItemTooltip(primary: primary, secondary: secondary)
     }
 
+    private func startObservingStore() {
+        guard !isObservingStore else { return }
+        isObservingStore = true
+        observeStoreChanges()
+    }
+
+    private func observeStoreChanges() {
+        withObservationTracking {
+            _ = store.accounts
+            _ = store.activeAccountID
+            _ = store.pendingErrorMessage
+            _ = store.statusMessage
+            _ = store.isBusy
+            _ = store.hasPendingSignedInAccount
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.handleStoreChange()
+                self.observeStoreChanges()
+            }
+        }
+    }
+
+    private func handleStoreChange() {
+        if !store.accounts.isEmpty {
+            hasPromptedForEmptyState = false
+        }
+        updateStatusItemAppearance()
+        rebuildMenu()
+        presentPendingErrorIfNeeded()
+        syncBackgroundState()
+    }
+
     private func startObservingSettings() {
         guard !isObservingSettings else { return }
         isObservingSettings = true
@@ -336,6 +355,12 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
                 self.observeSettingsChanges()
             }
         }
+    }
+
+    private func handleSettingsChange() {
+        updateStatusItemAppearance()
+        scheduleAutoRefresh()
+        rebuildMenu()
     }
 
     private func animateStatusItemAppearanceUpdate() {
@@ -471,71 +496,5 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
             guard let self, self.store.accounts.isEmpty, !self.store.isBusy, !self.store.hasPendingSignedInAccount else { return }
             self.addCurrentAccount()
         }
-    }
-
-}
-
-struct StatusItemTitleVisibilityPolicy {
-    let displayMode: StatusBarDisplayMode
-    let isStatusItemHovered: Bool
-    let isMenuOpen: Bool
-    let keepsStatusTitleWhileMenuOpen: Bool
-
-    var shouldShowTitle: Bool {
-        switch displayMode {
-        case .iconOnly:
-            false
-        case .iconAndText:
-            true
-        case .textOnHover:
-            isStatusItemHovered || (isMenuOpen && keepsStatusTitleWhileMenuOpen)
-        }
-    }
-}
-
-private final class StatusItemHoverView: NSView {
-    private weak var button: NSStatusBarButton?
-    var onHoverChanged: ((Bool) -> Void)?
-    var onMouseDown: (() -> Void)?
-    private var trackingArea: NSTrackingArea?
-
-    init(button: NSStatusBarButton) {
-        self.button = button
-        super.init(frame: .zero)
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-
-        if let trackingArea {
-            removeTrackingArea(trackingArea)
-        }
-
-        let trackingArea = NSTrackingArea(
-            rect: bounds,
-            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
-            owner: self,
-            userInfo: nil
-        )
-        addTrackingArea(trackingArea)
-        self.trackingArea = trackingArea
-    }
-
-    override func mouseEntered(with event: NSEvent) {
-        onHoverChanged?(true)
-    }
-
-    override func mouseExited(with event: NSEvent) {
-        onHoverChanged?(false)
-    }
-
-    override func mouseDown(with event: NSEvent) {
-        onMouseDown?()
-        button?.mouseDown(with: event)
     }
 }

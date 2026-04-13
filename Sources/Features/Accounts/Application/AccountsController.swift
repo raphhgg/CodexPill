@@ -1,9 +1,11 @@
 import Foundation
+import Observation
 import OSLog
 
 private let accountsControllerLogger = Logger(subsystem: "com.raphhgg.codex-switchboard", category: "AccountsController")
 
 @MainActor
+@Observable
 final class AccountsController {
     private let identityResolver: SavedAccountIdentityResolver
     private let loadAccountsUseCase: LoadAccountsUseCase
@@ -21,8 +23,6 @@ final class AccountsController {
     private(set) var pendingErrorMessage: String?
     private(set) var statusMessage = "Ready"
     private(set) var isBusy = false
-    var onStateDidChange: (() -> Void)?
-
     init(
         repository: AccountRepository,
         authService: CodexAuthSnapshotService,
@@ -80,7 +80,6 @@ final class AccountsController {
             pendingErrorMessage = error.localizedDescription
             accountsControllerLogger.error("Failed to load store: \(error.localizedDescription, privacy: .public)")
         }
-        stateDidChange()
     }
 
     func saveCurrentAccountSnapshot(named customName: String?) async {
@@ -163,7 +162,6 @@ final class AccountsController {
             let result = try signInAnotherWorkflow.prepare(named: pendingAccountName)
             pendingSignedInAccountName = result.pendingAccountName
             activeAccountID = nil
-            stateDidChange()
             try await signInAnotherWorkflow.relaunchCodex()
             accountsControllerLogger.log("Sign-in-another relaunch finished")
         }
@@ -171,10 +169,6 @@ final class AccountsController {
 
     func refreshActiveAccount() {
         activeAccountID = identityResolver.resolveCurrentAccountID(accounts: accounts)
-    }
-
-    func refreshObservedContexts() {
-        stateDidChange()
     }
 
     func isActive(_ account: CodexAccount) -> Bool {
@@ -228,7 +222,6 @@ final class AccountsController {
         accountsControllerLogger.log("Beginning operation with status: \(status, privacy: .public)")
         isBusy = true
         statusMessage = status
-        stateDidChange()
         do {
             try await operation()
             statusMessage = "Done"
@@ -239,11 +232,6 @@ final class AccountsController {
             accountsControllerLogger.error("Operation failed for status \(status, privacy: .public): \(error.localizedDescription, privacy: .public)")
         }
         isBusy = false
-        stateDidChange()
-    }
-
-    private func stateDidChange() {
-        onStateDidChange?()
     }
 
     private func silentlyRefreshActiveAccountData(after delay: Duration) async {
@@ -257,7 +245,6 @@ final class AccountsController {
             let result = try await refreshActiveAccountUseCase.run(accounts: accounts)
             accounts = result.accounts
             activeAccountID = result.refreshedAccountID
-            stateDidChange()
         } catch {
             accountsControllerLogger.log("Silent post-activation refresh skipped: \(error.localizedDescription, privacy: .public)")
         }

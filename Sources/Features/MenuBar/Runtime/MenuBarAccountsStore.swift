@@ -1,13 +1,9 @@
 import Foundation
 import Observation
 
-extension Notification.Name {
-    static let codexSwitchboardStoreDidChange = Notification.Name("CodexSwitchboardStoreDidChange")
-}
-
 @MainActor
 @Observable
-final class MenuBarStore {
+final class MenuBarAccountsStore {
     private let controller: AccountsController
 
     init(
@@ -22,9 +18,6 @@ final class MenuBarStore {
             appController: appController,
             appServerClient: appServerClient
         )
-        controller.onStateDidChange = { [weak self] in
-            self?.stateDidChange()
-        }
     }
 
     var accounts: [CodexAccount] { controller.accounts }
@@ -73,23 +66,7 @@ final class MenuBarStore {
         controller.refreshActiveAccount()
     }
 
-    func refreshObservedContexts() async {
-        controller.refreshObservedContexts()
-    }
-
-    func isActive(_ account: CodexAccount) -> Bool {
-        controller.isActive(account)
-    }
-
-    func compareForMenu(_ lhs: CodexAccount, _ rhs: CodexAccount) -> Bool {
-        controller.compareForMenu(lhs, rhs)
-    }
-
     func consumePendingErrorMessage() -> String? {
         controller.consumePendingErrorMessage()
-    }
-
-    private func stateDidChange() {
-        NotificationCenter.default.post(name: .codexSwitchboardStoreDidChange, object: self)
     }
 }

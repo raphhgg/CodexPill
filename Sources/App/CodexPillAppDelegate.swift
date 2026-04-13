@@ -5,7 +5,6 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
     private var coordinator: MenuBarCoordinator!
     private let settings = AppSettings()
     private var statusItem: NSStatusItem!
-    private var storeObserver: NSObjectProtocol?
     private var wakeObserver: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -13,7 +12,7 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
         let authService = CodexAuthSnapshotService(repository: repository)
         let controller = CodexAppController()
         let appServerClient = CodexAppServerClient()
-        let store = MenuBarStore(
+        let store = MenuBarAccountsStore(
             repository: repository,
             authService: authService,
             appController: controller,
@@ -30,15 +29,6 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
             validationSink: MenuBarValidationConfiguration.makeSink()
         )
 
-        storeObserver = NotificationCenter.default.addObserver(
-            forName: .codexSwitchboardStoreDidChange,
-            object: store,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                self?.coordinator.handleStoreChange()
-            }
-        }
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didWakeNotification,
             object: nil,
@@ -54,9 +44,6 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        if let storeObserver {
-            NotificationCenter.default.removeObserver(storeObserver)
-        }
         if let wakeObserver {
             NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver)
         }
