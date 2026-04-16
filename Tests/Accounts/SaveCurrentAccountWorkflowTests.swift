@@ -9,7 +9,7 @@ struct SaveCurrentAccountWorkflowTests {
         let remote = CodexAccountStatus(
             email: "person@example.com",
             planType: "pro",
-            rateLimits: nil
+            rateLimits: makeRateLimitsSnapshot()
         )
         let saved = makeAccount(name: "Work", fingerprint: "live-fingerprint")
 
@@ -35,6 +35,7 @@ struct SaveCurrentAccountWorkflowTests {
         #expect(auth.savedNames == ["Work"])
         #expect(repository.savedAccounts?.count == 1)
         #expect(repository.savedAccounts?.first?.email == "person@example.com")
+        #expect(repository.savedAccounts?.first?.rateLimits == remote.rateLimits)
         #expect(result.savedAccount.resolvedRemoteIdentity == CodexRemoteAccountIdentity(emailAddress: "person@example.com"))
         #expect(result.activeAccountID == saved.id)
     }
@@ -86,20 +87,145 @@ struct SaveCurrentAccountWorkflowTests {
         #expect(auth.savedNames == ["person@example.com"])
     }
 
-    private func makeAccount(name: String, fingerprint: String) -> CodexAccount {
+    @Test
+    func runUpdatesMatchedExistingAccountInsteadOfCreatingDuplicate() async throws {
+        let existing = makeAccount(
+            name: "Business 5",
+            email: "raphaelgrau@proton.me",
+            fingerprint: "stale-fingerprint",
+            stableAccountID: "stable-business",
+            subject: "auth0|business-5",
+            chatGPTUserID: "user-business-5",
+            workspaceAccountID: "org-business-5"
+        )
+        let remote = CodexAccountStatus(
+            email: "raphaelgrau@proton.me",
+            planType: "team",
+            rateLimits: makeRateLimitsSnapshot()
+        )
+        let refreshed = makeAccount(
+            id: existing.id,
+            name: "Business 5",
+            email: nil,
+            fingerprint: "fresh-fingerprint",
+            stableAccountID: "stable-business",
+            subject: "auth0|business-5",
+            chatGPTUserID: "user-business-5",
+            workspaceAccountID: "org-business-5"
+        )
+
+        let auth = SnapshotSaveSpy(savedAccount: refreshed)
+        let repository = RepositorySpy()
+        let workflow = SaveCurrentAccountWorkflow(
+            appServerClient: AppServerSpy(status: remote),
+            authService: auth,
+            repository: repository,
+            identityResolver: SavedAccountIdentityResolver(
+                liveIdentityReader: FixedIdentityReader(identity: LiveCodexAccountIdentity(account: existing)),
+                storedAccountReconciler: ReconcilePassthrough()
+            )
+        )
+
+        let result = try await workflow.run(
+            customName: "Business 5",
+            existingAccounts: [existing]
+        )
+
+        #expect(auth.savedExistingAccountIDs == [existing.id])
+        #expect(repository.savedAccounts?.count == 1)
+        #expect(repository.savedAccounts?.first?.id == existing.id)
+        #expect(repository.savedAccounts?.first?.email == "raphaelgrau@proton.me")
+        #expect(repository.savedAccounts?.first?.planType == "team")
+        #expect(repository.savedAccounts?.first?.identity.snapshotFingerprint == "fresh-fingerprint")
+        #expect(result.savedAccount.id == existing.id)
+        #expect(result.activeAccountID == existing.id)
+    }
+
+    @Test
+    func runRejectsRenameWhenMatchedExistingWouldCollideWithAnotherSavedAccount() async {
+        let existing = makeAccount(
+            name: "Business 5",
+            email: "raphaelgrau@proton.me",
+            fingerprint: "stale-fingerprint",
+            stableAccountID: "stable-business",
+            subject: "auth0|business-5",
+            chatGPTUserID: "user-business-5",
+            workspaceAccountID: "org-business-5"
+        )
+        let other = makeAccount(
+            name: "Business 4",
+            email: "raphaelgrau@icloud.com",
+            fingerprint: "other-fingerprint"
+        )
+        let workflow = SaveCurrentAccountWorkflow(
+            appServerClient: AppServerSpy(status: CodexAccountStatus(email: "raphaelgrau@proton.me", planType: "team", rateLimits: nil)),
+            authService: SnapshotSaveSpy(savedAccount: existing),
+            repository: RepositorySpy(),
+            identityResolver: SavedAccountIdentityResolver(
+                liveIdentityReader: FixedIdentityReader(identity: LiveCodexAccountIdentity(account: existing)),
+                storedAccountReconciler: ReconcilePassthrough()
+            )
+        )
+
+        await #expect(throws: SaveCurrentAccountWorkflowError.duplicateAccountName) {
+            try await workflow.run(
+                customName: "Business 4",
+                existingAccounts: [existing, other]
+            )
+        }
+    }
+
+    private func makeAccount(
+        id: UUID = UUID(),
+        name: String,
+        email: String? = nil,
+        fingerprint: String,
+        stableAccountID: String? = nil,
+        subject: String? = nil,
+        chatGPTUserID: String? = nil,
+        workspaceAccountID: String? = nil
+    ) -> CodexAccount {
         CodexAccount(
-            id: UUID(),
+            id: id,
             name: name,
             snapshotFileName: "\(UUID().uuidString).json",
             createdAt: .distantPast,
             updatedAt: .distantPast,
-            email: "\(name.lowercased())@example.com",
+            email: email ?? "\(name.lowercased())@example.com",
             planType: nil,
             rateLimits: nil,
             identity: CodexAccountIdentity(
+                stableAccountID: stableAccountID,
+                authPrincipalIdentity: CodexAuthPrincipalIdentity(
+                    subject: subject,
+                    chatGPTUserID: chatGPTUserID
+                ),
+                workspaceIdentity: CodexWorkspaceIdentity(
+                    workspaceAccountID: workspaceAccountID,
+                    workspaceLabel: nil
+                ),
                 snapshotFingerprint: fingerprint,
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "\(name.lowercased())@example.com")
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: email ?? "\(name.lowercased())@example.com")
             )
+        )
+    }
+
+    private func makeRateLimitsSnapshot() -> CodexRateLimitSnapshot {
+        CodexRateLimitSnapshot(
+            limitID: "codex",
+            limitName: nil,
+            planType: "pro",
+            primary: CodexRateLimitWindow(
+                usedPercent: 40,
+                resetsAt: Date(timeIntervalSince1970: 1_776_256_138),
+                windowDurationMinutes: 300
+            ),
+            secondary: CodexRateLimitWindow(
+                usedPercent: 6,
+                resetsAt: Date(timeIntervalSince1970: 1_776_842_938),
+                windowDurationMinutes: 10_080
+            ),
+            fetchedAt: Date(timeIntervalSince1970: 1_776_200_000)
         )
     }
 }
@@ -121,6 +247,7 @@ private final class AppServerSpy: CodexAccountStatusReading {
 private final class SnapshotSaveSpy: CodexAuthSnapshotSaving {
     let savedAccount: CodexAccount
     var savedNames: [String] = []
+    var savedExistingAccountIDs: [UUID?] = []
 
     init(savedAccount: CodexAccount) {
         self.savedAccount = savedAccount
@@ -128,6 +255,7 @@ private final class SnapshotSaveSpy: CodexAuthSnapshotSaving {
 
     func saveCurrentAuthSnapshot(named name: String, existing: CodexAccount?) throws -> CodexAccount {
         savedNames.append(name)
+        savedExistingAccountIDs.append(existing?.id)
         return savedAccount
     }
 }

@@ -72,7 +72,13 @@ struct SignInAnotherWorkflowTests {
         let workflow = SignInAnotherWorkflow(
             authService: auth,
             appController: AppControllerSpy(),
-            appServerClient: AppServerSpy(status: CodexAccountStatus(email: "person@example.com", planType: "pro", rateLimits: nil)),
+            appServerClient: AppServerSpy(
+                status: CodexAccountStatus(
+                    email: "person@example.com",
+                    planType: "pro",
+                    rateLimits: makeRateLimitsSnapshot()
+                )
+            ),
             repository: repository,
             identityResolver: makeResolver(auth: auth)
         )
@@ -85,6 +91,7 @@ struct SignInAnotherWorkflowTests {
         #expect(auth.savedNames == ["Second"])
         #expect(repository.savedAccounts?.count == 1)
         #expect(result?.savedAccount.email == "person@example.com")
+        #expect(result?.savedAccount.rateLimits?.primary?.usedPercent == 40)
         #expect(result?.activeAccountID == auth.savedAccount.id)
     }
 
@@ -190,6 +197,25 @@ struct SignInAnotherWorkflowTests {
                 snapshotFingerprint: fingerprint,
                 remoteIdentity: nil
             )
+        )
+    }
+
+    private func makeRateLimitsSnapshot() -> CodexRateLimitSnapshot {
+        CodexRateLimitSnapshot(
+            limitID: "codex",
+            limitName: nil,
+            planType: "pro",
+            primary: CodexRateLimitWindow(
+                usedPercent: 40,
+                resetsAt: Date(timeIntervalSince1970: 1_776_256_138),
+                windowDurationMinutes: 300
+            ),
+            secondary: CodexRateLimitWindow(
+                usedPercent: 6,
+                resetsAt: Date(timeIntervalSince1970: 1_776_842_938),
+                windowDurationMinutes: 10_080
+            ),
+            fetchedAt: Date(timeIntervalSince1970: 1_776_200_000)
         )
     }
 }

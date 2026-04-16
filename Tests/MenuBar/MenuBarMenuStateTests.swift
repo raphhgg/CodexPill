@@ -40,14 +40,14 @@ struct MenuBarMenuStateTests {
     }
 
     @Test
-    func activeSavedAccountDisablesSaveCurrentAccount() {
+    func activeSavedAccountStillAllowsSaveCurrentAccount() {
         let state = makeState(
             activeAccount: makeAccount(name: "Active"),
             inactiveAccounts: [],
             isBusy: false
         )
 
-        #expect(!state.canSaveCurrentAccount)
+        #expect(state.canSaveCurrentAccount)
         #expect(state.canSignInAnotherAccount)
     }
 
@@ -88,6 +88,47 @@ struct MenuBarMenuStateTests {
 
         #expect(state.canSaveCurrentAccount)
         #expect(state.allSavedAccounts.isEmpty)
+    }
+
+    @Test
+    func emptyStateForcesStatusItemContentToIconOnly() {
+        let state = makeState(inactiveAccounts: [], isBusy: false)
+
+        #expect(!state.hasStatusItemContentData)
+        #expect(state.effectiveStatusBarDisplayMode == .iconOnly)
+        #expect(state.canSelectStatusBarDisplayMode(.iconOnly))
+        #expect(!state.canSelectStatusBarDisplayMode(.iconAndText))
+        #expect(!state.canSelectStatusBarDisplayMode(.textOnHover))
+    }
+
+    @Test
+    func activeAccountUsesStoredStatusItemContentMode() {
+        let state = makeState(
+            activeAccount: makeAccount(name: "Active", withRateLimits: true),
+            inactiveAccounts: [],
+            isBusy: false
+        )
+
+        #expect(state.hasStatusItemContentData)
+        #expect(state.effectiveStatusBarDisplayMode == .textOnHover)
+        #expect(state.canSelectStatusBarDisplayMode(.iconOnly))
+        #expect(state.canSelectStatusBarDisplayMode(.iconAndText))
+        #expect(state.canSelectStatusBarDisplayMode(.textOnHover))
+    }
+
+    @Test
+    func activeAccountWithoutRateLimitsStillForcesIconOnly() {
+        let state = makeState(
+            activeAccount: makeAccount(name: "Active"),
+            inactiveAccounts: [],
+            isBusy: false
+        )
+
+        #expect(!state.hasStatusItemContentData)
+        #expect(state.effectiveStatusBarDisplayMode == .iconOnly)
+        #expect(state.canSelectStatusBarDisplayMode(.iconOnly))
+        #expect(!state.canSelectStatusBarDisplayMode(.iconAndText))
+        #expect(!state.canSelectStatusBarDisplayMode(.textOnHover))
     }
 
     @Test
@@ -176,16 +217,32 @@ struct MenuBarMenuStateTests {
         )
     }
 
-    private func makeAccount(name: String) -> CodexAccount {
-        CodexAccount(
+    private func makeAccount(name: String, withRateLimits: Bool = false) -> CodexAccount {
+        let now = Date(timeIntervalSince1970: 1_744_195_200)
+        return CodexAccount(
             id: UUID(),
             name: name,
             snapshotFileName: "\(UUID().uuidString).json",
-            createdAt: .distantPast,
-            updatedAt: .distantPast,
+            createdAt: now,
+            updatedAt: now,
             email: "\(name.lowercased())@example.com",
             planType: nil,
-            rateLimits: nil,
+            rateLimits: withRateLimits ? CodexRateLimitSnapshot(
+                limitID: nil,
+                limitName: nil,
+                planType: "pro",
+                primary: CodexRateLimitWindow(
+                    usedPercent: 42,
+                    resetsAt: now.addingTimeInterval(3_600),
+                    windowDurationMinutes: 300
+                ),
+                secondary: CodexRateLimitWindow(
+                    usedPercent: 68,
+                    resetsAt: now.addingTimeInterval(86_400),
+                    windowDurationMinutes: 10_080
+                ),
+                fetchedAt: now
+            ) : nil,
             identity: CodexAccountIdentity(
                 snapshotFingerprint: UUID().uuidString,
                 remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "\(name.lowercased())@example.com")

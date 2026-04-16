@@ -3,7 +3,7 @@
 ## Read First
 
 1. Read this file first.
-2. Read `$HOME/Projects/codex-usage-menubar-app/docs/BOOTSTRAP.md` for current product truth.
+2. Read `$HOME/Projects/CodexPill/docs/BOOTSTRAP.md` for current product truth.
 3. For shared standards, load `$HOME/agent-standards/AGENTS.md`.
 
 ## Shared Standards

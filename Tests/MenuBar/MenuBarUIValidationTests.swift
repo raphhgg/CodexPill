@@ -34,6 +34,124 @@ struct MenuBarUIValidationTests {
     }
 
     @Test
+    func otherAccountsDoNotInventFullUsageWhenRateLimitsAreMissing() {
+        let now = Date(timeIntervalSince1970: 1_744_195_200)
+        let state = MenuBarMenuState(
+            activeAccount: nil,
+            inactiveAccounts: [
+                CodexAccount(
+                    id: UUID(),
+                    name: "Research",
+                    snapshotFileName: "\(UUID().uuidString).json",
+                    createdAt: now,
+                    updatedAt: now,
+                    email: "research@example.com",
+                    planType: "pro",
+                    rateLimits: nil,
+                    identity: .empty
+                )
+            ],
+            visibleInactiveAccountCount: 2,
+            visibleInactiveAccountCountOptions: [2, 3, 5, 0],
+            refreshIntervalMinutes: 5,
+            refreshIntervalOptions: [1, 2, 5, 10, 15, 30],
+            statusBarMonochrome: false,
+            statusBarIndicatorStyle: .dualArcBadge,
+            statusBarDisplayMode: .iconOnly,
+            isBusy: false,
+            statusMessage: "Ready"
+        )
+
+        let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, now: now)
+        let summary = try! #require(snapshot.sections.first(where: { $0.title == "Other Accounts" })?.items.first)
+
+        #expect(summary.contains("Session --"))
+        #expect(summary.contains("Weekly --"))
+        #expect(!summary.contains("100%"))
+    }
+
+    @Test
+    func emptyStateForcesIconOnlyStatusItemContentInValidationSnapshot() {
+        let now = Date(timeIntervalSince1970: 1_744_195_200)
+        let snapshot = MenuBarValidationSupport.makeSnapshot(
+            state: makeHostedValidationState(for: "hosted-menu-empty", now: now),
+            now: now
+        )
+
+        let preferences = try! #require(snapshot.sections.first(where: { $0.title == "Preferences" }))
+        #expect(preferences.items.contains("Status Item Content: Icon Only"))
+        #expect(!preferences.items.contains("Status Item Content: Text on Hover"))
+    }
+
+    @Test
+    func snapshotCapturesStructuredCurrentAccountIdentity() {
+        let now = Date(timeIntervalSince1970: 1_744_195_200)
+        let account = CodexAccount(
+            id: UUID(),
+            name: "Business 4",
+            snapshotFileName: "\(UUID().uuidString).json",
+            createdAt: now,
+            updatedAt: now,
+            email: "raphaelgrau@icloud.com",
+            planType: "team",
+            rateLimits: nil,
+            identity: CodexAccountIdentity(
+                stableAccountID: "acct-team",
+                authPrincipalIdentity: CodexAuthPrincipalIdentity(
+                    subject: "auth0|business-4",
+                    chatGPTUserID: "user-business-4"
+                ),
+                workspaceIdentity: CodexWorkspaceIdentity(
+                    workspaceAccountID: "org-business-4",
+                    workspaceLabel: "Personal"
+                ),
+                snapshotFingerprint: "business-four-fingerprint",
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@icloud.com")
+            )
+        )
+        let state = MenuBarMenuState(
+            activeAccount: account,
+            inactiveAccounts: [],
+            visibleInactiveAccountCount: 2,
+            visibleInactiveAccountCountOptions: [2, 3, 5, 0],
+            refreshIntervalMinutes: 5,
+            refreshIntervalOptions: [1, 2, 5, 10, 15, 30],
+            statusBarMonochrome: false,
+            statusBarIndicatorStyle: .dualArcBadge,
+            statusBarDisplayMode: .textOnHover,
+            isBusy: false,
+            statusMessage: "Ready"
+        )
+
+        let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, now: now)
+
+        #expect(snapshot.currentAccount?.name == "Business 4")
+        #expect(snapshot.currentAccount?.email == "raphaelgrau@icloud.com")
+        #expect(snapshot.currentAccount?.identityDigest?.isEmpty == false)
+    }
+
+    @Test
+    func snapshotCapturesStatusItemRuntimeStateWhenButtonIsProvided() {
+        let now = Date(timeIntervalSince1970: 1_744_195_200)
+        let button = NSStatusBarButton(frame: NSRect(x: 0, y: 0, width: 54, height: 22))
+        button.imagePosition = .imageLeading
+        button.attributedTitle = NSAttributedString(string: "S 42% W 68%")
+
+        let snapshot = MenuBarValidationSupport.makeSnapshot(
+            state: makeHostedValidationState(for: "hosted-menu-default", now: now),
+            statusItemButton: button,
+            isStatusItemHovered: true,
+            shouldShowStatusTitle: true,
+            now: now
+        )
+
+        #expect(snapshot.statusItem?.isHovered == true)
+        #expect(snapshot.statusItem?.isTitleVisible == true)
+        #expect(snapshot.statusItem?.displayedTitle == "S 42% W 68%")
+        #expect(snapshot.statusItem?.imagePosition == "imageLeading")
+    }
+
+    @Test
     func hostedMenuScenarioProducesArtifacts() throws {
         let request = try loadValidationRequest() ?? ValidationRequest(
             artifactDirectory: "",
@@ -108,14 +226,14 @@ struct MenuBarUIValidationTests {
             #expect(snapshot.sections.map(\.title) == [
                 "Current Account",
                 "Other Accounts",
-                "More Accounts",
+                "More Accounts…",
                 "Manage Accounts",
                 "Preferences"
             ])
             #expect(snapshot.statusMessage == nil)
             #expect(snapshot.sections[1].items.count == 2)
             #expect(snapshot.sections[2].items.count == 1)
-            #expect(snapshot.sections[3].items.contains("Save Current Account (disabled)"))
+            #expect(snapshot.sections[3].items.contains("Save Current Account"))
 
         case "hosted-menu-busy":
             #expect(snapshot.sections.map(\.title) == [
@@ -151,7 +269,7 @@ struct MenuBarUIValidationTests {
         case "hosted-menu-default":
             return [
                 "Current Account section includes the active account summary",
-                "Two inactive accounts are visible and one account overflows into More Accounts",
+                "Two inactive accounts are visible and one account overflows into More Accounts…",
                 "Status message is omitted when the menu is not busy"
             ]
         case "hosted-menu-busy":

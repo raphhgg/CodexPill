@@ -66,6 +66,10 @@ final class MenuBarAccountsStore {
         controller.refreshActiveAccount()
     }
 
+    func hydrateSavedAccountsMetadataIfNeeded() async {
+        await controller.hydrateSavedAccountsMetadataIfNeeded()
+    }
+
     func consumePendingErrorMessage() -> String? {
         controller.consumePendingErrorMessage()
     }

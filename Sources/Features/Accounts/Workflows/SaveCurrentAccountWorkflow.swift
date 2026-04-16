@@ -43,15 +43,25 @@ struct SaveCurrentAccountWorkflow {
         existingAccounts: [CodexAccount]
     ) async throws -> SaveCurrentAccountWorkflowResult {
         let remote = try await appServerClient.readCurrentAccountStatus()
+        let matchedExistingAccountID = identityResolver.resolveCurrentAccountID(
+            accounts: existingAccounts,
+            liveRemoteIdentity: remote.remoteIdentity
+        )
+        let existing = matchedExistingAccountID.flatMap { id in
+            existingAccounts.first(where: { $0.id == id })
+        }
         let resolvedName = resolveAccountName(customName, fallbackEmail: remote.email)
 
-        guard !existingAccounts.contains(where: { $0.name.caseInsensitiveCompare(resolvedName) == .orderedSame }) else {
+        guard !existingAccounts.contains(where: {
+            $0.id != existing?.id &&
+                $0.name.caseInsensitiveCompare(resolvedName) == .orderedSame
+        }) else {
             throw SaveCurrentAccountWorkflowError.duplicateAccountName
         }
 
         var saved = try authService.saveCurrentAuthSnapshot(
             named: resolvedName,
-            existing: nil
+            existing: existing
         )
         saved.applyRemoteMetadata(
             email: remote.email,

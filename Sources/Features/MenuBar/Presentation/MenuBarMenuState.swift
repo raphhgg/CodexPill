@@ -12,7 +12,7 @@ struct MenuBarMenuState {
     let statusMessage: String
 
     var canSaveCurrentAccount: Bool {
-        !isBusy && activeAccount == nil
+        !isBusy
     }
 
     var canSignInAnotherAccount: Bool {
@@ -49,4 +49,20 @@ struct MenuBarMenuState {
         guard !statusMessage.isEmpty else { return false }
         return isBusy
     }
+
+    var hasStatusItemContentData: Bool {
+        guard let activeAccount else { return false }
+        return activeAccount.rateLimits?.primary != nil || activeAccount.rateLimits?.secondary != nil
+    }
+
+    var effectiveStatusBarDisplayMode: StatusBarDisplayMode {
+        guard hasStatusItemContentData else { return .iconOnly }
+        return statusBarDisplayMode
+    }
+
+    func canSelectStatusBarDisplayMode(_ mode: StatusBarDisplayMode) -> Bool {
+        guard hasStatusItemContentData else { return mode == .iconOnly }
+        return true
+    }
+
 }

@@ -5,6 +5,12 @@ import SwiftUI
 struct MenuBarMenuBuilder {
     func makeMenu(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenu {
         let menu = NSMenu()
+        populate(menu: menu, state: state, target: target)
+        return menu
+    }
+
+    func populate(menu: NSMenu, state: MenuBarMenuState, target: MenuBarCoordinator) {
+        menu.removeAllItems()
         menu.delegate = target
 
         if let activeAccount = state.activeAccount {
@@ -46,8 +52,6 @@ struct MenuBarMenuBuilder {
         let quit = NSMenuItem(title: "Quit", action: #selector(MenuBarCoordinator.quitApp), keyEquivalent: "q")
         quit.target = target
         menu.addItem(quit)
-
-        return menu
     }
 
     private func activeAccountItem(for account: CodexAccount) -> NSMenuItem {
@@ -76,10 +80,11 @@ struct MenuBarMenuBuilder {
     }
 
     private func inactiveAccountItem(for account: CodexAccount, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "", action: #selector(MenuBarCoordinator.switchAccount(_:)), keyEquivalent: "")
+        let item = NSMenuItem(title: account.name, action: #selector(MenuBarCoordinator.switchAccount(_:)), keyEquivalent: "")
         item.target = target
         item.representedObject = account.id.uuidString
         item.attributedTitle = inactiveAccountTitle(for: account)
+        item.isEnabled = true
         return item
     }
 
@@ -95,7 +100,7 @@ struct MenuBarMenuBuilder {
         let item = NSMenuItem(title: "Add Account", action: nil, keyEquivalent: "")
         item.image = NSImage(systemSymbolName: "plus.circle", accessibilityDescription: "Add Account")
 
-        let submenu = NSMenu(title: "Add Account")
+        let submenu = configuredMenu(title: "Add Account")
         let saveCurrent = NSMenuItem(title: "Save Current Account", action: #selector(MenuBarCoordinator.addCurrentAccount), keyEquivalent: "")
         saveCurrent.target = target
         saveCurrent.isEnabled = state.canSaveCurrentAccount
@@ -114,7 +119,7 @@ struct MenuBarMenuBuilder {
         let item = NSMenuItem(title: "Accounts", action: nil, keyEquivalent: "")
         item.image = NSImage(systemSymbolName: "person.2.circle", accessibilityDescription: "Accounts")
 
-        let submenu = NSMenu(title: "Accounts")
+        let submenu = configuredMenu(title: "Accounts")
         submenu.addItem(addAccountMenuItem(state: state, target: target))
         submenu.addItem(visibleAccountsMenuItem(state: state, target: target))
         submenu.addItem(renameAccountMenuItem(state: state, target: target))
@@ -129,7 +134,7 @@ struct MenuBarMenuBuilder {
         item.image = NSImage(systemSymbolName: "trash", accessibilityDescription: "Remove Account")
         item.isEnabled = state.canRemoveSavedAccounts
 
-        let submenu = NSMenu(title: "Remove Account")
+        let submenu = configuredMenu(title: "Remove Account")
         for account in state.allSavedAccounts {
             let option = NSMenuItem(
                 title: isLocallyActive(account: account, state: state) ? "\(account.name) (Current)" : account.name,
@@ -156,7 +161,7 @@ struct MenuBarMenuBuilder {
         let item = NSMenuItem(title: "Visible Other Accounts", action: nil, keyEquivalent: "")
         item.image = NSImage(systemSymbolName: "line.3.horizontal.decrease.circle", accessibilityDescription: "Visible Other Accounts")
 
-        let submenu = NSMenu(title: "Visible Other Accounts")
+        let submenu = configuredMenu(title: "Visible Other Accounts")
         for count in state.visibleInactiveAccountCountOptions {
             let title = count == 0 ? "All" : "\(count)"
             let option = NSMenuItem(title: title, action: #selector(MenuBarCoordinator.selectVisibleInactiveAccountCount(_:)), keyEquivalent: "")
@@ -171,10 +176,9 @@ struct MenuBarMenuBuilder {
     }
 
     private func moreAccountsMenuItem(accounts: [CodexAccount], target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "More Accounts", action: nil, keyEquivalent: "")
-        item.image = NSImage(systemSymbolName: "ellipsis.circle", accessibilityDescription: "More Accounts")
+        let item = NSMenuItem(title: "More Accounts…", action: nil, keyEquivalent: "")
 
-        let submenu = NSMenu(title: "More Accounts")
+        let submenu = configuredMenu(title: "More Accounts…")
         for account in accounts {
             submenu.addItem(inactiveAccountItem(for: account, target: target))
         }
@@ -188,7 +192,7 @@ struct MenuBarMenuBuilder {
         item.image = NSImage(systemSymbolName: "pencil", accessibilityDescription: "Rename Account")
         item.isEnabled = state.canRenameSavedAccounts
 
-        let submenu = NSMenu(title: "Rename Account")
+        let submenu = configuredMenu(title: "Rename Account")
         for account in state.allSavedAccounts {
             let option = NSMenuItem(
                 title: isLocallyActive(account: account, state: state) ? "\(account.name) (Current)" : account.name,
@@ -215,7 +219,7 @@ struct MenuBarMenuBuilder {
         let item = NSMenuItem(title: "Refresh Time", action: nil, keyEquivalent: "")
         item.image = NSImage(systemSymbolName: "timer", accessibilityDescription: "Refresh Time")
 
-        let submenu = NSMenu(title: "Refresh Time")
+        let submenu = configuredMenu(title: "Refresh Time")
         for minutes in state.refreshIntervalOptions {
             let option = NSMenuItem(title: "\(minutes) minutes", action: #selector(MenuBarCoordinator.selectRefreshInterval(_:)), keyEquivalent: "")
             option.target = target
@@ -232,7 +236,7 @@ struct MenuBarMenuBuilder {
         let item = NSMenuItem(title: "Status Item", action: nil, keyEquivalent: "")
         item.image = NSImage(systemSymbolName: "menubar.rectangle", accessibilityDescription: "Status Item")
 
-        let submenu = NSMenu(title: "Status Item")
+        let submenu = configuredMenu(title: "Status Item")
         submenu.addItem(statusBarDisplayMenuItem(state: state, target: target))
         submenu.addItem(statusBarStyleMenuItem(state: state, target: target))
 
@@ -244,7 +248,7 @@ struct MenuBarMenuBuilder {
         let item = NSMenuItem(title: "Appearance", action: nil, keyEquivalent: "")
         item.image = NSImage(systemSymbolName: "square.2.layers.3d.top.filled", accessibilityDescription: "Appearance")
 
-        let submenu = NSMenu(title: "Appearance")
+        let submenu = configuredMenu(title: "Appearance")
         let monochrome = NSMenuItem(title: "Monochrome", action: #selector(MenuBarCoordinator.toggleStatusBarMonochrome(_:)), keyEquivalent: "")
         monochrome.target = target
         monochrome.state = state.statusBarMonochrome ? .on : .off
@@ -267,12 +271,17 @@ struct MenuBarMenuBuilder {
         let item = NSMenuItem(title: "Content", action: nil, keyEquivalent: "")
         item.image = NSImage(systemSymbolName: "character.textbox", accessibilityDescription: "Content")
 
-        let submenu = NSMenu(title: "Content")
+        let submenu = configuredMenu(title: "Content")
         for mode in StatusBarDisplayMode.allCases {
-            let option = NSMenuItem(title: mode.menuTitle, action: #selector(MenuBarCoordinator.selectStatusBarDisplayMode(_:)), keyEquivalent: "")
-            option.target = target
-            option.representedObject = mode.rawValue
-            option.state = state.statusBarDisplayMode == mode ? .on : .off
+            let option: NSMenuItem
+            if state.canSelectStatusBarDisplayMode(mode) {
+                option = NSMenuItem(title: mode.menuTitle, action: #selector(MenuBarCoordinator.selectStatusBarDisplayMode(_:)), keyEquivalent: "")
+                option.target = target
+                option.representedObject = mode.rawValue
+            } else {
+                option = disabledInfoItem(mode.menuTitle)
+            }
+            option.state = state.effectiveStatusBarDisplayMode == mode ? .on : .off
             submenu.addItem(option)
         }
 
@@ -282,6 +291,10 @@ struct MenuBarMenuBuilder {
 
     private func isLocallyActive(account: CodexAccount, state: MenuBarMenuState) -> Bool {
         state.activeAccount?.id == account.id
+    }
+
+    private func configuredMenu(title: String) -> NSMenu {
+        NSMenu(title: title)
     }
 }
 

@@ -9,20 +9,27 @@ struct CodexAccountStatus {
     }
 }
 
+struct CodexCLICommand: Equatable {
+    let executableURL: URL
+    let arguments: [String]
+}
+
 final class CodexAppServerClient {
     typealias StatusReader = @Sendable (_ refreshToken: Bool) async throws -> CodexAccountStatus
     typealias Sleeper = @Sendable (_ duration: Duration) async -> Void
+    private static let responseTimeout: Duration = .seconds(10)
     private let statusReader: StatusReader
     private let sleeper: Sleeper
 
-    init() {
+    init(environment: [String: String] = ProcessInfo.processInfo.environment) {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
+        let command = Self.makeAppServerCommand(environment: environment)
         statusReader = { refreshToken in
             try await Self.readAccountStatus(
                 decoder: decoder,
-                executableURL: URL(fileURLWithPath: "/usr/bin/env"),
-                arguments: ["codex", "app-server"],
+                executableURL: command.executableURL,
+                arguments: command.arguments,
                 refreshToken: refreshToken
             )
         }
@@ -91,6 +98,48 @@ final class CodexAppServerClient {
             planType: current.planType ?? previous?.planType,
             rateLimits: current.rateLimits ?? previous?.rateLimits
         )
+    }
+
+    static func makeAppServerCommand(environment: [String: String]) -> CodexCLICommand {
+        if let overridePath = environment["CODEX_CLI_PATH"]?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !overridePath.isEmpty {
+            return CodexCLICommand(
+                executableURL: URL(fileURLWithPath: overridePath),
+                arguments: ["app-server"]
+            )
+        }
+
+        let bundlePath = Bundle.main.sharedSupportPath.map {
+            URL(fileURLWithPath: $0)
+                .appendingPathComponent("codex")
+                .standardizedFileURL.path
+        }
+        let fallbackPaths = [
+            bundlePath,
+            "/Applications/Codex.app/Contents/Resources/codex"
+        ].compactMap { $0 }
+
+        let fileManager = FileManager.default
+        if let resolvedPath = fallbackPaths.first(where: { fileManager.isExecutableFile(atPath: $0) }) {
+            return CodexCLICommand(
+                executableURL: URL(fileURLWithPath: resolvedPath),
+                arguments: ["app-server"]
+            )
+        }
+
+        return CodexCLICommand(
+            executableURL: URL(fileURLWithPath: "/usr/bin/env"),
+            arguments: ["codex", "app-server"]
+        )
+    }
+
+    static func makeAppServerRequests(refreshToken: Bool) -> [String] {
+        [
+            #"{"method":"initialize","id":1,"params":{"clientInfo":{"name":"codexpill","title":"CodexPill","version":"0.1.0"},"capabilities":{"experimentalApi":true}}}"#,
+            #"{"method":"initialized","params":{}}"#,
+            #"{"method":"account/read","id":2,"params":{"refreshToken":\#(refreshToken ? "true" : "false")}}"#,
+            #"{"method":"account/rateLimits/read","id":3,"params":null}"#
+        ]
     }
 
     private static func readAccountStatus(
@@ -176,17 +225,12 @@ final class CodexAppServerClient {
 
             do {
                 try process.run()
-                let requests = [
-                    #"{"method":"initialize","id":1,"params":{"clientInfo":{"name":"codexpill","title":"CodexPill","version":"0.1.0"},"capabilities":{"experimentalApi":true}}}"#,
-                    #"{"method":"initialized","params":{}}"#,
-                    #"{"method":"account/read","id":2,"params":{"refreshToken":\#(refreshToken ? "true" : "false")}}"#,
-                    #"{"method":"account/rateLimits/read","id":3,"params":{}}"#
-                ]
+                let requests = makeAppServerRequests(refreshToken: refreshToken)
                 let payload = requests.joined(separator: "\n") + "\n"
                 inputHandle.write(Data(payload.utf8))
 
                 Task {
-                    try? await Task.sleep(for: .seconds(4))
+                    try? await Task.sleep(for: responseTimeout)
                     if let partialStatus = state.partialStatus() {
                         finish(.success(partialStatus))
                         return
@@ -212,16 +256,20 @@ func consumeOutputData(
     for line in state.appendOutput(data) {
         guard let lineData = line.data(using: .utf8) else { continue }
 
-        let envelope = try decoder.decode(AppServerEnvelope.self, from: lineData)
-        switch envelope.id {
-        case 2:
-            let accountResponse = try decoder.decode(AppServerAccountResponse.self, from: envelope.result)
-            state.setAccountResponse(accountResponse)
-        case 3:
-            let rateLimitResponse = try decoder.decode(AppServerRateLimitsResponse.self, from: envelope.result)
-            state.setRateLimitResponse(rateLimitResponse)
-        default:
-            continue
+        do {
+            let envelope = try decoder.decode(AppServerEnvelope.self, from: lineData)
+            switch envelope.id {
+            case 2:
+                let accountResponse = try decoder.decode(AppServerAccountResponse.self, from: envelope.result)
+                state.setAccountResponse(accountResponse)
+            case 3:
+                let rateLimitResponse = try decoder.decode(AppServerRateLimitsResponse.self, from: envelope.result)
+                state.setRateLimitResponse(rateLimitResponse)
+            default:
+                continue
+            }
+        } catch let error as DecodingError {
+            throw CodexAppServerError.server(friendlyAppServerDecodingMessage(for: error))
         }
 
         if let snapshot = state.completeStatus() {
@@ -304,7 +352,7 @@ private func makeAccountStatus(
     return CodexAccountStatus(
         email: account.account?.email,
         planType: account.account?.planType,
-        rateLimits: rateLimits?.rateLimits.toModel()
+        rateLimits: rateLimits?.rateLimits?.toModel()
     )
 }
 
@@ -350,7 +398,7 @@ struct AppServerAccountResponse: Decodable {
 }
 
 struct AppServerRateLimitsResponse: Decodable {
-    let rateLimits: RateLimitSnapshot
+    let rateLimits: RateLimitSnapshot?
 }
 
 struct RateLimitSnapshot: Decodable {
@@ -373,12 +421,13 @@ struct RateLimitSnapshot: Decodable {
 }
 
 struct RateLimitWindow: Decodable {
-    let usedPercent: Int
+    let usedPercent: Int?
     let resetsAt: Int?
     let windowDurationMins: Int?
 
-    func toModel() -> CodexRateLimitWindow {
-        CodexRateLimitWindow(
+    func toModel() -> CodexRateLimitWindow? {
+        guard let usedPercent else { return nil }
+        return CodexRateLimitWindow(
             usedPercent: usedPercent,
             resetsAt: resetsAt.map { Date(timeIntervalSince1970: TimeInterval($0)) },
             windowDurationMinutes: windowDurationMins
@@ -404,6 +453,21 @@ func appServerFailure(
     }
 
     return .timeout
+}
+
+private func friendlyAppServerDecodingMessage(for error: DecodingError) -> String {
+    switch error {
+    case .keyNotFound:
+        return "Codex returned an incomplete app-server response."
+    case .valueNotFound:
+        return "Codex returned an incomplete app-server response."
+    case .typeMismatch:
+        return "Codex returned an invalid app-server response."
+    case .dataCorrupted:
+        return "Codex returned an unreadable app-server response."
+    @unknown default:
+        return "Codex returned an invalid app-server response."
+    }
 }
 
 enum CodexAppServerError: LocalizedError, Equatable {

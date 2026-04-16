@@ -39,6 +39,11 @@ if [[ "${SCENARIO}" != "hosted-menu-default" ]]; then
       ./scripts/live_menubar_smoke.sh
       exit $?
       ;;
+    live-status-item-hover)
+      ARTIFACT_ROOT="${BUILD_ROOT}/verification/${AGENT_NAME}/${SCENARIO}" \
+      ./scripts/live_status_item_hover_smoke.sh
+      exit $?
+      ;;
     *)
       cat > "${ARTIFACT_ROOT}/summary.json" <<EOF
 {
@@ -47,7 +52,7 @@ if [[ "${SCENARIO}" != "hosted-menu-default" ]]; then
   "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/verify_ui.sh",
   "gaps": [
     "Unknown scenario '${SCENARIO}'",
-    "Try SCENARIO=hosted-menu-default, hosted-menu-busy, hosted-menu-empty, or live-menu-open"
+    "Try SCENARIO=hosted-menu-default, hosted-menu-busy, hosted-menu-empty, live-menu-open, or live-status-item-hover"
   ],
   "scenario": "${SCENARIO}",
   "status": "failed"
@@ -84,7 +89,7 @@ case "${SCENARIO}" in
   hosted-menu-default)
     ASSERTIONS_JSON='[
     "Current Account section includes the active account summary",
-    "Two inactive accounts are visible and one account overflows into More Accounts",
+    "Two inactive accounts are visible and one account overflows into More Accounts…",
     "Status message is omitted when the menu is not busy"
   ]'
     ;;

@@ -52,7 +52,6 @@ func inactiveAccountTitle(for account: CodexAccount) -> NSAttributedString {
 
     return title
 }
-
 private func detailLine(title: String, window: CodexRateLimitWindow?) -> String {
     let usedText = window.map { "\($0.displayedUsedPercent())%" } ?? "--"
     if let window, window.displayedUsedPercent() == 0 {

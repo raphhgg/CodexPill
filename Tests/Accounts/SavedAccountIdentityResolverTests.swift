@@ -33,7 +33,111 @@ struct SavedAccountIdentityResolverTests {
         #expect(result == .uniqueRemoteIdentity(account.id))
     }
 
-    private func makeAccount(name: String, fingerprint: String, email: String) -> CodexAccount {
+    @Test
+    func resolvePrefersScopedPrincipalIdentityWhenStableAccountIDIsShared() {
+        let businessOne = makeAccount(
+            name: "Business 1",
+            fingerprint: "business-one-fingerprint",
+            email: "admin@raphh.me",
+            stableAccountID: "acct-team",
+            authPrincipalIdentity: CodexAuthPrincipalIdentity(
+                subject: "auth0|business-1",
+                chatGPTUserID: "user-business-1"
+            ),
+            workspaceIdentity: CodexWorkspaceIdentity(
+                workspaceAccountID: "org-business-1",
+                workspaceLabel: "Personal"
+            )
+        )
+        let businessFour = makeAccount(
+            name: "Business 4",
+            fingerprint: "business-four-fingerprint",
+            email: "raphaelgrau@icloud.com",
+            stableAccountID: "acct-team",
+            authPrincipalIdentity: CodexAuthPrincipalIdentity(
+                subject: "auth0|business-4",
+                chatGPTUserID: "user-business-4"
+            ),
+            workspaceIdentity: CodexWorkspaceIdentity(
+                workspaceAccountID: "org-business-4",
+                workspaceLabel: "Personal"
+            )
+        )
+        let resolver = SavedAccountIdentityResolver(
+            liveIdentityReader: LiveIdentitySpy(
+                currentFingerprint: nil,
+                stableAccountID: "acct-team",
+                authPrincipalIdentity: CodexAuthPrincipalIdentity(
+                    subject: "auth0|business-4",
+                    chatGPTUserID: "user-business-4"
+                )
+            ),
+            storedAccountReconciler: ReconcilePassthrough()
+        )
+
+        let result = resolver.resolve(accounts: [businessOne, businessFour])
+
+        #expect(result == .exactScopedStableAccountID(businessFour.id))
+    }
+
+    @Test
+    func resolveDoesNotFallbackToRemoteIdentityWhenScopedStableCandidatesDisagree() {
+        let businessOne = makeAccount(
+            name: "Business 1",
+            fingerprint: "business-one-fingerprint",
+            email: "admin@raphh.me",
+            stableAccountID: "acct-team",
+            authPrincipalIdentity: CodexAuthPrincipalIdentity(
+                subject: "auth0|business-1",
+                chatGPTUserID: "user-business-1"
+            ),
+            workspaceIdentity: CodexWorkspaceIdentity(
+                workspaceAccountID: "org-business-1",
+                workspaceLabel: "Personal"
+            )
+        )
+        let businessFour = makeAccount(
+            name: "Business 4",
+            fingerprint: "business-four-fingerprint",
+            email: "raphaelgrau@icloud.com",
+            stableAccountID: "acct-team",
+            authPrincipalIdentity: CodexAuthPrincipalIdentity(
+                subject: "auth0|business-4",
+                chatGPTUserID: "user-business-4"
+            ),
+            workspaceIdentity: CodexWorkspaceIdentity(
+                workspaceAccountID: "org-business-4",
+                workspaceLabel: "Personal"
+            )
+        )
+        let resolver = SavedAccountIdentityResolver(
+            liveIdentityReader: LiveIdentitySpy(
+                currentFingerprint: nil,
+                stableAccountID: "acct-team",
+                authPrincipalIdentity: CodexAuthPrincipalIdentity(
+                    subject: "auth0|other-business",
+                    chatGPTUserID: "user-other-business"
+                )
+            ),
+            storedAccountReconciler: ReconcilePassthrough()
+        )
+
+        let result = resolver.resolve(
+            accounts: [businessOne, businessFour],
+            liveRemoteIdentity: CodexRemoteAccountIdentity(emailAddress: "admin@raphh.me")
+        )
+
+        #expect(result == .noMatch)
+    }
+
+    private func makeAccount(
+        name: String,
+        fingerprint: String,
+        email: String,
+        stableAccountID: String? = nil,
+        authPrincipalIdentity: CodexAuthPrincipalIdentity? = nil,
+        workspaceIdentity: CodexWorkspaceIdentity? = nil
+    ) -> CodexAccount {
         CodexAccount(
             id: UUID(),
             name: name,
@@ -44,7 +148,9 @@ struct SavedAccountIdentityResolverTests {
             planType: nil,
             rateLimits: nil,
             identity: CodexAccountIdentity(
-                stableAccountID: nil,
+                stableAccountID: stableAccountID,
+                authPrincipalIdentity: authPrincipalIdentity,
+                workspaceIdentity: workspaceIdentity,
                 snapshotFingerprint: fingerprint,
                 remoteIdentity: CodexRemoteAccountIdentity(emailAddress: email)
             )
@@ -55,8 +161,18 @@ struct SavedAccountIdentityResolverTests {
 private struct LiveIdentitySpy: LiveCodexAccountIdentityReading {
     let currentFingerprint: String?
     let stableAccountID: String?
-    let authPrincipalIdentity: CodexAuthPrincipalIdentity? = nil
+    let authPrincipalIdentity: CodexAuthPrincipalIdentity?
     let workspaceIdentity: CodexWorkspaceIdentity? = nil
+
+    init(
+        currentFingerprint: String?,
+        stableAccountID: String?,
+        authPrincipalIdentity: CodexAuthPrincipalIdentity? = nil
+    ) {
+        self.currentFingerprint = currentFingerprint
+        self.stableAccountID = stableAccountID
+        self.authPrincipalIdentity = authPrincipalIdentity
+    }
 
     func readCurrentLiveAccountIdentity() -> LiveCodexAccountIdentity {
         LiveCodexAccountIdentity(

@@ -13,7 +13,28 @@ struct MenuBarLiveValidationTests {
             sections: [
                 .init(title: "Current Account", items: ["Primary • Pro • primary@example.com"])
             ],
-            statusMessage: "Refreshing account data..."
+            statusMessage: "Refreshing account data...",
+            currentAccount: .init(
+                name: "Primary",
+                email: "primary@example.com",
+                planType: "pro",
+                identityDigest: "digest-primary"
+            ),
+            hasStatusItemContentData: true,
+            effectiveStatusBarDisplayMode: "iconAndText",
+            statusItem: nil,
+            actionTrace: nil,
+            menuItems: [
+                .init(
+                    title: "Status Item",
+                    isEnabled: true,
+                    state: "off",
+                    hasAction: false,
+                    actionSelector: nil,
+                    isSeparator: false,
+                    children: []
+                )
+            ]
         )
 
         try FileMenuBarValidationSink(outputURL: outputURL).record(snapshot)

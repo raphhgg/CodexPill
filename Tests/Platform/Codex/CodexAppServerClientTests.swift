@@ -195,6 +195,77 @@ struct CodexAppServerClientTests {
         #expect(status.rateLimits == nil)
     }
 
+    @Test
+    func makeAppServerCommandPrefersExplicitOverride() {
+        let command = CodexAppServerClient.makeAppServerCommand(
+            environment: ["CODEX_CLI_PATH": "/tmp/custom-codex"]
+        )
+
+        #expect(command.executableURL.path == "/tmp/custom-codex")
+        #expect(command.arguments == ["app-server"])
+    }
+
+    @Test
+    func makeAppServerCommandFallsBackToEnvWhenNoKnownExecutableExists() {
+        let command = CodexAppServerClient.makeAppServerCommand(environment: [:])
+
+        #expect(command.arguments == ["codex", "app-server"] || command.arguments == ["app-server"])
+    }
+
+    @Test
+    func makeAppServerRequestsUsesNullParamsForRateLimitsRead() throws {
+        let requests = CodexAppServerClient.makeAppServerRequests(refreshToken: true)
+
+        #expect(requests.count == 4)
+        #expect(try JSONSerialization.jsonObject(with: Data(requests[3].utf8)) as? [String: Any] != nil)
+        let rateLimitRequest = try #require(try JSONSerialization.jsonObject(with: Data(requests[3].utf8)) as? [String: Any])
+        #expect(rateLimitRequest["method"] as? String == "account/rateLimits/read")
+        #expect(rateLimitRequest.keys.contains("params"))
+        #expect(rateLimitRequest["params"] is NSNull)
+    }
+
+    @Test
+    func consumeOutputDataTreatsMissingRateLimitsPayloadAsPartialStatus() throws {
+        let decoder = JSONDecoder()
+        let state = AppServerSessionState()
+
+        let accountLine = #"{"id":2,"result":{"account":{"email":"user@example.com","planType":"team"}}}"#
+        let emptyRateLimitsLine = #"{"id":3,"result":{}}"#
+
+        #expect(try consumeOutputData(Data((accountLine + "\n").utf8), decoder: decoder, state: state) == nil)
+        let status = try consumeOutputData(Data((emptyRateLimitsLine + "\n").utf8), decoder: decoder, state: state)
+
+        #expect(status?.email == "user@example.com")
+        #expect(status?.planType == "team")
+        #expect(status?.rateLimits == nil)
+    }
+
+    @Test
+    func consumeOutputDataDropsIncompleteRateLimitWindowInsteadOfThrowing() throws {
+        let decoder = JSONDecoder()
+        let state = AppServerSessionState()
+
+        let accountLine = #"{"id":2,"result":{"account":{"email":"user@example.com","planType":"team"}}}"#
+        let partialRateLimitsLine = #"{"id":3,"result":{"rateLimits":{"planType":"team","primary":{"resetsAt":1776005472,"windowDurationMins":300},"secondary":{"usedPercent":18,"resetsAt":1776512418,"windowDurationMins":10080}}}}"#
+
+        #expect(try consumeOutputData(Data((accountLine + "\n").utf8), decoder: decoder, state: state) == nil)
+        let status = try consumeOutputData(Data((partialRateLimitsLine + "\n").utf8), decoder: decoder, state: state)
+
+        #expect(status?.rateLimits?.primary == nil)
+        #expect(status?.rateLimits?.secondary?.usedPercent == 18)
+    }
+
+    @Test
+    func consumeOutputDataWrapsDecodingFailuresInCodexAppServerError() throws {
+        let decoder = JSONDecoder()
+        let state = AppServerSessionState()
+        let malformedLine = #"{"id":3}"#
+
+        #expect(throws: CodexAppServerError.server("Codex returned an incomplete app-server response.")) {
+            _ = try consumeOutputData(Data((malformedLine + "\n").utf8), decoder: decoder, state: state)
+        }
+    }
+
     private func makeRateLimitsSnapshot() -> CodexRateLimitSnapshot {
         CodexRateLimitSnapshot(
             limitID: "codex",

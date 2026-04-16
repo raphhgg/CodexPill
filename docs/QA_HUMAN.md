@@ -1,8 +1,13 @@
 # Human QA Plan
 
-## Goal
+Human QA is residual in this repo. If an agent can prove a behavior through tests or live smoke, that behavior belongs in [VALIDATION.md](/Users/raphh/Projects/CodexPill/docs/VALIDATION.md), not here.
 
-Manually verify that `CodexPill` still behaves correctly after the recent architecture refactors and identify any user-visible bugs in account switching, refresh, sign-in, and menu behavior.
+## Use Human QA Only For
+
+- native alert copy and text-entry UX that current automation does not drive
+- real Codex sign-in completion across external app surfaces
+- scheduled refresh timing and wake or long-running lifecycle behavior not yet covered by a dedicated smoke
+- OS-level focus, permission, or pointer-control issues that block live agent proof
 
 ## Setup
 
@@ -12,167 +17,57 @@ Manually verify that `CodexPill` still behaves correctly after the recent archit
    ./scripts/run_menubar.sh
    ```
 
-2. Keep `CodexPill` visible in the menu bar while testing.
-3. Have at least two Codex accounts available if you want full switch-flow coverage.
-4. If you want the same proof bundle the agent uses, run:
+2. If available, run the automated proof first:
 
    ```bash
    make verify-ui
    make verify-ui-live
    ```
 
-   The artifacts land in `build/verification/local/`.
+3. Use manual QA only for the specific residual gap that automation did not cover.
 
-## Test Cases
+## Residual Checks
 
-### 1. App Starts Cleanly
+### 1. Alert And Prompt UX
 
-Steps:
+Verify:
 
-1. Launch the app.
-2. Open the menu bar popup.
+- save-current-account prompts show the expected copy
+- switch-account warnings mention the correct target account
+- duplicate-name rejection is understandable to a human and returns the app to a stable state
 
-Expected:
+### 2. Real Sign-In-Another Flow
 
-- the menu opens
-- saved accounts are listed
-- no permanent busy state is shown
-- no stale error remains visible from startup
+Verify:
 
-### 2. Save Current Account With Custom Name
+- the external Codex sign-in flow completes successfully
+- the resulting account is captured once
+- the new account becomes active without duplication
 
-Steps:
+### 3. Timer And Lifecycle Behavior
 
-1. Choose the save-current-account action.
-2. Enter a custom name.
-3. Confirm the action.
+Verify:
 
-Expected:
+- scheduled refresh still behaves correctly over real elapsed time
+- the app recovers correctly after wake or longer-running idle periods
 
-- the new account appears in the list
-- it is sorted correctly
-- it becomes or remains the active account
-- no duplicate account appears
+### 4. Manual Recovery From OS-Level Issues
 
-### 3. Save Current Account With Blank Name
+Verify:
 
-Steps:
-
-1. Choose the save-current-account action.
-2. Leave the name blank or whitespace-only.
-3. Confirm the action.
-
-Expected:
-
-- the app falls back to the current account email when available
-- if no email exists, it falls back to a generic account name
-- the save succeeds only once
-
-### 4. Duplicate Name Is Rejected
-
-Steps:
-
-1. Try to save the current account using a name that already exists.
-
-Expected:
-
-- the save is rejected
-- no account is overwritten or duplicated
-- the app returns to a stable ready state
-
-### 5. Switch To Another Saved Account
-
-Steps:
-
-1. Choose a different saved account.
-2. Confirm the switch warning.
-
-Expected:
-
-- the warning mentions the target account
-- Codex relaunches or reactivates through the app flow
-- the selected account becomes active in `CodexPill`
-
-### 6. Scheduled Refresh
-
-Steps:
-
-1. Note the currently displayed metadata for the active account.
-2. Wait for the configured refresh interval to elapse.
-3. Reopen the menu after the interval passes.
-
-Expected:
-
-- the scheduled refresh completes without a false app-server popup
-- the active account remains the same logical account
-- email, plan, and rate-limit information update if remote data changed
-- the app returns to ready after the scheduled refresh
-
-### 7. Sign In Another Account
-
-Steps:
-
-1. Start the sign-in-another flow.
-2. Complete the Codex sign-in flow.
-3. Reopen the menu.
-
-Expected:
-
-- the pending signed-in account is captured once
-- the new account is saved without duplication
-- it becomes the active account
-
-### 8. Settings Affect The Menu Bar Correctly
-
-Steps:
-
-1. Open settings.
-2. Change refresh interval.
-3. Change visible inactive account count.
-4. Change status bar indicator style.
-
-Expected:
-
-- the changes persist
-- the menu reflects the new configuration
-- the status item icon/appearance updates correctly
-
-### 9. Busy And Error States Do Not Stick
-
-Steps:
-
-1. Trigger a save, switch, or refresh action.
-2. If an error occurs, close and reopen the menu.
-
-Expected:
-
-- the busy state clears after the operation
-- one error is shown once
-- the app does not remain stuck in an unusable state
-
-### 10. Reopen / Repeat Stability
-
-Steps:
-
-1. Open and close the menu multiple times.
-2. Repeat a few core actions in sequence.
-
-Expected:
-
-- the menu keeps rebuilding correctly
-- no duplicate rows or stale state appears
-- the app remains responsive
+- the app remains usable if accessibility, pointer control, or focus behavior interferes with live smoke
+- failures can be classified as product issues vs environment issues
 
 ## Out Of Scope
 
+- behaviors already covered by unit, integration, hosted UI, or live smoke validation
 - Codex plugin marketplace or plugin-loader warnings by themselves
 - unrelated Codex desktop network sync issues unless they block a `CodexPill` workflow
 
 ## What To Capture If Something Fails
 
-Record:
-
-- the exact action you took
+- the exact residual manual scenario you exercised
+- what automation already proved before manual QA started
 - what you expected
 - what actually happened
 - whether the app recovered after reopening the menu

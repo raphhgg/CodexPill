@@ -5,7 +5,7 @@ import OSLog
 private let menuBarCoordinatorLogger = Logger(subsystem: "com.raphhgg.codexpill", category: "MenuBarCoordinator")
 
 @MainActor
-final class MenuBarCoordinator: NSObject, NSMenuDelegate {
+final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let statusItem: NSStatusItem
     private let store: MenuBarAccountsStore
     private let settings: AppSettings
@@ -14,19 +14,27 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
     private let alertPresenter: MenuBarAlertPresenter
     private let alertFactory: MenuBarAlertFactory
     private let validationSink: MenuBarValidationSink?
+    private let allowsEmptyStatePrompt: Bool
     private let menuBuilder = MenuBarMenuBuilder()
     private var autoRefreshTimer: Timer?
     private var pendingSignInMonitorTimer: Timer?
     private var wakeRefreshTask: Task<Void, Never>?
     private var hoverActivationTimer: Timer?
-    private weak var hoverView: StatusItemHoverView?
+    private var hoverExitValidationTimer: Timer?
+    private var hoverPollingTimer: Timer?
+    private var hoverTracker: StatusItemHoverTracker?
     private var hasPromptedForEmptyState = false
     private var isObservingSettings = false
     private var isObservingStore = false
     private var isMenuOpen = false
     private var isStatusItemHovered = false
+    private var isPointerInsideStatusItem = false
     private var keepsStatusTitleWhileMenuOpen = false
     private var keepsStatusTitleForNextMenuOpen = false
+    private var lastMenuAction: String?
+    private var lastSwitchTargetName: String?
+    private var lastConfirmationRequest: String?
+    private var lastConfirmationAccepted: Bool?
 
     init(
         statusItem: NSStatusItem,
@@ -36,7 +44,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
         cliProcessInspector: CodexCLIProcessInspector = CodexCLIProcessInspector(),
         alertPresenter: MenuBarAlertPresenter,
         alertFactory: MenuBarAlertFactory = MenuBarAlertFactory(),
-        validationSink: MenuBarValidationSink? = nil
+        validationSink: MenuBarValidationSink? = nil,
+        allowsEmptyStatePrompt: Bool = true
     ) {
         self.statusItem = statusItem
         self.store = store
@@ -46,6 +55,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
         self.alertPresenter = alertPresenter
         self.alertFactory = alertFactory
         self.validationSink = validationSink
+        self.allowsEmptyStatePrompt = allowsEmptyStatePrompt
     }
 
     func start() {
@@ -55,6 +65,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
         updateStatusItemAppearance()
         rebuildMenu()
         scheduleAutoRefresh()
+        startHoverPolling()
         syncBackgroundState()
     }
 
@@ -63,6 +74,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
         pendingSignInMonitorTimer?.invalidate()
         wakeRefreshTask?.cancel()
         hoverActivationTimer?.invalidate()
+        hoverExitValidationTimer?.invalidate()
+        hoverPollingTimer?.invalidate()
+        hoverTracker?.invalidate()
     }
 
     func handleSystemDidWake() {
@@ -79,6 +93,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
 
     @objc
     func addCurrentAccount() {
+        recordMenuAction("addCurrentAccount")
         let request = alertFactory.makeSaveCurrentAccountRequest(activeAccountEmail: store.activeAccount?.email)
 
         guard let name = alertPresenter.presentTextInput(request) else { return }
@@ -87,6 +102,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
 
     @objc
     func signInAnotherAccount() {
+        recordMenuAction("signInAnotherAccount")
         menuBarCoordinatorLogger.log("signInAnotherAccount action invoked")
         let runningCLISessions = cliProcessInspector.runningCLISessionCount()
         menuBarCoordinatorLogger.log("Running CLI sessions before sign-in-another: \(runningCLISessions, privacy: .public)")
@@ -105,6 +121,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
 
     @objc
     func removeAccount(_ sender: NSMenuItem) {
+        recordMenuAction("removeAccount")
         guard
             let idString = sender.representedObject as? String,
             let id = UUID(uuidString: idString),
@@ -124,6 +141,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
 
     @objc
     func renameAccount(_ sender: NSMenuItem) {
+        recordMenuAction("renameAccount")
         guard
             let idString = sender.representedObject as? String,
             let id = UUID(uuidString: idString),
@@ -139,18 +157,21 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
 
     @objc
     func selectRefreshInterval(_ sender: NSMenuItem) {
+        recordMenuAction("selectRefreshInterval")
         guard let minutes = sender.representedObject as? Int else { return }
         settings.refreshIntervalMinutes = minutes
     }
 
     @objc
     func selectVisibleInactiveAccountCount(_ sender: NSMenuItem) {
+        recordMenuAction("selectVisibleInactiveAccountCount")
         guard let count = sender.representedObject as? Int else { return }
         settings.visibleInactiveAccountCount = count
     }
 
     @objc
     func selectStatusBarStyle(_ sender: NSMenuItem) {
+        recordMenuAction("selectStatusBarStyle")
         guard
             let rawValue = sender.representedObject as? String,
             let style = StatusBarIndicatorStyle(rawValue: rawValue)
@@ -162,15 +183,21 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
 
     @objc
     func toggleStatusBarMonochrome(_ sender: NSMenuItem) {
+        recordMenuAction("toggleStatusBarMonochrome")
         settings.statusBarMonochrome.toggle()
     }
 
     @objc
     func selectStatusBarDisplayMode(_ sender: NSMenuItem) {
+        recordMenuAction("selectStatusBarDisplayMode")
         guard
             let rawValue = sender.representedObject as? String,
             let mode = StatusBarDisplayMode(rawValue: rawValue)
         else {
+            return
+        }
+        if !menuState().hasStatusItemContentData, mode != .iconOnly {
+            settings.statusBarDisplayMode = .iconOnly
             return
         }
         settings.statusBarDisplayMode = mode
@@ -178,6 +205,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
 
     @objc
     func switchAccount(_ sender: NSMenuItem) {
+        recordMenuAction("switchAccount")
         guard
             let idString = sender.representedObject as? String,
             let id = UUID(uuidString: idString),
@@ -186,16 +214,19 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
             return
         }
 
+        lastSwitchTargetName = account.name
         requestSwitch(to: account)
     }
 
     @objc
     func showAbout() {
+        recordMenuAction("showAbout")
         alertPresenter.presentInfo(alertFactory.makeAboutRequest())
     }
 
     @objc
     func quitApp() {
+        recordMenuAction("quitApp")
         NSApplication.shared.terminate(nil)
     }
 
@@ -204,6 +235,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
         keepsStatusTitleWhileMenuOpen = keepsStatusTitleForNextMenuOpen || isStatusItemHovered
         keepsStatusTitleForNextMenuOpen = false
         updateStatusItemAppearance()
+    }
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
         store.refreshActiveAccount()
         rebuildMenu()
     }
@@ -214,6 +248,21 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
         updateStatusItemAppearance()
     }
 
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        guard menuItem.action == #selector(selectStatusBarDisplayMode(_:)) else {
+            return menuItem.isEnabled
+        }
+
+        guard
+            let rawValue = menuItem.representedObject as? String,
+            let mode = StatusBarDisplayMode(rawValue: rawValue)
+        else {
+            return false
+        }
+
+        return menuState().canSelectStatusBarDisplayMode(mode)
+    }
+
     func requestSwitch(toAccountID accountID: UUID) {
         guard let account = store.accounts.first(where: { $0.id == accountID }) else { return }
         requestSwitch(to: account)
@@ -221,7 +270,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
 
     private func rebuildMenu() {
         let state = menuState()
-        statusItem.menu = menuBuilder.makeMenu(state: state, target: self)
+        let menu = statusItem.menu ?? NSMenu()
+        menuBuilder.populate(menu: menu, state: state, target: self)
+        statusItem.menu = menu
         recordValidationSnapshot(for: state)
     }
 
@@ -242,11 +293,19 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
     }
 
     private func requestSwitch(to account: CodexAccount) {
+        lastConfirmationRequest = "switchAccount"
         let runningCLISessions = cliProcessInspector.runningCLISessionCount()
         let request = alertFactory.makeSwitchAccountRequest(accountName: account.name, runningCLISessions: runningCLISessions)
 
-        guard alertPresenter.presentConfirmation(request) else { return }
+        let accepted = alertPresenter.presentConfirmation(request)
+        lastConfirmationAccepted = accepted
+        guard accepted else { return }
         Task { await store.switchToAccount(account) }
+    }
+
+    private func recordMenuAction(_ name: String) {
+        lastMenuAction = name
+        recordValidationSnapshot(for: menuState())
     }
 
     private func scheduleAutoRefresh() {
@@ -277,6 +336,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
             primary: primary,
             secondary: secondary
         )
+        recordValidationSnapshot(for: menuState())
     }
 
     private func applyStatusItemAppearance(to button: NSStatusBarButton, primary: Int?, secondary: Int?) {
@@ -286,10 +346,13 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
             secondaryPercent: secondary,
             monochrome: settings.statusBarMonochrome
         )
+        button.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .medium)
         if shouldShowStatusTitle {
+            let title = hoverStatusTitle(primary: primary, secondary: secondary)
             button.imagePosition = .imageLeading
+            button.title = title
             button.attributedTitle = NSAttributedString(
-                string: hoverStatusTitle(primary: primary, secondary: secondary),
+                string: title,
                 attributes: [
                     .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .medium),
                     .foregroundColor: NSColor.labelColor
@@ -297,6 +360,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
             )
         } else {
             button.imagePosition = .imageOnly
+            button.title = ""
             button.attributedTitle = NSAttributedString(string: "")
         }
         button.toolTip = statusItemTooltip(primary: primary, secondary: secondary)
@@ -369,7 +433,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
 
     private var shouldShowStatusTitle: Bool {
         StatusItemTitleVisibilityPolicy(
-            displayMode: settings.statusBarDisplayMode,
+            displayMode: menuState().effectiveStatusBarDisplayMode,
             isStatusItemHovered: isStatusItemHovered,
             isMenuOpen: isMenuOpen,
             keepsStatusTitleWhileMenuOpen: keepsStatusTitleWhileMenuOpen
@@ -394,33 +458,43 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
         button.action = nil
         button.sendAction(on: [])
         button.imageHugsTitle = true
-        if hoverView?.superview !== button {
-            hoverView?.removeFromSuperview()
-            let hoverView = StatusItemHoverView(button: button)
-            hoverView.onHoverChanged = { [weak self] isHovered in
+        if hoverTracker == nil {
+            let tracker = StatusItemHoverTracker(button: button)
+            tracker.onHoverChanged = { [weak self] isHovered in
                 guard let self else { return }
                 if isHovered {
                     self.handleStatusItemHoverEnter()
                 } else {
-                    self.cancelStatusItemHover()
+                    self.scheduleStatusItemHoverCancellation()
                 }
             }
-            hoverView.onMouseDown = { [weak self] in
-                self?.handleStatusItemMouseDown()
+            hoverTracker = tracker
+        }
+        hoverTracker?.installIfNeeded()
+    }
+
+    private func startHoverPolling() {
+        hoverPollingTimer?.invalidate()
+        hoverPollingTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.syncStatusItemPointerState()
             }
-            hoverView.translatesAutoresizingMaskIntoConstraints = false
-            button.addSubview(hoverView)
-            NSLayoutConstraint.activate([
-                hoverView.leadingAnchor.constraint(equalTo: button.leadingAnchor),
-                hoverView.trailingAnchor.constraint(equalTo: button.trailingAnchor),
-                hoverView.topAnchor.constraint(equalTo: button.topAnchor),
-                hoverView.bottomAnchor.constraint(equalTo: button.bottomAnchor)
-            ])
-            self.hoverView = hoverView
+        }
+    }
+
+    private func syncStatusItemPointerState() {
+        let isPointerInside = isPointerInsideButtonBounds
+        guard isPointerInside != isPointerInsideStatusItem else { return }
+        isPointerInsideStatusItem = isPointerInside
+        if isPointerInside {
+            handleStatusItemHoverEnter()
+        } else {
+            scheduleStatusItemHoverCancellation()
         }
     }
 
     private func handleStatusItemHoverEnter() {
+        hoverExitValidationTimer?.invalidate()
         guard !isMenuOpen else {
             isStatusItemHovered = true
             updateStatusItemAppearance()
@@ -436,9 +510,20 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
         }
     }
 
+    private func scheduleStatusItemHoverCancellation() {
+        hoverExitValidationTimer?.invalidate()
+        hoverExitValidationTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: false) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.cancelStatusItemHover()
+            }
+        }
+    }
+
     private func cancelStatusItemHover() {
         hoverActivationTimer?.invalidate()
         hoverActivationTimer = nil
+        hoverExitValidationTimer?.invalidate()
+        guard shouldEndStatusItemHover else { return }
         guard isStatusItemHovered else { return }
         isStatusItemHovered = false
         animateStatusItemAppearanceUpdate()
@@ -446,6 +531,21 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
 
     private func handleStatusItemMouseDown() {
         keepsStatusTitleForNextMenuOpen = shouldShowStatusTitle
+    }
+
+    private var shouldEndStatusItemHover: Bool {
+        !isPointerInsideButtonBounds
+    }
+
+    private var isPointerInsideButtonBounds: Bool {
+        guard let button = statusItem.button, let window = button.window else { return false }
+        let pointerLocation = NSEvent.mouseLocation
+        let windowLocation = window.convertPoint(fromScreen: pointerLocation)
+        let buttonLocation = button.convert(windowLocation, from: nil)
+        return !StatusItemHoverExitPolicy.shouldEndHover(
+            pointerLocation: buttonLocation,
+            in: button.bounds
+        )
     }
 
     private func presentPendingErrorIfNeeded() {
@@ -457,7 +557,21 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
         guard let validationSink else { return }
 
         do {
-            try validationSink.record(MenuBarValidationSupport.makeSnapshot(state: state))
+            try validationSink.record(
+                MenuBarValidationSupport.makeSnapshot(
+                    state: state,
+                    menu: statusItem.menu,
+                    statusItemButton: statusItem.button,
+                    isStatusItemHovered: isStatusItemHovered,
+                    shouldShowStatusTitle: shouldShowStatusTitle,
+                    actionTrace: .init(
+                        lastMenuAction: lastMenuAction,
+                        lastSwitchTargetName: lastSwitchTargetName,
+                        lastConfirmationRequest: lastConfirmationRequest,
+                        lastConfirmationAccepted: lastConfirmationAccepted
+                    )
+                )
+            )
         } catch {
             menuBarCoordinatorLogger.error("Failed to record validation snapshot: \(error.localizedDescription, privacy: .public)")
         }
@@ -490,6 +604,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate {
     }
 
     private func promptForEmptyStateIfNeeded() {
+        guard allowsEmptyStatePrompt else { return }
         guard store.accounts.isEmpty, !store.isBusy, !store.hasPendingSignedInAccount, !hasPromptedForEmptyState else { return }
         hasPromptedForEmptyState = true
         DispatchQueue.main.async { [weak self] in

@@ -26,7 +26,8 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
             store: store,
             settings: settings,
             alertPresenter: MenuBarAlertPresenter(),
-            validationSink: MenuBarValidationConfiguration.makeSink()
+            validationSink: MenuBarValidationConfiguration.makeSink(),
+            allowsEmptyStatePrompt: !AppRuntimeEnvironment.shouldSuppressEmptyStatePrompt()
         )
 
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
@@ -41,6 +42,12 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
 
         store.load()
         coordinator.start()
+        Task { @MainActor in
+            if let activeAccount = store.activeAccount {
+                await store.refreshAccountData(for: activeAccount)
+            }
+            await store.hydrateSavedAccountsMetadataIfNeeded()
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {

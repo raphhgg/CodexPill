@@ -48,6 +48,10 @@ struct CodexAuthSnapshotService {
         try snapshot.write(to: repository.paths.codexAuthFile, options: .atomic)
     }
 
+    func restoreCurrentAuthData(_ data: Data) throws {
+        try data.write(to: repository.paths.codexAuthFile, options: .atomic)
+    }
+
     func prepareForNewSignIn() throws {
         let authFile = repository.paths.codexAuthFile
         let fileManager = FileManager.default

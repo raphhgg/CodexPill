@@ -10,6 +10,7 @@ final class AccountsController {
     private let identityResolver: SavedAccountIdentityResolver
     private let loadAccountsUseCase: LoadAccountsUseCase
     private let refreshActiveAccountUseCase: RefreshActiveAccountUseCase
+    private let hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase
     private let deleteSavedAccountUseCase: DeleteSavedAccountUseCase
     private let renameSavedAccountUseCase: RenameSavedAccountUseCase
     private let switchAccountWorkflow: SwitchAccountWorkflow
@@ -20,9 +21,11 @@ final class AccountsController {
     private(set) var activeAccountID: UUID?
     private var pendingSignedInAccountName: String?
     private var isCompletingPendingSignedInAccount = false
+    private var isHydratingSavedAccountsMetadata = false
     private(set) var pendingErrorMessage: String?
     private(set) var statusMessage = "Ready"
     private(set) var isBusy = false
+
     init(
         repository: AccountRepository,
         authService: CodexAuthSnapshotService,
@@ -38,6 +41,12 @@ final class AccountsController {
             identityResolver: self.identityResolver
         )
         self.refreshActiveAccountUseCase = RefreshActiveAccountUseCase(
+            appServerClient: appServerClient,
+            identityResolver: self.identityResolver,
+            repository: repository
+        )
+        self.hydrateSavedAccountsMetadataUseCase = HydrateSavedAccountsMetadataUseCase(
+            authService: authService,
             appServerClient: appServerClient,
             identityResolver: self.identityResolver,
             repository: repository
@@ -66,6 +75,28 @@ final class AccountsController {
             repository: repository,
             identityResolver: self.identityResolver
         )
+    }
+
+    init(
+        identityResolver: SavedAccountIdentityResolver,
+        loadAccountsUseCase: LoadAccountsUseCase,
+        refreshActiveAccountUseCase: RefreshActiveAccountUseCase,
+        hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase,
+        deleteSavedAccountUseCase: DeleteSavedAccountUseCase,
+        renameSavedAccountUseCase: RenameSavedAccountUseCase,
+        switchAccountWorkflow: SwitchAccountWorkflow,
+        saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow,
+        signInAnotherWorkflow: SignInAnotherWorkflow
+    ) {
+        self.identityResolver = identityResolver
+        self.loadAccountsUseCase = loadAccountsUseCase
+        self.refreshActiveAccountUseCase = refreshActiveAccountUseCase
+        self.hydrateSavedAccountsMetadataUseCase = hydrateSavedAccountsMetadataUseCase
+        self.deleteSavedAccountUseCase = deleteSavedAccountUseCase
+        self.renameSavedAccountUseCase = renameSavedAccountUseCase
+        self.switchAccountWorkflow = switchAccountWorkflow
+        self.saveCurrentAccountWorkflow = saveCurrentAccountWorkflow
+        self.signInAnotherWorkflow = signInAnotherWorkflow
     }
 
     func load() {
@@ -149,10 +180,13 @@ final class AccountsController {
     }
 
     func refreshAccountData(for account: CodexAccount) async {
-        await perform("Refreshing account data for \(account.name)...") {
+        do {
             let result = try await refreshActiveAccountUseCase.run(accounts: accounts)
             accounts = result.accounts
             activeAccountID = result.refreshedAccountID
+            accountsControllerLogger.log("Background refresh completed for \(account.name, privacy: .public)")
+        } catch {
+            accountsControllerLogger.log("Background refresh skipped for \(account.name, privacy: .public): \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -169,6 +203,25 @@ final class AccountsController {
 
     func refreshActiveAccount() {
         activeAccountID = identityResolver.resolveCurrentAccountID(accounts: accounts)
+    }
+
+    func hydrateSavedAccountsMetadataIfNeeded() async {
+        guard !isBusy, !isHydratingSavedAccountsMetadata, pendingSignedInAccountName == nil else { return }
+        guard accounts.contains(where: { $0.id != activeAccountID && $0.rateLimits == nil }) else { return }
+
+        isHydratingSavedAccountsMetadata = true
+        defer { isHydratingSavedAccountsMetadata = false }
+
+        do {
+            let result = try await hydrateSavedAccountsMetadataUseCase.run(
+                accounts: accounts,
+                activeAccountID: activeAccountID
+            )
+            accounts = result.accounts
+            activeAccountID = result.activeAccountID
+        } catch {
+            accountsControllerLogger.log("Saved account metadata hydration skipped: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     func isActive(_ account: CodexAccount) -> Bool {

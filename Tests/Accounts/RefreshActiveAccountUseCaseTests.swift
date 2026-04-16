@@ -6,6 +6,22 @@ import Testing
 struct RefreshActiveAccountUseCaseTests {
     @Test
     func runRefreshesMatchedAccountAndPersistsUpdatedState() async throws {
+        let refreshedRateLimits = CodexRateLimitSnapshot(
+            limitID: "codex",
+            limitName: nil,
+            planType: "pro",
+            primary: CodexRateLimitWindow(
+                usedPercent: 40,
+                resetsAt: .now.addingTimeInterval(5400),
+                windowDurationMinutes: 300
+            ),
+            secondary: CodexRateLimitWindow(
+                usedPercent: 6,
+                resetsAt: .now.addingTimeInterval(86_400),
+                windowDurationMinutes: 10_080
+            ),
+            fetchedAt: .now
+        )
         let existingRateLimits = CodexRateLimitSnapshot(
             limitID: "codex",
             limitName: nil,
@@ -27,7 +43,7 @@ struct RefreshActiveAccountUseCaseTests {
                 status: CodexAccountStatus(
                     email: "new@example.com",
                     planType: "pro",
-                    rateLimits: nil
+                    rateLimits: refreshedRateLimits
                 )
             ),
             identityResolver: SavedAccountIdentityResolver(
@@ -42,7 +58,7 @@ struct RefreshActiveAccountUseCaseTests {
         #expect(result.refreshedAccountID == account.id)
         #expect(result.accounts.first?.email == "new@example.com")
         #expect(result.accounts.first?.planType == "pro")
-        #expect(result.accounts.first?.rateLimits == existingRateLimits)
+        #expect(result.accounts.first?.rateLimits == refreshedRateLimits)
         #expect(repository.savedAccounts == result.accounts)
         #expect(result.accounts.first?.updatedAt != .distantPast)
     }
