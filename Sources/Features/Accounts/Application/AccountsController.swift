@@ -13,6 +13,10 @@ final class AccountsController {
     }
 
     private let identityResolver: SavedAccountIdentityResolver
+    private let inactiveAccountAvailabilityRanking: InactiveAccountAvailabilityRanking
+    private let pendingSignInLifecycle: PendingSignInLifecycle
+    private let silentPostActionRefresh: SilentPostActionRefresh
+    private let operationState: AccountOperationState
     private let loadAccountsUseCase: LoadAccountsUseCase
     private let refreshActiveAccountUseCase: RefreshActiveAccountUseCase
     private let hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase
@@ -22,14 +26,8 @@ final class AccountsController {
     private let saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow
     private let signInAnotherWorkflow: SignInAnotherWorkflow
 
-    private(set) var accounts: [CodexAccount] = []
-    private(set) var activeAccountID: UUID?
-    private var pendingSignedInAccountName: String?
-    private var isCompletingPendingSignedInAccount = false
+    private var catalogState = AccountCatalogState()
     private var isHydratingSavedAccountsMetadata = false
-    private(set) var pendingErrorMessage: String?
-    private(set) var statusMessage = "Ready"
-    private(set) var isBusy = false
 
     init(
         repository: AccountRepository,
@@ -41,14 +39,22 @@ final class AccountsController {
             liveIdentityReader: authService,
             storedAccountReconciler: authService
         )
-        self.loadAccountsUseCase = LoadAccountsUseCase(
+        self.inactiveAccountAvailabilityRanking = InactiveAccountAvailabilityRanking()
+        self.pendingSignInLifecycle = PendingSignInLifecycle()
+        self.operationState = AccountOperationState()
+        let loadAccountsUseCase = LoadAccountsUseCase(
             repository: repository,
             identityResolver: self.identityResolver
         )
-        self.refreshActiveAccountUseCase = RefreshActiveAccountUseCase(
+        let refreshActiveAccountUseCase = RefreshActiveAccountUseCase(
             appServerClient: appServerClient,
             identityResolver: self.identityResolver,
             repository: repository
+        )
+        self.loadAccountsUseCase = loadAccountsUseCase
+        self.refreshActiveAccountUseCase = refreshActiveAccountUseCase
+        self.silentPostActionRefresh = SilentPostActionRefresh(
+            refreshActiveAccountUseCase: refreshActiveAccountUseCase
         )
         self.hydrateSavedAccountsMetadataUseCase = HydrateSavedAccountsMetadataUseCase(
             authService: authService,
@@ -84,8 +90,12 @@ final class AccountsController {
 
     init(
         identityResolver: SavedAccountIdentityResolver,
+        inactiveAccountAvailabilityRanking: InactiveAccountAvailabilityRanking = InactiveAccountAvailabilityRanking(),
+        pendingSignInLifecycle: PendingSignInLifecycle = PendingSignInLifecycle(),
+        operationState: AccountOperationState = AccountOperationState(),
         loadAccountsUseCase: LoadAccountsUseCase,
         refreshActiveAccountUseCase: RefreshActiveAccountUseCase,
+        silentPostActionRefresh: SilentPostActionRefresh? = nil,
         hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase,
         deleteSavedAccountUseCase: DeleteSavedAccountUseCase,
         renameSavedAccountUseCase: RenameSavedAccountUseCase,
@@ -94,8 +104,14 @@ final class AccountsController {
         signInAnotherWorkflow: SignInAnotherWorkflow
     ) {
         self.identityResolver = identityResolver
+        self.inactiveAccountAvailabilityRanking = inactiveAccountAvailabilityRanking
+        self.pendingSignInLifecycle = pendingSignInLifecycle
+        self.operationState = operationState
         self.loadAccountsUseCase = loadAccountsUseCase
         self.refreshActiveAccountUseCase = refreshActiveAccountUseCase
+        self.silentPostActionRefresh = silentPostActionRefresh ?? SilentPostActionRefresh(
+            refreshActiveAccountUseCase: refreshActiveAccountUseCase
+        )
         self.hydrateSavedAccountsMetadataUseCase = hydrateSavedAccountsMetadataUseCase
         self.deleteSavedAccountUseCase = deleteSavedAccountUseCase
         self.renameSavedAccountUseCase = renameSavedAccountUseCase
@@ -107,13 +123,11 @@ final class AccountsController {
     func load() {
         do {
             let result = try loadAccountsUseCase.run()
-            accounts = result.accounts
-            activeAccountID = result.activeAccountID
-            statusMessage = "Loaded \(accounts.count) account(s)"
+            catalogState.applyLoad(result)
+            operationState.setIdleStatus("Loaded \(accounts.count) account(s)")
             accountsControllerLogger.log("Loaded \(self.accounts.count, privacy: .public) saved account(s)")
         } catch {
-            statusMessage = "Ready"
-            pendingErrorMessage = error.localizedDescription
+            operationState.fail(error)
             accountsControllerLogger.error("Failed to load store: \(error.localizedDescription, privacy: .public)")
         }
     }
@@ -124,52 +138,57 @@ final class AccountsController {
                 customName: customName,
                 existingAccounts: accounts
             )
-            applySavedAccount(result.savedAccount)
-            activeAccountID = result.activeAccountID
-            await silentlyRefreshActiveAccountData(after: .zero)
+            catalogState.applySavedAccount(
+                result.savedAccount,
+                activeAccountID: result.activeAccountID
+            )
+            await applySilentPostActionRefresh(after: .zero)
         }
     }
 
     func completePendingSignedInAccountIfNeeded() async {
-        guard let pendingSignedInAccountName else { return }
-        guard !isCompletingPendingSignedInAccount else { return }
-        guard activeAccountID == nil else {
-            self.pendingSignedInAccountName = nil
+        switch pendingSignInLifecycle.beginCompletion(activeAccountID: activeAccountID) {
+        case .skip, .clearPending:
             return
-        }
+        case .complete(let pendingAccountName):
+            await perform("Saving signed-in account...") {
+                guard let result = try await signInAnotherWorkflow.completePendingSignIn(
+                    pendingAccountName: pendingAccountName,
+                    existingAccounts: accounts
+                ) else {
+                    pendingSignInLifecycle.finishCompletion(consumedPendingSignIn: false)
+                    return
+                }
 
-        isCompletingPendingSignedInAccount = true
-        defer { isCompletingPendingSignedInAccount = false }
-
-        await perform("Saving signed-in account...") {
-            guard let result = try await signInAnotherWorkflow.completePendingSignIn(
-                pendingAccountName: pendingSignedInAccountName,
-                existingAccounts: accounts
-            ) else {
-                return
+                catalogState.applySavedAccount(
+                    result.savedAccount,
+                    activeAccountID: result.activeAccountID
+                )
+                pendingSignInLifecycle.finishCompletion(consumedPendingSignIn: true)
+                await applySilentPostActionRefresh(after: .seconds(2))
             }
-            applySavedAccount(result.savedAccount)
-            activeAccountID = result.activeAccountID
-            self.pendingSignedInAccountName = nil
-            await silentlyRefreshActiveAccountData(after: .seconds(2))
+            if pendingSignInLifecycle.isCompleting {
+                pendingSignInLifecycle.finishCompletion(consumedPendingSignIn: false)
+            }
         }
     }
 
     func switchToAccount(_ account: CodexAccount) async {
         await perform("Switching to \(account.name)...") {
-            activeAccountID = try await switchAccountWorkflow.run(
-                account: account,
-                accounts: accounts
+            catalogState.setActiveAccountID(
+                try await switchAccountWorkflow.run(
+                    account: account,
+                    accounts: accounts
+                )
             )
-            await silentlyRefreshActiveAccountData(after: .seconds(2))
+            await applySilentPostActionRefresh(after: .seconds(2))
         }
     }
 
     func removeSavedAccount(_ account: CodexAccount) async {
         await perform("Removing \(account.name)...") {
             let result = try deleteSavedAccountUseCase.run(account: account, accounts: accounts)
-            accounts = result.accounts
-            activeAccountID = result.activeAccountID
+            catalogState.applyDeleted(result)
         }
     }
 
@@ -180,15 +199,14 @@ final class AccountsController {
                 newName: newName,
                 accounts: accounts
             )
-            accounts = result.accounts
+            catalogState.applyRenamed(result)
         }
     }
 
     func refreshAccountData(for account: CodexAccount) async -> BackgroundRefreshOutcome {
         do {
             let result = try await refreshActiveAccountUseCase.run(accounts: accounts)
-            accounts = result.accounts
-            activeAccountID = result.refreshedAccountID
+            catalogState.applyRefreshed(result)
             accountsControllerLogger.log("Background refresh completed for \(account.name, privacy: .public)")
             return .refreshed
         } catch {
@@ -201,19 +219,42 @@ final class AccountsController {
         accountsControllerLogger.log("Starting sign-in-another flow")
         await perform("Preparing Codex sign-in...") {
             let result = try signInAnotherWorkflow.prepare(named: pendingAccountName)
-            pendingSignedInAccountName = result.pendingAccountName
-            activeAccountID = nil
+            pendingSignInLifecycle.recordPreparedSignIn(named: result.pendingAccountName)
+            catalogState.setActiveAccountID(nil)
             try await signInAnotherWorkflow.relaunchCodex()
             accountsControllerLogger.log("Sign-in-another relaunch finished")
         }
     }
 
+    var accounts: [CodexAccount] {
+        catalogState.accounts
+    }
+
+    var activeAccountID: UUID? {
+        catalogState.activeAccountID
+    }
+
+    var pendingErrorMessage: String? {
+        operationState.pendingErrorMessage
+    }
+
+    var statusMessage: String {
+        operationState.statusMessage
+    }
+
+    var isBusy: Bool {
+        operationState.isBusy
+    }
+
     func refreshActiveAccount() {
-        activeAccountID = identityResolver.resolveCurrentAccountID(accounts: accounts)
+        catalogState.resolveActiveAccountID(using: identityResolver)
     }
 
     func hydrateSavedAccountsMetadataIfNeeded() async {
-        guard !isBusy, !isHydratingSavedAccountsMetadata, pendingSignedInAccountName == nil else { return }
+        guard pendingSignInLifecycle.canHydrateSavedAccountsMetadata(
+            isBusy: isBusy,
+            isHydratingSavedAccountsMetadata: isHydratingSavedAccountsMetadata
+        ) else { return }
         guard accounts.contains(where: { $0.id != activeAccountID && $0.rateLimits == nil }) else { return }
 
         isHydratingSavedAccountsMetadata = true
@@ -224,8 +265,7 @@ final class AccountsController {
                 accounts: accounts,
                 activeAccountID: activeAccountID
             )
-            accounts = result.accounts
-            activeAccountID = result.activeAccountID
+            catalogState.applyHydrated(result)
         } catch {
             accountsControllerLogger.log("Saved account metadata hydration skipped: \(error.localizedDescription, privacy: .public)")
         }
@@ -236,15 +276,15 @@ final class AccountsController {
     }
 
     var activeAccount: CodexAccount? {
-        accounts.first(where: { $0.id == activeAccountID })
+        catalogState.activeAccount
     }
 
     var inactiveAccounts: [CodexAccount] {
-        accounts.filter { $0.id != activeAccountID }
+        catalogState.inactiveAccounts
     }
 
     var sortedInactiveAccounts: [CodexAccount] {
-        inactiveAccounts.sorted(by: compareInactiveAccounts)
+        inactiveAccountAvailabilityRanking.sort(inactiveAccounts)
     }
 
     func compareForMenu(_ lhs: CodexAccount, _ rhs: CodexAccount) -> Bool {
@@ -256,131 +296,37 @@ final class AccountsController {
             return false
         }
 
-        return compareInactiveAccounts(lhs, rhs)
+        return inactiveAccountAvailabilityRanking.compare(lhs, rhs)
     }
 
     var hasPendingSignedInAccount: Bool {
-        pendingSignedInAccountName != nil
+        pendingSignInLifecycle.hasPendingSignIn
     }
 
     func consumePendingErrorMessage() -> String? {
-        let message = pendingErrorMessage
-        pendingErrorMessage = nil
-        return message
-    }
-
-    private func applySavedAccount(_ account: CodexAccount) {
-        if let index = accounts.firstIndex(where: { $0.id == account.id }) {
-            accounts[index] = account
-        } else {
-            accounts.append(account)
-        }
-        accounts.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        operationState.consumePendingErrorMessage()
     }
 
     private func perform(_ status: String, operation: () async throws -> Void) async {
         accountsControllerLogger.log("Beginning operation with status: \(status, privacy: .public)")
-        isBusy = true
-        statusMessage = status
+        operationState.begin(status: status)
         do {
             try await operation()
-            statusMessage = "Done"
+            operationState.succeed()
             accountsControllerLogger.log("Operation completed successfully for status: \(status, privacy: .public)")
         } catch {
-            statusMessage = "Ready"
-            pendingErrorMessage = error.localizedDescription
+            operationState.fail(error)
             accountsControllerLogger.error("Operation failed for status \(status, privacy: .public): \(error.localizedDescription, privacy: .public)")
         }
-        isBusy = false
     }
 
-    private func silentlyRefreshActiveAccountData(after delay: Duration) async {
-        guard activeAccountID != nil else { return }
-
-        if delay > .zero {
-            try? await Task.sleep(for: delay)
-        }
-
-        do {
-            let result = try await refreshActiveAccountUseCase.run(accounts: accounts)
-            accounts = result.accounts
-            activeAccountID = result.refreshedAccountID
-        } catch {
-            accountsControllerLogger.log("Silent post-activation refresh skipped: \(error.localizedDescription, privacy: .public)")
+    private func applySilentPostActionRefresh(after delay: Duration) async {
+        if let result = await silentPostActionRefresh.run(
+            after: delay,
+            activeAccountID: activeAccountID,
+            accounts: accounts
+        ) {
+            catalogState.applyRefreshed(result)
         }
     }
-
-    private func compareInactiveAccounts(_ lhs: CodexAccount, _ rhs: CodexAccount) -> Bool {
-        let leftKey = availabilitySortKey(for: lhs)
-        let rightKey = availabilitySortKey(for: rhs)
-
-        if leftKey.weeklyConstraintRank != rightKey.weeklyConstraintRank {
-            return leftKey.weeklyConstraintRank < rightKey.weeklyConstraintRank
-        }
-
-        if leftKey.sessionReadyRank != rightKey.sessionReadyRank {
-            return leftKey.sessionReadyRank < rightKey.sessionReadyRank
-        }
-
-        if leftKey.effectiveAvailableAt != rightKey.effectiveAvailableAt {
-            return leftKey.effectiveAvailableAt < rightKey.effectiveAvailableAt
-        }
-
-        if leftKey.weeklyUsedPercent != rightKey.weeklyUsedPercent {
-            return leftKey.weeklyUsedPercent < rightKey.weeklyUsedPercent
-        }
-
-        if leftKey.sessionUsedPercent != rightKey.sessionUsedPercent {
-            return leftKey.sessionUsedPercent < rightKey.sessionUsedPercent
-        }
-
-        return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-    }
-
-    private func availabilitySortKey(for account: CodexAccount) -> AvailabilitySortKey {
-        let now = Date()
-        let sessionWindow = account.rateLimits?.primary
-        let weeklyWindow = account.rateLimits?.secondary
-        let sessionUsedPercent = sessionWindow?.displayedUsedPercent(at: now) ?? 100
-        let weeklyUsedPercent = weeklyWindow?.displayedUsedPercent(at: now) ?? 100
-
-        let weeklyConstraintRank: Int
-        switch weeklyUsedPercent {
-        case ..<85:
-            weeklyConstraintRank = 0
-        case 85..<95:
-            weeklyConstraintRank = 1
-        default:
-            weeklyConstraintRank = 2
-        }
-
-        let sessionReadyRank: Int
-        switch sessionUsedPercent {
-        case ..<10:
-            sessionReadyRank = 0
-        case 10..<40:
-            sessionReadyRank = 1
-        default:
-            sessionReadyRank = 2
-        }
-
-        let sessionAvailableAt: Date = sessionReadyRank == 0 ? now : (sessionWindow?.resetsAt ?? .distantFuture)
-        let weeklyAvailableAt: Date = weeklyConstraintRank < 2 ? now : (weeklyWindow?.resetsAt ?? .distantFuture)
-
-        return AvailabilitySortKey(
-            weeklyConstraintRank: weeklyConstraintRank,
-            sessionReadyRank: sessionReadyRank,
-            effectiveAvailableAt: max(sessionAvailableAt, weeklyAvailableAt),
-            weeklyUsedPercent: weeklyUsedPercent,
-            sessionUsedPercent: sessionUsedPercent
-        )
-    }
-}
-
-private struct AvailabilitySortKey {
-    let weeklyConstraintRank: Int
-    let sessionReadyRank: Int
-    let effectiveAvailableAt: Date
-    let weeklyUsedPercent: Int
-    let sessionUsedPercent: Int
 }
