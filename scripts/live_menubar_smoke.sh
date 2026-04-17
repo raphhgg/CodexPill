@@ -10,9 +10,20 @@ UI_TREE_PATH="${ARTIFACT_ROOT}/ui-tree.json"
 SUMMARY_PATH="${ARTIFACT_ROOT}/summary.json"
 COMMAND_PATH="${ARTIFACT_ROOT}/command.txt"
 LIVE_SNAPSHOT_PATH="${ARTIFACT_ROOT}/live-menu-snapshot.json"
+VALIDATION_EVENTS_PATH="${ARTIFACT_ROOT}/validation-events.jsonl"
 RUNTIME_ASSERTIONS_PATH="${ARTIFACT_ROOT}/runtime-assertions.json"
 APP_SERVER_STATUS_PATH="${ARTIFACT_ROOT}/app-server-status.json"
 LIVE_AUTH_STATUS_PATH="${ARTIFACT_ROOT}/live-auth-status.json"
+PROOF_LAYER="live_ui"
+
+case "${SCENARIO}" in
+  live-account-switch)
+    INVARIANT_IDS_JSON='["accounts.switch_account.menu_action_changes_active_account"]'
+    ;;
+  *)
+    INVARIANT_IDS_JSON='["menubar.status_item_content.fallback_icon_only","menubar.inactive_accounts.render_and_wired_for_switch"]'
+    ;;
+esac
 
 mkdir -p "${ARTIFACT_ROOT}/screenshots" "${ARTIFACT_ROOT}/logs"
 
@@ -153,6 +164,8 @@ EOF
 fi
 
 CODEXPILL_VALIDATION_OUTPUT="${PWD}/${LIVE_SNAPSHOT_PATH}" \
+  CODEXPILL_VALIDATION_EVENTS_OUTPUT="${PWD}/${VALIDATION_EVENTS_PATH}" \
+  CODEXPILL_VALIDATION_SCENARIO="${SCENARIO}" \
   ./scripts/run_menubar.sh > "${ARTIFACT_ROOT}/logs/run-menubar.log" 2>&1
 
 for _ in $(seq 1 20); do
@@ -516,6 +529,183 @@ exit(checks.all? { |check| check["passed"] } ? 0 : 1)
 RUBY
 }
 
+read_switch_target_json() {
+  ruby - "${LIVE_SNAPSHOT_PATH}" <<'RUBY'
+require "json"
+
+snapshot = JSON.parse(File.read(ARGV.fetch(0)))
+sections = snapshot.fetch("sections", [])
+menu_items = snapshot.fetch("menuItems", [])
+
+extract_names = lambda do |title|
+  sections.find { |section| section["title"] == title }
+    &.fetch("items", [])
+    &.map { |item| item.to_s.split(" • ").first.to_s.strip }
+    &.reject(&:empty?) || []
+end
+
+visible = extract_names.call("Other Accounts")
+overflow = extract_names.call("More Accounts…")
+current_account_name = snapshot.dig("currentAccount", "name").to_s.strip
+
+target_name = visible.first || overflow.first
+target_location =
+  if visible.include?(target_name)
+    "visible"
+  elsif overflow.include?(target_name)
+    "overflow"
+  end
+
+root_index = nil
+submenu_index = nil
+
+if target_location == "visible"
+  matched_index = menu_items.find_index do |item|
+    title = item["title"].to_s
+    title == target_name || title.start_with?("#{target_name}\n")
+  end
+  root_index = matched_index.nil? ? nil : matched_index + 1
+elsif target_location == "overflow"
+  more_accounts = menu_items.find { |item| item["title"] == "More Accounts…" }
+  matched_index = more_accounts.to_h.fetch("children", []).find_index do |item|
+    title = item["title"].to_s
+    title == target_name || title.start_with?("#{target_name}\n")
+  end
+  root_index = menu_items.find_index { |item| item["title"] == "More Accounts…" }
+  root_index = root_index.nil? ? nil : root_index + 1
+  submenu_index = matched_index.nil? ? nil : matched_index + 1
+end
+
+puts JSON.generate(
+  {
+    "currentAccountName" => current_account_name.empty? ? nil : current_account_name,
+    "targetName" => target_name,
+    "targetLocation" => target_location,
+    "targetRootIndex" => root_index,
+    "targetSubmenuIndex" => submenu_index,
+    "visibleNames" => visible,
+    "overflowNames" => overflow
+  }
+)
+RUBY
+}
+
+click_switch_target() {
+  local target_name="$1"
+  local target_location="$2"
+  local target_root_index="$3"
+  local target_submenu_index="$4"
+
+  osascript - "$target_name" "$target_location" "$target_root_index" "$target_submenu_index" <<'EOF'
+on run argv
+    set targetName to item 1 of argv
+    set targetLocation to item 2 of argv
+    set targetRootIndex to item 3 of argv as integer
+    set targetSubmenuIndex to item 4 of argv
+    tell application "System Events"
+        tell process "CodexPill"
+            tell menu bar 2
+                click menu bar item 1
+                delay 0.5
+                if targetLocation is equal to "overflow" then
+                    set submenuIndex to targetSubmenuIndex as integer
+                    tell menu item targetRootIndex of menu 1 of menu bar item 1
+                        tell menu 1
+                            click menu item submenuIndex
+                        end tell
+                    end tell
+                else
+                    click menu item targetRootIndex of menu 1 of menu bar item 1
+                end if
+            end tell
+        end tell
+    end tell
+end run
+EOF
+}
+
+accept_switch_confirmation() {
+  osascript <<'EOF'
+tell application "System Events"
+    tell process "CodexPill"
+        if not (exists window 1) then error "No confirmation window"
+        tell window 1
+            if exists button "Switch" then
+                click button "Switch"
+                return "accepted"
+            end if
+            if exists button "OK" then
+                click button "OK"
+                return "accepted"
+            end if
+            set buttonCount to count of buttons
+            if buttonCount > 0 then
+                click button buttonCount
+                return "accepted"
+            end if
+        end tell
+    end tell
+end tell
+EOF
+}
+
+read_switch_event_proof() {
+  ruby - "${VALIDATION_EVENTS_PATH}" "$1" "$2" <<'RUBY'
+require "json"
+
+events_path, target_name, original_name = ARGV
+events = if File.exist?(events_path)
+  File.readlines(events_path, chomp: true).map do |line|
+    next if line.strip.empty?
+    JSON.parse(line)
+  rescue JSON::ParserError
+    nil
+  end.compact
+else
+  []
+end
+
+requirements = [
+  ["menu_action_dispatched", ->(event) { event.dig("payload", "action") == "switchAccount" && event.dig("payload", "targetName") == target_name }],
+  ["switch_confirmation_presented", ->(event) { event.dig("payload", "targetName") == target_name }],
+  ["switch_confirmation_accepted", ->(event) { event.dig("payload", "targetName") == target_name }],
+  ["switch_workflow_started", ->(event) { event.dig("payload", "targetName") == target_name }],
+  ["active_account_changed", ->(event) {
+    event.dig("payload", "toName") == target_name &&
+      (original_name.to_s.empty? || event.dig("payload", "fromName") == original_name)
+  }]
+]
+
+cursor = 0
+proof_sequence = []
+
+requirements.each do |required_name, predicate|
+  matched = false
+  while cursor < events.length
+    event = events[cursor]
+    if event["event"] == required_name && predicate.call(event)
+      proof_sequence << required_name
+      cursor += 1
+      matched = true
+      break
+    end
+    cursor += 1
+  end
+  break unless matched
+end
+
+puts JSON.generate(
+  {
+    "passed" => proof_sequence == requirements.map(&:first),
+    "requiredSequence" => requirements.map(&:first),
+    "proofSequence" => proof_sequence,
+    "eventCount" => events.length,
+    "eventsPathPresent" => File.exist?(events_path)
+  }
+)
+RUBY
+}
+
 RUNTIME_ASSERTIONS_PASSED=0
 for _ in $(seq 1 20); do
   if run_runtime_assertions; then
@@ -646,9 +836,12 @@ cat > "${UI_TREE_PATH}" <<EOF
 }
 EOF
 
-if [[ "${MENU_ITEM_COUNT}" == "0" ]]; then
-  cat > "${SUMMARY_PATH}" <<EOF
+if [[ "${SCENARIO}" == "live-account-switch" ]]; then
+  if [[ "${CODEXPILL_ALLOW_LIVE_ACCOUNT_SWITCH_VALIDATION:-0}" != "1" ]]; then
+    cat > "${SUMMARY_PATH}" <<EOF
 {
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
   "artifacts": [
     "live-auth-status.json",
     "app-server-status.json",
@@ -656,6 +849,266 @@ if [[ "${MENU_ITEM_COUNT}" == "0" ]]; then
     "live-menu-snapshot.json",
     "runtime-assertions.json",
     "ui-tree.json",
+    "validation-events.jsonl",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [
+    "Live account-switch validation mutates the real Codex auth state and is opt-in only.",
+    "Set CODEXPILL_ALLOW_LIVE_ACCOUNT_SWITCH_VALIDATION=1 to run this scenario intentionally."
+  ],
+  "scenario": "${SCENARIO}",
+  "status": "blocked",
+  "failureClass": "environment_block",
+  "failureStep": "scenario_guard"
+}
+EOF
+    echo "Live account-switch smoke blocked: opt-in guard not enabled." >&2
+    exit 11
+  fi
+
+  if [[ "${MENU_ITEM_COUNT}" == "0" ]]; then
+    cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "screenshots/${SCENARIO}.png",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "The runtime snapshot proved the menu wiring state before attempting a switch"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [
+    "Accessibility exposed zero menu items after opening the status item, so the live probe could not select an inactive account row.",
+    "This remains an environment-limited live proof gap rather than an app snapshot gap."
+  ],
+  "scenario": "${SCENARIO}",
+  "status": "failed",
+  "failureClass": "validation_gap",
+  "failureStep": "menu_item_enumeration"
+}
+EOF
+    echo "Live account-switch smoke failed: Accessibility exposed zero menu items." >&2
+    exit 12
+  fi
+
+  SWITCH_TARGET_JSON="$(read_switch_target_json)"
+  SWITCH_TARGET_NAME="$(printf '%s' "${SWITCH_TARGET_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["targetName"].to_s)')"
+  SWITCH_TARGET_LOCATION="$(printf '%s' "${SWITCH_TARGET_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["targetLocation"].to_s)')"
+  SWITCH_TARGET_ROOT_INDEX="$(printf '%s' "${SWITCH_TARGET_JSON}" | ruby -rjson -e 'value = JSON.parse(STDIN.read)["targetRootIndex"]; print(value.nil? ? "" : value)')"
+  SWITCH_TARGET_SUBMENU_INDEX="$(printf '%s' "${SWITCH_TARGET_JSON}" | ruby -rjson -e 'value = JSON.parse(STDIN.read)["targetSubmenuIndex"]; print(value.nil? ? "" : value)')"
+  ORIGINAL_ACCOUNT_NAME="$(printf '%s' "${SWITCH_TARGET_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["currentAccountName"].to_s)')"
+
+  if [[ -z "${SWITCH_TARGET_NAME}" || -z "${SWITCH_TARGET_LOCATION}" || -z "${SWITCH_TARGET_ROOT_INDEX}" || ( "${SWITCH_TARGET_LOCATION}" == "overflow" && -z "${SWITCH_TARGET_SUBMENU_INDEX}" ) ]]; then
+    cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "screenshots/${SCENARIO}.png",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "Accessibility enumerated the open menu"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [
+    "The runtime snapshot did not expose any inactive saved account that the live smoke could target."
+  ],
+  "scenario": "${SCENARIO}",
+  "status": "failed",
+  "failureClass": "validation_gap",
+  "failureStep": "switch_target_selection"
+}
+EOF
+    echo "Live account-switch smoke failed: no inactive account target available." >&2
+    exit 13
+  fi
+
+  if ! click_switch_target "${SWITCH_TARGET_NAME}" "${SWITCH_TARGET_LOCATION}" "${SWITCH_TARGET_ROOT_INDEX}" "${SWITCH_TARGET_SUBMENU_INDEX}" >/dev/null 2>&1; then
+    cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "screenshots/${SCENARIO}.png",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "Accessibility enumerated the open menu",
+    "An inactive account target was selected from the runtime snapshot"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [
+    "Accessibility reached the menu but did not successfully click the target inactive account row."
+  ],
+  "scenario": "${SCENARIO}",
+  "status": "failed",
+  "failureClass": "environment_block",
+  "failureStep": "switch_row_click"
+}
+EOF
+    echo "Live account-switch smoke failed: could not click the target row." >&2
+    exit 14
+  fi
+
+  CONFIRMATION_ACCEPTED=0
+  for _ in $(seq 1 20); do
+    if accept_switch_confirmation >/dev/null 2>&1; then
+      CONFIRMATION_ACCEPTED=1
+      break
+    fi
+    sleep 0.5
+  done
+
+  if [[ "${CONFIRMATION_ACCEPTED}" -ne 1 ]]; then
+    cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "screenshots/${SCENARIO}.png",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "Accessibility enumerated the open menu",
+    "The target inactive account row was clicked",
+    "The switch confirmation was presented"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [
+    "The live probe dispatched the switch action but could not accept the confirmation alert."
+  ],
+  "scenario": "${SCENARIO}",
+  "status": "failed",
+  "failureClass": "environment_block",
+  "failureStep": "switch_confirmation_accept"
+}
+EOF
+    echo "Live account-switch smoke failed: could not accept the confirmation alert." >&2
+    exit 16
+  fi
+
+  SWITCH_EVENT_PROOF_JSON=""
+  SWITCH_SNAPSHOT_MATCHED=0
+  for _ in $(seq 1 30); do
+    SWITCH_EVENT_PROOF_JSON="$(read_switch_event_proof "${SWITCH_TARGET_NAME}" "${ORIGINAL_ACCOUNT_NAME}")"
+    SWITCH_SNAPSHOT_MATCHED="$(ruby -rjson -e 'snapshot = JSON.parse(File.read(ARGV[0])); target = ARGV[1]; current = snapshot.dig("currentAccount", "name").to_s; print(current == target ? "1" : "0")' "${LIVE_SNAPSHOT_PATH}" "${SWITCH_TARGET_NAME}")"
+    if [[ "$(printf '%s' "${SWITCH_EVENT_PROOF_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["passed"] ? "1" : "0")')" == "1" && "${SWITCH_SNAPSHOT_MATCHED}" == "1" ]]; then
+      break
+    fi
+    sleep 1
+  done
+
+  SWITCH_EVENT_PROOF_PASSED="$(printf '%s' "${SWITCH_EVENT_PROOF_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["passed"] ? "1" : "0")')"
+  SWITCH_EVENT_PROOF_SEQUENCE="$(printf '%s' "${SWITCH_EVENT_PROOF_JSON}" | ruby -rjson -e 'print(JSON.generate(JSON.parse(STDIN.read)["proofSequence"]))')"
+
+  if [[ "${SWITCH_EVENT_PROOF_PASSED}" != "1" || "${SWITCH_SNAPSHOT_MATCHED}" != "1" ]]; then
+    cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "screenshots/${SCENARIO}.png",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "Accessibility enumerated the open menu",
+    "The target inactive account row was clicked"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [
+    "The app did not emit the full switch-account event sequence or the current-account snapshot did not move to the clicked target."
+  ],
+  "scenario": "${SCENARIO}",
+  "status": "failed",
+  "proofSequence": ${SWITCH_EVENT_PROOF_SEQUENCE},
+  "failureClass": "product_regression",
+  "failureStep": "switch_transition"
+}
+EOF
+    echo "Live account-switch smoke failed: switch transition proof did not complete." >&2
+    exit 15
+  fi
+
+  cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "screenshots/${SCENARIO}.png",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "Accessibility enumerated the open menu",
+    "The target inactive account row was clicked",
+    "The app emitted the switch-account event sequence",
+    "The runtime snapshot current account moved to the clicked target"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [],
+  "scenario": "${SCENARIO}",
+  "status": "passed",
+  "proofSequence": ${SWITCH_EVENT_PROOF_SEQUENCE}
+}
+EOF
+
+  echo "Live account-switch smoke artifacts written to ${ARTIFACT_ROOT}"
+  exit 0
+fi
+
+if [[ "${MENU_ITEM_COUNT}" == "0" ]]; then
+  cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "screenshots/${SCENARIO}.png",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
     "logs/run-menubar.log"
   ],
   "assertions": [
@@ -668,7 +1121,7 @@ if [[ "${MENU_ITEM_COUNT}" == "0" ]]; then
     "Accessibility probe reached the menubar process",
     "The status item on menu bar 2 was targeted"
   ],
-  "command": "AGENT_NAME=${AGENT_NAME} ./scripts/live_menubar_smoke.sh",
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
   "gaps": [
     "The live status item is reachable, but Accessibility exposes zero menu items after opening it on this machine.",
     "Runtime snapshot proof is present, so this is an Accessibility inspection gap rather than missing app evidence."
@@ -683,6 +1136,8 @@ fi
 
 cat > "${SUMMARY_PATH}" <<EOF
 {
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
   "artifacts": [
     "live-auth-status.json",
     "app-server-status.json",
@@ -690,6 +1145,7 @@ cat > "${SUMMARY_PATH}" <<EOF
     "live-menu-snapshot.json",
     "runtime-assertions.json",
     "ui-tree.json",
+    "validation-events.jsonl",
     "logs/run-menubar.log"
   ],
   "assertions": [
@@ -702,7 +1158,7 @@ cat > "${SUMMARY_PATH}" <<EOF
     "Accessibility probe reached the menubar process",
     "The status item on menu bar 2 opened and returned menu item titles"
   ],
-  "command": "AGENT_NAME=${AGENT_NAME} ./scripts/live_menubar_smoke.sh",
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
   "gaps": [],
   "scenario": "${SCENARIO}",
   "status": "passed"

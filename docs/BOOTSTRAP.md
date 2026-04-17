@@ -36,7 +36,7 @@ The local build loop is shell-first:
 - `make verify-ui`
 - `make verify-ui-live`
 
-`make verify-ui` is the hosted deterministic validator. It renders menu states from fixtures and writes screenshot plus JSON artifacts under `build/verification/<agent>/<scenario>/`.
+`make verify-ui` is the deterministic UI validator. It renders menu states from fixtures and writes screenshot plus JSON artifacts under `build/verification/<agent>/<scenario>/`.
 
 `make verify-ui-live` is the live smoke validator. It launches the real menubar app in validation mode, waits for the app to emit `live-menu-snapshot.json` during menu rebuild, asserts menu-item metadata such as enabled state and action wiring from that runtime snapshot, then adds an Accessibility probe plus screenshot as supporting proof.
 

@@ -10,6 +10,7 @@ SCREENSHOT_PATH="${ARTIFACT_ROOT}/screenshots/${SCENARIO}.png"
 SUMMARY_PATH="${ARTIFACT_ROOT}/summary.json"
 COMMAND_PATH="${ARTIFACT_ROOT}/command.txt"
 LIVE_SNAPSHOT_PATH="${ARTIFACT_ROOT}/live-menu-snapshot.json"
+VALIDATION_EVENTS_PATH="${ARTIFACT_ROOT}/validation-events.jsonl"
 RUNTIME_ASSERTIONS_PATH="${ARTIFACT_ROOT}/runtime-assertions.json"
 INITIAL_SNAPSHOT_PATH="${ARTIFACT_ROOT}/initial-status-item-snapshot.json"
 HOVERED_SNAPSHOT_PATH="${ARTIFACT_ROOT}/hovered-status-item-snapshot.json"
@@ -45,6 +46,8 @@ trap cleanup EXIT
 defaults write "${APP_BUNDLE_ID}" statusBarDisplayMode textOnHover
 
 CODEXPILL_VALIDATION_OUTPUT="${PWD}/${LIVE_SNAPSHOT_PATH}" \
+  CODEXPILL_VALIDATION_EVENTS_OUTPUT="${PWD}/${VALIDATION_EVENTS_PATH}" \
+  CODEXPILL_VALIDATION_SCENARIO="${SCENARIO}" \
   ./scripts/run_menubar.sh > "${RUN_LOG_PATH}" 2>&1
 
 for _ in $(seq 1 30); do
@@ -67,7 +70,8 @@ if [[ ! -f "${LIVE_SNAPSHOT_PATH}" ]]; then
   ],
   "scenario": "${SCENARIO}",
   "status": "failed",
-  "failureClass": "validation_gap"
+  "failureClass": "validation_gap",
+  "failureStep": "initial_snapshot_emit"
 }
 EOF
   exit 7
@@ -112,6 +116,59 @@ value =
   end
 
 puts(value.nil? ? "" : value)
+RUBY
+}
+
+read_hover_event_proof() {
+  ruby - "${VALIDATION_EVENTS_PATH}" <<'RUBY'
+require "json"
+
+events_path = ARGV.fetch(0)
+required = [
+  "status_item_hover_entered",
+  "status_item_title_became_visible",
+  "status_item_hover_exit_scheduled",
+  "status_item_hover_exited",
+  "status_item_title_hidden"
+]
+
+events = if File.exist?(events_path)
+  File.readlines(events_path, chomp: true).map do |line|
+    next if line.strip.empty?
+    JSON.parse(line)
+  rescue JSON::ParserError
+    nil
+  end.compact
+else
+  []
+end
+
+cursor = 0
+proof_sequence = []
+
+required.each do |required_event|
+  matched = false
+  while cursor < events.length
+    if events[cursor]["event"] == required_event
+      proof_sequence << required_event
+      cursor += 1
+      matched = true
+      break
+    end
+    cursor += 1
+  end
+  break unless matched
+end
+
+puts JSON.generate(
+  {
+    "passed" => proof_sequence == required,
+    "requiredSequence" => required,
+    "proofSequence" => proof_sequence,
+    "eventCount" => events.length,
+    "eventsPathPresent" => File.exist?(events_path)
+  }
+)
 RUBY
 }
 
@@ -173,6 +230,7 @@ EOF
   "proofLayer": "${PROOF_LAYER}",
   "artifacts": [
     "live-menu-snapshot.json",
+    "validation-events.jsonl",
     "initial-status-item-snapshot.json",
     "runtime-assertions.json",
     "logs/run-menubar.log"
@@ -185,7 +243,8 @@ EOF
   ],
   "scenario": "${SCENARIO}",
   "status": "failed",
-  "failureClass": "validation_gap"
+  "failureClass": "validation_gap",
+  "failureStep": "preconditions"
 }
 EOF
   exit 8
@@ -276,6 +335,7 @@ EOF
   "proofLayer": "${PROOF_LAYER}",
   "artifacts": [
     "live-menu-snapshot.json",
+    "validation-events.jsonl",
     "initial-status-item-snapshot.json",
     "hovered-status-item-snapshot.json",
     "runtime-assertions.json",
@@ -292,7 +352,8 @@ EOF
   ],
   "scenario": "${SCENARIO}",
   "status": "failed",
-  "failureClass": "environment_block"
+  "failureClass": "environment_block",
+  "failureStep": "pointer_move_to_status_item"
 }
 EOF
   exit 9
@@ -374,6 +435,7 @@ EOF
   "proofLayer": "${PROOF_LAYER}",
   "artifacts": [
     "live-menu-snapshot.json",
+    "validation-events.jsonl",
     "initial-status-item-snapshot.json",
     "hovered-status-item-snapshot.json",
     "unhovered-status-item-snapshot.json",
@@ -391,7 +453,8 @@ EOF
   ],
   "scenario": "${SCENARIO}",
   "status": "failed",
-  "failureClass": "environment_block"
+  "failureClass": "environment_block",
+  "failureStep": "pointer_move_off_status_item"
 }
 EOF
   exit 10
@@ -407,6 +470,9 @@ for _ in $(seq 1 20); do
 done
 
 cp "${LIVE_SNAPSHOT_PATH}" "${UNHOVERED_SNAPSHOT_PATH}"
+EVENT_PROOF_JSON="$(read_hover_event_proof)"
+EVENT_PROOF_PASSED="$(printf '%s' "${EVENT_PROOF_JSON}" | ruby -rjson -e 'print JSON.parse(STDIN.read)["passed"]')"
+EVENT_PROOF_SEQUENCE="$(printf '%s' "${EVENT_PROOF_JSON}" | ruby -rjson -e 'print JSON.generate(JSON.parse(STDIN.read)["proofSequence"])')"
 
 cat > "${RUNTIME_ASSERTIONS_PATH}" <<EOF
 [
@@ -448,16 +514,34 @@ cat > "${RUNTIME_ASSERTIONS_PATH}" <<EOF
     "name": "Moving away hides the text-on-hover title again",
     "passed": $( [[ "${UNHOVER_VISIBLE}" == "false" ]] && echo true || echo false ),
     "actual": $(cat "${UNHOVERED_SNAPSHOT_PATH}")
+  },
+  {
+    "invariantIds": ${INVARIANT_IDS_JSON},
+    "proofLayer": "${PROOF_LAYER}",
+    "name": "Validation events prove the hover lifecycle",
+    "passed": ${EVENT_PROOF_PASSED},
+    "actual": ${EVENT_PROOF_JSON}
   }
 ]
 EOF
 
-if [[ "${HOVER_VISIBLE}" != "true" || "${UNHOVER_VISIBLE}" != "false" ]]; then
-  FAILURE_TYPE="product_regression"
+if [[ "${HOVER_VISIBLE}" != "true" || "${UNHOVER_VISIBLE}" != "false" || "${EVENT_PROOF_PASSED}" != "true" ]]; then
+  if [[ "${HOVER_VISIBLE}" != "true" || "${UNHOVER_VISIBLE}" != "false" ]]; then
+    FAILURE_TYPE="product_regression"
+    FAILURE_STEP="hover_visibility_transition"
+    FAILURE_GAP="The live status item did not keep the hover title visible while the pointer was on the status item."
+  else
+    FAILURE_TYPE="validation_gap"
+    FAILURE_STEP="event_sequence_validation"
+    FAILURE_GAP="The app did not emit the expected hover lifecycle validation events."
+  fi
   cat > "${SUMMARY_PATH}" <<EOF
 {
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
   "artifacts": [
     "live-menu-snapshot.json",
+    "validation-events.jsonl",
     "initial-status-item-snapshot.json",
     "hovered-status-item-snapshot.json",
     "unhovered-status-item-snapshot.json",
@@ -468,13 +552,15 @@ if [[ "${HOVER_VISIBLE}" != "true" || "${UNHOVER_VISIBLE}" != "false" ]]; then
   "assertions": [
     "The probe forced text-on-hover mode through persisted settings"
   ],
+  "proofSequence": ${EVENT_PROOF_SEQUENCE},
   "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_status_item_hover_smoke.sh",
   "gaps": [
-    "The live status item did not keep the hover title visible while the pointer was on the status item."
+    "${FAILURE_GAP}"
   ],
   "scenario": "${SCENARIO}",
   "status": "failed",
-  "failureClass": "${FAILURE_TYPE}"
+  "failureClass": "${FAILURE_TYPE}",
+  "failureStep": "${FAILURE_STEP}"
 }
 EOF
   exit 9
@@ -486,6 +572,7 @@ cat > "${SUMMARY_PATH}" <<EOF
   "proofLayer": "${PROOF_LAYER}",
   "artifacts": [
     "live-menu-snapshot.json",
+    "validation-events.jsonl",
     "initial-status-item-snapshot.json",
     "hovered-status-item-snapshot.json",
     "unhovered-status-item-snapshot.json",
@@ -498,12 +585,15 @@ cat > "${SUMMARY_PATH}" <<EOF
     "The probe moved the pointer into the live status item bounds",
     "Hovering the live status item revealed the text-on-hover title",
     "The probe moved the pointer back out of the live status item bounds",
-    "Moving away hid the text-on-hover title again"
+    "Moving away hid the text-on-hover title again",
+    "Validation events proved the hover lifecycle"
   ],
+  "proofSequence": ${EVENT_PROOF_SEQUENCE},
   "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_status_item_hover_smoke.sh",
   "gaps": [],
   "scenario": "${SCENARIO}",
   "status": "passed",
-  "failureClass": null
+  "failureClass": null,
+  "failureStep": null
 }
 EOF

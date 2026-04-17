@@ -34,7 +34,7 @@ if [[ "${SCENARIO}" != "hosted-menu-default" ]]; then
   case "${SCENARIO}" in
     hosted-menu-busy|hosted-menu-empty)
       ;;
-    live-menu-open)
+    live-menu-open|live-account-switch)
       ARTIFACT_ROOT="${BUILD_ROOT}/verification/${AGENT_NAME}/${SCENARIO}" \
       ./scripts/live_menubar_smoke.sh
       exit $?
@@ -52,7 +52,7 @@ if [[ "${SCENARIO}" != "hosted-menu-default" ]]; then
   "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/verify_ui.sh",
   "gaps": [
     "Unknown scenario '${SCENARIO}'",
-    "Try SCENARIO=hosted-menu-default, hosted-menu-busy, hosted-menu-empty, live-menu-open, or live-status-item-hover"
+    "Try SCENARIO=hosted-menu-default, hosted-menu-busy, hosted-menu-empty, live-menu-open, live-account-switch, or live-status-item-hover"
   ],
   "scenario": "${SCENARIO}",
   "status": "failed"

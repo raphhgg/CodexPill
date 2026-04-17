@@ -60,7 +60,7 @@ Verify:
 
 ## Out Of Scope
 
-- behaviors already covered by unit, integration, hosted UI, or live smoke validation
+- behaviors already covered by unit, integration, deterministic UI, or live smoke validation
 - Codex plugin marketplace or plugin-loader warnings by themselves
 - unrelated Codex desktop network sync issues unless they block a `CodexPill` workflow
 
