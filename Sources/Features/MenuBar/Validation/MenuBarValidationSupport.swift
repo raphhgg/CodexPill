@@ -86,8 +86,9 @@ enum MenuBarValidationSupport {
             title: "Preferences",
             items: [
                 "Refresh Time: \(state.refreshIntervalMinutes) minutes",
-                "Status Item Content: \(state.effectiveStatusBarDisplayMode.menuTitle)",
-                "Status Item Appearance: \(state.statusBarIndicatorStyle.menuTitle)",
+                "Menu Bar Content: \(state.effectiveStatusBarDisplayMode.menuTitle)",
+                "Menu Bar Indicator: \(state.statusBarIndicatorStyle.menuTitle)",
+                "Accent Color: \(colorHexString(for: state.progressAccentColor))",
                 state.statusBarMonochrome ? "Monochrome: On" : "Monochrome: Off",
                 state.canShowAbout ? "About" : "About (disabled)"
             ]
@@ -200,6 +201,14 @@ enum MenuBarValidationSupport {
             "Rename Account",
             "Remove Account"
         ]
+    }
+
+    private static func colorHexString(for color: NSColor) -> String {
+        let normalized = (color.usingColorSpace(.deviceRGB) ?? color.usingColorSpace(.sRGB)) ?? color
+        let red = Int(round(normalized.redComponent * 255))
+        let green = Int(round(normalized.greenComponent * 255))
+        let blue = Int(round(normalized.blueComponent * 255))
+        return String(format: "#%02X%02X%02X", red, green, blue)
     }
 
     private static func accountIdentity(for account: CodexAccount) -> MenuBarValidationSnapshot.AccountIdentity {

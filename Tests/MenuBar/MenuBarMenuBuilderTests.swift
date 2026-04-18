@@ -38,8 +38,8 @@ struct MenuBarMenuBuilderTests {
         let menu = builder.makeMenu(state: state, target: coordinator)
         let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, menu: menu)
 
-        let statusItem = try #require(snapshot.menuItems.first(where: { $0.title == "Status Item" }))
-        let content = try #require(statusItem.children.first(where: { $0.title == "Content" }))
+        let display = try #require(snapshot.menuItems.first(where: { $0.title == "Display" }))
+        let content = try #require(display.children.first(where: { $0.title == "Content" }))
         let iconOnly = try #require(content.children.first(where: { $0.title == "Icon Only" }))
         let iconAndText = try #require(content.children.first(where: { $0.title == "Icon + Text" }))
         let textOnHover = try #require(content.children.first(where: { $0.title == "Text on Hover" }))
@@ -156,6 +156,45 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
+    func statusItemMenuIncludesColorCustomizationAndReset() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let menu = builder.makeMenu(
+            state: makeState(activeAccount: makeAccount(name: "Active", withRateLimits: true)),
+            target: coordinator
+        )
+
+        let displayMenu = try #require(menu.items.first(where: { $0.title == "Display" })?.submenu)
+        let accent = try #require(displayMenu.items.first(where: { $0.title == "Accent Color…" }))
+        let reset = try #require(displayMenu.items.first(where: { $0.title == "Use Default" }))
+
+        #expect(accent.action == #selector(MenuBarCoordinator.chooseProgressAccentColor(_:)))
+        #expect(accent.image != nil)
+        #expect(reset.action == #selector(MenuBarCoordinator.resetProgressAccentColor(_:)))
+        #expect(!reset.isEnabled)
+    }
+
+    @Test
+    func statusItemMenuEnablesUseDefaultWhenCustomAccentColorExists() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let menu = builder.makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                progressAccentColor: NSColor(deviceRed: 0.12, green: 0.45, blue: 0.78, alpha: 1),
+                hasCustomProgressAccentColor: true
+            ),
+            target: coordinator
+        )
+
+        let displayMenu = try #require(menu.items.first(where: { $0.title == "Display" })?.submenu)
+        let reset = try #require(displayMenu.items.first(where: { $0.title == "Use Default" }))
+
+        #expect(reset.action == #selector(MenuBarCoordinator.resetProgressAccentColor(_:)))
+        #expect(reset.isEnabled)
+    }
+
+    @Test
     func openingMenuKeepsTheSameMenuInstanceAttachedToStatusItem() throws {
         let builder = MenuBarMenuBuilder()
         let (coordinator, statusItem) = try makeCoordinatorWithStatusItem()
@@ -226,7 +265,7 @@ struct MenuBarMenuBuilderTests {
 
     private func statusItemContentMenu(in menu: NSMenu) -> NSMenu? {
         menu.items
-            .first(where: { $0.title == "Status Item" })?
+            .first(where: { $0.title == "Display" })?
             .submenu?
             .items
             .first(where: { $0.title == "Content" })?
@@ -260,7 +299,12 @@ struct MenuBarMenuBuilderTests {
         return (coordinator, statusItem)
     }
 
-    private func makeState(activeAccount: CodexAccount?, inactiveAccounts: [CodexAccount] = []) -> MenuBarMenuState {
+    private func makeState(
+        activeAccount: CodexAccount?,
+        inactiveAccounts: [CodexAccount] = [],
+        progressAccentColor: NSColor = .controlAccentColor,
+        hasCustomProgressAccentColor: Bool = false
+    ) -> MenuBarMenuState {
         MenuBarMenuState(
             activeAccount: activeAccount,
             inactiveAccounts: inactiveAccounts,
@@ -271,6 +315,8 @@ struct MenuBarMenuBuilderTests {
             statusBarMonochrome: false,
             statusBarIndicatorStyle: .dualArcBadge,
             statusBarDisplayMode: .textOnHover,
+            progressAccentColor: progressAccentColor,
+            hasCustomProgressAccentColor: hasCustomProgressAccentColor,
             isBusy: false,
             statusMessage: "Ready"
         )

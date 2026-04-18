@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ActiveAccountMenuContent: View {
     let account: CodexAccount
+    let progressAccentColor: Color
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
@@ -25,8 +26,16 @@ struct ActiveAccountMenuContent: View {
             }
             .padding(.top, -2)
 
-            ActiveLimitRow(title: "Session", window: account.rateLimits?.primary)
-            ActiveLimitRow(title: "Weekly", window: account.rateLimits?.secondary)
+            ActiveLimitRow(
+                title: "Session",
+                window: account.rateLimits?.primary,
+                tintColor: progressAccentColor
+            )
+            ActiveLimitRow(
+                title: "Weekly",
+                window: account.rateLimits?.secondary,
+                tintColor: progressAccentColor
+            )
         }
         .padding(.horizontal, 14)
         .padding(.top, 4)
@@ -46,6 +55,7 @@ struct ActiveAccountMenuContent: View {
 private struct ActiveLimitRow: View {
     let title: String
     let window: CodexRateLimitWindow?
+    let tintColor: Color
 
     var body: some View {
         let displayedUsedPercent = window?.displayedUsedPercent() ?? 0
@@ -56,7 +66,7 @@ private struct ActiveLimitRow: View {
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.primary)
             ProgressView(value: Double(displayedUsedPercent), total: 100)
-                .tint(.accentColor)
+                .tint(tintColor)
             HStack {
                 Text(usageText)
                     .monospacedDigit()

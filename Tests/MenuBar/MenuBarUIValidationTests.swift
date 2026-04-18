@@ -79,8 +79,33 @@ struct MenuBarUIValidationTests {
         )
 
         let preferences = try! #require(snapshot.sections.first(where: { $0.title == "Preferences" }))
-        #expect(preferences.items.contains("Status Item Content: Icon Only"))
-        #expect(!preferences.items.contains("Status Item Content: Text on Hover"))
+        #expect(preferences.items.contains("Menu Bar Content: Icon Only"))
+        #expect(!preferences.items.contains("Menu Bar Content: Text on Hover"))
+    }
+
+    @Test
+    func snapshotCapturesConfiguredProgressBarColors() {
+        let now = Date(timeIntervalSince1970: 1_744_195_200)
+        let state = MenuBarMenuState(
+            activeAccount: makeHostedValidationState(for: "hosted-menu-default", now: now).activeAccount,
+            inactiveAccounts: [],
+            visibleInactiveAccountCount: 2,
+            visibleInactiveAccountCountOptions: [2, 3, 5, 0],
+            refreshIntervalMinutes: 5,
+            refreshIntervalOptions: [1, 2, 5, 10, 15, 30],
+            statusBarMonochrome: false,
+            statusBarIndicatorStyle: .dualArcBadge,
+            statusBarDisplayMode: .textOnHover,
+            progressAccentColor: NSColor(calibratedRed: 0.12, green: 0.45, blue: 0.78, alpha: 1),
+            hasCustomProgressAccentColor: true,
+            isBusy: false,
+            statusMessage: "Ready"
+        )
+
+        let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, now: now)
+        let preferences = try! #require(snapshot.sections.first(where: { $0.title == "Preferences" }))
+
+        #expect(preferences.items.contains("Accent Color: \(hexString(for: state.progressAccentColor))"))
     }
 
     @Test
@@ -217,6 +242,14 @@ struct MenuBarUIValidationTests {
         }
 
         try pngData.write(to: url, options: .atomic)
+    }
+
+    private func hexString(for color: NSColor) -> String {
+        let normalized = (color.usingColorSpace(.deviceRGB) ?? color.usingColorSpace(.sRGB)) ?? color
+        let red = Int(round(normalized.redComponent * 255))
+        let green = Int(round(normalized.greenComponent * 255))
+        let blue = Int(round(normalized.blueComponent * 255))
+        return String(format: "#%02X%02X%02X", red, green, blue)
     }
 
     private func writeJSON<T: Encodable>(_ value: T, to url: URL) throws {

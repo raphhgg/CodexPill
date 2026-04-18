@@ -240,6 +240,19 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     @objc
+    func chooseProgressAccentColor(_ sender: NSMenuItem) {
+        recordMenuAction("chooseProgressAccentColor")
+        presentProgressColorPanel()
+    }
+
+    @objc
+    func resetProgressAccentColor(_ sender: NSMenuItem) {
+        recordMenuAction("resetProgressAccentColor")
+        settings.resetProgressAccentColor()
+        NSColorPanel.shared.color = settings.progressAccentColor
+    }
+
+    @objc
     func switchAccount(_ sender: NSMenuItem) {
         guard
             let idString = sender.representedObject as? String,
@@ -325,6 +338,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             statusBarMonochrome: settings.statusBarMonochrome,
             statusBarIndicatorStyle: settings.statusBarIndicatorStyle,
             statusBarDisplayMode: settings.statusBarDisplayMode,
+            progressAccentColor: settings.progressAccentColor,
+            hasCustomProgressAccentColor: settings.hasCustomProgressAccentColor,
             isBusy: store.isBusy,
             statusMessage: store.statusMessage
         )
@@ -486,6 +501,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             _ = settings.statusBarMonochrome
             _ = settings.statusBarDisplayMode
             _ = settings.visibleInactiveAccountCount
+            _ = settings.progressAccentColor
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -593,8 +609,27 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             activeAccount: store.activeAccount,
             indicatorStyle: settings.statusBarIndicatorStyle,
             monochrome: settings.statusBarMonochrome,
-            displayMode: state.effectiveStatusBarDisplayMode
+            displayMode: state.effectiveStatusBarDisplayMode,
+            progressAccentColor: settings.progressAccentColor
         )
+    }
+
+    private func presentProgressColorPanel() {
+        recordMenuAction("chooseProgressAccentColor")
+        let panel = NSColorPanel.shared
+        panel.title = "Accent Color"
+        panel.showsAlpha = false
+        panel.isContinuous = true
+        panel.setTarget(self)
+        panel.setAction(#selector(handleProgressColorPanelChanged(_:)))
+        panel.color = settings.progressAccentColor
+        NSApp.activate(ignoringOtherApps: true)
+        panel.makeKeyAndOrderFront(nil)
+    }
+
+    @objc
+    private func handleProgressColorPanelChanged(_ sender: NSColorPanel) {
+        settings.progressAccentColor = sender.color.withAlphaComponent(1)
     }
 
     private func handleStatusItemRuntimeEvent(_ event: StatusItemRuntime.Event) {

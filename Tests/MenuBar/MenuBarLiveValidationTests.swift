@@ -29,7 +29,7 @@ struct MenuBarLiveValidationTests {
             actionTrace: nil,
             menuItems: [
                 .init(
-                    title: "Status Item",
+                    title: "Display",
                     isEnabled: true,
                     state: "off",
                     hasAction: false,

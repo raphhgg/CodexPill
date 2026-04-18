@@ -15,7 +15,7 @@ struct MenuBarMenuBuilder {
 
         if let activeAccount = state.activeAccount {
             menu.addItem(sectionHeaderItem("Current Account", bottomPadding: 4))
-            menu.addItem(activeAccountItem(for: activeAccount))
+            menu.addItem(activeAccountItem(for: activeAccount, state: state))
         } else {
             menu.addItem(sectionHeaderItem("Current Account", bottomPadding: 4))
             menu.addItem(disabledInfoItem("No active saved account"))
@@ -54,9 +54,14 @@ struct MenuBarMenuBuilder {
         menu.addItem(quit)
     }
 
-    private func activeAccountItem(for account: CodexAccount) -> NSMenuItem {
+    private func activeAccountItem(for account: CodexAccount, state: MenuBarMenuState) -> NSMenuItem {
         let item = NSMenuItem()
-        let view = NSHostingView(rootView: ActiveAccountMenuContent(account: account))
+        let view = NSHostingView(
+            rootView: ActiveAccountMenuContent(
+                account: account,
+                progressAccentColor: Color(nsColor: state.progressAccentColor)
+            )
+        )
         view.frame = NSRect(x: 0, y: 0, width: 340, height: 1)
         view.layoutSubtreeIfNeeded()
         let fittingHeight = max(1, view.fittingSize.height)
@@ -233,22 +238,39 @@ struct MenuBarMenuBuilder {
     }
 
     private func statusBarMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Status Item", action: nil, keyEquivalent: "")
-        item.image = NSImage(systemSymbolName: "menubar.rectangle", accessibilityDescription: "Status Item")
+        let item = NSMenuItem(title: "Display", action: nil, keyEquivalent: "")
+        item.image = NSImage(systemSymbolName: "slider.horizontal.3", accessibilityDescription: "Display")
 
-        let submenu = configuredMenu(title: "Status Item")
+        let submenu = configuredMenu(title: "Display")
         submenu.addItem(statusBarDisplayMenuItem(state: state, target: target))
         submenu.addItem(statusBarStyleMenuItem(state: state, target: target))
+        submenu.addItem(.separator())
+        submenu.addItem(progressAccentColorItem(state: state, target: target))
+        submenu.addItem(resetProgressAccentColorItem(state: state, target: target))
 
         item.submenu = submenu
         return item
     }
 
-    private func statusBarStyleMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Appearance", action: nil, keyEquivalent: "")
-        item.image = NSImage(systemSymbolName: "square.2.layers.3d.top.filled", accessibilityDescription: "Appearance")
+    private func progressAccentColorItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Accent Color…", action: #selector(MenuBarCoordinator.chooseProgressAccentColor(_:)), keyEquivalent: "")
+        item.target = target
+        item.image = colorSwatchImage(for: state.progressAccentColor)
+        return item
+    }
 
-        let submenu = configuredMenu(title: "Appearance")
+    private func resetProgressAccentColorItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Use Default", action: #selector(MenuBarCoordinator.resetProgressAccentColor(_:)), keyEquivalent: "")
+        item.target = target
+        item.isEnabled = state.hasCustomProgressAccentColor
+        return item
+    }
+
+    private func statusBarStyleMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Indicator", action: nil, keyEquivalent: "")
+        item.image = NSImage(systemSymbolName: "square.2.layers.3d.top.filled", accessibilityDescription: "Indicator")
+
+        let submenu = configuredMenu(title: "Indicator")
         let monochrome = NSMenuItem(title: "Monochrome", action: #selector(MenuBarCoordinator.toggleStatusBarMonochrome(_:)), keyEquivalent: "")
         monochrome.target = target
         monochrome.state = state.statusBarMonochrome ? .on : .off
@@ -295,6 +317,25 @@ struct MenuBarMenuBuilder {
 
     private func configuredMenu(title: String) -> NSMenu {
         NSMenu(title: title)
+    }
+
+    private func colorSwatchImage(for color: NSColor) -> NSImage {
+        let size = NSSize(width: 12, height: 12)
+        let image = NSImage(size: size)
+        image.lockFocus()
+
+        let rect = NSRect(origin: .zero, size: size).insetBy(dx: 1, dy: 1)
+        let path = NSBezierPath(roundedRect: rect, xRadius: 3, yRadius: 3)
+        color.setFill()
+        path.fill()
+
+        NSColor.separatorColor.setStroke()
+        path.lineWidth = 1
+        path.stroke()
+
+        image.unlockFocus()
+        image.isTemplate = false
+        return image
     }
 }
 

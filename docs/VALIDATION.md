@@ -41,6 +41,8 @@ The following behavior should be treated as automated first and should not live 
   - `SCENARIO=live-menu-open make verify-ui-live`
 - status item content fallback and disabled menu-state behavior:
   - unit plus deterministic UI validation
+- progress-bar accent color customization and reset behavior:
+  - unit plus deterministic UI validation
 - inactive account rendering and switch-action wiring metadata:
   - deterministic UI plus `SCENARIO=live-menu-open make verify-ui-live`
 - end-to-end switch-account transition proof when explicitly opting into live auth mutation:
@@ -85,6 +87,14 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `owner_layer`: `unit`
 - `proofs_required`: `["unit", "deterministic_ui", "live_ui"]`
 - `scenarios`: `["empty_state", "no_rate_limit_data"]`
+
+### `menubar.progress_bar_accent_color.persists_and_resets`
+
+- `feature`: `menubar`
+- `rule`: Progress bars share one persisted accent color, surface it in the display menu, and can reset it back to the default color.
+- `owner_layer`: `unit`
+- `proofs_required`: `["unit", "deterministic_ui"]`
+- `scenarios`: `["custom_progress_accent_color", "reset_progress_accent_color"]`
 
 ### `menubar.inactive_accounts.render_and_wired_for_switch`
 

@@ -5,13 +5,21 @@ struct StatusBarIconRenderer {
         style: StatusBarIndicatorStyle,
         primaryPercent: Int?,
         secondaryPercent: Int?,
-        monochrome: Bool
+        monochrome: Bool,
+        primaryColor: NSColor,
+        secondaryColor: NSColor
     ) -> NSImage {
         let size = NSSize(width: 19, height: 19)
         let image = NSImage(size: size)
         image.lockFocus()
 
-        let palette = palette(monochrome: monochrome, primaryPercent: primaryPercent, secondaryPercent: secondaryPercent)
+        let palette = palette(
+            monochrome: monochrome,
+            primaryPercent: primaryPercent,
+            secondaryPercent: secondaryPercent,
+            primaryColor: primaryColor,
+            secondaryColor: secondaryColor
+        )
         let drawing = DrawingContext(
             rect: NSRect(origin: .zero, size: size).insetBy(dx: 0.8, dy: 0.8),
             primaryProgress: progress(for: primaryPercent),
@@ -41,7 +49,13 @@ struct StatusBarIconRenderer {
         return max(0, min(CGFloat(percent) / 100, 1))
     }
 
-    private func palette(monochrome: Bool, primaryPercent: Int?, secondaryPercent: Int?) -> (primary: NSColor, secondary: NSColor) {
+    private func palette(
+        monochrome: Bool,
+        primaryPercent: Int?,
+        secondaryPercent: Int?,
+        primaryColor: NSColor,
+        secondaryColor: NSColor
+    ) -> (primary: NSColor, secondary: NSColor) {
         guard !monochrome else {
             return (
                 primary: NSColor.labelColor,
@@ -49,21 +63,15 @@ struct StatusBarIconRenderer {
             )
         }
         return (
-            primary: color(for: primaryPercent, secondary: false),
-            secondary: color(for: secondaryPercent, secondary: true)
+            primary: color(for: primaryPercent, fallbackColor: primaryColor),
+            secondary: color(for: secondaryPercent, fallbackColor: secondaryColor)
         )
     }
 
-    private func color(for percent: Int?, secondary: Bool) -> NSColor {
-        guard let percent else { return secondary ? NSColor.secondaryLabelColor : NSColor.labelColor }
-        switch percent {
-        case 90...:
-            return .systemRed
-        case 70...:
-            return .systemOrange
-        default:
-            return secondary ? .systemTeal : .controlAccentColor
-        }
+    private func color(for percent: Int?, fallbackColor: NSColor) -> NSColor {
+        guard let percent else { return fallbackColor.withAlphaComponent(0.72) }
+        _ = percent
+        return fallbackColor
     }
 
     private func drawDualArcBadge(in context: DrawingContext) {

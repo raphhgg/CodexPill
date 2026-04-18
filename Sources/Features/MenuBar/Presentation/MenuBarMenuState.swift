@@ -1,3 +1,5 @@
+import AppKit
+
 struct MenuBarMenuState {
     let activeAccount: CodexAccount?
     let inactiveAccounts: [CodexAccount]
@@ -8,8 +10,40 @@ struct MenuBarMenuState {
     let statusBarMonochrome: Bool
     let statusBarIndicatorStyle: StatusBarIndicatorStyle
     let statusBarDisplayMode: StatusBarDisplayMode
+    let progressAccentColor: NSColor
+    let hasCustomProgressAccentColor: Bool
     let isBusy: Bool
     let statusMessage: String
+
+    init(
+        activeAccount: CodexAccount?,
+        inactiveAccounts: [CodexAccount],
+        visibleInactiveAccountCount: Int,
+        visibleInactiveAccountCountOptions: [Int],
+        refreshIntervalMinutes: Int,
+        refreshIntervalOptions: [Int],
+        statusBarMonochrome: Bool,
+        statusBarIndicatorStyle: StatusBarIndicatorStyle,
+        statusBarDisplayMode: StatusBarDisplayMode,
+        progressAccentColor: NSColor = StatusBarProgressColorDefaults.accent,
+        hasCustomProgressAccentColor: Bool = false,
+        isBusy: Bool,
+        statusMessage: String
+    ) {
+        self.activeAccount = activeAccount
+        self.inactiveAccounts = inactiveAccounts
+        self.visibleInactiveAccountCount = visibleInactiveAccountCount
+        self.visibleInactiveAccountCountOptions = visibleInactiveAccountCountOptions
+        self.refreshIntervalMinutes = refreshIntervalMinutes
+        self.refreshIntervalOptions = refreshIntervalOptions
+        self.statusBarMonochrome = statusBarMonochrome
+        self.statusBarIndicatorStyle = statusBarIndicatorStyle
+        self.statusBarDisplayMode = statusBarDisplayMode
+        self.progressAccentColor = progressAccentColor
+        self.hasCustomProgressAccentColor = hasCustomProgressAccentColor
+        self.isBusy = isBusy
+        self.statusMessage = statusMessage
+    }
 
     var canSaveCurrentAccount: Bool {
         !isBusy
