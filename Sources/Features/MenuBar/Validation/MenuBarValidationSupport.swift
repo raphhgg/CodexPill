@@ -27,6 +27,12 @@ struct MenuBarValidationSnapshot: Codable, Equatable {
         let identityDigest: String?
     }
 
+    struct RemoteHostState: Codable, Equatable {
+        let name: String
+        let connectionState: String
+        let activeAccount: AccountIdentity?
+    }
+
     struct MenuItem: Codable, Equatable {
         let title: String
         let isEnabled: Bool
@@ -34,6 +40,7 @@ struct MenuBarValidationSnapshot: Codable, Equatable {
         let hasAction: Bool
         let actionSelector: String?
         let isSeparator: Bool
+        let viewFrameWidth: Double?
         let children: [MenuItem]
     }
 
@@ -57,6 +64,7 @@ struct MenuBarValidationSnapshot: Codable, Equatable {
     let sections: [Section]
     let statusMessage: String?
     let currentAccount: AccountIdentity?
+    let remoteHosts: [RemoteHostState]
     let hasStatusItemContentData: Bool
     let effectiveStatusBarDisplayMode: String
     let statusItem: StatusItemState?
@@ -98,6 +106,7 @@ enum MenuBarValidationSupport {
             sections: sections,
             statusMessage: state.shouldShowStatusMessage ? state.statusMessage : nil,
             currentAccount: state.activeAccount.map(accountIdentity(for:)),
+            remoteHosts: state.connectedRemoteHosts.map(remoteHostState(for:)),
             hasStatusItemContentData: state.hasStatusItemContentData,
             effectiveStatusBarDisplayMode: state.effectiveStatusBarDisplayMode.rawValue,
             statusItem: statusItemState.map(statusItemState(from:)),
@@ -118,17 +127,24 @@ enum MenuBarValidationSupport {
             sections.append(.init(title: "Current Account", items: ["No active saved account"]))
         }
 
-        if !state.visibleInactiveAccounts.isEmpty {
+        if !state.connectedRemoteHosts.isEmpty {
             sections.append(.init(
-                title: "Other Accounts",
-                items: state.visibleInactiveAccounts.map { inactiveAccountSummary(for: $0, now: now) }
+                title: "Remote Accounts",
+                items: state.connectedRemoteHosts.map { remoteHostSummary(for: $0, now: now) }
             ))
         }
 
-        if !state.overflowInactiveAccounts.isEmpty {
+        if !state.visibleAccountEntries.isEmpty {
+            sections.append(.init(
+                title: "Accounts",
+                items: state.visibleAccountEntries.map { inactiveAccountSummary(for: $0, now: now) }
+            ))
+        }
+
+        if !state.overflowAccountEntries.isEmpty {
             sections.append(.init(
                 title: "More Accounts…",
-                items: state.overflowInactiveAccounts.map { inactiveAccountSummary(for: $0, now: now) }
+                items: state.overflowAccountEntries.map { inactiveAccountSummary(for: $0, now: now) }
             ))
         }
 
@@ -176,22 +192,33 @@ enum MenuBarValidationSupport {
         return "\(account.name) • \(plan) • \(email) • \(session) • \(weekly)"
     }
 
-    private static func inactiveAccountSummary(for account: CodexAccount, now: Date) -> String {
-        let plan = menuPlanDisplayName(account.planType)
-        let session = account.rateLimits?.primary.map { "\($0.displayedUsedPercent(at: now))%" } ?? "--"
-        let weekly = account.rateLimits?.secondary.map { "\($0.displayedUsedPercent(at: now))%" } ?? "--"
-        return "\(account.name) • \(plan) • Session \(session) • Weekly \(weekly)"
+    private static func inactiveAccountSummary(for entry: MenuBarAccountCatalogEntry, now: Date) -> String {
+        let detail = compactAccountUsageSummary(for: entry.account, now: now)
+        guard let placement = entry.placement else {
+            return "\(entry.account.name) • \(detail)"
+        }
+        return "\(entry.account.name) • \(detail) • \(placement.badgeText)"
+    }
+
+    private static func remoteHostSummary(for remoteHost: RemoteHostMenuState, now: Date) -> String {
+        var components = [
+            remoteHost.name,
+            remoteHost.connectionState.menuTitle
+        ]
+
+        if let activeAccount = remoteHost.activeAccount {
+            components.append(accountSummary(for: activeAccount, now: now))
+        }
+
+        return components.joined(separator: " • ")
     }
 
     private static func usageLine(title: String, window: CodexRateLimitWindow?, now: Date) -> String {
         let percentText = window.map { "\($0.displayedUsedPercent(at: now))% used" } ?? "--"
-        guard let window, let resetsAt = window.resetsAt, resetsAt > now else {
+        guard let window, let resetStatus = resetStatusText(for: window, now: now) else {
             return "\(title): \(percentText)"
         }
-
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return "\(title): \(percentText), Resets \(formatter.localizedString(for: resetsAt, relativeTo: now))"
+        return "\(title): \(percentText), \(resetStatus)"
     }
 
     private static func managementSectionItems(for state: MenuBarMenuState) -> [String] {
@@ -220,6 +247,14 @@ enum MenuBarValidationSupport {
         )
     }
 
+    private static func remoteHostState(for remoteHost: RemoteHostMenuState) -> MenuBarValidationSnapshot.RemoteHostState {
+        .init(
+            name: remoteHost.name,
+            connectionState: remoteHost.connectionState.rawValue,
+            activeAccount: remoteHost.activeAccount.map(accountIdentity(for:))
+        )
+    }
+
     private static func identityDigest(for account: CodexAccount) -> String? {
         let components = [
             account.identity.stableAccountID,
@@ -242,15 +277,23 @@ enum MenuBarValidationSupport {
     }
 
     private static func menuItem(from item: NSMenuItem) -> MenuBarValidationSnapshot.MenuItem {
-        MenuBarValidationSnapshot.MenuItem(
+        let actionSelector = normalizedActionSelector(for: item)
+        return MenuBarValidationSnapshot.MenuItem(
             title: menuItemTitle(for: item),
             isEnabled: item.isEnabled,
             state: menuItemStateName(item.state),
-            hasAction: item.action != nil,
-            actionSelector: item.action.map(NSStringFromSelector),
+            hasAction: actionSelector != nil,
+            actionSelector: actionSelector,
             isSeparator: item.isSeparatorItem,
+            viewFrameWidth: item.view.map { Double($0.frame.width) },
             children: item.submenu.map { $0.items.map(menuItem(from:)) } ?? []
         )
+    }
+
+    private static func normalizedActionSelector(for item: NSMenuItem) -> String? {
+        guard let action = item.action else { return nil }
+        let selector = NSStringFromSelector(action)
+        return selector == "submenuAction:" ? nil : selector
     }
 
     private static func menuItemTitle(for item: NSMenuItem) -> String {

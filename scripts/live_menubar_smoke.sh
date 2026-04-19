@@ -20,6 +20,9 @@ case "${SCENARIO}" in
   live-account-switch)
     INVARIANT_IDS_JSON='["accounts.switch_account.menu_action_changes_active_account"]'
     ;;
+  live-add-host-prompt)
+    INVARIANT_IDS_JSON='["hosts.add_host.prompt_validates_destination"]'
+    ;;
   live-scheduled-refresh)
     INVARIANT_IDS_JSON='["accounts.scheduled_refresh.requested_and_completed"]'
     ;;
@@ -30,7 +33,7 @@ case "${SCENARIO}" in
     INVARIANT_IDS_JSON='["accounts.save_current_account.prompt_presented_and_cancellable"]'
     ;;
   *)
-    INVARIANT_IDS_JSON='["menubar.status_item_content.fallback_icon_only","menubar.inactive_accounts.render_and_wired_for_switch"]'
+    INVARIANT_IDS_JSON='["menubar.status_item_content.fallback_icon_only","menubar.inactive_accounts.render_and_wired_for_switch","menubar.custom_rows.stay_flush_with_rendered_menu_width"]'
     ;;
 esac
 
@@ -310,12 +313,9 @@ end
 def has_switch_account_item?(items, name)
   items.any? do |item|
     title = item["title"].to_s
-    title == name || title.start_with?("#{name}\n")
+    title == name || title.start_with?("#{name}\n") || title.start_with?("#{name}  ")
   end
 end
-
-status_item = find_child(menu_items, "Status Item")
-abort "Missing Status Item menu in runtime snapshot" unless status_item
 
 accounts_menu = find_child(menu_items, "Accounts")
 abort "Missing Accounts menu in runtime snapshot" unless accounts_menu
@@ -326,13 +326,16 @@ abort "Missing Accounts > Add Account menu in runtime snapshot" unless add_accou
 save_current_account = find_child(add_account_menu.fetch("children", []), "Save Current Account")
 abort "Missing Accounts > Add Account > Save Current Account item in runtime snapshot" unless save_current_account
 
-content_menu = find_child(status_item.fetch("children", []), "Content")
-abort "Missing Status Item > Content menu in runtime snapshot" unless content_menu
+display_menu = find_child(menu_items, "Display")
+abort "Missing Display menu in runtime snapshot" unless display_menu
+
+content_menu = find_child(display_menu.fetch("children", []), "Content")
+abort "Missing Display > Content menu in runtime snapshot" unless content_menu
 
 icon_only = find_child(content_menu.fetch("children", []), "Icon Only")
 icon_and_text = find_child(content_menu.fetch("children", []), "Icon + Text")
 text_on_hover = find_child(content_menu.fetch("children", []), "Text on Hover")
-abort "Missing one or more Status Item > Content options in runtime snapshot" unless icon_only && icon_and_text && text_on_hover
+abort "Missing one or more Display > Content options in runtime snapshot" unless icon_only && icon_and_text && text_on_hover
 
 has_status_item_content_data = snapshot.fetch("hasStatusItemContentData", false)
 effective_display_mode = snapshot.fetch("effectiveStatusBarDisplayMode", nil)
@@ -386,22 +389,17 @@ else
   ]
 end
 
-other_account_items = snapshot.fetch("sections", [])
-  .find { |section| section["title"] == "Other Accounts" }
+account_items = snapshot.fetch("sections", [])
+  .find { |section| section["title"] == "Accounts" }
   &.fetch("items", []) || []
-visible_other_account_names = account_names_for_section(snapshot, "Other Accounts")
-overflow_other_account_names = account_names_for_section(snapshot, "More Accounts…")
-rendered_other_account_names = visible_other_account_names + overflow_other_account_names
+visible_account_names = account_names_for_section(snapshot, "Accounts")
+overflow_account_names = account_names_for_section(snapshot, "More Accounts…")
+rendered_account_names = visible_account_names + overflow_account_names
 more_accounts_menu = find_child(menu_items, "More Accounts…")
 more_accounts_children = more_accounts_menu&.fetch("children", []) || []
 saved_account_names = load_saved_account_names
 current_account_name = meaningful_value(current_account["name"])
-expected_inactive_account_names =
-  if current_account_name && saved_account_names.include?(current_account_name)
-    saved_account_names.reject { |name| name == current_account_name }
-  else
-    saved_account_names
-  end
+expected_catalog_account_names = saved_account_names
 
 current_account_summary = snapshot.fetch("sections", [])
   .find { |section| section["title"] == "Current Account" }
@@ -410,72 +408,102 @@ current_account_summary = snapshot.fetch("sections", [])
 live_auth_identity_match = identity_match(current_account, live_auth_status)
 
 checks << {
-  "title" => "Visible other accounts do not use placeholder usage values",
-  "passed" => other_account_items.none? { |item| item.include?("Session --") || item.include?("Weekly --") },
-  "actual" => other_account_items
+  "title" => "Visible accounts do not use placeholder usage values",
+  "passed" => account_items.none? { |item| item.include?("Session --") || item.include?("Weekly --") },
+  "actual" => account_items
 }
 
 checks << {
-  "title" => "All saved inactive accounts are rendered in Other Accounts or More Accounts…",
-  "passed" => rendered_other_account_names.sort == expected_inactive_account_names.sort,
+  "title" => "All saved accounts are rendered in Accounts or More Accounts…",
+  "passed" => rendered_account_names.sort == expected_catalog_account_names.sort,
   "actual" => {
     "currentAccountName" => current_account_name,
     "savedAccountNames" => saved_account_names,
-    "expectedInactiveAccountNames" => expected_inactive_account_names,
-    "renderedOtherAccountNames" => rendered_other_account_names
+    "expectedCatalogAccountNames" => expected_catalog_account_names,
+    "renderedAccountNames" => rendered_account_names
   }
 }
 
 checks << {
-  "title" => "Visible other accounts expose enabled switchAccount menu actions",
+  "title" => "Visible accounts expose enabled switch targets",
   "passed" => (
-    expected_inactive_account_names.empty? && visible_other_account_names.empty?
+    expected_catalog_account_names.empty? && visible_account_names.empty?
   ) || (
-    !visible_other_account_names.empty? && visible_other_account_names.all? do |name|
+    !visible_account_names.empty? && visible_account_names.all? do |name|
       menu_items.any? do |item|
-        has_switch_account_item?([item], name) &&
-          item["isEnabled"] == true &&
-          item["hasAction"] == true &&
-          item["actionSelector"] == "switchAccount:"
+        has_switch_account_item?([item], name) && (
+          (
+            item["isEnabled"] == true &&
+            item["hasAction"] == true &&
+            item["actionSelector"] == "switchAccount:"
+          ) || item.fetch("children", []).any? do |child|
+            child["isEnabled"] == true &&
+              child["hasAction"] == true &&
+              ["switchAccount:", "switchAccountOnHost:"].include?(child["actionSelector"])
+          end
+        )
       end
     end
   ),
-  "actual" => visible_other_account_names.map do |name|
+  "actual" => visible_account_names.map do |name|
     matched = menu_items.find do |item|
-      has_switch_account_item?([item], name) &&
-        item["actionSelector"] == "switchAccount:"
+      has_switch_account_item?([item], name)
     end
     {
       "name" => name,
       "matchedTitle" => matched&.dig("title"),
       "isEnabled" => matched&.dig("isEnabled"),
       "hasAction" => matched&.dig("hasAction"),
-      "actionSelector" => matched&.dig("actionSelector")
+      "actionSelector" => matched&.dig("actionSelector"),
+      "childActions" => matched&.fetch("children", [])&.map { |child| child["actionSelector"] }
     }
   end
 }
 
 checks << {
-  "title" => "Overflow other accounts expose enabled switchAccount submenu actions",
-  "passed" => overflow_other_account_names.all? do |name|
+  "title" => "Local visible accounts remain native menu entries",
+  "passed" => (
+    snapshot.fetch("remoteHosts", []).empty? && !visible_account_names.empty?
+  ) ? visible_account_names.all? do |name|
+    matched = menu_items.find { |item| has_switch_account_item?([item], name) }
+    !matched.nil? &&
+      matched["viewFrameWidth"].nil? &&
+      matched["hasAction"] == false &&
+      matched.fetch("children", []).any? { |child| child["actionSelector"] == "switchAccount:" }
+  end : true,
+  "actual" => visible_account_names.map do |name|
+    matched = menu_items.find { |item| has_switch_account_item?([item], name) }
+    {
+      "name" => name,
+      "matchedTitle" => matched&.dig("title"),
+      "viewFrameWidth" => matched&.dig("viewFrameWidth"),
+      "hasAction" => matched&.dig("hasAction"),
+      "actionSelector" => matched&.dig("actionSelector"),
+      "childActions" => matched&.fetch("children", [])&.map { |child| child["actionSelector"] }
+    }
+  end
+}
+
+checks << {
+  "title" => "Overflow accounts expose enabled switchAccount submenu actions",
+  "passed" => overflow_account_names.all? do |name|
     more_accounts_children.any? do |item|
       has_switch_account_item?([item], name) &&
         item["isEnabled"] == true &&
-        item["hasAction"] == true &&
-        item["actionSelector"] == "switchAccount:"
+        item.fetch("children", []).any? { |child| child["actionSelector"] == "switchAccount:" }
     end
   end,
-  "actual" => overflow_other_account_names.map do |name|
+  "actual" => overflow_account_names.map do |name|
     matched = more_accounts_children.find do |item|
-      has_switch_account_item?([item], name) &&
-        item["actionSelector"] == "switchAccount:"
+      has_switch_account_item?([item], name)
     end
     {
       "name" => name,
       "matchedTitle" => matched&.dig("title"),
       "isEnabled" => matched&.dig("isEnabled"),
       "hasAction" => matched&.dig("hasAction"),
-      "actionSelector" => matched&.dig("actionSelector")
+      "actionSelector" => matched&.dig("actionSelector"),
+      "childActions" => matched&.fetch("children", [])&.map { |child| child["actionSelector"] }
     }
   end
 }
@@ -488,7 +516,9 @@ checks << {
 
 checks << {
   "title" => "Current account summary reflects live auth identity",
-  "passed" => !current_account_summary.to_s.empty? && live_auth_identity_match["passed"],
+  "passed" => current_account.empty? || (
+    !current_account_summary.to_s.empty? && live_auth_identity_match["passed"]
+  ),
   "actual" => {
     "currentAccount" => current_account,
     "currentAccountSummary" => current_account_summary,
@@ -506,9 +536,11 @@ if app_server_reported_current_status_data
   )
   checks << {
     "title" => "Current account summary reflects live app-server identity",
-    "passed" => !current_account_summary.to_s.empty? &&
-      live_app_server_identity_match["passed"] &&
-      has_status_item_content_data == true,
+    "passed" => current_account.empty? || (
+      !current_account_summary.to_s.empty? &&
+        live_app_server_identity_match["passed"] &&
+        has_status_item_content_data == true
+    ),
     "actual" => {
       "currentAccount" => current_account,
       "currentAccountSummary" => current_account_summary,
@@ -525,7 +557,7 @@ File.write(
   assertions_path,
   JSON.pretty_generate(
     {
-      "checkedPath" => ["Status Item", "Content"],
+      "checkedPath" => ["Display", "Content"],
       "hasStatusItemContentData" => has_status_item_content_data,
       "effectiveStatusBarDisplayMode" => effective_display_mode,
       "appServerReportedCurrentStatusData" => app_server_reported_current_status_data,
@@ -538,13 +570,16 @@ exit(checks.all? { |check| check["passed"] } ? 0 : 1)
 RUBY
 }
 
-read_switch_target_json() {
-  ruby - "${LIVE_SNAPSHOT_PATH}" <<'RUBY'
+read_account_target_json() {
+  local exclude_current="${1:-0}"
+
+  ruby - "${LIVE_SNAPSHOT_PATH}" "${exclude_current}" <<'RUBY'
 require "json"
 
 snapshot = JSON.parse(File.read(ARGV.fetch(0)))
 sections = snapshot.fetch("sections", [])
 menu_items = snapshot.fetch("menuItems", [])
+exclude_current = ARGV.fetch(1, "0") == "1"
 
 extract_names = lambda do |title|
   sections.find { |section| section["title"] == title }
@@ -553,15 +588,31 @@ extract_names = lambda do |title|
     &.reject(&:empty?) || []
 end
 
-visible = extract_names.call("Other Accounts")
-overflow = extract_names.call("More Accounts…")
 current_account_name = snapshot.dig("currentAccount", "name").to_s.strip
+visible = extract_names.call("Accounts")
+overflow = extract_names.call("More Accounts…")
 
-target_name = visible.first || overflow.first
+visible_candidates = exclude_current ? visible.reject { |name| name == current_account_name } : visible
+overflow_candidates = exclude_current ? overflow.reject { |name| name == current_account_name } : overflow
+
+account_title_matches = lambda do |title, target_name|
+  rendered = title.to_s.strip
+  next false if rendered.empty? || target_name.to_s.strip.empty?
+
+  rendered_name = rendered.split(/\s{2,}/, 2).first.to_s.strip
+  normalized_rendered_name = rendered_name.delete_suffix("…")
+
+  rendered_name == target_name ||
+    rendered.start_with?("#{target_name} ") ||
+    rendered.start_with?("#{target_name}\n") ||
+    target_name.start_with?(normalized_rendered_name)
+end
+
+target_name = visible_candidates.first || overflow_candidates.first
 target_location =
-  if visible.include?(target_name)
+  if visible_candidates.include?(target_name)
     "visible"
-  elsif overflow.include?(target_name)
+  elsif overflow_candidates.include?(target_name)
     "overflow"
   end
 
@@ -570,15 +621,13 @@ submenu_index = nil
 
 if target_location == "visible"
   matched_index = menu_items.find_index do |item|
-    title = item["title"].to_s
-    title == target_name || title.start_with?("#{target_name}\n")
+    account_title_matches.call(item["title"], target_name)
   end
   root_index = matched_index.nil? ? nil : matched_index + 1
 elsif target_location == "overflow"
   more_accounts = menu_items.find { |item| item["title"] == "More Accounts…" }
   matched_index = more_accounts.to_h.fetch("children", []).find_index do |item|
-    title = item["title"].to_s
-    title == target_name || title.start_with?("#{target_name}\n")
+    account_title_matches.call(item["title"], target_name)
   end
   root_index = menu_items.find_index { |item| item["title"] == "More Accounts…" }
   root_index = root_index.nil? ? nil : root_index + 1
@@ -599,18 +648,16 @@ puts JSON.generate(
 RUBY
 }
 
-click_switch_target() {
-  local target_name="$1"
-  local target_location="$2"
-  local target_root_index="$3"
-  local target_submenu_index="$4"
+probe_account_submenu() {
+  local target_location="$1"
+  local target_root_index="$2"
+  local target_submenu_index="$3"
 
-  osascript - "$target_name" "$target_location" "$target_root_index" "$target_submenu_index" <<'EOF'
+  osascript - "$target_location" "$target_root_index" "$target_submenu_index" <<'EOF'
 on run argv
-    set targetName to item 1 of argv
-    set targetLocation to item 2 of argv
-    set targetRootIndex to item 3 of argv as integer
-    set targetSubmenuIndex to item 4 of argv
+    set targetLocation to item 1 of argv
+    set targetRootIndex to item 2 of argv as integer
+    set targetSubmenuIndex to item 3 of argv
     tell application "System Events"
         tell process "CodexPill"
             tell menu bar 2
@@ -620,11 +667,86 @@ on run argv
                     set submenuIndex to targetSubmenuIndex as integer
                     tell menu item targetRootIndex of menu 1 of menu bar item 1
                         tell menu 1
-                            click menu item submenuIndex
+                            tell menu item submenuIndex
+                                click
+                                delay 0.3
+                                if exists menu 1 then
+                                    set titles to name of every menu item of menu 1
+                                else
+                                    set titles to {}
+                                end if
+                            end tell
                         end tell
                     end tell
                 else
-                    click menu item targetRootIndex of menu 1 of menu bar item 1
+                    tell menu item targetRootIndex of menu 1 of menu bar item 1
+                        click
+                        delay 0.3
+                        if exists menu 1 then
+                            set titles to name of every menu item of menu 1
+                        else
+                            set titles to {}
+                        end if
+                    end tell
+                end if
+
+                set AppleScript's text item delimiters to linefeed
+                return titles as text
+            end tell
+        end tell
+    end tell
+end run
+EOF
+}
+
+close_status_item_menu() {
+  osascript <<'EOF' >/dev/null 2>&1 || true
+tell application "System Events"
+    tell process "CodexPill"
+        tell menu bar 2
+            click menu bar item 1
+        end tell
+    end tell
+end tell
+EOF
+}
+
+click_switch_target() {
+  local target_location="$1"
+  local target_root_index="$2"
+  local target_submenu_index="$3"
+
+  osascript - "$target_location" "$target_root_index" "$target_submenu_index" <<'EOF'
+on run argv
+    set targetLocation to item 1 of argv
+    set targetRootIndex to item 2 of argv as integer
+    set targetSubmenuIndex to item 3 of argv
+    tell application "System Events"
+        tell process "CodexPill"
+            tell menu bar 2
+                click menu bar item 1
+                delay 0.5
+                if targetLocation is equal to "overflow" then
+                    set submenuIndex to targetSubmenuIndex as integer
+                    tell menu item targetRootIndex of menu 1 of menu bar item 1
+                        tell menu 1
+                            tell menu item submenuIndex
+                                click
+                                delay 0.3
+                                tell menu 1
+                                    click menu item "Switch on This Mac"
+                                end tell
+                            end tell
+                        end tell
+                    end tell
+                else
+                    tell menu item targetRootIndex of menu 1 of menu bar item 1
+                        click
+                        delay 0.3
+                        tell menu 1
+                            click menu item "Switch on This Mac"
+                        end tell
+                    end tell
                 end if
             end tell
         end tell
@@ -699,6 +821,105 @@ tell application "System Events"
         end tell
     end tell
 end tell
+EOF
+}
+
+trigger_add_host_prompt() {
+  osascript <<'EOF'
+tell application "System Events"
+    tell process "CodexPill"
+        tell menu bar 2
+            click menu bar item 1
+            delay 0.5
+            tell menu item "Hosts" of menu 1 of menu bar item 1
+                tell menu 1
+                    click menu item "Add Host…"
+                end tell
+            end tell
+        end tell
+    end tell
+end tell
+EOF
+}
+
+populate_host_setup_destination() {
+  local destination="$1"
+  osascript - "$destination" <<'EOF'
+on run argv
+    set destination to item 1 of argv
+    tell application "System Events"
+        tell process "CodexPill"
+            if not (exists window 1) then error "No host setup window"
+            tell window 1
+                if not (exists text field 2) then error "No host destination field"
+                click text field 2
+                keystroke "a" using command down
+                keystroke destination
+            end tell
+        end tell
+    end tell
+end run
+EOF
+}
+
+read_host_setup_prompt_state() {
+  osascript <<'EOF'
+tell application "System Events"
+    tell process "CodexPill"
+        if not (exists window 1) then error "No host setup window"
+        tell window 1
+            set windowTitle to name
+            set addEnabled to false
+            if exists button "Add Host" then
+                set addEnabled to enabled of button "Add Host"
+            end if
+
+            set staticValues to {}
+            repeat with currentText in static texts
+                set end of staticValues to (value of currentText as text)
+            end repeat
+
+            return my escapeField(windowTitle) & tab & my booleanText(addEnabled) & tab & my joinFields(staticValues)
+        end tell
+    end tell
+end tell
+
+on joinFields(values)
+    set AppleScript's text item delimiters to ","
+    set serializedValues to {}
+    repeat with currentValue in values
+        set end of serializedValues to my escapeField(currentValue as text)
+    end repeat
+    set joined to serializedValues as text
+    set AppleScript's text item delimiters to ""
+    return joined
+end joinFields
+
+on booleanText(value)
+    if value then
+        return "true"
+    end if
+    return "false"
+end booleanText
+
+on escapeField(value)
+    set textValue to value as text
+    set textValue to my replaceText("\\", "\\\\", textValue)
+    set textValue to my replaceText(tab, "\\t", textValue)
+    set textValue to my replaceText(",", "\\c", textValue)
+    set textValue to my replaceText(return, "\\n", textValue)
+    set textValue to my replaceText(linefeed, "\\n", textValue)
+    return textValue
+end escapeField
+
+on replaceText(findText, replaceText, sourceText)
+    set AppleScript's text item delimiters to findText
+    set textItems to every text item of sourceText
+    set AppleScript's text item delimiters to replaceText
+    set updatedText to textItems as text
+    set AppleScript's text item delimiters to ""
+    return updatedText
+end replaceText
 EOF
 }
 
@@ -794,6 +1015,59 @@ requirements = [
   ["menu_action_dispatched", ->(event) { event.dig("payload", "action") == "signInAnotherAccount" }],
   ["sign_in_another_prompt_presented", ->(_event) { true }],
   ["sign_in_another_prompt_cancelled", ->(_event) { true }]
+]
+
+cursor = 0
+proof_sequence = []
+
+requirements.each do |required_name, predicate|
+  matched = false
+  while cursor < events.length
+    event = events[cursor]
+    if event["event"] == required_name && predicate.call(event)
+      proof_sequence << required_name
+      cursor += 1
+      matched = true
+      break
+    end
+    cursor += 1
+  end
+  break unless matched
+end
+
+puts JSON.generate(
+  {
+    "passed" => proof_sequence == requirements.map(&:first),
+    "requiredSequence" => requirements.map(&:first),
+    "proofSequence" => proof_sequence,
+    "eventCount" => events.length,
+    "eventsPathPresent" => File.exist?(events_path)
+  }
+)
+RUBY
+}
+
+read_add_host_prompt_proof() {
+  ruby - "${VALIDATION_EVENTS_PATH}" <<'RUBY'
+require "json"
+
+events_path = ARGV.fetch(0)
+events = if File.exist?(events_path)
+  File.readlines(events_path, chomp: true).map do |line|
+    next if line.strip.empty?
+    JSON.parse(line)
+  rescue JSON::ParserError
+    nil
+  end.compact
+else
+  []
+end
+
+requirements = [
+  ["menu_action_dispatched", ->(event) { event.dig("payload", "action") == "addHost" }],
+  ["add_host_prompt_presented", ->(_event) { true }],
+  ["add_host_validation_started", ->(event) { event.dig("payload", "hostName") == "codexpill-validation.invalid" }],
+  ["add_host_validation_failed", ->(event) { event.dig("payload", "hostName") == "codexpill-validation.invalid" }]
 ]
 
 cursor = 0
@@ -1109,32 +1383,20 @@ EOF
   exit 5
 fi
 
-MENU_ITEM_COUNT="$(osascript <<'EOF'
+MENU_PROBE_OUTPUT="$(osascript <<'EOF'
 tell application "System Events"
     tell process "CodexPill"
         tell menu bar 2
             click menu bar item 1
             delay 1
-            set itemCount to count of menu items of menu 1 of menu bar item 1
-            click menu bar item 1
-            return itemCount
-        end tell
-    end tell
-end tell
-EOF
-)"
-
-MENU_TITLES_RAW="$(osascript <<'EOF'
-tell application "System Events"
-    tell process "CodexPill"
-        tell menu bar 2
-            click menu bar item 1
-            delay 1
-            set titles to name of every menu item of menu 1 of menu bar item 1
+            set menuRef to menu 1 of menu bar item 1
+            set itemCount to count of menu items of menuRef
+            set titles to name of every menu item of menuRef
             set AppleScript's text item delimiters to linefeed
             set joined to titles as text
-            click menu bar item 1
-            return joined
+            set {menuX, menuY} to position of menuRef
+            set {menuW, menuH} to size of menuRef
+            return (itemCount as text) & linefeed & joined & linefeed & "__MENU_FRAME__" & linefeed & (menuX as text) & "," & (menuY as text) & "," & (menuW as text) & "," & (menuH as text)
         end tell
     end tell
 end tell
@@ -1142,6 +1404,45 @@ EOF
 )"
 
 screencapture -x "${SCREENSHOT_PATH}"
+
+osascript <<'EOF' >/dev/null 2>&1 || true
+tell application "System Events"
+    tell process "CodexPill"
+        tell menu bar 2
+            click menu bar item 1
+        end tell
+    end tell
+end tell
+EOF
+
+MENU_ITEM_COUNT="$(printf '%s' "${MENU_PROBE_OUTPUT}" | ruby -e 'raw = STDIN.read; parts = raw.split("\n__MENU_FRAME__\n", 2); top = parts.fetch(0, ""); first_newline = top.index("\n"); abort("missing menu item count") unless first_newline; print top[0...first_newline].strip')"
+MENU_TITLES_RAW="$(printf '%s' "${MENU_PROBE_OUTPUT}" | ruby -e 'raw = STDIN.read; top, _bottom = raw.split("\n__MENU_FRAME__\n", 2); first_newline = top.index("\n"); abort("missing menu titles") unless first_newline; print top[(first_newline + 1)..] || ""')"
+MENU_FRAME_JSON="$(printf '%s' "${MENU_PROBE_OUTPUT}" | ruby -rjson -e 'raw = STDIN.read; _top, bottom = raw.split("\n__MENU_FRAME__\n", 2); abort("missing menu frame") if bottom.nil? || bottom.strip.empty?; x, y, width, height = bottom.strip.split(",").map { |value| Float(value) }; print(JSON.generate({ "x" => x, "y" => y, "width" => width, "height" => height }))')"
+ACCOUNT_SUBMENU_PROOF_JSON='{"passed":true,"targetName":null,"targetLocation":null,"childTitles":[],"note":"No account submenu probe was required for this scenario."}'
+
+if [[ "${SCENARIO}" == "live-menu-open" ]]; then
+  ACCOUNT_SUBMENU_TARGET_JSON="$(read_account_target_json 1)"
+  ACCOUNT_SUBMENU_TARGET_NAME="$(printf '%s' "${ACCOUNT_SUBMENU_TARGET_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["targetName"].to_s)')"
+  ACCOUNT_SUBMENU_TARGET_LOCATION="$(printf '%s' "${ACCOUNT_SUBMENU_TARGET_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["targetLocation"].to_s)')"
+  ACCOUNT_SUBMENU_TARGET_ROOT_INDEX="$(printf '%s' "${ACCOUNT_SUBMENU_TARGET_JSON}" | ruby -rjson -e 'value = JSON.parse(STDIN.read)["targetRootIndex"]; print(value.nil? ? "" : value)')"
+  ACCOUNT_SUBMENU_TARGET_SUBMENU_INDEX="$(printf '%s' "${ACCOUNT_SUBMENU_TARGET_JSON}" | ruby -rjson -e 'value = JSON.parse(STDIN.read)["targetSubmenuIndex"]; print(value.nil? ? "" : value)')"
+  ACCOUNT_SUBMENU_VISIBLE_COUNT="$(printf '%s' "${ACCOUNT_SUBMENU_TARGET_JSON}" | ruby -rjson -e 'print(Array(JSON.parse(STDIN.read)["visibleNames"]).length)')"
+  ACCOUNT_SUBMENU_OVERFLOW_COUNT="$(printf '%s' "${ACCOUNT_SUBMENU_TARGET_JSON}" | ruby -rjson -e 'print(Array(JSON.parse(STDIN.read)["overflowNames"]).length)')"
+
+  if [[ -n "${ACCOUNT_SUBMENU_TARGET_NAME}" && -n "${ACCOUNT_SUBMENU_TARGET_LOCATION}" && -n "${ACCOUNT_SUBMENU_TARGET_ROOT_INDEX}" && ( "${ACCOUNT_SUBMENU_TARGET_LOCATION}" != "overflow" || -n "${ACCOUNT_SUBMENU_TARGET_SUBMENU_INDEX}" ) ]]; then
+    if ACCOUNT_SUBMENU_TITLES_RAW="$(probe_account_submenu "${ACCOUNT_SUBMENU_TARGET_LOCATION}" "${ACCOUNT_SUBMENU_TARGET_ROOT_INDEX}" "${ACCOUNT_SUBMENU_TARGET_SUBMENU_INDEX}")"; then
+      ACCOUNT_SUBMENU_PROOF_JSON="$(printf '%s' "${ACCOUNT_SUBMENU_TITLES_RAW}" | ruby -rjson -e 'target_name = ARGV.fetch(0); target_location = ARGV.fetch(1); titles = STDIN.read.split("\n").map(&:strip).reject(&:empty?); passed = titles.include?("Switch on This Mac"); print(JSON.generate({ "passed" => passed, "targetName" => target_name, "targetLocation" => target_location, "childTitles" => titles }))' "${ACCOUNT_SUBMENU_TARGET_NAME}" "${ACCOUNT_SUBMENU_TARGET_LOCATION}")"
+    else
+      ACCOUNT_SUBMENU_PROOF_JSON="$(ruby -rjson -e 'print(JSON.generate({ "passed" => false, "targetName" => ARGV.fetch(0), "targetLocation" => ARGV.fetch(1), "childTitles" => [], "failure" => "accessibility_probe_failed" }))' "${ACCOUNT_SUBMENU_TARGET_NAME}" "${ACCOUNT_SUBMENU_TARGET_LOCATION}")"
+    fi
+  else
+    ACCOUNT_SUBMENU_PROOF_JSON="$(ruby -rjson -e 'visible_count = ARGV.fetch(0).to_i; overflow_count = ARGV.fetch(1).to_i; print(JSON.generate({ "passed" => (visible_count + overflow_count).zero?, "targetName" => nil, "targetLocation" => nil, "childTitles" => [], "failure" => "no_account_target_available", "visibleCount" => visible_count, "overflowCount" => overflow_count }))' "${ACCOUNT_SUBMENU_VISIBLE_COUNT}" "${ACCOUNT_SUBMENU_OVERFLOW_COUNT}")"
+  fi
+
+  close_status_item_menu
+fi
+
+ACCOUNT_SUBMENU_PROOF_PASSED="$(printf '%s' "${ACCOUNT_SUBMENU_PROOF_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["passed"] ? "1" : "0")')"
 
 MENU_TITLES_JSON_STRING="$(printf '%s' "${MENU_TITLES_RAW}" | ruby -rjson -e 'print JSON.generate(STDIN.read)')"
 
@@ -1153,11 +1454,44 @@ cat > "${UI_TREE_PATH}" <<EOF
   "targetedMenuBar": 2,
   "targetedMenuBarItemIndex": 1,
   "menuItemCount": ${MENU_ITEM_COUNT},
+  "menuFrame": ${MENU_FRAME_JSON},
+  "accountSubmenuProbe": ${ACCOUNT_SUBMENU_PROOF_JSON},
   "menuItemTitlesRaw": ${MENU_TITLES_JSON_STRING},
   "runtimeSnapshot": $(cat "${LIVE_SNAPSHOT_PATH}"),
   "runtimeAssertions": $(cat "${RUNTIME_ASSERTIONS_PATH}")
 }
 EOF
+
+LAYOUT_PROOF_JSON="$(ruby -rjson -e '
+ui = JSON.parse(File.read(ARGV.fetch(0)))
+menu_width = ui.dig("menuFrame", "width")
+row_widths = ui.dig("runtimeSnapshot", "menuItems").to_a.map do |item|
+  width = item["viewFrameWidth"]
+  next if width.nil?
+
+  {
+    "itemTitle" => item["title"],
+    "itemWidth" => width,
+    "difference" => menu_width && width ? (menu_width - width) : nil
+  }
+end.compact
+
+expected_flush_delta = 0.0
+tolerance = 8.0
+passed = !row_widths.empty? && row_widths.all? do |entry|
+  difference = entry["difference"]
+  !difference.nil? && (difference - expected_flush_delta).abs <= tolerance
+end
+
+print JSON.generate({
+  "passed" => passed,
+  "menuWidth" => menu_width,
+  "rowWidths" => row_widths,
+  "expectedFlushDelta" => expected_flush_delta,
+  "tolerance" => tolerance
+})
+' "${UI_TREE_PATH}")"
+LAYOUT_PROOF_PASSED="$(printf '%s' "${LAYOUT_PROOF_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["passed"] ? "1" : "0")')"
 
 if [[ "${SCENARIO}" == "live-save-current-prompt" ]]; then
   if ! trigger_save_current_prompt >/dev/null 2>&1; then
@@ -1463,6 +1797,166 @@ EOF
   exit 0
 fi
 
+if [[ "${SCENARIO}" == "live-add-host-prompt" ]]; then
+  if ! trigger_add_host_prompt >/dev/null 2>&1; then
+    cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "screenshots/${SCENARIO}.png",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "Accessibility enumerated the open menu"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [
+    "The live probe could not trigger Hosts > Add Host…."
+  ],
+  "scenario": "${SCENARIO}",
+  "status": "failed",
+  "failureClass": "environment_block",
+  "failureStep": "add_host_menu_path"
+}
+EOF
+    echo "Live add-host prompt smoke failed: could not trigger the menu path." >&2
+    exit 23
+  fi
+
+  if ! populate_host_setup_destination "codexpill-validation.invalid" >/dev/null 2>&1; then
+    cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "screenshots/${SCENARIO}.png",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "The live probe triggered the Add Host menu path"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [
+    "The live probe could not enter a destination into the host prompt."
+  ],
+  "scenario": "${SCENARIO}",
+  "status": "failed",
+  "failureClass": "environment_block",
+  "failureStep": "add_host_prompt_populate"
+}
+EOF
+    echo "Live add-host prompt smoke failed: could not populate the destination field." >&2
+    exit 24
+  fi
+
+  HOST_PROMPT_STATE_JSON=""
+  HOST_PROMPT_PROOF_JSON=""
+  HOST_PROMPT_VALIDATED=0
+  for _ in $(seq 1 16); do
+    HOST_PROMPT_STATE_RAW="$(read_host_setup_prompt_state)"
+    HOST_PROMPT_STATE_JSON="$(printf '%s' "${HOST_PROMPT_STATE_RAW}" | ruby -rjson -e '
+      raw = STDIN.read
+      title, enabled, texts = raw.split("\t", 3)
+      decode = ->(value) { value.to_s.gsub("\\n", "\n").gsub("\\t", "\t").gsub("\\c", ",").gsub("\\\\", "\\") }
+      payload = {
+        "windowTitle" => decode.call(title),
+        "addEnabled" => enabled == "true",
+        "staticTexts" => texts.to_s.split(",").map { |text| decode.call(text) }
+      }
+      print(JSON.generate(payload))
+    ')"
+    HOST_PROMPT_PROOF_JSON="$(read_add_host_prompt_proof)"
+    HOST_PROMPT_VALIDATED="$(printf '%s' "${HOST_PROMPT_PROOF_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["passed"] ? "1" : "0")')"
+    if [[ "${HOST_PROMPT_VALIDATED}" == "1" ]]; then
+      break
+    fi
+    sleep 0.5
+  done
+
+  cancel_text_input_prompt >/dev/null 2>&1 || true
+
+  if [[ "${HOST_PROMPT_VALIDATED}" != "1" ]]; then
+    cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "screenshots/${SCENARIO}.png",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "The live probe triggered the Add Host menu path",
+    "The destination field accepted input"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [
+    "Typing a host destination did not emit the expected add-host validation event sequence.",
+    "This indicates that live validation never ran or never completed."
+  ],
+  "scenario": "${SCENARIO}",
+  "status": "failed",
+  "hostPromptState": ${HOST_PROMPT_STATE_JSON},
+  "proofSequence": $(printf '%s' "${HOST_PROMPT_PROOF_JSON}" | ruby -rjson -e 'print(JSON.generate(JSON.parse(STDIN.read)["proofSequence"] || []))'),
+  "failureClass": "product_regression",
+  "failureStep": "add_host_validation_feedback"
+}
+EOF
+    echo "Live add-host prompt smoke failed: validation feedback never appeared." >&2
+    exit 25
+  fi
+
+  cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "screenshots/${SCENARIO}.png",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "Accessibility enumerated the open menu",
+    "The Add Host prompt was presented",
+    "The destination field accepted input",
+    "The prompt emitted validation feedback after input"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [],
+  "scenario": "${SCENARIO}",
+  "status": "passed",
+  "hostPromptState": ${HOST_PROMPT_STATE_JSON},
+  "proofSequence": $(printf '%s' "${HOST_PROMPT_PROOF_JSON}" | ruby -rjson -e 'print(JSON.generate(JSON.parse(STDIN.read)["proofSequence"] || []))')
+}
+EOF
+
+  echo "Live add-host prompt smoke artifacts written to ${ARTIFACT_ROOT}"
+  exit 0
+fi
+
 if [[ "${SCENARIO}" == "live-account-switch" ]]; then
   if [[ "${CODEXPILL_ALLOW_LIVE_ACCOUNT_SWITCH_VALIDATION:-0}" != "1" ]]; then
     cat > "${SUMMARY_PATH}" <<EOF
@@ -1528,7 +2022,7 @@ EOF
     exit 12
   fi
 
-  SWITCH_TARGET_JSON="$(read_switch_target_json)"
+  SWITCH_TARGET_JSON="$(read_account_target_json 1)"
   SWITCH_TARGET_NAME="$(printf '%s' "${SWITCH_TARGET_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["targetName"].to_s)')"
   SWITCH_TARGET_LOCATION="$(printf '%s' "${SWITCH_TARGET_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["targetLocation"].to_s)')"
   SWITCH_TARGET_ROOT_INDEX="$(printf '%s' "${SWITCH_TARGET_JSON}" | ruby -rjson -e 'value = JSON.parse(STDIN.read)["targetRootIndex"]; print(value.nil? ? "" : value)')"
@@ -1567,7 +2061,7 @@ EOF
     exit 13
   fi
 
-  if ! click_switch_target "${SWITCH_TARGET_NAME}" "${SWITCH_TARGET_LOCATION}" "${SWITCH_TARGET_ROOT_INDEX}" "${SWITCH_TARGET_SUBMENU_INDEX}" >/dev/null 2>&1; then
+  if ! click_switch_target "${SWITCH_TARGET_LOCATION}" "${SWITCH_TARGET_ROOT_INDEX}" "${SWITCH_TARGET_SUBMENU_INDEX}" >/dev/null 2>&1; then
     cat > "${SUMMARY_PATH}" <<EOF
 {
   "invariantIds": ${INVARIANT_IDS_JSON},
@@ -1761,7 +2255,24 @@ EOF
   exit 0
 fi
 
-cat > "${SUMMARY_PATH}" <<EOF
+if [[ "${SCENARIO}" == "live-menu-open" && "${LAYOUT_PROOF_PASSED}" != "1" ]]; then
+  LAYOUT_GAP="$(printf '%s' "${LAYOUT_PROOF_JSON}" | ruby -rjson -e '
+proof = JSON.parse(STDIN.read)
+entries = Array(proof["rowWidths"])
+expected = proof["expectedFlushDelta"]
+tolerance = proof["tolerance"]
+if entries.empty?
+  print("The live probe could not find any custom menu rows to compare against the rendered menu width.")
+else
+  summary = entries.map do |entry|
+    title = entry["itemTitle"]
+    diff = entry["difference"]
+    "#{title}: #{diff.round(1)}pt"
+  end.join(", ")
+  print("The live menu width did not stay flush with every custom menu row. Row deltas: #{summary}. Expected #{expected.round(1)}pt +/- #{tolerance.round(1)}pt.")
+end
+')"
+  cat > "${SUMMARY_PATH}" <<EOF
 {
   "invariantIds": ${INVARIANT_IDS_JSON},
   "proofLayer": "${PROOF_LAYER}",
@@ -1786,9 +2297,88 @@ cat > "${SUMMARY_PATH}" <<EOF
     "The status item on menu bar 2 opened and returned menu item titles"
   ],
   "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [
+    "${LAYOUT_GAP}"
+  ],
+  "scenario": "${SCENARIO}",
+  "status": "failed"
+}
+EOF
+  echo "Live menubar smoke failed: custom menu row width does not match the rendered menu width." >&2
+  exit 24
+fi
+
+if [[ "${SCENARIO}" == "live-menu-open" && "${ACCOUNT_SUBMENU_PROOF_PASSED}" != "1" ]]; then
+  ACCOUNT_SUBMENU_GAP="$(printf '%s' "${ACCOUNT_SUBMENU_PROOF_JSON}" | ruby -rjson -e 'proof = JSON.parse(STDIN.read); target = proof["targetName"]; titles = Array(proof["childTitles"]); failure = proof["failure"]; if target && !target.empty? then print("Accessibility did not reveal the expected switch submenu for #{target}. Child titles: #{titles.join(", ")}. Failure: #{failure || "missing_switch_target"}.") else print("The live probe could not find an account row to open as a submenu target. Failure: #{failure || "missing_target"}.") end')"
+  cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "screenshots/${SCENARIO}.png",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "The live auth snapshot was recorded from ~/.codex/auth.json",
+    "The local codex app-server probe returned account identity and rate-limit data",
+    "CodexPill process launched successfully",
+    "The app emitted a runtime menu snapshot during menu rebuild",
+    "The runtime snapshot proved the enabled and action state for Status Item > Content",
+    "The runtime snapshot current account summary matches live auth and app-server identity",
+    "Accessibility probe reached the menubar process",
+    "The status item on menu bar 2 opened and returned menu item titles",
+    "The custom menu rows stayed flush with the rendered live menu width"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [
+    "${ACCOUNT_SUBMENU_GAP}"
+  ],
+  "scenario": "${SCENARIO}",
+  "status": "failed",
+  "accountSubmenuProbe": ${ACCOUNT_SUBMENU_PROOF_JSON}
+}
+EOF
+  echo "Live menubar smoke failed: account submenu did not open through Accessibility." >&2
+  exit 25
+fi
+
+cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "screenshots/${SCENARIO}.png",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "The live auth snapshot was recorded from ~/.codex/auth.json",
+    "The local codex app-server probe returned account identity and rate-limit data",
+    "CodexPill process launched successfully",
+    "The app emitted a runtime menu snapshot during menu rebuild",
+    "The runtime snapshot proved the enabled and action state for Status Item > Content",
+    "The runtime snapshot current account summary matches live auth and app-server identity",
+    "Accessibility probe reached the menubar process",
+    "The status item on menu bar 2 opened and returned menu item titles",
+    "The custom menu rows stayed flush with the rendered live menu width",
+    "Accessibility opened a saved-account submenu and revealed switch targets"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
   "gaps": [],
   "scenario": "${SCENARIO}",
-  "status": "passed"
+  "status": "passed",
+  "accountSubmenuProbe": ${ACCOUNT_SUBMENU_PROOF_JSON}
 }
 EOF
 

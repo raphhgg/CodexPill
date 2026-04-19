@@ -45,6 +45,8 @@ The following behavior should be treated as automated first and should not live 
   - unit plus deterministic UI validation
 - inactive account rendering and switch-action wiring metadata:
   - deterministic UI plus `SCENARIO=live-menu-open make verify-ui-live`
+- custom menubar rows stay flush with the rendered menu width:
+  - `SCENARIO=live-menu-open make verify-ui-live`
 - end-to-end switch-account transition proof when explicitly opting into live auth mutation:
   - `CODEXPILL_ALLOW_LIVE_ACCOUNT_SWITCH_VALIDATION=1 SCENARIO=live-account-switch make verify-ui-live`
 - text-on-hover behavior:
@@ -99,10 +101,18 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 ### `menubar.inactive_accounts.render_and_wired_for_switch`
 
 - `feature`: `menubar`
-- `rule`: Saved inactive accounts must render in `Other Accounts` or `More Accounts…` and expose enabled `switchAccount:` menu actions in the live runtime snapshot.
+- `rule`: Saved inactive accounts must render in `Accounts` or `More Accounts…` as submenu parent rows, and those submenus must expose enabled `switchAccount:` targets in the live runtime snapshot.
 - `owner_layer`: `live_ui`
 - `proofs_required`: `["deterministic_ui", "live_ui"]`
-- `scenarios`: `["multiple_saved_accounts", "overflow_other_accounts"]`
+- `scenarios`: `["accounts_section", "overflow_accounts"]`
+
+### `menubar.custom_rows.stay_flush_with_rendered_menu_width`
+
+- `feature`: `menubar`
+- `rule`: Custom menubar rows must stay flush with the rendered menu width so hosted cards and other custom sections do not leave a visible right-side gap.
+- `owner_layer`: `live_ui`
+- `proofs_required`: `["live_ui"]`
+- `scenarios`: `["live-menu-open"]`
 
 ### `accounts.save_current_account.refreshes_existing_snapshot`
 
@@ -164,3 +174,28 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `owner_layer`: `integration`
 - `proofs_required`: `["integration"]`
 - `scenarios`: `["wake_refresh_failure", "scheduled_refresh_failure"]`
+
+### `hosts.menu.local_catalog_remains_single_source_of_truth`
+
+- `feature`: `hosts`
+- `rule`: When a remote host is present, the main menu continues to source `Accounts` and `More Accounts…` from the local saved-account catalog while showing remote host state in its own section.
+- `owner_layer`: `unit`
+- `proofs_required`: `["unit", "deterministic_ui"]`
+- `scenarios`: `["hosted_menu_with_host"]`
+
+### `hosts.account_actions_target_local_or_host_explicitly`
+
+- `feature`: `hosts`
+- `rule`: When a remote host is present, inactive account rows expose explicit `This Mac` and remote-host submenu actions instead of collapsing both targets into one ambiguous switch action.
+- `owner_layer`: `deterministic_ui`
+- `proofs_required`: `["unit", "deterministic_ui"]`
+- `scenarios`: `["hosted_menu_with_host", "host_account_missing_on_host"]`
+
+### `hosts.add_host.prompt_validates_destination`
+
+- `feature`: `hosts`
+- `rule`: Triggering `Add Host…` from the running menubar presents the host setup prompt, accepts a destination entry, and emits validation feedback for an invalid host before allowing the workflow to continue.
+- `owner_layer`: `live_ui`
+- `proofs_required`: `["live_ui"]`
+- `scenarios`: `["live-add-host-prompt"]`
+- `event_evidence`: `["menu_action_dispatched", "add_host_prompt_presented", "add_host_validation_started", "add_host_validation_failed"]`

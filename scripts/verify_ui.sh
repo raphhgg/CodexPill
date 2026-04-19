@@ -32,9 +32,9 @@ EOF
 
 if [[ "${SCENARIO}" != "hosted-menu-default" ]]; then
   case "${SCENARIO}" in
-    hosted-menu-busy|hosted-menu-empty)
+    hosted-menu-busy|hosted-menu-empty|hosted-menu-with-host|host-account-missing-on-host)
       ;;
-    live-menu-open|live-account-switch|live-save-current-prompt|live-sign-in-another-prompt|live-scheduled-refresh)
+    live-menu-open|live-account-switch|live-add-host-prompt|live-save-current-prompt|live-sign-in-another-prompt|live-scheduled-refresh)
       ARTIFACT_ROOT="${BUILD_ROOT}/verification/${AGENT_NAME}/${SCENARIO}" \
       ./scripts/live_menubar_smoke.sh
       exit $?
@@ -52,7 +52,7 @@ if [[ "${SCENARIO}" != "hosted-menu-default" ]]; then
   "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/verify_ui.sh",
   "gaps": [
     "Unknown scenario '${SCENARIO}'",
-    "Try SCENARIO=hosted-menu-default, hosted-menu-busy, hosted-menu-empty, live-menu-open, live-account-switch, live-save-current-prompt, live-sign-in-another-prompt, live-scheduled-refresh, or live-status-item-hover"
+    "Try SCENARIO=hosted-menu-default, hosted-menu-busy, hosted-menu-empty, hosted-menu-with-host, host-account-missing-on-host, live-menu-open, live-account-switch, live-add-host-prompt, live-save-current-prompt, live-sign-in-another-prompt, live-scheduled-refresh, or live-status-item-hover"
   ],
   "scenario": "${SCENARIO}",
   "status": "failed"
@@ -105,6 +105,19 @@ case "${SCENARIO}" in
     "Empty state shows no active saved account",
     "Save Current Account remains available when the menu is idle and empty",
     "Remove Account still renders as a stable control even when no saved accounts exist"
+  ]'
+    ;;
+  hosted-menu-with-host)
+    ASSERTIONS_JSON='[
+    "Remote host state renders in its own section",
+    "Accounts continues to reflect the local saved-account catalog",
+    "One inactive account still overflows into More Accounts… with a connected host present"
+  ]'
+    ;;
+  host-account-missing-on-host)
+    ASSERTIONS_JSON='[
+    "Missing remote snapshots change the action copy to install-and-switch",
+    "Accounts still comes from the local catalog only"
   ]'
     ;;
 esac

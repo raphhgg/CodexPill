@@ -22,19 +22,102 @@ struct MenuBarUIValidationTests {
     }
 
     @Test
-    func otherAccountsStayCompact() {
+    func accountsStayCompact() {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
         let snapshot = MenuBarValidationSupport.makeSnapshot(
             state: makeHostedValidationState(for: "hosted-menu-default", now: now),
             now: now
         )
-        let summary = try! #require(snapshot.sections.first(where: { $0.title == "Other Accounts" })?.items.first)
-        #expect(summary.contains("Research • Pro • Session 8% • Weekly 35%"))
+        let summary = try! #require(snapshot.sections.first(where: { $0.title == "Accounts" })?.items.first(where: { $0.contains("Research") }))
+        #expect(summary.contains("Research • S 8% (1h00) • W 35% (1d)"))
         #expect(!summary.contains("research@example.com"))
     }
 
     @Test
-    func otherAccountsDoNotInventFullUsageWhenRateLimitsAreMissing() {
+    func remoteAccountsSectionRendersWithoutChangingAccountsSource() {
+        let now = Date(timeIntervalSince1970: 1_744_195_200)
+        let snapshot = MenuBarValidationSupport.makeSnapshot(
+            state: makeHostedValidationState(for: "hosted-menu-with-host", now: now),
+            now: now
+        )
+
+        let hostSummary = try! #require(snapshot.sections.first(where: { $0.title == "Remote Accounts" })?.items.first)
+        let otherAccounts = try! #require(snapshot.sections.first(where: { $0.title == "Accounts" }))
+
+        #expect(hostSummary.contains("buildbox"))
+        #expect(hostSummary.contains("Connected"))
+        #expect(hostSummary.contains("Remote Active"))
+        #expect(otherAccounts.items.count == 4)
+        #expect(otherAccounts.items.allSatisfy { !$0.contains("remote-active@example.com") })
+    }
+
+    @Test
+    func hostScenarioCapturesTargetSpecificAccountActionsInMenuSnapshot() throws {
+        let now = Date(timeIntervalSince1970: 1_744_195_200)
+        let state = makeHostedValidationState(for: "hosted-menu-with-host", now: now)
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let menu = builder.makeMenu(state: state, target: coordinator)
+        let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, menu: menu, now: now)
+
+        let researchItem = try #require(snapshot.menuItems.first(where: { $0.title.contains("Research") }))
+        let localAction = try #require(researchItem.children.first(where: { $0.title == "Switch on This Mac" }))
+        let remoteAction = try #require(researchItem.children.first(where: { $0.title == "Switch on buildbox" }))
+
+        #expect(researchItem.hasAction == false)
+        #expect(localAction.actionSelector == "switchAccount:")
+        #expect(remoteAction.actionSelector == "switchAccountOnHost:")
+    }
+
+    @Test
+    func localAccountsRemainNativeMenuRowsWithSubmenusInMenuSnapshot() throws {
+        let now = Date(timeIntervalSince1970: 1_744_195_200)
+        let state = makeHostedValidationState(for: "hosted-menu-default", now: now)
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let menu = builder.makeMenu(state: state, target: coordinator)
+        let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, menu: menu, now: now)
+
+        let accountItem = try #require(snapshot.menuItems.first(where: { $0.title.hasPrefix("Research") }))
+        let statusItem = try #require(accountItem.children.first)
+        let localAction = try #require(accountItem.children.first(where: { $0.title == "Switch on This Mac" }))
+
+        #expect(accountItem.viewFrameWidth == nil)
+        #expect(accountItem.hasAction == false)
+        #expect(accountItem.actionSelector == nil)
+        #expect(statusItem.title == "Not currently in use")
+        #expect(statusItem.isEnabled == false)
+        #expect(localAction.actionSelector == "switchAccount:")
+    }
+
+    @Test
+    func hostMissingScenarioUsesInstallAndSwitchCopyInMenuSnapshot() throws {
+        let now = Date(timeIntervalSince1970: 1_744_195_200)
+        let state = makeHostedValidationState(for: "host-account-missing-on-host", now: now)
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let menu = builder.makeMenu(state: state, target: coordinator)
+        let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, menu: menu, now: now)
+
+        let researchItem = try #require(snapshot.menuItems.first(where: { $0.title.contains("Research") }))
+        let remoteAction = try #require(researchItem.children.first(where: { $0.title == "Install on buildbox and switch" }))
+
+        #expect(remoteAction.actionSelector == "switchAccountOnHost:")
+    }
+
+    @Test
+    func remoteAccountsSectionStaysHiddenWhenHostHasNoActiveRemoteAccount() {
+        let now = Date(timeIntervalSince1970: 1_744_195_200)
+        let snapshot = MenuBarValidationSupport.makeSnapshot(
+            state: makeHostedValidationState(for: "host-account-missing-on-host", now: now),
+            now: now
+        )
+
+        #expect(snapshot.sections.contains(where: { $0.title == "Remote Accounts" }) == false)
+    }
+
+    @Test
+    func accountsDoNotInventFullUsageWhenRateLimitsAreMissing() {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
         let state = MenuBarMenuState(
             activeAccount: nil,
@@ -51,6 +134,7 @@ struct MenuBarUIValidationTests {
                     identity: .empty
                 )
             ],
+            remoteHosts: [],
             visibleInactiveAccountCount: 2,
             visibleInactiveAccountCountOptions: [2, 3, 5, 0],
             refreshIntervalMinutes: 5,
@@ -63,10 +147,10 @@ struct MenuBarUIValidationTests {
         )
 
         let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, now: now)
-        let summary = try! #require(snapshot.sections.first(where: { $0.title == "Other Accounts" })?.items.first)
+        let summary = try! #require(snapshot.sections.first(where: { $0.title == "Accounts" })?.items.first)
 
-        #expect(summary.contains("Session --"))
-        #expect(summary.contains("Weekly --"))
+        #expect(summary.contains("S --"))
+        #expect(summary.contains("W --"))
         #expect(!summary.contains("100%"))
     }
 
@@ -89,6 +173,7 @@ struct MenuBarUIValidationTests {
         let state = MenuBarMenuState(
             activeAccount: makeHostedValidationState(for: "hosted-menu-default", now: now).activeAccount,
             inactiveAccounts: [],
+            remoteHosts: [],
             visibleInactiveAccountCount: 2,
             visibleInactiveAccountCountOptions: [2, 3, 5, 0],
             refreshIntervalMinutes: 5,
@@ -137,6 +222,7 @@ struct MenuBarUIValidationTests {
         let state = MenuBarMenuState(
             activeAccount: account,
             inactiveAccounts: [],
+            remoteHosts: [],
             visibleInactiveAccountCount: 2,
             visibleInactiveAccountCountOptions: [2, 3, 5, 0],
             refreshIntervalMinutes: 5,
@@ -263,7 +349,7 @@ struct MenuBarUIValidationTests {
         case "hosted-menu-default":
             #expect(snapshot.sections.map(\.title) == [
                 "Current Account",
-                "Other Accounts",
+                "Accounts",
                 "More Accounts…",
                 "Manage Accounts",
                 "Preferences"
@@ -272,6 +358,29 @@ struct MenuBarUIValidationTests {
             #expect(snapshot.sections[1].items.count == 2)
             #expect(snapshot.sections[2].items.count == 1)
             #expect(snapshot.sections[3].items.contains("Save Current Account"))
+
+        case "hosted-menu-with-host":
+            #expect(snapshot.sections.map(\.title) == [
+                "Current Account",
+                "Remote Accounts",
+                "Accounts",
+                "More Accounts…",
+                "Manage Accounts",
+                "Preferences"
+            ])
+            #expect(snapshot.sections[1].items.first?.contains("buildbox") == true)
+            #expect(snapshot.sections[2].items.count == 2)
+            #expect(snapshot.sections[3].items.count == 1)
+
+        case "host-account-missing-on-host":
+            #expect(snapshot.sections.map(\.title) == [
+                "Current Account",
+                "Accounts",
+                "More Accounts…",
+                "Manage Accounts",
+                "Preferences"
+            ])
+            #expect(snapshot.sections[1].items.count == 2)
 
         case "hosted-menu-busy":
             #expect(snapshot.sections.map(\.title) == [
@@ -297,6 +406,15 @@ struct MenuBarUIValidationTests {
             #expect(snapshot.sections[1].items.contains("Remove Account"))
             #expect(snapshot.statusMessage == nil)
 
+        case "live-menu-open",
+             "live-account-switch",
+             "live-add-host-prompt",
+             "live-save-current-prompt",
+             "live-sign-in-another-prompt",
+             "live-scheduled-refresh",
+             "live-status-item-hover":
+            #expect(!snapshot.sections.isEmpty)
+
         default:
             throw ValidationError.unknownScenario(scenario)
         }
@@ -309,6 +427,17 @@ struct MenuBarUIValidationTests {
                 "Current Account section includes the active account summary",
                 "Two inactive accounts are visible and one account overflows into More Accounts…",
                 "Status message is omitted when the menu is not busy"
+            ]
+        case "hosted-menu-with-host":
+            return [
+                "Remote host state renders in its own section",
+                "Accounts continues to reflect the local saved-account catalog",
+                "One inactive account still overflows into More Accounts… with a connected host present"
+            ]
+        case "host-account-missing-on-host":
+            return [
+                "Missing remote snapshots change the action copy to install-and-switch",
+                "Accounts still comes from the local catalog only"
             ]
         case "hosted-menu-busy":
             return [
@@ -329,6 +458,7 @@ struct MenuBarUIValidationTests {
 
     private func loadValidationRequest() throws -> ValidationRequest? {
         let repoRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
             .deletingLastPathComponent()
             .deletingLastPathComponent()
         let requestURL = repoRoot
@@ -366,6 +496,85 @@ struct MenuBarUIValidationTests {
             return MenuBarMenuState(
                 activeAccount: active,
                 inactiveAccounts: others,
+                remoteHosts: [],
+                visibleInactiveAccountCount: 2,
+                visibleInactiveAccountCountOptions: [2, 3, 5, 0],
+                refreshIntervalMinutes: 5,
+                refreshIntervalOptions: [1, 2, 5, 10, 15, 30],
+                statusBarMonochrome: false,
+                statusBarIndicatorStyle: .dualArcBadge,
+                statusBarDisplayMode: .textOnHover,
+                isBusy: false,
+                statusMessage: "Ready"
+            )
+
+        case "hosted-menu-with-host":
+            let active = makeAccount(
+                name: "Primary",
+                email: "primary@example.com",
+                planType: "pro",
+                sessionUsedPercent: 42,
+                weeklyUsedPercent: 68,
+                now: now
+            )
+
+            let others = [
+                makeAccount(name: "Research", email: "research@example.com", planType: "pro", sessionUsedPercent: 8, weeklyUsedPercent: 35, now: now),
+                makeAccount(name: "Sandbox", email: "sandbox@example.com", planType: "plus", sessionUsedPercent: 19, weeklyUsedPercent: 50, now: now),
+                makeAccount(name: "Overflow", email: "overflow@example.com", planType: "plus", sessionUsedPercent: 74, weeklyUsedPercent: 88, now: now)
+            ]
+            let remoteActive = makeAccount(
+                name: "Remote Active",
+                email: "remote-active@example.com",
+                planType: "team",
+                sessionUsedPercent: 11,
+                weeklyUsedPercent: 27,
+                now: now
+            )
+
+            return MenuBarMenuState(
+                activeAccount: active,
+                inactiveAccounts: others,
+                remoteHosts: [RemoteHostMenuState(
+                    name: "buildbox",
+                    connectionState: .connected,
+                    activeAccount: remoteActive,
+                    deployedAccountIDs: others.map(\.id)
+                )],
+                visibleInactiveAccountCount: 2,
+                visibleInactiveAccountCountOptions: [2, 3, 5, 0],
+                refreshIntervalMinutes: 5,
+                refreshIntervalOptions: [1, 2, 5, 10, 15, 30],
+                statusBarMonochrome: false,
+                statusBarIndicatorStyle: .dualArcBadge,
+                statusBarDisplayMode: .textOnHover,
+                isBusy: false,
+                statusMessage: "Ready"
+            )
+
+        case "host-account-missing-on-host":
+            let active = makeAccount(
+                name: "Primary",
+                email: "primary@example.com",
+                planType: "pro",
+                sessionUsedPercent: 42,
+                weeklyUsedPercent: 68,
+                now: now
+            )
+
+            let research = makeAccount(name: "Research", email: "research@example.com", planType: "pro", sessionUsedPercent: 8, weeklyUsedPercent: 35, now: now)
+            let sandbox = makeAccount(name: "Sandbox", email: "sandbox@example.com", planType: "plus", sessionUsedPercent: 19, weeklyUsedPercent: 50, now: now)
+            let overflow = makeAccount(name: "Overflow", email: "overflow@example.com", planType: "plus", sessionUsedPercent: 74, weeklyUsedPercent: 88, now: now)
+
+            return MenuBarMenuState(
+                activeAccount: active,
+                inactiveAccounts: [research, sandbox, overflow],
+                remoteHosts: [RemoteHostMenuState(
+                    name: "buildbox",
+                    connectionState: .connected,
+                    activeAccount: nil,
+                    deployedAccountIDs: [sandbox.id]
+                )],
                 visibleInactiveAccountCount: 2,
                 visibleInactiveAccountCountOptions: [2, 3, 5, 0],
                 refreshIntervalMinutes: 5,
@@ -390,6 +599,7 @@ struct MenuBarUIValidationTests {
             return MenuBarMenuState(
                 activeAccount: active,
                 inactiveAccounts: [],
+                remoteHosts: [],
                 visibleInactiveAccountCount: 2,
                 visibleInactiveAccountCountOptions: [2, 3, 5, 0],
                 refreshIntervalMinutes: 5,
@@ -405,6 +615,7 @@ struct MenuBarUIValidationTests {
             return MenuBarMenuState(
                 activeAccount: nil,
                 inactiveAccounts: [],
+                remoteHosts: [],
                 visibleInactiveAccountCount: 2,
                 visibleInactiveAccountCountOptions: [2, 3, 5, 0],
                 refreshIntervalMinutes: 10,
@@ -419,6 +630,27 @@ struct MenuBarUIValidationTests {
         default:
             return makeHostedValidationState(for: "hosted-menu-default", now: now)
         }
+    }
+
+    private func makeCoordinator() throws -> MenuBarCoordinator {
+        let repository = try AccountRepository()
+        let store = MenuBarAccountsStore(
+            repository: repository,
+            authService: CodexAuthSnapshotService(repository: repository),
+            appController: CodexAppController(),
+            appServerClient: CodexAppServerClient()
+        )
+        let suiteName = "MenuBarUIValidationTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = AppSettings(userDefaults: defaults)
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        return MenuBarCoordinator(
+            statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
+            store: store,
+            settings: settings,
+            alertPresenter: MenuBarAlertPresenter()
+        )
     }
 
     private func makeAccount(
