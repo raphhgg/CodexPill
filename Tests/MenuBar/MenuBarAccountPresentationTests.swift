@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Testing
 
@@ -13,7 +14,7 @@ struct MenuBarAccountPresentationTests {
             windowDurationMinutes: 300
         )
 
-        #expect(resetStatusText(for: window, now: now) == "Resets in 4 hr")
+        #expect(resetStatusText(for: window, now: now) == "Resets in 4h07")
     }
 
     @Test
@@ -25,11 +26,11 @@ struct MenuBarAccountPresentationTests {
             windowDurationMinutes: 300
         )
 
-        #expect(resetStatusText(for: window, now: now) == "Resets in 4 hr")
+        #expect(resetStatusText(for: window, now: now) == "Resets in 4h")
     }
 
     @Test
-    func resetStatusTextUsesMinutesForSubHourWindows() {
+    func resetStatusTextUsesHourMinuteCountdownForSubHourWindows() {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
         let window = CodexRateLimitWindow(
             usedPercent: 100,
@@ -37,7 +38,7 @@ struct MenuBarAccountPresentationTests {
             windowDurationMinutes: 300
         )
 
-        #expect(resetStatusText(for: window, now: now) == "Resets in 28 min")
+        #expect(resetStatusText(for: window, now: now) == "Resets in 28min")
     }
 
     @Test
@@ -49,7 +50,7 @@ struct MenuBarAccountPresentationTests {
             windowDurationMinutes: 10_080
         )
 
-        #expect(resetStatusText(for: window, now: now) == "Resets in 4 days")
+        #expect(resetStatusText(for: window, now: now) == "Resets in 4d")
     }
 
     @Test
@@ -87,8 +88,40 @@ struct MenuBarAccountPresentationTests {
         #expect(tooltip.contains("Team"))
         #expect(tooltip.contains("Session resets"))
         #expect(tooltip.contains("Weekly resets"))
-        #expect(!tooltip.contains("03:12"))
-        #expect(!tooltip.contains("27:05"))
+        #expect(tooltip.contains("3h12"))
+        #expect(!tooltip.contains("27h05"))
+    }
+
+    @Test
+    func statusItemTooltipKeepsExactHourPrecisionSeparateFromCardCopy() {
+        let now = Date(timeIntervalSince1970: 1_744_195_200)
+        let account = CodexAccount(
+            id: UUID(),
+            name: "Business 2",
+            snapshotFileName: "business-2.json",
+            createdAt: now,
+            updatedAt: now,
+            email: "raphaelgrau@gmail.com",
+            planType: "team",
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: "codex",
+                limitName: nil,
+                planType: "team",
+                primary: CodexRateLimitWindow(
+                    usedPercent: 100,
+                    resetsAt: now.addingTimeInterval(4 * 60 * 60),
+                    windowDurationMinutes: 300
+                ),
+                secondary: nil,
+                fetchedAt: now
+            )
+        )
+
+        let tooltip = try! #require(statusItemTooltipText(for: account, now: now))
+
+        #expect(resetStatusText(for: try! #require(account.rateLimits?.primary), now: now) == "Resets in 4h")
+        #expect(tooltip.contains("Session resets in 4h00"))
+        #expect(!tooltip.contains("Session resets in 4h\n"))
     }
 
     @Test
@@ -125,7 +158,7 @@ struct MenuBarAccountPresentationTests {
             )
         )
 
-        #expect(statusItemHoverTitle(for: account, now: now) == "S 02:05 W 68%")
+        #expect(statusItemHoverTitle(for: account, now: now) == "S 2h05 W 68%")
     }
 
     @Test
@@ -158,5 +191,73 @@ struct MenuBarAccountPresentationTests {
         )
 
         #expect(statusItemHoverTitle(for: account, now: now) == "S 42% W 68%")
+    }
+
+    @Test
+    func compactAccountUsageSummaryUsesOneLineFormat() {
+        let now = Date(timeIntervalSince1970: 1_744_195_200)
+        let account = CodexAccount(
+            id: UUID(),
+            name: "Business 2",
+            snapshotFileName: "business-2.json",
+            createdAt: now,
+            updatedAt: now,
+            email: "raphaelgrau@gmail.com",
+            planType: "team",
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: "codex",
+                limitName: nil,
+                planType: "team",
+                primary: CodexRateLimitWindow(
+                    usedPercent: 100,
+                    resetsAt: now.addingTimeInterval((1 * 60 + 42) * 60),
+                    windowDurationMinutes: 300
+                ),
+                secondary: CodexRateLimitWindow(
+                    usedPercent: 94,
+                    resetsAt: now.addingTimeInterval(4 * 24 * 60 * 60),
+                    windowDurationMinutes: 10_080
+                ),
+                fetchedAt: now
+            )
+        )
+
+        #expect(compactAccountUsageSummary(for: account, now: now) == "S 100% (1h42) • W 94% (4d)")
+    }
+
+    @Test
+    func inactiveAccountTitleUsesTabAlignedColumns() {
+        let now = Date(timeIntervalSince1970: 1_744_195_200)
+        let account = CodexAccount(
+            id: UUID(),
+            name: "Business 2",
+            snapshotFileName: "business-2.json",
+            createdAt: now,
+            updatedAt: now,
+            email: "raphaelgrau@gmail.com",
+            planType: "team",
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: "codex",
+                limitName: nil,
+                planType: "team",
+                primary: CodexRateLimitWindow(
+                    usedPercent: 10,
+                    resetsAt: now.addingTimeInterval((1 * 60 + 23) * 60),
+                    windowDurationMinutes: 300
+                ),
+                secondary: CodexRateLimitWindow(
+                    usedPercent: 78,
+                    resetsAt: now.addingTimeInterval(3 * 24 * 60 * 60),
+                    windowDurationMinutes: 10_080
+                ),
+                fetchedAt: now
+            )
+        )
+
+        let title = inactiveAccountTitle(for: account, placement: .local, menuContentWidth: 423, now: now)
+        let paragraphStyle = title.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle
+
+        #expect(title.string == "Business 2  S 10% (1h23)  W 78% (3d)\tLocal")
+        #expect(paragraphStyle?.tabStops.first?.location == 395)
     }
 }

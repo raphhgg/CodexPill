@@ -10,13 +10,15 @@ final class MenuBarAccountsStore {
         repository: AccountRepository,
         authService: CodexAuthSnapshotService,
         appController: CodexAppController,
-        appServerClient: CodexAppServerClient
+        appServerClient: CodexAppServerClient,
+        remoteHostClient: RemoteHostSwitching = UnavailableRemoteHostClient()
     ) {
         self.controller = AccountsController(
             repository: repository,
             authService: authService,
             appController: appController,
-            appServerClient: appServerClient
+            appServerClient: appServerClient,
+            remoteHostClient: remoteHostClient
         )
     }
 
@@ -44,6 +46,14 @@ final class MenuBarAccountsStore {
 
     func switchToAccount(_ account: CodexAccount) async {
         await controller.switchToAccount(account)
+    }
+
+    func switchToAccountOnHost(_ account: CodexAccount, on host: RemoteHost) async -> Bool {
+        await controller.switchToAccountOnHost(account, on: host)
+    }
+
+    func testRemoteHostConnection(_ host: RemoteHost) async -> Bool {
+        await controller.testRemoteHostConnection(host)
     }
 
     func removeSavedAccount(_ account: CodexAccount) async {

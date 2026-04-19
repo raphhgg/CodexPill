@@ -66,11 +66,35 @@ struct MenuBarAlertFactoryTests {
     }
 
     @Test
+    func addHostRequestUsesTestThenAddCopy() {
+        let request = factory.makeAddHostRequest()
+
+        #expect(request.messageText == "Add remote host")
+        #expect(request.placeholder == "user@host")
+        #expect(request.nameFieldTitle == "Host Name (Optional)")
+        #expect(request.namePlaceholder == "buildbox")
+        #expect(request.confirmTitle == "Add Host")
+        #expect(request.cancelTitle == "Cancel")
+        #expect(request.idleStatusText == "CodexPill checks the connection automatically.")
+        #expect(request.successStatusText == "Connection successful.")
+    }
+
+    @Test
     func errorRequestUsesWarningStyle() {
         let request = factory.makeErrorRequest(message: "Boom")
 
         #expect(request.messageText == "CodexPill Error")
         #expect(request.informativeText == "Boom")
         #expect(request.style == .warning)
+    }
+
+    @Test
+    func installCurrentAccountOnHostRequestUsesDeferredCancelCopy() {
+        let request = factory.makeInstallCurrentAccountOnHostRequest(accountName: "Business 1", hostName: "buildbox")
+
+        #expect(request.messageText == "Install current account on buildbox?")
+        #expect(request.informativeText.contains("install and switch Business 1 on buildbox now"))
+        #expect(request.confirmTitle == "Install and Switch")
+        #expect(request.cancelTitle == "Later")
     }
 }

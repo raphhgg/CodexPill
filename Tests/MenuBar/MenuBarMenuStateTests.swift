@@ -18,16 +18,17 @@ struct MenuBarMenuStateTests {
     }
 
     @Test
-    func visibleAndOverflowInactiveAccountsSplitBySetting() {
+    func visibleAndOverflowAccountsUseTopThreeNonActiveRule() {
         let accounts = [
             makeAccount(name: "A"),
             makeAccount(name: "B"),
-            makeAccount(name: "C")
+            makeAccount(name: "C"),
+            makeAccount(name: "D")
         ]
         let state = makeState(inactiveAccounts: accounts, visibleInactiveAccountCount: 2)
 
-        #expect(state.visibleInactiveAccounts.map(\.name) == ["A", "B"])
-        #expect(state.overflowInactiveAccounts.map(\.name) == ["C"])
+        #expect(state.visibleAccountEntries.map(\.account.name) == ["A", "B", "C"])
+        #expect(state.overflowAccountEntries.map(\.account.name) == ["D"])
     }
 
     @Test
@@ -68,6 +69,36 @@ struct MenuBarMenuStateTests {
 
         #expect(!hidden.shouldShowStatusMessage)
         #expect(shown.shouldShowStatusMessage)
+    }
+
+    @Test
+    func remoteHostDoesNotChangeTheLocalSavedAccountCatalog() {
+        let active = makeAccount(name: "Active")
+        let inactive = makeAccount(name: "Other")
+        let hostOnly = makeAccount(name: "Host Only")
+        let state = makeState(
+            activeAccount: active,
+            inactiveAccounts: [inactive],
+            remoteHosts: [makeRemoteHost(activeAccount: hostOnly)]
+        )
+
+        #expect(state.allSavedAccounts.map(\.name) == ["Active", "Other"])
+        #expect(state.remoteHosts.first?.activeAccount?.name == "Host Only")
+    }
+
+    @Test
+    func remoteHostCardOnlyShowsWhenAnActiveRemoteAccountExists() {
+        let connected = makeRemoteHost(activeAccount: makeAccount(name: "Host Only"))
+        let disconnected = RemoteHostMenuState(
+            name: connected.name,
+            connectionState: .disconnected,
+            activeAccount: connected.activeAccount
+        )
+        let empty = makeRemoteHost(activeAccount: nil)
+
+        #expect(connected.shouldShowRemoteAccountCard)
+        #expect(!disconnected.shouldShowRemoteAccountCard)
+        #expect(!empty.shouldShowRemoteAccountCard)
     }
 
     @Test
@@ -198,6 +229,7 @@ struct MenuBarMenuStateTests {
     private func makeState(
         activeAccount: CodexAccount? = nil,
         inactiveAccounts: [CodexAccount],
+        remoteHosts: [RemoteHostMenuState] = [],
         visibleInactiveAccountCount: Int = 2,
         isBusy: Bool = false,
         statusMessage: String = "Ready"
@@ -205,6 +237,7 @@ struct MenuBarMenuStateTests {
         MenuBarMenuState(
             activeAccount: activeAccount,
             inactiveAccounts: inactiveAccounts,
+            remoteHosts: remoteHosts,
             visibleInactiveAccountCount: visibleInactiveAccountCount,
             visibleInactiveAccountCountOptions: [0, 2, 4],
             refreshIntervalMinutes: 5,
@@ -247,6 +280,14 @@ struct MenuBarMenuStateTests {
                 snapshotFingerprint: UUID().uuidString,
                 remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "\(name.lowercased())@example.com")
             )
+        )
+    }
+
+    private func makeRemoteHost(activeAccount: CodexAccount? = nil) -> RemoteHostMenuState {
+        RemoteHostMenuState(
+            name: "devbox",
+            connectionState: .connected,
+            activeAccount: activeAccount
         )
     }
 }

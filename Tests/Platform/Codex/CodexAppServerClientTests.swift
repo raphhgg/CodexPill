@@ -256,6 +256,22 @@ struct CodexAppServerClientTests {
     }
 
     @Test
+    func consumeOutputDataPreservesIntegerRateLimitFieldsFromEnvelope() throws {
+        let decoder = JSONDecoder()
+        let state = AppServerSessionState()
+
+        let accountLine = #"{"id":2,"result":{"account":{"email":"user@example.com","planType":"team"}}}"#
+        let rateLimitsLine = #"{"id":3,"result":{"rateLimits":{"planType":"team","primary":{"usedPercent":69,"resetsAt":2000000000,"windowDurationMins":300},"secondary":{"usedPercent":38,"resetsAt":2000500000,"windowDurationMins":10080}}}}"#
+
+        #expect(try consumeOutputData(Data((accountLine + "\n").utf8), decoder: decoder, state: state) == nil)
+        let status = try consumeOutputData(Data((rateLimitsLine + "\n").utf8), decoder: decoder, state: state)
+
+        #expect(status?.rateLimits?.primary?.usedPercent == 69)
+        #expect(status?.rateLimits?.primary?.resetsAt == Date(timeIntervalSince1970: 2_000_000_000))
+        #expect(status?.rateLimits?.secondary?.usedPercent == 38)
+    }
+
+    @Test
     func consumeOutputDataWrapsDecodingFailuresInCodexAppServerError() throws {
         let decoder = JSONDecoder()
         let state = AppServerSessionState()

@@ -12,11 +12,13 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
         let authService = CodexAuthSnapshotService(repository: repository)
         let controller = CodexAppController()
         let appServerClient = CodexAppServerClient()
+        let remoteHostClient = SSHRemoteHostClient(snapshotLocator: repository)
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: authService,
             appController: controller,
-            appServerClient: appServerClient
+            appServerClient: appServerClient,
+            remoteHostClient: remoteHostClient
         )
 
         statusItemRuntime = StatusItemRuntime()
@@ -24,6 +26,7 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
             statusItemRuntime: statusItemRuntime,
             store: store,
             settings: settings,
+            remoteHostClient: remoteHostClient,
             alertPresenter: MenuBarAlertPresenter(),
             validationSink: MenuBarValidationConfiguration.makeSink(),
             allowsEmptyStatePrompt: !AppRuntimeEnvironment.shouldSuppressEmptyStatePrompt()

@@ -492,6 +492,7 @@ enum CodexAppServerError: LocalizedError, Equatable {
 
 private enum JSONValue: Codable {
     case string(String)
+    case integer(Int)
     case number(Double)
     case object([String: JSONValue])
     case array([JSONValue])
@@ -504,6 +505,8 @@ private enum JSONValue: Codable {
             self = .null
         } else if let value = try? container.decode(Bool.self) {
             self = .bool(value)
+        } else if let value = try? container.decode(Int.self) {
+            self = .integer(value)
         } else if let value = try? container.decode(Double.self) {
             self = .number(value)
         } else if let value = try? container.decode(String.self) {
@@ -521,6 +524,8 @@ private enum JSONValue: Codable {
         var container = encoder.singleValueContainer()
         switch self {
         case .string(let value):
+            try container.encode(value)
+        case .integer(let value):
             try container.encode(value)
         case .number(let value):
             try container.encode(value)

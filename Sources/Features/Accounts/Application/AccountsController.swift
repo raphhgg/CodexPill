@@ -23,6 +23,7 @@ final class AccountsController {
     private let deleteSavedAccountUseCase: DeleteSavedAccountUseCase
     private let renameSavedAccountUseCase: RenameSavedAccountUseCase
     private let switchAccountWorkflow: SwitchAccountWorkflow
+    private let switchAccountOnHostWorkflow: SwitchAccountOnHostWorkflow
     private let saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow
     private let signInAnotherWorkflow: SignInAnotherWorkflow
 
@@ -33,7 +34,8 @@ final class AccountsController {
         repository: AccountRepository,
         authService: CodexAuthSnapshotService,
         appController: CodexAppController,
-        appServerClient: CodexAppServerClient
+        appServerClient: CodexAppServerClient,
+        remoteHostClient: RemoteHostSwitching = UnavailableRemoteHostClient()
     ) {
         self.identityResolver = SavedAccountIdentityResolver(
             liveIdentityReader: authService,
@@ -73,6 +75,9 @@ final class AccountsController {
             appController: appController,
             identityResolver: self.identityResolver
         )
+        self.switchAccountOnHostWorkflow = SwitchAccountOnHostWorkflow(
+            remoteHostClient: remoteHostClient
+        )
         self.saveCurrentAccountWorkflow = SaveCurrentAccountWorkflow(
             appServerClient: appServerClient,
             authService: authService,
@@ -100,6 +105,9 @@ final class AccountsController {
         deleteSavedAccountUseCase: DeleteSavedAccountUseCase,
         renameSavedAccountUseCase: RenameSavedAccountUseCase,
         switchAccountWorkflow: SwitchAccountWorkflow,
+        switchAccountOnHostWorkflow: SwitchAccountOnHostWorkflow = SwitchAccountOnHostWorkflow(
+            remoteHostClient: UnavailableRemoteHostClient()
+        ),
         saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow,
         signInAnotherWorkflow: SignInAnotherWorkflow
     ) {
@@ -116,6 +124,7 @@ final class AccountsController {
         self.deleteSavedAccountUseCase = deleteSavedAccountUseCase
         self.renameSavedAccountUseCase = renameSavedAccountUseCase
         self.switchAccountWorkflow = switchAccountWorkflow
+        self.switchAccountOnHostWorkflow = switchAccountOnHostWorkflow
         self.saveCurrentAccountWorkflow = saveCurrentAccountWorkflow
         self.signInAnotherWorkflow = signInAnotherWorkflow
     }
@@ -182,6 +191,30 @@ final class AccountsController {
                 )
             )
             await applySilentPostActionRefresh(after: .seconds(2))
+        }
+    }
+
+    func switchToAccountOnHost(_ account: CodexAccount, on host: RemoteHost) async -> Bool {
+        operationState.begin(status: "Switching \(account.name) on \(host.displayName)...")
+        do {
+            try await switchAccountOnHostWorkflow.run(account: account, on: host)
+            operationState.succeed()
+            return true
+        } catch {
+            operationState.fail(error)
+            return false
+        }
+    }
+
+    func testRemoteHostConnection(_ host: RemoteHost) async -> Bool {
+        operationState.begin(status: "Testing \(host.displayName)...")
+        do {
+            try await switchAccountOnHostWorkflow.testConnection(to: host)
+            operationState.succeed()
+            return true
+        } catch {
+            operationState.fail(error)
+            return false
         }
     }
 

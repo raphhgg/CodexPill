@@ -53,6 +53,39 @@ struct MenuBarAlertFactory {
         )
     }
 
+    func makeAddHostRequest() -> MenuBarHostSetupAlertRequest {
+        MenuBarHostSetupAlertRequest(
+            messageText: "Add remote host",
+            informativeText: "Enter the SSH destination for the host you want CodexPill to target, for example user@host.",
+            fieldTitle: "SSH Destination",
+            placeholder: "user@host",
+            nameFieldTitle: "Host Name (Optional)",
+            namePlaceholder: "buildbox",
+            confirmTitle: "Add Host",
+            cancelTitle: "Cancel",
+            idleStatusText: "CodexPill checks the connection automatically.",
+            successStatusText: "Connection successful."
+        )
+    }
+
+    func makeRemoveHostRequest(hostName: String) -> MenuBarConfirmationAlertRequest {
+        MenuBarConfirmationAlertRequest(
+            messageText: "Remove remote host?",
+            informativeText: "This will remove the saved host configuration for \(hostName). Remote snapshots on that machine will not be deleted.",
+            confirmTitle: "Remove Host",
+            cancelTitle: "Cancel"
+        )
+    }
+
+    func makeInstallCurrentAccountOnHostRequest(accountName: String, hostName: String) -> MenuBarConfirmationAlertRequest {
+        MenuBarConfirmationAlertRequest(
+            messageText: "Install current account on \(hostName)?",
+            informativeText: "CodexPill can install and switch \(accountName) on \(hostName) now, so the host is ready immediately.",
+            confirmTitle: "Install and Switch",
+            cancelTitle: "Later"
+        )
+    }
+
     func makeAboutRequest() -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
             messageText: "About CodexPill",

@@ -6,6 +6,22 @@ enum StatusBarProgressColorDefaults {
     static let accent = NSColor.controlAccentColor
 }
 
+struct PersistedRemoteHostState: Codable, Equatable, Identifiable {
+    var host: RemoteHost
+    var installedAccountIDs: [UUID]
+    var activeAccount: CodexAccount?
+
+    var id: String {
+        host.destination
+    }
+
+    init(host: RemoteHost, installedAccountIDs: [UUID] = [], activeAccount: CodexAccount? = nil) {
+        self.host = host
+        self.installedAccountIDs = installedAccountIDs
+        self.activeAccount = activeAccount
+    }
+}
+
 @MainActor
 @Observable
 final class AppSettings {
@@ -52,6 +68,43 @@ final class AppSettings {
         }
     }
 
+    var remoteHostStates: [PersistedRemoteHostState] {
+        didSet {
+            persistCodable(remoteHostStates, key: Self.remoteHostsKey)
+        }
+    }
+
+    var configuredRemoteHost: RemoteHost? {
+        get { remoteHostStates.first?.host }
+        set {
+            if let newValue {
+                upsertRemoteHost(newValue)
+            } else if let first = remoteHostStates.first {
+                removeRemoteHost(destination: first.host.destination)
+            }
+        }
+    }
+
+    var remoteHostInstalledAccountIDs: [UUID] {
+        get { remoteHostStates.first?.installedAccountIDs ?? [] }
+        set {
+            guard let host = remoteHostStates.first?.host else { return }
+            updateRemoteHostState(for: host) { state in
+                state.installedAccountIDs = newValue
+            }
+        }
+    }
+
+    var remoteHostActiveAccount: CodexAccount? {
+        get { remoteHostStates.first?.activeAccount }
+        set {
+            guard let host = remoteHostStates.first?.host else { return }
+            updateRemoteHostState(for: host) { state in
+                state.activeAccount = newValue
+            }
+        }
+    }
+
     let refreshIntervalOptions = [1, 2, 5, 10, 15, 30]
     let visibleInactiveAccountCountOptions = [2, 3, 5, 0]
 
@@ -63,6 +116,10 @@ final class AppSettings {
     private static let statusBarDisplayModeKey = "statusBarDisplayMode"
     private static let visibleInactiveAccountCountKey = "visibleInactiveAccountCount"
     private static let progressAccentColorKey = "progressAccentColor"
+    private static let remoteHostsKey = "remoteHosts"
+    private static let remoteHostKey = "remoteHost"
+    private static let remoteHostInstalledAccountIDsKey = "remoteHostInstalledAccountIDs"
+    private static let remoteHostActiveAccountKey = "remoteHostActiveAccount"
 
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
@@ -93,6 +150,8 @@ final class AppSettings {
             key: Self.progressAccentColorKey,
             defaultColor: StatusBarProgressColorDefaults.accent
         )
+        remoteHostStates = Self.loadCodable(from: userDefaults, key: Self.remoteHostsKey)
+            ?? Self.loadLegacyRemoteHostStates(from: userDefaults)
     }
 
     var hasCustomProgressAccentColor: Bool {
@@ -101,6 +160,33 @@ final class AppSettings {
 
     func resetProgressAccentColor() {
         progressAccentColor = StatusBarProgressColorDefaults.accent
+    }
+
+    func upsertRemoteHost(_ host: RemoteHost) {
+        updateRemoteHostState(for: host) { _ in }
+    }
+
+    func removeRemoteHost(destination: String) {
+        remoteHostStates.removeAll { $0.host.destination == destination }
+    }
+
+    func remoteHostState(for destination: String) -> PersistedRemoteHostState? {
+        remoteHostStates.first(where: { $0.host.destination == destination })
+    }
+
+    func updateRemoteHostState(for host: RemoteHost, mutate: (inout PersistedRemoteHostState) -> Void) {
+        if let index = remoteHostStates.firstIndex(where: { $0.host.destination == host.destination }) {
+            var updated = remoteHostStates[index]
+            updated.host = host
+            mutate(&updated)
+            remoteHostStates[index] = updated
+            return
+        }
+
+        var state = PersistedRemoteHostState(host: host)
+        mutate(&state)
+        remoteHostStates.append(state)
+        remoteHostStates.sort { $0.host.displayName.localizedCaseInsensitiveCompare($1.host.displayName) == .orderedAscending }
     }
 
     private func persistColor(_ color: NSColor, key: String) {
@@ -122,6 +208,17 @@ final class AppSettings {
         }
     }
 
+    private func persistCodable<T: Codable>(_ value: T?, key: String) {
+        guard let value else {
+            userDefaults.removeObject(forKey: key)
+            return
+        }
+
+        if let data = try? JSONEncoder().encode(value) {
+            userDefaults.set(data, forKey: key)
+        }
+    }
+
     private static func loadColor(from userDefaults: UserDefaults, key: String, defaultColor: NSColor) -> NSColor {
         guard let data = userDefaults.data(forKey: key),
               let components = try? JSONDecoder().decode(StoredColorComponents.self, from: data)
@@ -135,6 +232,24 @@ final class AppSettings {
             blue: components.blue,
             alpha: components.alpha
         )
+    }
+
+    private static func loadCodable<T: Codable>(from userDefaults: UserDefaults, key: String) -> T? {
+        guard let data = userDefaults.data(forKey: key) else {
+            return nil
+        }
+
+        return try? JSONDecoder().decode(T.self, from: data)
+    }
+
+    private static func loadLegacyRemoteHostStates(from userDefaults: UserDefaults) -> [PersistedRemoteHostState] {
+        guard let host: RemoteHost = loadCodable(from: userDefaults, key: Self.remoteHostKey) else {
+            return []
+        }
+
+        let installedAccountIDs: [UUID] = loadCodable(from: userDefaults, key: Self.remoteHostInstalledAccountIDsKey) ?? []
+        let activeAccount: CodexAccount? = loadCodable(from: userDefaults, key: Self.remoteHostActiveAccountKey)
+        return [PersistedRemoteHostState(host: host, installedAccountIDs: installedAccountIDs, activeAccount: activeAccount)]
     }
 
     private static func normalizedColor(_ color: NSColor) -> NSColor {
