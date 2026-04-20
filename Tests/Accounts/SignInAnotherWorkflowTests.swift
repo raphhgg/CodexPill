@@ -182,6 +182,69 @@ struct SignInAnotherWorkflowTests {
         #expect(result?.activeAccountID == business.id)
     }
 
+    @Test
+    func completePendingSignInDoesNotReuseExistingAccountWhenOnlyLiveRemoteIdentityMatches() async throws {
+        let personal = CodexAccount(
+            id: UUID(),
+            name: "Personal",
+            snapshotFileName: "\(UUID().uuidString).json",
+            createdAt: .distantPast,
+            updatedAt: .distantPast,
+            email: "raphaelgrau@gmail.com",
+            planType: "plus",
+            rateLimits: nil,
+            identity: CodexAccountIdentity(
+                stableAccountID: "personal-account",
+                authPrincipalIdentity: CodexAuthPrincipalIdentity(
+                    subject: "auth0|personal",
+                    chatGPTUserID: "user-personal"
+                ),
+                snapshotFingerprint: "personal-fingerprint",
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@gmail.com")
+            )
+        )
+        let business = CodexAccount(
+            id: UUID(),
+            name: "Business 2",
+            snapshotFileName: "\(UUID().uuidString).json",
+            createdAt: .distantPast,
+            updatedAt: .distantPast,
+            email: nil,
+            planType: nil,
+            rateLimits: nil,
+            identity: CodexAccountIdentity(
+                stableAccountID: "business-account",
+                snapshotFingerprint: "business-fingerprint",
+                remoteIdentity: nil
+            )
+        )
+        let auth = SignInAnotherAuthSpy(
+            savedAccount: business,
+            currentAuthData: Data("auth".utf8),
+            currentFingerprint: nil,
+            currentStableAccountID: nil,
+            currentRemoteEmail: "raphaelgrau@gmail.com"
+        )
+        let repository = RepositorySpy()
+        let workflow = SignInAnotherWorkflow(
+            authService: auth,
+            appController: AppControllerSpy(),
+            appServerClient: AppServerSpy(status: CodexAccountStatus(email: "raphaelgrau@gmail.com", planType: "team", rateLimits: nil)),
+            repository: repository,
+            identityResolver: makeResolver(auth: auth)
+        )
+
+        let result = try await workflow.completePendingSignIn(
+            pendingAccountName: "Business 2",
+            existingAccounts: [personal]
+        )
+
+        #expect(repository.savedAccounts?.count == 2)
+        #expect(repository.savedAccounts?.contains(where: { $0.id == personal.id }) == true)
+        #expect(repository.savedAccounts?.contains(where: { $0.id == business.id }) == true)
+        #expect(result?.activeAccountID == business.id)
+    }
+
     private func makeAccount(name: String, fingerprint: String) -> CodexAccount {
         CodexAccount(
             id: UUID(),
@@ -225,6 +288,7 @@ private final class SignInAnotherAuthSpy: CodexSignInAnotherAuthHandling, LiveCo
     let currentAuthData: Data?
     let currentFingerprint: String?
     let stableAccountIDValue: String?
+    let remoteIdentityValue: CodexRemoteAccountIdentity?
     var prepareForNewSignInCount = 0
     var savedNames: [String] = []
 
@@ -232,12 +296,14 @@ private final class SignInAnotherAuthSpy: CodexSignInAnotherAuthHandling, LiveCo
         savedAccount: CodexAccount,
         currentAuthData: Data? = nil,
         currentFingerprint: String? = nil,
-        currentStableAccountID: String? = nil
+        currentStableAccountID: String? = nil,
+        currentRemoteEmail: String? = nil
     ) {
         self.savedAccount = savedAccount
         self.currentAuthData = currentAuthData
         self.currentFingerprint = currentFingerprint
         self.stableAccountIDValue = currentStableAccountID
+        self.remoteIdentityValue = CodexRemoteAccountIdentity(emailAddress: currentRemoteEmail)
     }
 
     func prepareForNewSignIn() throws {
@@ -256,7 +322,8 @@ private final class SignInAnotherAuthSpy: CodexSignInAnotherAuthHandling, LiveCo
             stableAccountID: stableAccountIDValue,
             authPrincipalIdentity: savedAccount.identity.authPrincipalIdentity,
             workspaceIdentity: savedAccount.identity.workspaceIdentity,
-            snapshotFingerprint: currentFingerprint
+            snapshotFingerprint: currentFingerprint,
+            remoteIdentity: remoteIdentityValue
         )
     }
 

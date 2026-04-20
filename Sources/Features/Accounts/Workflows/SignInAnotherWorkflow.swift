@@ -57,7 +57,8 @@ struct SignInAnotherWorkflow {
         }
 
         let remote = try? await appServerClient.readCurrentAccountStatus()
-        let matchedAccountID = identityResolver.resolveCurrentAccountID(accounts: existingAccounts)
+        let matchOutcome = identityResolver.resolve(accounts: existingAccounts)
+        let matchedAccountID = matchOutcome.isSafeForOverwrite ? matchOutcome.matchedAccountID : nil
         let existing = matchedAccountID.flatMap { id in
             existingAccounts.first(where: { $0.id == id })
         }

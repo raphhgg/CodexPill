@@ -203,6 +203,42 @@ struct CodexAccountMatcherTests {
         #expect(outcome == .noMatch)
     }
 
+    @Test
+    func remoteIdentityFallbackStillWorksWhenScopedStableMatchRejectsGenericStableFallback() {
+        let personal = makeAccount(
+            email: "admin@raphh.me",
+            snapshotFingerprint: "personal-fingerprint",
+            stableAccountID: "acct-team",
+            authPrincipalIdentity: CodexAuthPrincipalIdentity(
+                subject: "auth0|personal",
+                chatGPTUserID: "user-personal"
+            )
+        )
+        let business = makeAccount(
+            email: "raphaelgrau@gmail.com",
+            snapshotFingerprint: "business-fingerprint",
+            stableAccountID: "acct-team",
+            authPrincipalIdentity: CodexAuthPrincipalIdentity(
+                subject: "auth0|business",
+                chatGPTUserID: "user-business"
+            )
+        )
+
+        let outcome = matcher.match(
+            liveStableAccountID: "acct-team",
+            liveAuthPrincipalIdentity: CodexAuthPrincipalIdentity(
+                subject: "auth0|missing",
+                chatGPTUserID: "user-missing"
+            ),
+            liveWorkspaceIdentity: nil,
+            liveAuthFingerprint: "different-fingerprint",
+            liveRemoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@gmail.com"),
+            accounts: [personal, business]
+        )
+
+        #expect(outcome == .uniqueRemoteIdentity(business.id))
+    }
+
     private func makeAccount(
         email: String,
         snapshotFingerprint: String,

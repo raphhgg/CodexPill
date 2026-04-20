@@ -142,6 +142,64 @@ struct SaveCurrentAccountWorkflowTests {
     }
 
     @Test
+    func runDoesNotReuseExistingAccountBasedOnlyOnSharedEmail() async throws {
+        let personal = makeAccount(
+            name: "Personal",
+            email: "raphaelgrau@gmail.com",
+            fingerprint: "personal-fingerprint",
+            stableAccountID: "personal-account",
+            subject: "auth0|personal",
+            chatGPTUserID: "user-personal",
+            workspaceAccountID: "org-personal"
+        )
+        let business = makeAccount(
+            name: "Business 2",
+            email: nil,
+            fingerprint: "business-fingerprint",
+            stableAccountID: "business-account",
+            subject: "auth0|business",
+            chatGPTUserID: "user-business",
+            workspaceAccountID: "org-business"
+        )
+        let remote = CodexAccountStatus(
+            email: "raphaelgrau@gmail.com",
+            planType: "team",
+            rateLimits: makeRateLimitsSnapshot()
+        )
+
+        let auth = SnapshotSaveSpy(savedAccount: business)
+        let repository = RepositorySpy()
+        let workflow = SaveCurrentAccountWorkflow(
+            appServerClient: AppServerSpy(status: remote),
+            authService: auth,
+            repository: repository,
+            identityResolver: SavedAccountIdentityResolver(
+                liveIdentityReader: FixedIdentityReader(
+                    identity: LiveCodexAccountIdentity(
+                        stableAccountID: nil,
+                        authPrincipalIdentity: nil,
+                        workspaceIdentity: nil,
+                        snapshotFingerprint: nil,
+                        remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@gmail.com")
+                    )
+                ),
+                storedAccountReconciler: ReconcilePassthrough()
+            )
+        )
+
+        let result = try await workflow.run(
+            customName: "Business 2",
+            existingAccounts: [personal]
+        )
+
+        #expect(auth.savedExistingAccountIDs == [nil])
+        #expect(repository.savedAccounts?.count == 2)
+        #expect(repository.savedAccounts?.contains(where: { $0.id == personal.id && $0.name == "Personal" }) == true)
+        #expect(repository.savedAccounts?.contains(where: { $0.id == business.id && $0.name == "Business 2" }) == true)
+        #expect(result.activeAccountID == business.id)
+    }
+
+    @Test
     func runRejectsRenameWhenMatchedExistingWouldCollideWithAnotherSavedAccount() async {
         let existing = makeAccount(
             name: "Business 5",

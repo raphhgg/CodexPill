@@ -19,6 +19,15 @@ enum CodexAccountMatchOutcome: Equatable {
             return nil
         }
     }
+
+    var isSafeForOverwrite: Bool {
+        switch self {
+        case .exactScopedStableAccountID, .exactStableAccountID, .exactSnapshot:
+            return true
+        case .uniqueRemoteIdentity, .ambiguousScopedStableAccountID, .ambiguousStableAccountID, .ambiguousSnapshotFingerprint, .ambiguousRemoteIdentity, .noMatch:
+            return false
+        }
+    }
 }
 
 struct CodexAccountMatcher {
@@ -30,16 +39,20 @@ struct CodexAccountMatcher {
         liveRemoteIdentity: CodexRemoteAccountIdentity?,
         accounts: [CodexAccount]
     ) -> CodexAccountMatchOutcome {
-        if let stableScopedMatch = matchScopedStableAccountID(
+        let scopedStableMatch = matchScopedStableAccountID(
             liveStableAccountID: liveStableAccountID,
             liveAuthPrincipalIdentity: liveAuthPrincipalIdentity,
             liveWorkspaceIdentity: liveWorkspaceIdentity,
             accounts: accounts
-        ) {
-            return stableScopedMatch
+        )
+
+        if let scopedStableMatch,
+           scopedStableMatch != .noMatch {
+            return scopedStableMatch
         }
 
-        if let liveStableAccountID {
+        if scopedStableMatch != .noMatch,
+           let liveStableAccountID {
             let stableMatches = accounts
                 .filter { $0.identity.stableAccountID == liveStableAccountID }
                 .map(\.id)
@@ -70,7 +83,7 @@ struct CodexAccountMatcher {
         }
 
         guard let liveRemoteIdentity else {
-            return .noMatch
+            return scopedStableMatch ?? .noMatch
         }
 
         let remoteMatches = accounts
@@ -83,7 +96,7 @@ struct CodexAccountMatcher {
         case let count where count > 1:
             return .ambiguousRemoteIdentity(remoteMatches.sorted(by: uuidSort))
         default:
-            return .noMatch
+            return scopedStableMatch ?? .noMatch
         }
     }
 

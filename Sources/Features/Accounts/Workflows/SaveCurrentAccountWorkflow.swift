@@ -43,10 +43,11 @@ struct SaveCurrentAccountWorkflow {
         existingAccounts: [CodexAccount]
     ) async throws -> SaveCurrentAccountWorkflowResult {
         let remote = try await appServerClient.readCurrentAccountStatus()
-        let matchedExistingAccountID = identityResolver.resolveCurrentAccountID(
+        let matchOutcome = identityResolver.resolve(
             accounts: existingAccounts,
             liveRemoteIdentity: remote.remoteIdentity
         )
+        let matchedExistingAccountID = matchOutcome.isSafeForOverwrite ? matchOutcome.matchedAccountID : nil
         let existing = matchedExistingAccountID.flatMap { id in
             existingAccounts.first(where: { $0.id == id })
         }
@@ -79,15 +80,9 @@ struct SaveCurrentAccountWorkflow {
         updatedAccounts.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         try repository.saveAccounts(updatedAccounts)
 
-        let activeAccountID = identityResolver.resolveSavedAccountID(
-            for: saved,
-            among: updatedAccounts,
-            liveRemoteIdentity: remote.remoteIdentity
-        )
-
         return SaveCurrentAccountWorkflowResult(
             savedAccount: saved,
-            activeAccountID: activeAccountID
+            activeAccountID: saved.id
         )
     }
 
