@@ -223,10 +223,8 @@ enum MenuBarValidationSupport {
 
     private static func managementSectionItems(for state: MenuBarMenuState) -> [String] {
         [
-            state.canSaveCurrentAccount ? "Save Current Account" : "Save Current Account (disabled)",
-            state.canSignInAnotherAccount ? "Sign In Another Account…" : "Sign In Another Account… (disabled)",
-            "Rename Account",
-            "Remove Account"
+            state.canSaveCurrentAccount ? "Add Account…" : "Add Account… (disabled)",
+            state.canSignInAnotherAccount ? "Sign In Another Account…" : "Sign In Another Account… (disabled)"
         ]
     }
 

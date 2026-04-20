@@ -316,6 +316,7 @@ private final class HostSetupWindowController: NSObject, NSTextFieldDelegate, NS
         statusRow.orientation = .horizontal
         statusRow.alignment = .centerY
         statusRow.spacing = 8
+        statusRow.detachesHiddenViews = true
 
         let spacer = NSView()
         spacer.translatesAutoresizingMaskIntoConstraints = false

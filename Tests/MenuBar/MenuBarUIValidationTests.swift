@@ -63,10 +63,14 @@ struct MenuBarUIValidationTests {
         let researchItem = try #require(snapshot.menuItems.first(where: { $0.title.contains("Research") }))
         let localAction = try #require(researchItem.children.first(where: { $0.title == "Switch on This Mac" }))
         let remoteAction = try #require(researchItem.children.first(where: { $0.title == "Switch on buildbox" }))
+        let renameAction = try #require(researchItem.children.first(where: { $0.title == "Rename…" }))
+        let removeAction = try #require(researchItem.children.first(where: { $0.title == "Remove…" }))
 
         #expect(researchItem.hasAction == false)
         #expect(localAction.actionSelector == "switchAccount:")
         #expect(remoteAction.actionSelector == "switchAccountOnHost:")
+        #expect(renameAction.actionSelector == "renameAccount:")
+        #expect(removeAction.actionSelector == "removeAccount:")
     }
 
     @Test
@@ -81,6 +85,8 @@ struct MenuBarUIValidationTests {
         let accountItem = try #require(snapshot.menuItems.first(where: { $0.title.hasPrefix("Research") }))
         let statusItem = try #require(accountItem.children.first)
         let localAction = try #require(accountItem.children.first(where: { $0.title == "Switch on This Mac" }))
+        let renameAction = try #require(accountItem.children.first(where: { $0.title == "Rename…" }))
+        let removeAction = try #require(accountItem.children.first(where: { $0.title == "Remove…" }))
 
         #expect(accountItem.viewFrameWidth == nil)
         #expect(accountItem.hasAction == false)
@@ -88,6 +94,8 @@ struct MenuBarUIValidationTests {
         #expect(statusItem.title == "Not currently in use")
         #expect(statusItem.isEnabled == false)
         #expect(localAction.actionSelector == "switchAccount:")
+        #expect(renameAction.actionSelector == "renameAccount:")
+        #expect(removeAction.actionSelector == "removeAccount:")
     }
 
     @Test
@@ -357,7 +365,7 @@ struct MenuBarUIValidationTests {
             #expect(snapshot.statusMessage == nil)
             #expect(snapshot.sections[1].items.count == 2)
             #expect(snapshot.sections[2].items.count == 1)
-            #expect(snapshot.sections[3].items.contains("Save Current Account"))
+            #expect(snapshot.sections[3].items.contains("Add Account…"))
 
         case "hosted-menu-with-host":
             #expect(snapshot.sections.map(\.title) == [
@@ -389,10 +397,8 @@ struct MenuBarUIValidationTests {
                 "Preferences"
             ])
             #expect(snapshot.statusMessage == "Refreshing account data...")
-            #expect(snapshot.sections[1].items.contains("Save Current Account (disabled)"))
+            #expect(snapshot.sections[1].items.contains("Add Account… (disabled)"))
             #expect(snapshot.sections[1].items.contains("Sign In Another Account… (disabled)"))
-            #expect(snapshot.sections[1].items.contains("Rename Account"))
-            #expect(snapshot.sections[1].items.contains("Remove Account"))
 
         case "hosted-menu-empty":
             #expect(snapshot.sections.map(\.title) == [
@@ -401,9 +407,7 @@ struct MenuBarUIValidationTests {
                 "Preferences"
             ])
             #expect(snapshot.sections[0].items == ["No active saved account"])
-            #expect(snapshot.sections[1].items.contains("Save Current Account"))
-            #expect(snapshot.sections[1].items.contains("Rename Account"))
-            #expect(snapshot.sections[1].items.contains("Remove Account"))
+            #expect(snapshot.sections[1].items.contains("Add Account…"))
             #expect(snapshot.statusMessage == nil)
 
         case "live-menu-open",
@@ -443,13 +447,13 @@ struct MenuBarUIValidationTests {
             return [
                 "Busy state exposes only the current account plus shared account and preference controls",
                 "Busy status message is rendered into the artifact snapshot",
-                "Save and sign-in actions are marked disabled in the snapshot"
+                "Add-account and sign-in actions are marked disabled in the snapshot"
             ]
         case "hosted-menu-empty":
             return [
                 "Empty state shows no active saved account",
-                "Save Current Account remains available when the menu is idle and empty",
-                "Remove Account still renders as a stable control even when no saved accounts exist"
+                "Add Account… remains available when the menu is idle and empty",
+                "Per-account management actions are omitted when there are no saved accounts"
             ]
         default:
             return []

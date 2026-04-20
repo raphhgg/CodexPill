@@ -89,10 +89,7 @@ struct MenuBarMenuBuilderTests {
 
         let addAccountMenu = try #require(
             menu.items
-                .first(where: { $0.title == "Accounts" })?
-                .submenu?
-                .items
-                .first(where: { $0.title == "Add Account" })?
+                .first(where: { $0.title == "Add Account…" })?
                 .submenu
         )
         let saveCurrent = try #require(addAccountMenu.items.first(where: { $0.title == "Save Current Account" }))
@@ -122,6 +119,10 @@ struct MenuBarMenuBuilderTests {
         let submenu = try #require(visibleRow.submenu)
         let statusItem = try #require(submenu.items.first)
         let localAction = try #require(submenu.items.first(where: { $0.title == "Switch on This Mac" }))
+        let renameAction = try #require(submenu.items.first(where: { $0.title == "Rename…" }))
+        let removeAction = try #require(submenu.items.first(where: { $0.title == "Remove…" }))
+        let renameIndex = try #require(submenu.items.firstIndex(where: { $0.title == "Rename…" }))
+        let removeIndex = try #require(submenu.items.firstIndex(where: { $0.title == "Remove…" }))
 
         #expect(visibleRow.view == nil)
         #expect(visibleRow.attributedTitle?.string.contains("S ") == true)
@@ -135,6 +136,12 @@ struct MenuBarMenuBuilderTests {
         #expect(localAction.action == #selector(MenuBarCoordinator.switchAccount(_:)))
         #expect(localAction.target === coordinator)
         #expect(localAction.representedObject as? String == business3.id.uuidString)
+        #expect(renameAction.action == #selector(MenuBarCoordinator.renameAccount(_:)))
+        #expect(renameAction.representedObject as? String == business3.id.uuidString)
+        #expect(removeAction.action == #selector(MenuBarCoordinator.removeAccount(_:)))
+        #expect(removeAction.representedObject as? String == business3.id.uuidString)
+        #expect(submenu.items[renameIndex - 1].isSeparatorItem)
+        #expect(removeIndex == renameIndex + 1)
         #expect(menu.autoenablesItems)
     }
 
@@ -190,6 +197,8 @@ struct MenuBarMenuBuilderTests {
         let statusItem = try #require(submenu.items.first(where: { $0.title == "Not currently in use" }))
         let localAction = try #require(submenu.items.first(where: { $0.title == "Switch on This Mac" }))
         let remoteAction = try #require(submenu.items.first(where: { $0.title == "Switch on devbox" }))
+        let renameAction = try #require(submenu.items.first(where: { $0.title == "Rename…" }))
+        let removeAction = try #require(submenu.items.first(where: { $0.title == "Remove…" }))
 
         #expect(accountItem.submenu === submenu)
         #expect(accountItem.attributedTitle?.string.contains("S ") == true)
@@ -201,6 +210,8 @@ struct MenuBarMenuBuilderTests {
         #expect(localAction.target === coordinator)
         #expect(remoteAction.action == #selector(MenuBarCoordinator.switchAccountOnHost(_:)))
         #expect(remoteAction.target === coordinator)
+        #expect(renameAction.action == #selector(MenuBarCoordinator.renameAccount(_:)))
+        #expect(removeAction.action == #selector(MenuBarCoordinator.removeAccount(_:)))
         let remotePayload = try #require(remoteAction.representedObject as? HostAccountMenuItemPayload)
         #expect(remotePayload.accountID == inactive.id)
         #expect(remotePayload.hostDestination == "user@devbox")
@@ -587,7 +598,7 @@ struct MenuBarMenuBuilderTests {
         #expect(statusItem.menu === menu)
         #expect(menu.delegate === coordinator)
         #expect(!menu.items.isEmpty)
-        #expect(menu.items.contains(where: { $0.title == "Accounts" }))
+        #expect(menu.items.contains(where: { $0.title == "Add Account…" }))
     }
 
     private func statusItemContentMenu(in menu: NSMenu) -> NSMenu? {
