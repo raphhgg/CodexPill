@@ -97,6 +97,50 @@ struct RemoteHostRateLimitFallbackTests {
     }
 
     @Test
+    func preservesFallbackResetTimeWhenRemoteWindowOmitsIt() {
+        let fallbackReset = Date().addingTimeInterval(37 * 60)
+        let baseAccount = makeAccount(
+            email: "raphaelgrau@gmail.com",
+            stableAccountID: "acct-team",
+            sessionUsedPercent: 0,
+            sessionResetsAt: nil,
+            weeklyUsedPercent: 0,
+            weeklyResetsAt: nil
+        )
+        let savedMatchingAccount = makeAccount(
+            email: "raphaelgrau@gmail.com",
+            stableAccountID: "acct-team",
+            sessionUsedPercent: 81,
+            sessionResetsAt: fallbackReset,
+            weeklyUsedPercent: 15,
+            weeklyResetsAt: Date().addingTimeInterval(6 * 24 * 60 * 60)
+        )
+        let remote = CodexRateLimitSnapshot(
+            limitID: nil,
+            limitName: nil,
+            planType: "team",
+            primary: CodexRateLimitWindow(
+                usedPercent: 92,
+                resetsAt: nil,
+                windowDurationMinutes: 300
+            ),
+            secondary: nil,
+            fetchedAt: .now
+        )
+
+        let result = preferredRemoteRateLimits(
+            remote: remote,
+            fallback: baseAccount.rateLimits,
+            candidateAccounts: [savedMatchingAccount],
+            baseAccount: baseAccount,
+            remoteEmail: "raphaelgrau@gmail.com"
+        )
+
+        #expect(result?.primary?.usedPercent == 92)
+        #expect(result?.primary?.resetsAt == fallbackReset)
+    }
+
+    @Test
     func usesScopedStableIdentityToChooseMatchingSavedAccountWhenRemoteEmailIsAmbiguous() {
         let baseAccount = makeAccount(
             email: "raphaelgrau@gmail.com",
@@ -218,6 +262,48 @@ struct RemoteHostRateLimitFallbackTests {
         #expect(result?.primary?.resetsAt != nil)
         #expect(result?.secondary?.usedPercent == 31)
         #expect(result?.secondary?.resetsAt != nil)
+    }
+
+    @Test
+    func fallsBackWhenRemoteWindowHasExpiredResetTime() {
+        let now = Date()
+        let fallbackReset = now.addingTimeInterval(21 * 60)
+        let baseAccount = makeAccount(
+            email: "raphaelgrau@gmail.com",
+            stableAccountID: "acct-team",
+            sessionUsedPercent: 100,
+            sessionResetsAt: fallbackReset,
+            weeklyUsedPercent: 16,
+            weeklyResetsAt: now.addingTimeInterval(5 * 24 * 60 * 60)
+        )
+        let remote = CodexRateLimitSnapshot(
+            limitID: nil,
+            limitName: nil,
+            planType: "team",
+            primary: CodexRateLimitWindow(
+                usedPercent: 100,
+                resetsAt: now.addingTimeInterval(-45 * 60),
+                windowDurationMinutes: 300
+            ),
+            secondary: CodexRateLimitWindow(
+                usedPercent: 16,
+                resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60),
+                windowDurationMinutes: 10_080
+            ),
+            fetchedAt: now
+        )
+
+        let result = preferredRemoteRateLimits(
+            remote: remote,
+            fallback: baseAccount.rateLimits,
+            candidateAccounts: [baseAccount],
+            baseAccount: baseAccount,
+            remoteEmail: "raphaelgrau@gmail.com"
+        )
+
+        #expect(result?.primary?.displayedUsedPercent(at: now) == 100)
+        #expect(result?.primary?.resetsAt == fallbackReset)
+        #expect(result?.secondary?.usedPercent == 16)
     }
 
     private func makeAccount(

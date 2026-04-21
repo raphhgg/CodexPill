@@ -158,7 +158,7 @@ struct MenuBarLiveValidationTests {
     @Test
     func coordinatorRefreshesLiveSnapshotWhenStatusItemRuntimeStateChanges() throws {
         let sink = RecordingValidationSink()
-        let repository = try AccountRepository()
+        let repository = try makeIsolatedRepository()
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
@@ -186,7 +186,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: runtime,
             store: store,
             settings: settings,
-            alertPresenter: MenuBarAlertPresenter(),
+            alertPresenter: TestMenuBarAlertPresenter(),
             validationSink: sink,
             validationScenario: "live-status-item-hover",
             allowsEmptyStatePrompt: false
@@ -205,7 +205,7 @@ struct MenuBarLiveValidationTests {
     @Test
     func coordinatorRestoresPersistedRemoteHostAccountOnStart() async throws {
         let sink = RecordingValidationSink()
-        let repository = try AccountRepository()
+        let repository = try makeIsolatedRepository()
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
@@ -256,7 +256,7 @@ struct MenuBarLiveValidationTests {
                     )
                 )
             ),
-            alertPresenter: MenuBarAlertPresenter(),
+            alertPresenter: TestMenuBarAlertPresenter(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -272,7 +272,7 @@ struct MenuBarLiveValidationTests {
     @Test
     func coordinatorMarksPersistedRemoteHostDisconnectedWhenRefreshFails() async throws {
         let sink = RecordingValidationSink()
-        let repository = try AccountRepository()
+        let repository = try makeIsolatedRepository()
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
@@ -313,7 +313,7 @@ struct MenuBarLiveValidationTests {
             remoteHostClient: RemoteHostClientStatusSpy(
                 readError: RemoteHostClientError.commandFailed("ssh: connection refused")
             ),
-            alertPresenter: MenuBarAlertPresenter(),
+            alertPresenter: TestMenuBarAlertPresenter(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -333,7 +333,7 @@ struct MenuBarLiveValidationTests {
     @Test
     func coordinatorMarksPersistedRemoteHostFailedWhenDesiredAccountIsMissingLocally() async throws {
         let sink = RecordingValidationSink()
-        let repository = try AccountRepository()
+        let repository = try makeIsolatedRepository()
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
@@ -363,7 +363,7 @@ struct MenuBarLiveValidationTests {
             store: store,
             settings: settings,
             remoteHostClient: RemoteHostClientStatusSpy(),
-            alertPresenter: MenuBarAlertPresenter(),
+            alertPresenter: TestMenuBarAlertPresenter(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -381,7 +381,7 @@ struct MenuBarLiveValidationTests {
     @Test
     func coordinatorRestoresAllPersistedRemoteHostAccountsOnStart() async throws {
         let sink = RecordingValidationSink()
-        let repository = try AccountRepository()
+        let repository = try makeIsolatedRepository()
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
@@ -438,7 +438,7 @@ struct MenuBarLiveValidationTests {
                     "user@debian-vm": CodexAccountStatus(email: "debian@example.com", planType: "team", rateLimits: nil)
                 ]
             ),
-            alertPresenter: MenuBarAlertPresenter(),
+            alertPresenter: TestMenuBarAlertPresenter(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -456,7 +456,7 @@ struct MenuBarLiveValidationTests {
     @Test
     func coordinatorShowsOnlyReachableRemoteHostsInPrimarySectionWhenRestoreIsMixed() async throws {
         let sink = RecordingValidationSink()
-        let repository = try AccountRepository()
+        let repository = try makeIsolatedRepository()
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
@@ -515,7 +515,7 @@ struct MenuBarLiveValidationTests {
                     "user@debian-vm": RemoteHostClientError.commandFailed("ssh: connection refused")
                 ]
             ),
-            alertPresenter: MenuBarAlertPresenter(),
+            alertPresenter: TestMenuBarAlertPresenter(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -538,7 +538,7 @@ struct MenuBarLiveValidationTests {
     @Test
     func reverifyHostActionPromotesFailedHostBackToVerified() async throws {
         let sink = RecordingValidationSink()
-        let repository = try AccountRepository()
+        let repository = try makeIsolatedRepository()
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
@@ -582,7 +582,7 @@ struct MenuBarLiveValidationTests {
             remoteHostClient: RemoteHostClientStatusSpy(
                 status: CodexAccountStatus(email: "business-2@example.com", planType: "team", rateLimits: nil)
             ),
-            alertPresenter: MenuBarAlertPresenter(),
+            alertPresenter: TestMenuBarAlertPresenter(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -604,7 +604,7 @@ struct MenuBarLiveValidationTests {
     @Test
     func adoptDetectedRemoteAccountPromotesMismatchToVerified() async throws {
         let sink = RecordingValidationSink()
-        let repository = try AccountRepository()
+        let repository = try makeIsolatedRepository()
         try repository.bootstrapStorage()
 
         let desiredAccount = CodexAccount(
@@ -680,7 +680,7 @@ struct MenuBarLiveValidationTests {
                     snapshotFingerprint: "snapshot-business-1"
                 )
             ),
-            alertPresenter: MenuBarAlertPresenter(),
+            alertPresenter: TestMenuBarAlertPresenter(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -706,7 +706,7 @@ struct MenuBarLiveValidationTests {
     @Test
     func coordinatorMarksRemoteHostFailedWhenStartupRefreshNoLongerMatchesDesiredAccount() async throws {
         let sink = RecordingValidationSink()
-        let repository = try AccountRepository()
+        let repository = try makeIsolatedRepository()
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
@@ -751,7 +751,7 @@ struct MenuBarLiveValidationTests {
                     rateLimits: nil
                 )
             ),
-            alertPresenter: MenuBarAlertPresenter(),
+            alertPresenter: TestMenuBarAlertPresenter(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -771,7 +771,9 @@ struct MenuBarLiveValidationTests {
     @Test
     func coordinatorKeepsReachableRemoteHostConnectedWhenAuthVerificationReadFails() async throws {
         let sink = RecordingValidationSink()
-        let repository = try AccountRepository()
+        let repository = try makeIsolatedRepository()
+        try repository.bootstrapStorage()
+        let alertPresenter = TestMenuBarAlertPresenter()
         let account = CodexAccount(
             id: UUID(),
             name: "Business 2",
@@ -818,7 +820,7 @@ struct MenuBarLiveValidationTests {
             remoteHostClient: RemoteHostClientStatusSpy(
                 readError: RemoteHostClientError.authReadFailed("cat: .codex/auth.json: Permission denied")
             ),
-            alertPresenter: MenuBarAlertPresenter(),
+            alertPresenter: alertPresenter,
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -832,12 +834,14 @@ struct MenuBarLiveValidationTests {
         #expect(remoteHost.connectionState == "connected")
         #expect(remoteHost.verificationStatus == "failed")
         #expect(remoteHost.lastVerificationError == "cat: .codex/auth.json: Permission denied")
+        #expect(alertPresenter.infoRequests.isEmpty)
     }
 
     @Test
     func switchAccountOnHostKeepsReachableRemoteHostConnectedWhenAuthVerificationReadFails() async throws {
         let sink = RecordingValidationSink()
-        let repository = try AccountRepository()
+        let repository = try makeIsolatedRepository()
+        try repository.bootstrapStorage()
         let account = CodexAccount(
             id: UUID(),
             name: "Business 2",
@@ -886,7 +890,7 @@ struct MenuBarLiveValidationTests {
             store: store,
             settings: settings,
             remoteHostClient: remoteHostClient,
-            alertPresenter: MenuBarAlertPresenter(),
+            alertPresenter: TestMenuBarAlertPresenter(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -919,7 +923,7 @@ struct MenuBarLiveValidationTests {
     @Test
     func coordinatorPreservesMeaningfulSavedLimitsWhenRemoteRefreshReturnsZeroedWindows() async throws {
         let sink = RecordingValidationSink()
-        let repository = try AccountRepository()
+        let repository = try makeIsolatedRepository()
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
@@ -989,7 +993,7 @@ struct MenuBarLiveValidationTests {
                     )
                 )
             ),
-            alertPresenter: MenuBarAlertPresenter(),
+            alertPresenter: TestMenuBarAlertPresenter(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -1008,7 +1012,7 @@ struct MenuBarLiveValidationTests {
     @Test
     func coordinatorUsesMatchingInactiveSavedAccountLimitsWhenRemoteRefreshReturnsZeroedWindows() async throws {
         let sink = RecordingValidationSink()
-        let repository = try AccountRepository()
+        let repository = try makeIsolatedRepository()
         let matchingSavedAccount = CodexAccount(
             id: UUID(),
             name: "Business 2",
@@ -1163,7 +1167,7 @@ struct MenuBarLiveValidationTests {
                     )
                 )
             ),
-            alertPresenter: MenuBarAlertPresenter(),
+            alertPresenter: TestMenuBarAlertPresenter(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -1177,6 +1181,158 @@ struct MenuBarLiveValidationTests {
         )
         #expect(remoteSummary.contains("Session: 100% used"))
         #expect(remoteSummary.contains("Weekly: 16% used"))
+    }
+
+    @Test
+    func coordinatorRelinksStaleRemoteHostAccountIDsToCurrentSavedCatalogOnStartup() async throws {
+        let sink = RecordingValidationSink()
+        let repository = try makeIsolatedRepository()
+        let now = Date.now
+        let currentSavedAccount = CodexAccount(
+            id: UUID(),
+            name: "Business 2",
+            snapshotFileName: "business-2.json",
+            createdAt: now,
+            updatedAt: now,
+            email: "raphaelgrau@gmail.com",
+            planType: "team",
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: nil,
+                limitName: nil,
+                planType: "team",
+                primary: CodexRateLimitWindow(
+                    usedPercent: 100,
+                    resetsAt: now.addingTimeInterval(21 * 60),
+                    windowDurationMinutes: 300
+                ),
+                secondary: CodexRateLimitWindow(
+                    usedPercent: 16,
+                    resetsAt: now.addingTimeInterval(5 * 24 * 60 * 60),
+                    windowDurationMinutes: 10_080
+                ),
+                fetchedAt: now
+            ),
+            identity: CodexAccountIdentity(
+                stableAccountID: "acct-team",
+                authPrincipalIdentity: CodexAuthPrincipalIdentity(
+                    subject: "auth0|business-2",
+                    chatGPTUserID: "user-business-2"
+                ),
+                workspaceIdentity: CodexWorkspaceIdentity(
+                    workspaceAccountID: "org-business-2",
+                    workspaceLabel: "Personal"
+                ),
+                snapshotFingerprint: UUID().uuidString,
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@gmail.com")
+            )
+        )
+        try repository.bootstrapStorage()
+        try repository.saveAccounts([currentSavedAccount])
+        let store = MenuBarAccountsStore(
+            repository: repository,
+            authService: CodexAuthSnapshotService(repository: repository),
+            appController: CodexAppController(),
+            appServerClient: CodexAppServerClient()
+        )
+        store.load()
+
+        let suiteName = "MenuBarLiveValidationRelinkedRemoteHost-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = AppSettings(userDefaults: defaults)
+        let staleRemoteAccount = CodexAccount(
+            id: UUID(),
+            name: "Business 2",
+            snapshotFileName: "stale-business-2.json",
+            createdAt: now.addingTimeInterval(-3600),
+            updatedAt: now.addingTimeInterval(-3600),
+            email: "raphaelgrau@gmail.com",
+            planType: "team",
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: nil,
+                limitName: nil,
+                planType: "team",
+                primary: CodexRateLimitWindow(
+                    usedPercent: 100,
+                    resetsAt: now.addingTimeInterval(-45 * 60),
+                    windowDurationMinutes: 300
+                ),
+                secondary: CodexRateLimitWindow(
+                    usedPercent: 16,
+                    resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60),
+                    windowDurationMinutes: 10_080
+                ),
+                fetchedAt: now.addingTimeInterval(-3600)
+            ),
+            identity: CodexAccountIdentity(
+                stableAccountID: "d8422eb7-1cdf-4c9f-af05-736ffb0ec845",
+                authPrincipalIdentity: CodexAuthPrincipalIdentity(
+                    subject: "auth0|63892cb90f565d7364529cd1",
+                    chatGPTUserID: "user-v1Xnksr7Nc6WNNVd8Z9HkaSL"
+                ),
+                workspaceIdentity: CodexWorkspaceIdentity(
+                    workspaceAccountID: "org-dE46tuoTzGzCaGdw0YP0CZpz",
+                    workspaceLabel: "Personal"
+                ),
+                snapshotFingerprint: UUID().uuidString,
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@gmail.com")
+            )
+        )
+        settings.remoteHostStates = [
+            PersistedRemoteHostState(
+                host: RemoteHost(destination: "debian-vm", displayName: "debian-vm"),
+                desiredAccountID: staleRemoteAccount.id,
+                verifiedAccount: staleRemoteAccount,
+                verificationStatus: .verified
+            )
+        ]
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let coordinator = MenuBarCoordinator(
+            statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
+            store: store,
+            settings: settings,
+            remoteHostClient: RemoteHostClientStatusSpy(
+                status: CodexAccountStatus(
+                    email: "raphaelgrau@gmail.com",
+                    planType: "team",
+                    rateLimits: nil
+                )
+            ),
+            alertPresenter: TestMenuBarAlertPresenter(),
+            validationSink: sink,
+            validationScenario: "live-menu-open",
+            allowsEmptyStatePrompt: false
+        )
+
+        coordinator.start()
+        try? await Task.sleep(for: .milliseconds(50))
+
+        let refreshedHostState = try #require(settings.remoteHostState(for: "debian-vm"))
+        #expect(refreshedHostState.desiredAccountID == currentSavedAccount.id)
+        #expect(refreshedHostState.activeAccount?.id == currentSavedAccount.id)
+        #expect(refreshedHostState.activeAccount?.rateLimits?.primary?.displayedUsedPercent(at: now) == 100)
+        let actualPrimaryReset = try #require(refreshedHostState.activeAccount?.rateLimits?.primary?.resetsAt)
+        let expectedPrimaryReset = try #require(currentSavedAccount.rateLimits?.primary?.resetsAt)
+        #expect(abs(actualPrimaryReset.timeIntervalSince(expectedPrimaryReset)) < 1)
+
+        let remoteSummary = try #require(
+            sink.snapshots.last?.sections.first(where: { $0.title == "Remote Accounts" })?.items.first
+        )
+        #expect(remoteSummary.contains("Session: 100% used"))
+        #expect(remoteSummary.contains("Weekly: 16% used"))
+    }
+
+    private func makeIsolatedRepository() throws -> AccountRepository {
+        let appSupportDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("MenuBarLiveValidationTests-\(UUID().uuidString)", isDirectory: true)
+        return try AccountRepository(
+            environment: [AppRuntimeEnvironment.validationAppSupportDirectoryEnvironmentKey: appSupportDirectory.path]
+        )
     }
 }
 

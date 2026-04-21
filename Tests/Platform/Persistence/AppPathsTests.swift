@@ -22,6 +22,33 @@ struct AppPathsTests {
             normalizedDirectoryPath(paths.snapshotsDirectory)
                 == normalizedDirectoryPath(overrideDirectory.appendingPathComponent("snapshots", isDirectory: true))
         )
+        #expect(
+            paths.codexAuthFile.standardizedFileURL.path
+                == overrideDirectory
+                .appendingPathComponent(".codex", isDirectory: true)
+                .appendingPathComponent("auth.json")
+                .standardizedFileURL.path
+        )
+    }
+
+    @Test
+    func automatedTestsDefaultToTemporaryApplicationSupportLocation() throws {
+        let paths = try AppPaths(
+            fileManager: .default,
+            environment: [AppRuntimeEnvironment.xctestConfigurationFilePathEnvironmentKey: "/tmp/test.xctestconfiguration"]
+        )
+
+        let expectedDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CodexPillTests-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true)
+        #expect(normalizedDirectoryPath(paths.appSupportDirectory) == normalizedDirectoryPath(expectedDirectory))
+        #expect(paths.accountsFile.standardizedFileURL.path == expectedDirectory.appendingPathComponent("accounts.json").standardizedFileURL.path)
+        #expect(
+            paths.codexAuthFile.standardizedFileURL.path
+                == expectedDirectory
+                .appendingPathComponent(".codex", isDirectory: true)
+                .appendingPathComponent("auth.json")
+                .standardizedFileURL.path
+        )
     }
 
     private func normalizedDirectoryPath(_ url: URL) -> String {

@@ -7,6 +7,7 @@ enum AppRuntimeEnvironment {
     static let validationUserDefaultsSuiteEnvironmentKey = "CODEXPILL_VALIDATION_USER_DEFAULTS_SUITE"
     static let validationSettingsFixtureEnvironmentKey = "CODEXPILL_VALIDATION_SETTINGS_FIXTURE"
     static let validationRemoteHostClientEnvironmentKey = "CODEXPILL_VALIDATION_REMOTE_HOST_CLIENT"
+    static let xctestConfigurationFilePathEnvironmentKey = "XCTestConfigurationFilePath"
 
     static func shouldSuppressEmptyStatePrompt(
         environment: [String: String] = ProcessInfo.processInfo.environment
@@ -65,6 +66,32 @@ enum AppRuntimeEnvironment {
         }
 
         return false
+    }
+
+    static func isRunningAutomatedTests(
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> Bool {
+        guard let rawValue = environment[xctestConfigurationFilePathEnvironmentKey]?
+            .trimmingCharacters(in: .whitespacesAndNewlines) else {
+            return false
+        }
+
+        return !rawValue.isEmpty
+    }
+
+    static func automatedTestAppSupportDirectory(
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> URL? {
+        guard isRunningAutomatedTests(environment: environment) else { return nil }
+
+        return FileManager.default.temporaryDirectory
+            .appendingPathComponent("CodexPillTests-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true)
+    }
+
+    static func shouldSuppressInteractiveAlerts(
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> Bool {
+        isRunningAutomatedTests(environment: environment) || MenuBarValidationConfiguration.makeSink(environment: environment) != nil
     }
 
     private static func trimmedURLValue(

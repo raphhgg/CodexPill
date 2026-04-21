@@ -78,6 +78,7 @@ struct MenuBarAccountCatalogEntry: Equatable {
 
 struct MenuBarMenuState {
     private static let nonActiveAccountVisibilityLimit = 3
+    private let savedAccountRelinker = SavedAccountRelinker()
 
     let activeAccount: CodexAccount?
     let inactiveAccounts: [CodexAccount]
@@ -252,18 +253,10 @@ struct MenuBarMenuState {
     }
 
     private func resolveRemoteActiveAccount(_ remoteAccount: CodexAccount) -> CodexAccount {
-        let matchOutcome = CodexAccountMatcher().match(
-            liveStableAccountID: remoteAccount.identity.stableAccountID,
-            liveAuthPrincipalIdentity: remoteAccount.identity.authPrincipalIdentity,
-            liveWorkspaceIdentity: remoteAccount.identity.workspaceIdentity,
-            liveAuthFingerprint: remoteAccount.identity.snapshotFingerprint,
-            liveRemoteIdentity: remoteAccount.resolvedRemoteIdentity,
-            accounts: allSavedAccounts
-        )
-
-        guard let matchedAccountID = matchOutcome.matchedAccountID,
-              let matchedAccount = allSavedAccounts.first(where: { $0.id == matchedAccountID })
-        else {
+        guard let matchedAccount = savedAccountRelinker.resolveCanonicalAccount(
+            for: remoteAccount,
+            among: allSavedAccounts
+        ) else {
             return remoteAccount
         }
 

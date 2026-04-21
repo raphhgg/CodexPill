@@ -6,7 +6,110 @@ import Testing
 @testable import CodexPill
 
 @MainActor
+final class TestMenuBarAlertPresenter: MenuBarAlertPresenting {
+    private(set) var textInputRequests: [MenuBarTextInputAlertRequest] = []
+    private(set) var confirmationRequests: [MenuBarConfirmationAlertRequest] = []
+    private(set) var infoRequests: [MenuBarInfoAlertRequest] = []
+    private(set) var hostSetupRequests: [MenuBarHostSetupAlertRequest] = []
+
+    var textInputResponse: String?
+    var confirmationResponse = false
+    var hostSetupResponse: RemoteHost?
+
+    func presentTextInput(_ request: MenuBarTextInputAlertRequest) -> String? {
+        textInputRequests.append(request)
+        return textInputResponse
+    }
+
+    func presentConfirmation(_ request: MenuBarConfirmationAlertRequest) -> Bool {
+        confirmationRequests.append(request)
+        return confirmationResponse
+    }
+
+    func presentInfo(_ request: MenuBarInfoAlertRequest) {
+        infoRequests.append(request)
+    }
+
+    func presentHostSetup(
+        _ request: MenuBarHostSetupAlertRequest,
+        testConnection _: @escaping (RemoteHost) async -> Result<Void, Error>,
+        onPresented: @escaping () -> Void = {},
+        onCancelled _: @escaping () -> Void = {},
+        onValidationStarted _: @escaping (RemoteHost) -> Void = { _ in },
+        onValidationFinished _: @escaping (RemoteHost, Result<Void, Error>) -> Void = { _, _ in }
+    ) async -> RemoteHost? {
+        hostSetupRequests.append(request)
+        onPresented()
+        return hostSetupResponse
+    }
+}
+
+@MainActor
 struct MenuBarMenuBuilderTests {
+    @Test
+    func realAlertPresenterSuppressesInfoAlertsDuringAutomatedTests() {
+        let presenter = MenuBarAlertPresenter(
+            environment: [AppRuntimeEnvironment.xctestConfigurationFilePathEnvironmentKey: "/tmp/test.xctestconfiguration"]
+        )
+
+        presenter.presentInfo(
+            MenuBarInfoAlertRequest(
+                messageText: "CodexPill Error",
+                informativeText: "Permission denied",
+                style: .warning,
+                buttonTitle: "OK"
+            )
+        )
+    }
+
+    @Test
+    func realAlertPresenterCancelsInteractivePromptsDuringAutomatedTests() async {
+        let presenter = MenuBarAlertPresenter(
+            environment: [AppRuntimeEnvironment.xctestConfigurationFilePathEnvironmentKey: "/tmp/test.xctestconfiguration"]
+        )
+
+        let textValue = presenter.presentTextInput(
+            MenuBarTextInputAlertRequest(
+                messageText: "Rename",
+                informativeText: "Rename account",
+                fieldTitle: "Name",
+                placeholder: "Business",
+                confirmTitle: "Save",
+                cancelTitle: "Cancel"
+            )
+        )
+        let confirmation = presenter.presentConfirmation(
+            MenuBarConfirmationAlertRequest(
+                messageText: "Remove",
+                informativeText: "Delete account",
+                confirmTitle: "Remove",
+                cancelTitle: "Cancel"
+            )
+        )
+        var cancelled = false
+        let hostValue = await presenter.presentHostSetup(
+            MenuBarHostSetupAlertRequest(
+                messageText: "Add host",
+                informativeText: "Connect a host",
+                fieldTitle: "SSH Destination",
+                placeholder: "user@host",
+                nameFieldTitle: "Host Name",
+                namePlaceholder: "buildbox",
+                confirmTitle: "Add Host",
+                cancelTitle: "Cancel",
+                idleStatusText: "Idle",
+                successStatusText: "Success"
+            ),
+            testConnection: { _ in .success(()) },
+            onCancelled: { cancelled = true }
+        )
+
+        #expect(textValue == nil)
+        #expect(confirmation == false)
+        #expect(hostValue == nil)
+        #expect(cancelled)
+    }
+
     @Test
     func statusItemContentOptionsAreDisabledWhenNoStatusDataExists() throws {
         let builder = MenuBarMenuBuilder()
@@ -975,7 +1078,7 @@ struct MenuBarMenuBuilderTests {
     }
 
     private func makeCoordinatorWithStatusItem() throws -> (MenuBarCoordinator, NSStatusItem) {
-        let repository = try AccountRepository()
+        let repository = try makeIsolatedRepository()
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
@@ -992,9 +1095,17 @@ struct MenuBarMenuBuilderTests {
             statusItemRuntime: statusItemRuntime,
             store: store,
             settings: settings,
-            alertPresenter: MenuBarAlertPresenter()
+            alertPresenter: TestMenuBarAlertPresenter()
         )
         return (coordinator, statusItem)
+    }
+
+    private func makeIsolatedRepository() throws -> AccountRepository {
+        let appSupportDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("MenuBarMenuBuilderTests-\(UUID().uuidString)", isDirectory: true)
+        return try AccountRepository(
+            environment: [AppRuntimeEnvironment.validationAppSupportDirectoryEnvironmentKey: appSupportDirectory.path]
+        )
     }
 
     private func makeState(

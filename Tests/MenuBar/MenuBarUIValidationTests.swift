@@ -818,7 +818,7 @@ struct MenuBarUIValidationTests {
     }
 
     private func makeCoordinator() throws -> MenuBarCoordinator {
-        let repository = try AccountRepository()
+        let repository = try makeIsolatedRepository()
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
@@ -834,7 +834,15 @@ struct MenuBarUIValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            alertPresenter: MenuBarAlertPresenter()
+            alertPresenter: TestMenuBarAlertPresenter()
+        )
+    }
+
+    private func makeIsolatedRepository() throws -> AccountRepository {
+        let appSupportDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("MenuBarUIValidationTests-\(UUID().uuidString)", isDirectory: true)
+        return try AccountRepository(
+            environment: [AppRuntimeEnvironment.validationAppSupportDirectoryEnvironmentKey: appSupportDirectory.path]
         )
     }
 

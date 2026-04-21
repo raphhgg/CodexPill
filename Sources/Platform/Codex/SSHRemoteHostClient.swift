@@ -312,20 +312,11 @@ struct SSHRemoteHostClient: RemoteHostSwitching {
 
     private func shouldRetry(status: CodexAccountStatus?, attemptIndex: Int, totalAttempts: Int) -> Bool {
         guard attemptIndex < totalAttempts - 1 else { return false }
-        guard let status else { return true }
-        return status.email != nil && status.rateLimits == nil
+        return appServerStatusNeedsRetry(status)
     }
 
     private func mergeStatuses(previous: CodexAccountStatus?, current: CodexAccountStatus) -> CodexAccountStatus {
-        CodexAccountStatus(
-            email: current.email ?? previous?.email,
-            planType: current.planType ?? previous?.planType,
-            rateLimits: current.rateLimits ?? previous?.rateLimits,
-            stableAccountID: current.stableAccountID ?? previous?.stableAccountID,
-            authPrincipalIdentity: current.authPrincipalIdentity ?? previous?.authPrincipalIdentity,
-            workspaceIdentity: current.workspaceIdentity ?? previous?.workspaceIdentity,
-            snapshotFingerprint: current.snapshotFingerprint ?? previous?.snapshotFingerprint
-        )
+        mergeAppServerStatuses(previous: previous, current: current)
     }
 
     private func enrichStatusWithRemoteAuthDataIfAvailable(

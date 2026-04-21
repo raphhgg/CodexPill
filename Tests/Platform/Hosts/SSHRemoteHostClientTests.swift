@@ -252,6 +252,35 @@ struct SSHRemoteHostClientTests {
     }
 
     @Test
+    func readCurrentAccountStatusRetriesWhenFirstRemoteResponseHasOnlyWeeklyRateLimits() async throws {
+        let weeklyOnly = [
+            #"{"id":2,"result":{"account":{"email":"remote@example.com","planType":"team"}}}"#,
+            #"{"id":3,"result":{"rateLimits":{"planType":"team","secondary":{"usedPercent":16,"resetsAt":2000500000,"windowDurationMins":10080}}}}"#
+        ]
+        let full = [
+            #"{"id":2,"result":{"account":{"email":"remote@example.com","planType":"team"}}}"#,
+            #"{"id":3,"result":{"rateLimits":{"limitId":"team","limitName":"Team","planType":"team","primary":{"usedPercent":69,"resetsAt":2000000000,"windowDurationMins":300},"secondary":{"usedPercent":38,"resetsAt":2000500000,"windowDurationMins":10080}}}}"#
+        ]
+        let executableURL = try makeRemoteAppServerFixtureExecutable(firstLines: weeklyOnly, refreshedLines: full)
+        defer { try? FileManager.default.removeItem(at: executableURL) }
+        let runner = CommandRunnerSpy(results: [
+            .success(.init(terminationStatus: 17, standardOutput: Data(), standardError: Data()))
+        ])
+
+        let client = SSHRemoteHostClient(
+            snapshotLocator: SnapshotLocatorStub(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
+            commandRunner: runner,
+            sshExecutableURL: executableURL,
+            scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp")
+        )
+
+        let status = try await client.readCurrentAccountStatus(on: RemoteHost(destination: "user@buildbox"))
+
+        #expect(status.rateLimits?.primary?.usedPercent == 69)
+        #expect(status.rateLimits?.secondary?.usedPercent == 38)
+    }
+
+    @Test
     func readCurrentAccountStatusPrefersRemoteAuthFingerprintWhenAppServerIdentityIsAmbiguous() async throws {
         let executableURL = try makeRemoteAppServerFixtureExecutable(
             lines: [
@@ -388,16 +417,29 @@ private func makeFingerprint(for data: Data) -> String {
     return digest.map { String(format: "%02x", $0) }.joined()
 }
 
-private func makeRemoteAppServerFixtureExecutable(lines: [String]? = nil) throws -> URL {
-    let payloadLines = lines ?? [
+private func makeRemoteAppServerFixtureExecutable(
+    lines: [String]? = nil,
+    firstLines: [String]? = nil,
+    refreshedLines: [String]? = nil
+) throws -> URL {
+    let defaultLines = lines ?? [
         #"{"id":2,"result":{"account":{"email":"remote@example.com","planType":"team"}}}"#,
         #"{"id":3,"result":{"rateLimits":{"limitId":"team","limitName":"Team","planType":"team","primary":{"usedPercent":69,"resetsAt":2000000000,"windowDurationMins":300},"secondary":{"usedPercent":38,"resetsAt":2000500000,"windowDurationMins":10080}}}}"#
     ]
-    let printedLines = payloadLines.map { "printf '%s\\n' '\($0)'" }.joined(separator: "\n")
+    let initialLines = firstLines ?? defaultLines
+    let refreshLines = refreshedLines ?? defaultLines
+    let initialPrintedLines = initialLines.map { "printf '%s\\n' '\($0)'" }.joined(separator: "\n")
+    let refreshPrintedLines = refreshLines.map { "printf '%s\\n' '\($0)'" }.joined(separator: "\n")
+    let stateFile = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).path
     let script = """
     #!/bin/sh
     cat >/dev/null
-    \(printedLines)
+    if [ ! -f "\(stateFile)" ]; then
+      touch "\(stateFile)"
+    \(initialPrintedLines)
+    else
+    \(refreshPrintedLines)
+    fi
     """
 
     let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

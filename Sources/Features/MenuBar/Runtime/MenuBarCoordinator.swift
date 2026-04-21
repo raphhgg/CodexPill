@@ -74,21 +74,26 @@ func remoteRateLimitsContainMeaningfulData(_ snapshot: CodexRateLimitSnapshot?) 
 
 func remoteRateLimitWindowContainsMeaningfulData(_ window: CodexRateLimitWindow?) -> Bool {
     guard let window else { return false }
-    if window.usedPercent > 0 {
+    if let resetsAt = window.resetsAt {
+        guard resetsAt > .now else { return false }
         return true
     }
-    if let resetsAt = window.resetsAt, resetsAt > .now {
-        return true
-    }
-    return false
+    return window.usedPercent > 0
 }
 
 func preferredRemoteRateLimitWindow(
     _ remote: CodexRateLimitWindow?,
     fallback: CodexRateLimitWindow?
 ) -> CodexRateLimitWindow? {
+    guard let remote else { return fallback }
+    guard let fallback else { return remote }
+
     if remoteRateLimitWindowContainsMeaningfulData(remote) {
-        return remote
+        return CodexRateLimitWindow(
+            usedPercent: remote.usedPercent,
+            resetsAt: remote.resetsAt ?? fallback.resetsAt,
+            windowDurationMinutes: remote.windowDurationMinutes ?? fallback.windowDurationMinutes
+        )
     }
     return fallback
 }
@@ -110,12 +115,13 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let settings: AppSettings
     private let remoteHostClient: RemoteHostSwitching
     private let cliProcessInspector: CodexCLIProcessInspector
-    private let alertPresenter: MenuBarAlertPresenter
+    private let alertPresenter: MenuBarAlertPresenting
     private let alertFactory: MenuBarAlertFactory
     private let validationSink: MenuBarValidationSink?
     private let validationScenario: String?
     private let allowsEmptyStatePrompt: Bool
     private let remoteHostAccountVerifier = RemoteHostAccountVerifier()
+    private let savedAccountRelinker = SavedAccountRelinker()
     private let menuBuilder = MenuBarMenuBuilder()
     private var autoRefreshTimer: Timer?
     private var pendingSignInMonitorTimer: Timer?
@@ -139,7 +145,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         settings: AppSettings,
         remoteHostClient: RemoteHostSwitching = UnavailableRemoteHostClient(),
         cliProcessInspector: CodexCLIProcessInspector = CodexCLIProcessInspector(),
-        alertPresenter: MenuBarAlertPresenter,
+        alertPresenter: MenuBarAlertPresenting,
         alertFactory: MenuBarAlertFactory = MenuBarAlertFactory(),
         validationSink: MenuBarValidationSink? = nil,
         validationScenario: String? = MenuBarValidationConfiguration.scenario(),
@@ -1070,13 +1076,18 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     private func desiredRemoteAccount(for hostState: PersistedRemoteHostState) -> CodexAccount? {
-        guard let desiredAccountID = hostState.desiredAccountID else { return nil }
+        if let canonicalAccount = savedAccountRelinker.resolveCanonicalAccount(
+            for: hostState,
+            among: store.accounts
+        ) {
+            return canonicalAccount
+        }
 
+        guard let desiredAccountID = hostState.desiredAccountID else { return nil }
         if let verifiedAccount = hostState.verifiedAccount, verifiedAccount.id == desiredAccountID {
             return verifiedAccount
         }
-
-        return store.accounts.first(where: { $0.id == desiredAccountID })
+        return nil
     }
 
     private func detectedRemoteAccount(for hostState: PersistedRemoteHostState) -> CodexAccount? {
@@ -1085,9 +1096,11 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     private func baseAccountForRemoteRefresh(hostState: PersistedRemoteHostState) -> CodexAccount? {
-        if let desiredAccountID = hostState.desiredAccountID,
-           let desiredAccount = store.accounts.first(where: { $0.id == desiredAccountID }) {
-            return desiredAccount
+        if let canonicalAccount = savedAccountRelinker.resolveCanonicalAccount(
+            for: hostState,
+            among: store.accounts
+        ) {
+            return canonicalAccount
         }
 
         return hostState.verifiedAccount

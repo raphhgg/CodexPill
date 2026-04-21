@@ -6,9 +6,12 @@ struct AccountRepository {
     private let decoder: JSONDecoder
     let paths: AppPaths
 
-    init(fileManager: FileManager = .default) throws {
+    init(
+        fileManager: FileManager = .default,
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) throws {
         self.fileManager = fileManager
-        self.paths = try AppPaths(fileManager: fileManager)
+        self.paths = try AppPaths(fileManager: fileManager, environment: environment)
         self.encoder = JSONEncoder()
         self.decoder = JSONDecoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]

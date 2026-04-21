@@ -182,6 +182,108 @@ struct MenuBarMenuStateTests {
     }
 
     @Test
+    func remoteHostCardRelinksStaleVerifiedAccountToUniqueSavedDisplayMatch() {
+        let now = Date(timeIntervalSince1970: 1_745_241_200)
+        let currentSavedAccount = CodexAccount(
+            id: UUID(),
+            name: "Business 2",
+            snapshotFileName: "business-2.json",
+            createdAt: now,
+            updatedAt: now,
+            email: "raphaelgrau@gmail.com",
+            planType: "team",
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: nil,
+                limitName: nil,
+                planType: "team",
+                primary: CodexRateLimitWindow(
+                    usedPercent: 100,
+                    resetsAt: now.addingTimeInterval(25 * 60),
+                    windowDurationMinutes: 300
+                ),
+                secondary: CodexRateLimitWindow(
+                    usedPercent: 16,
+                    resetsAt: now.addingTimeInterval(5 * 24 * 60 * 60),
+                    windowDurationMinutes: 10_080
+                ),
+                fetchedAt: now
+            ),
+            identity: CodexAccountIdentity(
+                stableAccountID: "acct-team",
+                authPrincipalIdentity: CodexAuthPrincipalIdentity(
+                    subject: "auth0|business-2",
+                    chatGPTUserID: "user-business-2"
+                ),
+                workspaceIdentity: CodexWorkspaceIdentity(
+                    workspaceAccountID: "org-business-2",
+                    workspaceLabel: "Personal"
+                ),
+                snapshotFingerprint: UUID().uuidString,
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@gmail.com")
+            )
+        )
+        let staleRemoteAccount = CodexAccount(
+            id: UUID(),
+            name: "Business 2",
+            snapshotFileName: "stale-business-2.json",
+            createdAt: now.addingTimeInterval(-3600),
+            updatedAt: now.addingTimeInterval(-3600),
+            email: "raphaelgrau@gmail.com",
+            planType: "team",
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: nil,
+                limitName: nil,
+                planType: "team",
+                primary: CodexRateLimitWindow(
+                    usedPercent: 100,
+                    resetsAt: now.addingTimeInterval(-45 * 60),
+                    windowDurationMinutes: 300
+                ),
+                secondary: CodexRateLimitWindow(
+                    usedPercent: 16,
+                    resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60),
+                    windowDurationMinutes: 10_080
+                ),
+                fetchedAt: now.addingTimeInterval(-3600)
+            ),
+            identity: CodexAccountIdentity(
+                stableAccountID: "d8422eb7-1cdf-4c9f-af05-736ffb0ec845",
+                authPrincipalIdentity: CodexAuthPrincipalIdentity(
+                    subject: "auth0|63892cb90f565d7364529cd1",
+                    chatGPTUserID: "user-v1Xnksr7Nc6WNNVd8Z9HkaSL"
+                ),
+                workspaceIdentity: CodexWorkspaceIdentity(
+                    workspaceAccountID: "org-dE46tuoTzGzCaGdw0YP0CZpz",
+                    workspaceLabel: "Personal"
+                ),
+                snapshotFingerprint: UUID().uuidString,
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@gmail.com")
+            )
+        )
+
+        let state = makeState(
+            activeAccount: nil,
+            inactiveAccounts: [currentSavedAccount],
+            remoteHosts: [
+                RemoteHostMenuState(
+                    name: "debian-vm",
+                    destination: "debian-vm",
+                    connectionState: .connected,
+                    desiredAccount: staleRemoteAccount,
+                    activeAccount: staleRemoteAccount,
+                    verificationStatus: .verified,
+                    deployedAccountIDs: []
+                )
+            ]
+        )
+
+        let resolvedRemoteAccount = try! #require(state.connectedRemoteHosts.first?.activeAccount)
+        #expect(resolvedRemoteAccount.id == currentSavedAccount.id)
+        #expect(resolvedRemoteAccount.rateLimits?.primary?.displayedUsedPercent(at: now) == 100)
+        #expect(resolvedRemoteAccount.rateLimits?.primary?.resetsAt == currentSavedAccount.rateLimits?.primary?.resetsAt)
+    }
+
+    @Test
     func removeAccountsIsAvailableWhenSavedAccountsExist() {
         let state = makeState(
             activeAccount: makeAccount(name: "Active"),

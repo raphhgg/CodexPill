@@ -1,5 +1,20 @@
 import AppKit
 
+@MainActor
+protocol MenuBarAlertPresenting {
+    func presentTextInput(_ request: MenuBarTextInputAlertRequest) -> String?
+    func presentConfirmation(_ request: MenuBarConfirmationAlertRequest) -> Bool
+    func presentInfo(_ request: MenuBarInfoAlertRequest)
+    func presentHostSetup(
+        _ request: MenuBarHostSetupAlertRequest,
+        testConnection: @escaping (RemoteHost) async -> Result<Void, Error>,
+        onPresented: @escaping () -> Void,
+        onCancelled: @escaping () -> Void,
+        onValidationStarted: @escaping (RemoteHost) -> Void,
+        onValidationFinished: @escaping (RemoteHost, Result<Void, Error>) -> Void
+    ) async -> RemoteHost?
+}
+
 struct MenuBarTextInputAlertRequest {
     let messageText: String
     let informativeText: String
@@ -38,7 +53,17 @@ struct MenuBarInfoAlertRequest {
 
 @MainActor
 final class MenuBarAlertPresenter {
+    private let environment: [String: String]
+
+    init(environment: [String: String] = ProcessInfo.processInfo.environment) {
+        self.environment = environment
+    }
+
     func presentTextInput(_ request: MenuBarTextInputAlertRequest) -> String? {
+        guard !AppRuntimeEnvironment.shouldSuppressInteractiveAlerts(environment: environment) else {
+            return nil
+        }
+
         let field = NSTextField(string: "")
         field.placeholderString = request.placeholder
 
@@ -60,6 +85,10 @@ final class MenuBarAlertPresenter {
     }
 
     func presentConfirmation(_ request: MenuBarConfirmationAlertRequest) -> Bool {
+        guard !AppRuntimeEnvironment.shouldSuppressInteractiveAlerts(environment: environment) else {
+            return false
+        }
+
         let alert = NSAlert()
         alert.messageText = request.messageText
         alert.informativeText = request.informativeText
@@ -70,6 +99,10 @@ final class MenuBarAlertPresenter {
     }
 
     func presentInfo(_ request: MenuBarInfoAlertRequest) {
+        guard !AppRuntimeEnvironment.shouldSuppressInteractiveAlerts(environment: environment) else {
+            return
+        }
+
         let alert = NSAlert()
         alert.messageText = request.messageText
         alert.informativeText = request.informativeText
@@ -86,6 +119,11 @@ final class MenuBarAlertPresenter {
         onValidationStarted: @escaping (RemoteHost) -> Void = { _ in },
         onValidationFinished: @escaping (RemoteHost, Result<Void, Error>) -> Void = { _, _ in }
     ) async -> RemoteHost? {
+        guard !AppRuntimeEnvironment.shouldSuppressInteractiveAlerts(environment: environment) else {
+            onCancelled()
+            return nil
+        }
+
         let controller = HostSetupWindowController(
             request: request,
             testConnection: testConnection,
@@ -145,6 +183,8 @@ final class MenuBarAlertPresenter {
         ])
     }
 }
+
+extension MenuBarAlertPresenter: MenuBarAlertPresenting {}
 
 private final class LiveValidationTextField: NSTextField {
     var onTextDidChange: (() -> Void)?

@@ -18,9 +18,15 @@ struct AppPaths {
     ) throws {
         let targetDirectory: URL
         let legacyDirectory: URL?
+        let isolatedAuthRootDirectory: URL?
         if let overrideDirectory = AppRuntimeEnvironment.validationAppSupportDirectory(environment: environment) {
             targetDirectory = overrideDirectory
             legacyDirectory = nil
+            isolatedAuthRootDirectory = overrideDirectory
+        } else if let testDirectory = AppRuntimeEnvironment.automatedTestAppSupportDirectory(environment: environment) {
+            targetDirectory = testDirectory
+            legacyDirectory = nil
+            isolatedAuthRootDirectory = testDirectory
         } else {
             let supportRoot = try fileManager.url(
                 for: .applicationSupportDirectory,
@@ -30,6 +36,7 @@ struct AppPaths {
             )
             targetDirectory = supportRoot.appendingPathComponent(Self.appSupportFolderName, isDirectory: true)
             legacyDirectory = supportRoot.appendingPathComponent(Self.legacyAppSupportFolderName, isDirectory: true)
+            isolatedAuthRootDirectory = nil
         }
 
         if let legacyDirectory,
@@ -42,9 +49,15 @@ struct AppPaths {
         appSupportDirectory = targetDirectory
         accountsFile = appSupportDirectory.appendingPathComponent("accounts.json")
         snapshotsDirectory = appSupportDirectory.appendingPathComponent("snapshots", isDirectory: true)
-        codexAuthFile = fileManager.homeDirectoryForCurrentUser
-            .appendingPathComponent(".codex", isDirectory: true)
-            .appendingPathComponent("auth.json")
+        if let isolatedAuthRootDirectory {
+            codexAuthFile = isolatedAuthRootDirectory
+                .appendingPathComponent(".codex", isDirectory: true)
+                .appendingPathComponent("auth.json")
+        } else {
+            codexAuthFile = fileManager.homeDirectoryForCurrentUser
+                .appendingPathComponent(".codex", isDirectory: true)
+                .appendingPathComponent("auth.json")
+        }
 
         let resolvedAppSupportPath = appSupportDirectory.path
         let resolvedAccountsPath = accountsFile.path

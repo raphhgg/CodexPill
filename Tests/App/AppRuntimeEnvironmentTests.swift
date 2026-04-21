@@ -59,4 +59,23 @@ struct AppRuntimeEnvironmentTests {
             )
         )
     }
+
+    @Test
+    func automatedTestEnvironmentIsDetectedFromXCTestConfigurationPath() {
+        #expect(
+            AppRuntimeEnvironment.isRunningAutomatedTests(
+                environment: [AppRuntimeEnvironment.xctestConfigurationFilePathEnvironmentKey: "/tmp/test.xctestconfiguration"]
+            )
+        )
+        #expect(!AppRuntimeEnvironment.isRunningAutomatedTests(environment: [:]))
+    }
+
+    @Test
+    func interactiveAlertsAreSuppressedDuringAutomatedTests() {
+        let environment = [
+            AppRuntimeEnvironment.xctestConfigurationFilePathEnvironmentKey: "/tmp/test.xctestconfiguration"
+        ]
+
+        #expect(AppRuntimeEnvironment.shouldSuppressInteractiveAlerts(environment: environment))
+    }
 }

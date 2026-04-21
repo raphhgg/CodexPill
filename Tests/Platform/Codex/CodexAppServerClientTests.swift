@@ -147,6 +147,97 @@ struct CodexAppServerClientTests {
     }
 
     @Test
+    func readCurrentAccountStatusRetriesWhenFirstResponseHasOnlyWeeklyRateLimits() async throws {
+        let weeklyOnly = CodexAccountStatus(
+            email: "user@example.com",
+            planType: "plus",
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: "codex",
+                limitName: nil,
+                planType: "plus",
+                primary: nil,
+                secondary: CodexRateLimitWindow(
+                    usedPercent: 16,
+                    resetsAt: Date(timeIntervalSince1970: 1_776_512_418),
+                    windowDurationMinutes: 10_080
+                ),
+                fetchedAt: Date(timeIntervalSince1970: 1_776_000_000)
+            )
+        )
+        let fullStatus = CodexAccountStatus(
+            email: "user@example.com",
+            planType: "plus",
+            rateLimits: makeRateLimitsSnapshot()
+        )
+        let reader = StatusReaderStub(results: [
+            .success(weeklyOnly),
+            .success(fullStatus)
+        ])
+        let sleeper = SleepRecorder()
+        let client = CodexAppServerClient(
+            statusReader: reader.read,
+            sleeper: sleeper.sleep
+        )
+
+        let status = try await client.readCurrentAccountStatus()
+
+        #expect(await reader.recordedRefreshTokens() == [false, true])
+        #expect(await sleeper.recordedDurations() == [.seconds(1)])
+        #expect(status.rateLimits?.primary?.usedPercent == 12)
+        #expect(status.rateLimits?.secondary?.usedPercent == 32)
+    }
+
+    @Test
+    func readCurrentAccountStatusMergesPartialRateLimitWindowsAcrossRetries() async throws {
+        let weeklyOnly = CodexAccountStatus(
+            email: "user@example.com",
+            planType: "plus",
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: "codex",
+                limitName: nil,
+                planType: "plus",
+                primary: nil,
+                secondary: CodexRateLimitWindow(
+                    usedPercent: 18,
+                    resetsAt: Date(timeIntervalSince1970: 1_776_512_418),
+                    windowDurationMinutes: 10_080
+                ),
+                fetchedAt: Date(timeIntervalSince1970: 1_776_000_000)
+            )
+        )
+        let sessionOnly = CodexAccountStatus(
+            email: "user@example.com",
+            planType: "plus",
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: "codex",
+                limitName: nil,
+                planType: "plus",
+                primary: CodexRateLimitWindow(
+                    usedPercent: 69,
+                    resetsAt: Date(timeIntervalSince1970: 1_776_005_472),
+                    windowDurationMinutes: 300
+                ),
+                secondary: nil,
+                fetchedAt: Date(timeIntervalSince1970: 1_776_000_100)
+            )
+        )
+        let reader = StatusReaderStub(results: [
+            .success(weeklyOnly),
+            .success(sessionOnly)
+        ])
+        let client = CodexAppServerClient(
+            statusReader: reader.read,
+            sleeper: { _ in }
+        )
+
+        let status = try await client.readCurrentAccountStatus()
+
+        #expect(await reader.recordedRefreshTokens() == [false, true])
+        #expect(status.rateLimits?.primary?.usedPercent == 69)
+        #expect(status.rateLimits?.secondary?.usedPercent == 18)
+    }
+
+    @Test
     func readCurrentAccountStatusReturnsPartialStatusWhenRetryStillHasNoRateLimits() async throws {
         let firstStatus = CodexAccountStatus(
             email: "user@example.com",
@@ -273,6 +364,28 @@ struct CodexAppServerClientTests {
         #expect(status?.rateLimits?.primary?.usedPercent == 69)
         #expect(status?.rateLimits?.primary?.resetsAt == Date(timeIntervalSince1970: 2_000_000_000))
         #expect(status?.rateLimits?.secondary?.usedPercent == 38)
+    }
+
+    @Test
+    func appServerStatusNeedsRetryWhenPrimaryWindowIsMissing() {
+        let status = CodexAccountStatus(
+            email: "user@example.com",
+            planType: "team",
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: "team",
+                limitName: "Team",
+                planType: "team",
+                primary: nil,
+                secondary: CodexRateLimitWindow(
+                    usedPercent: 18,
+                    resetsAt: Date(timeIntervalSince1970: 1_776_512_418),
+                    windowDurationMinutes: 10_080
+                ),
+                fetchedAt: .now
+            )
+        )
+
+        #expect(appServerStatusNeedsRetry(status))
     }
 
     @Test
