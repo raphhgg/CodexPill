@@ -32,6 +32,51 @@ struct MenuBarMenuStateTests {
     }
 
     @Test
+    func visibleAccountEntriesUseSharedInactiveAvailabilityRanking() {
+        let now = Date()
+        let constrained = CodexAccount(
+            id: UUID(),
+            name: "Constrained",
+            snapshotFileName: "constrained.json",
+            createdAt: now,
+            updatedAt: now,
+            email: "constrained@example.com",
+            planType: "team",
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: nil,
+                limitName: nil,
+                planType: "team",
+                primary: CodexRateLimitWindow(usedPercent: 90, resetsAt: now.addingTimeInterval(7200), windowDurationMinutes: 300),
+                secondary: CodexRateLimitWindow(usedPercent: 100, resetsAt: now.addingTimeInterval(172800), windowDurationMinutes: 10_080),
+                fetchedAt: now
+            ),
+            identity: .empty
+        )
+        let preferred = CodexAccount(
+            id: UUID(),
+            name: "Preferred",
+            snapshotFileName: "preferred.json",
+            createdAt: now,
+            updatedAt: now,
+            email: "preferred@example.com",
+            planType: "team",
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: nil,
+                limitName: nil,
+                planType: "team",
+                primary: CodexRateLimitWindow(usedPercent: 0, resetsAt: now.addingTimeInterval(3600), windowDurationMinutes: 300),
+                secondary: CodexRateLimitWindow(usedPercent: 10, resetsAt: now.addingTimeInterval(86400), windowDurationMinutes: 10_080),
+                fetchedAt: now
+            ),
+            identity: .empty
+        )
+
+        let state = makeState(inactiveAccounts: [constrained, preferred])
+
+        #expect(state.visibleAccountEntries.map { $0.account.name } == ["Preferred", "Constrained"])
+    }
+
+    @Test
     func busyStateDisablesInteractiveActions() {
         let state = makeState(inactiveAccounts: [], isBusy: true)
 
@@ -123,6 +168,7 @@ struct MenuBarMenuStateTests {
         #expect(state.connectedRemoteHosts.count == 1)
         #expect(state.connectedRemoteHosts.first?.desiredAccount?.id == local.id)
         #expect(state.connectedRemoteHosts.first?.activeAccount == nil)
+        #expect(state.remoteTargetAvailabilities["user@buildbox"]?.status == .unavailable(reason: .syncing))
         #expect(state.accountCatalogEntries.first?.account.id == local.id)
         #expect(state.accountCatalogEntries.first?.placement == nil)
     }
@@ -150,6 +196,7 @@ struct MenuBarMenuStateTests {
         )
 
         #expect(state.connectedRemoteHosts.isEmpty)
+        #expect(state.remoteTargetAvailabilities["user@buildbox"]?.status == .unavailable(reason: .disconnected))
         #expect(state.accountCatalogEntries.first?.account.id == local.id)
         #expect(state.accountCatalogEntries.first?.placement == nil)
     }
@@ -178,6 +225,7 @@ struct MenuBarMenuStateTests {
 
         #expect(state.connectedRemoteHosts.count == 1)
         #expect(state.connectedRemoteHosts.first?.displayAccount?.id == detected.id)
+        #expect(state.remoteTargetAvailabilities["user@buildbox"]?.status == .unavailable(reason: .verificationFailed))
         #expect(state.allSavedAccounts.map(\.id) == [desired.id])
     }
 

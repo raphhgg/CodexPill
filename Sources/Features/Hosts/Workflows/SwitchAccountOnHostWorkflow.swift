@@ -29,6 +29,7 @@ struct SwitchAccountOnHostWorkflow {
             try await remoteHostClient.installAccount(account, on: host)
         }
         try await remoteHostClient.switchToAccount(account, on: host)
+        try await remoteHostClient.refreshCodexAppServer(on: host)
 
         var latestVerificationResult: RemoteHostSwitchVerificationResult?
 

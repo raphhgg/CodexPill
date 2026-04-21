@@ -176,6 +176,155 @@ struct SSHRemoteHostClientTests {
     }
 
     @Test
+    func refreshCodexAppServerRestartsExistingRuntimeAndWaitsForListener() async throws {
+        let runner = CommandRunnerSpy(results: [
+            .success(.init(terminationStatus: 0, standardOutput: Data("1247390\n1247402\n".utf8), standardError: Data())),
+            .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data())),
+            .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data())),
+            .success(.init(terminationStatus: 1, standardOutput: Data(), standardError: Data())),
+            .success(.init(terminationStatus: 0, standardOutput: Data("LISTEN".utf8), standardError: Data()))
+        ])
+        let client = SSHRemoteHostClient(
+            snapshotLocator: SnapshotLocatorStub(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
+            commandRunner: runner,
+            sshExecutableURL: URL(fileURLWithPath: "/usr/bin/ssh"),
+            scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp"),
+            appServerReadinessProbeDelays: [.zero, .zero]
+        )
+
+        try await client.refreshCodexAppServer(on: RemoteHost(destination: "user@buildbox"))
+
+        #expect(runner.calls.map(\.arguments) == [
+            [
+                "-o", "BatchMode=yes",
+                "-o", "ConnectTimeout=5",
+                "-o", "ConnectionAttempts=1",
+                "user@buildbox",
+                "pgrep -f 'codex app-server --listen ws://127.0.0.1:9234' || true"
+            ],
+            [
+                "-o", "BatchMode=yes",
+                "-o", "ConnectTimeout=5",
+                "-o", "ConnectionAttempts=1",
+                "user@buildbox",
+                "kill -9 1247390 1247402"
+            ],
+            [
+                "-o", "BatchMode=yes",
+                "-o", "ConnectTimeout=5",
+                "-o", "ConnectionAttempts=1",
+                "user@buildbox",
+                "nohup codex app-server --listen ws://127.0.0.1:9234 >/tmp/codex-app-server.log 2>&1 </dev/null &"
+            ],
+            [
+                "-o", "BatchMode=yes",
+                "-o", "ConnectTimeout=5",
+                "-o", "ConnectionAttempts=1",
+                "user@buildbox",
+                "if command -v ss >/dev/null 2>&1; then ss -ltnp | grep '127.0.0.1:9234'; else pgrep -f 'codex app-server --listen ws://127.0.0.1:9234' >/dev/null; fi"
+            ],
+            [
+                "-o", "BatchMode=yes",
+                "-o", "ConnectTimeout=5",
+                "-o", "ConnectionAttempts=1",
+                "user@buildbox",
+                "if command -v ss >/dev/null 2>&1; then ss -ltnp | grep '127.0.0.1:9234'; else pgrep -f 'codex app-server --listen ws://127.0.0.1:9234' >/dev/null; fi"
+            ]
+        ])
+    }
+
+    @Test
+    func refreshCodexAppServerStartsRuntimeWhenNoneIsRunning() async throws {
+        let runner = CommandRunnerSpy(results: [
+            .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data())),
+            .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data())),
+            .success(.init(terminationStatus: 0, standardOutput: Data("LISTEN".utf8), standardError: Data()))
+        ])
+        let client = SSHRemoteHostClient(
+            snapshotLocator: SnapshotLocatorStub(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
+            commandRunner: runner,
+            sshExecutableURL: URL(fileURLWithPath: "/usr/bin/ssh"),
+            scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp"),
+            appServerReadinessProbeDelays: [.zero]
+        )
+
+        try await client.refreshCodexAppServer(on: RemoteHost(destination: "user@buildbox"))
+
+        #expect(runner.calls.map(\.arguments) == [
+            [
+                "-o", "BatchMode=yes",
+                "-o", "ConnectTimeout=5",
+                "-o", "ConnectionAttempts=1",
+                "user@buildbox",
+                "pgrep -f 'codex app-server --listen ws://127.0.0.1:9234' || true"
+            ],
+            [
+                "-o", "BatchMode=yes",
+                "-o", "ConnectTimeout=5",
+                "-o", "ConnectionAttempts=1",
+                "user@buildbox",
+                "nohup codex app-server --listen ws://127.0.0.1:9234 >/tmp/codex-app-server.log 2>&1 </dev/null &"
+            ],
+            [
+                "-o", "BatchMode=yes",
+                "-o", "ConnectTimeout=5",
+                "-o", "ConnectionAttempts=1",
+                "user@buildbox",
+                "if command -v ss >/dev/null 2>&1; then ss -ltnp | grep '127.0.0.1:9234'; else pgrep -f 'codex app-server --listen ws://127.0.0.1:9234' >/dev/null; fi"
+            ]
+        ])
+    }
+
+    @Test
+    func refreshCodexAppServerFallsBackWhenSSIsUnavailable() async throws {
+        let runner = CommandRunnerSpy(results: [
+            .success(.init(terminationStatus: 0, standardOutput: Data("1247402\n".utf8), standardError: Data())),
+            .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data())),
+            .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data())),
+            .success(.init(terminationStatus: 0, standardOutput: Data("1247500\n".utf8), standardError: Data()))
+        ])
+        let client = SSHRemoteHostClient(
+            snapshotLocator: SnapshotLocatorStub(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
+            commandRunner: runner,
+            sshExecutableURL: URL(fileURLWithPath: "/usr/bin/ssh"),
+            scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp"),
+            appServerReadinessProbeDelays: [.zero]
+        )
+
+        try await client.refreshCodexAppServer(on: RemoteHost(destination: "user@buildbox"))
+
+        #expect(runner.calls.last?.arguments == [
+            "-o", "BatchMode=yes",
+            "-o", "ConnectTimeout=5",
+            "-o", "ConnectionAttempts=1",
+            "user@buildbox",
+            "if command -v ss >/dev/null 2>&1; then ss -ltnp | grep '127.0.0.1:9234'; else pgrep -f 'codex app-server --listen ws://127.0.0.1:9234' >/dev/null; fi"
+        ])
+    }
+
+    @Test
+    func refreshCodexAppServerFailsWhenListenerDoesNotReturn() async {
+        let runner = CommandRunnerSpy(results: [
+            .success(.init(terminationStatus: 0, standardOutput: Data("1247402\n".utf8), standardError: Data())),
+            .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data())),
+            .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data())),
+            .success(.init(terminationStatus: 1, standardOutput: Data(), standardError: Data())),
+            .success(.init(terminationStatus: 1, standardOutput: Data(), standardError: Data("not listening".utf8)))
+        ])
+        let client = SSHRemoteHostClient(
+            snapshotLocator: SnapshotLocatorStub(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
+            commandRunner: runner,
+            sshExecutableURL: URL(fileURLWithPath: "/usr/bin/ssh"),
+            scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp"),
+            appServerReadinessProbeDelays: [.zero, .zero]
+        )
+
+        await #expect(throws: RemoteHostClientError.commandFailed("not listening")) {
+            try await client.refreshCodexAppServer(on: RemoteHost(destination: "user@buildbox"))
+        }
+    }
+
+    @Test
     func readCurrentAccountStatusParsesRemoteAppServerResponses() async throws {
         let executableURL = try makeRemoteAppServerFixtureExecutable()
         defer { try? FileManager.default.removeItem(at: executableURL) }
@@ -262,6 +411,57 @@ struct SSHRemoteHostClientTests {
             #"{"id":3,"result":{"rateLimits":{"limitId":"team","limitName":"Team","planType":"team","primary":{"usedPercent":69,"resetsAt":2000000000,"windowDurationMins":300},"secondary":{"usedPercent":38,"resetsAt":2000500000,"windowDurationMins":10080}}}}"#
         ]
         let executableURL = try makeRemoteAppServerFixtureExecutable(firstLines: weeklyOnly, refreshedLines: full)
+        defer { try? FileManager.default.removeItem(at: executableURL) }
+        let runner = CommandRunnerSpy(results: [
+            .success(.init(terminationStatus: 17, standardOutput: Data(), standardError: Data()))
+        ])
+
+        let client = SSHRemoteHostClient(
+            snapshotLocator: SnapshotLocatorStub(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
+            commandRunner: runner,
+            sshExecutableURL: executableURL,
+            scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp")
+        )
+
+        let status = try await client.readCurrentAccountStatus(on: RemoteHost(destination: "user@buildbox"))
+
+        #expect(status.rateLimits?.primary?.usedPercent == 69)
+        #expect(status.rateLimits?.secondary?.usedPercent == 38)
+    }
+
+    @Test
+    func readCurrentAccountStatusKeepsRemoteSessionOpenLongEnoughToReceiveRateLimits() async throws {
+        let executableURL = try makeEOFSensitiveRemoteAppServerFixtureExecutable()
+        defer { try? FileManager.default.removeItem(at: executableURL) }
+        let runner = CommandRunnerSpy(results: [
+            .success(.init(terminationStatus: 17, standardOutput: Data(), standardError: Data()))
+        ])
+
+        let client = SSHRemoteHostClient(
+            snapshotLocator: SnapshotLocatorStub(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
+            commandRunner: runner,
+            sshExecutableURL: executableURL,
+            scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp")
+        )
+
+        let status = try await client.readCurrentAccountStatus(on: RemoteHost(destination: "user@buildbox"))
+
+        #expect(status.email == "remote@example.com")
+        #expect(status.rateLimits?.primary?.usedPercent == 69)
+        #expect(status.rateLimits?.secondary?.usedPercent == 38)
+    }
+
+    @Test
+    func readCurrentAccountStatusRetriesWhenFirstRemoteResponseLooksSuspiciouslyZeroed() async throws {
+        let zeroed = [
+            #"{"id":2,"result":{"account":{"email":"remote@example.com","planType":"team"}}}"#,
+            #"{"id":3,"result":{"rateLimits":{"limitId":"team","limitName":"Team","planType":"team","primary":{"usedPercent":0,"resetsAt":2000000000,"windowDurationMins":300},"secondary":{"usedPercent":0,"resetsAt":2000500000,"windowDurationMins":10080}}}}"#
+        ]
+        let fresh = [
+            #"{"id":2,"result":{"account":{"email":"remote@example.com","planType":"team"}}}"#,
+            #"{"id":3,"result":{"rateLimits":{"limitId":"team","limitName":"Team","planType":"team","primary":{"usedPercent":69,"resetsAt":2000000000,"windowDurationMins":300},"secondary":{"usedPercent":38,"resetsAt":2000500000,"windowDurationMins":10080}}}}"#
+        ]
+        let executableURL = try makeRemoteAppServerFixtureExecutable(firstLines: zeroed, refreshedLines: fresh)
         defer { try? FileManager.default.removeItem(at: executableURL) }
         let runner = CommandRunnerSpy(results: [
             .success(.init(terminationStatus: 17, standardOutput: Data(), standardError: Data()))
@@ -428,18 +628,53 @@ private func makeRemoteAppServerFixtureExecutable(
     ]
     let initialLines = firstLines ?? defaultLines
     let refreshLines = refreshedLines ?? defaultLines
-    let initialPrintedLines = initialLines.map { "printf '%s\\n' '\($0)'" }.joined(separator: "\n")
-    let refreshPrintedLines = refreshLines.map { "printf '%s\\n' '\($0)'" }.joined(separator: "\n")
-    let stateFile = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).path
+    let initialJSON = String(
+        data: try JSONSerialization.data(withJSONObject: initialLines, options: []),
+        encoding: .utf8
+    )!
+    let refreshJSON = String(
+        data: try JSONSerialization.data(withJSONObject: refreshLines, options: []),
+        encoding: .utf8
+    )!
     let script = """
-    #!/bin/sh
-    cat >/dev/null
-    if [ ! -f "\(stateFile)" ]; then
-      touch "\(stateFile)"
-    \(initialPrintedLines)
-    else
-    \(refreshPrintedLines)
-    fi
+    #!/usr/bin/env python3
+    import sys
+
+    initial_lines = \(initialJSON)
+    refresh_lines = \(refreshJSON)
+    requests = []
+    for _ in range(4):
+        line = sys.stdin.readline()
+        if not line:
+            sys.exit(0)
+        requests.append(line)
+
+    lines = refresh_lines if any('"refreshToken":true' in line for line in requests) else initial_lines
+    for line in lines:
+        print(line, flush=True)
+    """
+
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try Data(script.utf8).write(to: url, options: .atomic)
+    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+    return url
+}
+
+private func makeEOFSensitiveRemoteAppServerFixtureExecutable() throws -> URL {
+    let script = """
+    #!/usr/bin/env python3
+    import select
+    import sys
+    for _ in range(4):
+        if not sys.stdin.readline():
+            sys.exit(0)
+    print('{"id":2,"result":{"account":{"email":"remote@example.com","planType":"team"}}}', flush=True)
+    ready, _, _ = select.select([sys.stdin], [], [], 0.2)
+    if ready:
+        chunk = sys.stdin.read(1)
+        if chunk == "":
+            sys.exit(0)
+    print('{"id":3,"result":{"rateLimits":{"limitId":"team","limitName":"Team","planType":"team","primary":{"usedPercent":69,"resetsAt":2000000000,"windowDurationMins":300},"secondary":{"usedPercent":38,"resetsAt":2000500000,"windowDurationMins":10080}}}}', flush=True)
     """
 
     let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

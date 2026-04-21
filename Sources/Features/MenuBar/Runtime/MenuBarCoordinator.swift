@@ -895,6 +895,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
                     payload: ["accountName": activeAccount.name]
                 )
             }
+
+            self.refreshRemoteHostStateIfNeeded(markSyncing: false)
         }
     }
 
@@ -999,7 +1001,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         }
     }
 
-    private func refreshRemoteHostStateIfNeeded() {
+    private func refreshRemoteHostStateIfNeeded(markSyncing: Bool = true) {
         for hostState in settings.remoteHostStates {
             guard let baseAccount = baseAccountForRemoteRefresh(hostState: hostState) else {
                 guard hostState.desiredAccountID != nil || hostState.verifiedAccount != nil else { continue }
@@ -1012,7 +1014,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
                 }
                 continue
             }
-            setRemoteHostConnectionState(.syncing, for: hostState.host.destination)
+            if markSyncing {
+                setRemoteHostConnectionState(.syncing, for: hostState.host.destination)
+            }
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 await self.refreshRemoteHostState(for: baseAccount, on: hostState.host, fallbackConnectionState: .disconnected)

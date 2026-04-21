@@ -49,21 +49,26 @@ extension AccountRepository: AccountSnapshotLocating {}
 struct SSHRemoteHostClient: RemoteHostSwitching {
     private static let responseTimeout: Duration = .seconds(10)
     private static let missingRemoteAuthExitCode: Int32 = 17
+    private static let appServerListenAddress = "ws://127.0.0.1:9234"
+    private static let appServerProcessPattern = "codex app-server --listen ws://127.0.0.1:9234"
     private let snapshotLocator: AccountSnapshotLocating
     private let commandRunner: CommandRunning
     private let sshExecutableURL: URL
     private let scpExecutableURL: URL
+    private let appServerReadinessProbeDelays: [Duration]
 
     init(
         snapshotLocator: AccountSnapshotLocating,
         commandRunner: CommandRunning = ProcessCommandRunner(),
         sshExecutableURL: URL = URL(fileURLWithPath: "/usr/bin/ssh"),
-        scpExecutableURL: URL = URL(fileURLWithPath: "/usr/bin/scp")
+        scpExecutableURL: URL = URL(fileURLWithPath: "/usr/bin/scp"),
+        appServerReadinessProbeDelays: [Duration] = [.zero, .seconds(1), .seconds(2)]
     ) {
         self.snapshotLocator = snapshotLocator
         self.commandRunner = commandRunner
         self.sshExecutableURL = sshExecutableURL
         self.scpExecutableURL = scpExecutableURL
+        self.appServerReadinessProbeDelays = appServerReadinessProbeDelays
     }
 
     func testConnection(to host: RemoteHost) async throws {
@@ -128,6 +133,57 @@ struct SSHRemoteHostClient: RemoteHostSwitching {
 
         guard result.terminationStatus == 0 else {
             throw remoteCommandFailure(result)
+        }
+    }
+
+    func refreshCodexAppServer(on host: RemoteHost) async throws {
+        let pids = try await appServerProcessIDs(on: host)
+        if !pids.isEmpty {
+            let killResult = try await commandRunner.run(
+                executableURL: sshExecutableURL,
+                arguments: sshArguments(
+                    host: host,
+                    command: "kill -9 \(pids.joined(separator: " "))"
+                )
+            )
+
+            guard killResult.terminationStatus == 0 else {
+                throw remoteCommandFailure(killResult)
+            }
+        }
+
+        let startResult = try await commandRunner.run(
+            executableURL: sshExecutableURL,
+            arguments: sshArguments(
+                host: host,
+                command: "nohup codex app-server --listen \(Self.appServerListenAddress) >/tmp/codex-app-server.log 2>&1 </dev/null &"
+            )
+        )
+
+        guard startResult.terminationStatus == 0 else {
+            throw remoteCommandFailure(startResult)
+        }
+
+        for (index, delay) in appServerReadinessProbeDelays.enumerated() {
+            if delay > .zero {
+                try? await Task.sleep(for: delay)
+            }
+
+            let readinessResult = try await commandRunner.run(
+                executableURL: sshExecutableURL,
+                arguments: sshArguments(
+                    host: host,
+                    command: "if command -v ss >/dev/null 2>&1; then ss -ltnp | grep '127.0.0.1:9234'; else pgrep -f '\(Self.appServerProcessPattern)' >/dev/null; fi"
+                )
+            )
+
+            if readinessResult.terminationStatus == 0 {
+                return
+            }
+
+            if index == appServerReadinessProbeDelays.count - 1 {
+                throw remoteCommandFailure(readinessResult)
+            }
         }
     }
 
@@ -201,6 +257,24 @@ struct SSHRemoteHostClient: RemoteHostSwitching {
 
     private func quoted(_ path: String) -> String {
         "'\(path.replacingOccurrences(of: "'", with: "'\\''"))'"
+    }
+
+    private func appServerProcessIDs(on host: RemoteHost) async throws -> [String] {
+        let result = try await commandRunner.run(
+            executableURL: sshExecutableURL,
+            arguments: sshArguments(
+                host: host,
+                command: "pgrep -f '\(Self.appServerProcessPattern)' || true"
+            )
+        )
+
+        guard result.terminationStatus == 0 else {
+            throw remoteCommandFailure(result)
+        }
+
+        return String(decoding: result.standardOutput, as: UTF8.self)
+            .split(whereSeparator: \.isWhitespace)
+            .map(String.init)
     }
 
     private func remoteCommandFailure(_ result: CommandResult) -> RemoteHostClientError {
@@ -290,7 +364,6 @@ struct SSHRemoteHostClient: RemoteHostSwitching {
                 try process.run()
                 let payload = CodexAppServerClient.makeAppServerRequests(refreshToken: refreshToken).joined(separator: "\n") + "\n"
                 inputHandle.write(Data(payload.utf8))
-                try? inputHandle.close()
 
                 Task {
                     try? await Task.sleep(for: Self.responseTimeout)
@@ -312,7 +385,10 @@ struct SSHRemoteHostClient: RemoteHostSwitching {
 
     private func shouldRetry(status: CodexAccountStatus?, attemptIndex: Int, totalAttempts: Int) -> Bool {
         guard attemptIndex < totalAttempts - 1 else { return false }
-        return appServerStatusNeedsRetry(status)
+        if appServerStatusNeedsRetry(status) {
+            return true
+        }
+        return appServerRateLimitsLookSuspiciouslyZeroed(status?.rateLimits)
     }
 
     private func mergeStatuses(previous: CodexAccountStatus?, current: CodexAccountStatus) -> CodexAccountStatus {

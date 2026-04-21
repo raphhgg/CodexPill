@@ -79,6 +79,8 @@ struct MenuBarAccountCatalogEntry: Equatable {
 struct MenuBarMenuState {
     private static let nonActiveAccountVisibilityLimit = 3
     private let savedAccountRelinker = SavedAccountRelinker()
+    private let inactiveAccountAvailabilityRanking = InactiveAccountAvailabilityRanking()
+    private let availabilityService = AccountAvailabilityService()
 
     let activeAccount: CodexAccount?
     let inactiveAccounts: [CodexAccount]
@@ -160,7 +162,22 @@ struct MenuBarMenuState {
     }
 
     var connectedRemoteHosts: [RemoteHostMenuState] {
-        resolvedRemoteHosts.filter(\.shouldShowRemoteAccountCard)
+        resolvedRemoteHosts.filter { remoteHost in
+            guard let availability = remoteTargetAvailability(for: remoteHost) else { return false }
+            if case .unavailable(reason: .disconnected) = availability.status {
+                return false
+            }
+            return remoteHost.displayAccount != nil
+        }
+    }
+
+    var remoteTargetAvailabilities: [String: AccountTargetAvailability] {
+        Dictionary(
+            uniqueKeysWithValues: resolvedRemoteHosts.compactMap { remoteHost in
+                guard let availability = remoteTargetAvailability(for: remoteHost) else { return nil }
+                return (remoteHost.destination, availability)
+            }
+        )
     }
 
     var accountCatalogEntries: [MenuBarAccountCatalogEntry] {
@@ -299,72 +316,43 @@ struct MenuBarMenuState {
     }
 
     private func compareCatalogEntries(_ lhs: MenuBarAccountCatalogEntry, _ rhs: MenuBarAccountCatalogEntry) -> Bool {
-        let leftKey = rankingKey(for: lhs.account)
-        let rightKey = rankingKey(for: rhs.account)
-        if leftKey.bucket != rightKey.bucket {
-            return leftKey.bucket < rightKey.bucket
-        }
-        if leftKey.availableAt != rightKey.availableAt {
-            return leftKey.availableAt < rightKey.availableAt
-        }
-        if leftKey.weeklyUsedPercent != rightKey.weeklyUsedPercent {
-            return leftKey.weeklyUsedPercent < rightKey.weeklyUsedPercent
-        }
-        if leftKey.sessionUsedPercent != rightKey.sessionUsedPercent {
-            return leftKey.sessionUsedPercent < rightKey.sessionUsedPercent
-        }
-        return lhs.account.name.localizedCaseInsensitiveCompare(rhs.account.name) == .orderedAscending
+        inactiveAccountAvailabilityRanking.compare(lhs.account, rhs.account)
     }
 
-    private func rankingKey(for account: CodexAccount, now: Date = .now) -> AccountRankingKey {
-        let session = account.rateLimits?.primary
-        let weekly = account.rateLimits?.secondary
-        let sessionUsedPercent = session?.displayedUsedPercent(at: now) ?? 100
-        let weeklyUsedPercent = weekly?.displayedUsedPercent(at: now) ?? 100
-        let sessionReset = session?.resetsAt ?? .distantFuture
-        let weeklyReset = weekly?.resetsAt ?? .distantFuture
-
-        if weeklyUsedPercent < 100, sessionUsedPercent < 100 {
-            return AccountRankingKey(
-                bucket: 0,
-                availableAt: min(sessionReset, weeklyReset),
-                weeklyUsedPercent: weeklyUsedPercent,
-                sessionUsedPercent: sessionUsedPercent
+    private func remoteTargetAvailability(for remoteHost: RemoteHostMenuState) -> AccountTargetAvailability? {
+        guard remoteHost.displayAccount != nil || remoteHost.connectionState == .disconnected else { return nil }
+        return availabilityService.availability(
+            for: RemoteAccountTargetContext(
+                hostDestination: remoteHost.destination,
+                connectionState: remoteConnectionState(for: remoteHost.connectionState),
+                verificationState: remoteVerificationState(for: remoteHost.verificationStatus),
+                activeAccount: remoteHost.activeAccount,
+                displayAccount: remoteHost.displayAccount
             )
-        }
-
-        if weeklyUsedPercent < 100, sessionUsedPercent >= 100 {
-            return AccountRankingKey(
-                bucket: 1,
-                availableAt: sessionReset,
-                weeklyUsedPercent: weeklyUsedPercent,
-                sessionUsedPercent: sessionUsedPercent
-            )
-        }
-
-        if weeklyUsedPercent >= 100 {
-            let weeklyCutoff = now.addingTimeInterval(24 * 60 * 60)
-            let bucket = weeklyReset > weeklyCutoff ? 3 : 2
-            return AccountRankingKey(
-                bucket: bucket,
-                availableAt: weeklyReset,
-                weeklyUsedPercent: weeklyUsedPercent,
-                sessionUsedPercent: sessionUsedPercent
-            )
-        }
-
-        return AccountRankingKey(
-            bucket: 4,
-            availableAt: .distantFuture,
-            weeklyUsedPercent: weeklyUsedPercent,
-            sessionUsedPercent: sessionUsedPercent
         )
     }
-}
 
-private struct AccountRankingKey {
-    let bucket: Int
-    let availableAt: Date
-    let weeklyUsedPercent: Int
-    let sessionUsedPercent: Int
+    private func remoteConnectionState(for state: RemoteHostConnectionState) -> RemoteAccountTargetConnectionState {
+        switch state {
+        case .connected:
+            return .connected
+        case .disconnected:
+            return .disconnected
+        case .syncing:
+            return .syncing
+        }
+    }
+
+    private func remoteVerificationState(for state: PersistedRemoteHostState.VerificationStatus) -> RemoteAccountTargetVerificationState {
+        switch state {
+        case .unverified:
+            return .unverified
+        case .verifying:
+            return .verifying
+        case .verified:
+            return .verified
+        case .failed:
+            return .failed
+        }
+    }
 }

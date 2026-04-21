@@ -1327,6 +1327,155 @@ struct MenuBarLiveValidationTests {
         #expect(remoteSummary.contains("Weekly: 16% used"))
     }
 
+    @Test
+    func scheduledRefreshUpdatesVerifiedRemoteHostUsage() async throws {
+        setenv(AppRuntimeEnvironment.validationAutoRefreshIntervalSecondsEnvironmentKey, "0.05", 1)
+        defer { unsetenv(AppRuntimeEnvironment.validationAutoRefreshIntervalSecondsEnvironmentKey) }
+
+        let sink = RecordingValidationSink()
+        let repository = try makeIsolatedRepository()
+        let now = Date.now
+        let account = CodexAccount(
+            id: UUID(),
+            name: "Business 4",
+            snapshotFileName: "business-4.json",
+            createdAt: now,
+            updatedAt: now,
+            email: "raphaelgrau@icloud.com",
+            planType: "team",
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: "codex",
+                limitName: nil,
+                planType: "team",
+                primary: CodexRateLimitWindow(
+                    usedPercent: 0,
+                    resetsAt: now.addingTimeInterval(5 * 60 * 60),
+                    windowDurationMinutes: 300
+                ),
+                secondary: CodexRateLimitWindow(
+                    usedPercent: 0,
+                    resetsAt: now.addingTimeInterval(7 * 24 * 60 * 60),
+                    windowDurationMinutes: 10_080
+                ),
+                fetchedAt: now
+            ),
+            identity: CodexAccountIdentity(
+                stableAccountID: "acct-business-4",
+                authPrincipalIdentity: CodexAuthPrincipalIdentity(
+                    subject: "auth0|business-4",
+                    chatGPTUserID: "user-business-4"
+                ),
+                workspaceIdentity: CodexWorkspaceIdentity(
+                    workspaceAccountID: "org-business-4",
+                    workspaceLabel: "Team"
+                ),
+                snapshotFingerprint: UUID().uuidString,
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@icloud.com")
+            )
+        )
+        try repository.bootstrapStorage()
+        try repository.saveAccounts([account])
+
+        let store = MenuBarAccountsStore(
+            repository: repository,
+            authService: CodexAuthSnapshotService(repository: repository),
+            appController: CodexAppController(),
+            appServerClient: CodexAppServerClient()
+        )
+        store.load()
+
+        let suiteName = "MenuBarLiveValidationScheduledRemoteRefresh-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = AppSettings(userDefaults: defaults)
+        settings.remoteHostStates = [
+            PersistedRemoteHostState(
+                host: RemoteHost(destination: "user@debian-vm", displayName: "debian-vm"),
+                desiredAccountID: account.id,
+                verifiedAccount: account
+            )
+        ]
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let remoteHostClient = SequencedRemoteHostClientSpy(statusesByDestination: [
+            "user@debian-vm": [
+                CodexAccountStatus(
+                    email: "raphaelgrau@icloud.com",
+                    planType: "team",
+                    rateLimits: CodexRateLimitSnapshot(
+                        limitID: "codex",
+                        limitName: nil,
+                        planType: "team",
+                        primary: CodexRateLimitWindow(
+                            usedPercent: 0,
+                            resetsAt: now.addingTimeInterval(5 * 60 * 60),
+                            windowDurationMinutes: 300
+                        ),
+                        secondary: CodexRateLimitWindow(
+                            usedPercent: 0,
+                            resetsAt: now.addingTimeInterval(7 * 24 * 60 * 60),
+                            windowDurationMinutes: 10_080
+                        ),
+                        fetchedAt: now
+                    ),
+                    stableAccountID: account.identity.stableAccountID,
+                    authPrincipalIdentity: account.identity.authPrincipalIdentity,
+                    workspaceIdentity: account.identity.workspaceIdentity,
+                    snapshotFingerprint: account.identity.snapshotFingerprint
+                ),
+                CodexAccountStatus(
+                    email: "raphaelgrau@icloud.com",
+                    planType: "team",
+                    rateLimits: CodexRateLimitSnapshot(
+                        limitID: "codex",
+                        limitName: nil,
+                        planType: "team",
+                        primary: CodexRateLimitWindow(
+                            usedPercent: 39,
+                            resetsAt: now.addingTimeInterval(4 * 60 * 60),
+                            windowDurationMinutes: 300
+                        ),
+                        secondary: CodexRateLimitWindow(
+                            usedPercent: 6,
+                            resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60),
+                            windowDurationMinutes: 10_080
+                        ),
+                        fetchedAt: now.addingTimeInterval(60)
+                    ),
+                    stableAccountID: account.identity.stableAccountID,
+                    authPrincipalIdentity: account.identity.authPrincipalIdentity,
+                    workspaceIdentity: account.identity.workspaceIdentity,
+                    snapshotFingerprint: account.identity.snapshotFingerprint
+                )
+            ]
+        ])
+
+        let coordinator = MenuBarCoordinator(
+            statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
+            store: store,
+            settings: settings,
+            remoteHostClient: remoteHostClient,
+            alertPresenter: TestMenuBarAlertPresenter(),
+            validationSink: sink,
+            validationScenario: "live-menu-open",
+            allowsEmptyStatePrompt: false
+        )
+
+        coordinator.start()
+        try? await Task.sleep(for: .milliseconds(220))
+
+        let remoteSummary = try #require(
+            sink.snapshots.last?.sections.first(where: { $0.title == "Remote Accounts" })?.items.first
+        )
+        #expect(remoteSummary.contains("Session: 39% used"))
+        #expect(remoteSummary.contains("Weekly: 6% used"))
+        #expect(remoteHostClient.readCount(for: "user@debian-vm") >= 2)
+    }
+
     private func makeIsolatedRepository() throws -> AccountRepository {
         let appSupportDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("MenuBarLiveValidationTests-\(UUID().uuidString)", isDirectory: true)
@@ -1359,6 +1508,7 @@ private struct RemoteHostClientStatusSpy: RemoteHostSwitching {
     func installationState(for account: CodexAccount, on host: RemoteHost) async throws -> RemoteHostAccountInstallationState { .installed }
     func installAccount(_ account: CodexAccount, on host: RemoteHost) async throws {}
     func switchToAccount(_ account: CodexAccount, on host: RemoteHost) async throws {}
+    func refreshCodexAppServer(on host: RemoteHost) async throws {}
     func readCurrentAccountStatus(on host: RemoteHost) async throws -> CodexAccountStatus {
         if let scopedError = readErrorsByDestination[host.destination] {
             throw scopedError
@@ -1373,5 +1523,41 @@ private struct RemoteHostClientStatusSpy: RemoteHostSwitching {
             return status
         }
         return CodexAccountStatus(email: nil, planType: nil, rateLimits: nil)
+    }
+}
+
+private final class SequencedRemoteHostClientSpy: @unchecked Sendable, RemoteHostSwitching {
+    private let lock = NSLock()
+    private var statusesByDestination: [String: [CodexAccountStatus]]
+    private var readCounts: [String: Int] = [:]
+
+    init(statusesByDestination: [String: [CodexAccountStatus]]) {
+        self.statusesByDestination = statusesByDestination
+    }
+
+    func testConnection(to host: RemoteHost) async throws {}
+    func installationState(for account: CodexAccount, on host: RemoteHost) async throws -> RemoteHostAccountInstallationState { .installed }
+    func installAccount(_ account: CodexAccount, on host: RemoteHost) async throws {}
+    func switchToAccount(_ account: CodexAccount, on host: RemoteHost) async throws {}
+    func refreshCodexAppServer(on host: RemoteHost) async throws {}
+
+    func readCurrentAccountStatus(on host: RemoteHost) async throws -> CodexAccountStatus {
+        lock.lock()
+        defer { lock.unlock() }
+        readCounts[host.destination, default: 0] += 1
+        guard var statuses = statusesByDestination[host.destination], let first = statuses.first else {
+            return CodexAccountStatus(email: nil, planType: nil, rateLimits: nil)
+        }
+        if statuses.count > 1 {
+            statuses.removeFirst()
+            statusesByDestination[host.destination] = statuses
+        }
+        return first
+    }
+
+    func readCount(for destination: String) -> Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return readCounts[destination, default: 0]
     }
 }

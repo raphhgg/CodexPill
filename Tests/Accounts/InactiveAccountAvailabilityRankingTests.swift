@@ -5,6 +5,115 @@ import Testing
 
 struct InactiveAccountAvailabilityRankingTests {
     @Test
+    func availabilityServiceMarksAccountAvailableWhenBothWindowsHaveHeadroom() {
+        let service = AccountAvailabilityService()
+        let account = makeAccount(name: "Ready", sessionUsedPercent: 35, weeklyUsedPercent: 40)
+
+        let availability = service.availability(for: account)
+
+        #expect(availability.target == .local)
+        #expect(availability.status == .availableNow)
+        #expect(availability.isAvailableNow)
+        #expect(availability.nextAvailableAt == nil)
+    }
+
+    @Test
+    func availabilityServiceMarksAccountBlockedBySessionWhenSessionIsExhausted() {
+        let service = AccountAvailabilityService()
+        let now = Date()
+        let resetAt = now.addingTimeInterval(1800)
+        let account = makeAccount(
+            name: "Session Blocked",
+            sessionUsedPercent: 100,
+            sessionResetAt: resetAt,
+            weeklyUsedPercent: 10
+        )
+
+        let availability = service.availability(for: account, now: now)
+
+        #expect(availability.status == .blocked(until: resetAt, reason: .session))
+        #expect(!availability.isAvailableNow)
+        #expect(availability.nextAvailableAt == resetAt)
+    }
+
+    @Test
+    func availabilityServiceMarksAccountBlockedByBothWindowsWhenBothAreExhausted() {
+        let service = AccountAvailabilityService()
+        let now = Date()
+        let sessionResetAt = now.addingTimeInterval(3600)
+        let weeklyResetAt = now.addingTimeInterval(7200)
+        let account = makeAccount(
+            name: "Fully Blocked",
+            sessionUsedPercent: 100,
+            sessionResetAt: sessionResetAt,
+            weeklyUsedPercent: 100,
+            weeklyResetAt: weeklyResetAt
+        )
+
+        let availability = service.availability(for: account, now: now)
+
+        #expect(availability.status == .blocked(until: sessionResetAt, reason: .sessionAndWeekly))
+        #expect(availability.nextAvailableAt == sessionResetAt)
+    }
+
+    @Test
+    func availabilityServiceMarksRemoteTargetDisconnectedWhenHostIsDisconnected() {
+        let service = AccountAvailabilityService()
+        let account = makeAccount(name: "Remote", sessionUsedPercent: 10, weeklyUsedPercent: 20)
+
+        let availability = service.availability(
+            for: RemoteAccountTargetContext(
+                hostDestination: "user@buildbox",
+                connectionState: .disconnected,
+                verificationState: .failed,
+                activeAccount: nil,
+                displayAccount: account
+            )
+        )
+
+        #expect(availability.target == .remote(hostDestination: "user@buildbox"))
+        #expect(availability.status == .unavailable(reason: .disconnected))
+    }
+
+    @Test
+    func availabilityServiceMarksRemoteTargetVerificationFailureWhenHostIsReachableButUnverified() {
+        let service = AccountAvailabilityService()
+        let account = makeAccount(name: "Remote", sessionUsedPercent: 10, weeklyUsedPercent: 20)
+
+        let availability = service.availability(
+            for: RemoteAccountTargetContext(
+                hostDestination: "user@buildbox",
+                connectionState: .connected,
+                verificationState: .failed,
+                activeAccount: nil,
+                displayAccount: account
+            )
+        )
+
+        #expect(availability.status == .unavailable(reason: .verificationFailed))
+    }
+
+    @Test
+    func availabilityServiceUsesVerifiedRemoteAccountRateLimitsWhenHostIsVerified() {
+        let service = AccountAvailabilityService()
+        let account = makeAccount(name: "Remote", sessionUsedPercent: 100, sessionResetAt: Date().addingTimeInterval(1800), weeklyUsedPercent: 20)
+
+        let availability = service.availability(
+            for: RemoteAccountTargetContext(
+                hostDestination: "user@buildbox",
+                connectionState: .connected,
+                verificationState: .verified,
+                activeAccount: account,
+                displayAccount: account
+            )
+        )
+
+        #expect(availability.status != .unavailable(reason: .verificationFailed))
+        #expect(availability.target == .remote(hostDestination: "user@buildbox"))
+        #expect(availability.sessionUsedPercent == 100)
+    }
+
+    @Test
     func prefersWeeklyHeadroomBeforeSessionReadiness() {
         let ranking = InactiveAccountAvailabilityRanking()
         let weeklyHealthy = makeAccount(

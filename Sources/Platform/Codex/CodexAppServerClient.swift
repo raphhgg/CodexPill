@@ -258,6 +258,17 @@ func appServerRateLimitsAreComplete(_ snapshot: CodexRateLimitSnapshot?) -> Bool
     return snapshot.primary != nil && snapshot.secondary != nil
 }
 
+func appServerRateLimitsLookSuspiciouslyZeroed(_ snapshot: CodexRateLimitSnapshot?) -> Bool {
+    guard let snapshot else { return false }
+    return appServerRateLimitWindowLooksSuspiciouslyZeroed(snapshot.primary)
+        && appServerRateLimitWindowLooksSuspiciouslyZeroed(snapshot.secondary)
+}
+
+func appServerRateLimitWindowLooksSuspiciouslyZeroed(_ window: CodexRateLimitWindow?) -> Bool {
+    guard let window, window.usedPercent == 0, let resetsAt = window.resetsAt else { return false }
+    return resetsAt > .now
+}
+
 func mergeAppServerStatuses(previous: CodexAccountStatus?, current: CodexAccountStatus) -> CodexAccountStatus {
     CodexAccountStatus(
         email: current.email ?? previous?.email,

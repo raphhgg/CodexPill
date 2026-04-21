@@ -188,6 +188,45 @@ struct CodexAppServerClientTests {
     }
 
     @Test
+    func readCurrentAccountStatusDoesNotRetryWhenResponseIsLegitimatelyZeroed() async throws {
+        let zeroedStatus = CodexAccountStatus(
+            email: "user@example.com",
+            planType: "team",
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: "codex",
+                limitName: nil,
+                planType: "team",
+                primary: CodexRateLimitWindow(
+                    usedPercent: 0,
+                    resetsAt: .now.addingTimeInterval(3 * 60 * 60),
+                    windowDurationMinutes: 300
+                ),
+                secondary: CodexRateLimitWindow(
+                    usedPercent: 0,
+                    resetsAt: .now.addingTimeInterval(6 * 24 * 60 * 60),
+                    windowDurationMinutes: 10_080
+                ),
+                fetchedAt: .now
+            )
+        )
+        let reader = StatusReaderStub(results: [
+            .success(zeroedStatus)
+        ])
+        let sleeper = SleepRecorder()
+        let client = CodexAppServerClient(
+            statusReader: reader.read,
+            sleeper: sleeper.sleep
+        )
+
+        let status = try await client.readCurrentAccountStatus()
+
+        #expect(await reader.recordedRefreshTokens() == [false])
+        #expect(await sleeper.recordedDurations().isEmpty)
+        #expect(status.rateLimits?.primary?.usedPercent == 0)
+        #expect(status.rateLimits?.secondary?.usedPercent == 0)
+    }
+
+    @Test
     func readCurrentAccountStatusMergesPartialRateLimitWindowsAcrossRetries() async throws {
         let weeklyOnly = CodexAccountStatus(
             email: "user@example.com",

@@ -29,6 +29,7 @@ protocol RemoteHostSwitching {
     func installationState(for account: CodexAccount, on host: RemoteHost) async throws -> RemoteHostAccountInstallationState
     func installAccount(_ account: CodexAccount, on host: RemoteHost) async throws
     func switchToAccount(_ account: CodexAccount, on host: RemoteHost) async throws
+    func refreshCodexAppServer(on host: RemoteHost) async throws
     func readCurrentAccountStatus(on host: RemoteHost) async throws -> CodexAccountStatus
 }
 
@@ -63,6 +64,10 @@ struct UnavailableRemoteHostClient: RemoteHostSwitching {
     }
 
     func switchToAccount(_ account: CodexAccount, on host: RemoteHost) async throws {
+        throw RemoteHostClientError.unavailable
+    }
+
+    func refreshCodexAppServer(on host: RemoteHost) async throws {
         throw RemoteHostClientError.unavailable
     }
 

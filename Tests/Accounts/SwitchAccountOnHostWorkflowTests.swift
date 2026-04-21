@@ -20,6 +20,7 @@ struct SwitchAccountOnHostWorkflowTests {
             .installationState(account.id, host.displayName),
             .install(account.id, host.displayName),
             .switchAccount(account.id, host.displayName),
+            .refreshRuntime(host.displayName),
             .readStatus(host.displayName)
         ])
         #expect(result == .verified(CodexAccountStatus(email: account.email, planType: account.planType, rateLimits: nil)))
@@ -40,6 +41,7 @@ struct SwitchAccountOnHostWorkflowTests {
         #expect(client.events == [
             .installationState(account.id, host.displayName),
             .switchAccount(account.id, host.displayName),
+            .refreshRuntime(host.displayName),
             .readStatus(host.displayName)
         ])
         #expect(result == .verified(CodexAccountStatus(email: account.email, planType: account.planType, rateLimits: nil)))
@@ -117,6 +119,7 @@ struct SwitchAccountOnHostWorkflowTests {
         #expect(client.events == [
             .installationState(target.id, host.displayName),
             .switchAccount(target.id, host.displayName),
+            .refreshRuntime(host.displayName),
             .readStatus(host.displayName),
             .readStatus(host.displayName)
         ])
@@ -198,8 +201,30 @@ struct SwitchAccountOnHostWorkflowTests {
         #expect(client.events == [
             .installationState(target.id, host.displayName),
             .switchAccount(target.id, host.displayName),
+            .refreshRuntime(host.displayName),
             .readStatus(host.displayName),
             .readStatus(host.displayName)
+        ])
+    }
+
+    @Test
+    func runStopsAndFailsWhenRuntimeRefreshFails() async {
+        let account = makeAccount(name: "Research")
+        let host = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
+        let client = RemoteHostClientSpy(
+            installationState: .installed,
+            refreshError: RemoteHostClientError.commandFailed("Remote Codex app-server failed to restart")
+        )
+        let workflow = SwitchAccountOnHostWorkflow(remoteHostClient: client)
+
+        await #expect(throws: RemoteHostClientError.commandFailed("Remote Codex app-server failed to restart")) {
+            _ = try await workflow.run(account: account, on: host, among: [account])
+        }
+
+        #expect(client.events == [
+            .installationState(account.id, host.displayName),
+            .switchAccount(account.id, host.displayName),
+            .refreshRuntime(host.displayName)
         ])
     }
 
@@ -220,6 +245,7 @@ struct SwitchAccountOnHostWorkflowTests {
         #expect(client.events == [
             .installationState(account.id, host.displayName),
             .switchAccount(account.id, host.displayName),
+            .refreshRuntime(host.displayName),
             .readStatus(host.displayName)
         ])
     }
@@ -252,6 +278,7 @@ private final class RemoteHostClientSpy: RemoteHostSwitching {
         case installationState(UUID, String)
         case install(UUID, String)
         case switchAccount(UUID, String)
+        case refreshRuntime(String)
         case readStatus(String)
     }
 
@@ -259,6 +286,7 @@ private final class RemoteHostClientSpy: RemoteHostSwitching {
     let statuses: [CodexAccountStatus]
     let installError: Error?
     let switchError: Error?
+    let refreshError: Error?
     let statusError: Error?
     private(set) var events: [Event] = []
     private var nextStatusIndex = 0
@@ -269,12 +297,14 @@ private final class RemoteHostClientSpy: RemoteHostSwitching {
         statuses: [CodexAccountStatus] = [],
         installError: Error? = nil,
         switchError: Error? = nil,
+        refreshError: Error? = nil,
         statusError: Error? = nil
     ) {
         self.installationState = installationState
         self.statuses = statuses.isEmpty ? [status ?? CodexAccountStatus(email: nil, planType: nil, rateLimits: nil)] : statuses
         self.installError = installError
         self.switchError = switchError
+        self.refreshError = refreshError
         self.statusError = statusError
     }
 
@@ -298,6 +328,13 @@ private final class RemoteHostClientSpy: RemoteHostSwitching {
         events.append(.switchAccount(account.id, host.displayName))
         if let switchError {
             throw switchError
+        }
+    }
+
+    func refreshCodexAppServer(on host: RemoteHost) async throws {
+        events.append(.refreshRuntime(host.displayName))
+        if let refreshError {
+            throw refreshError
         }
     }
 

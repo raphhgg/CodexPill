@@ -20,7 +20,7 @@ actor ValidationRemoteHostClient: RemoteHostSwitching {
     }
 
     func testConnection(to host: RemoteHost) async throws {
-        ensureHostState(for: host)
+        _ = ensureHostState(for: host)
     }
 
     func installationState(for account: CodexAccount, on host: RemoteHost) async throws -> RemoteHostAccountInstallationState {
@@ -39,6 +39,10 @@ actor ValidationRemoteHostClient: RemoteHostSwitching {
         state.installedAccountIDs.insert(account.id)
         state.activeAccount = account
         hostsByDestination[host.destination] = state
+    }
+
+    func refreshCodexAppServer(on host: RemoteHost) async throws {
+        _ = ensureHostState(for: host)
     }
 
     func readCurrentAccountStatus(on host: RemoteHost) async throws -> CodexAccountStatus {
