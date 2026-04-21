@@ -21,20 +21,32 @@ struct RemoteHostMenuState: Codable, Equatable {
     let name: String
     let destination: String
     let connectionState: RemoteHostConnectionState
+    let desiredAccount: CodexAccount?
     let activeAccount: CodexAccount?
+    let detectedAccount: CodexAccount?
+    let verificationStatus: PersistedRemoteHostState.VerificationStatus
+    let lastVerificationError: String?
     let deployedAccountIDs: [UUID]
 
     init(
         name: String,
         destination: String = "",
         connectionState: RemoteHostConnectionState,
+        desiredAccount: CodexAccount? = nil,
         activeAccount: CodexAccount?,
+        detectedAccount: CodexAccount? = nil,
+        verificationStatus: PersistedRemoteHostState.VerificationStatus = .verified,
+        lastVerificationError: String? = nil,
         deployedAccountIDs: [UUID] = []
     ) {
         self.name = name
         self.destination = destination
         self.connectionState = connectionState
+        self.desiredAccount = desiredAccount
         self.activeAccount = activeAccount
+        self.detectedAccount = detectedAccount
+        self.verificationStatus = verificationStatus
+        self.lastVerificationError = lastVerificationError
         self.deployedAccountIDs = deployedAccountIDs
     }
 
@@ -43,7 +55,15 @@ struct RemoteHostMenuState: Codable, Equatable {
     }
 
     var shouldShowRemoteAccountCard: Bool {
-        activeAccount != nil && connectionState != .disconnected
+        connectionState != .disconnected && displayAccount != nil
+    }
+
+    var displayAccount: CodexAccount? {
+        activeAccount ?? detectedAccount ?? desiredAccount
+    }
+
+    var isVerified: Bool {
+        activeAccount != nil && verificationStatus == .verified
     }
 }
 
@@ -134,8 +154,12 @@ struct MenuBarMenuState {
         [activeAccount].compactMap { $0 } + inactiveAccounts
     }
 
+    var resolvedRemoteHosts: [RemoteHostMenuState] {
+        remoteHosts.map(resolveRemoteHost)
+    }
+
     var connectedRemoteHosts: [RemoteHostMenuState] {
-        remoteHosts.filter(\.shouldShowRemoteAccountCard)
+        resolvedRemoteHosts.filter(\.shouldShowRemoteAccountCard)
     }
 
     var accountCatalogEntries: [MenuBarAccountCatalogEntry] {
@@ -205,6 +229,58 @@ struct MenuBarMenuState {
         case (false, false):
             return nil
         }
+    }
+
+    private func resolveRemoteHost(_ remoteHost: RemoteHostMenuState) -> RemoteHostMenuState {
+        guard let activeAccount = remoteHost.activeAccount else {
+            return remoteHost
+        }
+
+        var resolvedHost = remoteHost
+        resolvedHost = RemoteHostMenuState(
+            name: remoteHost.name,
+            destination: remoteHost.destination,
+            connectionState: remoteHost.connectionState,
+            desiredAccount: remoteHost.desiredAccount,
+            activeAccount: resolveRemoteActiveAccount(activeAccount),
+            detectedAccount: remoteHost.detectedAccount,
+            verificationStatus: remoteHost.verificationStatus,
+            lastVerificationError: remoteHost.lastVerificationError,
+            deployedAccountIDs: remoteHost.deployedAccountIDs
+        )
+        return resolvedHost
+    }
+
+    private func resolveRemoteActiveAccount(_ remoteAccount: CodexAccount) -> CodexAccount {
+        let matchOutcome = CodexAccountMatcher().match(
+            liveStableAccountID: remoteAccount.identity.stableAccountID,
+            liveAuthPrincipalIdentity: remoteAccount.identity.authPrincipalIdentity,
+            liveWorkspaceIdentity: remoteAccount.identity.workspaceIdentity,
+            liveAuthFingerprint: remoteAccount.identity.snapshotFingerprint,
+            liveRemoteIdentity: remoteAccount.resolvedRemoteIdentity,
+            accounts: allSavedAccounts
+        )
+
+        guard let matchedAccountID = matchOutcome.matchedAccountID,
+              let matchedAccount = allSavedAccounts.first(where: { $0.id == matchedAccountID })
+        else {
+            return remoteAccount
+        }
+
+        var resolvedAccount = matchedAccount
+        resolvedAccount.applyRemoteMetadata(
+            email: remoteAccount.email ?? matchedAccount.email,
+            planType: remoteAccount.planType ?? matchedAccount.planType,
+            rateLimits: preferredRemoteRateLimits(
+                remote: remoteAccount.rateLimits,
+                fallback: matchedAccount.rateLimits,
+                candidateAccounts: allSavedAccounts,
+                baseAccount: matchedAccount,
+                remoteEmail: remoteAccount.email
+            )
+        )
+        resolvedAccount.updatedAt = max(remoteAccount.updatedAt, matchedAccount.updatedAt)
+        return resolvedAccount
     }
 
     private func compareActiveEntries(_ lhs: MenuBarAccountCatalogEntry, _ rhs: MenuBarAccountCatalogEntry) -> Bool {

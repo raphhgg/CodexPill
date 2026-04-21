@@ -87,7 +87,7 @@ struct MenuBarMenuStateTests {
     }
 
     @Test
-    func remoteHostCardOnlyShowsWhenAnActiveRemoteAccountExists() {
+    func remoteHostCardVisibilityTracksReachability() {
         let connected = makeRemoteHost(activeAccount: makeAccount(name: "Host Only"))
         let disconnected = RemoteHostMenuState(
             name: connected.name,
@@ -99,6 +99,86 @@ struct MenuBarMenuStateTests {
         #expect(connected.shouldShowRemoteAccountCard)
         #expect(!disconnected.shouldShowRemoteAccountCard)
         #expect(!empty.shouldShowRemoteAccountCard)
+    }
+
+    @Test
+    func unverifiedRemoteHostDoesNotMarkAccountAsRemoteActive() {
+        let local = makeAccount(name: "Business 2", withRateLimits: true)
+        let state = makeState(
+            activeAccount: nil,
+            inactiveAccounts: [local],
+            remoteHosts: [
+                RemoteHostMenuState(
+                    name: "buildbox",
+                    destination: "user@buildbox",
+                    connectionState: .syncing,
+                    desiredAccount: local,
+                    activeAccount: nil,
+                    verificationStatus: .verifying,
+                    deployedAccountIDs: [local.id]
+                )
+            ]
+        )
+
+        #expect(state.connectedRemoteHosts.count == 1)
+        #expect(state.connectedRemoteHosts.first?.desiredAccount?.id == local.id)
+        #expect(state.connectedRemoteHosts.first?.activeAccount == nil)
+        #expect(state.accountCatalogEntries.first?.account.id == local.id)
+        #expect(state.accountCatalogEntries.first?.placement == nil)
+    }
+
+    @Test
+    func disconnectedFailedRemoteHostDoesNotShowPrimaryCardOrMarkAccountActive() {
+        let local = makeAccount(name: "Business 2", withRateLimits: true)
+        let detected = makeAccount(name: "Business 1", withRateLimits: true)
+        let state = makeState(
+            activeAccount: nil,
+            inactiveAccounts: [local],
+            remoteHosts: [
+                RemoteHostMenuState(
+                    name: "buildbox",
+                    destination: "user@buildbox",
+                    connectionState: .disconnected,
+                    desiredAccount: local,
+                    activeAccount: nil,
+                    detectedAccount: detected,
+                    verificationStatus: .failed,
+                    lastVerificationError: "buildbox is using Business 1, not Business 2.",
+                    deployedAccountIDs: [local.id]
+                )
+            ]
+        )
+
+        #expect(state.connectedRemoteHosts.isEmpty)
+        #expect(state.accountCatalogEntries.first?.account.id == local.id)
+        #expect(state.accountCatalogEntries.first?.placement == nil)
+    }
+
+    @Test
+    func detectedRemoteAccountDoesNotReplaceSavedAccountCatalog() {
+        let desired = makeAccount(name: "Business 2", withRateLimits: true)
+        let detected = makeAccount(name: "Business 1", withRateLimits: true)
+        let state = makeState(
+            activeAccount: nil,
+            inactiveAccounts: [desired],
+            remoteHosts: [
+                RemoteHostMenuState(
+                    name: "buildbox",
+                    destination: "user@buildbox",
+                    connectionState: .connected,
+                    desiredAccount: desired,
+                    activeAccount: nil,
+                    detectedAccount: detected,
+                    verificationStatus: .failed,
+                    lastVerificationError: "buildbox is using Business 1, not Business 2.",
+                    deployedAccountIDs: [desired.id]
+                )
+            ]
+        )
+
+        #expect(state.connectedRemoteHosts.count == 1)
+        #expect(state.connectedRemoteHosts.first?.displayAccount?.id == detected.id)
+        #expect(state.allSavedAccounts.map(\.id) == [desired.id])
     }
 
     @Test
@@ -283,11 +363,15 @@ struct MenuBarMenuStateTests {
         )
     }
 
-    private func makeRemoteHost(activeAccount: CodexAccount? = nil) -> RemoteHostMenuState {
+    private func makeRemoteHost(
+        activeAccount: CodexAccount? = nil,
+        detectedAccount: CodexAccount? = nil
+    ) -> RemoteHostMenuState {
         RemoteHostMenuState(
             name: "devbox",
             connectionState: .connected,
-            activeAccount: activeAccount
+            activeAccount: activeAccount,
+            detectedAccount: detectedAccount
         )
     }
 }

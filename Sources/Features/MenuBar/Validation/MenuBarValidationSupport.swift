@@ -30,7 +30,11 @@ struct MenuBarValidationSnapshot: Codable, Equatable {
     struct RemoteHostState: Codable, Equatable {
         let name: String
         let connectionState: String
+        let desiredAccount: AccountIdentity?
         let activeAccount: AccountIdentity?
+        let detectedAccount: AccountIdentity?
+        let verificationStatus: String
+        let lastVerificationError: String?
     }
 
     struct MenuItem: Codable, Equatable {
@@ -203,11 +207,20 @@ enum MenuBarValidationSupport {
     private static func remoteHostSummary(for remoteHost: RemoteHostMenuState, now: Date) -> String {
         var components = [
             remoteHost.name,
-            remoteHost.connectionState.menuTitle
+            remoteHost.connectionState.menuTitle,
+            remoteHost.verificationStatus.rawValue
         ]
 
         if let activeAccount = remoteHost.activeAccount {
             components.append(accountSummary(for: activeAccount, now: now))
+        } else if let detectedAccount = remoteHost.detectedAccount {
+            components.append("Detected: \(accountSummary(for: detectedAccount, now: now))")
+        } else if let desiredAccount = remoteHost.desiredAccount {
+            components.append("Desired: \(accountSummary(for: desiredAccount, now: now))")
+        }
+
+        if let lastVerificationError = remoteHost.lastVerificationError, !lastVerificationError.isEmpty {
+            components.append(lastVerificationError)
         }
 
         return components.joined(separator: " • ")
@@ -249,7 +262,11 @@ enum MenuBarValidationSupport {
         .init(
             name: remoteHost.name,
             connectionState: remoteHost.connectionState.rawValue,
-            activeAccount: remoteHost.activeAccount.map(accountIdentity(for:))
+            desiredAccount: remoteHost.desiredAccount.map(accountIdentity(for:)),
+            activeAccount: remoteHost.activeAccount.map(accountIdentity(for:)),
+            detectedAccount: remoteHost.detectedAccount.map(accountIdentity(for:)),
+            verificationStatus: remoteHost.verificationStatus.rawValue,
+            lastVerificationError: remoteHost.lastVerificationError
         )
     }
 

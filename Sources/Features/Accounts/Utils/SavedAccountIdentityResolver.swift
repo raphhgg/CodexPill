@@ -5,17 +5,20 @@ struct LiveCodexAccountIdentity: Equatable {
     let authPrincipalIdentity: CodexAuthPrincipalIdentity?
     let workspaceIdentity: CodexWorkspaceIdentity?
     let snapshotFingerprint: String?
+    let remoteIdentity: CodexRemoteAccountIdentity?
 
     init(
         stableAccountID: String? = nil,
         authPrincipalIdentity: CodexAuthPrincipalIdentity? = nil,
         workspaceIdentity: CodexWorkspaceIdentity? = nil,
-        snapshotFingerprint: String? = nil
+        snapshotFingerprint: String? = nil,
+        remoteIdentity: CodexRemoteAccountIdentity? = nil
     ) {
         self.stableAccountID = stableAccountID
         self.authPrincipalIdentity = authPrincipalIdentity
         self.workspaceIdentity = workspaceIdentity
         self.snapshotFingerprint = snapshotFingerprint
+        self.remoteIdentity = remoteIdentity
     }
 
     init(account: CodexAccount) {
@@ -23,7 +26,8 @@ struct LiveCodexAccountIdentity: Equatable {
             stableAccountID: account.identity.stableAccountID,
             authPrincipalIdentity: account.identity.authPrincipalIdentity,
             workspaceIdentity: account.identity.workspaceIdentity,
-            snapshotFingerprint: account.identity.snapshotFingerprint
+            snapshotFingerprint: account.identity.snapshotFingerprint,
+            remoteIdentity: account.resolvedRemoteIdentity
         )
     }
 
@@ -44,7 +48,8 @@ extension CodexAuthSnapshotService: LiveCodexAccountIdentityReading {
             stableAccountID: currentStableAccountID(),
             authPrincipalIdentity: currentAuthPrincipalIdentity(),
             workspaceIdentity: currentWorkspaceIdentity(),
-            snapshotFingerprint: currentAuthFingerprint()
+            snapshotFingerprint: currentAuthFingerprint(),
+            remoteIdentity: currentRemoteIdentity()
         )
     }
 }
@@ -91,7 +96,7 @@ struct SavedAccountIdentityResolver {
             liveAuthPrincipalIdentity: liveIdentity.authPrincipalIdentity,
             liveWorkspaceIdentity: liveIdentity.workspaceIdentity,
             liveAuthFingerprint: liveIdentity.snapshotFingerprint,
-            liveRemoteIdentity: liveRemoteIdentity,
+            liveRemoteIdentity: liveRemoteIdentity ?? liveIdentity.remoteIdentity,
             accounts: accounts
         )
     }

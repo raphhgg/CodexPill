@@ -169,7 +169,10 @@ struct MenuBarMenuBuilderTests {
         #expect(moreAccounts.image == nil)
         #expect(moreAccounts.submenu?.title == "More Accounts…")
         #expect(!firstOverflowAccount.title.isEmpty)
-        #expect(firstOverflowAccount.title.contains("Business 4"))
+        #expect(
+            ["Business 1", "Business 2", "Business 3", "Business 4"]
+                .contains(where: { firstOverflowAccount.title.contains($0) })
+        )
         #expect(firstOverflowAccount.submenu != nil)
         #expect(firstOverflowAccount.action != #selector(MenuBarCoordinator.switchAccount(_:)))
         #expect(overflowSwitch.action == #selector(MenuBarCoordinator.switchAccount(_:)))
@@ -218,6 +221,129 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
+    func inactiveAccountSubmenuShowsPendingAndFailedRemoteUsageStates() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let pending = makeAccount(name: "Business 3", withRateLimits: true)
+        let failed = makeAccount(name: "Business 4", withRateLimits: true)
+        let menu = builder.makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                inactiveAccounts: [pending, failed],
+                remoteHosts: [
+                    makeRemoteHost(
+                        name: "buildbox",
+                        desiredAccount: pending,
+                        activeAccount: nil,
+                        verificationStatus: .verifying
+                    ),
+                    makeRemoteHost(
+                        name: "debian-vm",
+                        destination: "user@debian-vm",
+                        connectionState: .disconnected,
+                        desiredAccount: failed,
+                        activeAccount: nil,
+                        verificationStatus: .failed,
+                        lastVerificationError: "debian-vm is using Business 1, not Business 4."
+                    )
+                ]
+            ),
+            target: coordinator
+        )
+
+        let pendingItem = try #require(menu.items.first(where: { $0.attributedTitle?.string.contains(pending.name) == true }))
+        let failedItem = try #require(menu.items.first(where: { $0.attributedTitle?.string.contains(failed.name) == true }))
+        let pendingStatus = try #require(pendingItem.submenu?.items.first)
+        let failedStatus = try #require(failedItem.submenu?.items.first)
+
+        #expect(pendingStatus.title == "Pending on: buildbox")
+        #expect(failedStatus.title == "Verification failed on: debian-vm")
+    }
+
+    @Test
+    func failedHostSubmenuOffersAdoptDetectedAccountAction() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let desired = makeAccount(name: "Business 2", withRateLimits: true)
+        let detected = makeAccount(name: "Business 1", withRateLimits: true)
+        let menu = builder.makeMenu(
+            state: makeState(
+                activeAccount: nil,
+                inactiveAccounts: [desired],
+                remoteHosts: [
+                    makeRemoteHost(
+                        name: "buildbox",
+                        destination: "user@buildbox",
+                        connectionState: .connected,
+                        desiredAccount: desired,
+                        activeAccount: nil,
+                        detectedAccount: detected,
+                        verificationStatus: .failed,
+                        lastVerificationError: "buildbox is using Business 1, not Business 2."
+                    )
+                ]
+            ),
+            target: coordinator
+        )
+
+        let hostsMenu = try #require(menu.items.first(where: { $0.title == "Hosts" })?.submenu)
+        let hostSubmenu = try #require(hostsMenu.items.first(where: { $0.title == "buildbox" })?.submenu)
+        let detectedRow = try #require(hostSubmenu.items.first(where: { $0.title == "Detected account: Business 1" }))
+        let adoptAction = try #require(hostSubmenu.items.first(where: { $0.title == "Use Detected Account (Business 1)" }))
+        let reverify = try #require(hostSubmenu.items.first(where: { $0.title == "Re-verify Remote Account" }))
+
+        #expect(detectedRow.isEnabled == false)
+        #expect(adoptAction.action == #selector(MenuBarCoordinator.adoptDetectedRemoteAccount(_:)))
+        #expect(adoptAction.target === coordinator)
+        let payload = try #require(adoptAction.representedObject as? HostAccountMenuItemPayload)
+        #expect(payload.accountID == detected.id)
+        #expect(payload.hostDestination == "user@buildbox")
+        #expect(reverify.action == #selector(MenuBarCoordinator.reverifyHost(_:)))
+    }
+
+    @Test
+    func inactiveAccountSubmenuAddsOneHostTargetPerConfiguredHost() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let inactive = makeAccount(name: "Business 3", withRateLimits: true)
+        let menu = builder.makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                inactiveAccounts: [inactive],
+                remoteHosts: [
+                    makeRemoteHost(
+                        name: "buildbox",
+                        destination: "user@buildbox",
+                        activeAccount: makeAccount(name: "Remote 1", withRateLimits: true),
+                        deployedAccountIDs: [inactive.id]
+                    ),
+                    makeRemoteHost(
+                        name: "debian-vm",
+                        destination: "user@debian-vm",
+                        connectionState: .disconnected,
+                        activeAccount: makeAccount(name: "Remote 2", withRateLimits: true),
+                        deployedAccountIDs: []
+                    )
+                ]
+            ),
+            target: coordinator
+        )
+
+        let accountItem = try #require(menu.items.first(where: { $0.attributedTitle?.string.contains(inactive.name) == true }))
+        let submenu = try #require(accountItem.submenu)
+        let buildboxAction = try #require(submenu.items.first(where: { $0.title == "Switch on buildbox" }))
+        let debianAction = try #require(submenu.items.first(where: { $0.title == "Install on debian-vm and switch" }))
+
+        let buildboxPayload = try #require(buildboxAction.representedObject as? HostAccountMenuItemPayload)
+        let debianPayload = try #require(debianAction.representedObject as? HostAccountMenuItemPayload)
+
+        #expect(buildboxAction.action == #selector(MenuBarCoordinator.switchAccountOnHost(_:)))
+        #expect(debianAction.action == #selector(MenuBarCoordinator.switchAccountOnHost(_:)))
+        #expect(buildboxPayload.hostDestination == "user@buildbox")
+        #expect(debianPayload.hostDestination == "user@debian-vm")
+    }
+
+    @Test
     func hostsSubmenuOffersAddHostWhenNoHostIsConfigured() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
@@ -255,6 +381,120 @@ struct MenuBarMenuBuilderTests {
         #expect(removeHost.action == #selector(MenuBarCoordinator.removeHost(_:)))
         let removePayload = try #require(removeHost.representedObject as? HostSelectionMenuItemPayload)
         #expect(removePayload.hostDestination == "user@devbox")
+    }
+
+    @Test
+    func hostsSubmenuOffersReverifyActionWhenHostHasDisplayAccount() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let desired = makeAccount(name: "Business 2", withRateLimits: true)
+        let menu = builder.makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                remoteHosts: [
+                    makeRemoteHost(
+                        desiredAccount: desired,
+                        activeAccount: nil,
+                        verificationStatus: .failed,
+                        lastVerificationError: "devbox is using Business 1, not Business 2."
+                    )
+                ]
+            ),
+            target: coordinator
+        )
+
+        let hostsMenu = try #require(menu.items.first(where: { $0.title == "Hosts" })?.submenu)
+        let hostItem = try #require(hostsMenu.items.first(where: { $0.title == "devbox" }))
+        let hostSubmenu = try #require(hostItem.submenu)
+        let reverify = try #require(hostSubmenu.items.first(where: { $0.title == "Re-verify Remote Account" }))
+        let payload = try #require(reverify.representedObject as? HostSelectionMenuItemPayload)
+
+        #expect(reverify.action == #selector(MenuBarCoordinator.reverifyHost(_:)))
+        #expect(reverify.target === coordinator)
+        #expect(payload.hostDestination == "user@devbox")
+    }
+
+    @Test
+    func hostsSubmenuDisablesReverifyActionWhileHostIsAlreadyVerifying() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let desired = makeAccount(name: "Business 2", withRateLimits: true)
+        let menu = builder.makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                remoteHosts: [
+                    makeRemoteHost(
+                        desiredAccount: desired,
+                        activeAccount: nil,
+                        verificationStatus: .verifying
+                    )
+                ]
+            ),
+            target: coordinator
+        )
+
+        let hostsMenu = try #require(menu.items.first(where: { $0.title == "Hosts" })?.submenu)
+        let hostItem = try #require(hostsMenu.items.first(where: { $0.title == "devbox" }))
+        let hostSubmenu = try #require(hostItem.submenu)
+        let reverify = try #require(hostSubmenu.items.first(where: { $0.title == "Re-verify Remote Account" }))
+
+        #expect(reverify.isEnabled == false)
+    }
+
+    @Test
+    func hostsSubmenuOmitsReverifyActionWhenHostHasNoDesiredOrVerifiedAccount() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let menu = builder.makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                remoteHosts: [
+                    makeRemoteHost(desiredAccount: nil, activeAccount: nil, verificationStatus: .unverified)
+                ]
+            ),
+            target: coordinator
+        )
+
+        let hostsMenu = try #require(menu.items.first(where: { $0.title == "Hosts" })?.submenu)
+        let hostItem = try #require(hostsMenu.items.first(where: { $0.title == "devbox" }))
+        let hostSubmenu = try #require(hostItem.submenu)
+
+        #expect(hostSubmenu.items.contains(where: { $0.title == "Re-verify Remote Account" }) == false)
+    }
+
+    @Test
+    func hostsSubmenuListsConnectedAndDisconnectedHosts() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let menu = builder.makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                remoteHosts: [
+                    makeRemoteHost(
+                        name: "buildbox",
+                        destination: "user@buildbox",
+                        connectionState: .connected,
+                        activeAccount: makeAccount(name: "Remote 1", withRateLimits: true)
+                    ),
+                    makeRemoteHost(
+                        name: "debian-vm",
+                        destination: "user@debian-vm",
+                        connectionState: .disconnected,
+                        activeAccount: makeAccount(name: "Remote 2", withRateLimits: true)
+                    )
+                ]
+            ),
+            target: coordinator
+        )
+
+        let hostsMenu = try #require(menu.items.first(where: { $0.title == "Hosts" })?.submenu)
+        let buildbox = try #require(hostsMenu.items.first(where: { $0.title == "buildbox" })?.submenu)
+        let debian = try #require(hostsMenu.items.first(where: { $0.title == "debian-vm" })?.submenu)
+        let connectedStatus = try #require(buildbox.items.first(where: { $0.title == "Status: Connected" }))
+        let disconnectedStatus = try #require(debian.items.first(where: { $0.title == "Status: Disconnected" }))
+
+        #expect(connectedStatus.isEnabled == false)
+        #expect(disconnectedStatus.isEnabled == false)
     }
 
     @Test
@@ -323,7 +563,11 @@ struct MenuBarMenuBuilderTests {
         let view = NSHostingView(
             rootView: RemoteHostMenuContent(
                 remoteHost: makeRemoteHost(activeAccount: makeAccount(name: "Personal 1", withRateLimits: true)),
-                progressAccentColor: .blue
+                progressAccentColor: .blue,
+                primaryActionTitle: nil,
+                onPrimaryAction: nil,
+                isPrimaryActionEnabled: true,
+                isPrimaryActionProminent: false
             )
         )
 
@@ -413,7 +657,7 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func disconnectedRemoteHostDoesNotRenderPrimaryRemoteSection() throws {
+    func disconnectedVerifiedRemoteHostDoesNotRenderPrimaryRemoteSection() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
@@ -423,13 +667,83 @@ struct MenuBarMenuBuilderTests {
                     name: "devbox",
                     destination: "user@devbox",
                     connectionState: .disconnected,
+                    desiredAccount: makeAccount(name: "Business 2", withRateLimits: true),
                     activeAccount: makeAccount(name: "Business 2", withRateLimits: true)
                 )]
             ),
             target: coordinator
         )
 
-        #expect(menu.items.contains(where: { $0.title == "Remote Accounts" }) == false)
+        #expect(
+            menu.items
+                .compactMap(\.view)
+                .contains(where: { String(describing: type(of: $0)).contains("RemoteHostMenuContent") }) == false
+        )
+    }
+
+    @Test
+    func disconnectedFailedRemoteHostDoesNotRenderPrimaryRemoteSection() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let desired = makeAccount(name: "Business 2", withRateLimits: true)
+        let menu = builder.makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                remoteHosts: [RemoteHostMenuState(
+                    name: "devbox",
+                    destination: "user@devbox",
+                    connectionState: .disconnected,
+                    desiredAccount: desired,
+                    activeAccount: nil,
+                    verificationStatus: .failed,
+                    lastVerificationError: "devbox is using Business 1, not Business 2."
+                )]
+            ),
+            target: coordinator
+        )
+
+        #expect(
+            menu.items
+                .compactMap(\.view)
+                .compactMap { $0 as? NSHostingView<RemoteHostMenuContent> }
+                .isEmpty
+        )
+    }
+
+    @Test
+    func remoteMismatchCardExposesAdoptDetectedAccountAction() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let desired = makeAccount(name: "Business 2", withRateLimits: true)
+        let detected = makeAccount(name: "Business 1", withRateLimits: true)
+        let menu = builder.makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                remoteHosts: [RemoteHostMenuState(
+                    name: "buildbox",
+                    destination: "user@buildbox",
+                    connectionState: .connected,
+                    desiredAccount: desired,
+                    activeAccount: nil,
+                    detectedAccount: detected,
+                    verificationStatus: .failed,
+                    lastVerificationError: "buildbox is using Business 1, not Business 2."
+                )]
+            ),
+            target: coordinator
+        )
+
+        let remoteCard = try #require(
+            menu.items
+                .compactMap(\.view)
+                .compactMap { $0 as? NSHostingView<RemoteHostMenuContent> }
+                .first
+        )
+
+        #expect(remoteCard.rootView.remoteHost.detectedAccount?.name == "Business 1")
+        #expect(remoteCard.rootView.primaryActionTitle == "Use Business 1")
+        #expect(remoteCard.rootView.onPrimaryAction != nil)
+        #expect(remoteCard.rootView.isPrimaryActionProminent == true)
     }
 
     @Test
@@ -455,6 +769,52 @@ struct MenuBarMenuBuilderTests {
         let remotePayload = try #require(remoteAction.representedObject as? HostAccountMenuItemPayload)
         #expect(remotePayload.accountID == inactive.id)
         #expect(remotePayload.hostDestination == "user@devbox")
+    }
+
+    @Test
+    func remoteHostCardAndAccountUsageResolveAgainstCanonicalSavedAccountIdentity() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let canonical = makeAccount(name: "Business 2", withRateLimits: true)
+        let remoteClone = CodexAccount(
+            id: UUID(),
+            name: canonical.name,
+            snapshotFileName: canonical.snapshotFileName,
+            createdAt: canonical.createdAt,
+            updatedAt: canonical.updatedAt.addingTimeInterval(60),
+            email: canonical.email,
+            planType: canonical.planType,
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: nil,
+                limitName: nil,
+                planType: canonical.planType,
+                primary: nil,
+                secondary: canonical.rateLimits?.secondary,
+                fetchedAt: canonical.updatedAt.addingTimeInterval(60)
+            ),
+            identity: canonical.identity
+        )
+        let menu = builder.makeMenu(
+            state: makeState(
+                activeAccount: nil,
+                inactiveAccounts: [canonical],
+                remoteHosts: [makeRemoteHost(name: "debian-vm", activeAccount: remoteClone)]
+            ),
+            target: coordinator
+        )
+
+        let remoteCard = try #require(
+            menu.items
+                .compactMap(\.view)
+                .compactMap { $0 as? NSHostingView<RemoteHostMenuContent> }
+                .first
+        )
+        let accountItem = try #require(menu.items.first(where: { $0.attributedTitle?.string.contains(canonical.name) == true }))
+        let usageStatusItem = try #require(accountItem.submenu?.items.first)
+
+        #expect(remoteCard.rootView.remoteHost.activeAccount?.id == canonical.id)
+        #expect(remoteCard.rootView.remoteHost.activeAccount?.rateLimits?.primary?.usedPercent == canonical.rateLimits?.primary?.usedPercent)
+        #expect(usageStatusItem.title == "In use on: debian-vm")
     }
 
     @Test
@@ -663,7 +1023,7 @@ struct MenuBarMenuBuilderTests {
     }
 
     private func makeAccount(name: String, withRateLimits: Bool) -> CodexAccount {
-        let now = Date(timeIntervalSince1970: 1_744_195_200)
+        let now = Date()
         return CodexAccount(
             id: UUID(),
             name: name,
@@ -695,12 +1055,26 @@ struct MenuBarMenuBuilderTests {
         )
     }
 
-    private func makeRemoteHost(activeAccount: CodexAccount? = nil, deployedAccountIDs: [UUID] = []) -> RemoteHostMenuState {
+    private func makeRemoteHost(
+        name: String = "devbox",
+        destination: String = "user@devbox",
+        connectionState: RemoteHostConnectionState = .connected,
+        desiredAccount: CodexAccount? = nil,
+        activeAccount: CodexAccount? = nil,
+        detectedAccount: CodexAccount? = nil,
+        verificationStatus: PersistedRemoteHostState.VerificationStatus = .verified,
+        lastVerificationError: String? = nil,
+        deployedAccountIDs: [UUID] = []
+    ) -> RemoteHostMenuState {
         RemoteHostMenuState(
-            name: "devbox",
-            destination: "user@devbox",
-            connectionState: .connected,
+            name: name,
+            destination: destination,
+            connectionState: connectionState,
+            desiredAccount: desiredAccount,
             activeAccount: activeAccount,
+            detectedAccount: detectedAccount,
+            verificationStatus: verificationStatus,
+            lastVerificationError: lastVerificationError,
             deployedAccountIDs: deployedAccountIDs
         )
     }

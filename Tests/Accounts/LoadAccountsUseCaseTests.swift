@@ -214,6 +214,66 @@ struct LoadAccountsUseCaseTests {
         #expect(result.activeAccountID == businessTwoID)
     }
 
+    @Test
+    func runResolvesActiveAccountUsingLiveRemoteIdentityWhenOtherSignalsMiss() throws {
+        let personalID = UUID()
+        let businessID = UUID()
+        let personal = CodexAccount(
+            id: personalID,
+            name: "Personal 1",
+            snapshotFileName: "\(personalID.uuidString).json",
+            createdAt: .distantPast,
+            updatedAt: .distantPast,
+            email: "admin@raphh.me",
+            planType: "plus",
+            rateLimits: nil,
+            identity: CodexAccountIdentity(
+                stableAccountID: "acct-shared",
+                authPrincipalIdentity: CodexAuthPrincipalIdentity(subject: "auth0|personal", chatGPTUserID: "user-personal"),
+                workspaceIdentity: CodexWorkspaceIdentity(workspaceAccountID: "org-personal", workspaceLabel: "Personal"),
+                snapshotFingerprint: "personal-fingerprint",
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "admin@raphh.me")
+            )
+        )
+        let business = CodexAccount(
+            id: businessID,
+            name: "Business 2",
+            snapshotFileName: "\(businessID.uuidString).json",
+            createdAt: .distantPast,
+            updatedAt: .distantPast,
+            email: "raphaelgrau@gmail.com",
+            planType: "team",
+            rateLimits: nil,
+            identity: CodexAccountIdentity(
+                stableAccountID: "acct-shared",
+                authPrincipalIdentity: CodexAuthPrincipalIdentity(subject: "auth0|business", chatGPTUserID: "user-business"),
+                workspaceIdentity: CodexWorkspaceIdentity(workspaceAccountID: "org-business", workspaceLabel: "Business"),
+                snapshotFingerprint: "business-fingerprint",
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@gmail.com")
+            )
+        )
+
+        let repository = LoadingRepositorySpy(accountsToLoad: [personal, business])
+        let auth = ReconcileSpy(reconciledAccounts: [personal, business])
+        let resolver = SavedAccountIdentityResolver(
+            liveIdentityReader: CurrentFingerprintStub(
+                fingerprint: nil,
+                stableAccountID: "acct-shared",
+                authPrincipalIdentity: CodexAuthPrincipalIdentity(subject: "auth0|missing", chatGPTUserID: "user-missing"),
+                workspaceIdentity: CodexWorkspaceIdentity(workspaceAccountID: "org-missing", workspaceLabel: "Missing"),
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@gmail.com")
+            ),
+            storedAccountReconciler: auth
+        )
+
+        let result = try LoadAccountsUseCase(
+            repository: repository,
+            identityResolver: resolver
+        ).run()
+
+        #expect(result.activeAccountID == businessID)
+    }
+
     private func makeAccount(
         id: UUID = UUID(),
         name: String,
@@ -281,17 +341,20 @@ private struct CurrentFingerprintStub: LiveCodexAccountIdentityReading {
     let stableAccountID: String?
     let authPrincipalIdentity: CodexAuthPrincipalIdentity?
     let workspaceIdentity: CodexWorkspaceIdentity?
+    let remoteIdentity: CodexRemoteAccountIdentity?
 
     init(
         fingerprint: String?,
         stableAccountID: String?,
         authPrincipalIdentity: CodexAuthPrincipalIdentity? = nil,
-        workspaceIdentity: CodexWorkspaceIdentity? = nil
+        workspaceIdentity: CodexWorkspaceIdentity? = nil,
+        remoteIdentity: CodexRemoteAccountIdentity? = nil
     ) {
         self.fingerprint = fingerprint
         self.stableAccountID = stableAccountID
         self.authPrincipalIdentity = authPrincipalIdentity
         self.workspaceIdentity = workspaceIdentity
+        self.remoteIdentity = remoteIdentity
     }
 
     func readCurrentLiveAccountIdentity() -> LiveCodexAccountIdentity {
@@ -299,7 +362,8 @@ private struct CurrentFingerprintStub: LiveCodexAccountIdentityReading {
             stableAccountID: stableAccountID,
             authPrincipalIdentity: authPrincipalIdentity,
             workspaceIdentity: workspaceIdentity,
-            snapshotFingerprint: fingerprint
+            snapshotFingerprint: fingerprint,
+            remoteIdentity: remoteIdentity
         )
     }
 }

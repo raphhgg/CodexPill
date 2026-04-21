@@ -35,12 +35,15 @@ protocol RemoteHostSwitching {
 enum RemoteHostClientError: LocalizedError, Equatable {
     case unavailable
     case commandFailed(String)
+    case authReadFailed(String)
 
     var errorDescription: String? {
         switch self {
         case .unavailable:
             return "Remote host switching is not configured yet."
         case .commandFailed(let message):
+            return message
+        case .authReadFailed(let message):
             return message
         }
     }

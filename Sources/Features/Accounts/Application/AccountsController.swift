@@ -12,6 +12,12 @@ final class AccountsController {
         case failed
     }
 
+    enum RemoteHostSwitchOutcome: Equatable {
+        case verified(CodexAccountStatus)
+        case notVerified(String, detectedAccountID: UUID?)
+        case failed(String, hostReachable: Bool)
+    }
+
     private let identityResolver: SavedAccountIdentityResolver
     private let inactiveAccountAvailabilityRanking: InactiveAccountAvailabilityRanking
     private let pendingSignInLifecycle: PendingSignInLifecycle
@@ -24,6 +30,7 @@ final class AccountsController {
     private let renameSavedAccountUseCase: RenameSavedAccountUseCase
     private let switchAccountWorkflow: SwitchAccountWorkflow
     private let switchAccountOnHostWorkflow: SwitchAccountOnHostWorkflow
+    private let remoteHostAccountVerifier: RemoteHostAccountVerifier
     private let saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow
     private let signInAnotherWorkflow: SignInAnotherWorkflow
 
@@ -78,6 +85,7 @@ final class AccountsController {
         self.switchAccountOnHostWorkflow = SwitchAccountOnHostWorkflow(
             remoteHostClient: remoteHostClient
         )
+        self.remoteHostAccountVerifier = RemoteHostAccountVerifier()
         self.saveCurrentAccountWorkflow = SaveCurrentAccountWorkflow(
             appServerClient: appServerClient,
             authService: authService,
@@ -108,6 +116,7 @@ final class AccountsController {
         switchAccountOnHostWorkflow: SwitchAccountOnHostWorkflow = SwitchAccountOnHostWorkflow(
             remoteHostClient: UnavailableRemoteHostClient()
         ),
+        remoteHostAccountVerifier: RemoteHostAccountVerifier = RemoteHostAccountVerifier(),
         saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow,
         signInAnotherWorkflow: SignInAnotherWorkflow
     ) {
@@ -125,6 +134,7 @@ final class AccountsController {
         self.renameSavedAccountUseCase = renameSavedAccountUseCase
         self.switchAccountWorkflow = switchAccountWorkflow
         self.switchAccountOnHostWorkflow = switchAccountOnHostWorkflow
+        self.remoteHostAccountVerifier = remoteHostAccountVerifier
         self.saveCurrentAccountWorkflow = saveCurrentAccountWorkflow
         self.signInAnotherWorkflow = signInAnotherWorkflow
     }
@@ -194,15 +204,39 @@ final class AccountsController {
         }
     }
 
-    func switchToAccountOnHost(_ account: CodexAccount, on host: RemoteHost) async -> Bool {
+    func switchToAccountOnHost(_ account: CodexAccount, on host: RemoteHost) async -> RemoteHostSwitchOutcome {
         operationState.begin(status: "Switching \(account.name) on \(host.displayName)...")
         do {
-            try await switchAccountOnHostWorkflow.run(account: account, on: host)
-            operationState.succeed()
-            return true
+            let result = try await switchAccountOnHostWorkflow.run(
+                account: account,
+                on: host,
+                among: accounts
+            )
+            switch result {
+            case .verified(let status):
+                operationState.succeed()
+                return .verified(status)
+            case .notVerified(let matchOutcome):
+                let error = RemoteHostSwitchVerificationError(
+                    message: remoteHostAccountVerifier.failureMessage(
+                        for: account,
+                        on: host,
+                        among: accounts,
+                        matchOutcome: matchOutcome
+                    )
+                )
+                operationState.fail(error)
+                return .notVerified(
+                    error.localizedDescription,
+                    detectedAccountID: matchOutcome.matchedAccountID
+                )
+            }
         } catch {
             operationState.fail(error)
-            return false
+            return .failed(
+                error.localizedDescription,
+                hostReachable: isReachableRemoteVerificationFailure(error)
+            )
         }
     }
 
@@ -362,4 +396,19 @@ final class AccountsController {
             catalogState.applyRefreshed(result)
         }
     }
+
+}
+
+private struct RemoteHostSwitchVerificationError: LocalizedError, Equatable {
+    let message: String
+
+    var errorDescription: String? { message }
+}
+
+private func isReachableRemoteVerificationFailure(_ error: Error) -> Bool {
+    guard let clientError = error as? RemoteHostClientError else { return false }
+    if case .authReadFailed = clientError {
+        return true
+    }
+    return false
 }

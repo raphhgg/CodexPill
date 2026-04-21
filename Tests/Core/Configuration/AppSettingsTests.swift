@@ -68,7 +68,9 @@ struct AppSettingsTests {
             PersistedRemoteHostState(
                 host: RemoteHost(destination: "user@buildbox", displayName: "Build Box"),
                 installedAccountIDs: [account.id],
-                activeAccount: account
+                desiredAccountID: account.id,
+                verifiedAccount: account,
+                verificationStatus: .verified
             ),
             PersistedRemoteHostState(host: RemoteHost(destination: "user@debian-vm", displayName: "Debian VM"))
         ]
@@ -77,7 +79,9 @@ struct AppSettingsTests {
 
         #expect(second.remoteHostStates.count == 2)
         #expect(second.remoteHostStates[0].host.displayName == "Build Box")
-        #expect(second.remoteHostStates[0].activeAccount == account)
+        #expect(second.remoteHostStates[0].desiredAccountID == account.id)
+        #expect(second.remoteHostStates[0].verifiedAccount == account)
+        #expect(second.remoteHostStates[0].verificationStatus == .verified)
         #expect(second.remoteHostStates[1].host.displayName == "Debian VM")
     }
 
@@ -89,7 +93,7 @@ struct AppSettingsTests {
     }
 
     @Test
-    func remoteHostActiveAccountPersistsAcrossInstances() {
+    func remoteHostVerifiedAccountPersistsAcrossInstances() {
         let defaults = makeDefaults()
         let account = CodexAccount(
             id: UUID(),
@@ -110,6 +114,48 @@ struct AppSettingsTests {
         let second = AppSettings(userDefaults: defaults)
 
         #expect(second.remoteHostActiveAccount == account)
+        #expect(second.remoteHostState(for: "user@buildbox")?.verificationStatus == .verified)
+    }
+
+    @Test
+    func remoteHostDesiredAccountPersistsWithoutMarkingHostVerified() {
+        let defaults = makeDefaults()
+        let accountID = UUID()
+
+        let first = AppSettings(userDefaults: defaults)
+        first.configuredRemoteHost = RemoteHost(destination: "user@buildbox", displayName: "Build Box")
+        first.remoteHostDesiredAccountID = accountID
+
+        let second = AppSettings(userDefaults: defaults)
+
+        #expect(second.remoteHostDesiredAccountID == accountID)
+        #expect(second.remoteHostActiveAccount == nil)
+        #expect(second.remoteHostState(for: "user@buildbox")?.verificationStatus == .unverified)
+    }
+
+    @Test
+    func detectedRemoteAccountPersistsAcrossInstances() throws {
+        let defaults = makeDefaults()
+        let desiredID = UUID()
+        let detectedID = UUID()
+
+        let first = AppSettings(userDefaults: defaults)
+        first.remoteHostStates = [
+            PersistedRemoteHostState(
+                host: RemoteHost(destination: "user@buildbox", displayName: "Build Box"),
+                desiredAccountID: desiredID,
+                verifiedAccount: nil,
+                detectedAccountID: detectedID,
+                verificationStatus: .failed,
+                lastVerificationError: "Build Box is using Business 1, not Business 2."
+            )
+        ]
+
+        let second = AppSettings(userDefaults: defaults)
+        let persisted = try #require(second.remoteHostState(for: "user@buildbox"))
+        #expect(persisted.desiredAccountID == desiredID)
+        #expect(persisted.detectedAccountID == detectedID)
+        #expect(persisted.verificationStatus == .failed)
     }
 
     @Test
@@ -158,7 +204,9 @@ struct AppSettingsTests {
             PersistedRemoteHostState(
                 host: originalHost,
                 installedAccountIDs: [account.id],
-                activeAccount: account
+                desiredAccountID: account.id,
+                verifiedAccount: account,
+                verificationStatus: .verified
             )
         ]
 
@@ -167,11 +215,13 @@ struct AppSettingsTests {
         let persisted = try #require(settings.remoteHostState(for: renamedHost.destination))
         #expect(persisted.host.displayName == "Primary Build Box")
         #expect(persisted.installedAccountIDs == [account.id])
-        #expect(persisted.activeAccount == account)
+        #expect(persisted.desiredAccountID == account.id)
+        #expect(persisted.verifiedAccount == account)
+        #expect(persisted.verificationStatus == .verified)
     }
 
     @Test
-    func remoteHostStatesMigrateFromLegacyKeys() throws {
+    func remoteHostStatesMigrateFromLegacyKeysAsDesiredButUnverified() throws {
         let defaults = makeDefaults()
         let host = RemoteHost(destination: "user@buildbox", displayName: "Build Box")
         let account = CodexAccount(
@@ -192,7 +242,60 @@ struct AppSettingsTests {
         let settings = AppSettings(userDefaults: defaults)
 
         #expect(settings.remoteHostStates == [
-            PersistedRemoteHostState(host: host, installedAccountIDs: [account.id], activeAccount: account)
+            PersistedRemoteHostState(
+                host: host,
+                installedAccountIDs: [account.id],
+                desiredAccountID: account.id,
+                verifiedAccount: nil,
+                verificationStatus: .unverified,
+                lastVerificationError: nil
+            )
+        ])
+    }
+
+    @Test
+    func remoteHostStatesMigrateFromLegacyRemoteHostsPayloadAsDesiredButUnverified() throws {
+        struct LegacyRemoteHostState: Codable {
+            let installedAccountIDs: [UUID]
+            let host: RemoteHost
+            let activeAccount: CodexAccount
+        }
+
+        let defaults = makeDefaults()
+        let host = RemoteHost(destination: "user@buildbox", displayName: "Build Box")
+        let account = CodexAccount(
+            id: UUID(),
+            name: "Business 2",
+            snapshotFileName: "business-2.json",
+            createdAt: .distantPast,
+            updatedAt: .distantPast,
+            email: "business-2@example.com",
+            planType: "team",
+            rateLimits: nil,
+            identity: .empty
+        )
+        defaults.set(
+            try JSONEncoder().encode([
+                LegacyRemoteHostState(
+                    installedAccountIDs: [account.id],
+                    host: host,
+                    activeAccount: account
+                )
+            ]),
+            forKey: "remoteHosts"
+        )
+
+        let settings = AppSettings(userDefaults: defaults)
+
+        #expect(settings.remoteHostStates == [
+            PersistedRemoteHostState(
+                host: host,
+                installedAccountIDs: [account.id],
+                desiredAccountID: account.id,
+                verifiedAccount: nil,
+                verificationStatus: .unverified,
+                lastVerificationError: nil
+            )
         ])
     }
 

@@ -67,6 +67,18 @@ The following behavior should be treated as automated first and should not live 
   - `SignInAnotherWorkflowTests`
 - switch-account relaunch and persistence behavior:
   - `SwitchAccountWorkflowTests`
+- remote-host SSH command mapping and failure surfacing:
+  - `SSHRemoteHostClientTests`
+- remote-host install-then-switch orchestration:
+  - `SwitchAccountOnHostWorkflowTests`
+- persisted remote-host refresh fallback when a host is offline:
+  - `MenuBarLiveValidationTests`
+- multiple connected remote hosts render distinct primary remote-account cards without changing the local accounts catalog:
+  - deterministic UI plus `MenuBarLiveValidationTests`
+- disconnected configured hosts stay manageable without rendering a primary remote-account card:
+  - deterministic UI plus `MenuBarLiveValidationTests`
+- validation-only live remote host switching proves submenu dispatch and remote-card update without depending on a real SSH box:
+  - `SCENARIO=live-remote-host-switch make verify-ui-live`
 
 If one of those areas needs more confidence, extend the owning suite or add a live smoke scenario. Do not add it back as a standing human checklist item unless there is still a real manual-only gap.
 
@@ -199,3 +211,52 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `proofs_required`: `["live_ui"]`
 - `scenarios`: `["live-add-host-prompt"]`
 - `event_evidence`: `["menu_action_dispatched", "add_host_prompt_presented", "add_host_validation_started", "add_host_validation_failed"]`
+
+### `hosts.switch_workflow.installs_missing_accounts_before_switch`
+
+- `feature`: `hosts`
+- `rule`: Switching an account on a remote host installs the snapshot first when it is missing, skips installation when it is already present, and stops cleanly on install or switch failures.
+- `owner_layer`: `integration`
+- `proofs_required`: `["integration"]`
+- `scenarios`: `["missing_remote_snapshot", "installed_remote_snapshot", "install_failure", "switch_failure"]`
+
+### `hosts.switch_account_on_host.changes_remote_active_account`
+
+- `feature`: `hosts`
+- `rule`: Selecting `Switch on <host>` from a saved account submenu dispatches the host-targeted switch workflow and updates the primary remote-account card to the chosen account.
+- `owner_layer`: `live_ui`
+- `proofs_required`: `["integration", "live_ui"]`
+- `scenarios`: `["live-remote-host-switch"]`
+- `event_evidence`: `["menu_action_dispatched", "remote_host_switch_started", "remote_host_active_account_changed"]`
+
+### `hosts.refresh_failure.preserves_fallback_state_and_marks_disconnected`
+
+- `feature`: `hosts`
+- `rule`: When CodexPill restores a persisted remote host and the remote refresh fails, it preserves the last known remote account fallback while marking the host disconnected and hiding the primary remote-account card.
+- `owner_layer`: `live_ui`
+- `proofs_required`: `["live_ui"]`
+- `scenarios`: `["persisted_host_refresh_failure"]`
+
+### `hosts.connected_cards.render_per_reachable_host_only`
+
+- `feature`: `hosts`
+- `rule`: Each reachable configured host with an active remote account renders its own `Remote Accounts` card, while unreachable hosts stay persisted but do not render primary remote cards.
+- `owner_layer`: `live_ui`
+- `proofs_required`: `["deterministic_ui", "live_ui"]`
+- `scenarios`: `["hosted_menu_multiple_hosts", "mixed_persisted_host_restore"]`
+
+### `hosts.disconnected_hosts.remain_targetable_without_remote_card`
+
+- `feature`: `hosts`
+- `rule`: A disconnected configured host remains available under `Hosts` and per-account remote switch targets, but it does not render in the primary `Remote Accounts` section.
+- `owner_layer`: `deterministic_ui`
+- `proofs_required`: `["deterministic_ui", "live_ui"]`
+- `scenarios`: `["hosted_menu_disconnected_host", "persisted_host_refresh_failure"]`
+
+### `hosts.reachable_verification_failures.remain_connected`
+
+- `feature`: `hosts`
+- `rule`: A reachable host whose remote account cannot be verified stays connected in host state and menu UI while surfacing verification failure instead of being collapsed into a disconnected host.
+- `owner_layer`: `integration`
+- `proofs_required`: `["integration", "live_ui"]`
+- `scenarios`: `["remote_auth_read_failure", "explicit_host_switch_verification_failure"]`

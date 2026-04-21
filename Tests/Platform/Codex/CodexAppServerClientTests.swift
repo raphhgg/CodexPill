@@ -12,7 +12,11 @@ struct CodexAppServerClientTests {
             AppServerAccountResponse(
                 account: .init(
                     email: "user@example.com",
-                    planType: "plus"
+                    planType: "plus",
+                    stableAccountID: nil,
+                    authPrincipalIdentity: nil,
+                    workspaceIdentity: nil,
+                    snapshotFingerprint: nil
                 )
             )
         )

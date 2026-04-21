@@ -19,10 +19,27 @@ func preferredRemoteRateLimits(
     )
 
     guard let remote else { return resolvedFallback }
-    guard remoteRateLimitsContainMeaningfulData(remote) || resolvedFallback == nil else {
-        return resolvedFallback
+    guard let resolvedFallback else { return remote }
+
+    return CodexRateLimitSnapshot(
+        limitID: preferredRemoteMetadataValue(remote.limitID, fallback: resolvedFallback.limitID),
+        limitName: preferredRemoteMetadataValue(remote.limitName, fallback: resolvedFallback.limitName),
+        planType: preferredRemoteMetadataValue(remote.planType, fallback: resolvedFallback.planType),
+        primary: preferredRemoteRateLimitWindow(remote.primary, fallback: resolvedFallback.primary),
+        secondary: preferredRemoteRateLimitWindow(remote.secondary, fallback: resolvedFallback.secondary),
+        fetchedAt: max(remote.fetchedAt, resolvedFallback.fetchedAt)
+    )
+}
+
+func preferredRemoteMetadataValue(
+    _ remote: String?,
+    fallback: String?
+) -> String? {
+    let trimmedRemote = remote?.trimmingCharacters(in: .whitespacesAndNewlines)
+    if let trimmedRemote, !trimmedRemote.isEmpty {
+        return trimmedRemote
     }
-    return remote
+    return fallback
 }
 
 func bestRemoteRateLimitFallback(
@@ -66,6 +83,16 @@ func remoteRateLimitWindowContainsMeaningfulData(_ window: CodexRateLimitWindow?
     return false
 }
 
+func preferredRemoteRateLimitWindow(
+    _ remote: CodexRateLimitWindow?,
+    fallback: CodexRateLimitWindow?
+) -> CodexRateLimitWindow? {
+    if remoteRateLimitWindowContainsMeaningfulData(remote) {
+        return remote
+    }
+    return fallback
+}
+
 @MainActor
 final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private static let liveProofLayer = "live_ui"
@@ -74,6 +101,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private static let saveCurrentPromptInvariantIDs = ["accounts.save_current_account.prompt_presented_and_cancellable"]
     private static let signInAnotherPromptInvariantIDs = ["accounts.sign_in_another.prompt_presented_and_cancellable"]
     private static let addHostPromptInvariantIDs = ["hosts.add_host.prompt_validates_destination"]
+    private static let remoteHostSwitchInvariantIDs = ["hosts.switch_account_on_host.changes_remote_active_account"]
+    private static let remoteHostReverifyInvariantIDs = ["hosts.reverify_remote_account.refreshes_remote_verification_state"]
     private static let scheduledRefreshInvariantIDs = ["accounts.scheduled_refresh.requested_and_completed"]
 
     private let statusItemRuntime: StatusItemRuntime
@@ -86,6 +115,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let validationSink: MenuBarValidationSink?
     private let validationScenario: String?
     private let allowsEmptyStatePrompt: Bool
+    private let remoteHostAccountVerifier = RemoteHostAccountVerifier()
     private let menuBuilder = MenuBarMenuBuilder()
     private var autoRefreshTimer: Timer?
     private var pendingSignInMonitorTimer: Timer?
@@ -350,21 +380,85 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             "targetName": account.name,
             "hostName": remoteHost.displayName
         ])
+        recordValidationEvent(
+            "remote_host_switch_started",
+            step: "remote_host_switch_start",
+            invariantIds: Self.remoteHostSwitchInvariantIDs,
+            payload: [
+                "targetName": account.name,
+                "hostName": remoteHost.displayName
+            ]
+        )
         lastSwitchTargetName = account.name
         setRemoteHostConnectionState(.syncing, for: remoteHost.destination)
         rebuildMenu()
         Task { @MainActor [weak self] in
             guard let self else { return }
-            let succeeded = await self.store.switchToAccountOnHost(account, on: remoteHost)
-            if succeeded {
+            let result = await self.store.switchToAccountOnHost(account, on: remoteHost)
+            switch result {
+            case .verified(let status):
                 self.settings.updateRemoteHostState(for: remoteHost) { state in
                     if !state.installedAccountIDs.contains(account.id) {
                         state.installedAccountIDs.append(account.id)
                     }
+                    state.desiredAccountID = account.id
+                    state.verifiedAccount = self.mergedRemoteAccount(account, status: status)
+                    state.detectedAccountID = nil
+                    state.verificationStatus = .verified
+                    state.lastVerificationError = nil
                 }
-                await self.refreshRemoteHostState(for: account, on: remoteHost, fallbackConnectionState: .connected)
-            } else {
-                self.setRemoteHostConnectionState(.disconnected, for: remoteHost.destination)
+                self.setRemoteHostConnectionState(.connected, for: remoteHost.destination)
+                self.recordValidationEvent(
+                    "remote_host_active_account_changed",
+                    step: "remote_host_switch_result",
+                    invariantIds: Self.remoteHostSwitchInvariantIDs,
+                    payload: [
+                        "targetName": account.name,
+                        "hostName": remoteHost.displayName
+                    ]
+                )
+            case .notVerified(let message, let detectedAccountID):
+                self.setRemoteHostConnectionState(.connected, for: remoteHost.destination)
+                self.settings.updateRemoteHostState(for: remoteHost) { state in
+                    if !state.installedAccountIDs.contains(account.id) {
+                        state.installedAccountIDs.append(account.id)
+                    }
+                    state.desiredAccountID = account.id
+                    state.verifiedAccount = nil
+                    state.detectedAccountID = detectedAccountID
+                    state.verificationStatus = .failed
+                    state.lastVerificationError = message
+                }
+                self.recordValidationEvent(
+                    "remote_host_switch_not_verified",
+                    step: "remote_host_switch_result",
+                    invariantIds: Self.remoteHostSwitchInvariantIDs,
+                    payload: [
+                        "targetName": account.name,
+                        "hostName": remoteHost.displayName,
+                        "message": message
+                    ]
+                )
+            case .failed(let message, let hostReachable):
+                self.setRemoteHostConnectionState(hostReachable ? .connected : .disconnected, for: remoteHost.destination)
+                self.settings.updateRemoteHostState(for: remoteHost) { state in
+                    state.desiredAccountID = account.id
+                    state.verifiedAccount = nil
+                    state.detectedAccountID = nil
+                    state.verificationStatus = .failed
+                    state.lastVerificationError = message
+                }
+                self.recordValidationEvent(
+                    "remote_host_switch_failed",
+                    step: "remote_host_switch_result",
+                    invariantIds: Self.remoteHostSwitchInvariantIDs,
+                    payload: [
+                        "targetName": account.name,
+                        "hostName": remoteHost.displayName,
+                        "message": message,
+                        "hostReachable": hostReachable ? "true" : "false"
+                    ]
+                )
             }
             self.rebuildMenu()
         }
@@ -449,16 +543,44 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
                 if shouldInstallCurrentAccount {
                     self.setRemoteHostConnectionState(.syncing, for: remoteHost.destination)
                     self.rebuildMenu()
-                    let succeeded = await self.store.switchToAccountOnHost(activeAccount, on: remoteHost)
-                    if succeeded {
+                    let result = await self.store.switchToAccountOnHost(activeAccount, on: remoteHost)
+                    switch result {
+                    case .verified(let status):
                         self.settings.updateRemoteHostState(for: remoteHost) { state in
                             if !state.installedAccountIDs.contains(activeAccount.id) {
                                 state.installedAccountIDs.append(activeAccount.id)
                             }
+                            state.desiredAccountID = activeAccount.id
+                            state.verifiedAccount = self.mergedRemoteAccount(activeAccount, status: status)
+                            state.detectedAccountID = nil
+                            state.verificationStatus = .verified
+                            state.lastVerificationError = nil
                         }
-                        await self.refreshRemoteHostState(for: activeAccount, on: remoteHost, fallbackConnectionState: .connected)
-                    } else {
-                        self.setRemoteHostConnectionState(.disconnected, for: remoteHost.destination)
+                        self.setRemoteHostConnectionState(.connected, for: remoteHost.destination)
+                    case .notVerified(let message, let detectedAccountID):
+                        self.setRemoteHostConnectionState(.connected, for: remoteHost.destination)
+                        self.settings.updateRemoteHostState(for: remoteHost) { state in
+                            if !state.installedAccountIDs.contains(activeAccount.id) {
+                                state.installedAccountIDs.append(activeAccount.id)
+                            }
+                            state.desiredAccountID = activeAccount.id
+                            state.verifiedAccount = nil
+                            state.detectedAccountID = detectedAccountID
+                            state.verificationStatus = .failed
+                            state.lastVerificationError = message
+                        }
+                    case .failed(let message, let hostReachable):
+                        self.setRemoteHostConnectionState(hostReachable ? .connected : .disconnected, for: remoteHost.destination)
+                        self.settings.updateRemoteHostState(for: remoteHost) { state in
+                            if !state.installedAccountIDs.contains(activeAccount.id) {
+                                state.installedAccountIDs.append(activeAccount.id)
+                            }
+                            state.desiredAccountID = activeAccount.id
+                            state.verifiedAccount = nil
+                            state.detectedAccountID = nil
+                            state.verificationStatus = .failed
+                            state.lastVerificationError = message
+                        }
                     }
                 }
             }
@@ -481,6 +603,122 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         settings.removeRemoteHost(destination: remoteHost.destination)
         remoteHostConnectionStates.removeValue(forKey: remoteHost.destination)
         rebuildMenu()
+    }
+
+    @objc
+    func reverifyHost(_ sender: NSMenuItem) {
+        guard
+            let payload = sender.representedObject as? HostSelectionMenuItemPayload,
+            let hostState = settings.remoteHostState(for: payload.hostDestination)
+        else { return }
+
+        reverifyHost(hostState: hostState)
+    }
+
+    func reverifyHost(hostDestination: String) {
+        guard let hostState = settings.remoteHostState(for: hostDestination) else { return }
+        reverifyHost(hostState: hostState)
+    }
+
+    private func reverifyHost(hostState: PersistedRemoteHostState) {
+        guard hostState.verificationStatus != .verifying else { return }
+        guard let baseAccount = baseAccountForRemoteRefresh(hostState: hostState) else { return }
+        statusItemRuntime.menu?.cancelTracking()
+
+        recordMenuAction("reverifyHost", payload: [
+            "hostName": hostState.host.displayName,
+            "accountName": baseAccount.name
+        ])
+        recordValidationEvent(
+            "remote_host_reverify_started",
+            step: "remote_host_reverify_start",
+            invariantIds: Self.remoteHostReverifyInvariantIDs,
+            payload: [
+                "hostName": hostState.host.displayName,
+                "accountName": baseAccount.name
+            ]
+        )
+
+        setRemoteHostConnectionState(.syncing, for: hostState.host.destination)
+        settings.updateRemoteHostState(for: hostState.host) { state in
+            state.verificationStatus = .verifying
+            state.lastVerificationError = nil
+            if state.desiredAccountID == nil {
+                state.desiredAccountID = baseAccount.id
+            }
+        }
+        rebuildMenu()
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.refreshRemoteHostState(
+                for: baseAccount,
+                on: hostState.host,
+                fallbackConnectionState: .disconnected
+            )
+
+            let refreshedState = self.settings.remoteHostState(for: hostState.host.destination)
+            let eventName = refreshedState?.verificationStatus == .verified
+                ? "remote_host_reverify_succeeded"
+                : "remote_host_reverify_failed"
+            self.recordValidationEvent(
+                eventName,
+                step: "remote_host_reverify_result",
+                invariantIds: Self.remoteHostReverifyInvariantIDs,
+                payload: [
+                    "hostName": hostState.host.displayName,
+                    "accountName": baseAccount.name
+                ]
+            )
+            self.rebuildMenu()
+        }
+    }
+
+    @objc
+    func adoptDetectedRemoteAccount(_ sender: NSMenuItem) {
+        guard
+            let payload = sender.representedObject as? HostAccountMenuItemPayload,
+            let hostState = settings.remoteHostState(for: payload.hostDestination)
+        else { return }
+
+        adoptDetectedRemoteAccount(
+            hostState: hostState,
+            accountID: payload.accountID
+        )
+    }
+
+    func adoptDetectedRemoteAccount(hostDestination: String, accountID: UUID) {
+        guard let hostState = settings.remoteHostState(for: hostDestination) else { return }
+        adoptDetectedRemoteAccount(hostState: hostState, accountID: accountID)
+    }
+
+    private func adoptDetectedRemoteAccount(hostState: PersistedRemoteHostState, accountID: UUID) {
+        guard let detectedAccount = store.accounts.first(where: { $0.id == accountID })
+        else { return }
+        statusItemRuntime.menu?.cancelTracking()
+
+        recordMenuAction("adoptDetectedRemoteAccount", payload: [
+            "hostName": hostState.host.displayName,
+            "accountName": detectedAccount.name
+        ])
+        setRemoteHostConnectionState(.syncing, for: hostState.host.destination)
+        settings.updateRemoteHostState(for: hostState.host) { state in
+            state.desiredAccountID = detectedAccount.id
+            state.detectedAccountID = detectedAccount.id
+            state.verificationStatus = .verifying
+            state.lastVerificationError = nil
+        }
+        rebuildMenu()
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.refreshRemoteHostState(
+                for: detectedAccount,
+                on: hostState.host,
+                fallbackConnectionState: .connected
+            )
+            self.rebuildMenu()
+        }
     }
 
     @objc
@@ -552,7 +790,11 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
                     name: configuredHost.host.displayName,
                     destination: configuredHost.host.destination,
                     connectionState: remoteHostConnectionState(for: configuredHost),
-                    activeAccount: configuredHost.activeAccount,
+                    desiredAccount: desiredRemoteAccount(for: configuredHost),
+                    activeAccount: configuredHost.verifiedAccount,
+                    detectedAccount: detectedRemoteAccount(for: configuredHost),
+                    verificationStatus: configuredHost.verificationStatus,
+                    lastVerificationError: configuredHost.lastVerificationError,
                     deployedAccountIDs: configuredHost.installedAccountIDs
                 )
             },
@@ -746,16 +988,27 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private func restorePersistedRemoteHostState() {
         remoteHostConnectionStates = [:]
         for hostState in settings.remoteHostStates {
-            remoteHostConnectionStates[hostState.host.destination] = hostState.activeAccount != nil ? .syncing : .disconnected
+            remoteHostConnectionStates[hostState.host.destination] = .disconnected
         }
     }
 
     private func refreshRemoteHostStateIfNeeded() {
         for hostState in settings.remoteHostStates {
-            guard let activeAccount = hostState.activeAccount else { continue }
+            guard let baseAccount = baseAccountForRemoteRefresh(hostState: hostState) else {
+                guard hostState.desiredAccountID != nil || hostState.verifiedAccount != nil else { continue }
+                setRemoteHostConnectionState(.disconnected, for: hostState.host.destination)
+                settings.updateRemoteHostState(for: hostState.host) { state in
+                    state.verifiedAccount = nil
+                    state.detectedAccountID = nil
+                    state.verificationStatus = .failed
+                    state.lastVerificationError = "Saved account for \(hostState.host.displayName) is no longer available on this Mac."
+                }
+                continue
+            }
+            setRemoteHostConnectionState(.syncing, for: hostState.host.destination)
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                await self.refreshRemoteHostState(for: activeAccount, on: hostState.host, fallbackConnectionState: .disconnected)
+                await self.refreshRemoteHostState(for: baseAccount, on: hostState.host, fallbackConnectionState: .disconnected)
                 self.rebuildMenu()
             }
         }
@@ -768,22 +1021,76 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     ) async {
         do {
             let status = try await remoteHostClient.readCurrentAccountStatus(on: host)
-            let refreshedAccount = mergedRemoteAccount(baseAccount, status: status)
-            setRemoteHostConnectionState(.connected, for: host.destination)
-            settings.updateRemoteHostState(for: host) { state in
-                state.activeAccount = refreshedAccount
+            switch remoteHostAccountVerifier.verify(
+                status: status,
+                expectedAccount: baseAccount,
+                among: store.accounts
+            ) {
+            case .verified(let verifiedStatus):
+                let refreshedAccount = mergedRemoteAccount(baseAccount, status: verifiedStatus)
+                setRemoteHostConnectionState(.connected, for: host.destination)
+                settings.updateRemoteHostState(for: host) { state in
+                    state.desiredAccountID = baseAccount.id
+                    state.verifiedAccount = refreshedAccount
+                    state.detectedAccountID = nil
+                    state.verificationStatus = .verified
+                    state.lastVerificationError = nil
+                }
+            case .notVerified(let matchOutcome):
+                setRemoteHostConnectionState(.connected, for: host.destination)
+                settings.updateRemoteHostState(for: host) { state in
+                    state.desiredAccountID = baseAccount.id
+                    state.verifiedAccount = nil
+                    state.detectedAccountID = matchOutcome.matchedAccountID
+                    state.verificationStatus = .failed
+                    state.lastVerificationError = remoteHostAccountVerifier.failureMessage(
+                        for: baseAccount,
+                        on: host,
+                        among: store.accounts,
+                        matchOutcome: matchOutcome
+                    )
+                }
             }
         } catch {
-            setRemoteHostConnectionState(fallbackConnectionState, for: host.destination)
+            let connectionState = Self.isReachableRemoteVerificationFailure(error) ? RemoteHostConnectionState.connected : fallbackConnectionState
+            setRemoteHostConnectionState(connectionState, for: host.destination)
             settings.updateRemoteHostState(for: host) { state in
-                state.activeAccount = baseAccount
+                state.desiredAccountID = baseAccount.id
+                state.verifiedAccount = nil
+                state.detectedAccountID = nil
+                state.verificationStatus = .failed
+                state.lastVerificationError = error.localizedDescription
             }
         }
     }
 
     private func remoteHostConnectionState(for hostState: PersistedRemoteHostState) -> RemoteHostConnectionState {
         remoteHostConnectionStates[hostState.host.destination]
-            ?? (hostState.activeAccount != nil ? .syncing : .disconnected)
+            ?? (hostState.desiredAccountID != nil ? .syncing : .disconnected)
+    }
+
+    private func desiredRemoteAccount(for hostState: PersistedRemoteHostState) -> CodexAccount? {
+        guard let desiredAccountID = hostState.desiredAccountID else { return nil }
+
+        if let verifiedAccount = hostState.verifiedAccount, verifiedAccount.id == desiredAccountID {
+            return verifiedAccount
+        }
+
+        return store.accounts.first(where: { $0.id == desiredAccountID })
+    }
+
+    private func detectedRemoteAccount(for hostState: PersistedRemoteHostState) -> CodexAccount? {
+        guard let detectedAccountID = hostState.detectedAccountID else { return nil }
+        return store.accounts.first(where: { $0.id == detectedAccountID })
+    }
+
+    private func baseAccountForRemoteRefresh(hostState: PersistedRemoteHostState) -> CodexAccount? {
+        if let desiredAccountID = hostState.desiredAccountID,
+           let desiredAccount = store.accounts.first(where: { $0.id == desiredAccountID }) {
+            return desiredAccount
+        }
+
+        return hostState.verifiedAccount
     }
 
     private func setRemoteHostConnectionState(_ state: RemoteHostConnectionState, for hostDestination: String) {
@@ -961,5 +1268,15 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
                 invariantIds: Self.hoverInvariantIDs
             )
         }
+    }
+}
+
+private extension MenuBarCoordinator {
+    static func isReachableRemoteVerificationFailure(_ error: Error) -> Bool {
+        guard let clientError = error as? RemoteHostClientError else { return false }
+        if case .authReadFailed = clientError {
+            return true
+        }
+        return false
     }
 }

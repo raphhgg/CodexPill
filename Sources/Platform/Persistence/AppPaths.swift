@@ -12,17 +12,28 @@ struct AppPaths {
     private static let appSupportFolderName = "CodexPill"
     private static let legacyAppSupportFolderName = "CodexSwitchboard"
 
-    init(fileManager: FileManager = .default) throws {
-        let supportRoot = try fileManager.url(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask,
-            appropriateFor: nil,
-            create: true
-        )
-        let targetDirectory = supportRoot.appendingPathComponent(Self.appSupportFolderName, isDirectory: true)
-        let legacyDirectory = supportRoot.appendingPathComponent(Self.legacyAppSupportFolderName, isDirectory: true)
+    init(
+        fileManager: FileManager = .default,
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) throws {
+        let targetDirectory: URL
+        let legacyDirectory: URL?
+        if let overrideDirectory = AppRuntimeEnvironment.validationAppSupportDirectory(environment: environment) {
+            targetDirectory = overrideDirectory
+            legacyDirectory = nil
+        } else {
+            let supportRoot = try fileManager.url(
+                for: .applicationSupportDirectory,
+                in: .userDomainMask,
+                appropriateFor: nil,
+                create: true
+            )
+            targetDirectory = supportRoot.appendingPathComponent(Self.appSupportFolderName, isDirectory: true)
+            legacyDirectory = supportRoot.appendingPathComponent(Self.legacyAppSupportFolderName, isDirectory: true)
+        }
 
-        if !fileManager.fileExists(atPath: targetDirectory.path),
+        if let legacyDirectory,
+           !fileManager.fileExists(atPath: targetDirectory.path),
            fileManager.fileExists(atPath: legacyDirectory.path) {
             appPathsLogger.log("Migrating app support directory from legacy path")
             try fileManager.moveItem(at: legacyDirectory, to: targetDirectory)

@@ -3,6 +3,10 @@ import Foundation
 enum AppRuntimeEnvironment {
     static let suppressEmptyStatePromptEnvironmentKey = "CODEXPILL_SUPPRESS_EMPTY_STATE_PROMPT"
     static let validationAutoRefreshIntervalSecondsEnvironmentKey = "CODEXPILL_VALIDATION_AUTO_REFRESH_INTERVAL_SECONDS"
+    static let validationAppSupportDirectoryEnvironmentKey = "CODEXPILL_VALIDATION_APP_SUPPORT_DIR"
+    static let validationUserDefaultsSuiteEnvironmentKey = "CODEXPILL_VALIDATION_USER_DEFAULTS_SUITE"
+    static let validationSettingsFixtureEnvironmentKey = "CODEXPILL_VALIDATION_SETTINGS_FIXTURE"
+    static let validationRemoteHostClientEnvironmentKey = "CODEXPILL_VALIDATION_REMOTE_HOST_CLIENT"
 
     static func shouldSuppressEmptyStatePrompt(
         environment: [String: String] = ProcessInfo.processInfo.environment
@@ -28,5 +32,51 @@ enum AppRuntimeEnvironment {
         }
 
         return seconds
+    }
+
+    static func validationAppSupportDirectory(
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> URL? {
+        trimmedURLValue(for: validationAppSupportDirectoryEnvironmentKey, environment: environment)
+            .map(URL.init(fileURLWithPath:))
+    }
+
+    static func validationUserDefaultsSuiteName(
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> String? {
+        trimmedURLValue(for: validationUserDefaultsSuiteEnvironmentKey, environment: environment)
+    }
+
+    static func validationSettingsFixtureURL(
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> URL? {
+        trimmedURLValue(for: validationSettingsFixtureEnvironmentKey, environment: environment)
+            .map(URL.init(fileURLWithPath:))
+    }
+
+    static func shouldUseValidationRemoteHostClient(
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> Bool {
+        if let rawValue = environment[validationRemoteHostClientEnvironmentKey]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased(),
+           ["1", "true", "yes", "memory"].contains(rawValue) {
+            return true
+        }
+
+        return false
+    }
+
+    private static func trimmedURLValue(
+        for key: String,
+        environment: [String: String]
+    ) -> String? {
+        guard let rawValue = environment[key]?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+              !rawValue.isEmpty else {
+            return nil
+        }
+
+        return rawValue
     }
 }

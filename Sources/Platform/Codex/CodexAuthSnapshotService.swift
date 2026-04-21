@@ -92,6 +92,13 @@ struct CodexAuthSnapshotService {
         return Self.workspaceIdentity(for: current)
     }
 
+    func currentRemoteIdentity() -> CodexRemoteAccountIdentity? {
+        guard let current = try? Data(contentsOf: repository.paths.codexAuthFile) else {
+            return nil
+        }
+        return CodexAuthDataParser.remoteIdentity(from: current)
+    }
+
     func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {
         accounts.map { account in
             var reconciled = account

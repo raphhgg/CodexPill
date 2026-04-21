@@ -7,6 +7,54 @@ import Testing
 @MainActor
 struct MenuBarLiveValidationTests {
     @Test
+    func snapshotShowsRemoteAccountsSectionForDesiredUnverifiedRemoteState() throws {
+        let localAccount = CodexAccount(
+            id: UUID(),
+            name: "Business 2",
+            snapshotFileName: "business-2.json",
+            createdAt: .distantPast,
+            updatedAt: .distantPast,
+            email: "business-2@example.com",
+            planType: "team",
+            rateLimits: nil,
+            identity: .empty
+        )
+        let state = MenuBarMenuState(
+            activeAccount: nil,
+            inactiveAccounts: [localAccount],
+            remoteHosts: [
+                RemoteHostMenuState(
+                    name: "buildbox",
+                    destination: "user@buildbox",
+                    connectionState: .syncing,
+                    desiredAccount: localAccount,
+                    activeAccount: nil,
+                    verificationStatus: .verifying,
+                    deployedAccountIDs: [localAccount.id]
+                )
+            ],
+            visibleInactiveAccountCount: 2,
+            visibleInactiveAccountCountOptions: [2, 3, 5, 0],
+            refreshIntervalMinutes: 5,
+            refreshIntervalOptions: [1, 5, 10],
+            statusBarMonochrome: false,
+            statusBarIndicatorStyle: .dualArcBadge,
+            statusBarDisplayMode: .iconOnly,
+            isBusy: false,
+            statusMessage: ""
+        )
+
+        let snapshot = MenuBarValidationSupport.makeSnapshot(state: state)
+
+        let remoteSection = try #require(snapshot.sections.first(where: { $0.title == "Remote Accounts" }))
+        #expect(remoteSection.items.first?.contains("Desired: Business 2") == true)
+        #expect(snapshot.remoteHosts.count == 1)
+        #expect(snapshot.remoteHosts.first?.desiredAccount?.name == "Business 2")
+        #expect(snapshot.remoteHosts.first?.activeAccount == nil)
+        #expect(snapshot.remoteHosts.first?.verificationStatus == "verifying")
+    }
+
+    @Test
     func fileSinkWritesSnapshotJSON() throws {
         let temporaryDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -175,7 +223,7 @@ struct MenuBarLiveValidationTests {
             snapshotFileName: "business-2.json",
             createdAt: .distantPast,
             updatedAt: .distantPast,
-            email: "old@example.com",
+            email: "remote@example.com",
             planType: "team",
             rateLimits: nil,
             identity: .empty
@@ -222,6 +270,115 @@ struct MenuBarLiveValidationTests {
     }
 
     @Test
+    func coordinatorMarksPersistedRemoteHostDisconnectedWhenRefreshFails() async throws {
+        let sink = RecordingValidationSink()
+        let repository = try AccountRepository()
+        let store = MenuBarAccountsStore(
+            repository: repository,
+            authService: CodexAuthSnapshotService(repository: repository),
+            appController: CodexAppController(),
+            appServerClient: CodexAppServerClient()
+        )
+        let suiteName = "MenuBarLiveValidationRemoteFailure-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = AppSettings(userDefaults: defaults)
+        let persistedAccount = CodexAccount(
+            id: UUID(),
+            name: "Business 2",
+            snapshotFileName: "business-2.json",
+            createdAt: .distantPast,
+            updatedAt: .distantPast,
+            email: "fallback@example.com",
+            planType: "team",
+            rateLimits: nil,
+            identity: .empty
+        )
+        settings.remoteHostStates = [
+            PersistedRemoteHostState(
+                host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"),
+                activeAccount: persistedAccount
+            )
+        ]
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let coordinator = MenuBarCoordinator(
+            statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
+            store: store,
+            settings: settings,
+            remoteHostClient: RemoteHostClientStatusSpy(
+                readError: RemoteHostClientError.commandFailed("ssh: connection refused")
+            ),
+            alertPresenter: MenuBarAlertPresenter(),
+            validationSink: sink,
+            validationScenario: "live-menu-open",
+            allowsEmptyStatePrompt: false
+        )
+
+        coordinator.start()
+        try? await Task.sleep(for: .milliseconds(50))
+
+        let persistedHostState = try #require(settings.remoteHostState(for: "user@buildbox"))
+        #expect(persistedHostState.desiredAccountID == persistedAccount.id)
+        #expect(persistedHostState.activeAccount == nil)
+        #expect(persistedHostState.verificationStatus == .failed)
+        #expect(sink.snapshots.last?.sections.contains(where: { $0.title == "Remote Accounts" }) == false)
+        #expect(sink.snapshots.last?.remoteHosts.isEmpty == true)
+    }
+
+    @Test
+    func coordinatorMarksPersistedRemoteHostFailedWhenDesiredAccountIsMissingLocally() async throws {
+        let sink = RecordingValidationSink()
+        let repository = try AccountRepository()
+        let store = MenuBarAccountsStore(
+            repository: repository,
+            authService: CodexAuthSnapshotService(repository: repository),
+            appController: CodexAppController(),
+            appServerClient: CodexAppServerClient()
+        )
+        let suiteName = "MenuBarLiveValidationMissingDesiredRemote-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = AppSettings(userDefaults: defaults)
+        settings.remoteHostStates = [
+            PersistedRemoteHostState(
+                host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"),
+                desiredAccountID: UUID(),
+                verifiedAccount: nil,
+                verificationStatus: .unverified
+            )
+        ]
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let coordinator = MenuBarCoordinator(
+            statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
+            store: store,
+            settings: settings,
+            remoteHostClient: RemoteHostClientStatusSpy(),
+            alertPresenter: MenuBarAlertPresenter(),
+            validationSink: sink,
+            validationScenario: "live-menu-open",
+            allowsEmptyStatePrompt: false
+        )
+
+        coordinator.start()
+        try? await Task.sleep(for: .milliseconds(50))
+
+        let refreshedState = try #require(settings.remoteHostState(for: "user@buildbox"))
+        #expect(refreshedState.verificationStatus == .failed)
+        #expect(refreshedState.lastVerificationError == "Saved account for buildbox is no longer available on this Mac.")
+        #expect(sink.snapshots.last?.remoteHosts.isEmpty == true)
+    }
+
+    @Test
     func coordinatorRestoresAllPersistedRemoteHostAccountsOnStart() async throws {
         let sink = RecordingValidationSink()
         let repository = try AccountRepository()
@@ -244,7 +401,7 @@ struct MenuBarLiveValidationTests {
                     snapshotFileName: "business-2.json",
                     createdAt: .distantPast,
                     updatedAt: .distantPast,
-                    email: "old-buildbox@example.com",
+                    email: "buildbox@example.com",
                     planType: "team",
                     rateLimits: nil,
                     identity: .empty
@@ -258,7 +415,7 @@ struct MenuBarLiveValidationTests {
                     snapshotFileName: "business-3.json",
                     createdAt: .distantPast,
                     updatedAt: .distantPast,
-                    email: "old-debian@example.com",
+                    email: "debian@example.com",
                     planType: "team",
                     rateLimits: nil,
                     identity: .empty
@@ -297,6 +454,469 @@ struct MenuBarLiveValidationTests {
     }
 
     @Test
+    func coordinatorShowsOnlyReachableRemoteHostsInPrimarySectionWhenRestoreIsMixed() async throws {
+        let sink = RecordingValidationSink()
+        let repository = try AccountRepository()
+        let store = MenuBarAccountsStore(
+            repository: repository,
+            authService: CodexAuthSnapshotService(repository: repository),
+            appController: CodexAppController(),
+            appServerClient: CodexAppServerClient()
+        )
+        let suiteName = "MenuBarLiveValidationMixedRemoteRestore-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = AppSettings(userDefaults: defaults)
+        settings.remoteHostStates = [
+            PersistedRemoteHostState(
+                host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"),
+                activeAccount: CodexAccount(
+                    id: UUID(),
+                    name: "Business 2",
+                    snapshotFileName: "business-2.json",
+                    createdAt: .distantPast,
+                    updatedAt: .distantPast,
+                    email: "buildbox@example.com",
+                    planType: "team",
+                    rateLimits: nil,
+                    identity: .empty
+                )
+            ),
+            PersistedRemoteHostState(
+                host: RemoteHost(destination: "user@debian-vm", displayName: "debian-vm"),
+                activeAccount: CodexAccount(
+                    id: UUID(),
+                    name: "Business 3",
+                    snapshotFileName: "business-3.json",
+                    createdAt: .distantPast,
+                    updatedAt: .distantPast,
+                    email: "debian@example.com",
+                    planType: "team",
+                    rateLimits: nil,
+                    identity: .empty
+                )
+            )
+        ]
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let coordinator = MenuBarCoordinator(
+            statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
+            store: store,
+            settings: settings,
+            remoteHostClient: RemoteHostClientStatusSpy(
+                statusesByDestination: [
+                    "user@buildbox": CodexAccountStatus(email: "buildbox@example.com", planType: "team", rateLimits: nil)
+                ],
+                readErrorsByDestination: [
+                    "user@debian-vm": RemoteHostClientError.commandFailed("ssh: connection refused")
+                ]
+            ),
+            alertPresenter: MenuBarAlertPresenter(),
+            validationSink: sink,
+            validationScenario: "live-menu-open",
+            allowsEmptyStatePrompt: false
+        )
+
+        coordinator.start()
+        try? await Task.sleep(for: .milliseconds(50))
+
+        let remoteHosts = try #require(sink.snapshots.last?.remoteHosts)
+        #expect(remoteHosts.count == 1)
+        #expect(remoteHosts.first?.name == "buildbox")
+        #expect(remoteHosts.first?.activeAccount?.email == "buildbox@example.com")
+        #expect(settings.remoteHostStates.count == 2)
+        #expect(settings.remoteHostState(for: "user@buildbox")?.activeAccount?.email == "buildbox@example.com")
+        #expect(settings.remoteHostState(for: "user@debian-vm")?.desiredAccountID != nil)
+        #expect(settings.remoteHostState(for: "user@debian-vm")?.activeAccount == nil)
+        #expect(settings.remoteHostState(for: "user@debian-vm")?.verificationStatus == .failed)
+    }
+
+    @Test
+    func reverifyHostActionPromotesFailedHostBackToVerified() async throws {
+        let sink = RecordingValidationSink()
+        let repository = try AccountRepository()
+        let store = MenuBarAccountsStore(
+            repository: repository,
+            authService: CodexAuthSnapshotService(repository: repository),
+            appController: CodexAppController(),
+            appServerClient: CodexAppServerClient()
+        )
+        let suiteName = "MenuBarLiveValidationReverifyRemote-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = AppSettings(userDefaults: defaults)
+        let persistedAccount = CodexAccount(
+            id: UUID(),
+            name: "Business 2",
+            snapshotFileName: "business-2.json",
+            createdAt: .distantPast,
+            updatedAt: .distantPast,
+            email: "business-2@example.com",
+            planType: "team",
+            rateLimits: nil,
+            identity: .empty
+        )
+        settings.remoteHostStates = [
+            PersistedRemoteHostState(
+                host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"),
+                desiredAccountID: persistedAccount.id,
+                verifiedAccount: persistedAccount,
+                verificationStatus: .failed,
+                lastVerificationError: "ssh: connection refused"
+            )
+        ]
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let coordinator = MenuBarCoordinator(
+            statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
+            store: store,
+            settings: settings,
+            remoteHostClient: RemoteHostClientStatusSpy(
+                status: CodexAccountStatus(email: "business-2@example.com", planType: "team", rateLimits: nil)
+            ),
+            alertPresenter: MenuBarAlertPresenter(),
+            validationSink: sink,
+            validationScenario: "live-menu-open",
+            allowsEmptyStatePrompt: false
+        )
+
+        coordinator.start()
+        let item = NSMenuItem(title: "Re-verify Remote Account", action: nil, keyEquivalent: "")
+        item.representedObject = HostSelectionMenuItemPayload(hostDestination: "user@buildbox")
+        coordinator.reverifyHost(item)
+        try? await Task.sleep(for: .milliseconds(50))
+
+        let refreshedState = try #require(settings.remoteHostState(for: "user@buildbox"))
+        #expect(refreshedState.verificationStatus == .verified)
+        #expect(refreshedState.activeAccount?.email == "business-2@example.com")
+        #expect(sink.events.contains(where: { $0.event == "remote_host_reverify_started" }))
+        #expect(sink.events.contains(where: { $0.event == "remote_host_reverify_succeeded" }))
+    }
+
+    @Test
+    func adoptDetectedRemoteAccountPromotesMismatchToVerified() async throws {
+        let sink = RecordingValidationSink()
+        let repository = try AccountRepository()
+        try repository.bootstrapStorage()
+
+        let desiredAccount = CodexAccount(
+            id: UUID(),
+            name: "Business 2",
+            snapshotFileName: "business-2.json",
+            createdAt: .distantPast,
+            updatedAt: .distantPast,
+            email: "business-2@example.com",
+            planType: "team",
+            rateLimits: nil,
+            identity: CodexAccountIdentity(
+                stableAccountID: "acct-business-2",
+                snapshotFingerprint: "snapshot-business-2",
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "business-2@example.com")
+            )
+        )
+        let detectedAccount = CodexAccount(
+            id: UUID(),
+            name: "Business 1",
+            snapshotFileName: "business-1.json",
+            createdAt: .distantPast,
+            updatedAt: .distantPast,
+            email: "business-1@example.com",
+            planType: "team",
+            rateLimits: nil,
+            identity: CodexAccountIdentity(
+                stableAccountID: "acct-business-1",
+                snapshotFingerprint: "snapshot-business-1",
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "business-1@example.com")
+            )
+        )
+        try repository.saveAccounts([desiredAccount, detectedAccount])
+
+        let store = MenuBarAccountsStore(
+            repository: repository,
+            authService: CodexAuthSnapshotService(repository: repository),
+            appController: CodexAppController(),
+            appServerClient: CodexAppServerClient()
+        )
+        store.load()
+
+        let suiteName = "MenuBarLiveValidationAdoptDetectedRemote-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = AppSettings(userDefaults: defaults)
+        settings.remoteHostStates = [
+            PersistedRemoteHostState(
+                host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"),
+                desiredAccountID: desiredAccount.id,
+                verifiedAccount: nil,
+                detectedAccountID: detectedAccount.id,
+                verificationStatus: .failed,
+                lastVerificationError: "buildbox is using Business 1, not Business 2."
+            )
+        ]
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let coordinator = MenuBarCoordinator(
+            statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
+            store: store,
+            settings: settings,
+            remoteHostClient: RemoteHostClientStatusSpy(
+                status: CodexAccountStatus(
+                    email: "business-1@example.com",
+                    planType: "team",
+                    rateLimits: nil,
+                    stableAccountID: "acct-business-1",
+                    snapshotFingerprint: "snapshot-business-1"
+                )
+            ),
+            alertPresenter: MenuBarAlertPresenter(),
+            validationSink: sink,
+            validationScenario: "live-menu-open",
+            allowsEmptyStatePrompt: false
+        )
+
+        coordinator.start()
+        let item = NSMenuItem(title: "Use Detected Account", action: nil, keyEquivalent: "")
+        item.representedObject = HostAccountMenuItemPayload(
+            accountID: detectedAccount.id,
+            hostDestination: "user@buildbox"
+        )
+        coordinator.adoptDetectedRemoteAccount(item)
+        try? await Task.sleep(for: .milliseconds(50))
+
+        let refreshedState = try #require(settings.remoteHostState(for: "user@buildbox"))
+        #expect(refreshedState.desiredAccountID == detectedAccount.id)
+        #expect(refreshedState.detectedAccountID == nil)
+        #expect(refreshedState.verificationStatus == .verified)
+        #expect(refreshedState.activeAccount?.id == detectedAccount.id)
+        #expect(sink.snapshots.last?.remoteHosts.first?.activeAccount?.name == "Business 1")
+    }
+
+    @Test
+    func coordinatorMarksRemoteHostFailedWhenStartupRefreshNoLongerMatchesDesiredAccount() async throws {
+        let sink = RecordingValidationSink()
+        let repository = try AccountRepository()
+        let store = MenuBarAccountsStore(
+            repository: repository,
+            authService: CodexAuthSnapshotService(repository: repository),
+            appController: CodexAppController(),
+            appServerClient: CodexAppServerClient()
+        )
+        let suiteName = "MenuBarLiveValidationRemoteMismatch-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = AppSettings(userDefaults: defaults)
+        let persistedAccount = CodexAccount(
+            id: UUID(),
+            name: "Business 2",
+            snapshotFileName: "business-2.json",
+            createdAt: .distantPast,
+            updatedAt: .distantPast,
+            email: "business-2@example.com",
+            planType: "team",
+            rateLimits: nil,
+            identity: .empty
+        )
+        settings.remoteHostStates = [
+            PersistedRemoteHostState(
+                host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"),
+                activeAccount: persistedAccount
+            )
+        ]
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let coordinator = MenuBarCoordinator(
+            statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
+            store: store,
+            settings: settings,
+            remoteHostClient: RemoteHostClientStatusSpy(
+                status: CodexAccountStatus(
+                    email: "different@example.com",
+                    planType: "team",
+                    rateLimits: nil
+                )
+            ),
+            alertPresenter: MenuBarAlertPresenter(),
+            validationSink: sink,
+            validationScenario: "live-menu-open",
+            allowsEmptyStatePrompt: false
+        )
+
+        coordinator.start()
+        try? await Task.sleep(for: .milliseconds(50))
+
+        let refreshedState = try #require(settings.remoteHostState(for: "user@buildbox"))
+        #expect(refreshedState.desiredAccountID == persistedAccount.id)
+        #expect(refreshedState.activeAccount == nil)
+        #expect(refreshedState.verificationStatus == .failed)
+        #expect(refreshedState.lastVerificationError?.contains("could not verify") == true)
+        #expect(sink.snapshots.last?.remoteHosts.isEmpty == true)
+    }
+
+    @Test
+    func coordinatorKeepsReachableRemoteHostConnectedWhenAuthVerificationReadFails() async throws {
+        let sink = RecordingValidationSink()
+        let repository = try AccountRepository()
+        let account = CodexAccount(
+            id: UUID(),
+            name: "Business 2",
+            snapshotFileName: "business-2.json",
+            createdAt: .distantPast,
+            updatedAt: .distantPast,
+            email: "business-2@example.com",
+            planType: "team",
+            rateLimits: nil,
+            identity: .empty
+        )
+        try repository.saveAccounts([account])
+
+        let store = MenuBarAccountsStore(
+            repository: repository,
+            authService: CodexAuthSnapshotService(repository: repository),
+            appController: CodexAppController(),
+            appServerClient: CodexAppServerClient()
+        )
+        store.load()
+
+        let suiteName = "MenuBarLiveValidationReachableRemoteFailure-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = AppSettings(userDefaults: defaults)
+        settings.remoteHostStates = [
+            PersistedRemoteHostState(
+                host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"),
+                desiredAccountID: account.id,
+                verifiedAccount: nil,
+                verificationStatus: .unverified
+            )
+        ]
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let coordinator = MenuBarCoordinator(
+            statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
+            store: store,
+            settings: settings,
+            remoteHostClient: RemoteHostClientStatusSpy(
+                readError: RemoteHostClientError.authReadFailed("cat: .codex/auth.json: Permission denied")
+            ),
+            alertPresenter: MenuBarAlertPresenter(),
+            validationSink: sink,
+            validationScenario: "live-menu-open",
+            allowsEmptyStatePrompt: false
+        )
+
+        coordinator.start()
+        try? await Task.sleep(for: .milliseconds(50))
+
+        let snapshot = try #require(sink.snapshots.last)
+        let remoteHost = try #require(snapshot.remoteHosts.first)
+        #expect(remoteHost.connectionState == "connected")
+        #expect(remoteHost.verificationStatus == "failed")
+        #expect(remoteHost.lastVerificationError == "cat: .codex/auth.json: Permission denied")
+    }
+
+    @Test
+    func switchAccountOnHostKeepsReachableRemoteHostConnectedWhenAuthVerificationReadFails() async throws {
+        let sink = RecordingValidationSink()
+        let repository = try AccountRepository()
+        let account = CodexAccount(
+            id: UUID(),
+            name: "Business 2",
+            snapshotFileName: "business-2.json",
+            createdAt: .distantPast,
+            updatedAt: .distantPast,
+            email: "business-2@example.com",
+            planType: "team",
+            rateLimits: nil,
+            identity: .empty
+        )
+        try repository.saveAccounts([account])
+
+        let suiteName = "MenuBarLiveValidationReachableRemoteSwitchFailure-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = AppSettings(userDefaults: defaults)
+        settings.remoteHostStates = [
+            PersistedRemoteHostState(
+                host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"),
+                desiredAccountID: nil,
+                verifiedAccount: nil,
+                verificationStatus: .unverified
+            )
+        ]
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let remoteHostClient = RemoteHostClientStatusSpy(
+            readError: RemoteHostClientError.authReadFailed("cat: .codex/auth.json: Permission denied")
+        )
+        let store = MenuBarAccountsStore(
+            repository: repository,
+            authService: CodexAuthSnapshotService(repository: repository),
+            appController: CodexAppController(),
+            appServerClient: CodexAppServerClient(),
+            remoteHostClient: remoteHostClient
+        )
+        store.load()
+
+        let coordinator = MenuBarCoordinator(
+            statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
+            store: store,
+            settings: settings,
+            remoteHostClient: remoteHostClient,
+            alertPresenter: MenuBarAlertPresenter(),
+            validationSink: sink,
+            validationScenario: "live-menu-open",
+            allowsEmptyStatePrompt: false
+        )
+
+        coordinator.start()
+        let item = NSMenuItem(title: "Switch on buildbox", action: nil, keyEquivalent: "")
+        item.representedObject = HostAccountMenuItemPayload(
+            accountID: account.id,
+            hostDestination: "user@buildbox"
+        )
+        coordinator.switchAccountOnHost(item)
+        try? await Task.sleep(for: .milliseconds(50))
+
+        let persistedState = try #require(settings.remoteHostState(for: "user@buildbox"))
+        #expect(persistedState.desiredAccountID == account.id)
+        #expect(persistedState.activeAccount == nil)
+        #expect(persistedState.verificationStatus == .failed)
+        #expect(persistedState.lastVerificationError == "cat: .codex/auth.json: Permission denied")
+
+        let snapshot = try #require(sink.snapshots.last)
+        let remoteHost = try #require(snapshot.remoteHosts.first)
+        #expect(remoteHost.connectionState == "connected")
+        #expect(remoteHost.verificationStatus == "failed")
+        #expect(remoteHost.lastVerificationError == "cat: .codex/auth.json: Permission denied")
+        #expect(sink.events.contains(where: { $0.event == "remote_host_switch_started" }))
+        #expect(sink.events.contains(where: { $0.event == "remote_host_switch_failed" }))
+    }
+
+    @Test
     func coordinatorPreservesMeaningfulSavedLimitsWhenRemoteRefreshReturnsZeroedWindows() async throws {
         let sink = RecordingValidationSink()
         let repository = try AccountRepository()
@@ -317,7 +937,7 @@ struct MenuBarLiveValidationTests {
             snapshotFileName: "business-2.json",
             createdAt: .distantPast,
             updatedAt: .distantPast,
-            email: "old@example.com",
+            email: "remote@example.com",
             planType: "team",
             rateLimits: CodexRateLimitSnapshot(
                 limitID: nil,
@@ -479,45 +1099,38 @@ struct MenuBarLiveValidationTests {
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = AppSettings(userDefaults: defaults)
-        settings.configuredRemoteHost = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
-        settings.remoteHostActiveAccount = CodexAccount(
-            id: UUID(),
-            name: "Business 2",
-            snapshotFileName: "business-2.json",
-            createdAt: .distantPast,
-            updatedAt: .distantPast,
-            email: "raphaelgrau@gmail.com",
-            planType: "team",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: nil,
-                limitName: nil,
-                planType: "team",
-                primary: CodexRateLimitWindow(
-                    usedPercent: 0,
-                    resetsAt: nil,
-                    windowDurationMinutes: 300
-                ),
-                secondary: CodexRateLimitWindow(
-                    usedPercent: 0,
-                    resetsAt: nil,
-                    windowDurationMinutes: 10_080
-                ),
-                fetchedAt: .now
-            ),
-            identity: CodexAccountIdentity(
-                stableAccountID: "acct-team",
-                authPrincipalIdentity: CodexAuthPrincipalIdentity(
-                    subject: "auth0|business-2",
-                    chatGPTUserID: "user-business-2"
-                ),
-                workspaceIdentity: CodexWorkspaceIdentity(
-                    workspaceAccountID: "org-business-2",
-                    workspaceLabel: "Personal"
-                ),
-                snapshotFingerprint: UUID().uuidString,
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@gmail.com")
+        settings.remoteHostStates = [
+            PersistedRemoteHostState(
+                host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"),
+                desiredAccountID: matchingSavedAccount.id,
+                verifiedAccount: CodexAccount(
+                    id: matchingSavedAccount.id,
+                    name: matchingSavedAccount.name,
+                    snapshotFileName: matchingSavedAccount.snapshotFileName,
+                    createdAt: matchingSavedAccount.createdAt,
+                    updatedAt: matchingSavedAccount.updatedAt,
+                    email: matchingSavedAccount.email,
+                    planType: matchingSavedAccount.planType,
+                    rateLimits: CodexRateLimitSnapshot(
+                        limitID: nil,
+                        limitName: nil,
+                        planType: "team",
+                        primary: CodexRateLimitWindow(
+                            usedPercent: 0,
+                            resetsAt: nil,
+                            windowDurationMinutes: 300
+                        ),
+                        secondary: CodexRateLimitWindow(
+                            usedPercent: 0,
+                            resetsAt: nil,
+                            windowDurationMinutes: 10_080
+                        ),
+                        fetchedAt: .now
+                    ),
+                    identity: matchingSavedAccount.identity
+                )
             )
-        )
+        ]
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         defer {
             NSStatusBar.system.removeStatusItem(statusItem)
@@ -583,12 +1196,20 @@ private final class RecordingValidationSink: @unchecked Sendable, MenuBarValidat
 private struct RemoteHostClientStatusSpy: RemoteHostSwitching {
     var status: CodexAccountStatus?
     var statusesByDestination: [String: CodexAccountStatus] = [:]
+    var readError: Error?
+    var readErrorsByDestination: [String: Error] = [:]
 
     func testConnection(to host: RemoteHost) async throws {}
     func installationState(for account: CodexAccount, on host: RemoteHost) async throws -> RemoteHostAccountInstallationState { .installed }
     func installAccount(_ account: CodexAccount, on host: RemoteHost) async throws {}
     func switchToAccount(_ account: CodexAccount, on host: RemoteHost) async throws {}
     func readCurrentAccountStatus(on host: RemoteHost) async throws -> CodexAccountStatus {
+        if let scopedError = readErrorsByDestination[host.destination] {
+            throw scopedError
+        }
+        if let readError {
+            throw readError
+        }
         if let scopedStatus = statusesByDestination[host.destination] {
             return scopedStatus
         }

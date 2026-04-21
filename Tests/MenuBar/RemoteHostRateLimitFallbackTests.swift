@@ -175,6 +175,51 @@ struct RemoteHostRateLimitFallbackTests {
         #expect(result?.secondary?.usedPercent == 16)
     }
 
+    @Test
+    func mergesPerWindowWhenRemoteOnlyHasWeeklyData() {
+        let baseAccount = makeAccount(
+            email: "raphaelgrau@gmail.com",
+            stableAccountID: "acct-team",
+            sessionUsedPercent: 0,
+            sessionResetsAt: nil,
+            weeklyUsedPercent: 0,
+            weeklyResetsAt: nil
+        )
+        let savedMatchingAccount = makeAccount(
+            email: "raphaelgrau@gmail.com",
+            stableAccountID: "acct-team",
+            sessionUsedPercent: 100,
+            sessionResetsAt: Date().addingTimeInterval(59 * 60),
+            weeklyUsedPercent: 16,
+            weeklyResetsAt: Date().addingTimeInterval(5 * 24 * 60 * 60)
+        )
+        let remote = CodexRateLimitSnapshot(
+            limitID: nil,
+            limitName: nil,
+            planType: "team",
+            primary: nil,
+            secondary: CodexRateLimitWindow(
+                usedPercent: 31,
+                resetsAt: Date().addingTimeInterval(6 * 24 * 60 * 60),
+                windowDurationMinutes: 10_080
+            ),
+            fetchedAt: .now
+        )
+
+        let result = preferredRemoteRateLimits(
+            remote: remote,
+            fallback: baseAccount.rateLimits,
+            candidateAccounts: [savedMatchingAccount],
+            baseAccount: baseAccount,
+            remoteEmail: "raphaelgrau@gmail.com"
+        )
+
+        #expect(result?.primary?.usedPercent == 100)
+        #expect(result?.primary?.resetsAt != nil)
+        #expect(result?.secondary?.usedPercent == 31)
+        #expect(result?.secondary?.resetsAt != nil)
+    }
+
     private func makeAccount(
         email: String,
         stableAccountID: String,

@@ -356,9 +356,11 @@ private final class HostSetupWindowController: NSObject, NSTextFieldDelegate, NS
         statusIconView.isHidden = state.statusKind == .idle || state.statusKind == .testing
 
         if state.isTesting {
+            progressIndicator.isHidden = false
             progressIndicator.startAnimation(nil)
         } else {
             progressIndicator.stopAnimation(nil)
+            progressIndicator.isHidden = true
         }
 
         addButton.isEnabled = state.canSubmit

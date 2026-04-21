@@ -90,6 +90,10 @@ struct InactiveAccountMenuContent: View {
 struct RemoteHostMenuContent: View {
     let remoteHost: RemoteHostMenuState
     let progressAccentColor: Color
+    let primaryActionTitle: String?
+    let onPrimaryAction: (() -> Void)?
+    let isPrimaryActionEnabled: Bool
+    let isPrimaryActionProminent: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
@@ -124,6 +128,31 @@ struct RemoteHostMenuContent: View {
                     window: activeAccount.rateLimits?.secondary,
                     tintColor: progressAccentColor
                 )
+            } else if let statusMessage {
+                Text(statusMessage)
+                    .font(.caption)
+                    .foregroundStyle(statusMessageColor)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if let primaryActionTitle {
+                if isPrimaryActionProminent {
+                    Button(action: { onPrimaryAction?() }) {
+                        Text(primaryActionTitle)
+                            .lineLimit(1)
+                    }
+                    .buttonStyle(BorderedProminentButtonStyle())
+                    .controlSize(.small)
+                    .disabled(!isPrimaryActionEnabled || onPrimaryAction == nil)
+                } else {
+                    Button(action: { onPrimaryAction?() }) {
+                        Text(primaryActionTitle)
+                            .lineLimit(1)
+                    }
+                    .buttonStyle(BorderedButtonStyle())
+                    .controlSize(.small)
+                    .disabled(!isPrimaryActionEnabled || onPrimaryAction == nil)
+                }
             }
         }
         .padding(.horizontal, 14)
@@ -133,21 +162,47 @@ struct RemoteHostMenuContent: View {
     }
 
     private var primaryTitle: String {
-        remoteHost.activeAccount?.name ?? remoteHost.name
+        remoteHost.displayAccount?.name ?? remoteHost.name
     }
 
     private var primaryBadge: String {
-        if let activeAccount = remoteHost.activeAccount {
+        if let activeAccount = remoteHost.displayAccount {
             return menuPlanDisplayName(activeAccount.planType)
         }
         return remoteHost.connectionState.menuTitle
     }
 
     private var secondaryBadge: String {
-        guard let email = remoteHost.activeAccount?.email, !email.isEmpty else {
+        guard let email = remoteHost.displayAccount?.email, !email.isEmpty else {
             return remoteHost.destination
         }
         return email
+    }
+
+    private var statusMessage: String? {
+        switch remoteHost.verificationStatus {
+        case .verified:
+            return nil
+        case .verifying:
+            return "Verifying remote runtime identity…"
+        case .unverified:
+            return "Waiting for remote runtime verification."
+        case .failed:
+            if let detectedAccount = remoteHost.detectedAccount,
+               let desiredAccount = remoteHost.desiredAccount,
+               detectedAccount.id != desiredAccount.id {
+                return "Detected \(detectedAccount.name) on host. Expected \(desiredAccount.name)."
+            }
+            if let lastVerificationError = remoteHost.lastVerificationError,
+               !lastVerificationError.isEmpty {
+                return lastVerificationError
+            }
+            return "Remote runtime identity could not be verified."
+        }
+    }
+
+    private var statusMessageColor: Color {
+        remoteHost.verificationStatus == .failed ? .red : .secondary
     }
 }
 

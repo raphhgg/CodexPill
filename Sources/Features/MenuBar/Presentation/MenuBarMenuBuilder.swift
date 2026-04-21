@@ -48,7 +48,7 @@ struct MenuBarMenuBuilder {
             menu.addItem(.separator())
             menu.addItem(sectionHeaderItem("Remote Accounts", width: menuContentWidth, bottomPadding: 4))
             for remoteHost in state.connectedRemoteHosts {
-                menu.addItem(remoteHostItem(for: remoteHost, state: state, width: menuContentWidth))
+                menu.addItem(remoteHostItem(for: remoteHost, state: state, target: target, width: menuContentWidth))
             }
         }
 
@@ -98,12 +98,16 @@ struct MenuBarMenuBuilder {
         return item
     }
 
-    private func remoteHostItem(for remoteHost: RemoteHostMenuState, state: MenuBarMenuState, width: CGFloat) -> NSMenuItem {
+    private func remoteHostItem(for remoteHost: RemoteHostMenuState, state: MenuBarMenuState, target: MenuBarCoordinator, width: CGFloat) -> NSMenuItem {
         let item = NSMenuItem()
         let view = NSHostingView(
             rootView: RemoteHostMenuContent(
                 remoteHost: remoteHost,
-                progressAccentColor: Color(nsColor: state.progressAccentColor)
+                progressAccentColor: Color(nsColor: state.progressAccentColor),
+                primaryActionTitle: remoteHostCardActionTitle(for: remoteHost),
+                onPrimaryAction: remoteHostCardAction(for: remoteHost, target: target),
+                isPrimaryActionEnabled: state.canConfigureHosts,
+                isPrimaryActionProminent: remoteHostCardActionIsProminent(for: remoteHost)
             )
         )
         item.view = configuredHostedMenuView(view, width: width)
@@ -198,6 +202,8 @@ struct MenuBarMenuBuilder {
 
     private func usageStatusTitle(for entry: MenuBarAccountCatalogEntry, state: MenuBarMenuState) -> String {
         var locations: [String] = []
+        var pendingLocations: [String] = []
+        var failedLocations: [String] = []
         if state.activeAccount?.id == entry.account.id {
             locations.append("This Mac")
         }
@@ -206,11 +212,34 @@ struct MenuBarMenuBuilder {
             remoteHost.activeAccount?.id == entry.account.id ? remoteHost.name : nil
         })
 
-        guard !locations.isEmpty else {
+        for remoteHost in state.remoteHosts where remoteHost.activeAccount?.id != entry.account.id {
+            guard remoteHost.desiredAccount?.id == entry.account.id else { continue }
+            switch remoteHost.verificationStatus {
+            case .failed:
+                failedLocations.append(remoteHost.name)
+            case .verified:
+                break
+            case .unverified, .verifying:
+                pendingLocations.append(remoteHost.name)
+            }
+        }
+
+        var components: [String] = []
+        if !locations.isEmpty {
+            components.append("In use on: \(locations.joined(separator: ", "))")
+        }
+        if !pendingLocations.isEmpty {
+            components.append("Pending on: \(pendingLocations.joined(separator: ", "))")
+        }
+        if !failedLocations.isEmpty {
+            components.append("Verification failed on: \(failedLocations.joined(separator: ", "))")
+        }
+
+        guard !components.isEmpty else {
             return "Not currently in use"
         }
 
-        return "In use on: \(locations.joined(separator: ", "))"
+        return components.joined(separator: " • ")
     }
 
     private func switchTargetMenuItem(
@@ -286,6 +315,53 @@ struct MenuBarMenuBuilder {
         connection.isEnabled = false
         submenu.addItem(connection)
 
+        if let desiredAccount = remoteHost.desiredAccount {
+            let desired = NSMenuItem(title: "Desired account: \(desiredAccount.name)", action: nil, keyEquivalent: "")
+            desired.isEnabled = false
+            submenu.addItem(desired)
+        }
+
+        if let detectedAccount = remoteHost.detectedAccount,
+           detectedAccount.id != remoteHost.desiredAccount?.id {
+            let detected = NSMenuItem(title: "Detected account: \(detectedAccount.name)", action: nil, keyEquivalent: "")
+            detected.isEnabled = false
+            submenu.addItem(detected)
+        }
+
+        if remoteHost.verificationStatus != .verified {
+            let verification = NSMenuItem(
+                title: "Verification: \(verificationStatusTitle(for: remoteHost))",
+                action: nil,
+                keyEquivalent: ""
+            )
+            verification.isEnabled = false
+            submenu.addItem(verification)
+        }
+
+        if let detectedAccount = remoteHost.detectedAccount,
+           detectedAccount.id != remoteHost.desiredAccount?.id {
+            let adopt = NSMenuItem(
+                title: "Use Detected Account (\(detectedAccount.name))",
+                action: #selector(MenuBarCoordinator.adoptDetectedRemoteAccount(_:)),
+                keyEquivalent: ""
+            )
+            adopt.target = target
+            adopt.representedObject = HostAccountMenuItemPayload(
+                accountID: detectedAccount.id,
+                hostDestination: remoteHost.destination
+            )
+            adopt.isEnabled = state.canConfigureHosts
+            submenu.addItem(adopt)
+        }
+
+        if remoteHost.displayAccount != nil {
+            let reverify = NSMenuItem(title: "Re-verify Remote Account", action: #selector(MenuBarCoordinator.reverifyHost(_:)), keyEquivalent: "")
+            reverify.target = target
+            reverify.representedObject = HostSelectionMenuItemPayload(hostDestination: remoteHost.destination)
+            reverify.isEnabled = state.canConfigureHosts && remoteHost.verificationStatus != .verifying
+            submenu.addItem(reverify)
+        }
+
         let removeHost = NSMenuItem(title: "Remove Host", action: #selector(MenuBarCoordinator.removeHost(_:)), keyEquivalent: "")
         removeHost.target = target
         removeHost.representedObject = HostSelectionMenuItemPayload(hostDestination: remoteHost.destination)
@@ -322,6 +398,62 @@ struct MenuBarMenuBuilder {
         item.representedObject = account.id.uuidString
         item.isEnabled = state.canRenameSavedAccounts
         return item
+    }
+
+    private func verificationStatusTitle(for remoteHost: RemoteHostMenuState) -> String {
+        switch remoteHost.verificationStatus {
+        case .verified:
+            return "Verified"
+        case .verifying:
+            return "Verifying"
+        case .unverified:
+            return "Pending"
+        case .failed:
+            return "Failed"
+        }
+    }
+
+    private func remoteHostCardActionTitle(for remoteHost: RemoteHostMenuState) -> String? {
+        if let detectedAccount = remoteHost.detectedAccount,
+           detectedAccount.id != remoteHost.desiredAccount?.id {
+            return "Use \(detectedAccount.name)"
+        }
+
+        switch remoteHost.verificationStatus {
+        case .failed, .unverified:
+            return "Re-verify"
+        case .verified, .verifying:
+            return nil
+        }
+    }
+
+    private func remoteHostCardAction(for remoteHost: RemoteHostMenuState, target: MenuBarCoordinator) -> (() -> Void)? {
+        if let detectedAccount = remoteHost.detectedAccount,
+           detectedAccount.id != remoteHost.desiredAccount?.id {
+            return { [weak target] in
+                target?.adoptDetectedRemoteAccount(
+                    hostDestination: remoteHost.destination,
+                    accountID: detectedAccount.id
+                )
+            }
+        }
+
+        switch remoteHost.verificationStatus {
+        case .failed, .unverified:
+            return { [weak target] in
+                target?.reverifyHost(hostDestination: remoteHost.destination)
+            }
+        case .verified, .verifying:
+            return nil
+        }
+    }
+
+    private func remoteHostCardActionIsProminent(for remoteHost: RemoteHostMenuState) -> Bool {
+        if let detectedAccount = remoteHost.detectedAccount,
+           detectedAccount.id != remoteHost.desiredAccount?.id {
+            return true
+        }
+        return false
     }
 
     private func refreshIntervalMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {

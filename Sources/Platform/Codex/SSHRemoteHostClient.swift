@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 struct CommandResult: Equatable {
@@ -47,6 +48,7 @@ extension AccountRepository: AccountSnapshotLocating {}
 
 struct SSHRemoteHostClient: RemoteHostSwitching {
     private static let responseTimeout: Duration = .seconds(10)
+    private static let missingRemoteAuthExitCode: Int32 = 17
     private let snapshotLocator: AccountSnapshotLocating
     private let commandRunner: CommandRunning
     private let sshExecutableURL: URL
@@ -146,27 +148,29 @@ struct SSHRemoteHostClient: RemoteHostSwitching {
             do {
                 let status = try await readAccountStatus(on: host, refreshToken: attempt.refreshToken)
                 latestPartialStatus = mergeStatuses(previous: latestPartialStatus, current: status)
-
-                guard shouldRetry(status: latestPartialStatus, attemptIndex: index, totalAttempts: attempts.count) else {
-                    return latestPartialStatus ?? status
-                }
             } catch {
                 latestError = error
 
-                guard index < attempts.count - 1 else {
-                    if let latestPartialStatus {
-                        return latestPartialStatus
-                    }
-                    throw error
+                if index < attempts.count - 1 {
+                    continue
                 }
+                break
+            }
+
+            guard shouldRetry(status: latestPartialStatus, attemptIndex: index, totalAttempts: attempts.count) else {
+                return try await enrichStatusWithRemoteAuthDataIfAvailable(latestPartialStatus ?? CodexAccountStatus(email: nil, planType: nil, rateLimits: nil), on: host)
             }
         }
 
         if let latestPartialStatus {
-            return latestPartialStatus
+            return try await enrichStatusWithRemoteAuthDataIfAvailable(latestPartialStatus, on: host)
         }
 
-        throw latestError ?? CocoaError(.coderReadCorrupt)
+        if let latestError {
+            throw latestError
+        }
+
+        throw CocoaError(.coderReadCorrupt)
     }
 
     private func ensureRemoteDirectories(on host: RemoteHost) async throws {
@@ -316,8 +320,62 @@ struct SSHRemoteHostClient: RemoteHostSwitching {
         CodexAccountStatus(
             email: current.email ?? previous?.email,
             planType: current.planType ?? previous?.planType,
-            rateLimits: current.rateLimits ?? previous?.rateLimits
+            rateLimits: current.rateLimits ?? previous?.rateLimits,
+            stableAccountID: current.stableAccountID ?? previous?.stableAccountID,
+            authPrincipalIdentity: current.authPrincipalIdentity ?? previous?.authPrincipalIdentity,
+            workspaceIdentity: current.workspaceIdentity ?? previous?.workspaceIdentity,
+            snapshotFingerprint: current.snapshotFingerprint ?? previous?.snapshotFingerprint
         )
+    }
+
+    private func enrichStatusWithRemoteAuthDataIfAvailable(
+        _ status: CodexAccountStatus,
+        on host: RemoteHost
+    ) async throws -> CodexAccountStatus {
+        guard let authData = try await readRemoteAuthData(on: host) else {
+            return status
+        }
+
+        return mergeStatuses(
+            previous: status,
+            current: CodexAccountStatus(
+                email: CodexAuthDataParser.email(from: authData),
+                planType: CodexAuthDataParser.planType(from: authData),
+                rateLimits: nil,
+                stableAccountID: CodexAuthDataParser.stableAccountID(from: authData),
+                authPrincipalIdentity: CodexAuthDataParser.authPrincipalIdentity(from: authData),
+                workspaceIdentity: CodexAuthDataParser.workspaceIdentity(from: authData),
+                snapshotFingerprint: snapshotFingerprint(for: authData)
+            )
+        )
+    }
+
+    private func readRemoteAuthData(on host: RemoteHost) async throws -> Data? {
+        let result = try await commandRunner.run(
+            executableURL: sshExecutableURL,
+            arguments: sshArguments(
+                host: host,
+                command: "if [ ! -f \(quoted(".codex/auth.json")) ]; then exit \(Self.missingRemoteAuthExitCode); fi\ncat \(quoted(".codex/auth.json"))"
+            )
+        )
+
+        switch result.terminationStatus {
+        case 0:
+            return result.standardOutput.isEmpty ? nil : result.standardOutput
+        case Self.missingRemoteAuthExitCode:
+            return nil
+        default:
+            let message = String(decoding: result.standardError, as: UTF8.self)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            throw RemoteHostClientError.authReadFailed(
+                message.isEmpty ? "Remote auth verification failed with code \(result.terminationStatus)." : message
+            )
+        }
+    }
+
+    private func snapshotFingerprint(for data: Data) -> String {
+        let digest = SHA256.hash(data: data)
+        return digest.map { String(format: "%02x", $0) }.joined()
     }
 
     private func remoteFailureMessage(stderr: String?, terminationStatus: Int) -> String {

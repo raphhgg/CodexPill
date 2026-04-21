@@ -32,9 +32,9 @@ EOF
 
 if [[ "${SCENARIO}" != "hosted-menu-default" ]]; then
   case "${SCENARIO}" in
-    hosted-menu-busy|hosted-menu-empty|hosted-menu-with-host|host-account-missing-on-host)
+    hosted-menu-busy|hosted-menu-empty|hosted-menu-with-host|hosted-menu-multiple-hosts|hosted-menu-disconnected-host|host-account-missing-on-host)
       ;;
-    live-menu-open|live-account-switch|live-add-host-prompt|live-save-current-prompt|live-sign-in-another-prompt|live-scheduled-refresh)
+    live-menu-open|live-account-switch|live-remote-host-switch|live-add-host-prompt|live-save-current-prompt|live-sign-in-another-prompt|live-scheduled-refresh)
       ARTIFACT_ROOT="${BUILD_ROOT}/verification/${AGENT_NAME}/${SCENARIO}" \
       ./scripts/live_menubar_smoke.sh
       exit $?
@@ -52,7 +52,7 @@ if [[ "${SCENARIO}" != "hosted-menu-default" ]]; then
   "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/verify_ui.sh",
   "gaps": [
     "Unknown scenario '${SCENARIO}'",
-    "Try SCENARIO=hosted-menu-default, hosted-menu-busy, hosted-menu-empty, hosted-menu-with-host, host-account-missing-on-host, live-menu-open, live-account-switch, live-add-host-prompt, live-save-current-prompt, live-sign-in-another-prompt, live-scheduled-refresh, or live-status-item-hover"
+    "Try SCENARIO=hosted-menu-default, hosted-menu-busy, hosted-menu-empty, hosted-menu-with-host, hosted-menu-multiple-hosts, hosted-menu-disconnected-host, host-account-missing-on-host, live-menu-open, live-account-switch, live-remote-host-switch, live-add-host-prompt, live-save-current-prompt, live-sign-in-another-prompt, live-scheduled-refresh, or live-status-item-hover"
   ],
   "scenario": "${SCENARIO}",
   "status": "failed"
@@ -112,6 +112,19 @@ case "${SCENARIO}" in
     "Remote host state renders in its own section",
     "Accounts continues to reflect the local saved-account catalog",
     "One inactive account still overflows into More Accounts… with a connected host present"
+  ]'
+    ;;
+  hosted-menu-multiple-hosts)
+    ASSERTIONS_JSON='[
+    "Each connected host renders its own remote-account card",
+    "Accounts still reflects only the local saved-account catalog",
+    "Overflow account behavior stays intact with multiple connected hosts"
+  ]'
+    ;;
+  hosted-menu-disconnected-host)
+    ASSERTIONS_JSON='[
+    "Disconnected hosts stay out of the primary Remote Accounts section",
+    "Configured hosts remain available under Hosts and per-account switch targets"
   ]'
     ;;
   host-account-missing-on-host)

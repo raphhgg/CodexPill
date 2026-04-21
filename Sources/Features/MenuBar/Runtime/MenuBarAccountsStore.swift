@@ -48,7 +48,7 @@ final class MenuBarAccountsStore {
         await controller.switchToAccount(account)
     }
 
-    func switchToAccountOnHost(_ account: CodexAccount, on host: RemoteHost) async -> Bool {
+    func switchToAccountOnHost(_ account: CodexAccount, on host: RemoteHost) async -> AccountsController.RemoteHostSwitchOutcome {
         await controller.switchToAccountOnHost(account, on: host)
     }
 

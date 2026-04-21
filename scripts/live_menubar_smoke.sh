@@ -14,11 +14,17 @@ VALIDATION_EVENTS_PATH="${ARTIFACT_ROOT}/validation-events.jsonl"
 RUNTIME_ASSERTIONS_PATH="${ARTIFACT_ROOT}/runtime-assertions.json"
 APP_SERVER_STATUS_PATH="${ARTIFACT_ROOT}/app-server-status.json"
 LIVE_AUTH_STATUS_PATH="${ARTIFACT_ROOT}/live-auth-status.json"
+VALIDATION_APP_SUPPORT_DIR="${ARTIFACT_ROOT}/validation-app-support"
+VALIDATION_SETTINGS_FIXTURE_PATH="${ARTIFACT_ROOT}/validation-settings.json"
+VALIDATION_DEFAULTS_SUITE="CodexPill.validation.${AGENT_NAME}.${SCENARIO//[^[:alnum:]]/_}"
 PROOF_LAYER="live_ui"
 
 case "${SCENARIO}" in
   live-account-switch)
     INVARIANT_IDS_JSON='["accounts.switch_account.menu_action_changes_active_account"]'
+    ;;
+  live-remote-host-switch)
+    INVARIANT_IDS_JSON='["hosts.switch_account_on_host.changes_remote_active_account"]'
     ;;
   live-add-host-prompt)
     INVARIANT_IDS_JSON='["hosts.add_host.prompt_validates_destination"]'
@@ -175,9 +181,113 @@ EOF
   exit 10
 fi
 
-CODEXPILL_VALIDATION_OUTPUT="${PWD}/${LIVE_SNAPSHOT_PATH}" \
-  CODEXPILL_VALIDATION_EVENTS_OUTPUT="${PWD}/${VALIDATION_EVENTS_PATH}" \
-  CODEXPILL_VALIDATION_SCENARIO="${SCENARIO}" \
+if [[ "${SCENARIO}" == "live-remote-host-switch" ]]; then
+  rm -rf "${VALIDATION_APP_SUPPORT_DIR}"
+  mkdir -p "${VALIDATION_APP_SUPPORT_DIR}/snapshots"
+  export CODEXPILL_VALIDATION_APP_SUPPORT_DIR="${PWD}/${VALIDATION_APP_SUPPORT_DIR}"
+
+  ruby - "${VALIDATION_APP_SUPPORT_DIR}/accounts.json" "${VALIDATION_SETTINGS_FIXTURE_PATH}" <<'RUBY'
+require "json"
+require "securerandom"
+require "time"
+
+accounts_path, settings_path = ARGV
+now = Time.utc(2026, 4, 20, 10, 0, 0)
+
+make_limits = lambda do |session_used, weekly_used, session_minutes, weekly_days|
+  {
+    "limitID" => nil,
+    "limitName" => nil,
+    "planType" => "team",
+    "primary" => {
+      "usedPercent" => session_used,
+      "resetsAt" => (now + (session_minutes * 60)).iso8601,
+      "windowDurationMinutes" => 300
+    },
+    "secondary" => {
+      "usedPercent" => weekly_used,
+      "resetsAt" => (now + (weekly_days * 86_400)).iso8601,
+      "windowDurationMinutes" => 10_080
+    },
+    "fetchedAt" => now.iso8601
+  }
+end
+
+accounts = [
+  {
+    "id" => SecureRandom.uuid,
+    "name" => "Validation Local",
+    "snapshotFileName" => "validation-local.json",
+    "createdAt" => (now - 3600).iso8601,
+    "updatedAt" => (now - 300).iso8601,
+    "email" => "validation-local@example.com",
+    "planType" => "team",
+    "rateLimits" => make_limits.call(18, 26, 180, 6),
+    "identity" => {
+      "stableAccountID" => nil,
+      "authPrincipalIdentity" => nil,
+      "workspaceIdentity" => nil,
+      "snapshotFingerprint" => SecureRandom.uuid,
+      "remoteIdentity" => {
+        "normalizedEmailAddress" => "validation-local@example.com"
+      }
+    }
+  },
+  {
+    "id" => SecureRandom.uuid,
+    "name" => "Validation Remote",
+    "snapshotFileName" => "validation-remote.json",
+    "createdAt" => (now - 3600).iso8601,
+    "updatedAt" => (now - 300).iso8601,
+    "email" => "validation-remote@example.com",
+    "planType" => "team",
+    "rateLimits" => make_limits.call(64, 41, 75, 5),
+    "identity" => {
+      "stableAccountID" => nil,
+      "authPrincipalIdentity" => nil,
+      "workspaceIdentity" => nil,
+      "snapshotFingerprint" => SecureRandom.uuid,
+      "remoteIdentity" => {
+        "normalizedEmailAddress" => "validation-remote@example.com"
+      }
+    }
+  }
+]
+
+settings = {
+  "remoteHostStates" => [
+    {
+      "host" => {
+        "destination" => "user@buildbox",
+        "displayName" => "buildbox"
+      },
+      "installedAccountIDs" => [],
+      "activeAccount" => nil
+    }
+  ]
+}
+
+File.write(accounts_path, JSON.pretty_generate(accounts))
+File.write(settings_path, JSON.pretty_generate(settings))
+RUBY
+fi
+
+RUN_MENUBAR_ENV=(
+  "CODEXPILL_VALIDATION_OUTPUT=${PWD}/${LIVE_SNAPSHOT_PATH}"
+  "CODEXPILL_VALIDATION_EVENTS_OUTPUT=${PWD}/${VALIDATION_EVENTS_PATH}"
+  "CODEXPILL_VALIDATION_SCENARIO=${SCENARIO}"
+)
+
+if [[ "${SCENARIO}" == "live-remote-host-switch" ]]; then
+  RUN_MENUBAR_ENV+=(
+    "CODEXPILL_VALIDATION_APP_SUPPORT_DIR=${PWD}/${VALIDATION_APP_SUPPORT_DIR}"
+    "CODEXPILL_VALIDATION_USER_DEFAULTS_SUITE=${VALIDATION_DEFAULTS_SUITE}"
+    "CODEXPILL_VALIDATION_SETTINGS_FIXTURE=${PWD}/${VALIDATION_SETTINGS_FIXTURE_PATH}"
+    "CODEXPILL_VALIDATION_REMOTE_HOST_CLIENT=memory"
+  )
+fi
+
+env "${RUN_MENUBAR_ENV[@]}" \
   ./scripts/run_menubar.sh > "${ARTIFACT_ROOT}/logs/run-menubar.log" 2>&1
 
 for _ in $(seq 1 20); do
@@ -300,7 +410,12 @@ def account_names_for_section(snapshot, title)
 end
 
 def load_saved_account_names
-  accounts_path = File.expand_path("~/Library/Application Support/CodexPill/accounts.json")
+  accounts_root = ENV["CODEXPILL_VALIDATION_APP_SUPPORT_DIR"]
+  accounts_path = if accounts_root && !accounts_root.strip.empty?
+    File.join(accounts_root, "accounts.json")
+  else
+    File.expand_path("~/Library/Application Support/CodexPill/accounts.json")
+  end
   return [] unless File.exist?(accounts_path)
 
   JSON.parse(File.read(accounts_path))
@@ -317,14 +432,11 @@ def has_switch_account_item?(items, name)
   end
 end
 
-accounts_menu = find_child(menu_items, "Accounts")
-abort "Missing Accounts menu in runtime snapshot" unless accounts_menu
-
-add_account_menu = find_child(accounts_menu.fetch("children", []), "Add Account")
-abort "Missing Accounts > Add Account menu in runtime snapshot" unless add_account_menu
+add_account_menu = find_child(menu_items, "Add Account…")
+abort "Missing Add Account… menu in runtime snapshot" unless add_account_menu
 
 save_current_account = find_child(add_account_menu.fetch("children", []), "Save Current Account")
-abort "Missing Accounts > Add Account > Save Current Account item in runtime snapshot" unless save_current_account
+abort "Missing Add Account… > Save Current Account item in runtime snapshot" unless save_current_account
 
 display_menu = find_child(menu_items, "Display")
 abort "Missing Display menu in runtime snapshot" unless display_menu
@@ -648,6 +760,83 @@ puts JSON.generate(
 RUBY
 }
 
+read_host_account_target_json() {
+  local host_name="$1"
+
+  ruby - "${LIVE_SNAPSHOT_PATH}" "${host_name}" <<'RUBY'
+require "json"
+
+snapshot = JSON.parse(File.read(ARGV.fetch(0)))
+target_host_name = ARGV.fetch(1)
+sections = snapshot.fetch("sections", [])
+menu_items = snapshot.fetch("menuItems", [])
+
+extract_names = lambda do |title|
+  sections.find { |section| section["title"] == title }
+    &.fetch("items", [])
+    &.map { |item| item.to_s.split(" • ").first.to_s.strip }
+    &.reject(&:empty?) || []
+end
+
+matches_action = lambda do |children|
+  Array(children).any? do |child|
+    title = child["title"].to_s
+    title == "Switch on #{target_host_name}" || title == "Install on #{target_host_name} and switch"
+  end
+end
+
+visible = extract_names.call("Accounts")
+overflow = extract_names.call("More Accounts…")
+
+target_name = nil
+target_location = nil
+root_index = nil
+submenu_index = nil
+target_action_title = nil
+
+menu_items.each_with_index do |item, index|
+  next unless visible.include?(item["title"].to_s.split(/\s{2,}/, 2).first.to_s.strip)
+  next unless matches_action.call(item["children"])
+  target_name = item["title"].to_s.split(/\s{2,}/, 2).first.to_s.strip
+  target_location = "visible"
+  root_index = index + 1
+  target_action_title = Array(item["children"]).map { |child| child["title"].to_s }.find do |title|
+    title == "Switch on #{target_host_name}" || title == "Install on #{target_host_name} and switch"
+  end
+  break
+end
+
+if target_name.nil?
+  if (more_accounts = menu_items.find { |item| item["title"] == "More Accounts…" })
+    Array(more_accounts["children"]).each_with_index do |item, index|
+      next unless matches_action.call(item["children"])
+      target_name = item["title"].to_s.split(/\s{2,}/, 2).first.to_s.strip
+      target_location = "overflow"
+      root_index = menu_items.find_index { |entry| entry["title"] == "More Accounts…" }
+      root_index = root_index.nil? ? nil : root_index + 1
+      submenu_index = index + 1
+      target_action_title = Array(item["children"]).map { |child| child["title"].to_s }.find do |title|
+        title == "Switch on #{target_host_name}" || title == "Install on #{target_host_name} and switch"
+      end
+      break
+    end
+  end
+end
+
+puts JSON.generate(
+  {
+    "targetName" => target_name,
+    "targetLocation" => target_location,
+    "targetRootIndex" => root_index,
+    "targetSubmenuIndex" => submenu_index,
+    "targetActionTitle" => target_action_title,
+    "visibleNames" => visible,
+    "overflowNames" => overflow
+  }
+)
+RUBY
+}
+
 probe_account_submenu() {
   local target_location="$1"
   local target_root_index="$2"
@@ -755,6 +944,52 @@ end run
 EOF
 }
 
+click_account_submenu_action() {
+  local target_location="$1"
+  local target_root_index="$2"
+  local target_submenu_index="$3"
+  local action_title="$4"
+
+  osascript - "$target_location" "$target_root_index" "$target_submenu_index" "$action_title" <<'EOF'
+on run argv
+    set targetLocation to item 1 of argv
+    set targetRootIndex to item 2 of argv as integer
+    set targetSubmenuIndex to item 3 of argv
+    set actionTitle to item 4 of argv
+    tell application "System Events"
+        tell process "CodexPill"
+            tell menu bar 2
+                click menu bar item 1
+                delay 0.5
+                if targetLocation is equal to "overflow" then
+                    set submenuIndex to targetSubmenuIndex as integer
+                    tell menu item targetRootIndex of menu 1 of menu bar item 1
+                        tell menu 1
+                            tell menu item submenuIndex
+                                click
+                                delay 0.3
+                                tell menu 1
+                                    click menu item actionTitle
+                                end tell
+                            end tell
+                        end tell
+                    end tell
+                else
+                    tell menu item targetRootIndex of menu 1 of menu bar item 1
+                        click
+                        delay 0.3
+                        tell menu 1
+                            click menu item actionTitle
+                        end tell
+                    end tell
+                end if
+            end tell
+        end tell
+    end tell
+end run
+EOF
+}
+
 accept_switch_confirmation() {
   osascript <<'EOF'
 tell application "System Events"
@@ -787,13 +1022,9 @@ tell application "System Events"
         tell menu bar 2
             click menu bar item 1
             delay 0.5
-            tell menu item "Accounts" of menu 1 of menu bar item 1
+            tell menu item "Add Account…" of menu 1 of menu bar item 1
                 tell menu 1
-                    tell menu item "Add Account"
-                        tell menu 1
-                            click menu item "Save Current Account"
-                        end tell
-                    end tell
+                    click menu item "Save Current Account"
                 end tell
             end tell
         end tell
@@ -809,13 +1040,9 @@ tell application "System Events"
         tell menu bar 2
             click menu bar item 1
             delay 0.5
-            tell menu item "Accounts" of menu 1 of menu bar item 1
+            tell menu item "Add Account…" of menu 1 of menu bar item 1
                 tell menu 1
-                    tell menu item "Add Account"
-                        tell menu 1
-                            click menu item "Sign In Another Account…"
-                        end tell
-                    end tell
+                    click menu item "Sign In Another Account…"
                 end tell
             end tell
         end tell
@@ -1124,6 +1351,68 @@ requirements = [
   ["active_account_changed", ->(event) {
     event.dig("payload", "toName") == target_name &&
       (original_name.to_s.empty? || event.dig("payload", "fromName") == original_name)
+  }]
+]
+
+cursor = 0
+proof_sequence = []
+
+requirements.each do |required_name, predicate|
+  matched = false
+  while cursor < events.length
+    event = events[cursor]
+    if event["event"] == required_name && predicate.call(event)
+      proof_sequence << required_name
+      cursor += 1
+      matched = true
+      break
+    end
+    cursor += 1
+  end
+  break unless matched
+end
+
+puts JSON.generate(
+  {
+    "passed" => proof_sequence == requirements.map(&:first),
+    "requiredSequence" => requirements.map(&:first),
+    "proofSequence" => proof_sequence,
+    "eventCount" => events.length,
+    "eventsPathPresent" => File.exist?(events_path)
+  }
+)
+RUBY
+}
+
+read_remote_host_switch_proof() {
+  ruby - "${VALIDATION_EVENTS_PATH}" "$1" "$2" <<'RUBY'
+require "json"
+
+events_path, target_name, host_name = ARGV
+events = if File.exist?(events_path)
+  File.readlines(events_path, chomp: true).map do |line|
+    next if line.strip.empty?
+    JSON.parse(line)
+  rescue JSON::ParserError
+    nil
+  end.compact
+else
+  []
+end
+
+requirements = [
+  ["menu_action_dispatched", ->(event) {
+    event.dig("payload", "action") == "switchAccountOnHost" &&
+      event.dig("payload", "targetName") == target_name &&
+      event.dig("payload", "hostName") == host_name
+  }],
+  ["remote_host_switch_started", ->(event) {
+    event.dig("payload", "targetName") == target_name &&
+      event.dig("payload", "hostName") == host_name
+  }],
+  ["remote_host_active_account_changed", ->(event) {
+    event.dig("payload", "targetName") == target_name &&
+      event.dig("payload", "hostName") == host_name
   }]
 ]
 
@@ -2214,6 +2503,172 @@ EOF
 EOF
 
   echo "Live account-switch smoke artifacts written to ${ARTIFACT_ROOT}"
+  exit 0
+fi
+
+if [[ "${SCENARIO}" == "live-remote-host-switch" ]]; then
+  TARGET_HOST_NAME="buildbox"
+  SWITCH_TARGET_JSON="$(read_host_account_target_json "${TARGET_HOST_NAME}")"
+  SWITCH_TARGET_NAME="$(printf '%s' "${SWITCH_TARGET_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["targetName"].to_s)')"
+  SWITCH_TARGET_LOCATION="$(printf '%s' "${SWITCH_TARGET_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["targetLocation"].to_s)')"
+  SWITCH_TARGET_ROOT_INDEX="$(printf '%s' "${SWITCH_TARGET_JSON}" | ruby -rjson -e 'value = JSON.parse(STDIN.read)["targetRootIndex"]; print(value.nil? ? "" : value)')"
+  SWITCH_TARGET_SUBMENU_INDEX="$(printf '%s' "${SWITCH_TARGET_JSON}" | ruby -rjson -e 'value = JSON.parse(STDIN.read)["targetSubmenuIndex"]; print(value.nil? ? "" : value)')"
+  SWITCH_TARGET_ACTION_TITLE="$(printf '%s' "${SWITCH_TARGET_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["targetActionTitle"].to_s)')"
+
+  if [[ -z "${SWITCH_TARGET_NAME}" || -z "${SWITCH_TARGET_LOCATION}" || -z "${SWITCH_TARGET_ROOT_INDEX}" || -z "${SWITCH_TARGET_ACTION_TITLE}" || ( "${SWITCH_TARGET_LOCATION}" == "overflow" && -z "${SWITCH_TARGET_SUBMENU_INDEX}" ) ]]; then
+    cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "screenshots/${SCENARIO}.png",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "validation-app-support/accounts.json",
+    "validation-settings.json",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "Accessibility enumerated the open menu"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [
+    "The runtime snapshot did not expose any saved account row with a remote switch target for buildbox."
+  ],
+  "scenario": "${SCENARIO}",
+  "status": "failed",
+  "failureClass": "validation_gap",
+  "failureStep": "remote_switch_target_selection"
+}
+EOF
+    echo "Live remote-host-switch smoke failed: no host switch target available." >&2
+    exit 24
+  fi
+
+  if ! click_account_submenu_action "${SWITCH_TARGET_LOCATION}" "${SWITCH_TARGET_ROOT_INDEX}" "${SWITCH_TARGET_SUBMENU_INDEX}" "${SWITCH_TARGET_ACTION_TITLE}" >/dev/null 2>&1; then
+    cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "screenshots/${SCENARIO}.png",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "validation-app-support/accounts.json",
+    "validation-settings.json",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "Accessibility enumerated the open menu",
+    "A remote host switch target was selected from the runtime snapshot"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [
+    "Accessibility reached the submenu target but did not successfully click the remote host switch action."
+  ],
+  "scenario": "${SCENARIO}",
+  "status": "failed",
+  "failureClass": "environment_block",
+  "failureStep": "remote_switch_row_click"
+}
+EOF
+    echo "Live remote-host-switch smoke failed: could not click the host switch action." >&2
+    exit 25
+  fi
+
+  REMOTE_SWITCH_PROOF_JSON=""
+  REMOTE_SWITCH_SNAPSHOT_MATCHED=0
+  for _ in $(seq 1 30); do
+    REMOTE_SWITCH_PROOF_JSON="$(read_remote_host_switch_proof "${SWITCH_TARGET_NAME}" "${TARGET_HOST_NAME}")"
+    REMOTE_SWITCH_SNAPSHOT_MATCHED="$(ruby -rjson -e 'snapshot = JSON.parse(File.read(ARGV[0])); target = ARGV[1]; host = ARGV[2]; remote_hosts = snapshot.fetch("remoteHosts", []); matched = remote_hosts.any? { |entry| entry["name"] == host && entry["connectionState"] == "connected" && entry.dig("activeAccount", "name") == target }; print(matched ? "1" : "0")' "${LIVE_SNAPSHOT_PATH}" "${SWITCH_TARGET_NAME}" "${TARGET_HOST_NAME}")"
+    if [[ "$(printf '%s' "${REMOTE_SWITCH_PROOF_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["passed"] ? "1" : "0")')" == "1" && "${REMOTE_SWITCH_SNAPSHOT_MATCHED}" == "1" ]]; then
+      break
+    fi
+    sleep 1
+  done
+
+  REMOTE_SWITCH_PROOF_PASSED="$(printf '%s' "${REMOTE_SWITCH_PROOF_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["passed"] ? "1" : "0")')"
+  REMOTE_SWITCH_PROOF_SEQUENCE="$(printf '%s' "${REMOTE_SWITCH_PROOF_JSON}" | ruby -rjson -e 'print(JSON.generate(JSON.parse(STDIN.read)["proofSequence"] || []))')"
+
+  if [[ "${REMOTE_SWITCH_PROOF_PASSED}" != "1" || "${REMOTE_SWITCH_SNAPSHOT_MATCHED}" != "1" ]]; then
+    cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "screenshots/${SCENARIO}.png",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "validation-app-support/accounts.json",
+    "validation-settings.json",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "Accessibility clicked the remote host switch target"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [
+    "The app did not emit the expected remote host switch event sequence and remote card update before timeout."
+  ],
+  "scenario": "${SCENARIO}",
+  "status": "failed",
+  "proofSequence": ${REMOTE_SWITCH_PROOF_SEQUENCE},
+  "failureClass": "product_regression",
+  "failureStep": "remote_host_switch_result"
+}
+EOF
+    echo "Live remote-host-switch smoke failed: switch proof did not complete." >&2
+    exit 26
+  fi
+
+  cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "screenshots/${SCENARIO}.png",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "validation-app-support/accounts.json",
+    "validation-settings.json",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "Accessibility enumerated the open menu",
+    "A remote host switch target was clicked from the saved account submenu",
+    "The app emitted the remote host switch event sequence",
+    "The remote card updated to the chosen account on buildbox"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [],
+  "scenario": "${SCENARIO}",
+  "status": "passed",
+  "remoteSwitchTarget": {
+    "accountName": "${SWITCH_TARGET_NAME}",
+    "hostName": "${TARGET_HOST_NAME}",
+    "actionTitle": "${SWITCH_TARGET_ACTION_TITLE}"
+  },
+  "proofSequence": ${REMOTE_SWITCH_PROOF_SEQUENCE}
+}
+EOF
+
+  echo "Live remote-host-switch smoke artifacts written to ${ARTIFACT_ROOT}"
   exit 0
 fi
 

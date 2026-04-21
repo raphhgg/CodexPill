@@ -66,6 +66,168 @@ struct AccountsControllerTests {
         #expect(controller.consumePendingErrorMessage() == nil)
     }
 
+    @Test
+    func switchToAccountOnHostReportsVerificationMismatchAsPendingError() async {
+        let target = CodexAccount(
+            id: UUID(),
+            name: "Business 4",
+            snapshotFileName: "\(UUID().uuidString).json",
+            createdAt: .distantPast,
+            updatedAt: .distantPast,
+            email: "business-4@example.com",
+            planType: nil,
+            rateLimits: nil,
+            identity: CodexAccountIdentity(
+                snapshotFingerprint: "target",
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "business-4@example.com")
+            )
+        )
+        let other = CodexAccount(
+            id: UUID(),
+            name: "Business 2",
+            snapshotFileName: "\(UUID().uuidString).json",
+            createdAt: .distantPast,
+            updatedAt: .distantPast,
+            email: "business-2@example.com",
+            planType: nil,
+            rateLimits: nil,
+            identity: CodexAccountIdentity(
+                snapshotFingerprint: "other",
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "business-2@example.com")
+            )
+        )
+        let repository = LoadingPersistingRepositorySpy(accountsToLoad: [target, other])
+        let identityResolver = SavedAccountIdentityResolver(
+            liveIdentityReader: CurrentIdentityStub(fingerprint: nil),
+            storedAccountReconciler: StoredIdentityPassthrough()
+        )
+        let controller = AccountsController(
+            identityResolver: identityResolver,
+            loadAccountsUseCase: LoadAccountsUseCase(
+                repository: repository,
+                identityResolver: identityResolver
+            ),
+            refreshActiveAccountUseCase: RefreshActiveAccountUseCase(
+                appServerClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                identityResolver: identityResolver,
+                repository: repository
+            ),
+            hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
+                authService: NoopAuthService(),
+                appServerClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                identityResolver: identityResolver,
+                repository: repository
+            ),
+            deleteSavedAccountUseCase: DeleteSavedAccountUseCase(
+                repository: repository,
+                identityResolver: identityResolver
+            ),
+            renameSavedAccountUseCase: RenameSavedAccountUseCase(repository: repository),
+            switchAccountWorkflow: SwitchAccountWorkflow(
+                authService: NoopAuthService(),
+                repository: repository,
+                appController: NoopAppController(),
+                identityResolver: identityResolver
+            ),
+            switchAccountOnHostWorkflow: SwitchAccountOnHostWorkflow(
+                remoteHostClient: RemoteHostStatusStub(
+                    status: CodexAccountStatus(
+                        email: other.email,
+                        planType: other.planType,
+                        rateLimits: nil
+                    )
+                )
+            ),
+            saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow(
+                appServerClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                authService: NoopAuthService(),
+                repository: repository,
+                identityResolver: identityResolver
+            ),
+            signInAnotherWorkflow: SignInAnotherWorkflow(
+                authService: NoopAuthService(),
+                appController: NoopAppController(),
+                appServerClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                repository: repository,
+                identityResolver: identityResolver
+            )
+        )
+
+        controller.load()
+        let result = await controller.switchToAccountOnHost(
+            target,
+            on: RemoteHost(destination: "user@buildbox", displayName: "buildbox")
+        )
+
+        #expect(result == .notVerified("buildbox is using \(other.name), not \(target.name).", detectedAccountID: other.id))
+        #expect(controller.pendingErrorMessage == "buildbox is using \(other.name), not \(target.name).")
+        #expect(controller.consumePendingErrorMessage() == "buildbox is using \(other.name), not \(target.name).")
+    }
+
+    @Test
+    func switchToAccountOnHostMarksAuthReadFailureAsReachableFailure() async {
+        let account = makeAccount(name: "Business", fingerprint: "fingerprint")
+        let repository = LoadingPersistingRepositorySpy(accountsToLoad: [account])
+        let identityResolver = SavedAccountIdentityResolver(
+            liveIdentityReader: CurrentIdentityStub(fingerprint: nil),
+            storedAccountReconciler: StoredIdentityPassthrough()
+        )
+        let controller = AccountsController(
+            identityResolver: identityResolver,
+            loadAccountsUseCase: LoadAccountsUseCase(
+                repository: repository,
+                identityResolver: identityResolver
+            ),
+            refreshActiveAccountUseCase: RefreshActiveAccountUseCase(
+                appServerClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                identityResolver: identityResolver,
+                repository: repository
+            ),
+            hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
+                authService: NoopAuthService(),
+                appServerClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                identityResolver: identityResolver,
+                repository: repository
+            ),
+            deleteSavedAccountUseCase: DeleteSavedAccountUseCase(
+                repository: repository,
+                identityResolver: identityResolver
+            ),
+            renameSavedAccountUseCase: RenameSavedAccountUseCase(repository: repository),
+            switchAccountWorkflow: SwitchAccountWorkflow(
+                authService: NoopAuthService(),
+                repository: repository,
+                appController: NoopAppController(),
+                identityResolver: identityResolver
+            ),
+            switchAccountOnHostWorkflow: SwitchAccountOnHostWorkflow(
+                remoteHostClient: RemoteHostFailingStub(error: RemoteHostClientError.authReadFailed("cat: .codex/auth.json: Permission denied"))
+            ),
+            saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow(
+                appServerClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                authService: NoopAuthService(),
+                repository: repository,
+                identityResolver: identityResolver
+            ),
+            signInAnotherWorkflow: SignInAnotherWorkflow(
+                authService: NoopAuthService(),
+                appController: NoopAppController(),
+                appServerClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                repository: repository,
+                identityResolver: identityResolver
+            )
+        )
+
+        controller.load()
+        let result = await controller.switchToAccountOnHost(
+            account,
+            on: RemoteHost(destination: "user@buildbox", displayName: "buildbox")
+        )
+
+        #expect(result == .failed("cat: .codex/auth.json: Permission denied", hostReachable: true))
+        #expect(controller.pendingErrorMessage == "cat: .codex/auth.json: Permission denied")
+    }
+
     private func makeAccount(name: String, fingerprint: String) -> CodexAccount {
         let id = UUID()
         return CodexAccount(
@@ -174,4 +336,24 @@ private struct NoopAuthService: CodexAuthDataRestoring, CodexAuthSnapshotSaving,
             identity: .empty
         )
     }
+}
+
+private struct RemoteHostStatusStub: RemoteHostSwitching {
+    let status: CodexAccountStatus
+
+    func testConnection(to host: RemoteHost) async throws {}
+    func installationState(for account: CodexAccount, on host: RemoteHost) async throws -> RemoteHostAccountInstallationState { .installed }
+    func installAccount(_ account: CodexAccount, on host: RemoteHost) async throws {}
+    func switchToAccount(_ account: CodexAccount, on host: RemoteHost) async throws {}
+    func readCurrentAccountStatus(on host: RemoteHost) async throws -> CodexAccountStatus { status }
+}
+
+private struct RemoteHostFailingStub: RemoteHostSwitching {
+    let error: Error
+
+    func testConnection(to host: RemoteHost) async throws {}
+    func installationState(for account: CodexAccount, on host: RemoteHost) async throws -> RemoteHostAccountInstallationState { .installed }
+    func installAccount(_ account: CodexAccount, on host: RemoteHost) async throws {}
+    func switchToAccount(_ account: CodexAccount, on host: RemoteHost) async throws {}
+    func readCurrentAccountStatus(on host: RemoteHost) async throws -> CodexAccountStatus { throw error }
 }

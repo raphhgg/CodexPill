@@ -1,8 +1,12 @@
 import Foundation
-struct CodexAccountStatus {
+struct CodexAccountStatus: Equatable {
     var email: String?
     var planType: String?
     var rateLimits: CodexRateLimitSnapshot?
+    var stableAccountID: String? = nil
+    var authPrincipalIdentity: CodexAuthPrincipalIdentity? = nil
+    var workspaceIdentity: CodexWorkspaceIdentity? = nil
+    var snapshotFingerprint: String? = nil
 
     var remoteIdentity: CodexRemoteAccountIdentity? {
         CodexRemoteAccountIdentity(emailAddress: email)
@@ -96,7 +100,11 @@ final class CodexAppServerClient {
         CodexAccountStatus(
             email: current.email ?? previous?.email,
             planType: current.planType ?? previous?.planType,
-            rateLimits: current.rateLimits ?? previous?.rateLimits
+            rateLimits: current.rateLimits ?? previous?.rateLimits,
+            stableAccountID: current.stableAccountID ?? previous?.stableAccountID,
+            authPrincipalIdentity: current.authPrincipalIdentity ?? previous?.authPrincipalIdentity,
+            workspaceIdentity: current.workspaceIdentity ?? previous?.workspaceIdentity,
+            snapshotFingerprint: current.snapshotFingerprint ?? previous?.snapshotFingerprint
         )
     }
 
@@ -352,7 +360,11 @@ private func makeAccountStatus(
     return CodexAccountStatus(
         email: account.account?.email,
         planType: account.account?.planType,
-        rateLimits: rateLimits?.rateLimits?.toModel()
+        rateLimits: rateLimits?.rateLimits?.toModel(),
+        stableAccountID: account.account?.stableAccountID,
+        authPrincipalIdentity: account.account?.authPrincipalIdentity,
+        workspaceIdentity: account.account?.workspaceIdentity,
+        snapshotFingerprint: account.account?.snapshotFingerprint
     )
 }
 
@@ -394,6 +406,10 @@ struct AppServerAccountResponse: Decodable {
     struct Account: Decodable {
         let email: String?
         let planType: String?
+        let stableAccountID: String?
+        let authPrincipalIdentity: CodexAuthPrincipalIdentity?
+        let workspaceIdentity: CodexWorkspaceIdentity?
+        let snapshotFingerprint: String?
     }
 }
 
