@@ -192,10 +192,10 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 ### `hosts.menu.local_catalog_remains_single_source_of_truth`
 
 - `feature`: `hosts`
-- `rule`: When a remote host is present, the main menu continues to source `Accounts` and `More Accounts…` from the local saved-account catalog while showing remote host state in its own section.
+- `rule`: When a remote host is present, the main menu continues to source `Accounts` and `More Accounts…` from the local saved-account catalog for identity and actions, while allowing each row to display target-aware live usage when that saved account is actively verified on a host. If the same account is active on both This Mac and a remote host, the local current-account values remain authoritative for the row.
 - `owner_layer`: `unit`
 - `proofs_required`: `["unit", "deterministic_ui"]`
-- `scenarios`: `["hosted_menu_with_host"]`
+- `scenarios`: `["hosted_menu_with_host", "hosted_menu_local_and_remote_same_account"]`
 
 ### `hosts.account_actions_target_local_or_host_explicitly`
 

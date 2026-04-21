@@ -332,6 +332,104 @@ struct MenuBarMenuStateTests {
     }
 
     @Test
+    func accountCatalogEntryPrefersLiveRemoteDisplayValuesForRemoteActiveAccount() {
+        let local = makeAccount(name: "Business 4", withRateLimits: true)
+        var remote = local
+        let now = Date()
+        remote.applyRemoteMetadata(
+            email: local.email,
+            planType: "team",
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: nil,
+                limitName: nil,
+                planType: "team",
+                primary: CodexRateLimitWindow(
+                    usedPercent: 100,
+                    resetsAt: now.addingTimeInterval(3 * 60 * 60),
+                    windowDurationMinutes: 300
+                ),
+                secondary: CodexRateLimitWindow(
+                    usedPercent: 16,
+                    resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60),
+                    windowDurationMinutes: 10_080
+                ),
+                fetchedAt: now
+            )
+        )
+
+        let state = makeState(
+            activeAccount: nil,
+            inactiveAccounts: [local],
+            remoteHosts: [
+                RemoteHostMenuState(
+                    name: "debian-vm",
+                    destination: "debian-vm",
+                    connectionState: .connected,
+                    desiredAccount: local,
+                    activeAccount: remote,
+                    verificationStatus: .verified,
+                    deployedAccountIDs: [local.id]
+                )
+            ]
+        )
+
+        let entry = try! #require(state.accountCatalogEntries.first)
+        #expect(entry.account.id == local.id)
+        #expect(entry.displayAccount.rateLimits?.primary?.displayedUsedPercent(at: now) == 100)
+        #expect(entry.displayAccount.rateLimits?.secondary?.displayedUsedPercent(at: now) == 16)
+        #expect(entry.placement == .remote)
+    }
+
+    @Test
+    func accountCatalogEntryPrefersLocalDisplayValuesWhenAccountIsActiveLocallyAndRemotely() {
+        let now = Date()
+        let local = makeAccount(name: "Business 4", withRateLimits: true)
+        var remote = local
+        remote.applyRemoteMetadata(
+            email: local.email,
+            planType: "team",
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: nil,
+                limitName: nil,
+                planType: "team",
+                primary: CodexRateLimitWindow(
+                    usedPercent: 100,
+                    resetsAt: now.addingTimeInterval(3 * 60 * 60),
+                    windowDurationMinutes: 300
+                ),
+                secondary: CodexRateLimitWindow(
+                    usedPercent: 16,
+                    resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60),
+                    windowDurationMinutes: 10_080
+                ),
+                fetchedAt: now
+            )
+        )
+
+        let state = makeState(
+            activeAccount: local,
+            inactiveAccounts: [],
+            remoteHosts: [
+                RemoteHostMenuState(
+                    name: "debian-vm",
+                    destination: "debian-vm",
+                    connectionState: .connected,
+                    desiredAccount: local,
+                    activeAccount: remote,
+                    verificationStatus: .verified,
+                    deployedAccountIDs: [local.id]
+                )
+            ]
+        )
+
+        let entry = try! #require(state.accountCatalogEntries.first)
+        #expect(entry.account.id == local.id)
+        #expect(entry.displayAccount.rateLimits?.primary?.displayedUsedPercent(at: now) == local.rateLimits?.primary?.displayedUsedPercent(at: now))
+        #expect(entry.displayAccount.rateLimits?.secondary?.displayedUsedPercent(at: now) == local.rateLimits?.secondary?.displayedUsedPercent(at: now))
+        #expect(entry.placement == .localAndRemote)
+    }
+
+    @Test
     func removeAccountsIsAvailableWhenSavedAccountsExist() {
         let state = makeState(
             activeAccount: makeAccount(name: "Active"),

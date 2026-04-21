@@ -139,17 +139,7 @@ struct SSHRemoteHostClient: RemoteHostSwitching {
     func refreshCodexAppServer(on host: RemoteHost) async throws {
         let pids = try await appServerProcessIDs(on: host)
         if !pids.isEmpty {
-            let killResult = try await commandRunner.run(
-                executableURL: sshExecutableURL,
-                arguments: sshArguments(
-                    host: host,
-                    command: "kill -9 \(pids.joined(separator: " "))"
-                )
-            )
-
-            guard killResult.terminationStatus == 0 else {
-                throw remoteCommandFailure(killResult)
-            }
+            try await terminateAppServerProcesses(pids, on: host)
         }
 
         let startResult = try await commandRunner.run(
@@ -249,10 +239,29 @@ struct SSHRemoteHostClient: RemoteHostSwitching {
 
     private func baseRemoteCommandOptions() -> [String] {
         [
+            "-T",
             "-o", "BatchMode=yes",
             "-o", "ConnectTimeout=5",
             "-o", "ConnectionAttempts=1"
         ]
+    }
+
+    private func terminateAppServerProcesses(_ pids: [String], on host: RemoteHost) async throws {
+        let killResult = try await commandRunner.run(
+            executableURL: sshExecutableURL,
+            arguments: sshArguments(
+                host: host,
+                command: "kill -9 \(pids.joined(separator: " "))"
+            )
+        )
+
+        guard killResult.terminationStatus != 0 else { return }
+
+        let remainingPIDs = try await appServerProcessIDs(on: host)
+        let remainingTargetPIDs = remainingPIDs.filter { pids.contains($0) }
+        guard !remainingTargetPIDs.isEmpty else { return }
+
+        throw remoteCommandFailure(killResult)
     }
 
     private func quoted(_ path: String) -> String {

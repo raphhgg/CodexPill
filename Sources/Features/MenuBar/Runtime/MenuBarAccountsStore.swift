@@ -62,6 +62,10 @@ final class MenuBarAccountsStore {
         await controller.refreshAccountData(for: account)
     }
 
+    func persistAccountMetadata(_ account: CodexAccount) {
+        controller.persistAccountMetadata(account)
+    }
+
     func startAddAccountFlow(
         named accountName: String?,
         presentPrompt: @MainActor (CodexDeviceAuthPrompt) -> Void

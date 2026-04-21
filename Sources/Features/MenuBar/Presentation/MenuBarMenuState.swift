@@ -69,6 +69,7 @@ struct RemoteHostMenuState: Codable, Equatable {
 
 struct MenuBarAccountCatalogEntry: Equatable {
     let account: CodexAccount
+    let displayAccount: CodexAccount
     let placement: MenuBarAccountPlacement?
 
     var isActive: Bool {
@@ -189,6 +190,7 @@ struct MenuBarMenuState {
             guard isLocal || isRemote else { return nil }
             return MenuBarAccountCatalogEntry(
                 account: account,
+                displayAccount: effectiveDisplayAccount(for: account),
                 placement: placement(isLocal: isLocal, isRemote: isRemote)
             )
         }
@@ -197,7 +199,13 @@ struct MenuBarMenuState {
         let activeIDs = Set(activeEntries.map(\.account.id))
         let nonActiveEntries = allSavedAccounts
             .filter { !activeIDs.contains($0.id) }
-            .map { MenuBarAccountCatalogEntry(account: $0, placement: nil) }
+            .map {
+                MenuBarAccountCatalogEntry(
+                    account: $0,
+                    displayAccount: effectiveDisplayAccount(for: $0),
+                    placement: nil
+                )
+            }
             .sorted(by: compareCatalogEntries)
 
         return activeEntries + nonActiveEntries
@@ -317,6 +325,16 @@ struct MenuBarMenuState {
 
     private func compareCatalogEntries(_ lhs: MenuBarAccountCatalogEntry, _ rhs: MenuBarAccountCatalogEntry) -> Bool {
         inactiveAccountAvailabilityRanking.compare(lhs.account, rhs.account)
+    }
+
+    private func effectiveDisplayAccount(for account: CodexAccount) -> CodexAccount {
+        if activeAccount?.id == account.id {
+            return account
+        }
+        if let remoteAccount = connectedRemoteHosts.first(where: { $0.activeAccount?.id == account.id })?.activeAccount {
+            return remoteAccount
+        }
+        return account
     }
 
     private func remoteTargetAvailability(for remoteHost: RemoteHostMenuState) -> AccountTargetAvailability? {

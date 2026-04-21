@@ -398,6 +398,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             ]
         )
         lastSwitchTargetName = account.name
+        if let previousRemoteAccount = settings.remoteHostState(for: remoteHost.destination)?.verifiedAccount,
+           previousRemoteAccount.id != account.id {
+            persistRemoteAccountIntoCatalogIfNeeded(previousRemoteAccount)
+        }
         setRemoteHostConnectionState(.syncing, for: remoteHost.destination)
         rebuildMenu()
         Task { @MainActor [weak self] in
@@ -601,13 +605,15 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     func removeHost(_ sender: NSMenuItem) {
         guard
             let payload = sender.representedObject as? HostSelectionMenuItemPayload,
-            let remoteHost = settings.remoteHostState(for: payload.hostDestination)?.host
+            let hostState = settings.remoteHostState(for: payload.hostDestination)
         else { return }
+        let remoteHost = hostState.host
         recordMenuAction("removeHost", payload: ["hostName": remoteHost.displayName])
         guard alertPresenter.presentConfirmation(alertFactory.makeRemoveHostRequest(hostName: remoteHost.displayName)) else {
             return
         }
 
+        persistRemoteAccountIntoCatalogIfNeeded(hostState.verifiedAccount)
         settings.removeRemoteHost(destination: remoteHost.destination)
         remoteHostConnectionStates.removeValue(forKey: remoteHost.destination)
         rebuildMenu()
@@ -1005,6 +1011,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         for hostState in settings.remoteHostStates {
             guard let baseAccount = baseAccountForRemoteRefresh(hostState: hostState) else {
                 guard hostState.desiredAccountID != nil || hostState.verifiedAccount != nil else { continue }
+                persistRemoteAccountIntoCatalogIfNeeded(hostState.verifiedAccount)
                 setRemoteHostConnectionState(.disconnected, for: hostState.host.destination)
                 settings.updateRemoteHostState(for: hostState.host) { state in
                     state.verifiedAccount = nil
@@ -1048,6 +1055,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
                     state.lastVerificationError = nil
                 }
             case .notVerified(let matchOutcome):
+                persistRemoteAccountIntoCatalogIfNeeded(settings.remoteHostState(for: host.destination)?.verifiedAccount)
                 setRemoteHostConnectionState(.connected, for: host.destination)
                 settings.updateRemoteHostState(for: host) { state in
                     state.desiredAccountID = baseAccount.id
@@ -1063,6 +1071,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
                 }
             }
         } catch {
+            persistRemoteAccountIntoCatalogIfNeeded(settings.remoteHostState(for: host.destination)?.verifiedAccount)
             let connectionState = Self.isReachableRemoteVerificationFailure(error) ? RemoteHostConnectionState.connected : fallbackConnectionState
             setRemoteHostConnectionState(connectionState, for: host.destination)
             settings.updateRemoteHostState(for: host) { state in
@@ -1131,6 +1140,11 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         )
         account.updatedAt = .now
         return account
+    }
+
+    private func persistRemoteAccountIntoCatalogIfNeeded(_ account: CodexAccount?) {
+        guard let account else { return }
+        store.persistAccountMetadata(account)
     }
 
     private func presentPendingErrorIfNeeded() {

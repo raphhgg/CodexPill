@@ -114,6 +114,127 @@ struct InactiveAccountAvailabilityRankingTests {
     }
 
     @Test
+    func availabilitySnapshotExposesLocalAndRemoteTargetsAndEarliestNextAvailability() {
+        let service = AccountAvailabilityService()
+        let now = Date()
+        let localResetAt = now.addingTimeInterval(3600)
+        let remoteResetAt = now.addingTimeInterval(1800)
+        let account = makeAccount(
+            name: "Snapshot",
+            sessionUsedPercent: 100,
+            sessionResetAt: localResetAt,
+            weeklyUsedPercent: 20
+        )
+        let remoteAccount = makeAccount(
+            name: "Snapshot",
+            sessionUsedPercent: 100,
+            sessionResetAt: remoteResetAt,
+            weeklyUsedPercent: 20
+        )
+
+        let snapshot = service.snapshot(
+            for: account,
+            remoteTargets: [
+                RemoteAccountTargetContext(
+                    hostDestination: "user@buildbox",
+                    connectionState: .connected,
+                    verificationState: .verified,
+                    activeAccount: remoteAccount,
+                    displayAccount: remoteAccount
+                )
+            ],
+            now: now
+        )
+
+        #expect(snapshot.localAvailability.target == .local)
+        #expect(snapshot.remoteAvailabilities.count == 1)
+        #expect(snapshot.availability(for: .remote(hostDestination: "user@buildbox"))?.nextAvailableAt == remoteResetAt)
+        #expect(snapshot.nextAvailabilityAt == remoteResetAt)
+    }
+
+    @Test
+    func availabilityTransitionsReportWhenLocalAccountBecomesAvailable() {
+        let service = AccountAvailabilityService()
+        let now = Date()
+        let account = makeAccount(
+            name: "Ready Soon",
+            sessionUsedPercent: 100,
+            sessionResetAt: now.addingTimeInterval(1200),
+            weeklyUsedPercent: 20
+        )
+        let previous = service.snapshot(for: account, now: now)
+        let current = service.snapshot(
+            for: makeAccount(name: "Ready Soon", sessionUsedPercent: 0, weeklyUsedPercent: 20),
+            now: now
+        )
+
+        let transitions = service.transitions(from: previous, to: current)
+
+        #expect(transitions == [
+            AccountAvailabilityTransition(
+                target: .local,
+                from: .blocked(until: previous.localAvailability.sessionResetAt, reason: .session),
+                to: .availableNow
+            )
+        ])
+    }
+
+    @Test
+    func availabilityTransitionsReportWhenRemoteTargetBecomesAvailable() {
+        let service = AccountAvailabilityService()
+        let now = Date()
+        let account = makeAccount(name: "Remote Transition", sessionUsedPercent: 10, weeklyUsedPercent: 20)
+        let previous = service.snapshot(
+            for: account,
+            remoteTargets: [
+                RemoteAccountTargetContext(
+                    hostDestination: "user@buildbox",
+                    connectionState: .connected,
+                    verificationState: .failed,
+                    activeAccount: nil,
+                    displayAccount: account
+                )
+            ],
+            now: now
+        )
+        let current = service.snapshot(
+            for: account,
+            remoteTargets: [
+                RemoteAccountTargetContext(
+                    hostDestination: "user@buildbox",
+                    connectionState: .connected,
+                    verificationState: .verified,
+                    activeAccount: account,
+                    displayAccount: account
+                )
+            ],
+            now: now
+        )
+
+        let transitions = service.transitions(from: previous, to: current)
+
+        #expect(transitions == [
+            AccountAvailabilityTransition(
+                target: .remote(hostDestination: "user@buildbox"),
+                from: .unavailable(reason: .verificationFailed),
+                to: .availableNow
+            )
+        ])
+    }
+
+    @Test
+    func availabilityTransitionsIgnoreTargetsThatRemainAvailable() {
+        let service = AccountAvailabilityService()
+        let account = makeAccount(name: "Stable", sessionUsedPercent: 10, weeklyUsedPercent: 20)
+        let previous = service.snapshot(for: account)
+        let current = service.snapshot(for: account)
+
+        let transitions = service.transitions(from: previous, to: current)
+
+        #expect(transitions.isEmpty)
+    }
+
+    @Test
     func prefersWeeklyHeadroomBeforeSessionReadiness() {
         let ranking = InactiveAccountAvailabilityRanking()
         let weeklyHealthy = makeAccount(
@@ -214,6 +335,7 @@ struct InactiveAccountAvailabilityRankingTests {
                 identityResolver: identityResolver
             ),
             renameSavedAccountUseCase: RenameSavedAccountUseCase(repository: repository),
+            persistSavedAccountMetadataUseCase: PersistSavedAccountMetadataUseCase(repository: repository),
             switchAccountWorkflow: SwitchAccountWorkflow(
                 authService: RankingNoopAuthService(),
                 repository: repository,

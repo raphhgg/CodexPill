@@ -921,6 +921,132 @@ struct MenuBarLiveValidationTests {
     }
 
     @Test
+    func switchAccountOnHostPersistsPreviousVerifiedRemoteLimitsBackIntoCatalog() async throws {
+        let sink = RecordingValidationSink()
+        let repository = try makeIsolatedRepository()
+        try repository.bootstrapStorage()
+        let now = Date()
+        let previousSaved = CodexAccount(
+            id: UUID(),
+            name: "Business 4",
+            snapshotFileName: "business-4.json",
+            createdAt: .distantPast,
+            updatedAt: .distantPast,
+            email: "business-4@example.com",
+            planType: "team",
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: nil,
+                limitName: nil,
+                planType: "team",
+                primary: CodexRateLimitWindow(usedPercent: 0, resetsAt: now.addingTimeInterval(2 * 60 * 60), windowDurationMinutes: 300),
+                secondary: CodexRateLimitWindow(usedPercent: 0, resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60), windowDurationMinutes: 10_080),
+                fetchedAt: now
+            ),
+            identity: CodexAccountIdentity(
+                snapshotFingerprint: "business-4",
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "business-4@example.com")
+            )
+        )
+        var previousVerified = previousSaved
+        previousVerified.applyRemoteMetadata(
+            email: previousSaved.email,
+            planType: "team",
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: nil,
+                limitName: nil,
+                planType: "team",
+                primary: CodexRateLimitWindow(usedPercent: 100, resetsAt: now.addingTimeInterval(3 * 60 * 60), windowDurationMinutes: 300),
+                secondary: CodexRateLimitWindow(usedPercent: 16, resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60), windowDurationMinutes: 10_080),
+                fetchedAt: now
+            )
+        )
+        let nextAccount = CodexAccount(
+            id: UUID(),
+            name: "Business 5",
+            snapshotFileName: "business-5.json",
+            createdAt: .distantPast,
+            updatedAt: .distantPast,
+            email: "business-5@example.com",
+            planType: "team",
+            rateLimits: nil,
+            identity: CodexAccountIdentity(
+                snapshotFingerprint: "business-5",
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "business-5@example.com")
+            )
+        )
+        try repository.saveAccounts([previousSaved, nextAccount])
+
+        let suiteName = "MenuBarLiveValidationRemoteCatalogBackfill-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = AppSettings(userDefaults: defaults)
+        settings.remoteHostStates = [
+            PersistedRemoteHostState(
+                host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"),
+                desiredAccountID: previousSaved.id,
+                verifiedAccount: previousVerified,
+                verificationStatus: .verified
+            )
+        ]
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let remoteHostClient = RemoteHostClientStatusSpy(
+            status: CodexAccountStatus(
+                email: nextAccount.email,
+                planType: "team",
+                rateLimits: CodexRateLimitSnapshot(
+                    limitID: nil,
+                    limitName: nil,
+                    planType: "team",
+                    primary: CodexRateLimitWindow(usedPercent: 92, resetsAt: now.addingTimeInterval(4 * 60 * 60), windowDurationMinutes: 300),
+                    secondary: CodexRateLimitWindow(usedPercent: 14, resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60), windowDurationMinutes: 10_080),
+                    fetchedAt: now
+                )
+            )
+        )
+        let store = MenuBarAccountsStore(
+            repository: repository,
+            authService: CodexAuthSnapshotService(repository: repository),
+            appController: CodexAppController(),
+            appServerClient: CodexAppServerClient(),
+            remoteHostClient: remoteHostClient
+        )
+        store.load()
+
+        let coordinator = MenuBarCoordinator(
+            statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
+            store: store,
+            settings: settings,
+            remoteHostClient: remoteHostClient,
+            alertPresenter: TestMenuBarAlertPresenter(),
+            validationSink: sink,
+            validationScenario: "live-menu-open",
+            allowsEmptyStatePrompt: false
+        )
+
+        coordinator.start()
+        let item = NSMenuItem(title: "Switch on buildbox", action: nil, keyEquivalent: "")
+        item.representedObject = HostAccountMenuItemPayload(
+            accountID: nextAccount.id,
+            hostDestination: "user@buildbox"
+        )
+        coordinator.switchAccountOnHost(item)
+        try? await Task.sleep(for: .milliseconds(50))
+
+        let persistedAccounts = try repository.loadAccounts()
+        let persistedPrevious = try #require(persistedAccounts.first(where: { $0.id == previousSaved.id }))
+        #expect(persistedPrevious.rateLimits?.primary?.displayedUsedPercent(at: now) == 100)
+        #expect(persistedPrevious.rateLimits?.secondary?.displayedUsedPercent(at: now) == 16)
+
+        let hostState = try #require(settings.remoteHostState(for: "user@buildbox"))
+        #expect(hostState.verifiedAccount?.id == nextAccount.id)
+    }
+
+    @Test
     func coordinatorPreservesMeaningfulSavedLimitsWhenRemoteRefreshReturnsZeroedWindows() async throws {
         let sink = RecordingValidationSink()
         let repository = try makeIsolatedRepository()
@@ -1090,7 +1216,7 @@ struct MenuBarLiveValidationTests {
             )
         )
         try repository.bootstrapStorage()
-        try repository.saveAccounts([matchingSavedAccount, personalAccount])
+        try repository.saveAccounts([matchingSavedAccount])
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),

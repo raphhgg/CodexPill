@@ -24,6 +24,7 @@ struct SSHRemoteHostClientTests {
 
         #expect(runner.calls.count == 2)
         #expect(runner.calls[0].arguments == [
+            "-T",
             "-o", "BatchMode=yes",
             "-o", "ConnectTimeout=5",
             "-o", "ConnectionAttempts=1",
@@ -31,6 +32,7 @@ struct SSHRemoteHostClientTests {
             "mkdir -p .codexpill/snapshots .codex"
         ])
         #expect(runner.calls[1].arguments == [
+            "-T",
             "-o", "BatchMode=yes",
             "-o", "ConnectTimeout=5",
             "-o", "ConnectionAttempts=1",
@@ -57,6 +59,7 @@ struct SSHRemoteHostClientTests {
 
         #expect(runner.calls.count == 2)
         #expect(runner.calls[1].arguments == [
+            "-T",
             "-o", "BatchMode=yes",
             "-o", "ConnectTimeout=5",
             "-o", "ConnectionAttempts=1",
@@ -99,6 +102,7 @@ struct SSHRemoteHostClientTests {
 
         #expect(runner.calls.count == 1)
         #expect(runner.calls[0].arguments == [
+            "-T",
             "-o", "BatchMode=yes",
             "-o", "ConnectTimeout=5",
             "-o", "ConnectionAttempts=1",
@@ -196,6 +200,7 @@ struct SSHRemoteHostClientTests {
 
         #expect(runner.calls.map(\.arguments) == [
             [
+                "-T",
                 "-o", "BatchMode=yes",
                 "-o", "ConnectTimeout=5",
                 "-o", "ConnectionAttempts=1",
@@ -203,6 +208,7 @@ struct SSHRemoteHostClientTests {
                 "pgrep -f 'codex app-server --listen ws://127.0.0.1:9234' || true"
             ],
             [
+                "-T",
                 "-o", "BatchMode=yes",
                 "-o", "ConnectTimeout=5",
                 "-o", "ConnectionAttempts=1",
@@ -210,6 +216,7 @@ struct SSHRemoteHostClientTests {
                 "kill -9 1247390 1247402"
             ],
             [
+                "-T",
                 "-o", "BatchMode=yes",
                 "-o", "ConnectTimeout=5",
                 "-o", "ConnectionAttempts=1",
@@ -217,6 +224,7 @@ struct SSHRemoteHostClientTests {
                 "nohup codex app-server --listen ws://127.0.0.1:9234 >/tmp/codex-app-server.log 2>&1 </dev/null &"
             ],
             [
+                "-T",
                 "-o", "BatchMode=yes",
                 "-o", "ConnectTimeout=5",
                 "-o", "ConnectionAttempts=1",
@@ -224,6 +232,7 @@ struct SSHRemoteHostClientTests {
                 "if command -v ss >/dev/null 2>&1; then ss -ltnp | grep '127.0.0.1:9234'; else pgrep -f 'codex app-server --listen ws://127.0.0.1:9234' >/dev/null; fi"
             ],
             [
+                "-T",
                 "-o", "BatchMode=yes",
                 "-o", "ConnectTimeout=5",
                 "-o", "ConnectionAttempts=1",
@@ -252,6 +261,7 @@ struct SSHRemoteHostClientTests {
 
         #expect(runner.calls.map(\.arguments) == [
             [
+                "-T",
                 "-o", "BatchMode=yes",
                 "-o", "ConnectTimeout=5",
                 "-o", "ConnectionAttempts=1",
@@ -259,6 +269,7 @@ struct SSHRemoteHostClientTests {
                 "pgrep -f 'codex app-server --listen ws://127.0.0.1:9234' || true"
             ],
             [
+                "-T",
                 "-o", "BatchMode=yes",
                 "-o", "ConnectTimeout=5",
                 "-o", "ConnectionAttempts=1",
@@ -266,6 +277,7 @@ struct SSHRemoteHostClientTests {
                 "nohup codex app-server --listen ws://127.0.0.1:9234 >/tmp/codex-app-server.log 2>&1 </dev/null &"
             ],
             [
+                "-T",
                 "-o", "BatchMode=yes",
                 "-o", "ConnectTimeout=5",
                 "-o", "ConnectionAttempts=1",
@@ -294,11 +306,79 @@ struct SSHRemoteHostClientTests {
         try await client.refreshCodexAppServer(on: RemoteHost(destination: "user@buildbox"))
 
         #expect(runner.calls.last?.arguments == [
+            "-T",
             "-o", "BatchMode=yes",
             "-o", "ConnectTimeout=5",
             "-o", "ConnectionAttempts=1",
             "user@buildbox",
             "if command -v ss >/dev/null 2>&1; then ss -ltnp | grep '127.0.0.1:9234'; else pgrep -f 'codex app-server --listen ws://127.0.0.1:9234' >/dev/null; fi"
+        ])
+    }
+
+    @Test
+    func refreshCodexAppServerIgnoresPidsThatDisappearBeforeKillCompletes() async throws {
+        let runner = CommandRunnerSpy(results: [
+            .success(.init(terminationStatus: 0, standardOutput: Data("574332\n".utf8), standardError: Data())),
+            .success(.init(
+                terminationStatus: 1,
+                standardOutput: Data(),
+                standardError: Data("zsh:kill:1: kill 574332 failed: no such process".utf8)
+            )),
+            .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data())),
+            .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data())),
+            .success(.init(terminationStatus: 0, standardOutput: Data("LISTEN".utf8), standardError: Data()))
+        ])
+        let client = SSHRemoteHostClient(
+            snapshotLocator: SnapshotLocatorStub(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
+            commandRunner: runner,
+            sshExecutableURL: URL(fileURLWithPath: "/usr/bin/ssh"),
+            scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp"),
+            appServerReadinessProbeDelays: [.zero]
+        )
+
+        try await client.refreshCodexAppServer(on: RemoteHost(destination: "user@buildbox"))
+
+        #expect(runner.calls.map(\.arguments) == [
+            [
+                "-T",
+                "-o", "BatchMode=yes",
+                "-o", "ConnectTimeout=5",
+                "-o", "ConnectionAttempts=1",
+                "user@buildbox",
+                "pgrep -f 'codex app-server --listen ws://127.0.0.1:9234' || true"
+            ],
+            [
+                "-T",
+                "-o", "BatchMode=yes",
+                "-o", "ConnectTimeout=5",
+                "-o", "ConnectionAttempts=1",
+                "user@buildbox",
+                "kill -9 574332"
+            ],
+            [
+                "-T",
+                "-o", "BatchMode=yes",
+                "-o", "ConnectTimeout=5",
+                "-o", "ConnectionAttempts=1",
+                "user@buildbox",
+                "pgrep -f 'codex app-server --listen ws://127.0.0.1:9234' || true"
+            ],
+            [
+                "-T",
+                "-o", "BatchMode=yes",
+                "-o", "ConnectTimeout=5",
+                "-o", "ConnectionAttempts=1",
+                "user@buildbox",
+                "nohup codex app-server --listen ws://127.0.0.1:9234 >/tmp/codex-app-server.log 2>&1 </dev/null &"
+            ],
+            [
+                "-T",
+                "-o", "BatchMode=yes",
+                "-o", "ConnectTimeout=5",
+                "-o", "ConnectionAttempts=1",
+                "user@buildbox",
+                "if command -v ss >/dev/null 2>&1; then ss -ltnp | grep '127.0.0.1:9234'; else pgrep -f 'codex app-server --listen ws://127.0.0.1:9234' >/dev/null; fi"
+            ]
         ])
     }
 
@@ -363,6 +443,7 @@ struct SSHRemoteHostClientTests {
             .init(
                 executableURL: executableURL,
                 arguments: [
+                    "-T",
                     "-o", "BatchMode=yes",
                     "-o", "ConnectTimeout=5",
                     "-o", "ConnectionAttempts=1",

@@ -37,6 +37,7 @@ struct AccountsControllerTests {
                 identityResolver: identityResolver
             ),
             renameSavedAccountUseCase: RenameSavedAccountUseCase(repository: repository),
+            persistSavedAccountMetadataUseCase: PersistSavedAccountMetadataUseCase(repository: repository),
             switchAccountWorkflow: SwitchAccountWorkflow(
                 authService: NoopAuthService(),
                 repository: repository,
@@ -97,6 +98,7 @@ struct AccountsControllerTests {
                 identityResolver: identityResolver
             ),
             renameSavedAccountUseCase: RenameSavedAccountUseCase(repository: repository),
+            persistSavedAccountMetadataUseCase: PersistSavedAccountMetadataUseCase(repository: repository),
             switchAccountWorkflow: SwitchAccountWorkflow(
                 authService: NoopAuthService(),
                 repository: repository,
@@ -184,6 +186,7 @@ struct AccountsControllerTests {
                 identityResolver: identityResolver
             ),
             renameSavedAccountUseCase: RenameSavedAccountUseCase(repository: repository),
+            persistSavedAccountMetadataUseCase: PersistSavedAccountMetadataUseCase(repository: repository),
             switchAccountWorkflow: SwitchAccountWorkflow(
                 authService: NoopAuthService(),
                 repository: repository,
@@ -254,6 +257,7 @@ struct AccountsControllerTests {
                 identityResolver: identityResolver
             ),
             renameSavedAccountUseCase: RenameSavedAccountUseCase(repository: repository),
+            persistSavedAccountMetadataUseCase: PersistSavedAccountMetadataUseCase(repository: repository),
             switchAccountWorkflow: SwitchAccountWorkflow(
                 authService: NoopAuthService(),
                 repository: repository,

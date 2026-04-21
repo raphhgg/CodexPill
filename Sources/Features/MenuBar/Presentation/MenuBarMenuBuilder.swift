@@ -135,7 +135,7 @@ struct MenuBarMenuBuilder {
         let widestNativeAccountRow = (state.visibleAccountEntries + state.overflowAccountEntries)
             .map {
                 inactiveAccountTitleWidth(
-                    for: $0.account,
+                    for: $0.displayAccount,
                     displayName: compactMenuRowDisplayName(for: $0.account.name),
                     placement: nil,
                     menuContentWidth: minimumMenuContentWidth
@@ -156,7 +156,7 @@ struct MenuBarMenuBuilder {
         let item = NSMenuItem(title: entry.account.name, action: nil, keyEquivalent: "")
         item.representedObject = entry.account.id.uuidString
         item.attributedTitle = inactiveAccountTitle(
-            for: entry.account,
+            for: entry.displayAccount,
             displayName: compactMenuRowDisplayName(for: entry.account.name),
             placement: nil,
             menuContentWidth: width

@@ -4,6 +4,25 @@ import OSLog
 
 private let accountsControllerLogger = Logger(subsystem: "com.raphhgg.codexpill", category: "AccountsController")
 
+struct PersistSavedAccountMetadataUseCase {
+    private let repository: AccountCatalogPersisting
+
+    init(repository: AccountCatalogPersisting) {
+        self.repository = repository
+    }
+
+    func run(account: CodexAccount, accounts: [CodexAccount]) throws -> [CodexAccount] {
+        guard let index = accounts.firstIndex(where: { $0.id == account.id }) else {
+            return accounts
+        }
+
+        var updatedAccounts = accounts
+        updatedAccounts[index] = account
+        try repository.saveAccounts(updatedAccounts)
+        return updatedAccounts
+    }
+}
+
 @MainActor
 @Observable
 final class AccountsController {
@@ -27,6 +46,7 @@ final class AccountsController {
     private let hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase
     private let deleteSavedAccountUseCase: DeleteSavedAccountUseCase
     private let renameSavedAccountUseCase: RenameSavedAccountUseCase
+    private let persistSavedAccountMetadataUseCase: PersistSavedAccountMetadataUseCase
     private let switchAccountWorkflow: SwitchAccountWorkflow
     private let switchAccountOnHostWorkflow: SwitchAccountOnHostWorkflow
     private let remoteHostAccountVerifier: RemoteHostAccountVerifier
@@ -74,6 +94,7 @@ final class AccountsController {
             identityResolver: self.identityResolver
         )
         self.renameSavedAccountUseCase = RenameSavedAccountUseCase(repository: repository)
+        self.persistSavedAccountMetadataUseCase = PersistSavedAccountMetadataUseCase(repository: repository)
         self.switchAccountWorkflow = SwitchAccountWorkflow(
             authService: authService,
             repository: repository,
@@ -107,6 +128,7 @@ final class AccountsController {
         hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase,
         deleteSavedAccountUseCase: DeleteSavedAccountUseCase,
         renameSavedAccountUseCase: RenameSavedAccountUseCase,
+        persistSavedAccountMetadataUseCase: PersistSavedAccountMetadataUseCase,
         switchAccountWorkflow: SwitchAccountWorkflow,
         switchAccountOnHostWorkflow: SwitchAccountOnHostWorkflow = SwitchAccountOnHostWorkflow(
             remoteHostClient: UnavailableRemoteHostClient()
@@ -126,6 +148,7 @@ final class AccountsController {
         self.hydrateSavedAccountsMetadataUseCase = hydrateSavedAccountsMetadataUseCase
         self.deleteSavedAccountUseCase = deleteSavedAccountUseCase
         self.renameSavedAccountUseCase = renameSavedAccountUseCase
+        self.persistSavedAccountMetadataUseCase = persistSavedAccountMetadataUseCase
         self.switchAccountWorkflow = switchAccountWorkflow
         self.switchAccountOnHostWorkflow = switchAccountOnHostWorkflow
         self.remoteHostAccountVerifier = remoteHostAccountVerifier
@@ -246,6 +269,18 @@ final class AccountsController {
         } catch {
             accountsControllerLogger.log("Background refresh skipped for \(account.name, privacy: .public): \(error.localizedDescription, privacy: .public)")
             return .failed
+        }
+    }
+
+    func persistAccountMetadata(_ account: CodexAccount) {
+        do {
+            let result = try persistSavedAccountMetadataUseCase.run(
+                account: account,
+                accounts: accounts
+            )
+            catalogState.applyPersistedMetadata(result)
+        } catch {
+            accountsControllerLogger.log("Persisted metadata update skipped for \(account.name, privacy: .public): \(error.localizedDescription, privacy: .public)")
         }
     }
 
