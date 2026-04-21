@@ -104,7 +104,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private static let hoverInvariantIDs = ["menubar.text_on_hover.stays_visible_inside_resized_bounds"]
     private static let switchInvariantIDs = ["accounts.switch_account.menu_action_changes_active_account"]
     private static let saveCurrentPromptInvariantIDs = ["accounts.save_current_account.prompt_presented_and_cancellable"]
-    private static let signInAnotherPromptInvariantIDs = ["accounts.sign_in_another.prompt_presented_and_cancellable"]
+    private static let addAccountPromptInvariantIDs = ["accounts.add_account.prompt_presented_and_cancellable"]
     private static let addHostPromptInvariantIDs = ["hosts.add_host.prompt_validates_destination"]
     private static let remoteHostSwitchInvariantIDs = ["hosts.switch_account_on_host.changes_remote_active_account"]
     private static let remoteHostReverifyInvariantIDs = ["hosts.reverify_remote_account.refreshes_remote_verification_state"]
@@ -124,7 +124,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let savedAccountRelinker = SavedAccountRelinker()
     private let menuBuilder = MenuBarMenuBuilder()
     private var autoRefreshTimer: Timer?
-    private var pendingSignInMonitorTimer: Timer?
     private var wakeRefreshTask: Task<Void, Never>?
     private var hasPromptedForEmptyState = false
     private var isObservingSettings = false
@@ -181,7 +180,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     func invalidate() {
         autoRefreshTimer?.invalidate()
-        pendingSignInMonitorTimer?.invalidate()
         wakeRefreshTask?.cancel()
         statusItemRuntime.invalidate()
     }
@@ -226,38 +224,42 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     @objc
-    func signInAnotherAccount() {
-        recordMenuAction("signInAnotherAccount")
-        menuBarCoordinatorLogger.log("signInAnotherAccount action invoked")
+    func addAccount() {
+        recordMenuAction("addAccount")
+        menuBarCoordinatorLogger.log("addAccount action invoked")
         let runningCLISessions = cliProcessInspector.runningCLISessionCount()
-        menuBarCoordinatorLogger.log("Running CLI sessions before sign-in-another: \(runningCLISessions, privacy: .public)")
+        menuBarCoordinatorLogger.log("Running CLI sessions before add-account: \(runningCLISessions, privacy: .public)")
 
-        let request = alertFactory.makeSignInAnotherRequest(runningCLISessions: runningCLISessions)
+        let request = alertFactory.makeAddAccountRequest(runningCLISessions: runningCLISessions)
         recordValidationEvent(
-            "sign_in_another_prompt_presented",
-            step: "sign_in_another_prompt",
-            invariantIds: Self.signInAnotherPromptInvariantIDs
+            "add_account_prompt_presented",
+            step: "add_account_prompt",
+            invariantIds: Self.addAccountPromptInvariantIDs
         )
 
-        menuBarCoordinatorLogger.log("Presenting sign-in-another confirmation alert")
+        menuBarCoordinatorLogger.log("Presenting add-account confirmation alert")
         guard let name = alertPresenter.presentTextInput(request) else {
-            menuBarCoordinatorLogger.log("Sign-in-another flow cancelled from alert")
+            menuBarCoordinatorLogger.log("Add-account flow cancelled from alert")
             recordValidationEvent(
-                "sign_in_another_prompt_cancelled",
-                step: "sign_in_another_prompt",
-                invariantIds: Self.signInAnotherPromptInvariantIDs
+                "add_account_prompt_cancelled",
+                step: "add_account_prompt",
+                invariantIds: Self.addAccountPromptInvariantIDs
             )
             return
         }
         recordValidationEvent(
-            "sign_in_another_prompt_confirmed",
-            step: "sign_in_another_prompt",
-            invariantIds: Self.signInAnotherPromptInvariantIDs,
+            "add_account_prompt_confirmed",
+            step: "add_account_prompt",
+            invariantIds: Self.addAccountPromptInvariantIDs,
             payload: ["enteredName": name]
         )
 
-        menuBarCoordinatorLogger.log("Dispatching sign-in-another task to store")
-        Task { await store.startSignInAnotherAccountFlow(named: name) }
+        menuBarCoordinatorLogger.log("Dispatching add-account task to store")
+        Task {
+            await store.startAddAccountFlow(named: name) { [weak self] prompt in
+                self?.presentDeviceAuthPrompt(prompt)
+            }
+        }
     }
 
     @objc
@@ -909,7 +911,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             _ = store.pendingErrorMessage
             _ = store.statusMessage
             _ = store.isBusy
-            _ = store.hasPendingSignedInAccount
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -1180,39 +1181,22 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     private func syncBackgroundState() {
-        schedulePendingSignInMonitorIfNeeded()
         promptForEmptyStateIfNeeded()
-    }
-
-    private func schedulePendingSignInMonitorIfNeeded() {
-        guard store.hasPendingSignedInAccount else {
-            pendingSignInMonitorTimer?.invalidate()
-            pendingSignInMonitorTimer = nil
-            return
-        }
-
-        guard pendingSignInMonitorTimer == nil else { return }
-
-        pendingSignInMonitorTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                guard let self else { return }
-                await self.store.completePendingSignedInAccountIfNeeded()
-                if !self.store.hasPendingSignedInAccount {
-                    self.pendingSignInMonitorTimer?.invalidate()
-                    self.pendingSignInMonitorTimer = nil
-                }
-            }
-        }
     }
 
     private func promptForEmptyStateIfNeeded() {
         guard allowsEmptyStatePrompt else { return }
-        guard store.accounts.isEmpty, !store.isBusy, !store.hasPendingSignedInAccount, !hasPromptedForEmptyState else { return }
+        guard store.accounts.isEmpty, !store.isBusy, !hasPromptedForEmptyState else { return }
         hasPromptedForEmptyState = true
         DispatchQueue.main.async { [weak self] in
-            guard let self, self.store.accounts.isEmpty, !self.store.isBusy, !self.store.hasPendingSignedInAccount else { return }
+            guard let self, self.store.accounts.isEmpty, !self.store.isBusy else { return }
             self.addCurrentAccount()
         }
+    }
+
+    private func presentDeviceAuthPrompt(_ prompt: CodexDeviceAuthPrompt) {
+        NSWorkspace.shared.open(prompt.verificationURL)
+        alertPresenter.presentInfo(alertFactory.makeAddAccountDeviceAuthRequest(prompt: prompt))
     }
 
     private func statusItemPresentation(for state: MenuBarMenuState) -> StatusItemRuntimePresentation {

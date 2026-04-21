@@ -32,19 +32,36 @@ struct MenuBarAlertFactoryTests {
     }
 
     @Test
-    func signInAnotherWarningOmitsCliNoticeWhenNoSessionsRunning() {
-        let request = factory.makeSignInAnotherRequest(runningCLISessions: 0)
+    func addAccountWarningOmitsCliNoticeWhenNoSessionsRunning() {
+        let request = factory.makeAddAccountRequest(runningCLISessions: 0)
 
-        #expect(request.informativeText.contains("sign Codex out, restart the app"))
+        #expect(request.messageText == "Add another account?")
+        #expect(request.confirmTitle == "Add Account")
+        #expect(request.informativeText.contains("save it in your account collection"))
+        #expect(request.informativeText.contains("without switching your current local session"))
         #expect(!request.informativeText.contains("running Codex CLI session"))
     }
 
     @Test
-    func signInAnotherWarningMentionsTerminalRestartWhenCliSessionsExist() {
-        let request = factory.makeSignInAnotherRequest(runningCLISessions: 1)
+    func addAccountWarningMentionsTerminalNoticeWhenCliSessionsExist() {
+        let request = factory.makeAddAccountRequest(runningCLISessions: 1)
 
         #expect(request.informativeText.contains("1 running Codex CLI session was detected"))
-        #expect(request.informativeText.contains("Restart any open Codex CLI terminals after signing in to use the new account."))
+        #expect(request.informativeText.contains("stay on their current auth unless you switch them explicitly"))
+    }
+
+    @Test
+    func addAccountDeviceAuthRequestIncludesOneTimeCodeWhenAvailable() {
+        let request = factory.makeAddAccountDeviceAuthRequest(
+            prompt: CodexDeviceAuthPrompt(
+                verificationURL: URL(string: "https://auth.openai.com/codex/device")!,
+                userCode: "ABCD-1234"
+            )
+        )
+
+        #expect(request.messageText == "Finish adding account")
+        #expect(request.informativeText.contains("ABCD-1234"))
+        #expect(request.informativeText.contains("without switching your current local session"))
     }
 
     @Test

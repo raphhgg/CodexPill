@@ -69,14 +69,18 @@ enum AppRuntimeEnvironment {
     }
 
     static func isRunningAutomatedTests(
-        environment: [String: String] = ProcessInfo.processInfo.environment
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        classLookup: (String) -> AnyClass? = NSClassFromString
     ) -> Bool {
-        guard let rawValue = environment[xctestConfigurationFilePathEnvironmentKey]?
-            .trimmingCharacters(in: .whitespacesAndNewlines) else {
-            return false
+        if let rawValue = environment[xctestConfigurationFilePathEnvironmentKey]?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+           !rawValue.isEmpty {
+            return true
         }
 
-        return !rawValue.isEmpty
+        // Launched app-host processes do not always inherit XCTestConfigurationFilePath,
+        // but they still load XCTest runtime classes while the test bundle is injected.
+        return classLookup("XCTestCase") != nil || classLookup("XCTest") != nil
     }
 
     static func automatedTestAppSupportDirectory(

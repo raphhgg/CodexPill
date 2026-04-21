@@ -20,7 +20,6 @@ final class AccountsController {
 
     private let identityResolver: SavedAccountIdentityResolver
     private let inactiveAccountAvailabilityRanking: InactiveAccountAvailabilityRanking
-    private let pendingSignInLifecycle: PendingSignInLifecycle
     private let silentPostActionRefresh: SilentPostActionRefresh
     private let operationState: AccountOperationState
     private let loadAccountsUseCase: LoadAccountsUseCase
@@ -32,7 +31,7 @@ final class AccountsController {
     private let switchAccountOnHostWorkflow: SwitchAccountOnHostWorkflow
     private let remoteHostAccountVerifier: RemoteHostAccountVerifier
     private let saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow
-    private let signInAnotherWorkflow: SignInAnotherWorkflow
+    private let addAccountWorkflow: AddAccountWorkflow
 
     private var catalogState = AccountCatalogState()
     private var isHydratingSavedAccountsMetadata = false
@@ -49,7 +48,6 @@ final class AccountsController {
             storedAccountReconciler: authService
         )
         self.inactiveAccountAvailabilityRanking = InactiveAccountAvailabilityRanking()
-        self.pendingSignInLifecycle = PendingSignInLifecycle()
         self.operationState = AccountOperationState()
         let loadAccountsUseCase = LoadAccountsUseCase(
             repository: repository,
@@ -92,19 +90,16 @@ final class AccountsController {
             repository: repository,
             identityResolver: self.identityResolver
         )
-        self.signInAnotherWorkflow = SignInAnotherWorkflow(
+        self.addAccountWorkflow = AddAccountWorkflow(
             authService: authService,
             appController: appController,
-            appServerClient: appServerClient,
-            repository: repository,
-            identityResolver: self.identityResolver
+            repository: repository
         )
     }
 
     init(
         identityResolver: SavedAccountIdentityResolver,
         inactiveAccountAvailabilityRanking: InactiveAccountAvailabilityRanking = InactiveAccountAvailabilityRanking(),
-        pendingSignInLifecycle: PendingSignInLifecycle = PendingSignInLifecycle(),
         operationState: AccountOperationState = AccountOperationState(),
         loadAccountsUseCase: LoadAccountsUseCase,
         refreshActiveAccountUseCase: RefreshActiveAccountUseCase,
@@ -118,11 +113,10 @@ final class AccountsController {
         ),
         remoteHostAccountVerifier: RemoteHostAccountVerifier = RemoteHostAccountVerifier(),
         saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow,
-        signInAnotherWorkflow: SignInAnotherWorkflow
+        addAccountWorkflow: AddAccountWorkflow
     ) {
         self.identityResolver = identityResolver
         self.inactiveAccountAvailabilityRanking = inactiveAccountAvailabilityRanking
-        self.pendingSignInLifecycle = pendingSignInLifecycle
         self.operationState = operationState
         self.loadAccountsUseCase = loadAccountsUseCase
         self.refreshActiveAccountUseCase = refreshActiveAccountUseCase
@@ -136,7 +130,7 @@ final class AccountsController {
         self.switchAccountOnHostWorkflow = switchAccountOnHostWorkflow
         self.remoteHostAccountVerifier = remoteHostAccountVerifier
         self.saveCurrentAccountWorkflow = saveCurrentAccountWorkflow
-        self.signInAnotherWorkflow = signInAnotherWorkflow
+        self.addAccountWorkflow = addAccountWorkflow
     }
 
     func load() {
@@ -162,33 +156,6 @@ final class AccountsController {
                 activeAccountID: result.activeAccountID
             )
             await applySilentPostActionRefresh(after: .zero)
-        }
-    }
-
-    func completePendingSignedInAccountIfNeeded() async {
-        switch pendingSignInLifecycle.beginCompletion(activeAccountID: activeAccountID) {
-        case .skip, .clearPending:
-            return
-        case .complete(let pendingAccountName):
-            await perform("Saving signed-in account...") {
-                guard let result = try await signInAnotherWorkflow.completePendingSignIn(
-                    pendingAccountName: pendingAccountName,
-                    existingAccounts: accounts
-                ) else {
-                    pendingSignInLifecycle.finishCompletion(consumedPendingSignIn: false)
-                    return
-                }
-
-                catalogState.applySavedAccount(
-                    result.savedAccount,
-                    activeAccountID: result.activeAccountID
-                )
-                pendingSignInLifecycle.finishCompletion(consumedPendingSignIn: true)
-                await applySilentPostActionRefresh(after: .seconds(2))
-            }
-            if pendingSignInLifecycle.isCompleting {
-                pendingSignInLifecycle.finishCompletion(consumedPendingSignIn: false)
-            }
         }
     }
 
@@ -282,14 +249,28 @@ final class AccountsController {
         }
     }
 
-    func startSignInAnotherAccountFlow(named pendingAccountName: String?) async {
-        accountsControllerLogger.log("Starting sign-in-another flow")
-        await perform("Preparing Codex sign-in...") {
-            let result = try signInAnotherWorkflow.prepare(named: pendingAccountName)
-            pendingSignInLifecycle.recordPreparedSignIn(named: result.pendingAccountName)
-            catalogState.setActiveAccountID(nil)
-            try await signInAnotherWorkflow.relaunchCodex()
-            accountsControllerLogger.log("Sign-in-another relaunch finished")
+    func startAddAccountFlow(
+        named accountName: String?,
+        presentPrompt: @MainActor (CodexDeviceAuthPrompt) -> Void
+    ) async {
+        accountsControllerLogger.log("Starting add-account flow")
+        await perform("Adding Codex account...") {
+            refreshActiveAccount()
+            let previousActiveAccountID = activeAccountID
+            let startedSession = try await addAccountWorkflow.begin(named: accountName)
+            let prompt = await startedSession.capture.deviceAuthPrompt()
+            presentPrompt(prompt)
+            let result = try await addAccountWorkflow.complete(
+                startedSession: startedSession,
+                existingAccounts: accounts,
+                previousActiveAccountID: previousActiveAccountID
+            )
+            catalogState.applySavedAccount(
+                result.savedAccount,
+                activeAccountID: result.activeAccountID
+            )
+            refreshActiveAccount()
+            accountsControllerLogger.log("Add-account flow saved account without switching local auth")
         }
     }
 
@@ -318,10 +299,7 @@ final class AccountsController {
     }
 
     func hydrateSavedAccountsMetadataIfNeeded() async {
-        guard pendingSignInLifecycle.canHydrateSavedAccountsMetadata(
-            isBusy: isBusy,
-            isHydratingSavedAccountsMetadata: isHydratingSavedAccountsMetadata
-        ) else { return }
+        guard !isBusy, !isHydratingSavedAccountsMetadata else { return }
         guard accounts.contains(where: { $0.id != activeAccountID && $0.rateLimits == nil }) else { return }
 
         isHydratingSavedAccountsMetadata = true
@@ -364,10 +342,6 @@ final class AccountsController {
         }
 
         return inactiveAccountAvailabilityRanking.compare(lhs, rhs)
-    }
-
-    var hasPendingSignedInAccount: Bool {
-        pendingSignInLifecycle.hasPendingSignIn
     }
 
     func consumePendingErrorMessage() -> String? {

@@ -235,10 +235,7 @@ enum MenuBarValidationSupport {
     }
 
     private static func managementSectionItems(for state: MenuBarMenuState) -> [String] {
-        [
-            state.canSaveCurrentAccount ? "Add Account…" : "Add Account… (disabled)",
-            state.canSignInAnotherAccount ? "Sign In Another Account…" : "Sign In Another Account… (disabled)"
-        ]
+        [state.canSignInAnotherAccount ? "Add Account…" : "Add Account… (disabled)"]
     }
 
     private static func colorHexString(for color: NSColor) -> String {

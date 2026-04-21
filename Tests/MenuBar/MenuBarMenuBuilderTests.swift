@@ -182,7 +182,7 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func saveCurrentAccountRemainsEnabledForActiveSavedAccount() throws {
+    func addAccountIsDirectMenuAction() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
@@ -190,15 +190,11 @@ struct MenuBarMenuBuilderTests {
             target: coordinator
         )
 
-        let addAccountMenu = try #require(
-            menu.items
-                .first(where: { $0.title == "Add Account…" })?
-                .submenu
-        )
-        let saveCurrent = try #require(addAccountMenu.items.first(where: { $0.title == "Save Current Account" }))
+        let addAccount = try #require(menu.items.first(where: { $0.title == "Add Account…" }))
 
-        #expect(saveCurrent.isEnabled)
-        #expect(saveCurrent.action == #selector(MenuBarCoordinator.addCurrentAccount))
+        #expect(addAccount.submenu == nil)
+        #expect(addAccount.isEnabled)
+        #expect(addAccount.action == #selector(MenuBarCoordinator.addAccount))
     }
 
     @Test

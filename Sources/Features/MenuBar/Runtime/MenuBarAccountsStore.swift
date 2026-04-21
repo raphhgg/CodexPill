@@ -30,18 +30,12 @@ final class MenuBarAccountsStore {
     var activeAccount: CodexAccount? { controller.activeAccount }
     var inactiveAccounts: [CodexAccount] { controller.inactiveAccounts }
     var sortedInactiveAccounts: [CodexAccount] { controller.sortedInactiveAccounts }
-    var hasPendingSignedInAccount: Bool { controller.hasPendingSignedInAccount }
-
     func load() {
         controller.load()
     }
 
     func saveCurrentAccountSnapshot(named customName: String?) async {
         await controller.saveCurrentAccountSnapshot(named: customName)
-    }
-
-    func completePendingSignedInAccountIfNeeded() async {
-        await controller.completePendingSignedInAccountIfNeeded()
     }
 
     func switchToAccount(_ account: CodexAccount) async {
@@ -68,8 +62,14 @@ final class MenuBarAccountsStore {
         await controller.refreshAccountData(for: account)
     }
 
-    func startSignInAnotherAccountFlow(named pendingAccountName: String?) async {
-        await controller.startSignInAnotherAccountFlow(named: pendingAccountName)
+    func startAddAccountFlow(
+        named accountName: String?,
+        presentPrompt: @MainActor (CodexDeviceAuthPrompt) -> Void
+    ) async {
+        await controller.startAddAccountFlow(
+            named: accountName,
+            presentPrompt: presentPrompt
+        )
     }
 
     func refreshActiveAccount() {

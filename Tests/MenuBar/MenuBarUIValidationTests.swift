@@ -463,7 +463,6 @@ struct MenuBarUIValidationTests {
             ])
             #expect(snapshot.statusMessage == "Refreshing account data...")
             #expect(snapshot.sections[1].items.contains("Add Account… (disabled)"))
-            #expect(snapshot.sections[1].items.contains("Sign In Another Account… (disabled)"))
 
         case "hosted-menu-empty":
             #expect(snapshot.sections.map(\.title) == [
@@ -523,7 +522,7 @@ struct MenuBarUIValidationTests {
             return [
                 "Busy state exposes only the current account plus shared account and preference controls",
                 "Busy status message is rendered into the artifact snapshot",
-                "Add-account and sign-in actions are marked disabled in the snapshot"
+                "Add-account action is marked disabled in the snapshot"
             ]
         case "hosted-menu-empty":
             return [

@@ -51,7 +51,6 @@ struct AppPaths {
         snapshotsDirectory = appSupportDirectory.appendingPathComponent("snapshots", isDirectory: true)
         if let isolatedAuthRootDirectory {
             codexAuthFile = isolatedAuthRootDirectory
-                .appendingPathComponent(".codex", isDirectory: true)
                 .appendingPathComponent("auth.json")
         } else {
             codexAuthFile = fileManager.homeDirectoryForCurrentUser
@@ -67,5 +66,36 @@ struct AppPaths {
         appPathsLogger.log("Resolved accounts file: \(resolvedAccountsPath, privacy: .public)")
         appPathsLogger.log("Resolved snapshots directory: \(resolvedSnapshotsPath, privacy: .public)")
         appPathsLogger.log("Resolved auth file: \(resolvedAuthPath, privacy: .public)")
+    }
+}
+
+struct IsolatedCodexHomeSession {
+    let rootDirectory: URL
+    let authFile: URL
+    let configFile: URL
+    let tempDirectory: URL
+
+    static func create(
+        fileManager: FileManager = .default,
+        parentDirectory: URL? = nil
+    ) throws -> IsolatedCodexHomeSession {
+        let baseDirectory = parentDirectory ?? fileManager.temporaryDirectory
+        let rootDirectory = baseDirectory
+            .appendingPathComponent("CodexPill-CODEX_HOME-\(UUID().uuidString)", isDirectory: true)
+        let tempDirectory = rootDirectory.appendingPathComponent("tmp", isDirectory: true)
+
+        try fileManager.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
+
+        return IsolatedCodexHomeSession(
+            rootDirectory: rootDirectory,
+            authFile: rootDirectory.appendingPathComponent("auth.json"),
+            configFile: rootDirectory.appendingPathComponent("config.toml"),
+            tempDirectory: tempDirectory
+        )
+    }
+
+    func cleanup(fileManager: FileManager = .default) throws {
+        guard fileManager.fileExists(atPath: rootDirectory.path) else { return }
+        try fileManager.removeItem(at: rootDirectory)
     }
 }

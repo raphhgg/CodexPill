@@ -64,10 +64,28 @@ struct AppRuntimeEnvironmentTests {
     func automatedTestEnvironmentIsDetectedFromXCTestConfigurationPath() {
         #expect(
             AppRuntimeEnvironment.isRunningAutomatedTests(
-                environment: [AppRuntimeEnvironment.xctestConfigurationFilePathEnvironmentKey: "/tmp/test.xctestconfiguration"]
+                environment: [AppRuntimeEnvironment.xctestConfigurationFilePathEnvironmentKey: "/tmp/test.xctestconfiguration"],
+                classLookup: { _ in nil }
             )
         )
-        #expect(!AppRuntimeEnvironment.isRunningAutomatedTests(environment: [:]))
+        #expect(
+            !AppRuntimeEnvironment.isRunningAutomatedTests(
+                environment: [:],
+                classLookup: { _ in nil }
+            )
+        )
+    }
+
+    @Test
+    func automatedTestEnvironmentIsDetectedFromLoadedXCTestRuntime() {
+        #expect(
+            AppRuntimeEnvironment.isRunningAutomatedTests(
+                environment: [:],
+                classLookup: { name in
+                    name == "XCTestCase" ? NSObject.self : nil
+                }
+            )
+        )
     }
 
     @Test

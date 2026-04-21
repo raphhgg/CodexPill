@@ -21,6 +21,18 @@ struct CodexAuthSnapshotService {
         existing: CodexAccount? = nil
     ) throws -> CodexAccount {
         let authData = try readCurrentAuthData()
+        return try saveAuthSnapshot(
+            authData,
+            named: name,
+            existing: existing
+        )
+    }
+
+    func saveAuthSnapshot(
+        _ authData: Data,
+        named name: String,
+        existing: CodexAccount? = nil
+    ) throws -> CodexAccount {
         var account = existing ?? CodexAccount(
             id: UUID(),
             name: name,
@@ -38,6 +50,9 @@ struct CodexAuthSnapshotService {
         account.identity.authPrincipalIdentity = Self.authPrincipalIdentity(for: authData)
         account.identity.workspaceIdentity = Self.workspaceIdentity(for: authData)
         account.identity.snapshotFingerprint = Self.snapshotFingerprint(for: authData)
+        account.identity.remoteIdentity = CodexAuthDataParser.remoteIdentity(from: authData)
+        account.email = CodexAuthDataParser.email(from: authData)
+        account.planType = CodexAuthDataParser.planType(from: authData)
         try repository.writeSnapshot(data: authData, for: account)
         return account
     }

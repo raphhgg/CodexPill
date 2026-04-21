@@ -25,7 +25,6 @@ struct AppPathsTests {
         #expect(
             paths.codexAuthFile.standardizedFileURL.path
                 == overrideDirectory
-                .appendingPathComponent(".codex", isDirectory: true)
                 .appendingPathComponent("auth.json")
                 .standardizedFileURL.path
         )
@@ -45,10 +44,66 @@ struct AppPathsTests {
         #expect(
             paths.codexAuthFile.standardizedFileURL.path
                 == expectedDirectory
-                .appendingPathComponent(".codex", isDirectory: true)
                 .appendingPathComponent("auth.json")
                 .standardizedFileURL.path
         )
+    }
+
+    @Test
+    func launchedAutomatedTestHostDefaultsToTemporaryApplicationSupportLocation() throws {
+        let paths = try AppPaths(
+            fileManager: .default,
+            environment: [:]
+        )
+
+        let expectedDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CodexPillTests-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true)
+        #expect(normalizedDirectoryPath(paths.appSupportDirectory) == normalizedDirectoryPath(expectedDirectory))
+        #expect(paths.accountsFile.standardizedFileURL.path == expectedDirectory.appendingPathComponent("accounts.json").standardizedFileURL.path)
+        #expect(
+            paths.codexAuthFile.standardizedFileURL.path
+                == expectedDirectory
+                .appendingPathComponent("auth.json")
+                .standardizedFileURL.path
+        )
+    }
+
+    @Test
+    func isolatedCodexHomeSessionUsesRootLevelAuthPathAndCreatesMinimalLayout() throws {
+        let parentDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: parentDirectory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: parentDirectory) }
+
+        let session = try IsolatedCodexHomeSession.create(
+            fileManager: .default,
+            parentDirectory: parentDirectory
+        )
+
+        #expect(session.rootDirectory.deletingLastPathComponent().standardizedFileURL.path == parentDirectory.standardizedFileURL.path)
+        #expect(session.authFile.standardizedFileURL.path == session.rootDirectory.appendingPathComponent("auth.json").standardizedFileURL.path)
+        #expect(session.configFile.standardizedFileURL.path == session.rootDirectory.appendingPathComponent("config.toml").standardizedFileURL.path)
+        #expect(FileManager.default.fileExists(atPath: session.rootDirectory.path))
+        #expect(FileManager.default.fileExists(atPath: session.tempDirectory.path))
+    }
+
+    @Test
+    func isolatedCodexHomeSessionCleanupRemovesRootDirectory() throws {
+        let parentDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: parentDirectory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: parentDirectory) }
+
+        let session = try IsolatedCodexHomeSession.create(
+            fileManager: .default,
+            parentDirectory: parentDirectory
+        )
+        let markerFile = session.rootDirectory.appendingPathComponent("marker.txt")
+        try Data("marker".utf8).write(to: markerFile)
+
+        try session.cleanup(fileManager: .default)
+
+        #expect(!FileManager.default.fileExists(atPath: session.rootDirectory.path))
     }
 
     private func normalizedDirectoryPath(_ url: URL) -> String {

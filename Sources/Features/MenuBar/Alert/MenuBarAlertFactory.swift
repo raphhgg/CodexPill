@@ -12,13 +12,13 @@ struct MenuBarAlertFactory {
         )
     }
 
-    func makeSignInAnotherRequest(runningCLISessions: Int) -> MenuBarTextInputAlertRequest {
+    func makeAddAccountRequest(runningCLISessions: Int) -> MenuBarTextInputAlertRequest {
         MenuBarTextInputAlertRequest(
-            messageText: "Sign in another account?",
+            messageText: "Add another account?",
             informativeText: signInAnotherInformativeText(runningCLISessions: runningCLISessions),
             fieldTitle: "Saved Account Name",
             placeholder: "Business 2",
-            confirmTitle: "Continue",
+            confirmTitle: "Add Account",
             cancelTitle: "Cancel"
         )
     }
@@ -102,6 +102,26 @@ struct MenuBarAlertFactory {
         )
     }
 
+    func makeAddAccountDeviceAuthRequest(prompt: CodexDeviceAuthPrompt) -> MenuBarInfoAlertRequest {
+        let codeText: String
+        if let userCode = prompt.userCode {
+            codeText = "Enter this code in the browser if prompted:\n\(userCode)\n\n"
+        } else {
+            codeText = ""
+        }
+
+        return MenuBarInfoAlertRequest(
+            messageText: "Finish adding account",
+            informativeText: """
+            CodexPill opened the Codex device-auth page in your browser.
+
+            \(codeText)When the browser sign-in completes, CodexPill will save the account to your collection without switching your current local session.
+            """,
+            style: .informational,
+            buttonTitle: "OK"
+        )
+    }
+
     func makeErrorRequest(message: String) -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
             messageText: "CodexPill Error",
@@ -126,12 +146,12 @@ struct MenuBarAlertFactory {
 
     private func signInAnotherInformativeText(runningCLISessions: Int) -> String {
         var lines = [
-            "This will sign Codex out, restart the app, and let you log into another account. Save the current account first if you want to keep it."
+            "This signs into another Codex account in an isolated capture session so CodexPill can save it in your account collection without switching your current local session."
         ]
 
         if runningCLISessions > 0 {
             let sessionText = runningCLISessions == 1 ? "1 running Codex CLI session was" : "\(runningCLISessions) running Codex CLI sessions were"
-            lines.append("\(sessionText) detected. Restart any open Codex CLI terminals after signing in to use the new account.")
+            lines.append("\(sessionText) detected. Existing Codex CLI terminals stay on their current auth unless you switch them explicitly.")
         }
 
         return lines.joined(separator: " ")

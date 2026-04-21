@@ -264,21 +264,10 @@ struct MenuBarMenuBuilder {
     }
 
     private func addAccountMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Add Account…", action: nil, keyEquivalent: "")
+        let item = NSMenuItem(title: "Add Account…", action: #selector(MenuBarCoordinator.addAccount), keyEquivalent: "")
         item.image = NSImage(systemSymbolName: "plus.circle", accessibilityDescription: "Add Account")
-
-        let submenu = configuredMenu(title: "Add Account")
-        let saveCurrent = NSMenuItem(title: "Save Current Account", action: #selector(MenuBarCoordinator.addCurrentAccount), keyEquivalent: "")
-        saveCurrent.target = target
-        saveCurrent.isEnabled = state.canSaveCurrentAccount
-        submenu.addItem(saveCurrent)
-
-        let signInAnother = NSMenuItem(title: "Sign In Another Account…", action: #selector(MenuBarCoordinator.signInAnotherAccount), keyEquivalent: "")
-        signInAnother.target = target
-        signInAnother.isEnabled = state.canSignInAnotherAccount
-        submenu.addItem(signInAnother)
-
-        item.submenu = submenu
+        item.target = target
+        item.isEnabled = state.canSignInAnotherAccount
         return item
     }
 

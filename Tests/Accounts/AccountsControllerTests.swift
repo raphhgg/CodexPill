@@ -6,6 +6,68 @@ import Testing
 @MainActor
 struct AccountsControllerTests {
     @Test
+    func startAddAccountFlowRefreshesLiveCurrentAccountBeforePreservingIt() async {
+        let business1 = makeAccount(name: "Business 1", fingerprint: "business-1")
+        let business2 = makeAccount(name: "Business 2", fingerprint: "business-2")
+        let repository = LoadingPersistingRepositorySpy(accountsToLoad: [business1, business2])
+        let liveIdentity = MutableCurrentIdentityStub(fingerprint: "business-2")
+        let identityResolver = SavedAccountIdentityResolver(
+            liveIdentityReader: liveIdentity,
+            storedAccountReconciler: StoredIdentityPassthrough()
+        )
+        let controller = AccountsController(
+            identityResolver: identityResolver,
+            loadAccountsUseCase: LoadAccountsUseCase(
+                repository: repository,
+                identityResolver: identityResolver
+            ),
+            refreshActiveAccountUseCase: RefreshActiveAccountUseCase(
+                appServerClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                identityResolver: identityResolver,
+                repository: repository
+            ),
+            hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
+                authService: NoopAuthService(),
+                appServerClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                identityResolver: identityResolver,
+                repository: repository
+            ),
+            deleteSavedAccountUseCase: DeleteSavedAccountUseCase(
+                repository: repository,
+                identityResolver: identityResolver
+            ),
+            renameSavedAccountUseCase: RenameSavedAccountUseCase(repository: repository),
+            switchAccountWorkflow: SwitchAccountWorkflow(
+                authService: NoopAuthService(),
+                repository: repository,
+                appController: NoopAppController(),
+                identityResolver: identityResolver
+            ),
+            saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow(
+                appServerClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                authService: NoopAuthService(),
+                repository: repository,
+                identityResolver: identityResolver
+            ),
+            addAccountWorkflow: AddAccountWorkflow(
+                authService: NoopAuthService(),
+                appController: NoopAppController(),
+                captureClient: NoopDeviceAuthCaptureClient(),
+                repository: repository
+            )
+        )
+
+        controller.load()
+        #expect(controller.activeAccountID == business2.id)
+
+        liveIdentity.fingerprint = "business-1"
+
+        await controller.startAddAccountFlow(named: "Business 3") { _ in }
+
+        #expect(controller.activeAccountID == business1.id)
+    }
+
+    @Test
     func refreshAccountDataFailureDoesNotQueuePendingErrorMessage() async {
         let account = makeAccount(name: "Business 4", fingerprint: "live")
         let repository = LoadingPersistingRepositorySpy(accountsToLoad: [account])
@@ -47,12 +109,11 @@ struct AccountsControllerTests {
                 repository: repository,
                 identityResolver: identityResolver
             ),
-            signInAnotherWorkflow: SignInAnotherWorkflow(
+            addAccountWorkflow: AddAccountWorkflow(
                 authService: NoopAuthService(),
                 appController: NoopAppController(),
-                appServerClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
-                repository: repository,
-                identityResolver: identityResolver
+                captureClient: NoopDeviceAuthCaptureClient(),
+                repository: repository
             )
         )
 
@@ -144,12 +205,11 @@ struct AccountsControllerTests {
                 repository: repository,
                 identityResolver: identityResolver
             ),
-            signInAnotherWorkflow: SignInAnotherWorkflow(
+            addAccountWorkflow: AddAccountWorkflow(
                 authService: NoopAuthService(),
                 appController: NoopAppController(),
-                appServerClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
-                repository: repository,
-                identityResolver: identityResolver
+                captureClient: NoopDeviceAuthCaptureClient(),
+                repository: repository
             )
         )
 
@@ -209,12 +269,11 @@ struct AccountsControllerTests {
                 repository: repository,
                 identityResolver: identityResolver
             ),
-            signInAnotherWorkflow: SignInAnotherWorkflow(
+            addAccountWorkflow: AddAccountWorkflow(
                 authService: NoopAuthService(),
                 appController: NoopAppController(),
-                appServerClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
-                repository: repository,
-                identityResolver: identityResolver
+                captureClient: NoopDeviceAuthCaptureClient(),
+                repository: repository
             )
         )
 
@@ -294,8 +353,24 @@ private final class LoadingPersistingRepositorySpy: AccountCatalogLoading, Accou
     func deleteSnapshot(for account: CodexAccount) throws {}
 }
 
-private struct CurrentIdentityStub: LiveCodexAccountIdentityReading {
+private final class CurrentIdentityStub: LiveCodexAccountIdentityReading {
     let fingerprint: String?
+
+    init(fingerprint: String?) {
+        self.fingerprint = fingerprint
+    }
+
+    func readCurrentLiveAccountIdentity() -> LiveCodexAccountIdentity {
+        LiveCodexAccountIdentity(snapshotFingerprint: fingerprint)
+    }
+}
+
+private final class MutableCurrentIdentityStub: LiveCodexAccountIdentityReading {
+    var fingerprint: String?
+
+    init(fingerprint: String?) {
+        self.fingerprint = fingerprint
+    }
 
     func readCurrentLiveAccountIdentity() -> LiveCodexAccountIdentity {
         LiveCodexAccountIdentity(snapshotFingerprint: fingerprint)
@@ -313,11 +388,10 @@ private struct NoopAppController: CodexAppRelaunching {
     func relaunchCodex() async throws {}
 }
 
-private struct NoopAuthService: CodexAuthDataRestoring, CodexAuthSnapshotSaving, CodexSignInAnotherAuthHandling {
+private struct NoopAuthService: CodexAuthDataRestoring, CodexAuthSnapshotSaving, CodexAuthSnapshotImporting {
     func activate(_ account: CodexAccount) throws {}
     func readCurrentAuthData() throws -> Data { Data() }
     func restoreCurrentAuthData(_ data: Data) throws {}
-    func prepareForNewSignIn() throws {}
     func saveCurrentAuthSnapshot(named name: String, existing: CodexAccount?) throws -> CodexAccount {
         if let existing {
             return existing
@@ -336,6 +410,29 @@ private struct NoopAuthService: CodexAuthDataRestoring, CodexAuthSnapshotSaving,
             identity: .empty
         )
     }
+
+    func saveAuthSnapshot(_ authData: Data, named name: String, existing: CodexAccount?) throws -> CodexAccount {
+        try saveCurrentAuthSnapshot(named: name, existing: existing)
+    }
+}
+
+private struct NoopDeviceAuthCaptureClient: CodexDeviceAuthCapturing {
+    func beginDeviceAuth(in session: IsolatedCodexHomeSession) async throws -> any CodexDeviceAuthCaptureHandling {
+        NoopDeviceAuthCapture()
+    }
+}
+
+private final class NoopDeviceAuthCapture: CodexDeviceAuthCaptureHandling {
+    func deviceAuthPrompt() async -> CodexDeviceAuthPrompt {
+        CodexDeviceAuthPrompt(
+            verificationURL: URL(string: "https://auth.openai.com/codex/device")!,
+            userCode: nil
+        )
+    }
+
+    func waitForCapturedAuth() async throws -> Data { Data() }
+    func cancel() async {}
+    func cleanup() async throws {}
 }
 
 private struct RemoteHostStatusStub: RemoteHostSwitching {
