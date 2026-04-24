@@ -235,6 +235,560 @@ struct InactiveAccountAvailabilityRankingTests {
     }
 
     @Test
+    func notificationPolicyNotifiesWithSingleBestAccountWhenBlockedUserBecomesUnblocked() {
+        let service = AccountAvailabilityService()
+        let policy = AccountAvailabilityNotificationPolicy()
+        let now = Date()
+        let previouslyBlocked = [
+            service.snapshot(
+                for: makeAccount(
+                    name: "Business 2",
+                    sessionUsedPercent: 100,
+                    sessionResetAt: now.addingTimeInterval(1800),
+                    weeklyUsedPercent: 100,
+                    weeklyResetAt: now.addingTimeInterval(7200)
+                ),
+                now: now
+            ),
+            service.snapshot(
+                for: makeAccount(
+                    name: "Business 4",
+                    sessionUsedPercent: 100,
+                    sessionResetAt: now.addingTimeInterval(1200),
+                    weeklyUsedPercent: 20
+                ),
+                now: now
+            )
+        ]
+        let current = [
+            service.snapshot(for: makeAccount(name: "Business 2", sessionUsedPercent: 80, weeklyUsedPercent: 20), now: now),
+            service.snapshot(for: makeAccount(name: "Business 4", sessionUsedPercent: 0, weeklyUsedPercent: 20), now: now)
+        ]
+
+        let decision = policy.decision(
+            previousSnapshots: previouslyBlocked,
+            currentSnapshots: current,
+            activeAccounts: [],
+            settings: AccountAvailabilityNotificationSettings(whenBlockedEnabled: true),
+            now: now
+        )
+
+        #expect(decision?.shouldNotify == true)
+        #expect(decision?.reason == .whenBlocked)
+        #expect(decision?.account.name == "Business 4")
+        #expect(decision?.waitUntil == nil)
+    }
+
+    @Test
+    func notificationPolicyIgnoresBarelyUsableAccountsWhenBlockedModeIsEnabled() {
+        let service = AccountAvailabilityService()
+        let policy = AccountAvailabilityNotificationPolicy()
+        let now = Date()
+        let previous = [
+            service.snapshot(
+                for: makeAccount(
+                    name: "Blocked",
+                    sessionUsedPercent: 100,
+                    sessionResetAt: now.addingTimeInterval(1800),
+                    weeklyUsedPercent: 100,
+                    weeklyResetAt: now.addingTimeInterval(7200)
+                ),
+                now: now
+            )
+        ]
+        let current = [
+            service.snapshot(for: makeAccount(name: "Weak", sessionUsedPercent: 0, weeklyUsedPercent: 97), now: now)
+        ]
+
+        let decision = policy.decision(
+            previousSnapshots: previous,
+            currentSnapshots: current,
+            activeAccounts: [],
+            settings: AccountAvailabilityNotificationSettings(whenBlockedEnabled: true),
+            now: now
+        )
+
+        #expect(decision == nil)
+    }
+
+    @Test
+    func notificationPolicyWaitsForMeaningfullyBetterAccountWithinConfiguredWindow() {
+        let service = AccountAvailabilityService()
+        let policy = AccountAvailabilityNotificationPolicy()
+        let now = Date()
+        let betterResetAt = now.addingTimeInterval(8 * 60)
+        let previous = [
+            service.snapshot(
+                for: makeAccount(
+                    name: "Business 2",
+                    sessionUsedPercent: 100,
+                    sessionResetAt: now.addingTimeInterval(3600),
+                    weeklyUsedPercent: 20
+                ),
+                now: now
+            ),
+            service.snapshot(
+                for: makeAccount(
+                    name: "Business 4",
+                    sessionUsedPercent: 100,
+                    sessionResetAt: betterResetAt,
+                    weeklyUsedPercent: 20
+                ),
+                now: now
+            )
+        ]
+        let current = [
+            service.snapshot(for: makeAccount(name: "Business 2", sessionUsedPercent: 80, weeklyUsedPercent: 20), now: now),
+            service.snapshot(
+                for: makeAccount(
+                    name: "Business 4",
+                    sessionUsedPercent: 100,
+                    sessionResetAt: betterResetAt,
+                    weeklyUsedPercent: 20
+                ),
+                now: now
+            )
+        ]
+
+        let decision = policy.decision(
+            previousSnapshots: previous,
+            currentSnapshots: current,
+            activeAccounts: [],
+            settings: AccountAvailabilityNotificationSettings(whenBlockedEnabled: true),
+            now: now
+        )
+
+        #expect(decision?.shouldNotify == false)
+        #expect(decision?.account.name == "Business 4")
+        #expect(decision?.waitUntil == betterResetAt)
+    }
+
+    @Test
+    func notificationPolicyTriggersWhenOutForLocalActiveAccount() {
+        let service = AccountAvailabilityService()
+        let policy = AccountAvailabilityNotificationPolicy()
+        let now = Date()
+        let active = makeAccount(
+            name: "Active",
+            sessionUsedPercent: 100,
+            sessionResetAt: now.addingTimeInterval(1800),
+            weeklyUsedPercent: 20
+        )
+        let previousAlternative = makeAccount(
+            name: "Business 4",
+            sessionUsedPercent: 100,
+            sessionResetAt: now.addingTimeInterval(1800),
+            weeklyUsedPercent: 20
+        )
+        let currentAlternative = makeAccount(name: "Business 4", sessionUsedPercent: 0, weeklyUsedPercent: 20)
+
+        let decision = policy.decision(
+            previousSnapshots: [
+                service.snapshot(for: active, now: now),
+                service.snapshot(for: previousAlternative, now: now)
+            ],
+            currentSnapshots: [
+                service.snapshot(for: active, now: now),
+                service.snapshot(for: currentAlternative, now: now)
+            ],
+            activeAccounts: [ActiveAccountAvailabilityContext(target: .local, accountID: active.id)],
+            settings: AccountAvailabilityNotificationSettings(whenOutEnabled: true),
+            now: now
+        )
+
+        #expect(decision?.shouldNotify == true)
+        #expect(decision?.reason == .whenOut)
+        #expect(decision?.account.name == "Business 4")
+        #expect(decision?.suggestedActions == [.local])
+        #expect(
+            decision?.triggerContext == AccountAvailabilityNotificationTriggerContext(
+                accountID: active.id,
+                accountName: "Active",
+                target: .local,
+                sessionRemainingPercent: 0,
+                weeklyRemainingPercent: 80
+            )
+        )
+    }
+
+    @Test
+    func notificationPolicyDoesNotTriggerWhenActiveAccountIsOnlyLow() {
+        let service = AccountAvailabilityService()
+        let policy = AccountAvailabilityNotificationPolicy()
+        let now = Date()
+        let active = makeAccount(name: "Active", sessionUsedPercent: 95, weeklyUsedPercent: 20)
+        let alreadyAvailableAlternative = makeAccount(name: "Business 4", sessionUsedPercent: 0, weeklyUsedPercent: 20)
+
+        let decision = policy.decision(
+            previousSnapshots: [
+                service.snapshot(for: active, now: now),
+                service.snapshot(for: alreadyAvailableAlternative, now: now)
+            ],
+            currentSnapshots: [
+                service.snapshot(for: active, now: now),
+                service.snapshot(for: alreadyAvailableAlternative, now: now)
+            ],
+            activeAccounts: [ActiveAccountAvailabilityContext(target: .local, accountID: active.id)],
+            settings: AccountAvailabilityNotificationSettings(whenOutEnabled: true),
+            now: now
+        )
+
+        #expect(decision == nil)
+    }
+
+    @Test
+    func notificationPolicyTriggersWhenOutForVerifiedRemoteActiveAccount() {
+        let service = AccountAvailabilityService()
+        let policy = AccountAvailabilityNotificationPolicy()
+        let now = Date()
+        let active = makeAccount(name: "Active Remote", sessionUsedPercent: 20, weeklyUsedPercent: 20)
+        let outRemote = makeAccount(
+            name: "Active Remote",
+            sessionUsedPercent: 100,
+            sessionResetAt: now.addingTimeInterval(1800),
+            weeklyUsedPercent: 20
+        )
+        let previousAlternative = makeAccount(
+            name: "Business 5",
+            sessionUsedPercent: 100,
+            sessionResetAt: now.addingTimeInterval(1800),
+            weeklyUsedPercent: 20
+        )
+        let currentAlternative = makeAccount(name: "Business 5", sessionUsedPercent: 0, weeklyUsedPercent: 20)
+
+        let previous = [
+            service.snapshot(
+                for: active,
+                remoteTargets: [
+                    RemoteAccountTargetContext(
+                        hostDestination: "debian-vm",
+                        connectionState: .connected,
+                        verificationState: .verified,
+                        activeAccount: outRemote,
+                        displayAccount: outRemote
+                    )
+                ],
+                now: now
+            ),
+            service.snapshot(for: previousAlternative, now: now)
+        ]
+        let current = [
+            service.snapshot(
+                for: active,
+                remoteTargets: [
+                    RemoteAccountTargetContext(
+                        hostDestination: "debian-vm",
+                        connectionState: .connected,
+                        verificationState: .verified,
+                        activeAccount: outRemote,
+                        displayAccount: outRemote
+                    )
+                ],
+                now: now
+            ),
+            service.snapshot(for: currentAlternative, now: now)
+        ]
+
+        let decision = policy.decision(
+            previousSnapshots: previous,
+            currentSnapshots: current,
+            activeAccounts: [
+                ActiveAccountAvailabilityContext(
+                    target: .remote(hostDestination: "debian-vm"),
+                    accountID: active.id
+                )
+            ],
+            settings: AccountAvailabilityNotificationSettings(whenOutEnabled: true),
+            now: now
+        )
+
+        #expect(decision?.shouldNotify == true)
+        #expect(decision?.reason == .whenOut)
+        #expect(decision?.account.name == "Business 5")
+        #expect(decision?.suggestedActions == [.remote(hostDestination: "debian-vm")])
+        #expect(
+            decision?.triggerContext == AccountAvailabilityNotificationTriggerContext(
+                accountID: active.id,
+                accountName: "Active Remote",
+                target: .remote(hostDestination: "debian-vm"),
+                sessionRemainingPercent: 0,
+                weeklyRemainingPercent: 80
+            )
+        )
+    }
+
+    @Test
+    func notificationPolicyTriggersWhenOutWhenLocalActiveAccountBecomesOutAndAlternativeWasAlreadyAvailable() {
+        let service = AccountAvailabilityService()
+        let policy = AccountAvailabilityNotificationPolicy()
+        let now = Date()
+        let activeID = UUID()
+        let previouslyHealthyActive = makeAccount(id: activeID, name: "Active", sessionUsedPercent: 70, weeklyUsedPercent: 20)
+        let currentlyBlockedActive = makeAccount(
+            id: activeID,
+            name: "Active",
+            sessionUsedPercent: 100,
+            sessionResetAt: now.addingTimeInterval(90 * 60),
+            weeklyUsedPercent: 20
+        )
+        let alreadyAvailableAlternative = makeAccount(name: "Business 4", sessionUsedPercent: 0, weeklyUsedPercent: 20)
+
+        let decision = policy.decision(
+            previousSnapshots: [
+                service.snapshot(for: previouslyHealthyActive, now: now),
+                service.snapshot(for: alreadyAvailableAlternative, now: now)
+            ],
+            currentSnapshots: [
+                service.snapshot(for: currentlyBlockedActive, now: now),
+                service.snapshot(for: alreadyAvailableAlternative, now: now)
+            ],
+            activeAccounts: [ActiveAccountAvailabilityContext(target: .local, accountID: currentlyBlockedActive.id)],
+            settings: AccountAvailabilityNotificationSettings(whenOutEnabled: true),
+            now: now
+        )
+
+        #expect(decision?.shouldNotify == true)
+        #expect(decision?.reason == .whenOut)
+        #expect(decision?.account.name == "Business 4")
+        #expect(decision?.suggestedActions == [.local])
+    }
+
+    @Test
+    func notificationPolicyTriggersWhenOutWhenRemoteActiveAccountBecomesOutAndAlternativeWasAlreadyAvailable() {
+        let service = AccountAvailabilityService()
+        let policy = AccountAvailabilityNotificationPolicy()
+        let now = Date()
+        let activeID = UUID()
+        let previousRemote = makeAccount(id: activeID, name: "Business 4", sessionUsedPercent: 70, weeklyUsedPercent: 20)
+        let blockedRemote = makeAccount(
+            id: activeID,
+            name: "Business 4",
+            sessionUsedPercent: 100,
+            sessionResetAt: now.addingTimeInterval(3 * 60 * 60),
+            weeklyUsedPercent: 20
+        )
+        let alreadyAvailableAlternative = makeAccount(name: "Business 2", sessionUsedPercent: 0, weeklyUsedPercent: 20)
+
+        let previous = [
+            service.snapshot(
+                for: previousRemote,
+                remoteTargets: [
+                    RemoteAccountTargetContext(
+                        hostDestination: "debian-vm",
+                        connectionState: .connected,
+                        verificationState: .verified,
+                        activeAccount: previousRemote,
+                        displayAccount: previousRemote
+                    )
+                ],
+                now: now
+            ),
+            service.snapshot(for: alreadyAvailableAlternative, now: now)
+        ]
+        let current = [
+            service.snapshot(
+                for: blockedRemote,
+                remoteTargets: [
+                    RemoteAccountTargetContext(
+                        hostDestination: "debian-vm",
+                        connectionState: .connected,
+                        verificationState: .verified,
+                        activeAccount: blockedRemote,
+                        displayAccount: blockedRemote
+                    )
+                ],
+                now: now
+            ),
+            service.snapshot(for: alreadyAvailableAlternative, now: now)
+        ]
+
+        let decision = policy.decision(
+            previousSnapshots: previous,
+            currentSnapshots: current,
+            activeAccounts: [
+                ActiveAccountAvailabilityContext(
+                    target: .remote(hostDestination: "debian-vm"),
+                    accountID: blockedRemote.id
+                )
+            ],
+            settings: AccountAvailabilityNotificationSettings(whenOutEnabled: true),
+            now: now
+        )
+
+        #expect(decision?.shouldNotify == true)
+        #expect(decision?.reason == .whenOut)
+        #expect(decision?.account.name == "Business 2")
+        #expect(decision?.suggestedActions == [.remote(hostDestination: "debian-vm")])
+    }
+
+    @Test
+    func notificationActionResolverSubstitutesCurrentBestAccount() {
+        let service = AccountAvailabilityService()
+        let resolver = AccountAvailabilityNotificationActionResolver()
+        let now = Date()
+        let staleBest = makeAccount(name: "Business 4", sessionUsedPercent: 95, weeklyUsedPercent: 20)
+        let betterCurrent = makeAccount(name: "Business 2", sessionUsedPercent: 0, weeklyUsedPercent: 20)
+
+        let resolution = resolver.resolve(
+            notifiedAccountID: staleBest.id,
+            requestedTarget: .local,
+            currentSnapshots: [
+                service.snapshot(for: staleBest, now: now),
+                service.snapshot(for: betterCurrent, now: now)
+            ],
+            activeAccounts: [ActiveAccountAvailabilityContext(target: .local, accountID: staleBest.id)],
+            settings: AccountAvailabilityNotificationSettings(whenOutEnabled: true),
+            now: now
+        )
+
+        #expect(resolution?.account.name == "Business 2")
+        #expect(resolution?.target == .local)
+        #expect(resolution?.substitutionMessage == "Business 4 is no longer the best option. Switching to Business 2 instead.")
+    }
+
+    @Test
+    func notificationActionResolverUsesPreferredRemoteHostWhenStillSuggested() {
+        let service = AccountAvailabilityService()
+        let resolver = AccountAvailabilityNotificationActionResolver()
+        let now = Date()
+        let outAccount = makeAccount(
+            name: "Business 4",
+            sessionUsedPercent: 100,
+            sessionResetAt: now.addingTimeInterval(1800),
+            weeklyUsedPercent: 20
+        )
+        let ready = makeAccount(name: "Business 2", sessionUsedPercent: 0, weeklyUsedPercent: 20)
+
+        let resolution = resolver.resolve(
+            notifiedAccountID: ready.id,
+            requestedTarget: .remote(preferredHostDestination: "debian-vm"),
+            currentSnapshots: [
+                service.snapshot(
+                    for: outAccount,
+                    remoteTargets: [
+                        RemoteAccountTargetContext(
+                            hostDestination: "debian-vm",
+                            connectionState: .connected,
+                            verificationState: .verified,
+                            activeAccount: outAccount,
+                            displayAccount: outAccount
+                        )
+                    ],
+                    now: now
+                ),
+                service.snapshot(for: ready, now: now)
+            ],
+            activeAccounts: [
+                ActiveAccountAvailabilityContext(
+                    target: .remote(hostDestination: "debian-vm"),
+                    accountID: outAccount.id
+                )
+            ],
+            settings: AccountAvailabilityNotificationSettings(whenOutEnabled: true),
+            now: now
+        )
+
+        #expect(resolution?.account.name == "Business 2")
+        #expect(resolution?.target == .remote(hostDestination: "debian-vm"))
+    }
+
+    @Test
+    func notificationActionResolverReturnsNilWhenNoValidAccountRemains() {
+        let service = AccountAvailabilityService()
+        let resolver = AccountAvailabilityNotificationActionResolver()
+        let now = Date()
+        let blocked = makeAccount(
+            name: "Business 4",
+            sessionUsedPercent: 100,
+            sessionResetAt: now.addingTimeInterval(1800),
+            weeklyUsedPercent: 20
+        )
+
+        let resolution = resolver.resolve(
+            notifiedAccountID: blocked.id,
+            requestedTarget: .bestOption,
+            currentSnapshots: [service.snapshot(for: blocked, now: now)],
+            activeAccounts: [],
+            settings: AccountAvailabilityNotificationSettings(whenBlockedEnabled: true),
+            now: now
+        )
+
+        #expect(resolution == nil)
+    }
+
+    @MainActor
+    @Test
+    func notificationStateStoreSuppressesDisabledReasons() {
+        let store = NotificationStateStore(settings: makeNotificationSettings())
+        let accountID = UUID()
+
+        #expect(
+            !store.shouldDeliverNotification(
+                for: accountID,
+                reason: .whenBlocked,
+                window: .init(sessionResetAt: .distantFuture, weeklyResetAt: .distantFuture)
+            )
+        )
+    }
+
+    @MainActor
+    @Test
+    func notificationStateStoreDoesNotRepeatUntilAccountIsActivated() {
+        let store = NotificationStateStore(settings: makeNotificationSettings())
+        let accountID = UUID()
+        let firstWindow = AccountAvailabilityNotificationWindow(
+            sessionResetAt: Date().addingTimeInterval(1800),
+            weeklyResetAt: Date().addingTimeInterval(86_400)
+        )
+        let laterWindow = AccountAvailabilityNotificationWindow(
+            sessionResetAt: Date().addingTimeInterval(5400),
+            weeklyResetAt: Date().addingTimeInterval(172_800)
+        )
+
+        store.whenBlockedEnabled = true
+
+        #expect(store.shouldDeliverNotification(for: accountID, reason: .whenBlocked, window: firstWindow))
+
+        store.recordNotification(for: accountID, reason: .whenBlocked, window: firstWindow)
+
+        #expect(!store.shouldDeliverNotification(for: accountID, reason: .whenBlocked, window: firstWindow))
+        #expect(!store.shouldDeliverNotification(for: accountID, reason: .whenBlocked, window: laterWindow))
+
+        store.markAccountActivated(accountID)
+
+        #expect(store.shouldDeliverNotification(for: accountID, reason: .whenBlocked, window: laterWindow))
+    }
+
+    @MainActor
+    @Test
+    func notificationStateStorePersistsRecordedWindowAndReason() throws {
+        let settings = makeNotificationSettings()
+        let store = NotificationStateStore(settings: settings)
+        let accountID = UUID()
+        let now = Date()
+        let window = AccountAvailabilityNotificationWindow(
+            sessionResetAt: now.addingTimeInterval(1200),
+            weeklyResetAt: now.addingTimeInterval(86_400)
+        )
+
+        store.whenOutEnabled = true
+        store.recordNotification(
+            for: accountID,
+            reason: .whenOut,
+            window: window,
+            notifiedAt: now
+        )
+
+        let persisted = try #require(settings.accountNotificationState(for: accountID))
+        #expect(!persisted.isArmed)
+        #expect(persisted.lastNotification?.reason == .whenOut)
+        #expect(persisted.lastNotification?.window == PersistedAccountNotificationWindow(
+            sessionResetAt: window.sessionResetAt,
+            weeklyResetAt: window.weeklyResetAt
+        ))
+    }
+
+    @Test
     func prefersWeeklyHeadroomBeforeSessionReadiness() {
         let ranking = InactiveAccountAvailabilityRanking()
         let weeklyHealthy = makeAccount(
@@ -365,13 +919,13 @@ struct InactiveAccountAvailabilityRankingTests {
     }
 
     private func makeAccount(
+        id: UUID = UUID(),
         name: String,
         sessionUsedPercent: Int,
         sessionResetAt: Date? = nil,
         weeklyUsedPercent: Int,
         weeklyResetAt: Date? = nil
     ) -> CodexAccount {
-        let id = UUID()
         let now = Date()
         return CodexAccount(
             id: id,
@@ -402,6 +956,14 @@ struct InactiveAccountAvailabilityRankingTests {
                 remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "\(name.lowercased())@example.com")
             )
         )
+    }
+
+    @MainActor
+    private func makeNotificationSettings() -> AppSettings {
+        let suiteName = "NotificationStateStoreTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        return AppSettings(userDefaults: defaults)
     }
 }
 

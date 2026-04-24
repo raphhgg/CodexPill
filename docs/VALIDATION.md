@@ -262,3 +262,51 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `owner_layer`: `integration`
 - `proofs_required`: `["integration", "live_ui"]`
 - `scenarios`: `["remote_auth_read_failure", "explicit_host_switch_verification_failure"]`
+
+### `notifications.policy.selects_single_best_account`
+
+- `feature`: `notifications`
+- `rule`: Notification policy is account-centric, selects one best saved account using the shared availability ranking logic, ignores barely usable candidates below the shared headroom threshold, may defer delivery for up to 20 minutes when a meaningfully better account becomes available soon, and still surfaces the best already-usable fallback when the current account becomes out of capacity.
+- `owner_layer`: `unit`
+- `proofs_required`: `["unit"]`
+- `scenarios`: `["blocked_to_unblocked", "weak_candidate_suppressed", "better_candidate_within_wait_window"]`
+
+### `notifications.policy.when_out_uses_local_and_verified_remote_activity`
+
+- `feature`: `notifications`
+- `rule`: The "Current Runs Out" notification mode evaluates both the current local active account and the current verified remote active account, and it proposes another saved account only when the active target is out of capacity and another saved account is notification-worthy.
+- `owner_layer`: `unit`
+- `proofs_required`: `["unit"]`
+- `scenarios`: `["local_active_out", "verified_remote_active_out", "low_but_not_out_suppressed", "active_account_newly_out_with_existing_fallback"]`
+
+### `notifications.state.suppresses_repeat_delivery_until_activation`
+
+- `feature`: `notifications`
+- `rule`: Once CodexPill records a notification for a saved account, that account stays suppressed for future notification delivery until the app observes that account become active locally or on a verified remote host.
+- `owner_layer`: `integration`
+- `proofs_required`: `["integration"]`
+- `scenarios`: `["ignored_notification", "activation_rearms_account"]`
+
+### `notifications.state.settings_and_records_persist`
+
+- `feature`: `notifications`
+- `rule`: Notification mode toggles and per-account dedupe state persist across launches through `AppSettings`, so ignored notifications do not repeat after restart and activation re-arm state survives process restarts.
+- `owner_layer`: `integration`
+- `proofs_required`: `["integration"]`
+- `scenarios`: `["settings_round_trip", "notification_state_round_trip"]`
+
+### `notifications.delivery.requests_permission_on_first_enable_only`
+
+- `feature`: `notifications`
+- `rule`: CodexPill asks macOS for notification permission only when the user enables the first notification mode, and enabling the second mode later does not trigger a second permission request.
+- `owner_layer`: `integration`
+- `proofs_required`: `["integration"]`
+- `scenarios`: `["first_toggle_enable", "second_toggle_enable_after_first"]`
+
+### `notifications.delivery.renders_policy_output_without_recomputing_selection`
+
+- `feature`: `notifications`
+- `rule`: The platform notification bridge renders the chosen account and action suggestions produced by notification policy, and for the "Current Runs Out" mode it explains which account is out, on which target, and which fallback account is ready, without recomputing best-account selection or target ranking on its own.
+- `owner_layer`: `integration`
+- `proofs_required`: `["integration"]`
+- `scenarios`: `["direct_target_actions", "best_option_fallback"]`

@@ -114,4 +114,19 @@ struct MenuBarAlertFactoryTests {
         #expect(request.confirmTitle == "Install and Switch")
         #expect(request.cancelTitle == "Later")
     }
+
+    @Test
+    func notificationActionRequestExplainsSubstitutionWhenPresent() {
+        let request = factory.makeNotificationActionRequest(
+            accountName: "Business 2",
+            targetDescription: "debian-vm",
+            substitutionMessage: "Business 4 is no longer the best option. Switching to Business 2 instead.",
+            runningCLISessions: nil
+        )
+
+        #expect(request.messageText == "Use Business 2 now?")
+        #expect(request.informativeText.contains("Business 4 is no longer the best option. Switching to Business 2 instead."))
+        #expect(request.informativeText.contains("CodexPill will switch debian-vm to Business 2."))
+        #expect(request.confirmTitle == "Switch")
+    }
 }

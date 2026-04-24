@@ -47,6 +47,48 @@ final class TestMenuBarAlertPresenter: MenuBarAlertPresenting {
 @MainActor
 struct MenuBarMenuBuilderTests {
     @Test
+    func appIconProviderPrefersBundledPngResource() throws {
+        let temporaryDirectory = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: temporaryDirectory,
+            withIntermediateDirectories: true
+        )
+        defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
+
+        let bundleDirectory = temporaryDirectory.appendingPathComponent("IconFixture.bundle", isDirectory: true)
+        try FileManager.default.createDirectory(at: bundleDirectory, withIntermediateDirectories: true)
+        try """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>CFBundleIdentifier</key>
+            <string>com.raphhgg.codexpill.tests.iconfixture</string>
+            <key>CFBundlePackageType</key>
+            <string>BNDL</string>
+        </dict>
+        </plist>
+        """.write(to: bundleDirectory.appendingPathComponent("Info.plist"), atomically: true, encoding: .utf8)
+
+        let image = NSImage(size: NSSize(width: 12, height: 12))
+        image.lockFocus()
+        NSColor.systemBlue.setFill()
+        NSRect(x: 0, y: 0, width: 12, height: 12).fill()
+        image.unlockFocus()
+        let representation = try #require(image.tiffRepresentation.flatMap(NSBitmapImageRep.init(data:)))
+        let data = try #require(representation.representation(using: .png, properties: [:]))
+        try data.write(to: bundleDirectory.appendingPathComponent("AppIcon.png"))
+
+        let bundle = try #require(Bundle(url: bundleDirectory))
+
+        let icon = try #require(NSImage.codexPillAppIcon(bundle: bundle))
+
+        #expect(icon.size.width > 0)
+        #expect(icon.size.height > 0)
+    }
+
+    @Test
     func realAlertPresenterSuppressesInfoAlertsDuringAutomatedTests() {
         let presenter = MenuBarAlertPresenter(
             environment: [AppRuntimeEnvironment.xctestConfigurationFilePathEnvironmentKey: "/tmp/test.xctestconfiguration"]
@@ -195,6 +237,30 @@ struct MenuBarMenuBuilderTests {
         #expect(addAccount.submenu == nil)
         #expect(addAccount.isEnabled)
         #expect(addAccount.action == #selector(MenuBarCoordinator.addAccount))
+    }
+
+    @Test
+    func notificationsSubmenuReflectsPersistedToggleState() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let menu = builder.makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                notificationsWhenBlockedEnabled: true,
+                notificationsWhenOutEnabled: false
+            ),
+            target: coordinator
+        )
+
+        let notifications = try #require(menu.items.first(where: { $0.title == "Notifications" }))
+        let submenu = try #require(notifications.submenu)
+        let whenBlocked = try #require(submenu.items.first(where: { $0.title == "Account Available" }))
+        let whenOut = try #require(submenu.items.first(where: { $0.title == "Current Runs Out" }))
+
+        #expect(whenBlocked.state == .on)
+        #expect(whenBlocked.action == #selector(MenuBarCoordinator.toggleNotificationsWhenBlocked(_:)))
+        #expect(whenOut.state == .off)
+        #expect(whenOut.action == #selector(MenuBarCoordinator.toggleNotificationsWhenOut(_:)))
     }
 
     @Test
@@ -1109,7 +1175,9 @@ struct MenuBarMenuBuilderTests {
         inactiveAccounts: [CodexAccount] = [],
         remoteHosts: [RemoteHostMenuState] = [],
         progressAccentColor: NSColor = .controlAccentColor,
-        hasCustomProgressAccentColor: Bool = false
+        hasCustomProgressAccentColor: Bool = false,
+        notificationsWhenBlockedEnabled: Bool = false,
+        notificationsWhenOutEnabled: Bool = false
     ) -> MenuBarMenuState {
         MenuBarMenuState(
             activeAccount: activeAccount,
@@ -1125,7 +1193,9 @@ struct MenuBarMenuBuilderTests {
             progressAccentColor: progressAccentColor,
             hasCustomProgressAccentColor: hasCustomProgressAccentColor,
             isBusy: false,
-            statusMessage: "Ready"
+            statusMessage: "Ready",
+            notificationsWhenBlockedEnabled: notificationsWhenBlockedEnabled,
+            notificationsWhenOutEnabled: notificationsWhenOutEnabled
         )
     }
 

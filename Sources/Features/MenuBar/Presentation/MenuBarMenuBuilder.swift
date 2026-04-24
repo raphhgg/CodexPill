@@ -70,6 +70,7 @@ struct MenuBarMenuBuilder {
         menu.addItem(.separator())
         menu.addItem(addAccountMenuItem(state: state, target: target))
         menu.addItem(hostsMenuItem(state: state, target: target))
+        menu.addItem(notificationsMenuItem(state: state, target: target))
         menu.addItem(refreshIntervalMenuItem(state: state, target: target))
         menu.addItem(statusBarMenuItem(state: state, target: target))
         menu.addItem(actionItem(title: "About", systemImage: "info.circle", action: #selector(MenuBarCoordinator.showAbout), state: state, target: target))
@@ -287,6 +288,34 @@ struct MenuBarMenuBuilder {
                 submenu.addItem(configuredHostMenuItem(remoteHost, state: state, target: target))
             }
         }
+
+        item.submenu = submenu
+        return item
+    }
+
+    private func notificationsMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Notifications", action: nil, keyEquivalent: "")
+        item.image = NSImage(systemSymbolName: "bell", accessibilityDescription: "Notifications")
+
+        let submenu = configuredMenu(title: "Notifications")
+
+        let whenBlocked = NSMenuItem(
+            title: "Account Available",
+            action: #selector(MenuBarCoordinator.toggleNotificationsWhenBlocked(_:)),
+            keyEquivalent: ""
+        )
+        whenBlocked.target = target
+        whenBlocked.state = state.notificationsWhenBlockedEnabled ? .on : .off
+        submenu.addItem(whenBlocked)
+
+        let whenOut = NSMenuItem(
+            title: "Current Runs Out",
+            action: #selector(MenuBarCoordinator.toggleNotificationsWhenOut(_:)),
+            keyEquivalent: ""
+        )
+        whenOut.target = target
+        whenOut.state = state.notificationsWhenOutEnabled ? .on : .off
+        submenu.addItem(whenOut)
 
         item.submenu = submenu
         return item

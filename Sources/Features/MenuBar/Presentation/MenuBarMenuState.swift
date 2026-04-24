@@ -97,6 +97,8 @@ struct MenuBarMenuState {
     let hasCustomProgressAccentColor: Bool
     let isBusy: Bool
     let statusMessage: String
+    let notificationsWhenBlockedEnabled: Bool
+    let notificationsWhenOutEnabled: Bool
 
     init(
         activeAccount: CodexAccount?,
@@ -112,7 +114,9 @@ struct MenuBarMenuState {
         progressAccentColor: NSColor = StatusBarProgressColorDefaults.accent,
         hasCustomProgressAccentColor: Bool = false,
         isBusy: Bool,
-        statusMessage: String
+        statusMessage: String,
+        notificationsWhenBlockedEnabled: Bool = false,
+        notificationsWhenOutEnabled: Bool = false
     ) {
         self.activeAccount = activeAccount
         self.inactiveAccounts = inactiveAccounts
@@ -128,6 +132,8 @@ struct MenuBarMenuState {
         self.hasCustomProgressAccentColor = hasCustomProgressAccentColor
         self.isBusy = isBusy
         self.statusMessage = statusMessage
+        self.notificationsWhenBlockedEnabled = notificationsWhenBlockedEnabled
+        self.notificationsWhenOutEnabled = notificationsWhenOutEnabled
     }
 
     var canSaveCurrentAccount: Bool {
@@ -232,6 +238,24 @@ struct MenuBarMenuState {
     var hasStatusItemContentData: Bool {
         guard let activeAccount else { return false }
         return activeAccount.rateLimits?.primary != nil || activeAccount.rateLimits?.secondary != nil
+    }
+
+    var availabilitySnapshots: [AccountAvailabilitySnapshot] {
+        allSavedAccounts.map { account in
+            availabilityService.snapshot(
+                for: effectiveDisplayAccount(for: account),
+                remoteTargets: resolvedRemoteHosts.compactMap { remoteHost in
+                    guard remoteHost.displayAccount?.id == account.id else { return nil }
+                    return RemoteAccountTargetContext(
+                        hostDestination: remoteHost.destination,
+                        connectionState: remoteConnectionState(for: remoteHost.connectionState),
+                        verificationState: remoteVerificationState(for: remoteHost.verificationStatus),
+                        activeAccount: remoteHost.activeAccount,
+                        displayAccount: remoteHost.displayAccount
+                    )
+                }
+            )
+        }
     }
 
     var effectiveStatusBarDisplayMode: StatusBarDisplayMode {

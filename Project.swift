@@ -14,10 +14,15 @@ let project = Project(
                 with: [
                     "LSUIElement": true,
                     "CFBundleDisplayName": "CodexPill",
+                    "CFBundleIconFile": "AppIcon",
+                    "CFBundleIconName": "AppIcon",
                 ]
             ),
             sources: ["Sources/**"],
-            resources: ["Resources/**"]
+            resources: ["Resources/**"],
+            settings: .settings(base: [
+                "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon",
+            ])
         ),
         .target(
             name: "CodexPillTests",

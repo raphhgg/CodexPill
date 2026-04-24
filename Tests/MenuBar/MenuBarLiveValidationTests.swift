@@ -1,11 +1,306 @@
 import AppKit
 import Foundation
 import Testing
+import UserNotifications
 
 @testable import CodexPill
 
 @MainActor
 struct MenuBarLiveValidationTests {
+    @Test
+    func notificationResponseSubstitutesBetterRemoteAccountAndExplainsIt() async throws {
+        let repository = try makeIsolatedRepository()
+        let now = Date()
+        let notifiedAccount = CodexAccount(
+            id: UUID(),
+            name: "Business 4",
+            snapshotFileName: "business-4.json",
+            createdAt: now,
+            updatedAt: now,
+            email: "business-4@example.com",
+            planType: "team",
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: nil,
+                limitName: nil,
+                planType: "team",
+                primary: CodexRateLimitWindow(
+                    usedPercent: 95,
+                    resetsAt: now.addingTimeInterval(60 * 60),
+                    windowDurationMinutes: 300
+                ),
+                secondary: CodexRateLimitWindow(
+                    usedPercent: 20,
+                    resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60),
+                    windowDurationMinutes: 10_080
+                ),
+                fetchedAt: now
+            ),
+            identity: .empty
+        )
+        let betterAccount = CodexAccount(
+            id: UUID(),
+            name: "Business 2",
+            snapshotFileName: "business-2.json",
+            createdAt: now,
+            updatedAt: now,
+            email: "business-2@example.com",
+            planType: "team",
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: nil,
+                limitName: nil,
+                planType: "team",
+                primary: CodexRateLimitWindow(
+                    usedPercent: 0,
+                    resetsAt: now.addingTimeInterval(3 * 60 * 60),
+                    windowDurationMinutes: 300
+                ),
+                secondary: CodexRateLimitWindow(
+                    usedPercent: 20,
+                    resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60),
+                    windowDurationMinutes: 10_080
+                ),
+                fetchedAt: now
+            ),
+            identity: .empty
+        )
+        try repository.bootstrapStorage()
+        try repository.saveAccounts([notifiedAccount, betterAccount])
+
+        let store = MenuBarAccountsStore(
+            repository: repository,
+            authService: CodexAuthSnapshotService(repository: repository),
+            appController: CodexAppController(),
+            appServerClient: CodexAppServerClient(),
+            remoteHostClient: ValidationRemoteHostClient(
+                seedStates: [
+                    PersistedRemoteHostState(
+                        host: RemoteHost(destination: "user@debian-vm", displayName: "debian-vm"),
+                        installedAccountIDs: [notifiedAccount.id],
+                        desiredAccountID: notifiedAccount.id,
+                        verifiedAccount: notifiedAccount
+                    )
+                ]
+            )
+        )
+        store.load()
+
+        let suiteName = "MenuBarLiveValidationNotificationSwitch-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = AppSettings(userDefaults: defaults)
+        settings.remoteHostStates = [
+            PersistedRemoteHostState(
+                host: RemoteHost(destination: "user@debian-vm", displayName: "debian-vm"),
+                installedAccountIDs: [notifiedAccount.id],
+                desiredAccountID: notifiedAccount.id,
+                verifiedAccount: notifiedAccount
+            )
+        ]
+        let alertPresenter = TestMenuBarAlertPresenter()
+        alertPresenter.confirmationResponse = true
+        let foregrounder = RecordingApplicationForegrounder()
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let coordinator = MenuBarCoordinator(
+            statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
+            store: store,
+            settings: settings,
+            remoteHostClient: ValidationRemoteHostClient(seedStates: settings.remoteHostStates),
+            alertPresenter: alertPresenter,
+            applicationForegrounder: foregrounder,
+            allowsEmptyStatePrompt: false
+        )
+
+        coordinator.start()
+        await coordinator.handleNotificationResponse(
+            actionIdentifier: "use_remote",
+            userInfo: [
+                "accountID": notifiedAccount.id.uuidString,
+                "remoteHostDestination": "user@debian-vm"
+            ]
+        )
+        try await Task.sleep(for: .milliseconds(120))
+
+        #expect(foregrounder.activateCallCount == 1)
+        let confirmation = try #require(alertPresenter.confirmationRequests.last)
+        #expect(confirmation.informativeText.contains("Business 4 is no longer the best option. Switching to Business 2 instead."))
+        #expect(settings.remoteHostState(for: "user@debian-vm")?.verifiedAccount?.id == betterAccount.id)
+    }
+
+    @Test
+    func notificationResponseFailureOpensAppAndShowsRealError() async throws {
+        let repository = try makeIsolatedRepository()
+        let now = Date()
+        let notifiedAccount = CodexAccount(
+            id: UUID(),
+            name: "Business 4",
+            snapshotFileName: "business-4.json",
+            createdAt: now,
+            updatedAt: now,
+            email: "business-4@example.com",
+            planType: "team",
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: nil,
+                limitName: nil,
+                planType: "team",
+                primary: CodexRateLimitWindow(
+                    usedPercent: 0,
+                    resetsAt: now.addingTimeInterval(3 * 60 * 60),
+                    windowDurationMinutes: 300
+                ),
+                secondary: CodexRateLimitWindow(
+                    usedPercent: 20,
+                    resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60),
+                    windowDurationMinutes: 10_080
+                ),
+                fetchedAt: now
+            ),
+            identity: .empty
+        )
+        try repository.bootstrapStorage()
+        try repository.saveAccounts([notifiedAccount])
+
+        let failingHostClient = RemoteHostClientStatusSpy(
+            readError: RemoteHostClientError.commandFailed("ssh failure")
+        )
+        let store = MenuBarAccountsStore(
+            repository: repository,
+            authService: CodexAuthSnapshotService(repository: repository),
+            appController: CodexAppController(),
+            appServerClient: CodexAppServerClient(),
+            remoteHostClient: failingHostClient
+        )
+        store.load()
+
+        let suiteName = "MenuBarLiveValidationNotificationFailure-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = AppSettings(userDefaults: defaults)
+        settings.remoteHostStates = [
+            PersistedRemoteHostState(
+                host: RemoteHost(destination: "user@debian-vm", displayName: "debian-vm"),
+                installedAccountIDs: [notifiedAccount.id],
+                desiredAccountID: notifiedAccount.id,
+                verifiedAccount: notifiedAccount
+            )
+        ]
+        let alertPresenter = TestMenuBarAlertPresenter()
+        alertPresenter.confirmationResponse = true
+        let foregrounder = RecordingApplicationForegrounder()
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let coordinator = MenuBarCoordinator(
+            statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
+            store: store,
+            settings: settings,
+            remoteHostClient: failingHostClient,
+            alertPresenter: alertPresenter,
+            applicationForegrounder: foregrounder,
+            allowsEmptyStatePrompt: false
+        )
+
+        coordinator.start()
+        await coordinator.handleNotificationResponse(
+            actionIdentifier: "use_remote",
+            userInfo: [
+                "accountID": notifiedAccount.id.uuidString,
+                "remoteHostDestination": "user@debian-vm"
+            ]
+        )
+        try await Task.sleep(for: .milliseconds(120))
+
+        #expect(foregrounder.activateCallCount == 1)
+        let infoRequest = try #require(alertPresenter.infoRequests.last)
+        #expect(infoRequest.informativeText == "ssh failure")
+    }
+
+    @Test
+    func localNotificationResponseShowsOnlyNotificationConfirmation() async throws {
+        let repository = try makeIsolatedRepository()
+        let now = Date()
+        let account = CodexAccount(
+            id: UUID(),
+            name: "Business 3",
+            snapshotFileName: "business-3.json",
+            createdAt: now,
+            updatedAt: now,
+            email: "business-3@example.com",
+            planType: "team",
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: nil,
+                limitName: nil,
+                planType: "team",
+                primary: CodexRateLimitWindow(
+                    usedPercent: 0,
+                    resetsAt: now.addingTimeInterval(3 * 60 * 60),
+                    windowDurationMinutes: 300
+                ),
+                secondary: CodexRateLimitWindow(
+                    usedPercent: 20,
+                    resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60),
+                    windowDurationMinutes: 10_080
+                ),
+                fetchedAt: now
+            ),
+            identity: .empty
+        )
+        try repository.bootstrapStorage()
+        try repository.writeSnapshot(data: Data("{}".utf8), for: account)
+        try repository.saveAccounts([account])
+
+        let store = MenuBarAccountsStore(
+            repository: repository,
+            authService: CodexAuthSnapshotService(repository: repository),
+            appController: CodexAppController(),
+            appServerClient: CodexAppServerClient()
+        )
+        store.load()
+
+        let suiteName = "MenuBarLiveValidationLocalNotificationSwitch-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = AppSettings(userDefaults: defaults)
+        settings.notificationsWhenBlockedEnabled = true
+        let alertPresenter = TestMenuBarAlertPresenter()
+        alertPresenter.confirmationResponse = true
+        let foregrounder = RecordingApplicationForegrounder()
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let coordinator = MenuBarCoordinator(
+            statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
+            store: store,
+            settings: settings,
+            alertPresenter: alertPresenter,
+            applicationForegrounder: foregrounder,
+            allowsEmptyStatePrompt: false
+        )
+
+        coordinator.start()
+        await coordinator.handleNotificationResponse(
+            actionIdentifier: "use_local",
+            userInfo: [
+                "accountID": account.id.uuidString
+            ]
+        )
+        try await Task.sleep(for: .milliseconds(120))
+
+        #expect(foregrounder.activateCallCount == 1)
+        #expect(alertPresenter.confirmationRequests.count == 1)
+        #expect(alertPresenter.confirmationRequests.last?.messageText == "Use Business 3 now?")
+    }
+
     @Test
     func snapshotShowsRemoteAccountsSectionForDesiredUnverifiedRemoteState() throws {
         let localAccount = CodexAccount(
@@ -153,6 +448,215 @@ struct MenuBarLiveValidationTests {
                 environment: [MenuBarValidationConfiguration.scenarioEnvironmentKey: "live-status-item-hover"]
             ) == "live-status-item-hover"
         )
+    }
+
+    @Test
+    func notificationCenterRequestsAuthorizationOnlyOnce() async {
+        let center = RecordingUserNotificationCenter()
+        let delivery = AccountAvailabilityNotificationCenter(center: center)
+
+        await delivery.requestAuthorizationIfNeeded()
+        await delivery.requestAuthorizationIfNeeded()
+
+        #expect(center.requestAuthorizationCallCount == 1)
+    }
+
+    @Test
+    func notificationCopyRendererExplainsWhenOutForRemoteTarget() {
+        let renderer = AccountAvailabilityNotificationCopyRenderer()
+        let drainingAccountID = UUID()
+        let fallbackAccountID = UUID()
+
+        let rendered = renderer.render(
+            decision: AccountAvailabilityNotificationDecision(
+                shouldNotify: true,
+                account: CodexAccount(
+                    id: fallbackAccountID,
+                    name: "Business 5",
+                    snapshotFileName: "business-5.json",
+                    createdAt: .distantPast,
+                    updatedAt: .distantPast,
+                    email: "business-5@example.com",
+                    planType: "team",
+                    rateLimits: nil,
+                    identity: .empty
+                ),
+                reason: .whenOut,
+                window: AccountAvailabilityNotificationWindow(sessionResetAt: nil, weeklyResetAt: nil),
+                waitUntil: nil,
+                suggestedActions: [.remote(hostDestination: "user@debian-vm")],
+                triggerContext: AccountAvailabilityNotificationTriggerContext(
+                    accountID: drainingAccountID,
+                    accountName: "Business 1",
+                    target: .remote(hostDestination: "user@debian-vm"),
+                    sessionRemainingPercent: 0,
+                    weeklyRemainingPercent: 42
+                )
+            ),
+            remoteHosts: [
+                RemoteHostMenuState(
+                    name: "debian-vm",
+                    destination: "user@debian-vm",
+                    connectionState: .connected,
+                    desiredAccount: nil,
+                    activeAccount: nil,
+                    detectedAccount: nil,
+                    verificationStatus: .verified
+                )
+            ]
+        )
+
+        #expect(rendered.title == "Business 1 is out on debian-vm")
+        #expect(rendered.body == "Session limit reached. Business 5 is ready.")
+    }
+
+    @Test
+    func notificationCopyRendererExplainsWhenOutForLocalTargetAndBothWindows() {
+        let renderer = AccountAvailabilityNotificationCopyRenderer()
+
+        let rendered = renderer.render(
+            decision: AccountAvailabilityNotificationDecision(
+                shouldNotify: true,
+                account: CodexAccount(
+                    id: UUID(),
+                    name: "Business 5",
+                    snapshotFileName: "business-5.json",
+                    createdAt: .distantPast,
+                    updatedAt: .distantPast,
+                    email: "business-5@example.com",
+                    planType: "team",
+                    rateLimits: nil,
+                    identity: .empty
+                ),
+                reason: .whenOut,
+                window: AccountAvailabilityNotificationWindow(sessionResetAt: nil, weeklyResetAt: nil),
+                waitUntil: nil,
+                suggestedActions: [.local],
+                triggerContext: AccountAvailabilityNotificationTriggerContext(
+                    accountID: UUID(),
+                    accountName: "Business 1",
+                    target: .local,
+                    sessionRemainingPercent: 0,
+                    weeklyRemainingPercent: 0
+                )
+            ),
+            remoteHosts: []
+        )
+
+        #expect(rendered.title == "Business 1 is out on This Mac")
+        #expect(rendered.body == "Session and weekly limits reached. Business 5 is ready.")
+    }
+
+    @Test
+    func notificationCenterDeliversDirectTargetActionsWhenWithinLimit() async throws {
+        let center = RecordingUserNotificationCenter()
+        let delivery = AccountAvailabilityNotificationCenter(center: center)
+        let payload = AccountAvailabilityNotificationPayload(
+            accountID: UUID(),
+            title: "CodexPill",
+            body: "Business 4 is available again",
+            actions: [
+                AccountAvailabilityNotificationAction(
+                    identifier: "use_local",
+                    title: "Use on This Mac",
+                    kind: .local
+                ),
+                AccountAvailabilityNotificationAction(
+                    identifier: "use_remote",
+                    title: "Use on debian-vm",
+                    kind: .remote(hostDestination: "user@debian-vm")
+                )
+            ]
+        )
+
+        let delivered = await delivery.deliver(payload)
+
+        #expect(delivered)
+        let request = try #require(center.addedRequests.first)
+        #expect(request.content.body == "Business 4 is available again")
+        #expect(request.content.categoryIdentifier.contains("use_local"))
+        #expect(request.content.categoryIdentifier.contains("use_remote"))
+        #expect(request.content.userInfo["accountID"] as? String == payload.accountID.uuidString)
+        #expect(request.content.userInfo["remoteHostDestination"] as? String == "user@debian-vm")
+        let category = try #require(center.notificationCategories.first)
+        #expect(category.actions.count == 2)
+        #expect(category.actions.map(\.title) == ["Use on This Mac", "Use on debian-vm"])
+    }
+
+    @Test
+    func notificationCenterFallsBackToBestOptionActionWhenDirectActionsExceedLimit() async throws {
+        let center = RecordingUserNotificationCenter()
+        let delivery = AccountAvailabilityNotificationCenter(center: center)
+        let payload = AccountAvailabilityNotificationPayload(
+            accountID: UUID(),
+            title: "CodexPill",
+            body: "Business 4 is available again",
+            actions: [
+                AccountAvailabilityNotificationAction(
+                    identifier: "use_local",
+                    title: "Use on This Mac",
+                    kind: .local
+                ),
+                AccountAvailabilityNotificationAction(
+                    identifier: "use_remote",
+                    title: "Use on debian-vm",
+                    kind: .remote(hostDestination: "user@debian-vm")
+                ),
+                AccountAvailabilityNotificationAction(
+                    identifier: "use_remote_2",
+                    title: "Use on buildbox",
+                    kind: .remote(hostDestination: "user@buildbox")
+                )
+            ]
+        )
+
+        let delivered = await delivery.deliver(payload)
+
+        #expect(delivered)
+        let category = try #require(center.notificationCategories.first)
+        #expect(category.actions.count == 1)
+        #expect(category.actions.first?.identifier == "use_best_option")
+        #expect(category.actions.first?.title == "Use Best Option")
+    }
+
+    @Test
+    func enablingFirstNotificationToggleRequestsPermission() async throws {
+        let repository = try makeIsolatedRepository()
+        let store = MenuBarAccountsStore(
+            repository: repository,
+            authService: CodexAuthSnapshotService(repository: repository),
+            appController: CodexAppController(),
+            appServerClient: CodexAppServerClient()
+        )
+        let suiteName = "MenuBarLiveValidationNotificationPermission-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = AppSettings(userDefaults: defaults)
+        let center = RecordingUserNotificationCenter()
+        let delivery = AccountAvailabilityNotificationCenter(center: center)
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let coordinator = MenuBarCoordinator(
+            statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
+            store: store,
+            settings: settings,
+            alertPresenter: TestMenuBarAlertPresenter(),
+            notificationDelivery: delivery,
+            allowsEmptyStatePrompt: false
+        )
+
+        coordinator.toggleNotificationsWhenBlocked(NSMenuItem())
+        try await Task.sleep(for: .milliseconds(25))
+        coordinator.toggleNotificationsWhenOut(NSMenuItem())
+        try await Task.sleep(for: .milliseconds(25))
+
+        #expect(center.requestAuthorizationCallCount == 1)
+        #expect(settings.notificationsWhenBlockedEnabled)
+        #expect(settings.notificationsWhenOutEnabled)
     }
 
     @Test
@@ -1047,6 +1551,93 @@ struct MenuBarLiveValidationTests {
     }
 
     @Test
+    func switchAccountOnHostRearmsNotificationStateForActivatedRemoteAccount() async throws {
+        let sink = RecordingValidationSink()
+        let repository = try makeIsolatedRepository()
+        try repository.bootstrapStorage()
+        let account = CodexAccount(
+            id: UUID(),
+            name: "Business 5",
+            snapshotFileName: "business-5.json",
+            createdAt: .distantPast,
+            updatedAt: .distantPast,
+            email: "business-5@example.com",
+            planType: "team",
+            rateLimits: nil,
+            identity: CodexAccountIdentity(
+                snapshotFingerprint: "business-5",
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "business-5@example.com")
+            )
+        )
+        try repository.saveAccounts([account])
+
+        let suiteName = "MenuBarLiveValidationNotificationRearm-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = AppSettings(userDefaults: defaults)
+        settings.remoteHostStates = [
+            PersistedRemoteHostState(host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"))
+        ]
+        settings.notificationsWhenBlockedEnabled = true
+        settings.updateAccountNotificationState(for: account.id) { state in
+            state.isArmed = false
+            state.lastNotification = PersistedAccountNotificationRecord(
+                reason: .whenBlocked,
+                window: PersistedAccountNotificationWindow(
+                    sessionResetAt: Date().addingTimeInterval(1800),
+                    weeklyResetAt: Date().addingTimeInterval(86_400)
+                ),
+                notifiedAt: .now
+            )
+        }
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let remoteHostClient = RemoteHostClientStatusSpy(
+            status: CodexAccountStatus(
+                email: account.email,
+                planType: account.planType,
+                rateLimits: account.rateLimits
+            )
+        )
+        let store = MenuBarAccountsStore(
+            repository: repository,
+            authService: CodexAuthSnapshotService(repository: repository),
+            appController: CodexAppController(),
+            appServerClient: CodexAppServerClient(),
+            remoteHostClient: remoteHostClient
+        )
+        store.load()
+
+        let coordinator = MenuBarCoordinator(
+            statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
+            store: store,
+            settings: settings,
+            remoteHostClient: remoteHostClient,
+            alertPresenter: TestMenuBarAlertPresenter(),
+            validationSink: sink,
+            validationScenario: "live-menu-open",
+            allowsEmptyStatePrompt: false
+        )
+
+        coordinator.start()
+        let item = NSMenuItem(title: "Switch on buildbox", action: nil, keyEquivalent: "")
+        item.representedObject = HostAccountMenuItemPayload(
+            accountID: account.id,
+            hostDestination: "user@buildbox"
+        )
+        coordinator.switchAccountOnHost(item)
+        try? await Task.sleep(for: .milliseconds(50))
+
+        let persisted = try #require(settings.accountNotificationState(for: account.id))
+        #expect(persisted.isArmed)
+        #expect(persisted.lastNotification == nil)
+    }
+
+    @Test
     func coordinatorPreservesMeaningfulSavedLimitsWhenRemoteRefreshReturnsZeroedWindows() async throws {
         let sink = RecordingValidationSink()
         let repository = try makeIsolatedRepository()
@@ -1621,6 +2212,33 @@ private final class RecordingValidationSink: @unchecked Sendable, MenuBarValidat
 
     func record(_ event: MenuBarValidationEvent) throws {
         events.append(event)
+    }
+}
+
+private final class RecordingUserNotificationCenter: @unchecked Sendable, UserNotificationCentering {
+    private(set) var requestAuthorizationCallCount = 0
+    private(set) var addedRequests: [UNNotificationRequest] = []
+    private(set) var notificationCategories: Set<UNNotificationCategory> = []
+
+    func requestAuthorization(options _: UNAuthorizationOptions) async throws -> Bool {
+        requestAuthorizationCallCount += 1
+        return true
+    }
+
+    func add(_ request: UNNotificationRequest) async throws {
+        addedRequests.append(request)
+    }
+
+    func setNotificationCategories(_ categories: Set<UNNotificationCategory>) {
+        notificationCategories = categories
+    }
+}
+
+private final class RecordingApplicationForegrounder: ApplicationForegrounding {
+    private(set) var activateCallCount = 0
+
+    func activate() {
+        activateCallCount += 1
     }
 }
 

@@ -299,6 +299,57 @@ struct AppSettingsTests {
         ])
     }
 
+    @Test
+    func notificationSettingsPersistAcrossInstances() {
+        let defaults = makeDefaults()
+
+        let first = AppSettings(userDefaults: defaults)
+        first.notificationsWhenBlockedEnabled = true
+        first.notificationsWhenOutEnabled = true
+
+        let second = AppSettings(userDefaults: defaults)
+
+        #expect(second.notificationsWhenBlockedEnabled)
+        #expect(second.notificationsWhenOutEnabled)
+    }
+
+    @Test
+    func notificationSettingsMigrateLegacyBeforeYouRunOutToggle() {
+        let defaults = makeDefaults()
+        defaults.set(true, forKey: "notificationsBeforeYouRunOutEnabled")
+
+        let settings = AppSettings(userDefaults: defaults)
+
+        #expect(settings.notificationsWhenOutEnabled)
+    }
+
+    @Test
+    func accountNotificationStatesPersistAcrossInstances() throws {
+        let defaults = makeDefaults()
+        let accountID = UUID()
+        let now = Date()
+
+        let first = AppSettings(userDefaults: defaults)
+        first.updateAccountNotificationState(for: accountID) { state in
+            state.isArmed = false
+            state.lastNotification = PersistedAccountNotificationRecord(
+                reason: .whenBlocked,
+                window: PersistedAccountNotificationWindow(
+                    sessionResetAt: now.addingTimeInterval(1800),
+                    weeklyResetAt: now.addingTimeInterval(86_400)
+                ),
+                notifiedAt: now
+            )
+        }
+
+        let second = AppSettings(userDefaults: defaults)
+        let persisted = try #require(second.accountNotificationState(for: accountID))
+
+        #expect(!persisted.isArmed)
+        #expect(persisted.lastNotification?.reason == .whenBlocked)
+        #expect(persisted.lastNotification?.notifiedAt == now)
+    }
+
     private func makeDefaults() -> UserDefaults {
         let suiteName = "AppSettingsTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!

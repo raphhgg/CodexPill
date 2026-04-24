@@ -120,6 +120,61 @@ struct PersistedRemoteHostState: Codable, Equatable, Identifiable {
     }
 }
 
+enum PersistedAccountNotificationReason: String, Codable, Equatable {
+    case whenBlocked
+    case whenOut
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let rawValue = try container.decode(String.self)
+        switch rawValue {
+        case "whenBlocked":
+            self = .whenBlocked
+        case "whenOut", "beforeYouRunOut":
+            self = .whenOut
+        default:
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unknown persisted notification reason: \(rawValue)"
+            )
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
+}
+
+struct PersistedAccountNotificationWindow: Codable, Equatable {
+    var sessionResetAt: Date?
+    var weeklyResetAt: Date?
+}
+
+struct PersistedAccountNotificationRecord: Codable, Equatable {
+    var reason: PersistedAccountNotificationReason
+    var window: PersistedAccountNotificationWindow
+    var notifiedAt: Date
+}
+
+struct PersistedAccountNotificationState: Codable, Equatable, Identifiable {
+    var accountID: UUID
+    var isArmed: Bool
+    var lastNotification: PersistedAccountNotificationRecord?
+
+    var id: UUID { accountID }
+
+    init(
+        accountID: UUID,
+        isArmed: Bool = true,
+        lastNotification: PersistedAccountNotificationRecord? = nil
+    ) {
+        self.accountID = accountID
+        self.isArmed = isArmed
+        self.lastNotification = lastNotification
+    }
+}
+
 @MainActor
 @Observable
 final class AppSettings {
@@ -169,6 +224,24 @@ final class AppSettings {
     var remoteHostStates: [PersistedRemoteHostState] {
         didSet {
             persistCodable(remoteHostStates, key: Self.remoteHostsKey)
+        }
+    }
+
+    var notificationsWhenBlockedEnabled: Bool {
+        didSet {
+            userDefaults.set(notificationsWhenBlockedEnabled, forKey: Self.notificationsWhenBlockedEnabledKey)
+        }
+    }
+
+    var notificationsWhenOutEnabled: Bool {
+        didSet {
+            userDefaults.set(notificationsWhenOutEnabled, forKey: Self.notificationsWhenOutEnabledKey)
+        }
+    }
+
+    var accountNotificationStates: [PersistedAccountNotificationState] {
+        didSet {
+            persistCodable(accountNotificationStates, key: Self.accountNotificationStatesKey)
         }
     }
 
@@ -234,6 +307,10 @@ final class AppSettings {
     private static let remoteHostKey = "remoteHost"
     private static let remoteHostInstalledAccountIDsKey = "remoteHostInstalledAccountIDs"
     private static let remoteHostActiveAccountKey = "remoteHostActiveAccount"
+    private static let notificationsWhenBlockedEnabledKey = "notificationsWhenBlockedEnabled"
+    private static let notificationsWhenOutEnabledKey = "notificationsWhenOutEnabled"
+    private static let legacyNotificationsBeforeYouRunOutEnabledKey = "notificationsBeforeYouRunOutEnabled"
+    private static let accountNotificationStatesKey = "accountNotificationStates"
 
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
@@ -264,6 +341,10 @@ final class AppSettings {
             key: Self.progressAccentColorKey,
             defaultColor: StatusBarProgressColorDefaults.accent
         )
+        notificationsWhenBlockedEnabled = userDefaults.bool(forKey: Self.notificationsWhenBlockedEnabledKey)
+        notificationsWhenOutEnabled = userDefaults.object(forKey: Self.notificationsWhenOutEnabledKey) as? Bool
+            ?? userDefaults.bool(forKey: Self.legacyNotificationsBeforeYouRunOutEnabledKey)
+        accountNotificationStates = Self.loadCodable(from: userDefaults, key: Self.accountNotificationStatesKey) ?? []
         remoteHostStates = Self.loadCodable(from: userDefaults, key: Self.remoteHostsKey)
             ?? Self.loadLegacyRemoteHostStates(from: userDefaults)
     }
@@ -301,6 +382,27 @@ final class AppSettings {
         mutate(&state)
         remoteHostStates.append(state)
         remoteHostStates.sort { $0.host.displayName.localizedCaseInsensitiveCompare($1.host.displayName) == .orderedAscending }
+    }
+
+    func accountNotificationState(for accountID: UUID) -> PersistedAccountNotificationState? {
+        accountNotificationStates.first(where: { $0.accountID == accountID })
+    }
+
+    func updateAccountNotificationState(
+        for accountID: UUID,
+        mutate: (inout PersistedAccountNotificationState) -> Void
+    ) {
+        if let index = accountNotificationStates.firstIndex(where: { $0.accountID == accountID }) {
+            var updated = accountNotificationStates[index]
+            mutate(&updated)
+            accountNotificationStates[index] = updated
+            return
+        }
+
+        var state = PersistedAccountNotificationState(accountID: accountID)
+        mutate(&state)
+        accountNotificationStates.append(state)
+        accountNotificationStates.sort { $0.accountID.uuidString < $1.accountID.uuidString }
     }
 
     private func persistColor(_ color: NSColor, key: String) {

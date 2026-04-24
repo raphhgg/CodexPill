@@ -1,13 +1,16 @@
 import AppKit
+import UserNotifications
 
 @MainActor
-final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
+final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     private var coordinator: MenuBarCoordinator!
     private var settings: AppSettings!
     private var statusItemRuntime: StatusItemRuntime!
     private var wakeObserver: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        configureApplicationIcon()
+
         let environment = ProcessInfo.processInfo.environment
         let defaults = AppRuntimeEnvironment.validationUserDefaultsSuiteName(environment: environment)
             .flatMap(UserDefaults.init(suiteName:))
@@ -44,6 +47,8 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
             allowsEmptyStatePrompt: !AppRuntimeEnvironment.shouldSuppressEmptyStatePrompt()
         )
 
+        UNUserNotificationCenter.current().delegate = self
+
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didWakeNotification,
             object: nil,
@@ -69,5 +74,31 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
             NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver)
         }
         coordinator.invalidate()
+    }
+
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        [.banner, .sound]
+    }
+
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        await MainActor.run {
+            Task { @MainActor in
+                await self.coordinator.handleNotificationResponse(
+                    actionIdentifier: response.actionIdentifier,
+                    userInfo: response.notification.request.content.userInfo
+                )
+            }
+        }
+    }
+
+    private func configureApplicationIcon() {
+        NSApp.applicationIconImage = NSImage.codexPillAppIcon()
+            ?? NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)
     }
 }

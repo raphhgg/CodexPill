@@ -1,6 +1,36 @@
 import AppKit
 
 @MainActor
+protocol AppIconProviding {
+    func appIconImage() -> NSImage?
+}
+
+@MainActor
+struct BundleAppIconProvider: AppIconProviding {
+    func appIconImage() -> NSImage? {
+        if let resourceIcon = NSImage.codexPillAppIcon() {
+            return resourceIcon
+        }
+
+        if let applicationIcon = NSApp.applicationIconImage {
+            return applicationIcon
+        }
+
+        return NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)
+    }
+}
+
+extension NSImage {
+    static func codexPillAppIcon(bundle: Bundle = .main) -> NSImage? {
+        guard let iconURL = bundle.url(forResource: "AppIcon", withExtension: "png") else {
+            return nil
+        }
+
+        return NSImage(contentsOf: iconURL)
+    }
+}
+
+@MainActor
 protocol MenuBarAlertPresenting {
     func presentTextInput(_ request: MenuBarTextInputAlertRequest) -> String?
     func presentConfirmation(_ request: MenuBarConfirmationAlertRequest) -> Bool
@@ -54,9 +84,14 @@ struct MenuBarInfoAlertRequest {
 @MainActor
 final class MenuBarAlertPresenter {
     private let environment: [String: String]
+    private let appIconProvider: AppIconProviding
 
-    init(environment: [String: String] = ProcessInfo.processInfo.environment) {
+    init(
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        appIconProvider: AppIconProviding? = nil
+    ) {
         self.environment = environment
+        self.appIconProvider = appIconProvider ?? BundleAppIconProvider()
     }
 
     func presentTextInput(_ request: MenuBarTextInputAlertRequest) -> String? {
@@ -68,6 +103,7 @@ final class MenuBarAlertPresenter {
         field.placeholderString = request.placeholder
 
         let alert = NSAlert()
+        configure(alert: alert)
         alert.messageText = request.messageText
         alert.informativeText = request.informativeText
         alert.alertStyle = .informational
@@ -90,6 +126,7 @@ final class MenuBarAlertPresenter {
         }
 
         let alert = NSAlert()
+        configure(alert: alert)
         alert.messageText = request.messageText
         alert.informativeText = request.informativeText
         alert.alertStyle = .informational
@@ -104,6 +141,7 @@ final class MenuBarAlertPresenter {
         }
 
         let alert = NSAlert()
+        configure(alert: alert)
         alert.messageText = request.messageText
         alert.informativeText = request.informativeText
         alert.alertStyle = request.style
@@ -126,6 +164,7 @@ final class MenuBarAlertPresenter {
 
         let controller = HostSetupWindowController(
             request: request,
+            appIconProvider: appIconProvider,
             testConnection: testConnection,
             onPresented: onPresented,
             onCancelled: onCancelled,
@@ -175,6 +214,10 @@ final class MenuBarAlertPresenter {
         return container
     }
 
+    private func configure(alert: NSAlert) {
+        alert.icon = appIconProvider.appIconImage()
+    }
+
     private func configureAlertTextField(_ field: NSTextField) {
         field.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
@@ -198,6 +241,7 @@ private final class LiveValidationTextField: NSTextField {
 @MainActor
 private final class HostSetupWindowController: NSObject, NSTextFieldDelegate, NSWindowDelegate {
     private let request: MenuBarHostSetupAlertRequest
+    private let appIconProvider: AppIconProviding
     private let testConnection: (RemoteHost) async -> Result<Void, Error>
     private let onPresented: () -> Void
     private let onCancelled: () -> Void
@@ -286,6 +330,7 @@ private final class HostSetupWindowController: NSObject, NSTextFieldDelegate, NS
         panel.level = .modalPanel
         panel.standardWindowButton(.zoomButton)?.isHidden = true
         panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        panel.standardWindowButton(.documentIconButton)?.image = appIconProvider.appIconImage()
         panel.delegate = self
         panel.contentView = contentView()
         panel.initialFirstResponder = destinationField
@@ -294,6 +339,7 @@ private final class HostSetupWindowController: NSObject, NSTextFieldDelegate, NS
 
     init(
         request: MenuBarHostSetupAlertRequest,
+        appIconProvider: AppIconProviding,
         testConnection: @escaping (RemoteHost) async -> Result<Void, Error>,
         onPresented: @escaping () -> Void,
         onCancelled: @escaping () -> Void,
@@ -301,6 +347,7 @@ private final class HostSetupWindowController: NSObject, NSTextFieldDelegate, NS
         onValidationFinished: @escaping (RemoteHost, Result<Void, Error>) -> Void
     ) {
         self.request = request
+        self.appIconProvider = appIconProvider
         self.testConnection = testConnection
         self.onPresented = onPresented
         self.onCancelled = onCancelled

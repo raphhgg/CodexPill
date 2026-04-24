@@ -131,6 +131,36 @@ struct MenuBarAlertFactory {
         )
     }
 
+    func makeNotificationActionRequest(
+        accountName: String,
+        targetDescription: String,
+        substitutionMessage: String?,
+        runningCLISessions: Int?
+    ) -> MenuBarConfirmationAlertRequest {
+        var lines: [String] = []
+        if let substitutionMessage {
+            lines.append(substitutionMessage)
+            lines.append("")
+        }
+
+        lines.append("CodexPill will switch \(targetDescription) to \(accountName).")
+
+        if let runningCLISessions, runningCLISessions > 0 {
+            let sessionText = runningCLISessions == 1
+                ? "1 running Codex CLI session was"
+                : "\(runningCLISessions) running Codex CLI sessions were"
+            lines.append("")
+            lines.append("\(sessionText) detected. Restart any open Codex CLI terminals to use the new account.")
+        }
+
+        return MenuBarConfirmationAlertRequest(
+            messageText: "Use \(accountName) now?",
+            informativeText: lines.joined(separator: "\n"),
+            confirmTitle: "Switch",
+            cancelTitle: "Cancel"
+        )
+    }
+
     private func switchInformativeText(for accountName: String, runningCLISessions: Int) -> String {
         var lines = [
             "This will switch the local Codex account to \(accountName) and restart Codex."
