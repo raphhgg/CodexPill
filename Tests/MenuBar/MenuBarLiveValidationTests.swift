@@ -1099,6 +1099,15 @@ struct MenuBarLiveValidationTests {
             "evidence/events.jsonl",
         ])
         #expect(FileManager.default.fileExists(atPath: proofDirectory.appendingPathComponent("evidence/events.jsonl").path))
+        let expectations = manifest?["targetedExpectations"] as? [[String: Any]]
+        let invariants = expectations?.first?["invariants"] as? [[String: Any]]
+        let rule = invariants?.first?["rule"] as? [String: Any]
+        let ruleEvents = rule?["events"] as? [[String: Any]]
+        #expect(ruleEvents?.allSatisfy { event in
+            let payload = event["payload"] as? [String: Any]
+            return payload?["hostName"] as? String == "buildbox"
+                && payload?["targetName"] == nil
+        } == true)
 
         let eventsURL = proofDirectory.appendingPathComponent("evidence/events.jsonl")
         let events = try String(contentsOf: eventsURL, encoding: .utf8)

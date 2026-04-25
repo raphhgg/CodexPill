@@ -553,7 +553,6 @@ final class CodexPillSealValidationRun {
 
 private struct CodexPillSealScenario {
     private static let addHostValidationDestination = "codexpill-validation.invalid"
-    private static let remoteHostSwitchTargetName = "Validation Local"
     private static let remoteHostSwitchHostName = "buildbox"
 
     let featureID: FeatureID
@@ -685,15 +684,12 @@ private struct CodexPillSealScenario {
         .eventSequence([
             EventExpectation("menu_action_dispatched", payload: [
                 "action": .string("switchAccountOnHost"),
-                "targetName": .string(Self.remoteHostSwitchTargetName),
                 "hostName": .string(Self.remoteHostSwitchHostName)
             ]),
             EventExpectation("remote_host_switch_started", payload: [
-                "targetName": .string(Self.remoteHostSwitchTargetName),
                 "hostName": .string(Self.remoteHostSwitchHostName)
             ]),
             EventExpectation("remote_host_active_account_changed", payload: [
-                "targetName": .string(Self.remoteHostSwitchTargetName),
                 "hostName": .string(Self.remoteHostSwitchHostName)
             ]),
         ])
