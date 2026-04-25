@@ -5,6 +5,7 @@ Derived/
 build/
 Tuist/.build
 .codex/
+.harness/
 *.xcodeproj
 *.xcworkspace
 **/xcuserdata/
