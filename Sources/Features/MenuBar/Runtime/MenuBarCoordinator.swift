@@ -724,6 +724,11 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         }
 
         recordMenuAction("switchAccount", payload: ["targetName": account.name])
+        sealValidationRun?.recordSwitchAccountMenuAction(
+            targetAccount: account,
+            activeAccount: store.activeAccount,
+            savedAccounts: store.accounts
+        )
         lastSwitchTargetName = account.name
         requestSwitch(to: account)
     }
@@ -1212,6 +1217,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             step: "switch_confirmation",
             payload: ["targetName": account.name]
         )
+        sealValidationRun?.recordSwitchConfirmationPresented(targetAccount: account)
         let runningCLISessions = cliProcessInspector.runningCLISessionCount()
         let request = alertFactory.makeSwitchAccountRequest(accountName: account.name, runningCLISessions: runningCLISessions)
 
@@ -1223,6 +1229,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             payload: ["targetName": account.name]
         )
         guard accepted else { return }
+        sealValidationRun?.recordSwitchConfirmationAccepted(targetAccount: account)
         beginLocalSwitch(to: account)
     }
 
@@ -1235,6 +1242,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             invariantIds: Self.switchInvariantIDs,
             payload: ["targetName": account.name]
         )
+        sealValidationRun?.recordSwitchWorkflowStarted(targetAccount: account)
         Task { @MainActor [weak self] in
             guard let self else { return }
             await self.store.switchToAccount(account)
@@ -1402,6 +1410,12 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
                 "fromName": lastObservedActiveAccountName ?? "",
                 "toName": currentActiveAccountName ?? pendingSwitchValidationTargetName ?? ""
             ]
+        )
+        sealValidationRun?.recordActiveAccountChanged(
+            fromName: lastObservedActiveAccountName,
+            toName: currentActiveAccountName ?? pendingSwitchValidationTargetName ?? "",
+            activeAccount: store.activeAccount,
+            savedAccounts: store.accounts
         )
         pendingSwitchValidationTargetID = nil
         pendingSwitchValidationTargetName = nil
@@ -1823,7 +1837,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     private func triggerValidationScenarioIfNeeded() {
-        guard validationScenario == "live-save-current-prompt" else { return }
+        guard validationScenario == "live-save-current-account-name-dialog-cancelled"
+            || validationScenario == "live-save-current-prompt"
+        else { return }
         guard AppRuntimeEnvironment.shouldTriggerSaveCurrentPromptValidation() else { return }
 
         DispatchQueue.main.async { [weak self] in

@@ -39,7 +39,7 @@ case "${SCENARIO}" in
   live-add-account-name-dialog-cancelled|live-sign-in-another-prompt)
     INVARIANT_IDS_JSON='["accounts.add_account.name_dialog_presented","accounts.add_account.name_dialog_cancelled","accounts.add_account.cancel_keeps_account_state"]'
     ;;
-  live-save-current-prompt)
+  live-save-current-account-name-dialog-cancelled|live-save-current-prompt)
     INVARIANT_IDS_JSON='["accounts.save_current_account.name_dialog_presented","accounts.save_current_account.name_dialog_cancelled","accounts.save_current_account.cancel_keeps_account_state"]'
     ;;
   *)
@@ -50,7 +50,7 @@ esac
 mkdir -p "${ARTIFACT_ROOT}/screenshots" "${ARTIFACT_ROOT}/logs"
 rm -f "${VALIDATION_EVENTS_PATH}"
 
-if [[ "${SCENARIO}" == "live-save-current-prompt" || "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-sign-in-another-prompt" ]]; then
+if [[ "${SCENARIO}" == "live-account-switch" || "${SCENARIO}" == "live-save-current-account-name-dialog-cancelled" || "${SCENARIO}" == "live-save-current-prompt" || "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-sign-in-another-prompt" ]]; then
   rm -rf "${SEAL_PROOF_OUTPUT_PATH}"
 fi
 
@@ -287,7 +287,7 @@ RUN_MENUBAR_ENV=(
   "CODEXPILL_VALIDATION_SCENARIO=${SCENARIO}"
 )
 
-if [[ "${SCENARIO}" == "live-save-current-prompt" || "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-sign-in-another-prompt" ]]; then
+if [[ "${SCENARIO}" == "live-account-switch" || "${SCENARIO}" == "live-save-current-account-name-dialog-cancelled" || "${SCENARIO}" == "live-save-current-prompt" || "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-sign-in-another-prompt" ]]; then
   RUN_MENUBAR_ENV+=(
     "CODEXPILL_SEAL_PROOF_OUTPUT=${PWD}/${SEAL_PROOF_OUTPUT_PATH}"
   )
@@ -299,7 +299,7 @@ if [[ "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}"
   )
 fi
 
-if [[ "${SCENARIO}" == "live-save-current-prompt" ]]; then
+if [[ "${SCENARIO}" == "live-save-current-account-name-dialog-cancelled" || "${SCENARIO}" == "live-save-current-prompt" ]]; then
   RUN_MENUBAR_ENV+=(
     "CODEXPILL_VALIDATION_TRIGGER_SAVE_CURRENT_PROMPT=1"
   )
@@ -463,7 +463,7 @@ add_account_menu = find_child(menu_items, "Add Account…")
 abort "Missing Add Account… menu in runtime snapshot" unless add_account_menu
 
 save_current_account = find_child(add_account_menu.fetch("children", []), "Save Current Account")
-if !["live-save-current-prompt", "live-add-account-name-dialog-cancelled", "live-sign-in-another-prompt"].include?(scenario)
+if !["live-save-current-account-name-dialog-cancelled", "live-save-current-prompt", "live-add-account-name-dialog-cancelled", "live-sign-in-another-prompt"].include?(scenario)
   abort "Missing Add Account… > Save Current Account item in runtime snapshot" unless save_current_account
 end
 
@@ -1890,7 +1890,7 @@ print JSON.generate({
 ' "${UI_TREE_PATH}")"
 LAYOUT_PROOF_PASSED="$(printf '%s' "${LAYOUT_PROOF_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["passed"] ? "1" : "0")')"
 
-if [[ "${SCENARIO}" == "live-save-current-prompt" ]]; then
+if [[ "${SCENARIO}" == "live-save-current-account-name-dialog-cancelled" || "${SCENARIO}" == "live-save-current-prompt" ]]; then
   SAVE_CURRENT_PROOF_JSON=""
   for _ in $(seq 1 20); do
     SAVE_CURRENT_PROOF_JSON="$(read_save_current_prompt_proof)"
@@ -2621,6 +2621,47 @@ EOF
     exit 15
   fi
 
+  if ! verify_seal_proof; then
+    cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "screenshots/${SCENARIO}.png",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "seal-proof/manifest.json",
+    "seal-proof/evidence/events.jsonl",
+    "logs/seal-verifier.stdout.log",
+    "logs/seal-verifier.stderr.log",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "Accessibility enumerated the open menu",
+    "The target inactive account row was clicked",
+    "The app emitted the switch-account event sequence",
+    "The runtime snapshot current account moved to the clicked target"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [
+    "The Seal proof manifest was missing or rejected by the Seal verifier."
+  ],
+  "scenario": "${SCENARIO}",
+  "status": "failed",
+  "proofSequence": ${SWITCH_EVENT_PROOF_SEQUENCE},
+  "sealProofVerificationMode": "${SEAL_PROOF_VERIFICATION_MODE}",
+  "failureClass": "product_regression",
+  "failureStep": "seal_proof_verification"
+}
+EOF
+    echo "Live account-switch smoke failed: Seal proof did not verify." >&2
+    exit 17
+  fi
+
   cat > "${SUMMARY_PATH}" <<EOF
 {
   "invariantIds": ${INVARIANT_IDS_JSON},
@@ -2633,6 +2674,12 @@ EOF
     "runtime-assertions.json",
     "ui-tree.json",
     "validation-events.jsonl",
+    "seal-proof/manifest.json",
+    "seal-proof/evidence/events.jsonl",
+    "seal-proof/evidence/account-before.json",
+    "seal-proof/evidence/account-after.json",
+    "logs/seal-verifier.stdout.log",
+    "logs/seal-verifier.stderr.log",
     "logs/run-menubar.log"
   ],
   "assertions": [
@@ -2644,8 +2691,10 @@ EOF
   "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
   "gaps": [],
   "scenario": "${SCENARIO}",
+  "sealProofScenario": "switch-account-changes-active-account",
   "status": "passed",
-  "proofSequence": ${SWITCH_EVENT_PROOF_SEQUENCE}
+  "proofSequence": ${SWITCH_EVENT_PROOF_SEQUENCE},
+  "sealProofVerificationMode": "${SEAL_PROOF_VERIFICATION_MODE}"
 }
 EOF
 

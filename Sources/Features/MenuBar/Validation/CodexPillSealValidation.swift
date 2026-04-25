@@ -135,6 +135,90 @@ final class CodexPillSealValidationRun {
         recordNameDialogCancelled(activeAccount: activeAccount, savedAccounts: savedAccounts)
     }
 
+    func recordSwitchAccountMenuAction(
+        targetAccount: CodexAccount,
+        activeAccount: CodexAccount?,
+        savedAccounts: [CodexAccount]
+    ) {
+        guard !didFinish else { return }
+        do {
+            try run.recordEvent(
+                "menu_action_dispatched",
+                step: "menu_action_dispatch",
+                invariantIds: scenario.switchInvariantIDs,
+                payload: [
+                    "action": .string("switchAccount"),
+                    "targetName": .string(targetAccount.name),
+                    "targetAccountId": .string(targetAccount.id.uuidString),
+                    "activeAccountId": .string(activeAccount?.id.uuidString ?? "")
+                ]
+            )
+            if !didRecordAccountBefore {
+                try run.recordSnapshot(
+                    id: EvidenceID("account_before"),
+                    path: "evidence/account-before.json",
+                    value: AccountStateSnapshot(activeAccount: activeAccount, savedAccounts: savedAccounts)
+                )
+                didRecordAccountBefore = true
+            }
+        } catch {
+            codexPillSealValidationLogger.error("Failed to record Seal switch-account menu action proof: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    func recordSwitchConfirmationPresented(targetAccount: CodexAccount) {
+        recordSwitchEvent(
+            "switch_confirmation_presented",
+            step: "switch_confirmation",
+            targetAccount: targetAccount
+        )
+    }
+
+    func recordSwitchConfirmationAccepted(targetAccount: CodexAccount) {
+        recordSwitchEvent(
+            "switch_confirmation_accepted",
+            step: "switch_confirmation",
+            targetAccount: targetAccount
+        )
+    }
+
+    func recordSwitchWorkflowStarted(targetAccount: CodexAccount) {
+        recordSwitchEvent(
+            "switch_workflow_started",
+            step: "switch_workflow_start",
+            targetAccount: targetAccount
+        )
+    }
+
+    func recordActiveAccountChanged(
+        fromName: String?,
+        toName: String,
+        activeAccount: CodexAccount?,
+        savedAccounts: [CodexAccount]
+    ) {
+        guard !didFinish else { return }
+        do {
+            try run.recordEvent(
+                "active_account_changed",
+                step: "active_account_change",
+                invariantIds: scenario.switchInvariantIDs,
+                payload: [
+                    "fromName": .string(fromName ?? ""),
+                    "toName": .string(toName)
+                ]
+            )
+            try run.recordSnapshot(
+                id: EvidenceID("account_after"),
+                path: "evidence/account-after.json",
+                value: AccountStateSnapshot(activeAccount: activeAccount, savedAccounts: savedAccounts)
+            )
+            try run.finish()
+            didFinish = true
+        } catch {
+            codexPillSealValidationLogger.error("Failed to finish Seal switch-account proof: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
     func cancelIfUnfinished() {
         guard !didFinish else { return }
         run.cancelIfUnfinished()
@@ -199,6 +283,23 @@ final class CodexPillSealValidationRun {
         }
     }
 
+    private func recordSwitchEvent(_ eventName: String, step: String, targetAccount: CodexAccount) {
+        guard !didFinish else { return }
+        do {
+            try run.recordEvent(
+                eventName,
+                step: step,
+                invariantIds: scenario.switchInvariantIDs,
+                payload: [
+                    "targetName": .string(targetAccount.name),
+                    "targetAccountId": .string(targetAccount.id.uuidString)
+                ]
+            )
+        } catch {
+            codexPillSealValidationLogger.error("Failed to record Seal switch-account event proof: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
     private static func feature(scenarios: [CodexPillSealScenario]) throws -> SealFeature {
         try SealFeature(
             id: featureID,
@@ -207,7 +308,32 @@ final class CodexPillSealValidationRun {
     }
 
     private static func makeScenario(_ scenario: CodexPillSealScenario) throws -> SealScenario {
-        try SealScenario(
+        if let switchChangesActiveAccountID = scenario.switchChangesActiveAccountID,
+           let switchExpectation = scenario.switchExpectation {
+            return try SealScenario(
+                id: scenario.id,
+                scenarioType: .happyPath,
+                supportedExecutionModes: [.liveUI],
+                expectations: [
+                    try SealExpectation(
+                        text: switchExpectation,
+                        invariants: [
+                            SealInvariantRef(
+                                id: switchChangesActiveAccountID,
+                                requiredEvidence: [
+                                    EvidenceRequirement(id: EvidenceID("events"), kind: .eventStream),
+                                    EvidenceRequirement(id: EvidenceID("account_before"), kind: .snapshot),
+                                    EvidenceRequirement(id: EvidenceID("account_after"), kind: .snapshot)
+                                ],
+                                rule: scenario.switchChangesActiveAccountRule
+                            )
+                        ]
+                    )
+                ]
+            )
+        }
+
+        return try SealScenario(
             id: scenario.id,
             scenarioType: .failurePath,
             supportedExecutionModes: [.liveUI],
@@ -263,8 +389,14 @@ private struct CodexPillSealScenario {
     let nameDialogPresentedID: InvariantID
     let nameDialogCancelledID: InvariantID
     let cancelKeepsAccountStateID: InvariantID
+    let switchChangesActiveAccountID: InvariantID?
     let presentedAndCancelledExpectation: String
     let nonMutatingExpectation: String
+    let switchExpectation: String?
+
+    var switchInvariantIDs: [InvariantID] {
+        switchChangesActiveAccountID.map { [$0] } ?? []
+    }
 
     var nameDialogPresentedRule: SealRule {
         .all([
@@ -323,6 +455,27 @@ private struct CodexPillSealScenario {
         ])
     }
 
+    var switchChangesActiveAccountRule: SealRule {
+        .all([
+            .eventSequence([
+                EventExpectation("menu_action_dispatched", payload: [
+                    "action": .string("switchAccount")
+                ]),
+                EventExpectation("switch_confirmation_presented"),
+                EventExpectation("switch_confirmation_accepted"),
+                EventExpectation("switch_workflow_started"),
+                EventExpectation("active_account_changed")
+            ]),
+            .snapshotsDiffer(
+                SnapshotsDifferRule(
+                    before: EvidenceID("account_before"),
+                    after: EvidenceID("account_after"),
+                    paths: ["activeAccountId"]
+                )
+            )
+        ])
+    }
+
     private init(
         id: ScenarioID,
         menuAction: String,
@@ -335,7 +488,9 @@ private struct CodexPillSealScenario {
         nameDialogCancelledID: InvariantID,
         cancelKeepsAccountStateID: InvariantID,
         presentedAndCancelledExpectation: String,
-        nonMutatingExpectation: String
+        nonMutatingExpectation: String,
+        switchChangesActiveAccountID: InvariantID? = nil,
+        switchExpectation: String? = nil
     ) {
         self.id = id
         self.menuAction = menuAction
@@ -347,16 +502,20 @@ private struct CodexPillSealScenario {
         self.nameDialogPresentedID = nameDialogPresentedID
         self.nameDialogCancelledID = nameDialogCancelledID
         self.cancelKeepsAccountStateID = cancelKeepsAccountStateID
+        self.switchChangesActiveAccountID = switchChangesActiveAccountID
         self.presentedAndCancelledExpectation = presentedAndCancelledExpectation
         self.nonMutatingExpectation = nonMutatingExpectation
+        self.switchExpectation = switchExpectation
     }
 
     init?(legacyScenario: String) {
         switch legacyScenario {
-        case "live-save-current-prompt":
+        case "live-save-current-account-name-dialog-cancelled", "live-save-current-prompt":
             self = .saveCurrentAccountNameDialogCancelled
         case "live-add-account-name-dialog-cancelled", "live-sign-in-another-prompt":
             self = .addAccountNameDialogCancelled
+        case "live-account-switch":
+            self = .switchAccountChangesActiveAccount
         default:
             return nil
         }
@@ -390,6 +549,23 @@ private struct CodexPillSealScenario {
         cancelKeepsAccountStateID: InvariantID("accounts.add_account.cancel_keeps_account_state"),
         presentedAndCancelledExpectation: "The Add Account name dialog is presented and cancelled",
         nonMutatingExpectation: "Cancelling the Add Account name dialog does not create or change a saved account"
+    )
+
+    static let switchAccountChangesActiveAccount = CodexPillSealScenario(
+        id: ScenarioID("switch-account-changes-active-account"),
+        menuAction: "switchAccount",
+        dialogID: "switch_account_confirmation",
+        dialogTitle: "Switch Account",
+        dialogStep: "switch_confirmation",
+        presentedEventName: "switch_confirmation_presented",
+        cancelledEventName: "switch_confirmation_cancelled",
+        nameDialogPresentedID: InvariantID("accounts.switch_account.confirmation_presented"),
+        nameDialogCancelledID: InvariantID("accounts.switch_account.confirmation_cancelled"),
+        cancelKeepsAccountStateID: InvariantID("accounts.switch_account.cancel_keeps_account_state"),
+        presentedAndCancelledExpectation: "The switch-account confirmation is presented",
+        nonMutatingExpectation: "Cancelling the switch-account confirmation does not change account state",
+        switchChangesActiveAccountID: InvariantID("accounts.switch_account.menu_action_changes_active_account"),
+        switchExpectation: "Switching account through the menubar changes the active account"
     )
 }
 

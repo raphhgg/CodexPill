@@ -516,6 +516,7 @@ struct MenuBarUIValidationTests {
         case "live-menu-open",
              "live-account-switch",
              "live-add-host-prompt",
+             "live-save-current-account-name-dialog-cancelled",
              "live-save-current-prompt",
              "live-add-account-name-dialog-cancelled",
              "live-scheduled-refresh",

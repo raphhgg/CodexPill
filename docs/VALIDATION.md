@@ -57,7 +57,7 @@ The following behavior should be treated as automated first and should not live 
 - save-current-account naming and duplicate handling:
   - `SaveCurrentAccountWorkflowTests`
 - save-current-account prompt presentation and cancellation:
-  - `SCENARIO=live-save-current-prompt make verify-ui-live`
+  - `SCENARIO=live-save-current-account-name-dialog-cancelled make verify-ui-live`
 - Add Account name-dialog presentation and cancellation:
   - `SCENARIO=live-add-account-name-dialog-cancelled make verify-ui-live`
 - scheduled refresh timer requests and completes a background refresh:
@@ -143,7 +143,7 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `rule`: Triggering `Save Current Account` from the running menubar presents the name dialog and allows clean cancellation without mutating account state.
 - `owner_layer`: `live_ui`
 - `proofs_required`: `["live_ui"]`
-- `scenarios`: `["save-current-account-name-dialog-cancelled"]`
+- `scenarios`: `["live-save-current-account-name-dialog-cancelled", "save-current-account-name-dialog-cancelled"]`
 - `event_evidence`: `["menu_action_dispatched", "save_current_account_name_dialog_presented", "save_current_account_name_dialog_cancelled"]`
 
 ### `accounts.add_account.name_dialog_cancelled`
@@ -167,11 +167,12 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 ### `accounts.switch_account.menu_action_changes_active_account`
 
 - `feature`: `accounts`
-- `rule`: Selecting an inactive account from the running menubar emits the switch workflow event sequence and moves the current-account snapshot to the chosen target.
+- `rule`: Selecting an inactive account from the running menubar emits the switch workflow event sequence and changes the active-account snapshot. The live smoke additionally checks that the runtime snapshot moved to the clicked target.
 - `owner_layer`: `live_ui`
 - `proofs_required`: `["integration", "live_ui"]`
-- `scenarios`: `["switch_from_other_accounts"]`
+- `scenarios`: `["live-account-switch", "switch-account-changes-active-account"]`
 - `event_evidence`: `["menu_action_dispatched", "switch_confirmation_presented", "switch_confirmation_accepted", "switch_workflow_started", "active_account_changed"]`
+- `snapshot_evidence`: `["account_before", "account_after"]`
 
 ### `menubar.text_on_hover.stays_visible_inside_resized_bounds`
 
