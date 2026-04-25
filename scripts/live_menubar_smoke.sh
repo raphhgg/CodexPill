@@ -1209,17 +1209,31 @@ populate_host_setup_destination() {
   osascript - "$destination" <<'EOF'
 on run argv
     set destination to item 1 of argv
-    tell application "System Events"
-        tell process "CodexPill"
-            if not (exists window 1) then error "No host setup window"
-            tell window 1
-                if not (exists text field 2) then error "No host destination field"
-                click text field 2
-                keystroke "a" using command down
-                keystroke destination
+    try
+        set previousClipboard to the clipboard
+    on error
+        set previousClipboard to ""
+    end try
+    set the clipboard to destination
+    delay 0.1
+    try
+        tell application "System Events"
+            tell process "CodexPill"
+                if not (exists window 1) then error "No host setup window"
+                tell window 1
+                    if not (exists text field 2) then error "No host destination field"
+                    click text field 2
+                    keystroke "a" using command down
+                    keystroke "v" using command down
+                end tell
             end tell
         end tell
-    end tell
+        delay 0.1
+        set the clipboard to previousClipboard
+    on error errorMessage number errorNumber
+        set the clipboard to previousClipboard
+        error errorMessage number errorNumber
+    end try
 end run
 EOF
 }
@@ -2433,8 +2447,8 @@ EOF
   HOST_PROMPT_PROOF_JSON=""
   HOST_PROMPT_VALIDATED=0
   for _ in $(seq 1 16); do
-    HOST_PROMPT_STATE_RAW="$(read_host_setup_prompt_state)"
-    HOST_PROMPT_STATE_JSON="$(printf '%s' "${HOST_PROMPT_STATE_RAW}" | ruby -rjson -e '
+    if HOST_PROMPT_STATE_RAW="$(read_host_setup_prompt_state 2>/dev/null)"; then
+      HOST_PROMPT_STATE_JSON="$(printf '%s' "${HOST_PROMPT_STATE_RAW}" | ruby -rjson -e '
       raw = STDIN.read
       title, enabled, texts = raw.split("\t", 3)
       decode = ->(value) { value.to_s.gsub("\\n", "\n").gsub("\\t", "\t").gsub("\\c", ",").gsub("\\\\", "\\") }
@@ -2445,6 +2459,9 @@ EOF
       }
       print(JSON.generate(payload))
     ')"
+    else
+      HOST_PROMPT_STATE_JSON='{"windowTitle":null,"addEnabled":false,"staticTexts":[],"windowPresent":false}'
+    fi
     HOST_PROMPT_PROOF_JSON="$(read_add_host_prompt_proof)"
     HOST_PROMPT_VALIDATED="$(printf '%s' "${HOST_PROMPT_PROOF_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["passed"] ? "1" : "0")')"
     if [[ "${HOST_PROMPT_VALIDATED}" == "1" ]]; then
