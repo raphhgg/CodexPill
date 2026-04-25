@@ -101,6 +101,11 @@ struct SystemCodexAppProcessClient: CodexAppProcessClient {
     }
 }
 
+struct ValidationCodexAppProcessClient: CodexAppProcessClient {
+    func assertCodexAvailable() throws {}
+    func relaunchCodex() async throws {}
+}
+
 enum CodexAppProcessClientError: LocalizedError {
     case applicationNotFound
     case relaunchTimedOut

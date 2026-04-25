@@ -7,6 +7,7 @@ enum AppRuntimeEnvironment {
     static let validationUserDefaultsSuiteEnvironmentKey = "CODEXPILL_VALIDATION_USER_DEFAULTS_SUITE"
     static let validationSettingsFixtureEnvironmentKey = "CODEXPILL_VALIDATION_SETTINGS_FIXTURE"
     static let validationRemoteHostClientEnvironmentKey = "CODEXPILL_VALIDATION_REMOTE_HOST_CLIENT"
+    static let validationCodexProcessClientEnvironmentKey = "CODEXPILL_VALIDATION_CODEX_PROCESS_CLIENT"
     static let validationTriggerSaveCurrentPromptEnvironmentKey = "CODEXPILL_VALIDATION_TRIGGER_SAVE_CURRENT_PROMPT"
     static let validationAllowInteractiveAlertsEnvironmentKey = "CODEXPILL_VALIDATION_ALLOW_INTERACTIVE_ALERTS"
     static let xctestConfigurationFilePathEnvironmentKey = "XCTestConfigurationFilePath"
@@ -60,7 +61,17 @@ enum AppRuntimeEnvironment {
     static func shouldUseValidationRemoteHostClient(
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) -> Bool {
-        if let rawValue = environment[validationRemoteHostClientEnvironmentKey]?
+        validationModeIsEnabled(environment[validationRemoteHostClientEnvironmentKey])
+    }
+
+    static func shouldUseValidationCodexProcessClient(
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> Bool {
+        validationModeIsEnabled(environment[validationCodexProcessClientEnvironmentKey])
+    }
+
+    private static func validationModeIsEnabled(_ rawValue: String?) -> Bool {
+        if let rawValue = rawValue?
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased(),
            ["1", "true", "yes", "memory"].contains(rawValue) {

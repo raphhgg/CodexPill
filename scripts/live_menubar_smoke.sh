@@ -190,11 +190,101 @@ EOF
   exit 10
 fi
 
-if [[ "${SCENARIO}" == "live-remote-host-switch" ]]; then
+if [[ "${SCENARIO}" == "live-account-switch" || "${SCENARIO}" == "live-remote-host-switch" ]]; then
   rm -rf "${VALIDATION_APP_SUPPORT_DIR}"
   mkdir -p "${VALIDATION_APP_SUPPORT_DIR}/snapshots"
   export CODEXPILL_VALIDATION_APP_SUPPORT_DIR="${PWD}/${VALIDATION_APP_SUPPORT_DIR}"
+fi
 
+if [[ "${SCENARIO}" == "live-account-switch" ]]; then
+  ruby - "${VALIDATION_APP_SUPPORT_DIR}" <<'RUBY'
+require "json"
+require "securerandom"
+require "time"
+
+app_support_dir = ARGV.fetch(0)
+accounts_path = File.join(app_support_dir, "accounts.json")
+snapshots_dir = File.join(app_support_dir, "snapshots")
+auth_path = File.join(app_support_dir, "auth.json")
+now = Time.utc(2026, 4, 20, 10, 0, 0)
+
+make_limits = lambda do |session_used, weekly_used, session_minutes, weekly_days|
+  {
+    "limitID" => nil,
+    "limitName" => nil,
+    "planType" => "team",
+    "primary" => {
+      "usedPercent" => session_used,
+      "resetsAt" => (now + (session_minutes * 60)).iso8601,
+      "windowDurationMinutes" => 300
+    },
+    "secondary" => {
+      "usedPercent" => weekly_used,
+      "resetsAt" => (now + (weekly_days * 86_400)).iso8601,
+      "windowDurationMinutes" => 10_080
+    },
+    "fetchedAt" => now.iso8601
+  }
+end
+
+accounts = [
+  {
+    "id" => SecureRandom.uuid,
+    "name" => "Validation Personal",
+    "snapshotFileName" => "validation-personal.json",
+    "createdAt" => (now - 3600).iso8601,
+    "updatedAt" => (now - 300).iso8601,
+    "email" => "validation-personal@example.com",
+    "planType" => "team",
+    "rateLimits" => make_limits.call(18, 26, 180, 6),
+    "identity" => {
+      "stableAccountID" => nil,
+      "authPrincipalIdentity" => nil,
+      "workspaceIdentity" => nil,
+      "snapshotFingerprint" => nil,
+      "remoteIdentity" => {
+        "normalizedEmailAddress" => "validation-personal@example.com"
+      }
+    }
+  },
+  {
+    "id" => SecureRandom.uuid,
+    "name" => "Validation Business",
+    "snapshotFileName" => "validation-business.json",
+    "createdAt" => (now - 3600).iso8601,
+    "updatedAt" => (now - 300).iso8601,
+    "email" => "validation-business@example.com",
+    "planType" => "team",
+    "rateLimits" => make_limits.call(64, 41, 75, 5),
+    "identity" => {
+      "stableAccountID" => nil,
+      "authPrincipalIdentity" => nil,
+      "workspaceIdentity" => nil,
+      "snapshotFingerprint" => nil,
+      "remoteIdentity" => {
+        "normalizedEmailAddress" => "validation-business@example.com"
+      }
+    }
+  }
+]
+
+personal_snapshot = {
+  "validationAccount" => "personal",
+  "email" => "validation-personal@example.com"
+}
+business_snapshot = {
+  "validationAccount" => "business",
+  "email" => "validation-business@example.com"
+}
+
+File.write(File.join(snapshots_dir, "validation-personal.json"), JSON.pretty_generate(personal_snapshot))
+File.write(File.join(snapshots_dir, "validation-business.json"), JSON.pretty_generate(business_snapshot))
+File.write(auth_path, JSON.pretty_generate(personal_snapshot))
+File.write(accounts_path, JSON.pretty_generate(accounts))
+RUBY
+fi
+
+if [[ "${SCENARIO}" == "live-remote-host-switch" ]]; then
   ruby - "${VALIDATION_APP_SUPPORT_DIR}/accounts.json" "${VALIDATION_SETTINGS_FIXTURE_PATH}" <<'RUBY'
 require "json"
 require "securerandom"
@@ -293,7 +383,7 @@ if [[ "${SCENARIO}" == "live-account-switch" || "${SCENARIO}" == "live-save-curr
   )
 fi
 
-if [[ "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-sign-in-another-prompt" ]]; then
+if [[ "${SCENARIO}" == "live-account-switch" || "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-sign-in-another-prompt" ]]; then
   RUN_MENUBAR_ENV+=(
     "CODEXPILL_VALIDATION_ALLOW_INTERACTIVE_ALERTS=1"
   )
@@ -311,6 +401,14 @@ if [[ "${SCENARIO}" == "live-remote-host-switch" ]]; then
     "CODEXPILL_VALIDATION_USER_DEFAULTS_SUITE=${VALIDATION_DEFAULTS_SUITE}"
     "CODEXPILL_VALIDATION_SETTINGS_FIXTURE=${PWD}/${VALIDATION_SETTINGS_FIXTURE_PATH}"
     "CODEXPILL_VALIDATION_REMOTE_HOST_CLIENT=memory"
+  )
+fi
+
+if [[ "${SCENARIO}" == "live-account-switch" ]]; then
+  RUN_MENUBAR_ENV+=(
+    "CODEXPILL_VALIDATION_APP_SUPPORT_DIR=${PWD}/${VALIDATION_APP_SUPPORT_DIR}"
+    "CODEXPILL_VALIDATION_USER_DEFAULTS_SUITE=${VALIDATION_DEFAULTS_SUITE}"
+    "CODEXPILL_VALIDATION_CODEX_PROCESS_CLIENT=memory"
   )
 fi
 
@@ -384,6 +482,8 @@ app_server_status = JSON.parse(File.read(app_server_status_path))
 live_auth_status = JSON.parse(File.read(live_auth_status_path))
 menu_items = snapshot.fetch("menuItems", [])
 current_account = snapshot["currentAccount"] || {}
+uses_isolated_account_switch_fixture = scenario == "live-account-switch" &&
+  !ENV["CODEXPILL_VALIDATION_APP_SUPPORT_DIR"].to_s.strip.empty?
 
 def meaningful_value(value)
   text = value.to_s.strip
@@ -463,7 +563,7 @@ add_account_menu = find_child(menu_items, "Add Account…")
 abort "Missing Add Account… menu in runtime snapshot" unless add_account_menu
 
 save_current_account = find_child(add_account_menu.fetch("children", []), "Save Current Account")
-if !["live-save-current-account-name-dialog-cancelled", "live-save-current-prompt", "live-add-account-name-dialog-cancelled", "live-sign-in-another-prompt"].include?(scenario)
+if !["live-account-switch", "live-save-current-account-name-dialog-cancelled", "live-save-current-prompt", "live-add-account-name-dialog-cancelled", "live-sign-in-another-prompt"].include?(scenario)
   abort "Missing Add Account… > Save Current Account item in runtime snapshot" unless save_current_account
 end
 
@@ -663,20 +763,22 @@ else
   }
 end
 
-checks << {
-  "title" => "Current account summary reflects live auth identity",
-  "passed" => current_account.empty? || (
-    !current_account_summary.to_s.empty? && live_auth_identity_match["passed"]
-  ),
-  "actual" => {
-    "currentAccount" => current_account,
-    "currentAccountSummary" => current_account_summary,
-    "liveAuthEmail" => live_auth_status["email"],
-    "comparisons" => live_auth_identity_match["comparisons"]
+if !uses_isolated_account_switch_fixture
+  checks << {
+    "title" => "Current account summary reflects live auth identity",
+    "passed" => current_account.empty? || (
+      !current_account_summary.to_s.empty? && live_auth_identity_match["passed"]
+    ),
+    "actual" => {
+      "currentAccount" => current_account,
+      "currentAccountSummary" => current_account_summary,
+      "liveAuthEmail" => live_auth_status["email"],
+      "comparisons" => live_auth_identity_match["comparisons"]
+    }
   }
-}
+end
 
-if app_server_reported_current_status_data
+if app_server_reported_current_status_data && !uses_isolated_account_switch_fixture
   live_app_server_identity_match = identity_match(
     current_account,
     {
@@ -2394,7 +2496,7 @@ EOF
 fi
 
 if [[ "${SCENARIO}" == "live-account-switch" ]]; then
-  if [[ "${CODEXPILL_ALLOW_LIVE_ACCOUNT_SWITCH_VALIDATION:-0}" != "1" ]]; then
+  if [[ "${CODEXPILL_ALLOW_LIVE_ACCOUNT_SWITCH_VALIDATION:-0}" != "1" && -z "${CODEXPILL_VALIDATION_APP_SUPPORT_DIR:-}" ]]; then
     cat > "${SUMMARY_PATH}" <<EOF
 {
   "invariantIds": ${INVARIANT_IDS_JSON},
@@ -2412,8 +2514,8 @@ if [[ "${SCENARIO}" == "live-account-switch" ]]; then
   "assertions": [],
   "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
   "gaps": [
-    "Live account-switch validation mutates the real Codex auth state and is opt-in only.",
-    "Set CODEXPILL_ALLOW_LIVE_ACCOUNT_SWITCH_VALIDATION=1 to run this scenario intentionally."
+    "Live account-switch validation mutates account state unless it runs with an isolated validation app-support directory.",
+    "Set CODEXPILL_ALLOW_LIVE_ACCOUNT_SWITCH_VALIDATION=1 only when intentionally targeting real local state."
   ],
   "scenario": "${SCENARIO}",
   "status": "blocked",

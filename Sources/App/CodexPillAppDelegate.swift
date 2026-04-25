@@ -18,7 +18,9 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
 
         let repository = try! AccountRepository()
         let authService = CodexAuthSnapshotService(repository: repository)
-        let processClient = SystemCodexAppProcessClient()
+        let processClient: CodexAppProcessClient = AppRuntimeEnvironment.shouldUseValidationCodexProcessClient(environment: environment)
+            ? ValidationCodexAppProcessClient()
+            : SystemCodexAppProcessClient()
         let accountStatusClient = CodexAppServerClient()
         let remoteHostClient: RemoteHostSwitching
         if AppRuntimeEnvironment.shouldUseValidationRemoteHostClient(environment: environment) {

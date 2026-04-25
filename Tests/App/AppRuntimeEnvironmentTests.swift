@@ -61,6 +61,25 @@ struct AppRuntimeEnvironmentTests {
     }
 
     @Test
+    func validationCodexProcessClientModeAcceptsExplicitTruthValues() {
+        #expect(
+            AppRuntimeEnvironment.shouldUseValidationCodexProcessClient(
+                environment: [AppRuntimeEnvironment.validationCodexProcessClientEnvironmentKey: "memory"]
+            )
+        )
+        #expect(
+            AppRuntimeEnvironment.shouldUseValidationCodexProcessClient(
+                environment: [AppRuntimeEnvironment.validationCodexProcessClientEnvironmentKey: "true"]
+            )
+        )
+        #expect(
+            !AppRuntimeEnvironment.shouldUseValidationCodexProcessClient(
+                environment: [AppRuntimeEnvironment.validationCodexProcessClientEnvironmentKey: "0"]
+            )
+        )
+    }
+
+    @Test
     func automatedTestEnvironmentIsDetectedFromXCTestConfigurationPath() {
         #expect(
             AppRuntimeEnvironment.isRunningAutomatedTests(
