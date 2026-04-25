@@ -1433,9 +1433,11 @@ verify_seal_proof() {
   local proof_dir="${PWD}/${SEAL_PROOF_OUTPUT_PATH}"
   local manifest_path="${proof_dir}/manifest.json"
   SEAL_PROOF_VERIFICATION_MODE="manifest_missing"
+  SEAL_PROOF_FAILURE_GAP="Seal proof manifest was missing or rejected by the Seal verifier."
 
   if [[ ! -f "${manifest_path}" ]]; then
     printf 'Seal proof manifest missing: %s\n' "${manifest_path}" > "${SEAL_VERIFIER_STDERR_PATH}"
+    SEAL_PROOF_FAILURE_GAP="Seal proof manifest missing: ${manifest_path}"
     return 1
   fi
 
@@ -1446,6 +1448,7 @@ verify_seal_proof() {
       rm -f "${verifier_parts_file}"
       printf 'CODEXPILL_SEAL_VERIFIER_COMMAND could not be parsed.\n' > "${SEAL_VERIFIER_STDERR_PATH}"
       SEAL_PROOF_VERIFICATION_MODE="explicit_verifier_command_parse_failed"
+      SEAL_PROOF_FAILURE_GAP="CODEXPILL_SEAL_VERIFIER_COMMAND could not be parsed."
       return 1
     fi
 
@@ -1458,12 +1461,16 @@ verify_seal_proof() {
     if [[ "${#verifier_command[@]}" -eq 0 ]]; then
       printf 'CODEXPILL_SEAL_VERIFIER_COMMAND parsed to an empty command.\n' > "${SEAL_VERIFIER_STDERR_PATH}"
       SEAL_PROOF_VERIFICATION_MODE="explicit_verifier_command_empty"
+      SEAL_PROOF_FAILURE_GAP="CODEXPILL_SEAL_VERIFIER_COMMAND parsed to an empty command."
       return 1
     fi
 
     SEAL_PROOF_VERIFICATION_MODE="explicit_verifier_command"
-    "${verifier_command[@]}" "${proof_dir}" > "${SEAL_VERIFIER_STDOUT_PATH}" 2> "${SEAL_VERIFIER_STDERR_PATH}"
-    return $?
+    if "${verifier_command[@]}" "${proof_dir}" > "${SEAL_VERIFIER_STDOUT_PATH}" 2> "${SEAL_VERIFIER_STDERR_PATH}"; then
+      return 0
+    fi
+    SEAL_PROOF_FAILURE_GAP="$(read_seal_proof_failure_gap)"
+    return 1
   fi
 
   local seal_package_path
@@ -1471,17 +1478,40 @@ verify_seal_proof() {
 
   if [[ -n "${seal_package_path}" && -f "${seal_package_path}/Package.swift" ]]; then
     SEAL_PROOF_VERIFICATION_MODE="seal_swift_run"
-    (
+    if (
       cd "${seal_package_path}"
-      swift run seal-verifier "${proof_dir}"
-    ) > "${SEAL_VERIFIER_STDOUT_PATH}" 2> "${SEAL_VERIFIER_STDERR_PATH}"
-    return $?
+      swift run seal-verifier --verbose "${proof_dir}"
+    ) > "${SEAL_VERIFIER_STDOUT_PATH}" 2> "${SEAL_VERIFIER_STDERR_PATH}"; then
+      return 0
+    fi
+    SEAL_PROOF_FAILURE_GAP="$(read_seal_proof_failure_gap)"
+    return 1
   fi
 
   : > "${SEAL_VERIFIER_STDOUT_PATH}"
   printf 'Seal verifier unavailable. Set CODEXPILL_SEAL_VERIFIER_COMMAND or CODEXPILL_SEAL_PACKAGE_PATH.\n' > "${SEAL_VERIFIER_STDERR_PATH}"
   SEAL_PROOF_VERIFICATION_MODE="verifier_unavailable"
+  SEAL_PROOF_FAILURE_GAP="Seal verifier unavailable. Set CODEXPILL_SEAL_VERIFIER_COMMAND or CODEXPILL_SEAL_PACKAGE_PATH."
   return 1
+}
+
+read_seal_proof_failure_gap() {
+  ruby - "${SEAL_VERIFIER_STDOUT_PATH}" "${SEAL_VERIFIER_STDERR_PATH}" <<'RUBY'
+stdout_path, stderr_path = ARGV
+text = [stdout_path, stderr_path].filter_map do |path|
+  File.exist?(path) ? File.read(path) : nil
+end.join("\n")
+
+reason = text.lines.map(&:strip).find { |line| line.start_with?("reason: ") }
+diagnostic = text.lines.map(&:strip).find { |line| line.start_with?("- error ") }
+fallback = text.lines.map(&:strip).reject(&:empty?).reject { |line| line.start_with?("[") }.first
+detail = reason&.sub(/\Areason:\s*/, "") || diagnostic || fallback || "unknown Seal verifier failure"
+print "Seal proof rejected: #{detail}"
+RUBY
+}
+
+seal_proof_failure_gaps_json() {
+  ruby -rjson -e 'print(JSON.generate([ARGV.fetch(0)]))' "${SEAL_PROOF_FAILURE_GAP}"
 }
 
 read_add_host_prompt_proof() {
@@ -2067,9 +2097,7 @@ EOF
     "The Save Current Account prompt was cancelled cleanly"
   ],
   "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
-  "gaps": [
-    "The Seal proof manifest was missing or rejected by the Seal verifier."
-  ],
+  "gaps": $(seal_proof_failure_gaps_json),
   "scenario": "${SCENARIO}",
   "status": "failed",
   "proofSequence": ${SAVE_CURRENT_PROOF_SEQUENCE},
@@ -2278,9 +2306,7 @@ EOF
     "The Add Account name dialog was cancelled cleanly"
   ],
   "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
-  "gaps": [
-    "The Seal proof manifest was missing or rejected by the Seal verifier."
-  ],
+  "gaps": $(seal_proof_failure_gaps_json),
   "scenario": "${SCENARIO}",
   "status": "failed",
   "proofSequence": ${ADD_ACCOUNT_NAME_DIALOG_PROOF_SEQUENCE},
@@ -2490,9 +2516,7 @@ EOF
     "The Add Host setup dialog emitted validation feedback after input"
   ],
   "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
-  "gaps": [
-    "The Seal proof manifest was missing or rejected by the Seal verifier."
-  ],
+  "gaps": $(seal_proof_failure_gaps_json),
   "scenario": "${SCENARIO}",
   "status": "failed",
   "hostSetupDialogState": ${HOST_PROMPT_STATE_JSON},
@@ -2799,9 +2823,7 @@ EOF
     "The runtime snapshot current account moved to the clicked target"
   ],
   "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
-  "gaps": [
-    "The Seal proof manifest was missing or rejected by the Seal verifier."
-  ],
+  "gaps": $(seal_proof_failure_gaps_json),
   "scenario": "${SCENARIO}",
   "status": "failed",
   "proofSequence": ${SWITCH_EVENT_PROOF_SEQUENCE},
@@ -3008,9 +3030,7 @@ EOF
     "The remote card updated to the chosen account on buildbox"
   ],
   "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
-  "gaps": [
-    "The Seal proof manifest was missing or rejected by the Seal verifier."
-  ],
+  "gaps": $(seal_proof_failure_gaps_json),
   "scenario": "${SCENARIO}",
   "status": "failed",
   "proofSequence": ${REMOTE_SWITCH_PROOF_SEQUENCE},

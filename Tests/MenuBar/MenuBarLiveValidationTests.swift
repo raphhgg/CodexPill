@@ -1046,6 +1046,24 @@ struct MenuBarLiveValidationTests {
             "evidence/account-after.json",
         ])
         #expect(FileManager.default.fileExists(atPath: proofDirectory.appendingPathComponent("evidence/events.jsonl").path))
+        let expectations = manifest?["targetedExpectations"] as? [[String: Any]]
+        let invariants = expectations?.first?["invariants"] as? [[String: Any]]
+        let rule = invariants?.first?["rule"] as? [String: Any]
+        let rules = rule?["rules"] as? [[String: Any]]
+        let eventSequence = rules?.first { $0["type"] as? String == "event_sequence" }
+        let snapshotDiff = rules?.first { $0["type"] as? String == "snapshots_differ" }
+
+        #expect(rule?["type"] as? String == "all")
+        #expect((eventSequence?["events"] as? [[String: Any]])?.compactMap { $0["name"] as? String } == [
+            "menu_action_dispatched",
+            "switch_confirmation_presented",
+            "switch_confirmation_accepted",
+            "switch_workflow_started",
+            "active_account_changed",
+        ])
+        #expect(snapshotDiff?["before"] as? String == "account_before")
+        #expect(snapshotDiff?["after"] as? String == "account_after")
+        #expect(snapshotDiff?["paths"] as? [String] == ["activeAccountId"])
     }
 
     @Test
