@@ -49,7 +49,7 @@ verify-ui:
 	./scripts/verify_ui.sh
 
 verify-ui-live:
-	SCENARIO=live-menu-open ./scripts/verify_ui.sh
+	SCENARIO=$${SCENARIO:-live-menu-open} ./scripts/verify_ui.sh
 
 clean:
 	rm -rf build

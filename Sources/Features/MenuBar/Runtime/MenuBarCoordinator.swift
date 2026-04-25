@@ -354,8 +354,16 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private static let liveProofLayer = "live_ui"
     private static let hoverInvariantIDs = ["menubar.text_on_hover.stays_visible_inside_resized_bounds"]
     private static let switchInvariantIDs = ["accounts.switch_account.menu_action_changes_active_account"]
-    private static let saveCurrentPromptInvariantIDs = ["accounts.save_current_account.prompt_presented_and_cancellable"]
-    private static let addAccountPromptInvariantIDs = ["accounts.add_account.prompt_presented_and_cancellable"]
+    private static let saveCurrentNameDialogInvariantIDs = [
+        "accounts.save_current_account.name_dialog_presented",
+        "accounts.save_current_account.name_dialog_cancelled",
+        "accounts.save_current_account.cancel_keeps_account_state"
+    ]
+    private static let addAccountNameDialogInvariantIDs = [
+        "accounts.add_account.name_dialog_presented",
+        "accounts.add_account.name_dialog_cancelled",
+        "accounts.add_account.cancel_keeps_account_state"
+    ]
     private static let addHostPromptInvariantIDs = ["hosts.add_host.prompt_validates_destination"]
     private static let remoteHostSwitchInvariantIDs = ["hosts.switch_account_on_host.changes_remote_active_account"]
     private static let remoteHostReverifyInvariantIDs = ["hosts.reverify_remote_account.refreshes_remote_verification_state"]
@@ -483,7 +491,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         recordValidationEvent(
             "save_current_prompt_presented",
             step: "save_current_prompt",
-            invariantIds: Self.saveCurrentPromptInvariantIDs
+            invariantIds: Self.saveCurrentNameDialogInvariantIDs
         )
         sealValidationRun?.recordSaveCurrentAccountNameDialogPresented(activeAccountEmail: store.activeAccount?.email)
 
@@ -491,7 +499,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             recordValidationEvent(
                 "save_current_prompt_cancelled",
                 step: "save_current_prompt",
-                invariantIds: Self.saveCurrentPromptInvariantIDs
+                invariantIds: Self.saveCurrentNameDialogInvariantIDs
             )
             sealValidationRun?.recordSaveCurrentAccountNameDialogCancelled(
                 activeAccount: store.activeAccount,
@@ -502,7 +510,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         recordValidationEvent(
             "save_current_prompt_confirmed",
             step: "save_current_prompt",
-            invariantIds: Self.saveCurrentPromptInvariantIDs,
+            invariantIds: Self.saveCurrentNameDialogInvariantIDs,
             payload: ["enteredName": name]
         )
         Task { await store.saveCurrentAccountSnapshot(named: name) }
@@ -523,7 +531,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         recordValidationEvent(
             "add_account_prompt_presented",
             step: "add_account_prompt",
-            invariantIds: Self.addAccountPromptInvariantIDs
+            invariantIds: Self.addAccountNameDialogInvariantIDs
         )
         sealValidationRun?.recordAddAccountNameDialogPresented(runningCLISessions: runningCLISessions)
 
@@ -533,7 +541,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             recordValidationEvent(
                 "add_account_prompt_cancelled",
                 step: "add_account_prompt",
-                invariantIds: Self.addAccountPromptInvariantIDs
+                invariantIds: Self.addAccountNameDialogInvariantIDs
             )
             sealValidationRun?.recordAddAccountNameDialogCancelled(
                 activeAccount: store.activeAccount,
@@ -544,7 +552,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         recordValidationEvent(
             "add_account_prompt_confirmed",
             step: "add_account_prompt",
-            invariantIds: Self.addAccountPromptInvariantIDs,
+            invariantIds: Self.addAccountNameDialogInvariantIDs,
             payload: ["enteredName": name]
         )
 

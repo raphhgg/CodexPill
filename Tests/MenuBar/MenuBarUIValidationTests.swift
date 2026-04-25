@@ -517,7 +517,7 @@ struct MenuBarUIValidationTests {
              "live-account-switch",
              "live-add-host-prompt",
              "live-save-current-prompt",
-             "live-sign-in-another-prompt",
+             "live-add-account-name-dialog-cancelled",
              "live-scheduled-refresh",
              "live-status-item-hover":
             #expect(!snapshot.sections.isEmpty)

@@ -36,7 +36,7 @@ case "${SCENARIO}" in
   live-scheduled-refresh)
     INVARIANT_IDS_JSON='["accounts.scheduled_refresh.requested_and_completed"]'
     ;;
-  live-sign-in-another-prompt)
+  live-add-account-name-dialog-cancelled|live-sign-in-another-prompt)
     INVARIANT_IDS_JSON='["accounts.add_account.name_dialog_presented","accounts.add_account.name_dialog_cancelled","accounts.add_account.cancel_keeps_account_state"]'
     ;;
   live-save-current-prompt)
@@ -50,12 +50,12 @@ esac
 mkdir -p "${ARTIFACT_ROOT}/screenshots" "${ARTIFACT_ROOT}/logs"
 rm -f "${VALIDATION_EVENTS_PATH}"
 
-if [[ "${SCENARIO}" == "live-save-current-prompt" || "${SCENARIO}" == "live-sign-in-another-prompt" ]]; then
+if [[ "${SCENARIO}" == "live-save-current-prompt" || "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-sign-in-another-prompt" ]]; then
   rm -rf "${SEAL_PROOF_OUTPUT_PATH}"
 fi
 
 cat > "${COMMAND_PATH}" <<EOF
-AGENT_NAME=${AGENT_NAME} ./scripts/live_menubar_smoke.sh
+AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh
 EOF
 
 APP_SERVER_STDOUT="$(mktemp)"
@@ -287,13 +287,13 @@ RUN_MENUBAR_ENV=(
   "CODEXPILL_VALIDATION_SCENARIO=${SCENARIO}"
 )
 
-if [[ "${SCENARIO}" == "live-save-current-prompt" || "${SCENARIO}" == "live-sign-in-another-prompt" ]]; then
+if [[ "${SCENARIO}" == "live-save-current-prompt" || "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-sign-in-another-prompt" ]]; then
   RUN_MENUBAR_ENV+=(
     "CODEXPILL_SEAL_PROOF_OUTPUT=${PWD}/${SEAL_PROOF_OUTPUT_PATH}"
   )
 fi
 
-if [[ "${SCENARIO}" == "live-sign-in-another-prompt" ]]; then
+if [[ "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-sign-in-another-prompt" ]]; then
   RUN_MENUBAR_ENV+=(
     "CODEXPILL_VALIDATION_ALLOW_INTERACTIVE_ALERTS=1"
   )
@@ -463,7 +463,7 @@ add_account_menu = find_child(menu_items, "Add Account…")
 abort "Missing Add Account… menu in runtime snapshot" unless add_account_menu
 
 save_current_account = find_child(add_account_menu.fetch("children", []), "Save Current Account")
-if !["live-save-current-prompt", "live-sign-in-another-prompt"].include?(scenario)
+if !["live-save-current-prompt", "live-add-account-name-dialog-cancelled", "live-sign-in-another-prompt"].include?(scenario)
   abort "Missing Add Account… > Save Current Account item in runtime snapshot" unless save_current_account
 end
 
@@ -1070,7 +1070,7 @@ end tell
 EOF
 }
 
-trigger_sign_in_another_prompt() {
+trigger_add_account_name_dialog() {
   osascript <<'EOF'
 tell application "System Events"
     tell process "CodexPill"
@@ -1187,17 +1187,37 @@ cancel_text_input_prompt() {
   osascript <<'EOF'
 tell application "System Events"
     tell process "CodexPill"
-        if not (exists window 1) then error "No text input prompt window"
-        tell window 1
-            if exists button "Cancel" then
-                click button "Cancel"
-                return "cancelled"
-            end if
-            if exists button 2 then
-                click button 2
-                return "cancelled"
-            end if
-        end tell
+        set frontmost to true
+        if not (exists window 1) then error "No text input dialog window"
+        repeat with candidateWindow in windows
+            tell candidateWindow
+                if exists button "Cancel" then
+                    click button "Cancel"
+                    return "cancelled"
+                end if
+                repeat with candidateButton in buttons
+                    set buttonTitle to ""
+                    try
+                        set buttonTitle to name of candidateButton as text
+                    end try
+                    if buttonTitle is "Cancel" then
+                        click candidateButton
+                        return "cancelled"
+                    end if
+                end repeat
+            end tell
+        end repeat
+        key code 53
+        delay 0.2
+        if not (exists window 1) then
+            return "cancelled"
+        end if
+        repeat with candidateWindow in windows
+            tell candidateWindow
+                if exists button "Cancel" then error "Text input dialog did not close"
+            end tell
+        end repeat
+        return "cancelled"
     end tell
 end tell
 EOF
@@ -1220,20 +1240,20 @@ else
 end
 
 requirements = [
-  ["menu_action_dispatched", ->(event) { event.dig("payload", "action") == "addCurrentAccount" }],
-  ["save_current_prompt_presented", ->(_event) { true }],
-  ["save_current_prompt_cancelled", ->(_event) { true }]
+  ["menu_action_dispatched", "menu_action_dispatched", ->(event) { event.dig("payload", "action") == "addCurrentAccount" }],
+  ["save_current_prompt_presented", "save_current_account_name_dialog_presented", ->(_event) { true }],
+  ["save_current_prompt_cancelled", "save_current_account_name_dialog_cancelled", ->(_event) { true }]
 ]
 
 cursor = 0
 proof_sequence = []
 
-requirements.each do |required_name, predicate|
+requirements.each do |observed_name, canonical_name, predicate|
   matched = false
   while cursor < events.length
     event = events[cursor]
-    if event["event"] == required_name && predicate.call(event)
-      proof_sequence << required_name
+    if event["event"] == observed_name && predicate.call(event)
+      proof_sequence << canonical_name
       cursor += 1
       matched = true
       break
@@ -1245,8 +1265,8 @@ end
 
 puts JSON.generate(
   {
-    "passed" => proof_sequence == requirements.map(&:first),
-    "requiredSequence" => requirements.map(&:first),
+    "passed" => proof_sequence == requirements.map { |requirement| requirement[1] },
+    "requiredSequence" => requirements.map { |requirement| requirement[1] },
     "proofSequence" => proof_sequence,
     "eventCount" => events.length,
     "eventsPathPresent" => File.exist?(events_path)
@@ -1255,7 +1275,7 @@ puts JSON.generate(
 RUBY
 }
 
-read_sign_in_another_prompt_proof() {
+read_add_account_name_dialog_proof() {
   ruby - "${VALIDATION_EVENTS_PATH}" <<'RUBY'
 require "json"
 
@@ -1272,20 +1292,20 @@ else
 end
 
 requirements = [
-  ["menu_action_dispatched", ->(event) { event.dig("payload", "action") == "addAccount" }],
-  ["add_account_prompt_presented", ->(_event) { true }],
-  ["add_account_prompt_cancelled", ->(_event) { true }]
+  ["menu_action_dispatched", "menu_action_dispatched", ->(event) { event.dig("payload", "action") == "addAccount" }],
+  ["add_account_prompt_presented", "add_account_name_dialog_presented", ->(_event) { true }],
+  ["add_account_prompt_cancelled", "add_account_name_dialog_cancelled", ->(_event) { true }]
 ]
 
 cursor = 0
 proof_sequence = []
 
-requirements.each do |required_name, predicate|
+requirements.each do |observed_name, canonical_name, predicate|
   matched = false
   while cursor < events.length
     event = events[cursor]
-    if event["event"] == required_name && predicate.call(event)
-      proof_sequence << required_name
+    if event["event"] == observed_name && predicate.call(event)
+      proof_sequence << canonical_name
       cursor += 1
       matched = true
       break
@@ -1297,8 +1317,8 @@ end
 
 puts JSON.generate(
   {
-    "passed" => proof_sequence == requirements.map(&:first),
-    "requiredSequence" => requirements.map(&:first),
+    "passed" => proof_sequence == requirements.map { |requirement| requirement[1] },
+    "requiredSequence" => requirements.map { |requirement| requirement[1] },
     "proofSequence" => proof_sequence,
     "eventCount" => events.length,
     "eventsPathPresent" => File.exist?(events_path)
@@ -1988,6 +2008,7 @@ EOF
   "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
   "gaps": [],
   "scenario": "${SCENARIO}",
+  "sealProofScenario": "save-current-account-name-dialog-cancelled",
   "status": "passed",
   "proofSequence": ${SAVE_CURRENT_PROOF_SEQUENCE},
   "sealProofVerificationMode": "${SEAL_PROOF_VERIFICATION_MODE}"
@@ -1998,8 +2019,8 @@ EOF
   exit 0
 fi
 
-if [[ "${SCENARIO}" == "live-sign-in-another-prompt" ]]; then
-  if ! trigger_sign_in_another_prompt >/dev/null 2>&1; then
+if [[ "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-sign-in-another-prompt" ]]; then
+  if ! trigger_add_account_name_dialog >/dev/null 2>&1; then
     cat > "${SUMMARY_PATH}" <<EOF
 {
   "invariantIds": ${INVARIANT_IDS_JSON},
@@ -2028,10 +2049,10 @@ if [[ "${SCENARIO}" == "live-sign-in-another-prompt" ]]; then
   "scenario": "${SCENARIO}",
   "status": "failed",
   "failureClass": "environment_block",
-  "failureStep": "sign_in_another_menu_path"
+  "failureStep": "add_account_name_dialog_menu_path"
 }
 EOF
-    echo "Live sign-in-another prompt smoke failed: could not trigger the menu path." >&2
+    echo "Live add-account name-dialog smoke failed: could not trigger the menu path." >&2
     exit 20
   fi
 
@@ -2068,31 +2089,31 @@ EOF
   ],
   "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
   "gaps": [
-    "The Add Account... prompt was not reachable for cancellation."
+    "The Add Account name dialog was not reachable for cancellation."
   ],
   "scenario": "${SCENARIO}",
   "status": "failed",
   "failureClass": "environment_block",
-  "failureStep": "sign_in_another_prompt_cancel"
+  "failureStep": "add_account_name_dialog_cancel"
 }
 EOF
-    echo "Live sign-in-another prompt smoke failed: could not cancel the prompt." >&2
+    echo "Live add-account name-dialog smoke failed: could not cancel the dialog." >&2
     exit 21
   fi
 
-  SIGN_IN_ANOTHER_PROOF_JSON=""
+  ADD_ACCOUNT_NAME_DIALOG_PROOF_JSON=""
   for _ in $(seq 1 20); do
-    SIGN_IN_ANOTHER_PROOF_JSON="$(read_sign_in_another_prompt_proof)"
-    if [[ "$(printf '%s' "${SIGN_IN_ANOTHER_PROOF_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["passed"] ? "1" : "0")')" == "1" ]]; then
+    ADD_ACCOUNT_NAME_DIALOG_PROOF_JSON="$(read_add_account_name_dialog_proof)"
+    if [[ "$(printf '%s' "${ADD_ACCOUNT_NAME_DIALOG_PROOF_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["passed"] ? "1" : "0")')" == "1" ]]; then
       break
     fi
     sleep 0.5
   done
 
-  SIGN_IN_ANOTHER_PROOF_PASSED="$(printf '%s' "${SIGN_IN_ANOTHER_PROOF_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["passed"] ? "1" : "0")')"
-  SIGN_IN_ANOTHER_PROOF_SEQUENCE="$(printf '%s' "${SIGN_IN_ANOTHER_PROOF_JSON}" | ruby -rjson -e 'print(JSON.generate(JSON.parse(STDIN.read)["proofSequence"]))')"
+  ADD_ACCOUNT_NAME_DIALOG_PROOF_PASSED="$(printf '%s' "${ADD_ACCOUNT_NAME_DIALOG_PROOF_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["passed"] ? "1" : "0")')"
+  ADD_ACCOUNT_NAME_DIALOG_PROOF_SEQUENCE="$(printf '%s' "${ADD_ACCOUNT_NAME_DIALOG_PROOF_JSON}" | ruby -rjson -e 'print(JSON.generate(JSON.parse(STDIN.read)["proofSequence"]))')"
 
-  if [[ "${SIGN_IN_ANOTHER_PROOF_PASSED}" != "1" ]]; then
+  if [[ "${ADD_ACCOUNT_NAME_DIALOG_PROOF_PASSED}" != "1" ]]; then
     cat > "${SUMMARY_PATH}" <<EOF
 {
   "invariantIds": ${INVARIANT_IDS_JSON},
@@ -2113,20 +2134,20 @@ EOF
   ],
   "assertions": [
     "The live probe triggered the Add Account... menu action",
-    "The text-input prompt was cancelled"
+    "The Add Account name dialog was cancelled"
   ],
   "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
   "gaps": [
-    "The app did not emit the expected Add Account... prompt event sequence."
+    "The app did not emit the expected Add Account name-dialog event sequence."
   ],
   "scenario": "${SCENARIO}",
   "status": "failed",
-  "proofSequence": ${SIGN_IN_ANOTHER_PROOF_SEQUENCE},
+  "proofSequence": ${ADD_ACCOUNT_NAME_DIALOG_PROOF_SEQUENCE},
   "failureClass": "product_regression",
-  "failureStep": "sign_in_another_prompt_events"
+  "failureStep": "add_account_name_dialog_events"
 }
 EOF
-    echo "Live sign-in-another prompt smoke failed: prompt event proof did not complete." >&2
+    echo "Live add-account name-dialog smoke failed: dialog event proof did not complete." >&2
     exit 22
   fi
 
@@ -2151,8 +2172,8 @@ EOF
   ],
   "assertions": [
     "The Add Account... menu action was triggered",
-    "The Add Account... prompt was presented",
-    "The Add Account... prompt was cancelled cleanly"
+    "The Add Account name dialog was presented",
+    "The Add Account name dialog was cancelled cleanly"
   ],
   "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
   "gaps": [
@@ -2160,13 +2181,13 @@ EOF
   ],
   "scenario": "${SCENARIO}",
   "status": "failed",
-  "proofSequence": ${SIGN_IN_ANOTHER_PROOF_SEQUENCE},
+  "proofSequence": ${ADD_ACCOUNT_NAME_DIALOG_PROOF_SEQUENCE},
   "sealProofVerificationMode": "${SEAL_PROOF_VERIFICATION_MODE}",
   "failureClass": "product_regression",
   "failureStep": "seal_proof_verification"
 }
 EOF
-    echo "Live sign-in-another prompt smoke failed: Seal proof did not verify." >&2
+    echo "Live add-account name-dialog smoke failed: Seal proof did not verify." >&2
     exit 23
   fi
 
@@ -2184,6 +2205,9 @@ EOF
     "validation-events.jsonl",
     "seal-proof/manifest.json",
     "seal-proof/evidence/events.jsonl",
+    "seal-proof/evidence/account-before.json",
+    "seal-proof/evidence/name-dialog-snapshot.json",
+    "seal-proof/evidence/account-after.json",
     "logs/seal-verifier.stdout.log",
     "logs/seal-verifier.stderr.log",
     "logs/run-menubar.log"
@@ -2191,20 +2215,21 @@ EOF
   "assertions": [
     "Accessibility enumerated the open menu",
     "The Add Account... menu action was triggered",
-    "The Add Account... prompt was presented",
-    "The Add Account... prompt was cancelled cleanly",
+    "The Add Account name dialog was presented",
+    "The Add Account name dialog was cancelled cleanly",
     "The Seal proof manifest exists and the Seal proof gate completed"
   ],
   "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
   "gaps": [],
   "scenario": "${SCENARIO}",
+  "sealProofScenario": "add-account-name-dialog-cancelled",
   "status": "passed",
-  "proofSequence": ${SIGN_IN_ANOTHER_PROOF_SEQUENCE},
+  "proofSequence": ${ADD_ACCOUNT_NAME_DIALOG_PROOF_SEQUENCE},
   "sealProofVerificationMode": "${SEAL_PROOF_VERIFICATION_MODE}"
 }
 EOF
 
-  echo "Live add-account prompt smoke artifacts written to ${ARTIFACT_ROOT}"
+  echo "Live add-account name-dialog smoke artifacts written to ${ARTIFACT_ROOT}"
   exit 0
 fi
 

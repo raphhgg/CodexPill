@@ -355,7 +355,7 @@ private struct CodexPillSealScenario {
         switch legacyScenario {
         case "live-save-current-prompt":
             self = .saveCurrentAccountNameDialogCancelled
-        case "live-sign-in-another-prompt":
+        case "live-add-account-name-dialog-cancelled", "live-sign-in-another-prompt":
             self = .addAccountNameDialogCancelled
         default:
             return nil

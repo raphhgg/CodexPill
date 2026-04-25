@@ -972,7 +972,7 @@ struct MenuBarLiveValidationTests {
         )
         let run = try #require(CodexPillSealValidationConfiguration.makeRun(environment: [
             CodexPillSealValidationConfiguration.proofOutputPathEnvironmentKey: proofDirectory.path,
-            MenuBarValidationConfiguration.scenarioEnvironmentKey: "live-sign-in-another-prompt",
+            MenuBarValidationConfiguration.scenarioEnvironmentKey: "live-add-account-name-dialog-cancelled",
         ]))
 
         run.recordAddAccountMenuAction(activeAccount: account, savedAccounts: [account])

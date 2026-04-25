@@ -58,8 +58,8 @@ The following behavior should be treated as automated first and should not live 
   - `SaveCurrentAccountWorkflowTests`
 - save-current-account prompt presentation and cancellation:
   - `SCENARIO=live-save-current-prompt make verify-ui-live`
-- sign-in-another prompt presentation and cancellation:
-  - `SCENARIO=live-sign-in-another-prompt make verify-ui-live`
+- Add Account name-dialog presentation and cancellation:
+  - `SCENARIO=live-add-account-name-dialog-cancelled make verify-ui-live`
 - scheduled refresh timer requests and completes a background refresh:
   - `CODEXPILL_VALIDATION_AUTO_REFRESH_INTERVAL_SECONDS=2 SCENARIO=live-scheduled-refresh make verify-ui-live`
 - active-account refresh and identity matching:
@@ -137,23 +137,23 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `proofs_required`: `["integration", "live_ui"]`
 - `scenarios`: `["active_saved_account", "matched_saved_identity"]`
 
-### `accounts.save_current_account.prompt_presented_and_cancellable`
+### `accounts.save_current_account.name_dialog_cancelled`
 
 - `feature`: `accounts`
-- `rule`: Triggering `Save Current Account` from the running menubar presents the text-input prompt and allows clean cancellation without mutating account state.
+- `rule`: Triggering `Save Current Account` from the running menubar presents the name dialog and allows clean cancellation without mutating account state.
 - `owner_layer`: `live_ui`
 - `proofs_required`: `["live_ui"]`
-- `scenarios`: `["save_current_prompt"]`
-- `event_evidence`: `["menu_action_dispatched", "save_current_prompt_presented", "save_current_prompt_cancelled"]`
+- `scenarios`: `["save-current-account-name-dialog-cancelled"]`
+- `event_evidence`: `["menu_action_dispatched", "save_current_account_name_dialog_presented", "save_current_account_name_dialog_cancelled"]`
 
-### `accounts.sign_in_another.prompt_presented_and_cancellable`
+### `accounts.add_account.name_dialog_cancelled`
 
 - `feature`: `accounts`
-- `rule`: Triggering `Sign In Another Account…` from the running menubar presents the text-input prompt and allows clean cancellation without mutating account state.
+- `rule`: Triggering `Add Account...` from the running menubar presents the name dialog and allows clean cancellation without mutating account state.
 - `owner_layer`: `live_ui`
 - `proofs_required`: `["live_ui"]`
-- `scenarios`: `["sign_in_another_prompt"]`
-- `event_evidence`: `["menu_action_dispatched", "sign_in_another_prompt_presented", "sign_in_another_prompt_cancelled"]`
+- `scenarios`: `["live-add-account-name-dialog-cancelled", "add-account-name-dialog-cancelled"]`
+- `event_evidence`: `["menu_action_dispatched", "add_account_name_dialog_presented", "add_account_name_dialog_cancelled"]`
 
 ### `accounts.scheduled_refresh.requested_and_completed`
 
