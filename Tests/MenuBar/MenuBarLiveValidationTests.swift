@@ -1084,9 +1084,9 @@ struct MenuBarLiveValidationTests {
             MenuBarValidationConfiguration.scenarioEnvironmentKey: "live-remote-host-switch",
         ]))
 
-        run.recordRemoteHostSwitchMenuAction(targetName: "Business", hostName: "buildbox")
-        run.recordRemoteHostSwitchStarted(targetName: "Business", hostName: "buildbox")
-        run.recordRemoteHostActiveAccountChanged(targetName: "Business", hostName: "buildbox")
+        run.recordRemoteHostSwitchMenuAction(targetName: "Validation Local", hostName: "buildbox")
+        run.recordRemoteHostSwitchStarted(targetName: "Validation Local", hostName: "buildbox")
+        run.recordRemoteHostActiveAccountChanged(targetName: "Validation Local", hostName: "buildbox")
 
         let manifestURL = proofDirectory.appendingPathComponent("manifest.json")
         let manifest = try JSONSerialization.jsonObject(with: Data(contentsOf: manifestURL)) as? [String: Any]
@@ -1099,6 +1099,21 @@ struct MenuBarLiveValidationTests {
             "evidence/events.jsonl",
         ])
         #expect(FileManager.default.fileExists(atPath: proofDirectory.appendingPathComponent("evidence/events.jsonl").path))
+
+        let eventsURL = proofDirectory.appendingPathComponent("evidence/events.jsonl")
+        let events = try String(contentsOf: eventsURL, encoding: .utf8)
+            .split(separator: "\n")
+            .compactMap { try JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any] }
+        #expect(events.compactMap { $0["event"] as? String } == [
+            "menu_action_dispatched",
+            "remote_host_switch_started",
+            "remote_host_active_account_changed",
+        ])
+        #expect(events.allSatisfy { event in
+            let payload = event["payload"] as? [String: Any]
+            return payload?["targetName"] as? String == "Validation Local"
+                && payload?["hostName"] as? String == "buildbox"
+        })
     }
 
     @Test
