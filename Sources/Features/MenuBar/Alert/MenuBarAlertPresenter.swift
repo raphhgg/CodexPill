@@ -171,7 +171,11 @@ final class MenuBarAlertPresenter {
             onValidationStarted: onValidationStarted,
             onValidationFinished: onValidationFinished
         )
-        return await controller.runModal()
+        let result = await controller.runModal()
+        // Give AppKit one pass to remove the setup panel before the coordinator
+        // presents the follow-up install/switch confirmation.
+        await Task.yield()
+        return result
     }
 
     private func textFieldAccessoryView(
