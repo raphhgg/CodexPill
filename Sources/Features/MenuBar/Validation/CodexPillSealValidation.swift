@@ -29,8 +29,6 @@ enum CodexPillSealValidationConfiguration {
 
 @MainActor
 final class CodexPillSealValidationRun {
-    private static let featureID = FeatureID("accounts")
-
     private let scenario: CodexPillSealScenario
     private let run: SealRun
     private var didRecordAccountBefore = false
@@ -44,7 +42,7 @@ final class CodexPillSealValidationRun {
         self.scenario = scenario
         try SealRecorder.register(features: [Self.feature(scenarios: [scenario])])
         run = try SealRecorder.startRun(
-            feature: Self.featureID,
+            feature: scenario.featureID,
             scenario: scenario.id,
             executionMode: .liveUI,
             outputDirectory: outputDirectory
@@ -219,6 +217,56 @@ final class CodexPillSealValidationRun {
         }
     }
 
+    func recordAddHostMenuAction() {
+        guard !didFinish else { return }
+        do {
+            try run.recordEvent(
+                "menu_action_dispatched",
+                step: "menu_action_dispatch",
+                invariantIds: scenario.hostInvariantIDs,
+                payload: [
+                    "action": .string("addHost")
+                ]
+            )
+        } catch {
+            codexPillSealValidationLogger.error("Failed to record Seal add-host menu action proof: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    func recordAddHostSetupPresented() {
+        recordHostEvent(
+            "add_host_setup_presented",
+            step: "add_host_setup"
+        )
+    }
+
+    func recordAddHostValidationStarted(hostName: String) {
+        recordHostEvent(
+            "add_host_validation_started",
+            step: "add_host_validation",
+            payload: ["hostName": .string(hostName)]
+        )
+    }
+
+    func recordAddHostValidationFailed(hostName: String, message: String) {
+        guard !didFinish else { return }
+        do {
+            try run.recordEvent(
+                "add_host_validation_failed",
+                step: "add_host_validation",
+                invariantIds: scenario.hostInvariantIDs,
+                payload: [
+                    "hostName": .string(hostName),
+                    "message": .string(message)
+                ]
+            )
+            try run.finish()
+            didFinish = true
+        } catch {
+            codexPillSealValidationLogger.error("Failed to finish Seal add-host validation proof: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
     func cancelIfUnfinished() {
         guard !didFinish else { return }
         run.cancelIfUnfinished()
@@ -300,14 +348,51 @@ final class CodexPillSealValidationRun {
         }
     }
 
+    private func recordHostEvent(_ eventName: String, step: String, payload: JSONObject = [:]) {
+        guard !didFinish else { return }
+        do {
+            try run.recordEvent(
+                eventName,
+                step: step,
+                invariantIds: scenario.hostInvariantIDs,
+                payload: payload
+            )
+        } catch {
+            codexPillSealValidationLogger.error("Failed to record Seal add-host event proof: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
     private static func feature(scenarios: [CodexPillSealScenario]) throws -> SealFeature {
         try SealFeature(
-            id: featureID,
+            id: scenarios.first?.featureID ?? FeatureID("accounts"),
             scenarios: try scenarios.map(makeScenario)
         )
     }
 
     private static func makeScenario(_ scenario: CodexPillSealScenario) throws -> SealScenario {
+        if let hostValidationID = scenario.hostValidationID,
+           let hostExpectation = scenario.hostExpectation {
+            return try SealScenario(
+                id: scenario.id,
+                scenarioType: .failurePath,
+                supportedExecutionModes: [.liveUI],
+                expectations: [
+                    try SealExpectation(
+                        text: hostExpectation,
+                        invariants: [
+                            SealInvariantRef(
+                                id: hostValidationID,
+                                requiredEvidence: [
+                                    EvidenceRequirement(id: EvidenceID("events"), kind: .eventStream)
+                                ],
+                                rule: scenario.hostValidationRule
+                            )
+                        ]
+                    )
+                ]
+            )
+        }
+
         if let switchChangesActiveAccountID = scenario.switchChangesActiveAccountID,
            let switchExpectation = scenario.switchExpectation {
             return try SealScenario(
@@ -379,6 +464,9 @@ final class CodexPillSealValidationRun {
 }
 
 private struct CodexPillSealScenario {
+    private static let addHostValidationDestination = "codexpill-validation.invalid"
+
+    let featureID: FeatureID
     let id: ScenarioID
     let menuAction: String
     let dialogID: String
@@ -390,12 +478,18 @@ private struct CodexPillSealScenario {
     let nameDialogCancelledID: InvariantID
     let cancelKeepsAccountStateID: InvariantID
     let switchChangesActiveAccountID: InvariantID?
+    let hostValidationID: InvariantID?
     let presentedAndCancelledExpectation: String
     let nonMutatingExpectation: String
     let switchExpectation: String?
+    let hostExpectation: String?
 
     var switchInvariantIDs: [InvariantID] {
         switchChangesActiveAccountID.map { [$0] } ?? []
+    }
+
+    var hostInvariantIDs: [InvariantID] {
+        hostValidationID.map { [$0] } ?? []
     }
 
     var nameDialogPresentedRule: SealRule {
@@ -476,7 +570,23 @@ private struct CodexPillSealScenario {
         ])
     }
 
+    var hostValidationRule: SealRule {
+        .eventSequence([
+            EventExpectation("menu_action_dispatched", payload: [
+                "action": .string("addHost")
+            ]),
+            EventExpectation("add_host_setup_presented"),
+            EventExpectation("add_host_validation_started", payload: [
+                "hostName": .string(Self.addHostValidationDestination)
+            ]),
+            EventExpectation("add_host_validation_failed", payload: [
+                "hostName": .string(Self.addHostValidationDestination)
+            ])
+        ])
+    }
+
     private init(
+        featureID: FeatureID = FeatureID("accounts"),
         id: ScenarioID,
         menuAction: String,
         dialogID: String,
@@ -490,8 +600,11 @@ private struct CodexPillSealScenario {
         presentedAndCancelledExpectation: String,
         nonMutatingExpectation: String,
         switchChangesActiveAccountID: InvariantID? = nil,
-        switchExpectation: String? = nil
+        switchExpectation: String? = nil,
+        hostValidationID: InvariantID? = nil,
+        hostExpectation: String? = nil
     ) {
+        self.featureID = featureID
         self.id = id
         self.menuAction = menuAction
         self.dialogID = dialogID
@@ -503,9 +616,11 @@ private struct CodexPillSealScenario {
         self.nameDialogCancelledID = nameDialogCancelledID
         self.cancelKeepsAccountStateID = cancelKeepsAccountStateID
         self.switchChangesActiveAccountID = switchChangesActiveAccountID
+        self.hostValidationID = hostValidationID
         self.presentedAndCancelledExpectation = presentedAndCancelledExpectation
         self.nonMutatingExpectation = nonMutatingExpectation
         self.switchExpectation = switchExpectation
+        self.hostExpectation = hostExpectation
     }
 
     init?(legacyScenario: String) {
@@ -516,6 +631,8 @@ private struct CodexPillSealScenario {
             self = .addAccountNameDialogCancelled
         case "live-account-switch":
             self = .switchAccountChangesActiveAccount
+        case "live-add-host-destination-validation-failed", "live-add-host-prompt":
+            self = .addHostDestinationValidationFailed
         default:
             return nil
         }
@@ -566,6 +683,24 @@ private struct CodexPillSealScenario {
         nonMutatingExpectation: "Cancelling the switch-account confirmation does not change account state",
         switchChangesActiveAccountID: InvariantID("accounts.switch_account.menu_action_changes_active_account"),
         switchExpectation: "Switching account through the menubar changes the active account"
+    )
+
+    static let addHostDestinationValidationFailed = CodexPillSealScenario(
+        featureID: FeatureID("hosts"),
+        id: ScenarioID("add-host-destination-validation-failed"),
+        menuAction: "addHost",
+        dialogID: "add_host_setup",
+        dialogTitle: "Add Host",
+        dialogStep: "add_host_setup",
+        presentedEventName: "add_host_setup_presented",
+        cancelledEventName: "add_host_setup_cancelled",
+        nameDialogPresentedID: InvariantID("hosts.add_host.setup_presented"),
+        nameDialogCancelledID: InvariantID("hosts.add_host.setup_cancelled"),
+        cancelKeepsAccountStateID: InvariantID("hosts.add_host.cancel_keeps_host_state"),
+        presentedAndCancelledExpectation: "The Add Host setup dialog is presented",
+        nonMutatingExpectation: "Cancelling the Add Host setup dialog does not change host state",
+        hostValidationID: InvariantID("hosts.add_host.destination_validation_failed"),
+        hostExpectation: "Entering an invalid Add Host destination emits validation feedback"
     )
 }
 

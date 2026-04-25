@@ -1049,6 +1049,33 @@ struct MenuBarLiveValidationTests {
     }
 
     @Test
+    func sealValidationRunEmitsAddHostDestinationValidationProof() throws {
+        let proofDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CodexPillSealValidation-\(UUID().uuidString)", isDirectory: true)
+        let run = try #require(CodexPillSealValidationConfiguration.makeRun(environment: [
+            CodexPillSealValidationConfiguration.proofOutputPathEnvironmentKey: proofDirectory.path,
+            MenuBarValidationConfiguration.scenarioEnvironmentKey: "live-add-host-destination-validation-failed",
+        ]))
+
+        run.recordAddHostMenuAction()
+        run.recordAddHostSetupPresented()
+        run.recordAddHostValidationStarted(hostName: "codexpill-validation.invalid")
+        run.recordAddHostValidationFailed(hostName: "codexpill-validation.invalid", message: "Host unavailable")
+
+        let manifestURL = proofDirectory.appendingPathComponent("manifest.json")
+        let manifest = try JSONSerialization.jsonObject(with: Data(contentsOf: manifestURL)) as? [String: Any]
+        let runMetadata = manifest?["run"] as? [String: Any]
+        let evidence = manifest?["evidence"] as? [[String: Any]]
+
+        #expect(runMetadata?["feature"] as? String == "hosts")
+        #expect(runMetadata?["scenario"] as? String == "add-host-destination-validation-failed")
+        #expect(evidence?.compactMap { $0["path"] as? String } == [
+            "evidence/events.jsonl",
+        ])
+        #expect(FileManager.default.fileExists(atPath: proofDirectory.appendingPathComponent("evidence/events.jsonl").path))
+    }
+
+    @Test
     func coordinatorRestoresPersistedRemoteHostAccountOnStart() async throws {
         let sink = RecordingValidationSink()
         let repository = try makeIsolatedRepository()

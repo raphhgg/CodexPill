@@ -364,7 +364,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         "accounts.add_account.name_dialog_cancelled",
         "accounts.add_account.cancel_keeps_account_state"
     ]
-    private static let addHostPromptInvariantIDs = ["hosts.add_host.prompt_validates_destination"]
+    private static let addHostPromptInvariantIDs = ["hosts.add_host.destination_validation_failed"]
     private static let remoteHostSwitchInvariantIDs = ["hosts.switch_account_on_host.changes_remote_active_account"]
     private static let remoteHostReverifyInvariantIDs = ["hosts.reverify_remote_account.refreshes_remote_verification_state"]
     private static let scheduledRefreshInvariantIDs = ["accounts.scheduled_refresh.requested_and_completed"]
@@ -839,6 +839,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     @objc
     func addHost(_ sender: NSMenuItem) {
         recordMenuAction("addHost")
+        sealValidationRun?.recordAddHostMenuAction()
         Task { @MainActor [weak self] in
             guard let self else { return }
             guard let remoteHost = await self.alertPresenter.presentHostSetup(
@@ -856,15 +857,16 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
                 },
                 onPresented: { [weak self] in
                     self?.recordValidationEvent(
-                        "add_host_prompt_presented",
-                        step: "add_host_prompt",
+                        "add_host_setup_presented",
+                        step: "add_host_setup",
                         invariantIds: Self.addHostPromptInvariantIDs
                     )
+                    self?.sealValidationRun?.recordAddHostSetupPresented()
                 },
                 onCancelled: { [weak self] in
                     self?.recordValidationEvent(
-                        "add_host_prompt_cancelled",
-                        step: "add_host_prompt",
+                        "add_host_setup_cancelled",
+                        step: "add_host_setup",
                         invariantIds: Self.addHostPromptInvariantIDs
                     )
                 },
@@ -875,6 +877,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
                         invariantIds: Self.addHostPromptInvariantIDs,
                         payload: ["hostName": host.destination]
                     )
+                    self?.sealValidationRun?.recordAddHostValidationStarted(hostName: host.destination)
                 },
                 onValidationFinished: { [weak self] host, result in
                     switch result {
@@ -894,6 +897,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
                                 "hostName": host.destination,
                                 "message": error.localizedDescription
                             ]
+                        )
+                        self?.sealValidationRun?.recordAddHostValidationFailed(
+                            hostName: host.destination,
+                            message: error.localizedDescription
                         )
                     }
                 }

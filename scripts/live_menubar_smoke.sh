@@ -30,8 +30,8 @@ case "${SCENARIO}" in
   live-remote-host-switch)
     INVARIANT_IDS_JSON='["hosts.switch_account_on_host.changes_remote_active_account"]'
     ;;
-  live-add-host-prompt)
-    INVARIANT_IDS_JSON='["hosts.add_host.prompt_validates_destination"]'
+  live-add-host-destination-validation-failed|live-add-host-prompt)
+    INVARIANT_IDS_JSON='["hosts.add_host.destination_validation_failed"]'
     ;;
   live-scheduled-refresh)
     INVARIANT_IDS_JSON='["accounts.scheduled_refresh.requested_and_completed"]'
@@ -50,7 +50,7 @@ esac
 mkdir -p "${ARTIFACT_ROOT}/screenshots" "${ARTIFACT_ROOT}/logs"
 rm -f "${VALIDATION_EVENTS_PATH}"
 
-if [[ "${SCENARIO}" == "live-account-switch" || "${SCENARIO}" == "live-save-current-account-name-dialog-cancelled" || "${SCENARIO}" == "live-save-current-prompt" || "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-sign-in-another-prompt" ]]; then
+if [[ "${SCENARIO}" == "live-account-switch" || "${SCENARIO}" == "live-save-current-account-name-dialog-cancelled" || "${SCENARIO}" == "live-save-current-prompt" || "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-sign-in-another-prompt" || "${SCENARIO}" == "live-add-host-destination-validation-failed" || "${SCENARIO}" == "live-add-host-prompt" ]]; then
   rm -rf "${SEAL_PROOF_OUTPUT_PATH}"
 fi
 
@@ -377,13 +377,13 @@ RUN_MENUBAR_ENV=(
   "CODEXPILL_VALIDATION_SCENARIO=${SCENARIO}"
 )
 
-if [[ "${SCENARIO}" == "live-account-switch" || "${SCENARIO}" == "live-save-current-account-name-dialog-cancelled" || "${SCENARIO}" == "live-save-current-prompt" || "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-sign-in-another-prompt" ]]; then
+if [[ "${SCENARIO}" == "live-account-switch" || "${SCENARIO}" == "live-save-current-account-name-dialog-cancelled" || "${SCENARIO}" == "live-save-current-prompt" || "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-sign-in-another-prompt" || "${SCENARIO}" == "live-add-host-destination-validation-failed" || "${SCENARIO}" == "live-add-host-prompt" ]]; then
   RUN_MENUBAR_ENV+=(
     "CODEXPILL_SEAL_PROOF_OUTPUT=${PWD}/${SEAL_PROOF_OUTPUT_PATH}"
   )
 fi
 
-if [[ "${SCENARIO}" == "live-account-switch" || "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-sign-in-another-prompt" ]]; then
+if [[ "${SCENARIO}" == "live-account-switch" || "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-sign-in-another-prompt" || "${SCENARIO}" == "live-add-host-destination-validation-failed" || "${SCENARIO}" == "live-add-host-prompt" ]]; then
   RUN_MENUBAR_ENV+=(
     "CODEXPILL_VALIDATION_ALLOW_INTERACTIVE_ALERTS=1"
   )
@@ -563,7 +563,7 @@ add_account_menu = find_child(menu_items, "Add Account…")
 abort "Missing Add Account… menu in runtime snapshot" unless add_account_menu
 
 save_current_account = find_child(add_account_menu.fetch("children", []), "Save Current Account")
-if !["live-account-switch", "live-save-current-account-name-dialog-cancelled", "live-save-current-prompt", "live-add-account-name-dialog-cancelled", "live-sign-in-another-prompt"].include?(scenario)
+if !["live-account-switch", "live-save-current-account-name-dialog-cancelled", "live-save-current-prompt", "live-add-account-name-dialog-cancelled", "live-sign-in-another-prompt", "live-add-host-destination-validation-failed", "live-add-host-prompt"].include?(scenario)
   abort "Missing Add Account… > Save Current Account item in runtime snapshot" unless save_current_account
 end
 
@@ -1502,7 +1502,7 @@ end
 
 requirements = [
   ["menu_action_dispatched", ->(event) { event.dig("payload", "action") == "addHost" }],
-  ["add_host_prompt_presented", ->(_event) { true }],
+  ["add_host_setup_presented", ->(_event) { true }],
   ["add_host_validation_started", ->(event) { event.dig("payload", "hostName") == "codexpill-validation.invalid" }],
   ["add_host_validation_failed", ->(event) { event.dig("payload", "hostName") == "codexpill-validation.invalid" }]
 ]
@@ -2335,7 +2335,7 @@ EOF
   exit 0
 fi
 
-if [[ "${SCENARIO}" == "live-add-host-prompt" ]]; then
+if [[ "${SCENARIO}" == "live-add-host-destination-validation-failed" || "${SCENARIO}" == "live-add-host-prompt" ]]; then
   if ! trigger_add_host_prompt >/dev/null 2>&1; then
     cat > "${SUMMARY_PATH}" <<EOF
 {
@@ -2349,6 +2349,8 @@ if [[ "${SCENARIO}" == "live-add-host-prompt" ]]; then
     "runtime-assertions.json",
     "ui-tree.json",
     "validation-events.jsonl",
+    "seal-proof/manifest.json",
+    "seal-proof/evidence/events.jsonl",
     "logs/run-menubar.log"
   ],
   "assertions": [
@@ -2364,11 +2366,12 @@ if [[ "${SCENARIO}" == "live-add-host-prompt" ]]; then
   "failureStep": "add_host_menu_path"
 }
 EOF
-    echo "Live add-host prompt smoke failed: could not trigger the menu path." >&2
+    echo "Live add-host destination validation smoke failed: could not trigger the menu path." >&2
     exit 23
   fi
 
   if ! populate_host_setup_destination "codexpill-validation.invalid" >/dev/null 2>&1; then
+    cancel_text_input_prompt >/dev/null 2>&1 || true
     cat > "${SUMMARY_PATH}" <<EOF
 {
   "invariantIds": ${INVARIANT_IDS_JSON},
@@ -2388,15 +2391,15 @@ EOF
   ],
   "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
   "gaps": [
-    "The live probe could not enter a destination into the host prompt."
+    "The live probe could not enter a destination into the Add Host setup dialog."
   ],
   "scenario": "${SCENARIO}",
   "status": "failed",
   "failureClass": "environment_block",
-  "failureStep": "add_host_prompt_populate"
+  "failureStep": "add_host_setup_populate"
 }
 EOF
-    echo "Live add-host prompt smoke failed: could not populate the destination field." >&2
+    echo "Live add-host destination validation smoke failed: could not populate the destination field." >&2
     exit 24
   fi
 
@@ -2452,14 +2455,55 @@ EOF
   ],
   "scenario": "${SCENARIO}",
   "status": "failed",
-  "hostPromptState": ${HOST_PROMPT_STATE_JSON},
+  "hostSetupDialogState": ${HOST_PROMPT_STATE_JSON},
   "proofSequence": $(printf '%s' "${HOST_PROMPT_PROOF_JSON}" | ruby -rjson -e 'print(JSON.generate(JSON.parse(STDIN.read)["proofSequence"] || []))'),
   "failureClass": "product_regression",
   "failureStep": "add_host_validation_feedback"
 }
 EOF
-    echo "Live add-host prompt smoke failed: validation feedback never appeared." >&2
+    echo "Live add-host destination validation smoke failed: validation feedback never appeared." >&2
     exit 25
+  fi
+
+  if ! verify_seal_proof; then
+    cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "screenshots/${SCENARIO}.png",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "seal-proof/manifest.json",
+    "seal-proof/evidence/events.jsonl",
+    "logs/seal-verifier.stdout.log",
+    "logs/seal-verifier.stderr.log",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "The live probe triggered the Add Host menu path",
+    "The destination field accepted input",
+    "The Add Host setup dialog emitted validation feedback after input"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [
+    "The Seal proof manifest was missing or rejected by the Seal verifier."
+  ],
+  "scenario": "${SCENARIO}",
+  "status": "failed",
+  "hostSetupDialogState": ${HOST_PROMPT_STATE_JSON},
+  "proofSequence": $(printf '%s' "${HOST_PROMPT_PROOF_JSON}" | ruby -rjson -e 'print(JSON.generate(JSON.parse(STDIN.read)["proofSequence"] || []))'),
+  "sealProofVerificationMode": "${SEAL_PROOF_VERIFICATION_MODE}",
+  "failureClass": "product_regression",
+  "failureStep": "seal_proof_verification"
+}
+EOF
+    echo "Live add-host destination validation smoke failed: Seal proof did not verify." >&2
+    exit 26
   fi
 
   cat > "${SUMMARY_PATH}" <<EOF
@@ -2474,24 +2518,30 @@ EOF
     "runtime-assertions.json",
     "ui-tree.json",
     "validation-events.jsonl",
+    "seal-proof/manifest.json",
+    "seal-proof/evidence/events.jsonl",
+    "logs/seal-verifier.stdout.log",
+    "logs/seal-verifier.stderr.log",
     "logs/run-menubar.log"
   ],
   "assertions": [
     "Accessibility enumerated the open menu",
-    "The Add Host prompt was presented",
+    "The Add Host setup dialog was presented",
     "The destination field accepted input",
-    "The prompt emitted validation feedback after input"
+    "The Add Host setup dialog emitted validation feedback after input"
   ],
   "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
   "gaps": [],
   "scenario": "${SCENARIO}",
+  "sealProofScenario": "add-host-destination-validation-failed",
   "status": "passed",
-  "hostPromptState": ${HOST_PROMPT_STATE_JSON},
-  "proofSequence": $(printf '%s' "${HOST_PROMPT_PROOF_JSON}" | ruby -rjson -e 'print(JSON.generate(JSON.parse(STDIN.read)["proofSequence"] || []))')
+  "hostSetupDialogState": ${HOST_PROMPT_STATE_JSON},
+  "proofSequence": $(printf '%s' "${HOST_PROMPT_PROOF_JSON}" | ruby -rjson -e 'print(JSON.generate(JSON.parse(STDIN.read)["proofSequence"] || []))'),
+  "sealProofVerificationMode": "${SEAL_PROOF_VERIFICATION_MODE}"
 }
 EOF
 
-  echo "Live add-host prompt smoke artifacts written to ${ARTIFACT_ROOT}"
+  echo "Live add-host destination validation smoke artifacts written to ${ARTIFACT_ROOT}"
   exit 0
 fi
 

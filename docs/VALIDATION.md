@@ -82,6 +82,8 @@ The following behavior should be treated as automated first and should not live 
   - deterministic UI plus `MenuBarLiveValidationTests`
 - validation-only live remote host switching proves submenu dispatch and remote-card update without depending on a real SSH box:
   - `SCENARIO=live-remote-host-switch make verify-ui-live`
+- Add Host destination validation failure:
+  - `SCENARIO=live-add-host-destination-validation-failed make verify-ui-live`
 
 If one of those areas needs more confidence, extend the owning suite or add a live smoke scenario. Do not add it back as a standing human checklist item unless there is still a real manual-only gap.
 
@@ -207,14 +209,14 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `proofs_required`: `["unit", "deterministic_ui"]`
 - `scenarios`: `["hosted_menu_with_host", "host_account_missing_on_host"]`
 
-### `hosts.add_host.prompt_validates_destination`
+### `hosts.add_host.destination_validation_failed`
 
 - `feature`: `hosts`
-- `rule`: Triggering `Add Host…` from the running menubar presents the host setup prompt, accepts a destination entry, and emits validation feedback for an invalid host before allowing the workflow to continue.
+- `rule`: Triggering `Add Host…` from the running menubar presents the host setup dialog, accepts a destination entry, and emits validation feedback for an invalid host before allowing the workflow to continue.
 - `owner_layer`: `live_ui`
 - `proofs_required`: `["live_ui"]`
-- `scenarios`: `["live-add-host-prompt"]`
-- `event_evidence`: `["menu_action_dispatched", "add_host_prompt_presented", "add_host_validation_started", "add_host_validation_failed"]`
+- `scenarios`: `["live-add-host-destination-validation-failed", "add-host-destination-validation-failed"]`
+- `event_evidence`: `["menu_action_dispatched", "add_host_setup_presented", "add_host_validation_started", "add_host_validation_failed"]`
 
 ### `hosts.switch_workflow.installs_missing_accounts_before_switch`
 
