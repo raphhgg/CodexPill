@@ -946,11 +946,12 @@ struct InactiveAccountAvailabilityRankingTests {
                 repository: repository,
                 identityResolver: identityResolver
             ),
-            addAccountWorkflow: AddAccountWorkflow(
+            signInAnotherWorkflow: SignInAnotherWorkflow(
                 authService: RankingNoopAuthService(),
                 codexAppProcessClient: DisabledCodexAppProcessClient(),
-                captureClient: RankingNoopDeviceAuthCaptureClient(),
-                repository: repository
+                accountStatusClient: RankingFailingAccountStatusReader(error: RankingTestFailure.backgroundRefreshFailed),
+                repository: repository,
+                identityResolver: identityResolver
             )
         )
 
@@ -1071,8 +1072,9 @@ private struct DisabledCodexAppProcessClient: CodexAppProcessClient {
     func relaunchCodex() async throws {}
 }
 
-private struct RankingNoopAuthService: CodexAuthDataRestoring, CodexAuthSnapshotSaving, CodexAuthSnapshotImporting {
+private struct RankingNoopAuthService: CodexAuthDataRestoring, CodexAuthSnapshotSaving, CodexSignInAnotherAuthHandling {
     func activate(_ account: CodexAccount) throws {}
+    func prepareForNewSignIn() throws {}
     func readCurrentAuthData() throws -> Data { Data() }
     func restoreCurrentAuthData(_ data: Data) throws {}
 
@@ -1089,27 +1091,4 @@ private struct RankingNoopAuthService: CodexAuthDataRestoring, CodexAuthSnapshot
             identity: .empty
         )
     }
-
-    func saveAuthSnapshot(_ authData: Data, named name: String, existing: CodexAccount?) throws -> CodexAccount {
-        try saveCurrentAuthSnapshot(named: name, existing: existing)
-    }
-}
-
-private struct RankingNoopDeviceAuthCaptureClient: CodexDeviceAuthCapturing {
-    func beginDeviceAuth(in session: IsolatedCodexHomeSession) async throws -> any CodexDeviceAuthCaptureHandling {
-        RankingNoopDeviceAuthCapture()
-    }
-}
-
-private final class RankingNoopDeviceAuthCapture: CodexDeviceAuthCaptureHandling {
-    func deviceAuthPrompt() async -> CodexDeviceAuthPrompt {
-        CodexDeviceAuthPrompt(
-            verificationURL: URL(string: "https://auth.openai.com/codex/device")!,
-            userCode: nil
-        )
-    }
-
-    func waitForCapturedAuth() async throws -> Data { Data() }
-    func cancel() async {}
-    func cleanup() async throws {}
 }

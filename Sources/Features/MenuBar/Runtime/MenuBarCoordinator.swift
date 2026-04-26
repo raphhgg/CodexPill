@@ -391,6 +391,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let notificationCopyRenderer = AccountAvailabilityNotificationCopyRenderer()
     private let menuBuilder = MenuBarMenuBuilder()
     private var autoRefreshTimer: Timer?
+    private var pendingSignInMonitorTimer: Timer?
     private var wakeRefreshTask: Task<Void, Never>?
     private var notificationWaitTask: Task<Void, Never>?
     private var hasPromptedForEmptyState = false
@@ -462,6 +463,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     func invalidate() {
         autoRefreshTimer?.invalidate()
+        pendingSignInMonitorTimer?.invalidate()
         wakeRefreshTask?.cancel()
         notificationWaitTask?.cancel()
         sealValidationRun?.cancelIfUnfinished()
@@ -557,11 +559,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         )
 
         menuBarCoordinatorLogger.log("Dispatching add-account task to store")
-        Task {
-            await store.startAddAccountFlow(named: name) { [weak self] prompt in
-                self?.presentDeviceAuthPrompt(prompt)
-            }
-        }
+        Task { await store.startSignInAnotherAccountFlow(named: name) }
     }
 
     @objc
@@ -1852,7 +1850,29 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     private func syncBackgroundState() {
+        schedulePendingSignInMonitorIfNeeded()
         promptForEmptyStateIfNeeded()
+    }
+
+    private func schedulePendingSignInMonitorIfNeeded() {
+        guard store.hasPendingSignedInAccount else {
+            pendingSignInMonitorTimer?.invalidate()
+            pendingSignInMonitorTimer = nil
+            return
+        }
+
+        guard pendingSignInMonitorTimer == nil else { return }
+
+        pendingSignInMonitorTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                await self.store.completePendingSignedInAccountIfNeeded()
+                if !self.store.hasPendingSignedInAccount {
+                    self.pendingSignInMonitorTimer?.invalidate()
+                    self.pendingSignInMonitorTimer = nil
+                }
+            }
+        }
     }
 
     private func triggerValidationScenarioIfNeeded() {
@@ -1875,11 +1895,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             guard let self, self.store.accounts.isEmpty, !self.store.isBusy else { return }
             self.addCurrentAccount()
         }
-    }
-
-    private func presentDeviceAuthPrompt(_ prompt: CodexDeviceAuthPrompt) {
-        NSWorkspace.shared.open(prompt.verificationURL)
-        alertPresenter.presentInfo(alertFactory.makeAddAccountDeviceAuthRequest(prompt: prompt))
     }
 
     private func statusItemPresentation(for state: MenuBarMenuState) -> StatusItemRuntimePresentation {

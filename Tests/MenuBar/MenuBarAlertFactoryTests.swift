@@ -38,7 +38,7 @@ struct MenuBarAlertFactoryTests {
         #expect(request.messageText == "Add another account?")
         #expect(request.confirmTitle == "Add Account")
         #expect(request.informativeText.contains("save it in your account collection"))
-        #expect(request.informativeText.contains("without switching your current local session"))
+        #expect(request.informativeText.contains("signs into another Codex account in Codex"))
         #expect(!request.informativeText.contains("running Codex CLI session"))
     }
 
@@ -47,21 +47,7 @@ struct MenuBarAlertFactoryTests {
         let request = factory.makeAddAccountRequest(runningCLISessions: 1)
 
         #expect(request.informativeText.contains("1 running Codex CLI session was detected"))
-        #expect(request.informativeText.contains("stay on their current auth unless you switch them explicitly"))
-    }
-
-    @Test
-    func addAccountDeviceAuthRequestIncludesOneTimeCodeWhenAvailable() {
-        let request = factory.makeAddAccountDeviceAuthRequest(
-            prompt: CodexDeviceAuthPrompt(
-                verificationURL: URL(string: "https://auth.openai.com/codex/device")!,
-                userCode: "ABCD-1234"
-            )
-        )
-
-        #expect(request.messageText == "Finish adding account")
-        #expect(request.informativeText.contains("ABCD-1234"))
-        #expect(request.informativeText.contains("without switching your current local session"))
+        #expect(request.informativeText.contains("Restart any open Codex CLI terminals after sign-in"))
     }
 
     @Test

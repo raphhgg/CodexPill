@@ -68,6 +68,8 @@ The following behavior should be treated as automated first and should not live 
   - `AccountsControllerTests`
 - sign-in-another persistence and duplicate-avoidance rules:
   - `SignInAnotherWorkflowTests`
+- sign-in-another duplicate-name preflight and terminal pending-error handling:
+  - `SignInAnotherWorkflowTests` plus `AccountsControllerTests`
 - switch-account relaunch and persistence behavior:
   - `SwitchAccountWorkflowTests`
 - remote-host SSH command mapping and failure surfacing:
@@ -156,6 +158,22 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `proofs_required`: `["live_ui"]`
 - `scenarios`: `["live-add-account-name-dialog-cancelled", "add-account-name-dialog-cancelled"]`
 - `event_evidence`: `["menu_action_dispatched", "add_account_name_dialog_presented", "add_account_name_dialog_cancelled"]`
+
+### `accounts.add_account.duplicate_name_preflight`
+
+- `feature`: `accounts`
+- `rule`: Add Account rejects duplicate saved-account names before clearing live auth, relaunching Codex, or starting a pending sign-in.
+- `owner_layer`: `unit`
+- `proofs_required`: `["unit"]`
+- `scenarios`: `["sign_in_another_duplicate_name_preflight"]`
+
+### `accounts.add_account.terminal_completion_error_clears_pending_sign_in`
+
+- `feature`: `accounts`
+- `rule`: If pending Add Account completion reaches a terminal save failure, CodexPill surfaces one error and clears the pending sign-in so the monitor does not re-alert repeatedly.
+- `owner_layer`: `unit`
+- `proofs_required`: `["unit"]`
+- `scenarios`: `["sign_in_another_terminal_completion_error"]`
 
 ### `accounts.scheduled_refresh.requested_and_completed`
 

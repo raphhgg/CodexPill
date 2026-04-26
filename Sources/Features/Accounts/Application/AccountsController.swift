@@ -51,9 +51,10 @@ final class AccountsController {
     private let switchAccountOnHostWorkflow: SwitchAccountOnHostWorkflow
     private let remoteHostAccountVerifier: RemoteHostAccountVerifier
     private let saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow
-    private let addAccountWorkflow: AddAccountWorkflow
+    private let signInAnotherWorkflow: SignInAnotherWorkflow
 
     private var catalogState = AccountCatalogState()
+    private let pendingSignInLifecycle = PendingSignInLifecycle()
     private var isHydratingSavedAccountsMetadata = false
 
     init(
@@ -111,10 +112,12 @@ final class AccountsController {
             repository: repository,
             identityResolver: self.identityResolver
         )
-        self.addAccountWorkflow = AddAccountWorkflow(
+        self.signInAnotherWorkflow = SignInAnotherWorkflow(
             authService: authService,
             codexAppProcessClient: codexAppProcessClient,
-            repository: repository
+            accountStatusClient: accountStatusClient,
+            repository: repository,
+            identityResolver: self.identityResolver
         )
     }
 
@@ -135,7 +138,7 @@ final class AccountsController {
         ),
         remoteHostAccountVerifier: RemoteHostAccountVerifier = RemoteHostAccountVerifier(),
         saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow,
-        addAccountWorkflow: AddAccountWorkflow
+        signInAnotherWorkflow: SignInAnotherWorkflow
     ) {
         self.identityResolver = identityResolver
         self.inactiveAccountAvailabilityRanking = inactiveAccountAvailabilityRanking
@@ -153,7 +156,7 @@ final class AccountsController {
         self.switchAccountOnHostWorkflow = switchAccountOnHostWorkflow
         self.remoteHostAccountVerifier = remoteHostAccountVerifier
         self.saveCurrentAccountWorkflow = saveCurrentAccountWorkflow
-        self.addAccountWorkflow = addAccountWorkflow
+        self.signInAnotherWorkflow = signInAnotherWorkflow
     }
 
     func load() {
@@ -284,28 +287,48 @@ final class AccountsController {
         }
     }
 
-    func startAddAccountFlow(
-        named accountName: String?,
-        presentPrompt: @MainActor (CodexDeviceAuthPrompt) -> Void
-    ) async {
-        accountsControllerLogger.log("Starting add-account flow")
-        await perform("Adding Codex account...") {
-            refreshActiveAccount()
-            let previousActiveAccountID = activeAccountID
-            let startedSession = try await addAccountWorkflow.begin(named: accountName)
-            let prompt = await startedSession.capture.deviceAuthPrompt()
-            presentPrompt(prompt)
-            let result = try await addAccountWorkflow.complete(
-                startedSession: startedSession,
-                existingAccounts: accounts,
-                previousActiveAccountID: previousActiveAccountID
+    func startSignInAnotherAccountFlow(named pendingAccountName: String?) async {
+        accountsControllerLogger.log("Starting sign-in-another flow")
+        await perform("Preparing Codex sign-in...") {
+            let result = try signInAnotherWorkflow.prepare(
+                named: pendingAccountName,
+                existingAccounts: accounts
             )
-            catalogState.applySavedAccount(
-                result.savedAccount,
-                activeAccountID: result.activeAccountID
-            )
-            refreshActiveAccount()
-            accountsControllerLogger.log("Add-account flow saved account without switching local auth")
+            catalogState.setActiveAccountID(nil)
+            try await signInAnotherWorkflow.relaunchCodex()
+            pendingSignInLifecycle.recordPreparedSignIn(named: result.pendingAccountName)
+            accountsControllerLogger.log("Sign-in-another relaunch finished")
+        }
+    }
+
+    func completePendingSignedInAccountIfNeeded() async {
+        refreshActiveAccount()
+        let decision = pendingSignInLifecycle.beginCompletion(activeAccountID: activeAccountID)
+
+        switch decision {
+        case .skip:
+            return
+        case .clearPending:
+            return
+        case .complete(let pendingAccountName):
+            do {
+                if let result = try await signInAnotherWorkflow.completePendingSignIn(
+                    pendingAccountName: pendingAccountName,
+                    existingAccounts: accounts
+                ) {
+                    catalogState.applySavedAccount(
+                        result.savedAccount,
+                        activeAccountID: result.activeAccountID
+                    )
+                    operationState.succeed()
+                    pendingSignInLifecycle.finishCompletion(consumedPendingSignIn: true)
+                } else {
+                    pendingSignInLifecycle.finishCompletion(consumedPendingSignIn: false)
+                }
+            } catch {
+                pendingSignInLifecycle.finishCompletion(consumedPendingSignIn: true)
+                operationState.fail(error)
+            }
         }
     }
 
@@ -329,12 +352,19 @@ final class AccountsController {
         operationState.isBusy
     }
 
+    var hasPendingSignedInAccount: Bool {
+        pendingSignInLifecycle.hasPendingSignIn
+    }
+
     func refreshActiveAccount() {
         catalogState.resolveActiveAccountID(using: identityResolver)
     }
 
     func hydrateSavedAccountsMetadataIfNeeded() async {
-        guard !isBusy, !isHydratingSavedAccountsMetadata else { return }
+        guard pendingSignInLifecycle.canHydrateSavedAccountsMetadata(
+            isBusy: isBusy,
+            isHydratingSavedAccountsMetadata: isHydratingSavedAccountsMetadata
+        ) else { return }
         guard accounts.contains(where: { $0.id != activeAccountID && $0.rateLimits == nil }) else { return }
 
         isHydratingSavedAccountsMetadata = true

@@ -27,6 +27,7 @@ final class MenuBarAccountsStore {
     var pendingErrorMessage: String? { controller.pendingErrorMessage }
     var statusMessage: String { controller.statusMessage }
     var isBusy: Bool { controller.isBusy }
+    var hasPendingSignedInAccount: Bool { controller.hasPendingSignedInAccount }
     var activeAccount: CodexAccount? { controller.activeAccount }
     var inactiveAccounts: [CodexAccount] { controller.inactiveAccounts }
     var sortedInactiveAccounts: [CodexAccount] { controller.sortedInactiveAccounts }
@@ -66,14 +67,12 @@ final class MenuBarAccountsStore {
         controller.persistAccountMetadata(account)
     }
 
-    func startAddAccountFlow(
-        named accountName: String?,
-        presentPrompt: @MainActor (CodexDeviceAuthPrompt) -> Void
-    ) async {
-        await controller.startAddAccountFlow(
-            named: accountName,
-            presentPrompt: presentPrompt
-        )
+    func startSignInAnotherAccountFlow(named pendingAccountName: String?) async {
+        await controller.startSignInAnotherAccountFlow(named: pendingAccountName)
+    }
+
+    func completePendingSignedInAccountIfNeeded() async {
+        await controller.completePendingSignedInAccountIfNeeded()
     }
 
     func refreshActiveAccount() {
