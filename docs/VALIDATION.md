@@ -182,7 +182,7 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 ### `accounts.scheduled_refresh.requested_and_completed`
 
 - `feature`: `accounts`
-- `rule`: The scheduled refresh timer refreshes the active local account and remote host state without rotating saved inactive snapshots through the real local auth file. The running app emits completion or failure proof without surfacing a blocking alert. Failure events must include the sanitized refresh error so app-server contract drift is diagnosable from validation artifacts.
+- `rule`: The scheduled refresh timer refreshes the active local account without rotating saved inactive snapshots through the real local auth file. The running app emits completion or failure proof without surfacing a blocking alert. Failure events must include the sanitized refresh error so app-server contract drift is diagnosable from validation artifacts. Remote-host refresh behavior is covered by the remote-host invariants, not by this scheduled-refresh proof.
 - `owner_layer`: `live_ui`
 - `proofs_required`: `["integration", "live_ui"]`
 - `scenarios`: `["scheduled_refresh"]`
