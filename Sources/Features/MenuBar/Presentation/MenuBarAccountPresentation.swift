@@ -19,18 +19,7 @@ enum MenuBarAccountPlacement: Equatable {
 }
 
 func menuPlanDisplayName(_ planType: String?) -> String {
-    switch planType?.lowercased() {
-    case "plus":
-        return "Plus"
-    case "pro":
-        return "Pro"
-    case "team":
-        return "Team"
-    case .some(let value) where !value.isEmpty:
-        return value.capitalized
-    default:
-        return "Unknown"
-    }
+    displayNameForCodexPlanType(planType)
 }
 
 func inactiveAccountTitle(
@@ -151,7 +140,7 @@ func statusItemTooltipText(for account: CodexAccount?, now: Date = .now) -> Stri
         lines.append(email)
     }
 
-    lines.append(menuPlanDisplayName(account.planType))
+    lines.append(menuPlanDisplayName(account.effectivePlanType))
 
     if let primary = account.rateLimits?.primary,
        primary.displayedUsedPercent(at: now) >= 100,

@@ -28,7 +28,7 @@ struct PersistSavedAccountMetadataUseCase {
 final class AccountsController {
     enum BackgroundRefreshOutcome: Equatable {
         case refreshed
-        case failed
+        case failed(String)
     }
 
     enum RemoteHostSwitchOutcome: Equatable {
@@ -271,7 +271,7 @@ final class AccountsController {
             return .refreshed
         } catch {
             accountsControllerLogger.log("Background refresh skipped for \(account.name, privacy: .public): \(error.localizedDescription, privacy: .public)")
-            return .failed
+            return .failed(error.localizedDescription)
         }
     }
 
@@ -378,6 +378,27 @@ final class AccountsController {
             catalogState.applyHydrated(result)
         } catch {
             accountsControllerLogger.log("Saved account metadata hydration skipped: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    func refreshInactiveSavedAccountsMetadata() async {
+        guard pendingSignInLifecycle.canHydrateSavedAccountsMetadata(
+            isBusy: isBusy,
+            isHydratingSavedAccountsMetadata: isHydratingSavedAccountsMetadata
+        ) else { return }
+
+        isHydratingSavedAccountsMetadata = true
+        defer { isHydratingSavedAccountsMetadata = false }
+
+        do {
+            let result = try await hydrateSavedAccountsMetadataUseCase.run(
+                accounts: accounts,
+                activeAccountID: activeAccountID,
+                refreshExistingMetadata: true
+            )
+            catalogState.applyHydrated(result)
+        } catch {
+            accountsControllerLogger.log("Saved account metadata refresh skipped: \(error.localizedDescription, privacy: .public)")
         }
     }
 

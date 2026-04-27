@@ -32,12 +32,19 @@ struct HydrateSavedAccountsMetadataUseCase {
         self.repository = repository
     }
 
-    func run(accounts: [CodexAccount], activeAccountID: UUID?) async throws -> HydrateSavedAccountsMetadataResult {
-        let missingMetadataIDs = accounts
-            .filter { $0.id != activeAccountID && $0.rateLimits == nil }
+    func run(
+        accounts: [CodexAccount],
+        activeAccountID: UUID?,
+        refreshExistingMetadata: Bool = false
+    ) async throws -> HydrateSavedAccountsMetadataResult {
+        let candidateAccountIDs = accounts
+            .filter { account in
+                account.id != activeAccountID &&
+                    (refreshExistingMetadata || account.rateLimits == nil)
+            }
             .map(\.id)
 
-        guard !missingMetadataIDs.isEmpty else {
+        guard !candidateAccountIDs.isEmpty else {
             return HydrateSavedAccountsMetadataResult(
                 accounts: accounts,
                 activeAccountID: activeAccountID,
@@ -56,20 +63,22 @@ struct HydrateSavedAccountsMetadataUseCase {
             }
         }
 
-        for accountID in missingMetadataIDs {
+        for accountID in candidateAccountIDs {
             guard let index = updatedAccounts.firstIndex(where: { $0.id == accountID }) else { continue }
 
             try authService.activate(updatedAccounts[index])
             let remote = try await accountStatusClient.readCurrentAccountStatus()
+            let hasFreshRateLimits = remote.rateLimits != nil
 
             updatedAccounts[index].applyRemoteMetadata(
                 email: remote.email ?? updatedAccounts[index].email,
                 planType: remote.planType ?? updatedAccounts[index].planType,
-                rateLimits: remote.rateLimits ?? updatedAccounts[index].rateLimits
+                rateLimits: remote.rateLimits ?? updatedAccounts[index].rateLimits,
+                preferRateLimitPlan: hasFreshRateLimits
             )
-            updatedAccounts[index].updatedAt = .now
 
-            if remote.rateLimits != nil {
+            if hasFreshRateLimits {
+                updatedAccounts[index].updatedAt = .now
                 hydratedAccountIDs.append(accountID)
             }
         }

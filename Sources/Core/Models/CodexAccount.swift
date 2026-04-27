@@ -152,13 +152,24 @@ struct CodexAccount: Identifiable, Codable, Hashable {
         return updatedAt
     }
 
+    var effectivePlanType: String? {
+        effectiveCodexPlanType(
+            accountPlanType: planType,
+            rateLimitPlanType: rateLimits?.planType
+        )
+    }
+
     mutating func applyRemoteMetadata(
         email: String?,
         planType: String?,
-        rateLimits: CodexRateLimitSnapshot?
+        rateLimits: CodexRateLimitSnapshot?,
+        preferRateLimitPlan: Bool = true
     ) {
         self.email = email
-        self.planType = planType
+        self.planType = effectiveCodexPlanType(
+            accountPlanType: planType,
+            rateLimitPlanType: preferRateLimitPlan ? rateLimits?.planType : nil
+        )
         self.rateLimits = rateLimits
         identity.remoteIdentity = CodexRemoteAccountIdentity(emailAddress: email)
     }

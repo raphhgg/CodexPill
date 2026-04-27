@@ -53,7 +53,8 @@ final class CodexAppServerClient {
     func readCurrentAccountStatus() async throws -> CodexAccountStatus {
         let attempts: [(refreshToken: Bool, delay: Duration)] = [
             (false, .zero),
-            (true, .seconds(1))
+            (true, .seconds(1)),
+            (true, .seconds(3))
         ]
 
         var latestPartialStatus: CodexAccountStatus?
@@ -74,10 +75,15 @@ final class CodexAppServerClient {
             } catch {
                 latestError = error
 
+                if let latestPartialStatus {
+                    return latestPartialStatus
+                }
+
                 guard index < attempts.count - 1 else {
-                    if let latestPartialStatus {
-                        return latestPartialStatus
-                    }
+                    throw error
+                }
+
+                guard shouldRetry(error: error, attemptIndex: index, totalAttempts: attempts.count) else {
                     throw error
                 }
             }
@@ -92,7 +98,22 @@ final class CodexAppServerClient {
 
     private func shouldRetry(status: CodexAccountStatus?, attemptIndex: Int, totalAttempts: Int) -> Bool {
         guard attemptIndex < totalAttempts - 1 else { return false }
+        guard attemptIndex == 0 else { return false }
         return appServerStatusNeedsRetry(status)
+    }
+
+    private func shouldRetry(error: Error, attemptIndex: Int, totalAttempts: Int) -> Bool {
+        guard attemptIndex < totalAttempts - 1 else { return false }
+        guard attemptIndex > 0 else { return true }
+        return isRateLimitReadFailure(error)
+    }
+
+    private func isRateLimitReadFailure(_ error: Error) -> Bool {
+        guard case .server(let message) = error as? CodexAppServerError else {
+            return false
+        }
+        let normalizedMessage = message.lowercased()
+        return normalizedMessage.contains("rate limit") || normalizedMessage.contains("ratelimit")
     }
 
     private func mergeStatuses(previous: CodexAccountStatus?, current: CodexAccountStatus) -> CodexAccountStatus {
@@ -324,12 +345,24 @@ func consumeOutputData(
 
         do {
             let envelope = try decoder.decode(AppServerEnvelope.self, from: lineData)
-            switch envelope.id {
+            guard let id = envelope.id else {
+                continue
+            }
+
+            if let error = envelope.error {
+                throw CodexAppServerError.server(error.message)
+            }
+
+            guard let result = envelope.result else {
+                throw CodexAppServerError.server("Codex returned an incomplete app-server response.")
+            }
+
+            switch id {
             case 2:
-                let accountResponse = try decoder.decode(AppServerAccountResponse.self, from: envelope.result)
+                let accountResponse = try decoder.decode(AppServerAccountResponse.self, from: result)
                 state.setAccountResponse(accountResponse)
             case 3:
-                let rateLimitResponse = try decoder.decode(AppServerRateLimitsResponse.self, from: envelope.result)
+                let rateLimitResponse = try decoder.decode(AppServerRateLimitsResponse.self, from: result)
                 state.setRateLimitResponse(rateLimitResponse)
             default:
                 continue
@@ -442,20 +475,32 @@ private func splitLines(from buffer: inout Data) -> [String] {
 }
 
 struct AppServerEnvelope: Decodable {
-    let id: Int
-    let result: Data
+    let id: Int?
+    let result: Data?
+    let error: AppServerErrorResponse?
 
     private enum CodingKeys: String, CodingKey {
         case id
         case result
+        case error
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(Int.self, forKey: .id)
-        let resultValue = try container.decode(JSONValue.self, forKey: .result)
-        result = try JSONEncoder().encode(resultValue)
+        id = try container.decodeIfPresent(Int.self, forKey: .id)
+        error = try container.decodeIfPresent(AppServerErrorResponse.self, forKey: .error)
+
+        if let resultValue = try container.decodeIfPresent(JSONValue.self, forKey: .result) {
+            result = try JSONEncoder().encode(resultValue)
+        } else {
+            result = nil
+        }
     }
+}
+
+struct AppServerErrorResponse: Decodable, Equatable {
+    let code: Int
+    let message: String
 }
 
 struct AppServerAccountResponse: Decodable {

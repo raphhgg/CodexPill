@@ -9,7 +9,7 @@ struct RefreshActiveAccountUseCaseTests {
         let refreshedRateLimits = CodexRateLimitSnapshot(
             limitID: "codex",
             limitName: nil,
-            planType: "pro",
+            planType: "prolite",
             primary: CodexRateLimitWindow(
                 usedPercent: 40,
                 resetsAt: .now.addingTimeInterval(5400),
@@ -42,7 +42,7 @@ struct RefreshActiveAccountUseCaseTests {
             accountStatusClient: RefreshAppServerSpy(
                 status: CodexAccountStatus(
                     email: "new@example.com",
-                    planType: "pro",
+                    planType: "plus",
                     rateLimits: refreshedRateLimits
                 )
             ),
@@ -61,6 +61,49 @@ struct RefreshActiveAccountUseCaseTests {
         #expect(result.accounts.first?.rateLimits == refreshedRateLimits)
         #expect(repository.savedAccounts == result.accounts)
         #expect(result.accounts.first?.updatedAt != .distantPast)
+    }
+
+    @Test
+    func runDoesNotMarkPreservedRateLimitsFreshWhenAppServerReturnsNoRateLimits() async throws {
+        let existingUpdatedAt = Date(timeIntervalSince1970: 1_744_195_200)
+        let existingRateLimits = CodexRateLimitSnapshot(
+            limitID: "codex",
+            limitName: nil,
+            planType: "plus",
+            primary: CodexRateLimitWindow(
+                usedPercent: 25,
+                resetsAt: .now.addingTimeInterval(3600),
+                windowDurationMinutes: 300
+            ),
+            secondary: nil,
+            fetchedAt: Date(timeIntervalSince1970: 1_744_195_100)
+        )
+        var account = makeAccount(name: "Work", fingerprint: "live", email: "old@example.com")
+        account.updatedAt = existingUpdatedAt
+        account.rateLimits = existingRateLimits
+        let repository = PersistingRepositorySpy()
+        let useCase = RefreshActiveAccountUseCase(
+            accountStatusClient: RefreshAppServerSpy(
+                status: CodexAccountStatus(
+                    email: "new@example.com",
+                    planType: "pro",
+                    rateLimits: nil
+                )
+            ),
+            identityResolver: SavedAccountIdentityResolver(
+                liveIdentityReader: CurrentFingerprintStub(fingerprint: "live"),
+                storedAccountReconciler: ReconcilePassthrough()
+            ),
+            repository: repository
+        )
+
+        let result = try await useCase.run(accounts: [account])
+
+        #expect(result.accounts.first?.email == "new@example.com")
+        #expect(result.accounts.first?.planType == "pro")
+        #expect(result.accounts.first?.rateLimits == existingRateLimits)
+        #expect(result.accounts.first?.updatedAt == existingUpdatedAt)
+        #expect(repository.savedAccounts == result.accounts)
     }
 
     @Test

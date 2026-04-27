@@ -34,6 +34,31 @@ struct MenuBarValidationEvent: Codable, Equatable {
     }()
 }
 
+func sanitizedValidationPayload(_ payload: [String: String]) -> [String: String] {
+    payload.mapValues(sanitizedValidationPayloadValue)
+}
+
+func sanitizedValidationPayloadValue(_ value: String) -> String {
+    var sanitized = value
+    let replacements: [(pattern: String, template: String)] = [
+        (#"(?i)(bearer\s+)[A-Za-z0-9._~+/=-]+"#, "$1<redacted>"),
+        (#"(?i)((?:access|refresh|id)_?token["'=:\s]+)[^&\s"']+"#, "$1<redacted>"),
+        (#"(?i)(api[_-]?key["'=:\s]+)[^&\s"']+"#, "$1<redacted>"),
+        (#"/Users/[^/\s]+"#, "/Users/<redacted>"),
+        (#"file://(?:/Users/[^/\s]+)"#, "file:///Users/<redacted>")
+    ]
+
+    for replacement in replacements {
+        sanitized = sanitized.replacingOccurrences(
+            of: replacement.pattern,
+            with: replacement.template,
+            options: .regularExpression
+        )
+    }
+
+    return sanitized
+}
+
 protocol MenuBarValidationSink: Sendable {
     func record(_ snapshot: MenuBarValidationSnapshot) throws
     func record(_ event: MenuBarValidationEvent) throws

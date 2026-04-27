@@ -35,13 +35,17 @@ struct RefreshActiveAccountUseCase {
             throw RefreshActiveAccountUseCaseError.targetMissing
         }
 
+        let hasFreshRateLimits = remote.rateLimits != nil
         var updatedAccounts = accounts
         updatedAccounts[matchedIndex].applyRemoteMetadata(
             email: remote.email,
             planType: remote.planType,
-            rateLimits: remote.rateLimits ?? updatedAccounts[matchedIndex].rateLimits
+            rateLimits: remote.rateLimits ?? updatedAccounts[matchedIndex].rateLimits,
+            preferRateLimitPlan: hasFreshRateLimits
         )
-        updatedAccounts[matchedIndex].updatedAt = .now
+        if hasFreshRateLimits {
+            updatedAccounts[matchedIndex].updatedAt = .now
+        }
         try repository.saveAccounts(updatedAccounts)
 
         return RefreshActiveAccountResult(

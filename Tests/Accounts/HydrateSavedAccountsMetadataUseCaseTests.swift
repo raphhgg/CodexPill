@@ -70,6 +70,100 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
         #expect(auth.recordedActivations().isEmpty)
     }
 
+    @Test
+    func runRefreshesInactiveAccountsThatAlreadyHaveRateLimitsWhenRequested() async throws {
+        let active = makeAccount(name: "Active", fingerprint: "active", withRateLimits: true)
+        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: true)
+        let auth = HydrationAuthSpy(currentAuthData: Data("active-auth".utf8))
+        let refreshedRateLimits = CodexRateLimitSnapshot(
+            limitID: "codex",
+            limitName: nil,
+            planType: "team",
+            primary: CodexRateLimitWindow(
+                usedPercent: 12,
+                resetsAt: Date(timeIntervalSince1970: 1_776_256_138),
+                windowDurationMinutes: 300
+            ),
+            secondary: CodexRateLimitWindow(
+                usedPercent: 3,
+                resetsAt: Date(timeIntervalSince1970: 1_776_842_938),
+                windowDurationMinutes: 10_080
+            ),
+            fetchedAt: Date(timeIntervalSince1970: 1_776_300_000)
+        )
+        let repository = HydrationRepositorySpy()
+        let useCase = HydrateSavedAccountsMetadataUseCase(
+            authService: auth,
+            accountStatusClient: HydrationAppServerSpy(statusByFingerprint: [
+                "ready": CodexAccountStatus(
+                    email: "fresh-ready@example.com",
+                    planType: "team",
+                    rateLimits: refreshedRateLimits
+                )
+            ], authService: auth),
+            identityResolver: SavedAccountIdentityResolver(
+                liveIdentityReader: HydrationIdentityReader(activeFingerprint: "active"),
+                storedAccountReconciler: HydrationReconcilePassthrough()
+            ),
+            repository: repository
+        )
+
+        let result = try await useCase.run(
+            accounts: [active, inactiveReady],
+            activeAccountID: active.id,
+            refreshExistingMetadata: true
+        )
+
+        let refreshedReady = try #require(result.accounts.first(where: { $0.id == inactiveReady.id }))
+        #expect(refreshedReady.rateLimits == refreshedRateLimits)
+        #expect(refreshedReady.email == "fresh-ready@example.com")
+        #expect(refreshedReady.planType == "team")
+        #expect(auth.recordedActivations() == [inactiveReady.id])
+        #expect(auth.currentAuthDataString() == "active-auth")
+        #expect(result.activeAccountID == active.id)
+        #expect(result.hydratedAccountIDs == [inactiveReady.id])
+        #expect(repository.savedAccounts == result.accounts)
+    }
+
+    @Test
+    func runDoesNotMarkPreservedInactiveRateLimitsFreshWhenRefreshReturnsNoRateLimits() async throws {
+        let active = makeAccount(name: "Active", fingerprint: "active", withRateLimits: true)
+        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: true)
+        let originalUpdatedAt = inactiveReady.updatedAt
+        let originalRateLimits = try #require(inactiveReady.rateLimits)
+        let auth = HydrationAuthSpy(currentAuthData: Data("active-auth".utf8))
+        let repository = HydrationRepositorySpy()
+        let useCase = HydrateSavedAccountsMetadataUseCase(
+            authService: auth,
+            accountStatusClient: HydrationAppServerSpy(statusByFingerprint: [
+                "ready": CodexAccountStatus(
+                    email: inactiveReady.email,
+                    planType: inactiveReady.planType,
+                    rateLimits: nil
+                )
+            ], authService: auth),
+            identityResolver: SavedAccountIdentityResolver(
+                liveIdentityReader: HydrationIdentityReader(activeFingerprint: "active"),
+                storedAccountReconciler: HydrationReconcilePassthrough()
+            ),
+            repository: repository
+        )
+
+        let result = try await useCase.run(
+            accounts: [active, inactiveReady],
+            activeAccountID: active.id,
+            refreshExistingMetadata: true
+        )
+
+        let refreshedReady = try #require(result.accounts.first(where: { $0.id == inactiveReady.id }))
+        #expect(refreshedReady.rateLimits == originalRateLimits)
+        #expect(refreshedReady.updatedAt == originalUpdatedAt)
+        #expect(auth.recordedActivations() == [inactiveReady.id])
+        #expect(auth.currentAuthDataString() == "active-auth")
+        #expect(result.hydratedAccountIDs.isEmpty)
+        #expect(repository.savedAccounts == nil)
+    }
+
     private func makeAccount(name: String, fingerprint: String, withRateLimits: Bool) -> CodexAccount {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
         return CodexAccount(

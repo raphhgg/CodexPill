@@ -179,7 +179,7 @@ struct AccountsControllerTests {
         controller.load()
         let outcome = await controller.refreshAccountData(for: account)
 
-        #expect(outcome == .failed)
+        #expect(outcome == .failed("Background refresh failed."))
         #expect(controller.activeAccountID == account.id)
         #expect(controller.accounts == [account])
         #expect(controller.pendingErrorMessage == nil)

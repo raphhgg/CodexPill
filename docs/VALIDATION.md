@@ -64,6 +64,10 @@ The following behavior should be treated as automated first and should not live 
   - `CODEXPILL_VALIDATION_AUTO_REFRESH_INTERVAL_SECONDS=2 SCENARIO=live-scheduled-refresh make verify-ui-live`
 - active-account refresh and identity matching:
   - `RefreshActiveAccountUseCaseTests`
+- effective plan display and App Server plan-code mapping:
+  - `CodexAccountTests`, `CodexRateLimitWindowTests`, `MenuBarAccountPresentationTests`, and `RefreshActiveAccountUseCaseTests`
+- app-server account/rate-limit response parsing, transient retry, and JSON-RPC error surfacing:
+  - `CodexAppServerClientTests`
 - background wake or timer refresh failures stay silent in the UI:
   - `AccountsControllerTests`
 - sign-in-another persistence and duplicate-avoidance rules:
@@ -178,11 +182,27 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 ### `accounts.scheduled_refresh.requested_and_completed`
 
 - `feature`: `accounts`
-- `rule`: The scheduled refresh timer requests a background refresh and the running app emits completion proof without surfacing a blocking alert.
+- `rule`: The scheduled refresh timer refreshes the active account, refreshes saved inactive accounts through restored snapshot rotation, and the running app emits completion or failure proof without surfacing a blocking alert. Failure events must include the sanitized refresh error so app-server contract drift is diagnosable from validation artifacts.
 - `owner_layer`: `live_ui`
 - `proofs_required`: `["integration", "live_ui"]`
 - `scenarios`: `["scheduled_refresh"]`
-- `event_evidence`: `["scheduled_refresh_requested", "scheduled_refresh_completed"]`
+- `event_evidence`: `["scheduled_refresh_requested", "scheduled_refresh_completed", "scheduled_refresh_failed"]`
+
+### `accounts.app_server.rate_limit_refresh_errors_are_retryable_and_diagnosable`
+
+- `feature`: `accounts`
+- `rule`: App-server reads must handle JSON-RPC notification frames, surface JSON-RPC error messages from account or rate-limit responses, and retry transient rate-limit failures. When a refresh can only preserve old rate limits, CodexPill must not advance the rate-limit freshness timestamp.
+- `owner_layer`: `integration`
+- `proofs_required`: `["integration"]`
+- `scenarios`: `["app_server_json_rpc_error", "app_server_transient_rate_limit_retry", "preserve_stale_rate_limits_without_marking_fresh"]`
+
+### `accounts.effective_plan.normalizes_observed_plus_to_pro_upgrade`
+
+- `feature`: `accounts`
+- `rule`: CodexPill maps all known App Server plan codes to user-facing display names. When refreshed account metadata still says Plus but fresh rate-limit metadata reports Codex `prolite`, CodexPill displays and persists the account as Pro. `unknown` is treated as missing when choosing an effective plan. Other account plan disagreements must keep the account metadata plan until the backend plan taxonomy is understood.
+- `owner_layer`: `unit`
+- `proofs_required`: `["unit"]`
+- `scenarios`: `["known_app_server_plan_display_names", "plus_prolite_displays_as_pro", "unknown_falls_back_to_known_plan", "team_prolite_does_not_downgrade"]`
 
 ### `accounts.switch_account.menu_action_changes_active_account`
 

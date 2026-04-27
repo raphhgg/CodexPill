@@ -467,6 +467,19 @@ struct MenuBarLiveValidationTests {
     }
 
     @Test
+    func validationPayloadSanitizerRedactsSecretsAndUserPaths() {
+        let payload = sanitizedValidationPayload([
+            "error": "Authorization: Bearer sk-secret failed for /Users/raphh/.codex/auth.json",
+            "query": "access_token=abc123&refresh_token=def456",
+            "safe": "failed to fetch codex rate limits"
+        ])
+
+        #expect(payload["error"] == "Authorization: Bearer <redacted> failed for /Users/<redacted>/.codex/auth.json")
+        #expect(payload["query"] == "access_token=<redacted>&refresh_token=<redacted>")
+        #expect(payload["safe"] == "failed to fetch codex rate limits")
+    }
+
+    @Test
     func configurationReturnsSinkOnlyWhenOutputPathIsPresent() {
         #expect(MenuBarValidationConfiguration.makeSink(environment: [:]) == nil)
         #expect(

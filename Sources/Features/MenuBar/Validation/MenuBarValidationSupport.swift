@@ -189,7 +189,7 @@ enum MenuBarValidationSupport {
     }
 
     private static func accountSummary(for account: CodexAccount, now: Date) -> String {
-        let plan = menuPlanDisplayName(account.planType)
+        let plan = menuPlanDisplayName(account.effectivePlanType)
         let email = account.email ?? "No email"
         let session = usageLine(title: "Session", window: account.rateLimits?.primary, now: now)
         let weekly = usageLine(title: "Weekly", window: account.rateLimits?.secondary, now: now)
@@ -250,7 +250,7 @@ enum MenuBarValidationSupport {
         MenuBarValidationSnapshot.AccountIdentity(
             name: account.name,
             email: account.email,
-            planType: account.planType,
+            planType: account.effectivePlanType,
             identityDigest: identityDigest(for: account)
         )
     }

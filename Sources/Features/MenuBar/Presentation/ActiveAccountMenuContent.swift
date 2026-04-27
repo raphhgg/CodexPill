@@ -5,17 +5,23 @@ struct ActiveAccountMenuContent: View {
     let progressAccentColor: Color
 
     var body: some View {
+        TimelineView(.periodic(from: .now, by: 30)) { timeline in
+            content(now: timeline.date)
+        }
+    }
+
+    private func content(now: Date) -> some View {
         VStack(alignment: .leading, spacing: 9) {
             HStack(alignment: .firstTextBaseline) {
                 Text(account.name)
                     .font(.system(size: 15, weight: .semibold))
                 Spacer()
-                Text(menuPlanDisplayName(account.planType))
+                Text(menuPlanDisplayName(account.effectivePlanType))
                     .foregroundStyle(.secondary)
             }
 
             HStack(alignment: .firstTextBaseline) {
-                Text("Updated \(RelativeDateTimeFormatter().localizedString(for: account.lastRemoteRefreshAt, relativeTo: .now))")
+                Text("Updated \(RelativeDateTimeFormatter().localizedString(for: account.lastRemoteRefreshAt, relativeTo: now))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -29,12 +35,14 @@ struct ActiveAccountMenuContent: View {
             ActiveLimitRow(
                 title: "Session",
                 window: account.rateLimits?.primary,
-                tintColor: progressAccentColor
+                tintColor: progressAccentColor,
+                now: now
             )
             ActiveLimitRow(
                 title: "Weekly",
                 window: account.rateLimits?.secondary,
-                tintColor: progressAccentColor
+                tintColor: progressAccentColor,
+                now: now
             )
         }
         .padding(.horizontal, 14)
@@ -96,6 +104,12 @@ struct RemoteHostMenuContent: View {
     let isPrimaryActionProminent: Bool
 
     var body: some View {
+        TimelineView(.periodic(from: .now, by: 30)) { timeline in
+            content(now: timeline.date)
+        }
+    }
+
+    private func content(now: Date) -> some View {
         VStack(alignment: .leading, spacing: 9) {
             HStack(alignment: .firstTextBaseline) {
                 Text(primaryTitle)
@@ -121,12 +135,14 @@ struct RemoteHostMenuContent: View {
                 ActiveLimitRow(
                     title: "Session",
                     window: activeAccount.rateLimits?.primary,
-                    tintColor: progressAccentColor
+                    tintColor: progressAccentColor,
+                    now: now
                 )
                 ActiveLimitRow(
                     title: "Weekly",
                     window: activeAccount.rateLimits?.secondary,
-                    tintColor: progressAccentColor
+                    tintColor: progressAccentColor,
+                    now: now
                 )
             } else if let statusMessage {
                 Text(statusMessage)
@@ -167,7 +183,7 @@ struct RemoteHostMenuContent: View {
 
     private var primaryBadge: String {
         if let activeAccount = remoteHost.displayAccount {
-            return menuPlanDisplayName(activeAccount.planType)
+            return menuPlanDisplayName(activeAccount.effectivePlanType)
         }
         return remoteHost.connectionState.menuTitle
     }
@@ -210,10 +226,11 @@ struct ActiveLimitRow: View {
     let title: String
     let window: CodexRateLimitWindow?
     let tintColor: Color
+    let now: Date
 
     var body: some View {
-        let displayedUsedPercent = window?.displayedUsedPercent() ?? 0
-        let usageText = window.map { "\($0.displayedUsedPercent())% used" } ?? "--"
+        let displayedUsedPercent = window?.displayedUsedPercent(at: now) ?? 0
+        let usageText = window.map { "\($0.displayedUsedPercent(at: now))% used" } ?? "--"
 
         VStack(alignment: .leading, spacing: 5) {
             Text(title)
@@ -226,7 +243,7 @@ struct ActiveLimitRow: View {
                     .monospacedDigit()
                     .foregroundStyle(.primary)
                 Spacer()
-                if let window, let resetStatus = resetStatusText(for: window) {
+                if let window, let resetStatus = resetStatusText(for: window, now: now) {
                     Text(resetStatus)
                         .foregroundStyle(.secondary)
                 } else if window == nil {

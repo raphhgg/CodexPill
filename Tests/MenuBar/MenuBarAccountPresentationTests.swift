@@ -6,6 +6,29 @@ import Testing
 
 struct MenuBarAccountPresentationTests {
     @Test
+    func menuPlanDisplayNameNormalizesProliteAsPro() {
+        #expect(menuPlanDisplayName("prolite") == "Pro")
+    }
+
+    @Test(arguments: [
+        ("free", "Free"),
+        ("go", "Go"),
+        ("plus", "Plus"),
+        ("pro", "Pro"),
+        ("prolite", "Pro"),
+        ("team", "Team"),
+        ("self_serve_business_usage_based", "Business"),
+        ("business", "Business"),
+        ("enterprise_cbp_usage_based", "Enterprise"),
+        ("enterprise", "Enterprise"),
+        ("edu", "Edu"),
+        ("unknown", "Unknown")
+    ])
+    func menuPlanDisplayNameMapsKnownAppServerPlanTypes(planType: String, displayName: String) {
+        #expect(menuPlanDisplayName(planType) == displayName)
+    }
+
+    @Test
     func resetStatusTextKeepsRelativeTextWhenWindowIsFull() {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
         let window = CodexRateLimitWindow(

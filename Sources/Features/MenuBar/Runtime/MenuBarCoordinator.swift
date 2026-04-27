@@ -1351,14 +1351,28 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
                     payload: ["accountName": activeAccount.name]
                 )
                 let outcome = await store.refreshAccountData(for: activeAccount)
+                let eventName: String
+                let payload: [String: String]
+                switch outcome {
+                case .refreshed:
+                    eventName = "scheduled_refresh_completed"
+                    payload = ["accountName": activeAccount.name]
+                case .failed(let message):
+                    eventName = "scheduled_refresh_failed"
+                    payload = [
+                        "accountName": activeAccount.name,
+                        "error": message
+                    ]
+                }
                 self.recordValidationEvent(
-                    outcome == .refreshed ? "scheduled_refresh_completed" : "scheduled_refresh_failed",
+                    eventName,
                     step: "scheduled_refresh_result",
                     invariantIds: Self.scheduledRefreshInvariantIDs,
-                    payload: ["accountName": activeAccount.name]
+                    payload: payload
                 )
             }
 
+            await store.refreshInactiveSavedAccountsMetadata()
             self.refreshRemoteHostStateIfNeeded(markSyncing: false)
         }
     }
@@ -1841,7 +1855,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
                     invariantIds: invariantIds,
                     event: name,
                     step: step,
-                    payload: payload
+                    payload: sanitizedValidationPayload(payload)
                 )
             )
         } catch {

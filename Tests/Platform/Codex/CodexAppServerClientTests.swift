@@ -147,6 +147,31 @@ struct CodexAppServerClientTests {
     }
 
     @Test
+    func readCurrentAccountStatusRetriesTwiceAfterTransientRateLimitFailures() async throws {
+        let fullStatus = CodexAccountStatus(
+            email: "user@example.com",
+            planType: "plus",
+            rateLimits: makeRateLimitsSnapshot()
+        )
+        let reader = StatusReaderStub(results: [
+            .failure(CodexAppServerError.server("failed to fetch codex rate limits")),
+            .failure(CodexAppServerError.server("failed to fetch codex rate limits")),
+            .success(fullStatus)
+        ])
+        let sleeper = SleepRecorder()
+        let client = CodexAppServerClient(
+            statusReader: reader.read,
+            sleeper: sleeper.sleep
+        )
+
+        let status = try await client.readCurrentAccountStatus()
+
+        #expect(await reader.recordedRefreshTokens() == [false, true, true])
+        #expect(await sleeper.recordedDurations() == [.seconds(1), .seconds(3)])
+        #expect(status.rateLimits == fullStatus.rateLimits)
+    }
+
+    @Test
     func readCurrentAccountStatusRetriesWhenFirstResponseHasOnlyWeeklyRateLimits() async throws {
         let weeklyOnly = CodexAccountStatus(
             email: "user@example.com",
@@ -403,6 +428,30 @@ struct CodexAppServerClientTests {
         #expect(status?.rateLimits?.primary?.usedPercent == 69)
         #expect(status?.rateLimits?.primary?.resetsAt == Date(timeIntervalSince1970: 2_000_000_000))
         #expect(status?.rateLimits?.secondary?.usedPercent == 38)
+    }
+
+    @Test
+    func consumeOutputDataIgnoresNotificationFramesWithoutIDs() throws {
+        let decoder = JSONDecoder()
+        let state = AppServerSessionState()
+
+        let notificationLine = #"{"method":"initialized","params":{}}"#
+        let accountLine = #"{"id":2,"result":{"account":{"email":"user@example.com","planType":"team"}}}"#
+
+        #expect(try consumeOutputData(Data((notificationLine + "\n").utf8), decoder: decoder, state: state) == nil)
+        #expect(try consumeOutputData(Data((accountLine + "\n").utf8), decoder: decoder, state: state) == nil)
+        #expect(state.partialStatus()?.email == "user@example.com")
+    }
+
+    @Test
+    func consumeOutputDataSurfacesJsonRPCErrorMessages() throws {
+        let decoder = JSONDecoder()
+        let state = AppServerSessionState()
+        let errorLine = #"{"id":3,"error":{"code":-32603,"message":"failed to fetch codex rate limits: network unavailable"}}"#
+
+        #expect(throws: CodexAppServerError.server("failed to fetch codex rate limits: network unavailable")) {
+            _ = try consumeOutputData(Data((errorLine + "\n").utf8), decoder: decoder, state: state)
+        }
     }
 
     @Test
