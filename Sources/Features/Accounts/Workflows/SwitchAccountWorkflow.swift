@@ -1,10 +1,10 @@
 import Foundation
 
-protocol CodexAuthActivating {
+protocol CodexAuthActivator {
     func activate(_ account: CodexAccount) throws
 }
 
-extension CodexAuthSnapshotService: CodexAuthActivating {}
+extension CodexAuthSnapshotService: CodexAuthActivator {}
 
 protocol AccountCatalogStore {
     func saveAccounts(_ accounts: [CodexAccount]) throws
@@ -13,13 +13,13 @@ protocol AccountCatalogStore {
 extension AccountRepository: AccountCatalogStore {}
 
 struct SwitchAccountWorkflow {
-    private let authService: CodexAuthActivating
+    private let authService: CodexAuthActivator
     private let repository: AccountCatalogStore
     private let codexAppProcessClient: CodexAppProcessClient
     private let identityResolver: SavedAccountIdentityResolver
 
     init(
-        authService: CodexAuthActivating,
+        authService: CodexAuthActivator,
         repository: AccountCatalogStore,
         codexAppProcessClient: CodexAppProcessClient,
         identityResolver: SavedAccountIdentityResolver

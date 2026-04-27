@@ -6,14 +6,14 @@ protocol CodexAccountStatusClient {
 
 extension CodexAppServerClient: CodexAccountStatusClient {}
 
-protocol CodexAuthSnapshotSaving {
+protocol CodexAuthSnapshotStore {
     func saveCurrentAuthSnapshot(
         named name: String,
         existing: CodexAccount?
     ) throws -> CodexAccount
 }
 
-extension CodexAuthSnapshotService: CodexAuthSnapshotSaving {}
+extension CodexAuthSnapshotService: CodexAuthSnapshotStore {}
 
 struct SaveCurrentAccountWorkflowResult {
     let savedAccount: CodexAccount
@@ -22,13 +22,13 @@ struct SaveCurrentAccountWorkflowResult {
 
 struct SaveCurrentAccountWorkflow {
     private let accountStatusClient: CodexAccountStatusClient
-    private let authService: CodexAuthSnapshotSaving
+    private let authService: CodexAuthSnapshotStore
     private let repository: AccountCatalogStore
     private let identityResolver: SavedAccountIdentityResolver
 
     init(
         accountStatusClient: CodexAccountStatusClient,
-        authService: CodexAuthSnapshotSaving,
+        authService: CodexAuthSnapshotStore,
         repository: AccountCatalogStore,
         identityResolver: SavedAccountIdentityResolver
     ) {

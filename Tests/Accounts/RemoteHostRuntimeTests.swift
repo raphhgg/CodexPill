@@ -63,7 +63,7 @@ struct RemoteHostRuntimeTests {
         var persistedAccounts: [CodexAccount] = []
         let runtime = makeRuntime(
             settings: settings,
-            remoteHostClient: RemoteHostClientStub(readStatusResult: .failure(RemoteHostClientError.unavailable)),
+            remoteHostClient: RemoteHostClientFixture(readStatusResult: .failure(RemoteHostClientError.unavailable)),
             accounts: [account],
             persistAccountMetadata: { persistedAccounts.append($0) }
         )
@@ -92,7 +92,7 @@ struct RemoteHostRuntimeTests {
             state.desiredAccountID = fastAccount.id
             state.verificationStatus = .verified
         }
-        let client = RemoteHostClientStub(
+        let client = RemoteHostClientFixture(
             statuses: [
                 slowHost.destination: CodexAccountStatus(email: slowAccount.email, planType: "team", rateLimits: nil),
                 fastHost.destination: CodexAccountStatus(email: fastAccount.email, planType: "team", rateLimits: nil)
@@ -127,7 +127,7 @@ struct RemoteHostRuntimeTests {
 
     private func makeRuntime(
         settings: AppSettings,
-        remoteHostClient: RemoteHostSwitching = RemoteHostClientStub(),
+        remoteHostClient: RemoteHostClient = RemoteHostClientFixture(),
         accounts: [CodexAccount],
         persistAccountMetadata: @escaping (CodexAccount) -> Void = { _ in },
         markAccountActivated: @escaping (UUID) -> Void = { _ in }
@@ -168,7 +168,7 @@ struct RemoteHostRuntimeTests {
     }
 }
 
-private struct RemoteHostClientStub: RemoteHostSwitching {
+private struct RemoteHostClientFixture: RemoteHostClient {
     var readStatusResult: Result<CodexAccountStatus, Error> = .success(
         CodexAccountStatus(email: "business@example.com", planType: "team", rateLimits: nil)
     )

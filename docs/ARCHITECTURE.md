@@ -26,6 +26,29 @@ That split is intentional:
 
 ## Boundary Ownership
 
+## Naming Conventions
+
+Name boundaries by the role they play in the app, not by an implementation detail or a verb phrase. Prefer short noun suffixes that make dependency direction obvious:
+
+- `Client` for an external service, process, CLI, or host adapter. Example: `CodexAccountStatusClient`, `RemoteHostClient`, `CodexAppProcessClient`.
+- `Store` for durable catalog or snapshot persistence. Example: `AccountCatalogStore`, `CodexAuthSnapshotStore`.
+- `Source` for read-only values without ownership of persistence. Example: `LiveCodexAccountIdentitySource`, `AppIconSource`.
+- `Reconciler` for deterministic matching or merge policy. Example: `StoredAccountIdentityReconciler`.
+- `Presenter`, `Notifier`, `Activator`, `Launcher`, `Locator`, and `Runner` for UI presentation, notification delivery, app activation, Settings launch, path lookup, and command execution.
+
+Avoid protocol names that describe an action in progress, such as `*Reading`, `*Switching`, `*Providing`, `*Presenting`, `*Foregrounding`, `*Opening`, or `*Delivering`. Those names make call sites read like implementation steps instead of stable domain roles.
+
+Test collaborators should also describe their role:
+
+- `Probe` records calls or exposes observed side effects for assertions. Example: `RemoteHostClientProbe`, `MenuBarAlertPresenterProbe`.
+- `Fixture` returns fixed canned data. Example: `CurrentIdentityFixture`, `RemoteHostStatusFixture`.
+- `Harness` is mutable test infrastructure that drives a scenario. Example: `CurrentIdentityHarness`.
+- `Adapter` passes through to production-like behavior while fitting a test seam. Example: `IdentityReconcilerAdapter`.
+- `Null` intentionally does nothing. Example: `NullAuthService`.
+- `ErrorCase` deterministically throws or returns a failure. Example: `RemoteHostErrorCase`.
+
+Avoid generic or framework-loaded test names such as `Spy`, `Stub`, `Mock`, `Noop`, `Throwing`, or `Passthrough`. Use the narrower role above so tests explain why the collaborator exists.
+
 ### App
 
 `Sources/App/` is thin bootstrap only.

@@ -1,11 +1,11 @@
 import Foundation
 
-protocol CodexSignInAnotherAuthHandling: CodexAuthSnapshotSaving {
+protocol CodexSignInAuthStore: CodexAuthSnapshotStore {
     func prepareForNewSignIn() throws
     func readCurrentAuthData() throws -> Data
 }
 
-extension CodexAuthSnapshotService: CodexSignInAnotherAuthHandling {}
+extension CodexAuthSnapshotService: CodexSignInAuthStore {}
 
 struct SignInAnotherPreparationResult {
     let pendingAccountName: String
@@ -17,14 +17,14 @@ struct CompletePendingSignedInAccountResult {
 }
 
 struct SignInAnotherWorkflow {
-    private let authService: CodexSignInAnotherAuthHandling
+    private let authService: CodexSignInAuthStore
     private let codexAppProcessClient: CodexAppProcessClient
     private let accountStatusClient: CodexAccountStatusClient
     private let repository: AccountCatalogStore
     private let identityResolver: SavedAccountIdentityResolver
 
     init(
-        authService: CodexSignInAnotherAuthHandling,
+        authService: CodexSignInAuthStore,
         codexAppProcessClient: CodexAppProcessClient,
         accountStatusClient: CodexAccountStatusClient,
         repository: AccountCatalogStore,

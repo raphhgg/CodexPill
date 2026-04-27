@@ -104,13 +104,13 @@ struct CodexAppServerClientTests {
             planType: "plus",
             rateLimits: makeRateLimitsSnapshot()
         )
-        let reader = StatusReaderStub(results: [
+        let reader = StatusSourceFixture(results: [
             .success(accountOnly),
             .success(fullStatus)
         ])
         let sleeper = SleepRecorder()
         let client = CodexAppServerClient(
-            statusReader: reader.read,
+            statusSource: reader.read,
             sleeper: sleeper.sleep
         )
 
@@ -129,13 +129,13 @@ struct CodexAppServerClientTests {
             planType: "plus",
             rateLimits: makeRateLimitsSnapshot()
         )
-        let reader = StatusReaderStub(results: [
+        let reader = StatusSourceFixture(results: [
             .failure(StatusReadError.transientFailure),
             .success(fullStatus)
         ])
         let sleeper = SleepRecorder()
         let client = CodexAppServerClient(
-            statusReader: reader.read,
+            statusSource: reader.read,
             sleeper: sleeper.sleep
         )
 
@@ -153,14 +153,14 @@ struct CodexAppServerClientTests {
             planType: "plus",
             rateLimits: makeRateLimitsSnapshot()
         )
-        let reader = StatusReaderStub(results: [
+        let reader = StatusSourceFixture(results: [
             .failure(CodexAppServerError.server("failed to fetch codex rate limits")),
             .failure(CodexAppServerError.server("failed to fetch codex rate limits")),
             .success(fullStatus)
         ])
         let sleeper = SleepRecorder()
         let client = CodexAppServerClient(
-            statusReader: reader.read,
+            statusSource: reader.read,
             sleeper: sleeper.sleep
         )
 
@@ -194,13 +194,13 @@ struct CodexAppServerClientTests {
             planType: "plus",
             rateLimits: makeRateLimitsSnapshot()
         )
-        let reader = StatusReaderStub(results: [
+        let reader = StatusSourceFixture(results: [
             .success(weeklyOnly),
             .success(fullStatus)
         ])
         let sleeper = SleepRecorder()
         let client = CodexAppServerClient(
-            statusReader: reader.read,
+            statusSource: reader.read,
             sleeper: sleeper.sleep
         )
 
@@ -234,12 +234,12 @@ struct CodexAppServerClientTests {
                 fetchedAt: .now
             )
         )
-        let reader = StatusReaderStub(results: [
+        let reader = StatusSourceFixture(results: [
             .success(zeroedStatus)
         ])
         let sleeper = SleepRecorder()
         let client = CodexAppServerClient(
-            statusReader: reader.read,
+            statusSource: reader.read,
             sleeper: sleeper.sleep
         )
 
@@ -285,12 +285,12 @@ struct CodexAppServerClientTests {
                 fetchedAt: Date(timeIntervalSince1970: 1_776_000_100)
             )
         )
-        let reader = StatusReaderStub(results: [
+        let reader = StatusSourceFixture(results: [
             .success(weeklyOnly),
             .success(sessionOnly)
         ])
         let client = CodexAppServerClient(
-            statusReader: reader.read,
+            statusSource: reader.read,
             sleeper: { _ in }
         )
 
@@ -313,12 +313,12 @@ struct CodexAppServerClientTests {
             planType: "team",
             rateLimits: nil
         )
-        let reader = StatusReaderStub(results: [
+        let reader = StatusSourceFixture(results: [
             .success(firstStatus),
             .success(secondStatus)
         ])
         let client = CodexAppServerClient(
-            statusReader: reader.read,
+            statusSource: reader.read,
             sleeper: { _ in }
         )
 
@@ -337,12 +337,12 @@ struct CodexAppServerClientTests {
             planType: "plus",
             rateLimits: nil
         )
-        let reader = StatusReaderStub(results: [
+        let reader = StatusSourceFixture(results: [
             .success(firstStatus),
             .failure(StatusReadError.transientFailure)
         ])
         let client = CodexAppServerClient(
-            statusReader: reader.read,
+            statusSource: reader.read,
             sleeper: { _ in }
         )
 
@@ -400,7 +400,7 @@ struct CodexAppServerClientTests {
     }
 
     @Test
-    func consumeOutputDataDropsIncompleteRateLimitWindowInsteadOfThrowing() throws {
+    func consumeOutputDataDropsIncompleteRateLimitWindowInsteadOfFailing() throws {
         let decoder = JSONDecoder()
         let state = AppServerSessionState()
 
@@ -507,7 +507,7 @@ struct CodexAppServerClientTests {
     }
 }
 
-private actor StatusReaderStub {
+private actor StatusSourceFixture {
     private var remainingResults: [Result<CodexAccountStatus, Error>]
     private var refreshTokens: [Bool] = []
 

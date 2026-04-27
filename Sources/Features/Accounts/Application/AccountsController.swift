@@ -62,10 +62,10 @@ final class AccountsController {
         authService: CodexAuthSnapshotService,
         codexAppProcessClient: CodexAppProcessClient,
         accountStatusClient: CodexAccountStatusClient,
-        remoteHostClient: RemoteHostSwitching = UnavailableRemoteHostClient()
+        remoteHostClient: RemoteHostClient = UnavailableRemoteHostClient()
     ) {
         self.identityResolver = SavedAccountIdentityResolver(
-            liveIdentityReader: authService,
+            liveIdentitySource: authService,
             storedAccountReconciler: authService
         )
         self.inactiveAccountAvailabilityRanking = InactiveAccountAvailabilityRanking()

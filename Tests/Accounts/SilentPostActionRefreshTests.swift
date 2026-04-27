@@ -6,9 +6,9 @@ import Testing
 struct SilentPostActionRefreshTests {
     @Test
     func skipsRefreshWhenNoActiveAccountExists() async {
-        let repository = SilentRefreshRepositorySpy()
+        let repository = SilentRefreshCatalogProbe()
         let useCase = makeUseCase(
-            accountStatusClient: SilentRefreshFailingStatusReader(error: SilentRefreshTestFailure.refreshFailed),
+            accountStatusClient: SilentRefreshStatusErrorCase(error: SilentRefreshTestFailure.refreshFailed),
             repository: repository
         )
         let refresh = SilentPostActionRefresh(refreshActiveAccountUseCase: useCase)
@@ -25,9 +25,9 @@ struct SilentPostActionRefreshTests {
 
     @Test
     func returnsNilWhenRefreshFails() async {
-        let repository = SilentRefreshRepositorySpy()
+        let repository = SilentRefreshCatalogProbe()
         let useCase = makeUseCase(
-            accountStatusClient: SilentRefreshFailingStatusReader(error: SilentRefreshTestFailure.refreshFailed),
+            accountStatusClient: SilentRefreshStatusErrorCase(error: SilentRefreshTestFailure.refreshFailed),
             repository: repository
         )
         let refresh = SilentPostActionRefresh(refreshActiveAccountUseCase: useCase)
@@ -45,7 +45,7 @@ struct SilentPostActionRefreshTests {
 
     @Test
     func returnsUpdatedAccountsWhenRefreshSucceeds() async throws {
-        let repository = SilentRefreshRepositorySpy()
+        let repository = SilentRefreshCatalogProbe()
         let account = makeAccount(name: "Business 4", fingerprint: "live")
         let refreshedRateLimits = CodexRateLimitSnapshot(
             limitID: nil,
@@ -56,7 +56,7 @@ struct SilentPostActionRefreshTests {
             fetchedAt: .now
         )
         let useCase = makeUseCase(
-            accountStatusClient: SilentRefreshStatusReader(
+            accountStatusClient: SilentRefreshStatusFixture(
                 status: CodexAccountStatus(
                     email: "business@example.com",
                     planType: "pro",
@@ -85,13 +85,13 @@ struct SilentPostActionRefreshTests {
 
     private func makeUseCase(
         accountStatusClient: CodexAccountStatusClient,
-        repository: SilentRefreshRepositorySpy
+        repository: SilentRefreshCatalogProbe
     ) -> RefreshActiveAccountUseCase {
         RefreshActiveAccountUseCase(
             accountStatusClient: accountStatusClient,
             identityResolver: SavedAccountIdentityResolver(
-                liveIdentityReader: SilentRefreshIdentityStub(fingerprint: "live"),
-                storedAccountReconciler: SilentRefreshStoredIdentityPassthrough()
+                liveIdentitySource: SilentRefreshIdentityFixture(fingerprint: "live"),
+                storedAccountReconciler: SilentRefreshStoredIdentityAdapter()
             ),
             repository: repository
         )
@@ -127,7 +127,7 @@ private enum SilentRefreshTestFailure: LocalizedError {
     }
 }
 
-private final class SilentRefreshFailingStatusReader: CodexAccountStatusClient {
+private final class SilentRefreshStatusErrorCase: CodexAccountStatusClient {
     let error: Error
 
     init(error: Error) {
@@ -139,7 +139,7 @@ private final class SilentRefreshFailingStatusReader: CodexAccountStatusClient {
     }
 }
 
-private final class SilentRefreshStatusReader: CodexAccountStatusClient {
+private final class SilentRefreshStatusFixture: CodexAccountStatusClient {
     let status: CodexAccountStatus
 
     init(status: CodexAccountStatus) {
@@ -151,7 +151,7 @@ private final class SilentRefreshStatusReader: CodexAccountStatusClient {
     }
 }
 
-private final class SilentRefreshRepositorySpy: AccountCatalogStore {
+private final class SilentRefreshCatalogProbe: AccountCatalogStore {
     private(set) var savedAccounts: [CodexAccount]?
 
     func bootstrapStorage() throws {}
@@ -161,7 +161,7 @@ private final class SilentRefreshRepositorySpy: AccountCatalogStore {
     }
 }
 
-private struct SilentRefreshIdentityStub: LiveCodexAccountIdentityReading {
+private struct SilentRefreshIdentityFixture: LiveCodexAccountIdentitySource {
     let fingerprint: String?
 
     func readCurrentLiveAccountIdentity() -> LiveCodexAccountIdentity {
@@ -169,7 +169,7 @@ private struct SilentRefreshIdentityStub: LiveCodexAccountIdentityReading {
     }
 }
 
-private struct SilentRefreshStoredIdentityPassthrough: StoredAccountIdentityReconciling {
+private struct SilentRefreshStoredIdentityAdapter: StoredAccountIdentityReconciler {
     func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {
         accounts
     }

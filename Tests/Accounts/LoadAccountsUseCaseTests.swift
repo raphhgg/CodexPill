@@ -14,10 +14,10 @@ struct LoadAccountsUseCaseTests {
             email: "work@example.com"
         )
 
-        let repository = LoadingRepositorySpy(accountsToLoad: [saved])
-        let auth = ReconcileSpy(reconciledAccounts: [reconciled])
+        let repository = LoadingAccountCatalogProbe(accountsToLoad: [saved])
+        let auth = IdentityReconcilerProbe(reconciledAccounts: [reconciled])
         let resolver = SavedAccountIdentityResolver(
-            liveIdentityReader: CurrentFingerprintStub(fingerprint: "live", stableAccountID: nil),
+            liveIdentitySource: CurrentIdentityFixture(fingerprint: "live", stableAccountID: nil),
             storedAccountReconciler: auth
         )
         let useCase = LoadAccountsUseCase(
@@ -38,10 +38,10 @@ struct LoadAccountsUseCaseTests {
     @Test
     func runSkipsSaveWhenReconciliationDoesNotChangeAccounts() throws {
         let saved = makeAccount(name: "Work", fingerprint: "live")
-        let repository = LoadingRepositorySpy(accountsToLoad: [saved])
-        let auth = ReconcileSpy(reconciledAccounts: [saved])
+        let repository = LoadingAccountCatalogProbe(accountsToLoad: [saved])
+        let auth = IdentityReconcilerProbe(reconciledAccounts: [saved])
         let resolver = SavedAccountIdentityResolver(
-            liveIdentityReader: CurrentFingerprintStub(fingerprint: nil, stableAccountID: nil),
+            liveIdentitySource: CurrentIdentityFixture(fingerprint: nil, stableAccountID: nil),
             storedAccountReconciler: auth
         )
         let useCase = LoadAccountsUseCase(
@@ -90,10 +90,10 @@ struct LoadAccountsUseCaseTests {
             )
         )
 
-        let repository = LoadingRepositorySpy(accountsToLoad: [saved])
-        let auth = ReconcileSpy(reconciledAccounts: [reconciled])
+        let repository = LoadingAccountCatalogProbe(accountsToLoad: [saved])
+        let auth = IdentityReconcilerProbe(reconciledAccounts: [reconciled])
         let resolver = SavedAccountIdentityResolver(
-            liveIdentityReader: CurrentFingerprintStub(fingerprint: nil, stableAccountID: "acct-123"),
+            liveIdentitySource: CurrentIdentityFixture(fingerprint: nil, stableAccountID: "acct-123"),
             storedAccountReconciler: auth
         )
         let useCase = LoadAccountsUseCase(
@@ -190,10 +190,10 @@ struct LoadAccountsUseCaseTests {
             )
         )
 
-        let repository = LoadingRepositorySpy(accountsToLoad: [savedBusinessOne, savedBusinessTwo])
-        let auth = ReconcileSpy(reconciledAccounts: [reconciledBusinessOne, reconciledBusinessTwo])
+        let repository = LoadingAccountCatalogProbe(accountsToLoad: [savedBusinessOne, savedBusinessTwo])
+        let auth = IdentityReconcilerProbe(reconciledAccounts: [reconciledBusinessOne, reconciledBusinessTwo])
         let resolver = SavedAccountIdentityResolver(
-            liveIdentityReader: CurrentFingerprintStub(
+            liveIdentitySource: CurrentIdentityFixture(
                 fingerprint: nil,
                 stableAccountID: "acct-team",
                 authPrincipalIdentity: CodexAuthPrincipalIdentity(
@@ -253,10 +253,10 @@ struct LoadAccountsUseCaseTests {
             )
         )
 
-        let repository = LoadingRepositorySpy(accountsToLoad: [personal, business])
-        let auth = ReconcileSpy(reconciledAccounts: [personal, business])
+        let repository = LoadingAccountCatalogProbe(accountsToLoad: [personal, business])
+        let auth = IdentityReconcilerProbe(reconciledAccounts: [personal, business])
         let resolver = SavedAccountIdentityResolver(
-            liveIdentityReader: CurrentFingerprintStub(
+            liveIdentitySource: CurrentIdentityFixture(
                 fingerprint: nil,
                 stableAccountID: "acct-shared",
                 authPrincipalIdentity: CodexAuthPrincipalIdentity(subject: "auth0|missing", chatGPTUserID: "user-missing"),
@@ -298,7 +298,7 @@ struct LoadAccountsUseCaseTests {
     }
 }
 
-private final class LoadingRepositorySpy: AccountCatalogLoader {
+private final class LoadingAccountCatalogProbe: AccountCatalogLoader {
     let accountsToLoad: [CodexAccount]
     var bootstrapCount = 0
     var loadCount = 0
@@ -322,7 +322,7 @@ private final class LoadingRepositorySpy: AccountCatalogLoader {
     }
 }
 
-private final class ReconcileSpy: StoredAccountIdentityReconciling {
+private final class IdentityReconcilerProbe: StoredAccountIdentityReconciler {
     let reconciledAccounts: [CodexAccount]
     var inputAccounts: [CodexAccount]?
 
@@ -336,7 +336,7 @@ private final class ReconcileSpy: StoredAccountIdentityReconciling {
     }
 }
 
-private struct CurrentFingerprintStub: LiveCodexAccountIdentityReading {
+private struct CurrentIdentityFixture: LiveCodexAccountIdentitySource {
     let fingerprint: String?
     let stableAccountID: String?
     let authPrincipalIdentity: CodexAuthPrincipalIdentity?

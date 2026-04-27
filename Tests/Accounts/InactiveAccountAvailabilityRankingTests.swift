@@ -905,10 +905,10 @@ struct InactiveAccountAvailabilityRankingTests {
         let preferred = makeAccount(name: "Preferred", sessionUsedPercent: 0, weeklyUsedPercent: 10)
         let constrained = makeAccount(name: "Constrained", sessionUsedPercent: 90, weeklyUsedPercent: 100)
         let active = makeAccount(name: "Active", sessionUsedPercent: 20, weeklyUsedPercent: 20)
-        let repository = RankingLoadingPersistingRepositorySpy(accountsToLoad: [constrained, active, preferred])
+        let repository = RankingLoadingPersistingAccountCatalogProbe(accountsToLoad: [constrained, active, preferred])
         let identityResolver = SavedAccountIdentityResolver(
-            liveIdentityReader: RankingCurrentIdentityStub(fingerprint: "active"),
-            storedAccountReconciler: RankingStoredIdentityPassthrough()
+            liveIdentitySource: RankingCurrentIdentityFixture(fingerprint: "active"),
+            storedAccountReconciler: RankingStoredIdentityAdapter()
         )
         let controller = AccountsController(
             identityResolver: identityResolver,
@@ -918,13 +918,13 @@ struct InactiveAccountAvailabilityRankingTests {
                 identityResolver: identityResolver
             ),
             refreshActiveAccountUseCase: RefreshActiveAccountUseCase(
-                accountStatusClient: RankingFailingAccountStatusReader(error: RankingTestFailure.backgroundRefreshFailed),
+                accountStatusClient: RankingAccountStatusErrorCase(error: RankingTestFailure.backgroundRefreshFailed),
                 identityResolver: identityResolver,
                 repository: repository
             ),
             hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
-                authService: RankingNoopAuthService(),
-                accountStatusClient: RankingFailingAccountStatusReader(error: RankingTestFailure.backgroundRefreshFailed),
+                authService: RankingNullAuthService(),
+                accountStatusClient: RankingAccountStatusErrorCase(error: RankingTestFailure.backgroundRefreshFailed),
                 identityResolver: identityResolver,
                 repository: repository
             ),
@@ -935,21 +935,21 @@ struct InactiveAccountAvailabilityRankingTests {
             renameSavedAccountUseCase: RenameSavedAccountUseCase(repository: repository),
             persistSavedAccountMetadataUseCase: PersistSavedAccountMetadataUseCase(repository: repository),
             switchAccountWorkflow: SwitchAccountWorkflow(
-                authService: RankingNoopAuthService(),
+                authService: RankingNullAuthService(),
                 repository: repository,
-                codexAppProcessClient: DisabledCodexAppProcessClient(),
+                codexAppProcessClient: NullCodexAppProcessClient(),
                 identityResolver: identityResolver
             ),
             saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow(
-                accountStatusClient: RankingFailingAccountStatusReader(error: RankingTestFailure.backgroundRefreshFailed),
-                authService: RankingNoopAuthService(),
+                accountStatusClient: RankingAccountStatusErrorCase(error: RankingTestFailure.backgroundRefreshFailed),
+                authService: RankingNullAuthService(),
                 repository: repository,
                 identityResolver: identityResolver
             ),
             signInAnotherWorkflow: SignInAnotherWorkflow(
-                authService: RankingNoopAuthService(),
-                codexAppProcessClient: DisabledCodexAppProcessClient(),
-                accountStatusClient: RankingFailingAccountStatusReader(error: RankingTestFailure.backgroundRefreshFailed),
+                authService: RankingNullAuthService(),
+                codexAppProcessClient: NullCodexAppProcessClient(),
+                accountStatusClient: RankingAccountStatusErrorCase(error: RankingTestFailure.backgroundRefreshFailed),
                 repository: repository,
                 identityResolver: identityResolver
             )
@@ -1023,7 +1023,7 @@ private enum RankingTestFailure: LocalizedError {
     }
 }
 
-private final class RankingFailingAccountStatusReader: CodexAccountStatusClient {
+private final class RankingAccountStatusErrorCase: CodexAccountStatusClient {
     let error: Error
 
     init(error: Error) {
@@ -1035,7 +1035,7 @@ private final class RankingFailingAccountStatusReader: CodexAccountStatusClient 
     }
 }
 
-private final class RankingLoadingPersistingRepositorySpy: AccountCatalogLoader, AccountSnapshotRemover {
+private final class RankingLoadingPersistingAccountCatalogProbe: AccountCatalogLoader, AccountSnapshotRemover {
     let accountsToLoad: [CodexAccount]
 
     init(accountsToLoad: [CodexAccount]) {
@@ -1053,7 +1053,7 @@ private final class RankingLoadingPersistingRepositorySpy: AccountCatalogLoader,
     func deleteSnapshot(for _: CodexAccount) throws {}
 }
 
-private struct RankingCurrentIdentityStub: LiveCodexAccountIdentityReading {
+private struct RankingCurrentIdentityFixture: LiveCodexAccountIdentitySource {
     let fingerprint: String?
 
     func readCurrentLiveAccountIdentity() -> LiveCodexAccountIdentity {
@@ -1061,18 +1061,18 @@ private struct RankingCurrentIdentityStub: LiveCodexAccountIdentityReading {
     }
 }
 
-private struct RankingStoredIdentityPassthrough: StoredAccountIdentityReconciling {
+private struct RankingStoredIdentityAdapter: StoredAccountIdentityReconciler {
     func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {
         accounts
     }
 }
 
-private struct DisabledCodexAppProcessClient: CodexAppProcessClient {
+private struct NullCodexAppProcessClient: CodexAppProcessClient {
     func assertCodexAvailable() throws {}
     func relaunchCodex() async throws {}
 }
 
-private struct RankingNoopAuthService: CodexAuthDataRestoring, CodexAuthSnapshotSaving, CodexSignInAnotherAuthHandling {
+private struct RankingNullAuthService: CodexAuthSessionStore, CodexAuthSnapshotStore, CodexSignInAuthStore {
     func activate(_ account: CodexAccount) throws {}
     func prepareForNewSignIn() throws {}
     func readCurrentAuthData() throws -> Data { Data() }

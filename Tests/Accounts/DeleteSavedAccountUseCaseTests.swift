@@ -8,10 +8,10 @@ struct DeleteSavedAccountUseCaseTests {
     func runDeletesSnapshotPersistsFilteredAccountsAndRecomputesActiveAccount() throws {
         let current = makeAccount(name: "Current", fingerprint: "live")
         let other = makeAccount(name: "Other", fingerprint: "other")
-        let repository = SnapshotDeletingRepositorySpy()
+        let repository = SnapshotDeletingAccountCatalogProbe()
         let resolver = SavedAccountIdentityResolver(
-            liveIdentityReader: CurrentFingerprintStub(fingerprint: "other", stableAccountID: nil),
-            storedAccountReconciler: ReconcilePassthrough()
+            liveIdentitySource: CurrentIdentityFixture(fingerprint: "other", stableAccountID: nil),
+            storedAccountReconciler: IdentityReconcilerAdapter()
         )
         let useCase = DeleteSavedAccountUseCase(repository: repository, identityResolver: resolver)
 
@@ -43,7 +43,7 @@ struct DeleteSavedAccountUseCaseTests {
     }
 }
 
-private final class SnapshotDeletingRepositorySpy: AccountSnapshotRemover {
+private final class SnapshotDeletingAccountCatalogProbe: AccountSnapshotRemover {
     var deletedAccountIDs: [UUID] = []
     var savedAccounts: [CodexAccount]?
 
@@ -56,7 +56,7 @@ private final class SnapshotDeletingRepositorySpy: AccountSnapshotRemover {
     }
 }
 
-private struct CurrentFingerprintStub: LiveCodexAccountIdentityReading {
+private struct CurrentIdentityFixture: LiveCodexAccountIdentitySource {
     let fingerprint: String?
     let stableAccountID: String?
     let authPrincipalIdentity: CodexAuthPrincipalIdentity? = nil
@@ -72,7 +72,7 @@ private struct CurrentFingerprintStub: LiveCodexAccountIdentityReading {
     }
 }
 
-private struct ReconcilePassthrough: StoredAccountIdentityReconciling {
+private struct IdentityReconcilerAdapter: StoredAccountIdentityReconciler {
     func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {
         accounts
     }

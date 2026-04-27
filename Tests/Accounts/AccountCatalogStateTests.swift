@@ -84,8 +84,8 @@ struct AccountCatalogStateTests {
         let active = makeAccount(name: "Active", fingerprint: "live")
         let other = makeAccount(name: "Other", fingerprint: "other")
         let identityResolver = SavedAccountIdentityResolver(
-            liveIdentityReader: AccountCatalogCurrentIdentityStub(fingerprint: "live"),
-            storedAccountReconciler: AccountCatalogStoredIdentityPassthrough()
+            liveIdentitySource: AccountCatalogCurrentIdentityFixture(fingerprint: "live"),
+            storedAccountReconciler: AccountCatalogStoredIdentityAdapter()
         )
         var state = AccountCatalogState()
         state.applyLoad(
@@ -120,7 +120,7 @@ struct AccountCatalogStateTests {
     }
 }
 
-private struct AccountCatalogCurrentIdentityStub: LiveCodexAccountIdentityReading {
+private struct AccountCatalogCurrentIdentityFixture: LiveCodexAccountIdentitySource {
     let fingerprint: String?
 
     func readCurrentLiveAccountIdentity() -> LiveCodexAccountIdentity {
@@ -128,7 +128,7 @@ private struct AccountCatalogCurrentIdentityStub: LiveCodexAccountIdentityReadin
     }
 }
 
-private struct AccountCatalogStoredIdentityPassthrough: StoredAccountIdentityReconciling {
+private struct AccountCatalogStoredIdentityAdapter: StoredAccountIdentityReconciler {
     func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {
         accounts
     }

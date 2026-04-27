@@ -19,17 +19,17 @@ struct CodexCLICommand: Equatable {
 }
 
 final class CodexAppServerClient {
-    typealias StatusReader = @Sendable (_ refreshToken: Bool) async throws -> CodexAccountStatus
+    typealias StatusSource = @Sendable (_ refreshToken: Bool) async throws -> CodexAccountStatus
     typealias Sleeper = @Sendable (_ duration: Duration) async -> Void
     private static let responseTimeout: Duration = .seconds(10)
-    private let statusReader: StatusReader
+    private let statusSource: StatusSource
     private let sleeper: Sleeper
 
     init(environment: [String: String] = ProcessInfo.processInfo.environment) {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let command = Self.makeAppServerCommand(environment: environment)
-        statusReader = { refreshToken in
+        statusSource = { refreshToken in
             try await Self.readAccountStatus(
                 decoder: decoder,
                 executableURL: command.executableURL,
@@ -43,10 +43,10 @@ final class CodexAppServerClient {
     }
 
     init(
-        statusReader: @escaping StatusReader,
+        statusSource: @escaping StatusSource,
         sleeper: @escaping Sleeper
     ) {
-        self.statusReader = statusReader
+        self.statusSource = statusSource
         self.sleeper = sleeper
     }
 
@@ -66,7 +66,7 @@ final class CodexAppServerClient {
             }
 
             do {
-                let status = try await statusReader(attempt.refreshToken)
+                let status = try await statusSource(attempt.refreshToken)
                 latestPartialStatus = mergeStatuses(previous: latestPartialStatus, current: status)
 
                 guard shouldRetry(status: latestPartialStatus, attemptIndex: index, totalAttempts: attempts.count) else {

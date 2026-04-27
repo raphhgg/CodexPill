@@ -7,11 +7,11 @@ struct CommandResult: Equatable {
     let standardError: Data
 }
 
-protocol CommandRunning {
+protocol CommandRunner {
     func run(executableURL: URL, arguments: [String]) async throws -> CommandResult
 }
 
-struct ProcessCommandRunner: CommandRunning {
+struct ProcessCommandRunner: CommandRunner {
     func run(executableURL: URL, arguments: [String]) async throws -> CommandResult {
         try await withCheckedThrowingContinuation { continuation in
             let process = Process()
@@ -40,26 +40,26 @@ struct ProcessCommandRunner: CommandRunning {
     }
 }
 
-protocol AccountSnapshotLocating {
+protocol AccountSnapshotLocator {
     func snapshotURL(for account: CodexAccount) -> URL
 }
 
-extension AccountRepository: AccountSnapshotLocating {}
+extension AccountRepository: AccountSnapshotLocator {}
 
-struct SSHRemoteHostClient: RemoteHostSwitching {
+struct SSHRemoteHostClient: RemoteHostClient {
     private static let responseTimeout: Duration = .seconds(10)
     private static let missingRemoteAuthExitCode: Int32 = 17
     private static let appServerListenAddress = "ws://127.0.0.1:9234"
     private static let appServerProcessPattern = "codex app-server --listen ws://127.0.0.1:9234"
-    private let snapshotLocator: AccountSnapshotLocating
-    private let commandRunner: CommandRunning
+    private let snapshotLocator: AccountSnapshotLocator
+    private let commandRunner: CommandRunner
     private let sshExecutableURL: URL
     private let scpExecutableURL: URL
     private let appServerReadinessProbeDelays: [Duration]
 
     init(
-        snapshotLocator: AccountSnapshotLocating,
-        commandRunner: CommandRunning = ProcessCommandRunner(),
+        snapshotLocator: AccountSnapshotLocator,
+        commandRunner: CommandRunner = ProcessCommandRunner(),
         sshExecutableURL: URL = URL(fileURLWithPath: "/usr/bin/ssh"),
         scpExecutableURL: URL = URL(fileURLWithPath: "/usr/bin/scp"),
         appServerReadinessProbeDelays: [Duration] = [.zero, .seconds(1), .seconds(2)]

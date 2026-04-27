@@ -1,6 +1,6 @@
 import Foundation
 
-actor ValidationRemoteHostClient: RemoteHostSwitching {
+actor ValidationRemoteHostClient: RemoteHostClient {
     private struct HostState {
         var installedAccountIDs: Set<UUID>
         var activeAccount: CodexAccount?

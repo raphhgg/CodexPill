@@ -6,13 +6,13 @@ import Testing
 struct SignInAnotherWorkflowTests {
     @Test
     func prepareClearsLiveAuthAndDoesNotRelaunchUntilRequested() throws {
-        let auth = SignInAnotherAuthSpy(savedAccount: makeAccount(name: "ignored", fingerprint: "fingerprint"))
-        let processClient = SignInAnotherCodexProcessSpy()
+        let auth = SignInAnotherAuthSnapshotProbe(savedAccount: makeAccount(name: "ignored", fingerprint: "fingerprint"))
+        let processClient = SignInAnotherCodexProcessProbe()
         let workflow = SignInAnotherWorkflow(
             authService: auth,
             codexAppProcessClient: processClient,
-            accountStatusClient: SignInAnotherStatusReader(status: CodexAccountStatus(email: nil, planType: nil, rateLimits: nil)),
-            repository: SignInAnotherRepositorySpy(),
+            accountStatusClient: SignInAnotherStatusFixture(status: CodexAccountStatus(email: nil, planType: nil, rateLimits: nil)),
+            repository: SignInAnotherAccountCatalogProbe(),
             identityResolver: makeResolver(auth: auth)
         )
 
@@ -27,13 +27,13 @@ struct SignInAnotherWorkflowTests {
     @Test
     func prepareRejectsDuplicateNameBeforeClearingLiveAuthOrCheckingCodexAvailability() {
         let existing = makeAccount(name: "Business 1", fingerprint: "business-1")
-        let auth = SignInAnotherAuthSpy(savedAccount: makeAccount(name: "ignored", fingerprint: "fingerprint"))
-        let processClient = SignInAnotherCodexProcessSpy()
+        let auth = SignInAnotherAuthSnapshotProbe(savedAccount: makeAccount(name: "ignored", fingerprint: "fingerprint"))
+        let processClient = SignInAnotherCodexProcessProbe()
         let workflow = SignInAnotherWorkflow(
             authService: auth,
             codexAppProcessClient: processClient,
-            accountStatusClient: SignInAnotherStatusReader(status: CodexAccountStatus(email: nil, planType: nil, rateLimits: nil)),
-            repository: SignInAnotherRepositorySpy(),
+            accountStatusClient: SignInAnotherStatusFixture(status: CodexAccountStatus(email: nil, planType: nil, rateLimits: nil)),
+            repository: SignInAnotherAccountCatalogProbe(),
             identityResolver: makeResolver(auth: auth)
         )
 
@@ -47,15 +47,15 @@ struct SignInAnotherWorkflowTests {
 
     @Test
     func completePendingSignInSkipsUntilLiveAuthExists() async throws {
-        let auth = SignInAnotherAuthSpy(
+        let auth = SignInAnotherAuthSnapshotProbe(
             savedAccount: makeAccount(name: "ignored", fingerprint: "fingerprint"),
             currentAuthData: nil
         )
-        let repository = SignInAnotherRepositorySpy()
+        let repository = SignInAnotherAccountCatalogProbe()
         let workflow = SignInAnotherWorkflow(
             authService: auth,
-            codexAppProcessClient: SignInAnotherCodexProcessSpy(),
-            accountStatusClient: SignInAnotherStatusReader(status: CodexAccountStatus(email: nil, planType: nil, rateLimits: nil)),
+            codexAppProcessClient: SignInAnotherCodexProcessProbe(),
+            accountStatusClient: SignInAnotherStatusFixture(status: CodexAccountStatus(email: nil, planType: nil, rateLimits: nil)),
             repository: repository,
             identityResolver: makeResolver(auth: auth)
         )
@@ -72,16 +72,16 @@ struct SignInAnotherWorkflowTests {
     @Test
     func completePendingSignInPersistsLiveAuthWhenCodexAppWritesIt() async throws {
         let account = makeAccount(name: "ignored", fingerprint: "live-fingerprint")
-        let auth = SignInAnotherAuthSpy(
+        let auth = SignInAnotherAuthSnapshotProbe(
             savedAccount: account,
             currentAuthData: Data("auth".utf8),
             currentFingerprint: "live-fingerprint"
         )
-        let repository = SignInAnotherRepositorySpy()
+        let repository = SignInAnotherAccountCatalogProbe()
         let workflow = SignInAnotherWorkflow(
             authService: auth,
-            codexAppProcessClient: SignInAnotherCodexProcessSpy(),
-            accountStatusClient: SignInAnotherStatusReader(
+            codexAppProcessClient: SignInAnotherCodexProcessProbe(),
+            accountStatusClient: SignInAnotherStatusFixture(
                 status: CodexAccountStatus(email: "person@example.com", planType: "pro", rateLimits: nil)
             ),
             repository: repository,
@@ -101,10 +101,10 @@ struct SignInAnotherWorkflowTests {
     }
 }
 
-private func makeResolver(auth: SignInAnotherAuthSpy) -> SavedAccountIdentityResolver {
+private func makeResolver(auth: SignInAnotherAuthSnapshotProbe) -> SavedAccountIdentityResolver {
     SavedAccountIdentityResolver(
-        liveIdentityReader: auth,
-        storedAccountReconciler: SignInAnotherStoredIdentityPassthrough()
+        liveIdentitySource: auth,
+        storedAccountReconciler: SignInAnotherStoredIdentityAdapter()
     )
 }
 
@@ -123,7 +123,7 @@ private func makeAccount(name: String, fingerprint: String) -> CodexAccount {
     )
 }
 
-private final class SignInAnotherAuthSpy: CodexSignInAnotherAuthHandling, LiveCodexAccountIdentityReading {
+private final class SignInAnotherAuthSnapshotProbe: CodexSignInAuthStore, LiveCodexAccountIdentitySource {
     let savedAccount: CodexAccount
     var currentAuthData: Data?
     var currentFingerprint: String?
@@ -163,7 +163,7 @@ private final class SignInAnotherAuthSpy: CodexSignInAnotherAuthHandling, LiveCo
     }
 }
 
-private final class SignInAnotherCodexProcessSpy: CodexAppProcessClient {
+private final class SignInAnotherCodexProcessProbe: CodexAppProcessClient {
     private(set) var availabilityCheckCount = 0
     private(set) var relaunchCount = 0
 
@@ -176,7 +176,7 @@ private final class SignInAnotherCodexProcessSpy: CodexAppProcessClient {
     }
 }
 
-private struct SignInAnotherStatusReader: CodexAccountStatusClient {
+private struct SignInAnotherStatusFixture: CodexAccountStatusClient {
     let status: CodexAccountStatus
 
     func readCurrentAccountStatus() async throws -> CodexAccountStatus {
@@ -184,7 +184,7 @@ private struct SignInAnotherStatusReader: CodexAccountStatusClient {
     }
 }
 
-private final class SignInAnotherRepositorySpy: AccountCatalogStore {
+private final class SignInAnotherAccountCatalogProbe: AccountCatalogStore {
     private(set) var savedAccounts: [CodexAccount]?
 
     func saveAccounts(_ accounts: [CodexAccount]) throws {
@@ -192,7 +192,7 @@ private final class SignInAnotherRepositorySpy: AccountCatalogStore {
     }
 }
 
-private struct SignInAnotherStoredIdentityPassthrough: StoredAccountIdentityReconciling {
+private struct SignInAnotherStoredIdentityAdapter: StoredAccountIdentityReconciler {
     func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {
         accounts
     }

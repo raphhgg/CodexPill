@@ -6,7 +6,7 @@ import Testing
 @testable import CodexPill
 
 @MainActor
-final class TestMenuBarAlertPresenter: MenuBarAlertPresenting {
+final class MenuBarAlertPresenterProbe: MenuBarAlertPresenter {
     private(set) var textInputRequests: [MenuBarTextInputAlertRequest] = []
     private(set) var confirmationRequests: [MenuBarConfirmationAlertRequest] = []
     private(set) var infoRequests: [MenuBarInfoAlertRequest] = []
@@ -47,7 +47,7 @@ final class TestMenuBarAlertPresenter: MenuBarAlertPresenting {
 @MainActor
 struct MenuBarMenuBuilderTests {
     @Test
-    func appIconProviderPrefersBundledPngResource() throws {
+    func appIconSourcePrefersBundledPngResource() throws {
         let temporaryDirectory = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(
@@ -90,7 +90,7 @@ struct MenuBarMenuBuilderTests {
 
     @Test
     func realAlertPresenterSuppressesInfoAlertsDuringAutomatedTests() {
-        let presenter = MenuBarAlertPresenter(
+        let presenter = SystemMenuBarAlertPresenter(
             environment: [AppRuntimeEnvironment.xctestConfigurationFilePathEnvironmentKey: "/tmp/test.xctestconfiguration"]
         )
 
@@ -106,7 +106,7 @@ struct MenuBarMenuBuilderTests {
 
     @Test
     func realAlertPresenterCancelsInteractivePromptsDuringAutomatedTests() async {
-        let presenter = MenuBarAlertPresenter(
+        let presenter = SystemMenuBarAlertPresenter(
             environment: [AppRuntimeEnvironment.xctestConfigurationFilePathEnvironmentKey: "/tmp/test.xctestconfiguration"]
         )
 
@@ -1222,7 +1222,7 @@ struct MenuBarMenuBuilderTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
         let suiteName = "MenuBarMenuBuilderTests-\(UUID().uuidString)"
@@ -1235,7 +1235,7 @@ struct MenuBarMenuBuilderTests {
             statusItemRuntime: statusItemRuntime,
             store: store,
             settings: settings,
-            alertPresenter: TestMenuBarAlertPresenter()
+            alertPresenter: MenuBarAlertPresenterProbe()
         )
         return (coordinator, statusItem)
     }
@@ -1337,7 +1337,7 @@ struct MenuBarMenuBuilderTests {
     }
 }
 
-private struct DisabledCodexAppProcessClient: CodexAppProcessClient {
+private struct NullCodexAppProcessClient: CodexAppProcessClient {
     func assertCodexAvailable() throws {}
     func relaunchCodex() async throws {}
 }

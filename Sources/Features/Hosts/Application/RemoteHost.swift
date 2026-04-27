@@ -24,7 +24,7 @@ enum RemoteHostAccountInstallationState: String, Codable, Equatable {
     case missing
 }
 
-protocol RemoteHostSwitching {
+protocol RemoteHostClient {
     func testConnection(to host: RemoteHost) async throws
     func installationState(for account: CodexAccount, on host: RemoteHost) async throws -> RemoteHostAccountInstallationState
     func installAccount(_ account: CodexAccount, on host: RemoteHost) async throws
@@ -50,7 +50,7 @@ enum RemoteHostClientError: LocalizedError, Equatable {
     }
 }
 
-struct UnavailableRemoteHostClient: RemoteHostSwitching {
+struct UnavailableRemoteHostClient: RemoteHostClient {
     func testConnection(to host: RemoteHost) async throws {
         throw RemoteHostClientError.unavailable
     }

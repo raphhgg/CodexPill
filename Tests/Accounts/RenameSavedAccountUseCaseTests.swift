@@ -8,7 +8,7 @@ struct RenameSavedAccountUseCaseTests {
     func runPersistsRenamedAccountAndPreservesIdentity() throws {
         let account = makeAccount(name: "Business 1")
         let other = makeAccount(name: "Personal")
-        let repository = RenamingRepositorySpy()
+        let repository = RenamingCatalogProbe()
         let useCase = RenameSavedAccountUseCase(repository: repository)
 
         let result = try useCase.run(
@@ -49,7 +49,7 @@ struct RenameSavedAccountUseCaseTests {
                 remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "business@example.com")
             )
         )
-        let repository = RenamingRepositorySpy()
+        let repository = RenamingCatalogProbe()
         let useCase = RenameSavedAccountUseCase(repository: repository)
 
         let result = try useCase.run(
@@ -67,7 +67,7 @@ struct RenameSavedAccountUseCaseTests {
     func runRejectsDuplicateNameCaseInsensitively() {
         let account = makeAccount(name: "Business 1")
         let other = makeAccount(name: "Personal")
-        let useCase = RenameSavedAccountUseCase(repository: RenamingRepositorySpy())
+        let useCase = RenameSavedAccountUseCase(repository: RenamingCatalogProbe())
 
         #expect(throws: RenameSavedAccountUseCaseError.duplicateAccountName) {
             try useCase.run(
@@ -81,7 +81,7 @@ struct RenameSavedAccountUseCaseTests {
     @Test
     func runRejectsBlankName() {
         let account = makeAccount(name: "Business 1")
-        let useCase = RenameSavedAccountUseCase(repository: RenamingRepositorySpy())
+        let useCase = RenameSavedAccountUseCase(repository: RenamingCatalogProbe())
 
         #expect(throws: RenameSavedAccountUseCaseError.emptyAccountName) {
             try useCase.run(
@@ -95,7 +95,7 @@ struct RenameSavedAccountUseCaseTests {
     @Test
     func runAllowsEquivalentNameForSameAccountWithoutChangingCatalog() throws {
         let account = makeAccount(name: "Business 1")
-        let repository = RenamingRepositorySpy()
+        let repository = RenamingCatalogProbe()
         let useCase = RenameSavedAccountUseCase(repository: repository)
 
         let result = try useCase.run(
@@ -127,7 +127,7 @@ struct RenameSavedAccountUseCaseTests {
     }
 }
 
-private final class RenamingRepositorySpy: AccountCatalogStore {
+private final class RenamingCatalogProbe: AccountCatalogStore {
     var savedAccounts: [CodexAccount]?
 
     func saveAccounts(_ accounts: [CodexAccount]) throws {

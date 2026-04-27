@@ -34,15 +34,15 @@ struct LiveCodexAccountIdentity: Equatable {
     static let empty = Self()
 }
 
-protocol LiveCodexAccountIdentityReading {
+protocol LiveCodexAccountIdentitySource {
     func readCurrentLiveAccountIdentity() -> LiveCodexAccountIdentity
 }
 
-protocol StoredAccountIdentityReconciling {
+protocol StoredAccountIdentityReconciler {
     func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount]
 }
 
-extension CodexAuthSnapshotService: LiveCodexAccountIdentityReading {
+extension CodexAuthSnapshotService: LiveCodexAccountIdentitySource {
     func readCurrentLiveAccountIdentity() -> LiveCodexAccountIdentity {
         LiveCodexAccountIdentity(
             stableAccountID: currentStableAccountID(),
@@ -54,19 +54,19 @@ extension CodexAuthSnapshotService: LiveCodexAccountIdentityReading {
     }
 }
 
-extension CodexAuthSnapshotService: StoredAccountIdentityReconciling {}
+extension CodexAuthSnapshotService: StoredAccountIdentityReconciler {}
 
 struct SavedAccountIdentityResolver {
-    private let liveIdentityReader: LiveCodexAccountIdentityReading
-    private let storedAccountReconciler: StoredAccountIdentityReconciling
+    private let liveIdentitySource: LiveCodexAccountIdentitySource
+    private let storedAccountReconciler: StoredAccountIdentityReconciler
     private let accountMatcher: CodexAccountMatcher
 
     init(
-        liveIdentityReader: LiveCodexAccountIdentityReading,
-        storedAccountReconciler: StoredAccountIdentityReconciling,
+        liveIdentitySource: LiveCodexAccountIdentitySource,
+        storedAccountReconciler: StoredAccountIdentityReconciler,
         accountMatcher: CodexAccountMatcher = CodexAccountMatcher()
     ) {
-        self.liveIdentityReader = liveIdentityReader
+        self.liveIdentitySource = liveIdentitySource
         self.storedAccountReconciler = storedAccountReconciler
         self.accountMatcher = accountMatcher
     }
@@ -80,7 +80,7 @@ struct SavedAccountIdentityResolver {
         liveRemoteIdentity: CodexRemoteAccountIdentity? = nil
     ) -> CodexAccountMatchOutcome {
         resolve(
-            liveIdentity: liveIdentityReader.readCurrentLiveAccountIdentity(),
+            liveIdentity: liveIdentitySource.readCurrentLiveAccountIdentity(),
             accounts: accounts,
             liveRemoteIdentity: liveRemoteIdentity
         )

@@ -9,11 +9,11 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
         let active = makeAccount(name: "Active", fingerprint: "active", withRateLimits: true)
         let inactiveMissing = makeAccount(name: "Missing", fingerprint: "missing", withRateLimits: false)
         let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: true)
-        let auth = HydrationAuthSpy(currentAuthData: Data("active-auth".utf8))
-        let repository = HydrationRepositorySpy()
+        let auth = HydrationAuthSnapshotProbe(currentAuthData: Data("active-auth".utf8))
+        let repository = HydrationCatalogProbe()
         let useCase = HydrateSavedAccountsMetadataUseCase(
             authService: auth,
-            accountStatusClient: HydrationAppServerSpy(statusByFingerprint: [
+            accountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: [
                 "missing": CodexAccountStatus(
                     email: "missing@example.com",
                     planType: "pro",
@@ -21,8 +21,8 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
                 )
             ], authService: auth),
             identityResolver: SavedAccountIdentityResolver(
-                liveIdentityReader: HydrationIdentityReader(activeFingerprint: "active"),
-                storedAccountReconciler: HydrationReconcilePassthrough()
+                liveIdentitySource: HydrationIdentitySource(activeFingerprint: "active"),
+                storedAccountReconciler: HydrationIdentityReconcilerAdapter()
             ),
             repository: repository
         )
@@ -49,14 +49,14 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
     func runSkipsWhenNoInactiveAccountsNeedHydration() async throws {
         let active = makeAccount(name: "Active", fingerprint: "active", withRateLimits: true)
         let inactive = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: true)
-        let auth = HydrationAuthSpy(currentAuthData: Data("active-auth".utf8))
-        let repository = HydrationRepositorySpy()
+        let auth = HydrationAuthSnapshotProbe(currentAuthData: Data("active-auth".utf8))
+        let repository = HydrationCatalogProbe()
         let useCase = HydrateSavedAccountsMetadataUseCase(
             authService: auth,
-            accountStatusClient: HydrationAppServerSpy(statusByFingerprint: [:], authService: auth),
+            accountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: [:], authService: auth),
             identityResolver: SavedAccountIdentityResolver(
-                liveIdentityReader: HydrationIdentityReader(activeFingerprint: "active"),
-                storedAccountReconciler: HydrationReconcilePassthrough()
+                liveIdentitySource: HydrationIdentitySource(activeFingerprint: "active"),
+                storedAccountReconciler: HydrationIdentityReconcilerAdapter()
             ),
             repository: repository
         )
@@ -74,7 +74,7 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
     func runRefreshesInactiveAccountsThatAlreadyHaveRateLimitsWhenRequested() async throws {
         let active = makeAccount(name: "Active", fingerprint: "active", withRateLimits: true)
         let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: true)
-        let auth = HydrationAuthSpy(currentAuthData: Data("active-auth".utf8))
+        let auth = HydrationAuthSnapshotProbe(currentAuthData: Data("active-auth".utf8))
         let refreshedRateLimits = CodexRateLimitSnapshot(
             limitID: "codex",
             limitName: nil,
@@ -91,10 +91,10 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
             ),
             fetchedAt: Date(timeIntervalSince1970: 1_776_300_000)
         )
-        let repository = HydrationRepositorySpy()
+        let repository = HydrationCatalogProbe()
         let useCase = HydrateSavedAccountsMetadataUseCase(
             authService: auth,
-            accountStatusClient: HydrationAppServerSpy(statusByFingerprint: [
+            accountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: [
                 "ready": CodexAccountStatus(
                     email: "fresh-ready@example.com",
                     planType: "team",
@@ -102,8 +102,8 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
                 )
             ], authService: auth),
             identityResolver: SavedAccountIdentityResolver(
-                liveIdentityReader: HydrationIdentityReader(activeFingerprint: "active"),
-                storedAccountReconciler: HydrationReconcilePassthrough()
+                liveIdentitySource: HydrationIdentitySource(activeFingerprint: "active"),
+                storedAccountReconciler: HydrationIdentityReconcilerAdapter()
             ),
             repository: repository
         )
@@ -131,11 +131,11 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
         let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: true)
         let originalUpdatedAt = inactiveReady.updatedAt
         let originalRateLimits = try #require(inactiveReady.rateLimits)
-        let auth = HydrationAuthSpy(currentAuthData: Data("active-auth".utf8))
-        let repository = HydrationRepositorySpy()
+        let auth = HydrationAuthSnapshotProbe(currentAuthData: Data("active-auth".utf8))
+        let repository = HydrationCatalogProbe()
         let useCase = HydrateSavedAccountsMetadataUseCase(
             authService: auth,
-            accountStatusClient: HydrationAppServerSpy(statusByFingerprint: [
+            accountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: [
                 "ready": CodexAccountStatus(
                     email: inactiveReady.email,
                     planType: inactiveReady.planType,
@@ -143,8 +143,8 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
                 )
             ], authService: auth),
             identityResolver: SavedAccountIdentityResolver(
-                liveIdentityReader: HydrationIdentityReader(activeFingerprint: "active"),
-                storedAccountReconciler: HydrationReconcilePassthrough()
+                liveIdentitySource: HydrationIdentitySource(activeFingerprint: "active"),
+                storedAccountReconciler: HydrationIdentityReconcilerAdapter()
             ),
             repository: repository
         )
@@ -202,7 +202,7 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
     }
 }
 
-private final class HydrationAuthSpy: CodexAuthDataRestoring {
+private final class HydrationAuthSnapshotProbe: CodexAuthSessionStore {
     private var currentAuthData: Data
     private var accountsByID: [UUID: CodexAccount] = [:]
     private var activationIDs: [UUID] = []
@@ -238,20 +238,20 @@ private final class HydrationAuthSpy: CodexAuthDataRestoring {
     }
 }
 
-private struct HydrationAppServerSpy: CodexAccountStatusClient {
+private struct HydrationAccountStatusProbe: CodexAccountStatusClient {
     let statusByFingerprint: [String: CodexAccountStatus]
-    let authService: HydrationAuthSpy
+    let authService: HydrationAuthSnapshotProbe
 
     func readCurrentAccountStatus() async throws -> CodexAccountStatus {
         let fingerprint = authService.currentFingerprint()
         guard let status = statusByFingerprint[fingerprint] else {
-            throw NSError(domain: "HydrationAppServerSpy", code: 1)
+            throw NSError(domain: "HydrationAccountStatusProbe", code: 1)
         }
         return status
     }
 }
 
-private final class HydrationRepositorySpy: AccountCatalogStore {
+private final class HydrationCatalogProbe: AccountCatalogStore {
     var savedAccounts: [CodexAccount]?
 
     func saveAccounts(_ accounts: [CodexAccount]) throws {
@@ -259,7 +259,7 @@ private final class HydrationRepositorySpy: AccountCatalogStore {
     }
 }
 
-private struct HydrationIdentityReader: LiveCodexAccountIdentityReading {
+private struct HydrationIdentitySource: LiveCodexAccountIdentitySource {
     let activeFingerprint: String
 
     func readCurrentLiveAccountIdentity() -> LiveCodexAccountIdentity {
@@ -267,7 +267,7 @@ private struct HydrationIdentityReader: LiveCodexAccountIdentityReading {
     }
 }
 
-private struct HydrationReconcilePassthrough: StoredAccountIdentityReconciling {
+private struct HydrationIdentityReconcilerAdapter: StoredAccountIdentityReconciler {
     func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {
         accounts
     }

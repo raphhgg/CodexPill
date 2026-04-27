@@ -1,12 +1,12 @@
 import AppKit
 
 @MainActor
-protocol AppIconProviding {
+protocol AppIconSource {
     func appIconImage() -> NSImage?
 }
 
 @MainActor
-struct BundleAppIconProvider: AppIconProviding {
+struct BundleAppIconSource: AppIconSource {
     func appIconImage() -> NSImage? {
         if let resourceIcon = NSImage.codexPillAppIcon() {
             return resourceIcon
@@ -31,7 +31,7 @@ extension NSImage {
 }
 
 @MainActor
-protocol MenuBarAlertPresenting {
+protocol MenuBarAlertPresenter {
     func presentTextInput(_ request: MenuBarTextInputAlertRequest) -> String?
     func presentConfirmation(_ request: MenuBarConfirmationAlertRequest) -> Bool
     func presentInfo(_ request: MenuBarInfoAlertRequest)
@@ -82,16 +82,16 @@ struct MenuBarInfoAlertRequest {
 }
 
 @MainActor
-final class MenuBarAlertPresenter {
+final class SystemMenuBarAlertPresenter {
     private let environment: [String: String]
-    private let appIconProvider: AppIconProviding
+    private let appIconSource: AppIconSource
 
     init(
         environment: [String: String] = ProcessInfo.processInfo.environment,
-        appIconProvider: AppIconProviding? = nil
+        appIconSource: AppIconSource? = nil
     ) {
         self.environment = environment
-        self.appIconProvider = appIconProvider ?? BundleAppIconProvider()
+        self.appIconSource = appIconSource ?? BundleAppIconSource()
     }
 
     func presentTextInput(_ request: MenuBarTextInputAlertRequest) -> String? {
@@ -164,7 +164,7 @@ final class MenuBarAlertPresenter {
 
         let controller = HostSetupWindowController(
             request: request,
-            appIconProvider: appIconProvider,
+            appIconSource: appIconSource,
             testConnection: testConnection,
             onPresented: onPresented,
             onCancelled: onCancelled,
@@ -219,7 +219,7 @@ final class MenuBarAlertPresenter {
     }
 
     private func configure(alert: NSAlert) {
-        alert.icon = appIconProvider.appIconImage()
+        alert.icon = appIconSource.appIconImage()
     }
 
     private func configureAlertTextField(_ field: NSTextField) {
@@ -231,7 +231,7 @@ final class MenuBarAlertPresenter {
     }
 }
 
-extension MenuBarAlertPresenter: MenuBarAlertPresenting {}
+extension SystemMenuBarAlertPresenter: MenuBarAlertPresenter {}
 
 private final class LiveValidationTextField: NSTextField {
     var onTextDidChange: (() -> Void)?
@@ -245,7 +245,7 @@ private final class LiveValidationTextField: NSTextField {
 @MainActor
 private final class HostSetupWindowController: NSObject, NSTextFieldDelegate, NSWindowDelegate {
     private let request: MenuBarHostSetupAlertRequest
-    private let appIconProvider: AppIconProviding
+    private let appIconSource: AppIconSource
     private let testConnection: (RemoteHost) async -> Result<Void, Error>
     private let onPresented: () -> Void
     private let onCancelled: () -> Void
@@ -334,7 +334,7 @@ private final class HostSetupWindowController: NSObject, NSTextFieldDelegate, NS
         panel.level = .modalPanel
         panel.standardWindowButton(.zoomButton)?.isHidden = true
         panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
-        panel.standardWindowButton(.documentIconButton)?.image = appIconProvider.appIconImage()
+        panel.standardWindowButton(.documentIconButton)?.image = appIconSource.appIconImage()
         panel.delegate = self
         panel.contentView = contentView()
         panel.initialFirstResponder = destinationField
@@ -343,7 +343,7 @@ private final class HostSetupWindowController: NSObject, NSTextFieldDelegate, NS
 
     init(
         request: MenuBarHostSetupAlertRequest,
-        appIconProvider: AppIconProviding,
+        appIconSource: AppIconSource,
         testConnection: @escaping (RemoteHost) async -> Result<Void, Error>,
         onPresented: @escaping () -> Void,
         onCancelled: @escaping () -> Void,
@@ -351,7 +351,7 @@ private final class HostSetupWindowController: NSObject, NSTextFieldDelegate, NS
         onValidationFinished: @escaping (RemoteHost, Result<Void, Error>) -> Void
     ) {
         self.request = request
-        self.appIconProvider = appIconProvider
+        self.appIconSource = appIconSource
         self.testConnection = testConnection
         self.onPresented = onPresented
         self.onCancelled = onCancelled

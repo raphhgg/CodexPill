@@ -37,9 +37,9 @@ struct RefreshActiveAccountUseCaseTests {
         let account = makeAccount(name: "Work", fingerprint: "live", email: "old@example.com")
         var accountWithRateLimits = account
         accountWithRateLimits.rateLimits = existingRateLimits
-        let repository = PersistingRepositorySpy()
+        let repository = PersistingAccountCatalogProbe()
         let useCase = RefreshActiveAccountUseCase(
-            accountStatusClient: RefreshAppServerSpy(
+            accountStatusClient: AccountStatusProbe(
                 status: CodexAccountStatus(
                     email: "new@example.com",
                     planType: "plus",
@@ -47,8 +47,8 @@ struct RefreshActiveAccountUseCaseTests {
                 )
             ),
             identityResolver: SavedAccountIdentityResolver(
-                liveIdentityReader: CurrentFingerprintStub(fingerprint: "live"),
-                storedAccountReconciler: ReconcilePassthrough()
+                liveIdentitySource: CurrentIdentityFixture(fingerprint: "live"),
+                storedAccountReconciler: IdentityReconcilerAdapter()
             ),
             repository: repository
         )
@@ -81,9 +81,9 @@ struct RefreshActiveAccountUseCaseTests {
         var account = makeAccount(name: "Work", fingerprint: "live", email: "old@example.com")
         account.updatedAt = existingUpdatedAt
         account.rateLimits = existingRateLimits
-        let repository = PersistingRepositorySpy()
+        let repository = PersistingAccountCatalogProbe()
         let useCase = RefreshActiveAccountUseCase(
-            accountStatusClient: RefreshAppServerSpy(
+            accountStatusClient: AccountStatusProbe(
                 status: CodexAccountStatus(
                     email: "new@example.com",
                     planType: "pro",
@@ -91,8 +91,8 @@ struct RefreshActiveAccountUseCaseTests {
                 )
             ),
             identityResolver: SavedAccountIdentityResolver(
-                liveIdentityReader: CurrentFingerprintStub(fingerprint: "live"),
-                storedAccountReconciler: ReconcilePassthrough()
+                liveIdentitySource: CurrentIdentityFixture(fingerprint: "live"),
+                storedAccountReconciler: IdentityReconcilerAdapter()
             ),
             repository: repository
         )
@@ -110,7 +110,7 @@ struct RefreshActiveAccountUseCaseTests {
     func runFailsWhenLiveAccountDoesNotMatchAnySavedAccount() async {
         let account = makeAccount(name: "Work", fingerprint: "saved", email: "saved@example.com")
         let useCase = RefreshActiveAccountUseCase(
-            accountStatusClient: RefreshAppServerSpy(
+            accountStatusClient: AccountStatusProbe(
                 status: CodexAccountStatus(
                     email: "other@example.com",
                     planType: nil,
@@ -118,10 +118,10 @@ struct RefreshActiveAccountUseCaseTests {
                 )
             ),
             identityResolver: SavedAccountIdentityResolver(
-                liveIdentityReader: CurrentFingerprintStub(fingerprint: "live"),
-                storedAccountReconciler: ReconcilePassthrough()
+                liveIdentitySource: CurrentIdentityFixture(fingerprint: "live"),
+                storedAccountReconciler: IdentityReconcilerAdapter()
             ),
-            repository: PersistingRepositorySpy()
+            repository: PersistingAccountCatalogProbe()
         )
 
         await #expect(throws: RefreshActiveAccountUseCaseError.targetResolutionFailed(.noMatch)) {
@@ -148,7 +148,7 @@ struct RefreshActiveAccountUseCaseTests {
     }
 }
 
-private final class RefreshAppServerSpy: CodexAccountStatusClient {
+private final class AccountStatusProbe: CodexAccountStatusClient {
     let status: CodexAccountStatus
 
     init(status: CodexAccountStatus) {
@@ -160,7 +160,7 @@ private final class RefreshAppServerSpy: CodexAccountStatusClient {
     }
 }
 
-private final class PersistingRepositorySpy: AccountCatalogStore {
+private final class PersistingAccountCatalogProbe: AccountCatalogStore {
     var savedAccounts: [CodexAccount]?
 
     func saveAccounts(_ accounts: [CodexAccount]) throws {
@@ -168,7 +168,7 @@ private final class PersistingRepositorySpy: AccountCatalogStore {
     }
 }
 
-private struct CurrentFingerprintStub: LiveCodexAccountIdentityReading {
+private struct CurrentIdentityFixture: LiveCodexAccountIdentitySource {
     let fingerprint: String?
 
     func readCurrentLiveAccountIdentity() -> LiveCodexAccountIdentity {
@@ -176,7 +176,7 @@ private struct CurrentFingerprintStub: LiveCodexAccountIdentityReading {
     }
 }
 
-private struct ReconcilePassthrough: StoredAccountIdentityReconciling {
+private struct IdentityReconcilerAdapter: StoredAccountIdentityReconciler {
     func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {
         accounts
     }

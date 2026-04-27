@@ -9,9 +9,9 @@ struct SwitchAccountWorkflowTests {
         let target = makeAccount(name: "Target", fingerprint: "live-fingerprint")
         let other = makeAccount(name: "Other", fingerprint: "other-fingerprint")
 
-        let auth = AuthSpy(currentFingerprint: "live-fingerprint", currentStableAccountID: nil)
-        let repository = RepositorySpy()
-        let codexAppProcessClient = RecordingCodexAppProcessClient()
+        let auth = AuthSnapshotProbe(currentFingerprint: "live-fingerprint", currentStableAccountID: nil)
+        let repository = AccountCatalogProbe()
+        let codexAppProcessClient = CodexAppProcessProbe()
         let workflow = SwitchAccountWorkflow(
             authService: auth,
             repository: repository,
@@ -31,9 +31,9 @@ struct SwitchAccountWorkflowTests {
     func runDoesNotActivateOrPersistWhenCodexIsUnavailable() async throws {
         let target = makeAccount(name: "Target", fingerprint: "live-fingerprint")
 
-        let auth = AuthSpy(currentFingerprint: "live-fingerprint", currentStableAccountID: nil)
-        let repository = RepositorySpy()
-        let codexAppProcessClient = RecordingCodexAppProcessClient()
+        let auth = AuthSnapshotProbe(currentFingerprint: "live-fingerprint", currentStableAccountID: nil)
+        let repository = AccountCatalogProbe()
+        let codexAppProcessClient = CodexAppProcessProbe()
         codexAppProcessClient.availabilityError = CodexAppProcessClientError.applicationNotFound
         let workflow = SwitchAccountWorkflow(
             authService: auth,
@@ -55,9 +55,9 @@ struct SwitchAccountWorkflowTests {
     func runStillRelaunchesEvenWhenMatcherCannotResolveActiveAccount() async throws {
         let target = makeAccount(name: "Target", fingerprint: "saved-fingerprint")
 
-        let auth = AuthSpy(currentFingerprint: "different-fingerprint", currentStableAccountID: nil)
-        let repository = RepositorySpy()
-        let codexAppProcessClient = RecordingCodexAppProcessClient()
+        let auth = AuthSnapshotProbe(currentFingerprint: "different-fingerprint", currentStableAccountID: nil)
+        let repository = AccountCatalogProbe()
+        let codexAppProcessClient = CodexAppProcessProbe()
         let workflow = SwitchAccountWorkflow(
             authService: auth,
             repository: repository,
@@ -90,7 +90,7 @@ struct SwitchAccountWorkflowTests {
     }
 }
 
-private final class AuthSpy: CodexAuthActivating, LiveCodexAccountIdentityReading {
+private final class AuthSnapshotProbe: CodexAuthActivator, LiveCodexAccountIdentitySource {
     var activatedAccountID: UUID?
     private let fingerprint: String?
     private let stableAccountID: String?
@@ -123,7 +123,7 @@ private final class AuthSpy: CodexAuthActivating, LiveCodexAccountIdentityReadin
     }
 }
 
-private final class RepositorySpy: AccountCatalogStore {
+private final class AccountCatalogProbe: AccountCatalogStore {
     var savedAccounts: [CodexAccount]?
 
     func saveAccounts(_ accounts: [CodexAccount]) throws {
@@ -131,7 +131,7 @@ private final class RepositorySpy: AccountCatalogStore {
     }
 }
 
-private final class RecordingCodexAppProcessClient: CodexAppProcessClient {
+private final class CodexAppProcessProbe: CodexAppProcessClient {
     var relaunchCount = 0
     var availabilityCheckCount = 0
     var availabilityError: Error?
@@ -148,14 +148,14 @@ private final class RecordingCodexAppProcessClient: CodexAppProcessClient {
     }
 }
 
-private func makeResolver(auth: AuthSpy) -> SavedAccountIdentityResolver {
+private func makeResolver(auth: AuthSnapshotProbe) -> SavedAccountIdentityResolver {
     SavedAccountIdentityResolver(
-        liveIdentityReader: auth,
-        storedAccountReconciler: ReconcilePassthrough()
+        liveIdentitySource: auth,
+        storedAccountReconciler: IdentityReconcilerAdapter()
     )
 }
 
-private struct ReconcilePassthrough: StoredAccountIdentityReconciling {
+private struct IdentityReconcilerAdapter: StoredAccountIdentityReconciler {
     func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {
         accounts
     }

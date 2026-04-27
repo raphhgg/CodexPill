@@ -9,12 +9,12 @@ struct SSHRemoteHostClientTests {
     func installAccountCreatesDirectoriesThenCopiesSnapshot() async throws {
         let account = makeAccount()
         let snapshotURL = URL(fileURLWithPath: "/tmp/\(account.snapshotFileName)")
-        let runner = CommandRunnerSpy(results: [
+        let runner = CommandRunnerProbe(results: [
             .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data())),
             .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data()))
         ])
         let client = SSHRemoteHostClient(
-            snapshotLocator: SnapshotLocatorStub(snapshotURL: snapshotURL),
+            snapshotLocator: SnapshotLocatorFixture(snapshotURL: snapshotURL),
             commandRunner: runner,
             sshExecutableURL: URL(fileURLWithPath: "/usr/bin/ssh"),
             scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp")
@@ -44,12 +44,12 @@ struct SSHRemoteHostClientTests {
     @Test
     func switchToAccountCopiesInstalledSnapshotIntoRemoteAuthPath() async throws {
         let account = makeAccount()
-        let runner = CommandRunnerSpy(results: [
+        let runner = CommandRunnerProbe(results: [
             .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data())),
             .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data()))
         ])
         let client = SSHRemoteHostClient(
-            snapshotLocator: SnapshotLocatorStub(snapshotURL: URL(fileURLWithPath: "/tmp/\(account.snapshotFileName)")),
+            snapshotLocator: SnapshotLocatorFixture(snapshotURL: URL(fileURLWithPath: "/tmp/\(account.snapshotFileName)")),
             commandRunner: runner,
             sshExecutableURL: URL(fileURLWithPath: "/usr/bin/ssh"),
             scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp")
@@ -71,11 +71,11 @@ struct SSHRemoteHostClientTests {
     @Test
     func installationStateTreatsExitCodeOneAsMissing() async throws {
         let account = makeAccount()
-        let runner = CommandRunnerSpy(results: [
+        let runner = CommandRunnerProbe(results: [
             .success(.init(terminationStatus: 1, standardOutput: Data(), standardError: Data()))
         ])
         let client = SSHRemoteHostClient(
-            snapshotLocator: SnapshotLocatorStub(snapshotURL: URL(fileURLWithPath: "/tmp/\(account.snapshotFileName)")),
+            snapshotLocator: SnapshotLocatorFixture(snapshotURL: URL(fileURLWithPath: "/tmp/\(account.snapshotFileName)")),
             commandRunner: runner,
             sshExecutableURL: URL(fileURLWithPath: "/usr/bin/ssh"),
             scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp")
@@ -88,11 +88,11 @@ struct SSHRemoteHostClientTests {
 
     @Test
     func testConnectionRequiresCodexAndChecksRemoteDirectoryAccess() async throws {
-        let runner = CommandRunnerSpy(results: [
+        let runner = CommandRunnerProbe(results: [
             .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data()))
         ])
         let client = SSHRemoteHostClient(
-            snapshotLocator: SnapshotLocatorStub(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
+            snapshotLocator: SnapshotLocatorFixture(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
             commandRunner: runner,
             sshExecutableURL: URL(fileURLWithPath: "/usr/bin/ssh"),
             scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp")
@@ -113,7 +113,7 @@ struct SSHRemoteHostClientTests {
 
     @Test
     func testConnectionSurfacesRemoteCommandFailures() async {
-        let runner = CommandRunnerSpy(results: [
+        let runner = CommandRunnerProbe(results: [
             .success(.init(
                 terminationStatus: 127,
                 standardOutput: Data(),
@@ -121,7 +121,7 @@ struct SSHRemoteHostClientTests {
             ))
         ])
         let client = SSHRemoteHostClient(
-            snapshotLocator: SnapshotLocatorStub(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
+            snapshotLocator: SnapshotLocatorFixture(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
             commandRunner: runner,
             sshExecutableURL: URL(fileURLWithPath: "/usr/bin/ssh"),
             scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp")
@@ -136,7 +136,7 @@ struct SSHRemoteHostClientTests {
     func installAccountSurfacesScpFailures() async {
         let account = makeAccount()
         let snapshotURL = URL(fileURLWithPath: "/tmp/\(account.snapshotFileName)")
-        let runner = CommandRunnerSpy(results: [
+        let runner = CommandRunnerProbe(results: [
             .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data())),
             .success(.init(
                 terminationStatus: 1,
@@ -145,7 +145,7 @@ struct SSHRemoteHostClientTests {
             ))
         ])
         let client = SSHRemoteHostClient(
-            snapshotLocator: SnapshotLocatorStub(snapshotURL: snapshotURL),
+            snapshotLocator: SnapshotLocatorFixture(snapshotURL: snapshotURL),
             commandRunner: runner,
             sshExecutableURL: URL(fileURLWithPath: "/usr/bin/ssh"),
             scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp")
@@ -159,7 +159,7 @@ struct SSHRemoteHostClientTests {
     @Test
     func switchToAccountSurfacesRemoteCopyFailures() async {
         let account = makeAccount()
-        let runner = CommandRunnerSpy(results: [
+        let runner = CommandRunnerProbe(results: [
             .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data())),
             .success(.init(
                 terminationStatus: 1,
@@ -168,7 +168,7 @@ struct SSHRemoteHostClientTests {
             ))
         ])
         let client = SSHRemoteHostClient(
-            snapshotLocator: SnapshotLocatorStub(snapshotURL: URL(fileURLWithPath: "/tmp/\(account.snapshotFileName)")),
+            snapshotLocator: SnapshotLocatorFixture(snapshotURL: URL(fileURLWithPath: "/tmp/\(account.snapshotFileName)")),
             commandRunner: runner,
             sshExecutableURL: URL(fileURLWithPath: "/usr/bin/ssh"),
             scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp")
@@ -181,7 +181,7 @@ struct SSHRemoteHostClientTests {
 
     @Test
     func refreshCodexAppServerRestartsExistingRuntimeAndWaitsForListener() async throws {
-        let runner = CommandRunnerSpy(results: [
+        let runner = CommandRunnerProbe(results: [
             .success(.init(terminationStatus: 0, standardOutput: Data("1247390\n1247402\n".utf8), standardError: Data())),
             .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data())),
             .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data())),
@@ -189,7 +189,7 @@ struct SSHRemoteHostClientTests {
             .success(.init(terminationStatus: 0, standardOutput: Data("LISTEN".utf8), standardError: Data()))
         ])
         let client = SSHRemoteHostClient(
-            snapshotLocator: SnapshotLocatorStub(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
+            snapshotLocator: SnapshotLocatorFixture(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
             commandRunner: runner,
             sshExecutableURL: URL(fileURLWithPath: "/usr/bin/ssh"),
             scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp"),
@@ -244,13 +244,13 @@ struct SSHRemoteHostClientTests {
 
     @Test
     func refreshCodexAppServerStartsRuntimeWhenNoneIsRunning() async throws {
-        let runner = CommandRunnerSpy(results: [
+        let runner = CommandRunnerProbe(results: [
             .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data())),
             .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data())),
             .success(.init(terminationStatus: 0, standardOutput: Data("LISTEN".utf8), standardError: Data()))
         ])
         let client = SSHRemoteHostClient(
-            snapshotLocator: SnapshotLocatorStub(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
+            snapshotLocator: SnapshotLocatorFixture(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
             commandRunner: runner,
             sshExecutableURL: URL(fileURLWithPath: "/usr/bin/ssh"),
             scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp"),
@@ -289,14 +289,14 @@ struct SSHRemoteHostClientTests {
 
     @Test
     func refreshCodexAppServerFallsBackWhenSSIsUnavailable() async throws {
-        let runner = CommandRunnerSpy(results: [
+        let runner = CommandRunnerProbe(results: [
             .success(.init(terminationStatus: 0, standardOutput: Data("1247402\n".utf8), standardError: Data())),
             .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data())),
             .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data())),
             .success(.init(terminationStatus: 0, standardOutput: Data("1247500\n".utf8), standardError: Data()))
         ])
         let client = SSHRemoteHostClient(
-            snapshotLocator: SnapshotLocatorStub(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
+            snapshotLocator: SnapshotLocatorFixture(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
             commandRunner: runner,
             sshExecutableURL: URL(fileURLWithPath: "/usr/bin/ssh"),
             scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp"),
@@ -317,7 +317,7 @@ struct SSHRemoteHostClientTests {
 
     @Test
     func refreshCodexAppServerIgnoresPidsThatDisappearBeforeKillCompletes() async throws {
-        let runner = CommandRunnerSpy(results: [
+        let runner = CommandRunnerProbe(results: [
             .success(.init(terminationStatus: 0, standardOutput: Data("574332\n".utf8), standardError: Data())),
             .success(.init(
                 terminationStatus: 1,
@@ -329,7 +329,7 @@ struct SSHRemoteHostClientTests {
             .success(.init(terminationStatus: 0, standardOutput: Data("LISTEN".utf8), standardError: Data()))
         ])
         let client = SSHRemoteHostClient(
-            snapshotLocator: SnapshotLocatorStub(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
+            snapshotLocator: SnapshotLocatorFixture(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
             commandRunner: runner,
             sshExecutableURL: URL(fileURLWithPath: "/usr/bin/ssh"),
             scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp"),
@@ -384,7 +384,7 @@ struct SSHRemoteHostClientTests {
 
     @Test
     func refreshCodexAppServerFailsWhenListenerDoesNotReturn() async {
-        let runner = CommandRunnerSpy(results: [
+        let runner = CommandRunnerProbe(results: [
             .success(.init(terminationStatus: 0, standardOutput: Data("1247402\n".utf8), standardError: Data())),
             .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data())),
             .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data())),
@@ -392,7 +392,7 @@ struct SSHRemoteHostClientTests {
             .success(.init(terminationStatus: 1, standardOutput: Data(), standardError: Data("not listening".utf8)))
         ])
         let client = SSHRemoteHostClient(
-            snapshotLocator: SnapshotLocatorStub(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
+            snapshotLocator: SnapshotLocatorFixture(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
             commandRunner: runner,
             sshExecutableURL: URL(fileURLWithPath: "/usr/bin/ssh"),
             scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp"),
@@ -417,12 +417,12 @@ struct SSHRemoteHostClientTests {
             workspaceAccountID: "org-remote",
             workspaceLabel: "Remote Team"
         )
-        let runner = CommandRunnerSpy(results: [
+        let runner = CommandRunnerProbe(results: [
             .success(.init(terminationStatus: 0, standardOutput: authData, standardError: Data()))
         ])
 
         let client = SSHRemoteHostClient(
-            snapshotLocator: SnapshotLocatorStub(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
+            snapshotLocator: SnapshotLocatorFixture(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
             commandRunner: runner,
             sshExecutableURL: executableURL,
             scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp")
@@ -463,12 +463,12 @@ struct SSHRemoteHostClientTests {
             ]
         )
         defer { try? FileManager.default.removeItem(at: executableURL) }
-        let runner = CommandRunnerSpy(results: [
+        let runner = CommandRunnerProbe(results: [
             .success(.init(terminationStatus: 17, standardOutput: Data(), standardError: Data()))
         ])
 
         let client = SSHRemoteHostClient(
-            snapshotLocator: SnapshotLocatorStub(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
+            snapshotLocator: SnapshotLocatorFixture(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
             commandRunner: runner,
             sshExecutableURL: executableURL,
             scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp")
@@ -493,12 +493,12 @@ struct SSHRemoteHostClientTests {
         ]
         let executableURL = try makeRemoteAppServerFixtureExecutable(firstLines: weeklyOnly, refreshedLines: full)
         defer { try? FileManager.default.removeItem(at: executableURL) }
-        let runner = CommandRunnerSpy(results: [
+        let runner = CommandRunnerProbe(results: [
             .success(.init(terminationStatus: 17, standardOutput: Data(), standardError: Data()))
         ])
 
         let client = SSHRemoteHostClient(
-            snapshotLocator: SnapshotLocatorStub(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
+            snapshotLocator: SnapshotLocatorFixture(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
             commandRunner: runner,
             sshExecutableURL: executableURL,
             scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp")
@@ -514,12 +514,12 @@ struct SSHRemoteHostClientTests {
     func readCurrentAccountStatusKeepsRemoteSessionOpenLongEnoughToReceiveRateLimits() async throws {
         let executableURL = try makeEOFSensitiveRemoteAppServerFixtureExecutable()
         defer { try? FileManager.default.removeItem(at: executableURL) }
-        let runner = CommandRunnerSpy(results: [
+        let runner = CommandRunnerProbe(results: [
             .success(.init(terminationStatus: 17, standardOutput: Data(), standardError: Data()))
         ])
 
         let client = SSHRemoteHostClient(
-            snapshotLocator: SnapshotLocatorStub(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
+            snapshotLocator: SnapshotLocatorFixture(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
             commandRunner: runner,
             sshExecutableURL: executableURL,
             scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp")
@@ -544,12 +544,12 @@ struct SSHRemoteHostClientTests {
         ]
         let executableURL = try makeRemoteAppServerFixtureExecutable(firstLines: zeroed, refreshedLines: fresh)
         defer { try? FileManager.default.removeItem(at: executableURL) }
-        let runner = CommandRunnerSpy(results: [
+        let runner = CommandRunnerProbe(results: [
             .success(.init(terminationStatus: 17, standardOutput: Data(), standardError: Data()))
         ])
 
         let client = SSHRemoteHostClient(
-            snapshotLocator: SnapshotLocatorStub(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
+            snapshotLocator: SnapshotLocatorFixture(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
             commandRunner: runner,
             sshExecutableURL: executableURL,
             scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp")
@@ -579,12 +579,12 @@ struct SSHRemoteHostClientTests {
             workspaceAccountID: "org-business-2",
             workspaceLabel: "Business 2"
         )
-        let runner = CommandRunnerSpy(results: [
+        let runner = CommandRunnerProbe(results: [
             .success(.init(terminationStatus: 0, standardOutput: authData, standardError: Data()))
         ])
 
         let client = SSHRemoteHostClient(
-            snapshotLocator: SnapshotLocatorStub(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
+            snapshotLocator: SnapshotLocatorFixture(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
             commandRunner: runner,
             sshExecutableURL: executableURL,
             scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp")
@@ -608,7 +608,7 @@ struct SSHRemoteHostClientTests {
             ]
         )
         defer { try? FileManager.default.removeItem(at: executableURL) }
-        let runner = CommandRunnerSpy(results: [
+        let runner = CommandRunnerProbe(results: [
             .success(.init(
                 terminationStatus: 1,
                 standardOutput: Data(),
@@ -617,7 +617,7 @@ struct SSHRemoteHostClientTests {
         ])
 
         let client = SSHRemoteHostClient(
-            snapshotLocator: SnapshotLocatorStub(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
+            snapshotLocator: SnapshotLocatorFixture(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
             commandRunner: runner,
             sshExecutableURL: executableURL,
             scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp")
@@ -764,7 +764,7 @@ private func makeEOFSensitiveRemoteAppServerFixtureExecutable() throws -> URL {
     return url
 }
 
-private struct SnapshotLocatorStub: AccountSnapshotLocating {
+private struct SnapshotLocatorFixture: AccountSnapshotLocator {
     let snapshotURL: URL
 
     func snapshotURL(for account: CodexAccount) -> URL {
@@ -772,7 +772,7 @@ private struct SnapshotLocatorStub: AccountSnapshotLocating {
     }
 }
 
-private final class CommandRunnerSpy: CommandRunning {
+private final class CommandRunnerProbe: CommandRunner {
     struct Call: Equatable {
         let executableURL: URL
         let arguments: [String]

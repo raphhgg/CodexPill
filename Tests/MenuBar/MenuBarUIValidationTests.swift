@@ -862,7 +862,7 @@ struct MenuBarUIValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
         let suiteName = "MenuBarUIValidationTests-\(UUID().uuidString)"
@@ -874,7 +874,7 @@ struct MenuBarUIValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            alertPresenter: TestMenuBarAlertPresenter()
+            alertPresenter: MenuBarAlertPresenterProbe()
         )
     }
 
@@ -945,7 +945,7 @@ private enum ValidationError: Error {
     case unknownScenario(String)
 }
 
-private struct DisabledCodexAppProcessClient: CodexAppProcessClient {
+private struct NullCodexAppProcessClient: CodexAppProcessClient {
     func assertCodexAvailable() throws {}
     func relaunchCodex() async throws {}
 }

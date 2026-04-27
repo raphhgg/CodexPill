@@ -22,7 +22,7 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
             ? ValidationCodexAppProcessClient()
             : SystemCodexAppProcessClient()
         let accountStatusClient = CodexAppServerClient()
-        let remoteHostClient: RemoteHostSwitching
+        let remoteHostClient: RemoteHostClient
         if AppRuntimeEnvironment.shouldUseValidationRemoteHostClient(environment: environment) {
             remoteHostClient = ValidationRemoteHostClient(seedStates: settings.remoteHostStates)
         } else {
@@ -42,7 +42,7 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
             store: store,
             settings: settings,
             remoteHostClient: remoteHostClient,
-            alertPresenter: MenuBarAlertPresenter(),
+            alertPresenter: SystemMenuBarAlertPresenter(),
             validationSink: MenuBarValidationConfiguration.makeSink(),
             allowsEmptyStatePrompt: !AppRuntimeEnvironment.shouldSuppressEmptyStatePrompt()
         )

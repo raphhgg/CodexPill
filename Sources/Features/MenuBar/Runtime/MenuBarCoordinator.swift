@@ -75,28 +75,28 @@ struct AccountAvailabilityNotificationCopyRenderer {
     }
 }
 
-protocol AccountAvailabilityNotificationDelivering {
+protocol AccountAvailabilityNotifier {
     func authorizationState() async -> NotificationAuthorizationState
     func requestAuthorizationIfNeeded() async
     func deliver(_ payload: AccountAvailabilityNotificationPayload) async -> Bool
 }
 
-protocol ApplicationForegrounding {
+protocol ApplicationActivator {
     func activate()
 }
 
-protocol NotificationSettingsOpening {
+protocol NotificationSettingsLauncher {
     func openNotificationSettings()
 }
 
-protocol UserNotificationCentering: AnyObject {
+protocol UserNotificationCenterClient: AnyObject {
     func authorizationStatus() async -> UNAuthorizationStatus
     func requestAuthorization(options: UNAuthorizationOptions) async throws -> Bool
     func add(_ request: UNNotificationRequest) async throws
     func setNotificationCategories(_ categories: Set<UNNotificationCategory>)
 }
 
-extension UNUserNotificationCenter: UserNotificationCentering {
+extension UNUserNotificationCenter: UserNotificationCenterClient {
     func authorizationStatus() async -> UNAuthorizationStatus {
         await withCheckedContinuation { continuation in
             getNotificationSettings { settings in
@@ -118,13 +118,13 @@ extension UNUserNotificationCenter: UserNotificationCentering {
     }
 }
 
-struct NSApplicationForegrounder: ApplicationForegrounding {
+struct NSApplicationActivator: ApplicationActivator {
     func activate() {
         NSApp.activate(ignoringOtherApps: true)
     }
 }
 
-struct SystemNotificationSettingsOpener: NotificationSettingsOpening {
+struct SystemNotificationSettingsLauncher: NotificationSettingsLauncher {
     func openNotificationSettings() {
         guard let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") else {
             return
@@ -133,11 +133,11 @@ struct SystemNotificationSettingsOpener: NotificationSettingsOpening {
     }
 }
 
-final class AccountAvailabilityNotificationCenter: AccountAvailabilityNotificationDelivering {
-    private let center: UserNotificationCentering
+final class AccountAvailabilityNotificationCenter: AccountAvailabilityNotifier {
+    private let center: UserNotificationCenterClient
     private var hasRequestedAuthorization = false
 
-    init(center: UserNotificationCentering = UNUserNotificationCenter.current()) {
+    init(center: UserNotificationCenterClient = UNUserNotificationCenter.current()) {
         self.center = center
     }
 
@@ -372,14 +372,14 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let statusItemRuntime: StatusItemRuntime
     private let store: MenuBarAccountsStore
     private let settings: AppSettings
-    private let remoteHostClient: RemoteHostSwitching
+    private let remoteHostClient: RemoteHostClient
     private let cliProcessInspector: CodexCLIProcessInspector
-    private let alertPresenter: MenuBarAlertPresenting
+    private let alertPresenter: MenuBarAlertPresenter
     private let alertFactory: MenuBarAlertFactory
     private let notificationStateStore: NotificationStateStore
-    private let notificationDelivery: AccountAvailabilityNotificationDelivering
-    private let applicationForegrounder: ApplicationForegrounding
-    private let notificationSettingsOpener: NotificationSettingsOpening
+    private let notificationDelivery: AccountAvailabilityNotifier
+    private let applicationActivator: ApplicationActivator
+    private let notificationSettingsLauncher: NotificationSettingsLauncher
     private let validationSink: MenuBarValidationSink?
     private let validationScenario: String?
     private let sealValidationRun: CodexPillSealValidationRun?
@@ -411,13 +411,13 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         statusItemRuntime: StatusItemRuntime,
         store: MenuBarAccountsStore,
         settings: AppSettings,
-        remoteHostClient: RemoteHostSwitching = UnavailableRemoteHostClient(),
+        remoteHostClient: RemoteHostClient = UnavailableRemoteHostClient(),
         cliProcessInspector: CodexCLIProcessInspector = CodexCLIProcessInspector(),
-        alertPresenter: MenuBarAlertPresenting,
+        alertPresenter: MenuBarAlertPresenter,
         alertFactory: MenuBarAlertFactory = MenuBarAlertFactory(),
-        notificationDelivery: AccountAvailabilityNotificationDelivering = AccountAvailabilityNotificationCenter(),
-        applicationForegrounder: ApplicationForegrounding = NSApplicationForegrounder(),
-        notificationSettingsOpener: NotificationSettingsOpening = SystemNotificationSettingsOpener(),
+        notificationDelivery: AccountAvailabilityNotifier = AccountAvailabilityNotificationCenter(),
+        applicationActivator: ApplicationActivator = NSApplicationActivator(),
+        notificationSettingsLauncher: NotificationSettingsLauncher = SystemNotificationSettingsLauncher(),
         validationSink: MenuBarValidationSink? = nil,
         validationScenario: String? = MenuBarValidationConfiguration.scenario(),
         sealValidationRun: CodexPillSealValidationRun? = nil,
@@ -432,8 +432,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.alertFactory = alertFactory
         self.notificationStateStore = NotificationStateStore(settings: settings)
         self.notificationDelivery = notificationDelivery
-        self.applicationForegrounder = applicationForegrounder
-        self.notificationSettingsOpener = notificationSettingsOpener
+        self.applicationActivator = applicationActivator
+        self.notificationSettingsLauncher = notificationSettingsLauncher
         self.validationSink = validationSink
         self.validationScenario = validationScenario
         self.sealValidationRun = sealValidationRun ?? CodexPillSealValidationConfiguration.makeRun()
@@ -706,7 +706,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             var state = await self.notificationDelivery.authorizationState()
             switch state {
             case .denied:
-                self.notificationSettingsOpener.openNotificationSettings()
+                self.notificationSettingsLauncher.openNotificationSettings()
             case .notDetermined, .unknown:
                 await self.notificationDelivery.requestAuthorizationIfNeeded()
                 state = await self.notificationDelivery.authorizationState()
@@ -1182,7 +1182,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     func handleNotificationResponse(actionIdentifier: String?, userInfo: [AnyHashable: Any]) async {
         let resolvedActionIdentifier = actionIdentifier ?? UNNotificationDefaultActionIdentifier
         guard resolvedActionIdentifier != UNNotificationDefaultActionIdentifier else {
-            applicationForegrounder.activate()
+            applicationActivator.activate()
             return
         }
 
@@ -1190,7 +1190,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             let accountIDString = userInfo["accountID"] as? String,
             let notifiedAccountID = UUID(uuidString: accountIDString)
         else {
-            applicationForegrounder.activate()
+            applicationActivator.activate()
             return
         }
 
@@ -1211,7 +1211,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             )
         )
 
-        applicationForegrounder.activate()
+        applicationActivator.activate()
 
         guard let resolution else {
             return

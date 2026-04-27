@@ -11,7 +11,7 @@ final class MenuBarAccountsStore {
         authService: CodexAuthSnapshotService,
         codexAppProcessClient: CodexAppProcessClient,
         accountStatusClient: CodexAccountStatusClient,
-        remoteHostClient: RemoteHostSwitching = UnavailableRemoteHostClient()
+        remoteHostClient: RemoteHostClient = UnavailableRemoteHostClient()
     ) {
         self.controller = AccountsController(
             repository: repository,

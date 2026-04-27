@@ -13,16 +13,16 @@ struct SaveCurrentAccountWorkflowTests {
         )
         let saved = makeAccount(name: "Work", fingerprint: "live-fingerprint")
 
-        let appServer = AppServerSpy(status: remote)
-        let auth = SnapshotSaveSpy(savedAccount: saved)
-        let repository = RepositorySpy()
+        let appServer = AccountStatusProbe(status: remote)
+        let auth = AuthSnapshotProbe(savedAccount: saved)
+        let repository = AccountCatalogProbe()
         let workflow = SaveCurrentAccountWorkflow(
             accountStatusClient: appServer,
             authService: auth,
             repository: repository,
             identityResolver: SavedAccountIdentityResolver(
-                liveIdentityReader: FixedIdentityReader(identity: LiveCodexAccountIdentity(account: saved)),
-                storedAccountReconciler: ReconcilePassthrough()
+                liveIdentitySource: ConstantIdentitySource(identity: LiveCodexAccountIdentity(account: saved)),
+                storedAccountReconciler: IdentityReconcilerAdapter()
             )
         )
 
@@ -44,12 +44,12 @@ struct SaveCurrentAccountWorkflowTests {
     func runRejectsDuplicateNameCaseInsensitively() async {
         let existing = makeAccount(name: "Work", fingerprint: "existing")
         let workflow = SaveCurrentAccountWorkflow(
-            accountStatusClient: AppServerSpy(status: CodexAccountStatus(email: "new@example.com", planType: nil, rateLimits: nil)),
-            authService: SnapshotSaveSpy(savedAccount: makeAccount(name: "work", fingerprint: "new")),
-            repository: RepositorySpy(),
+            accountStatusClient: AccountStatusProbe(status: CodexAccountStatus(email: "new@example.com", planType: nil, rateLimits: nil)),
+            authService: AuthSnapshotProbe(savedAccount: makeAccount(name: "work", fingerprint: "new")),
+            repository: AccountCatalogProbe(),
             identityResolver: SavedAccountIdentityResolver(
-                liveIdentityReader: FixedIdentityReader(identity: .empty),
-                storedAccountReconciler: ReconcilePassthrough()
+                liveIdentitySource: ConstantIdentitySource(identity: .empty),
+                storedAccountReconciler: IdentityReconcilerAdapter()
             )
         )
 
@@ -68,14 +68,14 @@ struct SaveCurrentAccountWorkflowTests {
             planType: nil,
             rateLimits: nil
         )
-        let auth = SnapshotSaveSpy(savedAccount: makeAccount(name: "ignored", fingerprint: "live-fingerprint"))
+        let auth = AuthSnapshotProbe(savedAccount: makeAccount(name: "ignored", fingerprint: "live-fingerprint"))
         let workflow = SaveCurrentAccountWorkflow(
-            accountStatusClient: AppServerSpy(status: remote),
+            accountStatusClient: AccountStatusProbe(status: remote),
             authService: auth,
-            repository: RepositorySpy(),
+            repository: AccountCatalogProbe(),
             identityResolver: SavedAccountIdentityResolver(
-                liveIdentityReader: FixedIdentityReader(identity: LiveCodexAccountIdentity(account: auth.savedAccount)),
-                storedAccountReconciler: ReconcilePassthrough()
+                liveIdentitySource: ConstantIdentitySource(identity: LiveCodexAccountIdentity(account: auth.savedAccount)),
+                storedAccountReconciler: IdentityReconcilerAdapter()
             )
         )
 
@@ -114,15 +114,15 @@ struct SaveCurrentAccountWorkflowTests {
             workspaceAccountID: "org-business-5"
         )
 
-        let auth = SnapshotSaveSpy(savedAccount: refreshed)
-        let repository = RepositorySpy()
+        let auth = AuthSnapshotProbe(savedAccount: refreshed)
+        let repository = AccountCatalogProbe()
         let workflow = SaveCurrentAccountWorkflow(
-            accountStatusClient: AppServerSpy(status: remote),
+            accountStatusClient: AccountStatusProbe(status: remote),
             authService: auth,
             repository: repository,
             identityResolver: SavedAccountIdentityResolver(
-                liveIdentityReader: FixedIdentityReader(identity: LiveCodexAccountIdentity(account: existing)),
-                storedAccountReconciler: ReconcilePassthrough()
+                liveIdentitySource: ConstantIdentitySource(identity: LiveCodexAccountIdentity(account: existing)),
+                storedAccountReconciler: IdentityReconcilerAdapter()
             )
         )
 
@@ -167,14 +167,14 @@ struct SaveCurrentAccountWorkflowTests {
             rateLimits: makeRateLimitsSnapshot()
         )
 
-        let auth = SnapshotSaveSpy(savedAccount: business)
-        let repository = RepositorySpy()
+        let auth = AuthSnapshotProbe(savedAccount: business)
+        let repository = AccountCatalogProbe()
         let workflow = SaveCurrentAccountWorkflow(
-            accountStatusClient: AppServerSpy(status: remote),
+            accountStatusClient: AccountStatusProbe(status: remote),
             authService: auth,
             repository: repository,
             identityResolver: SavedAccountIdentityResolver(
-                liveIdentityReader: FixedIdentityReader(
+                liveIdentitySource: ConstantIdentitySource(
                     identity: LiveCodexAccountIdentity(
                         stableAccountID: nil,
                         authPrincipalIdentity: nil,
@@ -183,7 +183,7 @@ struct SaveCurrentAccountWorkflowTests {
                         remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@gmail.com")
                     )
                 ),
-                storedAccountReconciler: ReconcilePassthrough()
+                storedAccountReconciler: IdentityReconcilerAdapter()
             )
         )
 
@@ -216,12 +216,12 @@ struct SaveCurrentAccountWorkflowTests {
             fingerprint: "other-fingerprint"
         )
         let workflow = SaveCurrentAccountWorkflow(
-            accountStatusClient: AppServerSpy(status: CodexAccountStatus(email: "raphaelgrau@proton.me", planType: "team", rateLimits: nil)),
-            authService: SnapshotSaveSpy(savedAccount: existing),
-            repository: RepositorySpy(),
+            accountStatusClient: AccountStatusProbe(status: CodexAccountStatus(email: "raphaelgrau@proton.me", planType: "team", rateLimits: nil)),
+            authService: AuthSnapshotProbe(savedAccount: existing),
+            repository: AccountCatalogProbe(),
             identityResolver: SavedAccountIdentityResolver(
-                liveIdentityReader: FixedIdentityReader(identity: LiveCodexAccountIdentity(account: existing)),
-                storedAccountReconciler: ReconcilePassthrough()
+                liveIdentitySource: ConstantIdentitySource(identity: LiveCodexAccountIdentity(account: existing)),
+                storedAccountReconciler: IdentityReconcilerAdapter()
             )
         )
 
@@ -288,7 +288,7 @@ struct SaveCurrentAccountWorkflowTests {
     }
 }
 
-private final class AppServerSpy: CodexAccountStatusClient {
+private final class AccountStatusProbe: CodexAccountStatusClient {
     let status: CodexAccountStatus
     var readCount = 0
 
@@ -302,7 +302,7 @@ private final class AppServerSpy: CodexAccountStatusClient {
     }
 }
 
-private final class SnapshotSaveSpy: CodexAuthSnapshotSaving {
+private final class AuthSnapshotProbe: CodexAuthSnapshotStore {
     let savedAccount: CodexAccount
     var savedNames: [String] = []
     var savedExistingAccountIDs: [UUID?] = []
@@ -318,7 +318,7 @@ private final class SnapshotSaveSpy: CodexAuthSnapshotSaving {
     }
 }
 
-private final class RepositorySpy: AccountCatalogStore {
+private final class AccountCatalogProbe: AccountCatalogStore {
     var savedAccounts: [CodexAccount]?
 
     func saveAccounts(_ accounts: [CodexAccount]) throws {
@@ -326,7 +326,7 @@ private final class RepositorySpy: AccountCatalogStore {
     }
 }
 
-private struct FixedIdentityReader: LiveCodexAccountIdentityReading {
+private struct ConstantIdentitySource: LiveCodexAccountIdentitySource {
     let identity: LiveCodexAccountIdentity
 
     func readCurrentLiveAccountIdentity() -> LiveCodexAccountIdentity {
@@ -334,7 +334,7 @@ private struct FixedIdentityReader: LiveCodexAccountIdentityReading {
     }
 }
 
-private struct ReconcilePassthrough: StoredAccountIdentityReconciling {
+private struct IdentityReconcilerAdapter: StoredAccountIdentityReconciler {
     func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {
         accounts
     }

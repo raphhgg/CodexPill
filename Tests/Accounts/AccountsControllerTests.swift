@@ -9,11 +9,11 @@ struct AccountsControllerTests {
     func startSignInAnotherAccountFlowClearsActiveAccountUntilCodexCompletesSignIn() async {
         let business1 = makeAccount(name: "Business 1", fingerprint: "business-1")
         let business2 = makeAccount(name: "Business 2", fingerprint: "business-2")
-        let repository = LoadingPersistingRepositorySpy(accountsToLoad: [business1, business2])
-        let liveIdentity = MutableCurrentIdentityStub(fingerprint: "business-2")
+        let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [business1, business2])
+        let liveIdentity = CurrentIdentityHarness(fingerprint: "business-2")
         let identityResolver = SavedAccountIdentityResolver(
-            liveIdentityReader: liveIdentity,
-            storedAccountReconciler: StoredIdentityPassthrough()
+            liveIdentitySource: liveIdentity,
+            storedAccountReconciler: StoredIdentityAdapter()
         )
         let controller = AccountsController(
             identityResolver: identityResolver,
@@ -22,13 +22,13 @@ struct AccountsControllerTests {
                 identityResolver: identityResolver
             ),
             refreshActiveAccountUseCase: RefreshActiveAccountUseCase(
-                accountStatusClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
                 identityResolver: identityResolver,
                 repository: repository
             ),
             hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
-                authService: NoopAuthService(),
-                accountStatusClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                authService: NullAuthService(),
+                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
                 identityResolver: identityResolver,
                 repository: repository
             ),
@@ -39,14 +39,14 @@ struct AccountsControllerTests {
             renameSavedAccountUseCase: RenameSavedAccountUseCase(repository: repository),
             persistSavedAccountMetadataUseCase: PersistSavedAccountMetadataUseCase(repository: repository),
             switchAccountWorkflow: SwitchAccountWorkflow(
-                authService: NoopAuthService(),
+                authService: NullAuthService(),
                 repository: repository,
-                codexAppProcessClient: DisabledCodexAppProcessClient(),
+                codexAppProcessClient: NullCodexAppProcessClient(),
                 identityResolver: identityResolver
             ),
             saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow(
-                accountStatusClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
-                authService: NoopAuthService(),
+                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
+                authService: NullAuthService(),
                 repository: repository,
                 identityResolver: identityResolver
             ),
@@ -70,14 +70,14 @@ struct AccountsControllerTests {
     @Test
     func startSignInAnotherAccountFlowRejectsDuplicateNameBeforeOpeningCodexSignIn() async {
         let business1 = makeAccount(name: "Business 1", fingerprint: "business-1")
-        let repository = LoadingPersistingRepositorySpy(accountsToLoad: [business1])
-        let liveIdentity = MutableCurrentIdentityStub(fingerprint: "business-1")
+        let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [business1])
+        let liveIdentity = CurrentIdentityHarness(fingerprint: "business-1")
         let identityResolver = SavedAccountIdentityResolver(
-            liveIdentityReader: liveIdentity,
-            storedAccountReconciler: StoredIdentityPassthrough()
+            liveIdentitySource: liveIdentity,
+            storedAccountReconciler: StoredIdentityAdapter()
         )
-        let processClient = RecordingCodexAppProcessClient()
-        let authService = NoopAuthService()
+        let processClient = CodexAppProcessProbe()
+        let authService = NullAuthService()
         let controller = makeController(
             repository: repository,
             identityResolver: identityResolver,
@@ -99,18 +99,18 @@ struct AccountsControllerTests {
     @Test
     func completePendingSignedInAccountClearsPendingFlowAfterTerminalSaveFailure() async {
         let business1 = makeAccount(name: "Business 1", fingerprint: "business-1")
-        let repository = LoadingPersistingRepositorySpy(accountsToLoad: [business1])
-        let liveIdentity = MutableCurrentIdentityStub(fingerprint: "business-1")
+        let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [business1])
+        let liveIdentity = CurrentIdentityHarness(fingerprint: "business-1")
         let identityResolver = SavedAccountIdentityResolver(
-            liveIdentityReader: liveIdentity,
-            storedAccountReconciler: StoredIdentityPassthrough()
+            liveIdentitySource: liveIdentity,
+            storedAccountReconciler: StoredIdentityAdapter()
         )
-        let authService = ThrowingSignInAuthService(error: SaveCurrentAccountWorkflowError.duplicateAccountName)
+        let authService = SignInAuthErrorCase(error: SaveCurrentAccountWorkflowError.duplicateAccountName)
         let controller = makeController(
             repository: repository,
             identityResolver: identityResolver,
             authService: authService,
-            codexAppProcessClient: RecordingCodexAppProcessClient()
+            codexAppProcessClient: CodexAppProcessProbe()
         )
 
         controller.load()
@@ -130,10 +130,10 @@ struct AccountsControllerTests {
     @Test
     func refreshAccountDataFailureDoesNotQueuePendingErrorMessage() async {
         let account = makeAccount(name: "Business 4", fingerprint: "live")
-        let repository = LoadingPersistingRepositorySpy(accountsToLoad: [account])
+        let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [account])
         let identityResolver = SavedAccountIdentityResolver(
-            liveIdentityReader: CurrentIdentityStub(fingerprint: "live"),
-            storedAccountReconciler: StoredIdentityPassthrough()
+            liveIdentitySource: CurrentIdentityFixture(fingerprint: "live"),
+            storedAccountReconciler: StoredIdentityAdapter()
         )
         let controller = AccountsController(
             identityResolver: identityResolver,
@@ -142,13 +142,13 @@ struct AccountsControllerTests {
                 identityResolver: identityResolver
             ),
             refreshActiveAccountUseCase: RefreshActiveAccountUseCase(
-                accountStatusClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
                 identityResolver: identityResolver,
                 repository: repository
             ),
             hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
-                authService: NoopAuthService(),
-                accountStatusClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                authService: NullAuthService(),
+                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
                 identityResolver: identityResolver,
                 repository: repository
             ),
@@ -159,14 +159,14 @@ struct AccountsControllerTests {
             renameSavedAccountUseCase: RenameSavedAccountUseCase(repository: repository),
             persistSavedAccountMetadataUseCase: PersistSavedAccountMetadataUseCase(repository: repository),
             switchAccountWorkflow: SwitchAccountWorkflow(
-                authService: NoopAuthService(),
+                authService: NullAuthService(),
                 repository: repository,
-                codexAppProcessClient: DisabledCodexAppProcessClient(),
+                codexAppProcessClient: NullCodexAppProcessClient(),
                 identityResolver: identityResolver
             ),
             saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow(
-                accountStatusClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
-                authService: NoopAuthService(),
+                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
+                authService: NullAuthService(),
                 repository: repository,
                 identityResolver: identityResolver
             ),
@@ -216,10 +216,10 @@ struct AccountsControllerTests {
                 remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "business-2@example.com")
             )
         )
-        let repository = LoadingPersistingRepositorySpy(accountsToLoad: [target, other])
+        let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [target, other])
         let identityResolver = SavedAccountIdentityResolver(
-            liveIdentityReader: CurrentIdentityStub(fingerprint: nil),
-            storedAccountReconciler: StoredIdentityPassthrough()
+            liveIdentitySource: CurrentIdentityFixture(fingerprint: nil),
+            storedAccountReconciler: StoredIdentityAdapter()
         )
         let controller = AccountsController(
             identityResolver: identityResolver,
@@ -228,13 +228,13 @@ struct AccountsControllerTests {
                 identityResolver: identityResolver
             ),
             refreshActiveAccountUseCase: RefreshActiveAccountUseCase(
-                accountStatusClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
                 identityResolver: identityResolver,
                 repository: repository
             ),
             hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
-                authService: NoopAuthService(),
-                accountStatusClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                authService: NullAuthService(),
+                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
                 identityResolver: identityResolver,
                 repository: repository
             ),
@@ -245,13 +245,13 @@ struct AccountsControllerTests {
             renameSavedAccountUseCase: RenameSavedAccountUseCase(repository: repository),
             persistSavedAccountMetadataUseCase: PersistSavedAccountMetadataUseCase(repository: repository),
             switchAccountWorkflow: SwitchAccountWorkflow(
-                authService: NoopAuthService(),
+                authService: NullAuthService(),
                 repository: repository,
-                codexAppProcessClient: DisabledCodexAppProcessClient(),
+                codexAppProcessClient: NullCodexAppProcessClient(),
                 identityResolver: identityResolver
             ),
             switchAccountOnHostWorkflow: SwitchAccountOnHostWorkflow(
-                remoteHostClient: RemoteHostStatusStub(
+                remoteHostClient: RemoteHostStatusFixture(
                     status: CodexAccountStatus(
                         email: other.email,
                         planType: other.planType,
@@ -260,8 +260,8 @@ struct AccountsControllerTests {
                 )
             ),
             saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow(
-                accountStatusClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
-                authService: NoopAuthService(),
+                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
+                authService: NullAuthService(),
                 repository: repository,
                 identityResolver: identityResolver
             ),
@@ -285,10 +285,10 @@ struct AccountsControllerTests {
     @Test
     func switchToAccountOnHostMarksAuthReadFailureAsReachableFailure() async {
         let account = makeAccount(name: "Business", fingerprint: "fingerprint")
-        let repository = LoadingPersistingRepositorySpy(accountsToLoad: [account])
+        let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [account])
         let identityResolver = SavedAccountIdentityResolver(
-            liveIdentityReader: CurrentIdentityStub(fingerprint: nil),
-            storedAccountReconciler: StoredIdentityPassthrough()
+            liveIdentitySource: CurrentIdentityFixture(fingerprint: nil),
+            storedAccountReconciler: StoredIdentityAdapter()
         )
         let controller = AccountsController(
             identityResolver: identityResolver,
@@ -297,13 +297,13 @@ struct AccountsControllerTests {
                 identityResolver: identityResolver
             ),
             refreshActiveAccountUseCase: RefreshActiveAccountUseCase(
-                accountStatusClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
                 identityResolver: identityResolver,
                 repository: repository
             ),
             hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
-                authService: NoopAuthService(),
-                accountStatusClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                authService: NullAuthService(),
+                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
                 identityResolver: identityResolver,
                 repository: repository
             ),
@@ -314,17 +314,17 @@ struct AccountsControllerTests {
             renameSavedAccountUseCase: RenameSavedAccountUseCase(repository: repository),
             persistSavedAccountMetadataUseCase: PersistSavedAccountMetadataUseCase(repository: repository),
             switchAccountWorkflow: SwitchAccountWorkflow(
-                authService: NoopAuthService(),
+                authService: NullAuthService(),
                 repository: repository,
-                codexAppProcessClient: DisabledCodexAppProcessClient(),
+                codexAppProcessClient: NullCodexAppProcessClient(),
                 identityResolver: identityResolver
             ),
             switchAccountOnHostWorkflow: SwitchAccountOnHostWorkflow(
-                remoteHostClient: RemoteHostFailingStub(error: RemoteHostClientError.authReadFailed("cat: .codex/auth.json: Permission denied"))
+                remoteHostClient: RemoteHostErrorCase(error: RemoteHostClientError.authReadFailed("cat: .codex/auth.json: Permission denied"))
             ),
             saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow(
-                accountStatusClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
-                authService: NoopAuthService(),
+                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
+                authService: NullAuthService(),
                 repository: repository,
                 identityResolver: identityResolver
             ),
@@ -349,18 +349,18 @@ struct AccountsControllerTests {
         identityResolver: SavedAccountIdentityResolver
     ) -> SignInAnotherWorkflow {
         SignInAnotherWorkflow(
-            authService: NoopAuthService(),
-            codexAppProcessClient: DisabledCodexAppProcessClient(),
-            accountStatusClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+            authService: NullAuthService(),
+            codexAppProcessClient: NullCodexAppProcessClient(),
+            accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
             repository: repository,
             identityResolver: identityResolver
         )
     }
 
     private func makeController(
-        repository: LoadingPersistingRepositorySpy,
+        repository: LoadingPersistingAccountCatalogProbe,
         identityResolver: SavedAccountIdentityResolver,
-        authService: some CodexAuthDataRestoring & CodexAuthSnapshotSaving & CodexSignInAnotherAuthHandling,
+        authService: some CodexAuthSessionStore & CodexAuthSnapshotStore & CodexSignInAuthStore,
         codexAppProcessClient: CodexAppProcessClient
     ) -> AccountsController {
         AccountsController(
@@ -370,13 +370,13 @@ struct AccountsControllerTests {
                 identityResolver: identityResolver
             ),
             refreshActiveAccountUseCase: RefreshActiveAccountUseCase(
-                accountStatusClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
                 identityResolver: identityResolver,
                 repository: repository
             ),
             hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
                 authService: authService,
-                accountStatusClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
                 identityResolver: identityResolver,
                 repository: repository
             ),
@@ -393,7 +393,7 @@ struct AccountsControllerTests {
                 identityResolver: identityResolver
             ),
             saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow(
-                accountStatusClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
                 authService: authService,
                 repository: repository,
                 identityResolver: identityResolver
@@ -401,7 +401,7 @@ struct AccountsControllerTests {
             signInAnotherWorkflow: SignInAnotherWorkflow(
                 authService: authService,
                 codexAppProcessClient: codexAppProcessClient,
-                accountStatusClient: FailingAccountStatusReader(error: TestFailure.backgroundRefreshFailed),
+                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
                 repository: repository,
                 identityResolver: identityResolver
             )
@@ -438,7 +438,7 @@ private enum TestFailure: LocalizedError {
     }
 }
 
-private final class FailingAccountStatusReader: CodexAccountStatusClient {
+private final class AccountStatusErrorCase: CodexAccountStatusClient {
     let error: Error
 
     init(error: Error) {
@@ -450,7 +450,7 @@ private final class FailingAccountStatusReader: CodexAccountStatusClient {
     }
 }
 
-private final class LoadingPersistingRepositorySpy: AccountCatalogLoader, AccountSnapshotRemover {
+private final class LoadingPersistingAccountCatalogProbe: AccountCatalogLoader, AccountSnapshotRemover {
     let accountsToLoad: [CodexAccount]
     private(set) var savedAccounts: [CodexAccount]?
     private(set) var bootstrapCount = 0
@@ -474,7 +474,7 @@ private final class LoadingPersistingRepositorySpy: AccountCatalogLoader, Accoun
     func deleteSnapshot(for account: CodexAccount) throws {}
 }
 
-private final class CurrentIdentityStub: LiveCodexAccountIdentityReading {
+private final class CurrentIdentityFixture: LiveCodexAccountIdentitySource {
     let fingerprint: String?
 
     init(fingerprint: String?) {
@@ -486,7 +486,7 @@ private final class CurrentIdentityStub: LiveCodexAccountIdentityReading {
     }
 }
 
-private final class MutableCurrentIdentityStub: LiveCodexAccountIdentityReading {
+private final class CurrentIdentityHarness: LiveCodexAccountIdentitySource {
     var fingerprint: String?
 
     init(fingerprint: String?) {
@@ -498,18 +498,18 @@ private final class MutableCurrentIdentityStub: LiveCodexAccountIdentityReading 
     }
 }
 
-private struct StoredIdentityPassthrough: StoredAccountIdentityReconciling {
+private struct StoredIdentityAdapter: StoredAccountIdentityReconciler {
     func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {
         accounts
     }
 }
 
-private struct DisabledCodexAppProcessClient: CodexAppProcessClient {
+private struct NullCodexAppProcessClient: CodexAppProcessClient {
     func assertCodexAvailable() throws {}
     func relaunchCodex() async throws {}
 }
 
-private final class RecordingCodexAppProcessClient: CodexAppProcessClient {
+private final class CodexAppProcessProbe: CodexAppProcessClient {
     private(set) var availabilityCheckCount = 0
     private(set) var relaunchCount = 0
 
@@ -522,7 +522,7 @@ private final class RecordingCodexAppProcessClient: CodexAppProcessClient {
     }
 }
 
-private final class NoopAuthService: CodexAuthDataRestoring, CodexAuthSnapshotSaving, CodexSignInAnotherAuthHandling {
+private final class NullAuthService: CodexAuthSessionStore, CodexAuthSnapshotStore, CodexSignInAuthStore {
     private(set) var prepareForNewSignInCount = 0
 
     func activate(_ account: CodexAccount) throws {}
@@ -553,7 +553,7 @@ private final class NoopAuthService: CodexAuthDataRestoring, CodexAuthSnapshotSa
     }
 }
 
-private final class ThrowingSignInAuthService: CodexAuthDataRestoring, CodexAuthSnapshotSaving, CodexSignInAnotherAuthHandling {
+private final class SignInAuthErrorCase: CodexAuthSessionStore, CodexAuthSnapshotStore, CodexSignInAuthStore {
     let error: Error
 
     init(error: Error) {
@@ -569,7 +569,7 @@ private final class ThrowingSignInAuthService: CodexAuthDataRestoring, CodexAuth
     }
 }
 
-private struct RemoteHostStatusStub: RemoteHostSwitching {
+private struct RemoteHostStatusFixture: RemoteHostClient {
     let status: CodexAccountStatus
 
     func testConnection(to host: RemoteHost) async throws {}
@@ -580,7 +580,7 @@ private struct RemoteHostStatusStub: RemoteHostSwitching {
     func readCurrentAccountStatus(on host: RemoteHost) async throws -> CodexAccountStatus { status }
 }
 
-private struct RemoteHostFailingStub: RemoteHostSwitching {
+private struct RemoteHostErrorCase: RemoteHostClient {
     let error: Error
 
     func testConnection(to host: RemoteHost) async throws {}

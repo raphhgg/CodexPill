@@ -8,7 +8,7 @@ struct SwitchAccountOnHostWorkflowTests {
     func runInstallsBeforeSwitchingWhenAccountIsMissingOnHost() async throws {
         let account = makeAccount(name: "Research")
         let host = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
-        let client = RemoteHostClientSpy(
+        let client = RemoteHostClientProbe(
             installationState: .missing,
             status: CodexAccountStatus(email: account.email, planType: account.planType, rateLimits: nil)
         )
@@ -30,7 +30,7 @@ struct SwitchAccountOnHostWorkflowTests {
     func runSwitchesDirectlyWhenAccountIsAlreadyInstalled() async throws {
         let account = makeAccount(name: "Research")
         let host = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
-        let client = RemoteHostClientSpy(
+        let client = RemoteHostClientProbe(
             installationState: .installed,
             status: CodexAccountStatus(email: account.email, planType: account.planType, rateLimits: nil)
         )
@@ -51,7 +51,7 @@ struct SwitchAccountOnHostWorkflowTests {
     func runStopsBeforeSwitchWhenInstallFails() async {
         let account = makeAccount(name: "Research")
         let host = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
-        let client = RemoteHostClientSpy(
+        let client = RemoteHostClientProbe(
             installationState: .missing,
             installError: RemoteHostClientError.commandFailed("scp: Permission denied")
         )
@@ -71,7 +71,7 @@ struct SwitchAccountOnHostWorkflowTests {
     func runSurfacesSwitchFailuresAfterInstallSucceeds() async {
         let account = makeAccount(name: "Research")
         let host = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
-        let client = RemoteHostClientSpy(
+        let client = RemoteHostClientProbe(
             installationState: .missing,
             switchError: RemoteHostClientError.commandFailed("cp: auth.json: Permission denied")
         )
@@ -91,7 +91,7 @@ struct SwitchAccountOnHostWorkflowTests {
     @Test
     func testConnectionDelegatesToRemoteClient() async throws {
         let host = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
-        let client = RemoteHostClientSpy(installationState: .installed)
+        let client = RemoteHostClientProbe(installationState: .installed)
         let workflow = SwitchAccountOnHostWorkflow(remoteHostClient: client)
 
         try await workflow.testConnection(to: host)
@@ -104,7 +104,7 @@ struct SwitchAccountOnHostWorkflowTests {
         let target = makeAccount(name: "Research")
         let other = makeAccount(name: "Business")
         let host = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
-        let client = RemoteHostClientSpy(
+        let client = RemoteHostClientProbe(
             installationState: .installed,
             status: CodexAccountStatus(email: other.email, planType: other.planType, rateLimits: nil)
         )
@@ -130,7 +130,7 @@ struct SwitchAccountOnHostWorkflowTests {
         let target = makeAccount(name: "Personal", email: "shared@example.com")
         let duplicate = makeAccount(name: "Business", email: "shared@example.com")
         let host = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
-        let client = RemoteHostClientSpy(
+        let client = RemoteHostClientProbe(
             installationState: .installed,
             status: CodexAccountStatus(email: "shared@example.com", planType: target.planType, rateLimits: nil)
         )
@@ -157,7 +157,7 @@ struct SwitchAccountOnHostWorkflowTests {
             snapshotFingerprint: "other-fingerprint"
         )
         let host = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
-        let client = RemoteHostClientSpy(
+        let client = RemoteHostClientProbe(
             installationState: .installed,
             status: CodexAccountStatus(
                 email: "shared@example.com",
@@ -183,7 +183,7 @@ struct SwitchAccountOnHostWorkflowTests {
         let target = makeAccount(name: "Research")
         let previous = makeAccount(name: "Business")
         let host = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
-        let client = RemoteHostClientSpy(
+        let client = RemoteHostClientProbe(
             installationState: .installed,
             statuses: [
                 CodexAccountStatus(email: previous.email, planType: previous.planType, rateLimits: nil),
@@ -211,7 +211,7 @@ struct SwitchAccountOnHostWorkflowTests {
     func runStopsAndFailsWhenRuntimeRefreshFails() async {
         let account = makeAccount(name: "Research")
         let host = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
-        let client = RemoteHostClientSpy(
+        let client = RemoteHostClientProbe(
             installationState: .installed,
             refreshError: RemoteHostClientError.commandFailed("Remote Codex app-server failed to restart")
         )
@@ -232,7 +232,7 @@ struct SwitchAccountOnHostWorkflowTests {
     func runSurfacesProbeFailuresAfterSwitchCompletes() async {
         let account = makeAccount(name: "Research")
         let host = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
-        let client = RemoteHostClientSpy(
+        let client = RemoteHostClientProbe(
             installationState: .installed,
             statusError: RemoteHostClientError.commandFailed("Remote app-server unavailable")
         )
@@ -272,7 +272,7 @@ struct SwitchAccountOnHostWorkflowTests {
     }
 }
 
-private final class RemoteHostClientSpy: RemoteHostSwitching {
+private final class RemoteHostClientProbe: RemoteHostClient {
     enum Event: Equatable {
         case testConnection(String)
         case installationState(UUID, String)

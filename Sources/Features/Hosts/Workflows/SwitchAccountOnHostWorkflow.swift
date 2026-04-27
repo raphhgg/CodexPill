@@ -1,12 +1,12 @@
 import Foundation
 
 struct SwitchAccountOnHostWorkflow {
-    private let remoteHostClient: RemoteHostSwitching
+    private let remoteHostClient: RemoteHostClient
     private let accountVerifier: RemoteHostAccountVerifier
     private let verificationProbeDelays: [Duration]
 
     init(
-        remoteHostClient: RemoteHostSwitching,
+        remoteHostClient: RemoteHostClient,
         accountVerifier: RemoteHostAccountVerifier = RemoteHostAccountVerifier(),
         verificationProbeDelays: [Duration] = [.zero, .seconds(1), .seconds(2)]
     ) {

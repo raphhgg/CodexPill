@@ -8,8 +8,8 @@ struct SavedAccountIdentityResolverTests {
     func resolveUsesCurrentAuthFingerprintByDefault() {
         let account = makeAccount(name: "Work", fingerprint: "live-fingerprint", email: "work@example.com")
         let resolver = SavedAccountIdentityResolver(
-            liveIdentityReader: LiveIdentitySpy(currentFingerprint: "live-fingerprint", stableAccountID: nil),
-            storedAccountReconciler: ReconcilePassthrough()
+            liveIdentitySource: LiveIdentityProbe(currentFingerprint: "live-fingerprint", stableAccountID: nil),
+            storedAccountReconciler: IdentityReconcilerAdapter()
         )
 
         let result = resolver.resolve(accounts: [account])
@@ -21,8 +21,8 @@ struct SavedAccountIdentityResolverTests {
     func resolveFallsBackToRemoteIdentityWhenFingerprintDoesNotMatch() {
         let account = makeAccount(name: "Work", fingerprint: "stale-fingerprint", email: "work@example.com")
         let resolver = SavedAccountIdentityResolver(
-            liveIdentityReader: LiveIdentitySpy(currentFingerprint: "live-fingerprint", stableAccountID: nil),
-            storedAccountReconciler: ReconcilePassthrough()
+            liveIdentitySource: LiveIdentityProbe(currentFingerprint: "live-fingerprint", stableAccountID: nil),
+            storedAccountReconciler: IdentityReconcilerAdapter()
         )
 
         let result = resolver.resolve(
@@ -64,7 +64,7 @@ struct SavedAccountIdentityResolverTests {
             )
         )
         let resolver = SavedAccountIdentityResolver(
-            liveIdentityReader: LiveIdentitySpy(
+            liveIdentitySource: LiveIdentityProbe(
                 currentFingerprint: nil,
                 stableAccountID: "acct-team",
                 authPrincipalIdentity: CodexAuthPrincipalIdentity(
@@ -72,7 +72,7 @@ struct SavedAccountIdentityResolverTests {
                     chatGPTUserID: "user-business-4"
                 )
             ),
-            storedAccountReconciler: ReconcilePassthrough()
+            storedAccountReconciler: IdentityReconcilerAdapter()
         )
 
         let result = resolver.resolve(accounts: [businessOne, businessFour])
@@ -111,7 +111,7 @@ struct SavedAccountIdentityResolverTests {
             )
         )
         let resolver = SavedAccountIdentityResolver(
-            liveIdentityReader: LiveIdentitySpy(
+            liveIdentitySource: LiveIdentityProbe(
                 currentFingerprint: nil,
                 stableAccountID: "acct-team",
                 authPrincipalIdentity: CodexAuthPrincipalIdentity(
@@ -119,7 +119,7 @@ struct SavedAccountIdentityResolverTests {
                     chatGPTUserID: "user-other-business"
                 )
             ),
-            storedAccountReconciler: ReconcilePassthrough()
+            storedAccountReconciler: IdentityReconcilerAdapter()
         )
 
         let result = resolver.resolve(
@@ -158,7 +158,7 @@ struct SavedAccountIdentityResolverTests {
     }
 }
 
-private struct LiveIdentitySpy: LiveCodexAccountIdentityReading {
+private struct LiveIdentityProbe: LiveCodexAccountIdentitySource {
     let currentFingerprint: String?
     let stableAccountID: String?
     let authPrincipalIdentity: CodexAuthPrincipalIdentity?
@@ -184,7 +184,7 @@ private struct LiveIdentitySpy: LiveCodexAccountIdentityReading {
     }
 }
 
-private struct ReconcilePassthrough: StoredAccountIdentityReconciling {
+private struct IdentityReconcilerAdapter: StoredAccountIdentityReconciler {
     func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {
         accounts
     }

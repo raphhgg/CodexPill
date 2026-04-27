@@ -1,11 +1,11 @@
 import Foundation
 
-protocol CodexAuthDataRestoring: CodexAuthActivating {
+protocol CodexAuthSessionStore: CodexAuthActivator {
     func readCurrentAuthData() throws -> Data
     func restoreCurrentAuthData(_ data: Data) throws
 }
 
-extension CodexAuthSnapshotService: CodexAuthDataRestoring {
+extension CodexAuthSnapshotService: CodexAuthSessionStore {
 }
 
 struct HydrateSavedAccountsMetadataResult {
@@ -15,13 +15,13 @@ struct HydrateSavedAccountsMetadataResult {
 }
 
 struct HydrateSavedAccountsMetadataUseCase {
-    private let authService: CodexAuthDataRestoring
+    private let authService: CodexAuthSessionStore
     private let accountStatusClient: CodexAccountStatusClient
     private let identityResolver: SavedAccountIdentityResolver
     private let repository: AccountCatalogStore
 
     init(
-        authService: CodexAuthDataRestoring,
+        authService: CodexAuthSessionStore,
         accountStatusClient: CodexAccountStatusClient,
         identityResolver: SavedAccountIdentityResolver,
         repository: AccountCatalogStore

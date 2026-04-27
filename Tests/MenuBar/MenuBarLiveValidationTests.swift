@@ -69,7 +69,7 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient(),
             remoteHostClient: ValidationRemoteHostClient(
                 seedStates: [
@@ -97,9 +97,9 @@ struct MenuBarLiveValidationTests {
                 verifiedAccount: notifiedAccount
             )
         ]
-        let alertPresenter = TestMenuBarAlertPresenter()
+        let alertPresenter = MenuBarAlertPresenterProbe()
         alertPresenter.confirmationResponse = true
-        let foregrounder = RecordingApplicationForegrounder()
+        let foregrounder = ApplicationActivatorProbe()
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         defer {
             NSStatusBar.system.removeStatusItem(statusItem)
@@ -112,7 +112,7 @@ struct MenuBarLiveValidationTests {
             settings: settings,
             remoteHostClient: ValidationRemoteHostClient(seedStates: settings.remoteHostStates),
             alertPresenter: alertPresenter,
-            applicationForegrounder: foregrounder,
+            applicationActivator: foregrounder,
             allowsEmptyStatePrompt: false
         )
 
@@ -192,7 +192,7 @@ struct MenuBarLiveValidationTests {
         try repository.bootstrapStorage()
         try repository.saveAccounts([outAccount, notifiedAccount])
 
-        let failingHostClient = RemoteHostClientStatusSpy(
+        let failingHostClient = RemoteHostStatusProbe(
             status: CodexAccountStatus(
                 email: outAccount.email,
                 planType: outAccount.planType,
@@ -203,7 +203,7 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient(),
             remoteHostClient: failingHostClient
         )
@@ -222,9 +222,9 @@ struct MenuBarLiveValidationTests {
                 verifiedAccount: outAccount
             )
         ]
-        let alertPresenter = TestMenuBarAlertPresenter()
+        let alertPresenter = MenuBarAlertPresenterProbe()
         alertPresenter.confirmationResponse = true
-        let foregrounder = RecordingApplicationForegrounder()
+        let foregrounder = ApplicationActivatorProbe()
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         defer {
             NSStatusBar.system.removeStatusItem(statusItem)
@@ -237,7 +237,7 @@ struct MenuBarLiveValidationTests {
             settings: settings,
             remoteHostClient: failingHostClient,
             alertPresenter: alertPresenter,
-            applicationForegrounder: foregrounder,
+            applicationActivator: foregrounder,
             allowsEmptyStatePrompt: false
         )
 
@@ -294,7 +294,7 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
         store.load()
@@ -304,9 +304,9 @@ struct MenuBarLiveValidationTests {
         defaults.removePersistentDomain(forName: suiteName)
         let settings = AppSettings(userDefaults: defaults)
         settings.notificationsWhenBlockedEnabled = true
-        let alertPresenter = TestMenuBarAlertPresenter()
+        let alertPresenter = MenuBarAlertPresenterProbe()
         alertPresenter.confirmationResponse = true
-        let foregrounder = RecordingApplicationForegrounder()
+        let foregrounder = ApplicationActivatorProbe()
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         defer {
             NSStatusBar.system.removeStatusItem(statusItem)
@@ -318,7 +318,7 @@ struct MenuBarLiveValidationTests {
             store: store,
             settings: settings,
             alertPresenter: alertPresenter,
-            applicationForegrounder: foregrounder,
+            applicationActivator: foregrounder,
             allowsEmptyStatePrompt: false
         )
 
@@ -515,7 +515,7 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
         let suiteName = "MenuBarLiveValidationEnableNotifications-\(UUID().uuidString)"
@@ -524,7 +524,7 @@ struct MenuBarLiveValidationTests {
         let settings = AppSettings(userDefaults: defaults)
         let center = RecordingUserNotificationCenter()
         center.authorizationStatus = .notDetermined
-        let opener = RecordingNotificationSettingsOpener()
+        let opener = NotificationSettingsLauncherProbe()
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         defer {
             NSStatusBar.system.removeStatusItem(statusItem)
@@ -535,9 +535,9 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            alertPresenter: TestMenuBarAlertPresenter(),
+            alertPresenter: MenuBarAlertPresenterProbe(),
             notificationDelivery: AccountAvailabilityNotificationCenter(center: center),
-            notificationSettingsOpener: opener,
+            notificationSettingsLauncher: opener,
             allowsEmptyStatePrompt: false
         )
 
@@ -556,7 +556,7 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
         let suiteName = "MenuBarLiveValidationDeniedNotifications-\(UUID().uuidString)"
@@ -566,7 +566,7 @@ struct MenuBarLiveValidationTests {
         settings.notificationsWhenBlockedEnabled = true
         let center = RecordingUserNotificationCenter()
         center.authorizationStatus = .denied
-        let opener = RecordingNotificationSettingsOpener()
+        let opener = NotificationSettingsLauncherProbe()
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         defer {
             NSStatusBar.system.removeStatusItem(statusItem)
@@ -577,9 +577,9 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            alertPresenter: TestMenuBarAlertPresenter(),
+            alertPresenter: MenuBarAlertPresenterProbe(),
             notificationDelivery: AccountAvailabilityNotificationCenter(center: center),
-            notificationSettingsOpener: opener,
+            notificationSettingsLauncher: opener,
             allowsEmptyStatePrompt: false
         )
 
@@ -756,7 +756,7 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
         let suiteName = "MenuBarLiveValidationNotificationPermission-\(UUID().uuidString)"
@@ -775,7 +775,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            alertPresenter: TestMenuBarAlertPresenter(),
+            alertPresenter: MenuBarAlertPresenterProbe(),
             notificationDelivery: delivery,
             allowsEmptyStatePrompt: false
         )
@@ -797,9 +797,9 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient(),
-            remoteHostClient: RemoteHostClientStatusSpy(
+            remoteHostClient: RemoteHostStatusProbe(
                 status: CodexAccountStatus(email: activeAccount.email, planType: activeAccount.planType, rateLimits: nil)
             )
         )
@@ -809,7 +809,7 @@ struct MenuBarLiveValidationTests {
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = AppSettings(userDefaults: defaults)
-        let alertPresenter = TestMenuBarAlertPresenter()
+        let alertPresenter = MenuBarAlertPresenterProbe()
         alertPresenter.hostSetupResponse = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
         alertPresenter.confirmationResponse = false
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -822,7 +822,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: RemoteHostClientStatusSpy(),
+            remoteHostClient: RemoteHostStatusProbe(),
             alertPresenter: alertPresenter,
             allowsEmptyStatePrompt: false
         )
@@ -838,13 +838,13 @@ struct MenuBarLiveValidationTests {
     func addHostPersistsVerifiedHostOnlyAfterInstallConfirmation() async throws {
         let repository = try makeIsolatedRepository()
         let activeAccount = try makeActiveAccount(named: "Business 1", email: "business-1@example.com", in: repository)
-        let remoteHostClient = RemoteHostClientStatusSpy(
+        let remoteHostClient = RemoteHostStatusProbe(
             status: CodexAccountStatus(email: activeAccount.email, planType: activeAccount.planType, rateLimits: nil)
         )
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient(),
             remoteHostClient: remoteHostClient
         )
@@ -854,7 +854,7 @@ struct MenuBarLiveValidationTests {
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = AppSettings(userDefaults: defaults)
-        let alertPresenter = TestMenuBarAlertPresenter()
+        let alertPresenter = MenuBarAlertPresenterProbe()
         alertPresenter.hostSetupResponse = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
         alertPresenter.confirmationResponse = true
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -889,7 +889,7 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
         let suiteName = "MenuBarLiveValidationTests-\(UUID().uuidString)"
@@ -913,7 +913,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: runtime,
             store: store,
             settings: settings,
-            alertPresenter: TestMenuBarAlertPresenter(),
+            alertPresenter: MenuBarAlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-status-item-hover",
             allowsEmptyStatePrompt: false
@@ -1187,7 +1187,7 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
         let suiteName = "MenuBarLiveValidationRemoteRestore-\(UUID().uuidString)"
@@ -1216,7 +1216,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: RemoteHostClientStatusSpy(
+            remoteHostClient: RemoteHostStatusProbe(
                 status: CodexAccountStatus(
                     email: "remote@example.com",
                     planType: "team",
@@ -1234,7 +1234,7 @@ struct MenuBarLiveValidationTests {
                     )
                 )
             ),
-            alertPresenter: TestMenuBarAlertPresenter(),
+            alertPresenter: MenuBarAlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -1254,7 +1254,7 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
         let suiteName = "MenuBarLiveValidationRemoteFailure-\(UUID().uuidString)"
@@ -1288,10 +1288,10 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: RemoteHostClientStatusSpy(
+            remoteHostClient: RemoteHostStatusProbe(
                 readError: RemoteHostClientError.commandFailed("ssh: connection refused")
             ),
-            alertPresenter: TestMenuBarAlertPresenter(),
+            alertPresenter: MenuBarAlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -1315,7 +1315,7 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
         let suiteName = "MenuBarLiveValidationMissingDesiredRemote-\(UUID().uuidString)"
@@ -1340,8 +1340,8 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: RemoteHostClientStatusSpy(),
-            alertPresenter: TestMenuBarAlertPresenter(),
+            remoteHostClient: RemoteHostStatusProbe(),
+            alertPresenter: MenuBarAlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -1363,7 +1363,7 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
         let suiteName = "MenuBarLiveValidationMultipleRemoteRestore-\(UUID().uuidString)"
@@ -1410,13 +1410,13 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: RemoteHostClientStatusSpy(
+            remoteHostClient: RemoteHostStatusProbe(
                 statusesByDestination: [
                     "user@buildbox": CodexAccountStatus(email: "buildbox@example.com", planType: "team", rateLimits: nil),
                     "user@debian-vm": CodexAccountStatus(email: "debian@example.com", planType: "team", rateLimits: nil)
                 ]
             ),
-            alertPresenter: TestMenuBarAlertPresenter(),
+            alertPresenter: MenuBarAlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -1438,7 +1438,7 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
         let suiteName = "MenuBarLiveValidationMixedRemoteRestore-\(UUID().uuidString)"
@@ -1485,7 +1485,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: RemoteHostClientStatusSpy(
+            remoteHostClient: RemoteHostStatusProbe(
                 statusesByDestination: [
                     "user@buildbox": CodexAccountStatus(email: "buildbox@example.com", planType: "team", rateLimits: nil)
                 ],
@@ -1493,7 +1493,7 @@ struct MenuBarLiveValidationTests {
                     "user@debian-vm": RemoteHostClientError.commandFailed("ssh: connection refused")
                 ]
             ),
-            alertPresenter: TestMenuBarAlertPresenter(),
+            alertPresenter: MenuBarAlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -1520,7 +1520,7 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
         let suiteName = "MenuBarLiveValidationReverifyRemote-\(UUID().uuidString)"
@@ -1557,10 +1557,10 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: RemoteHostClientStatusSpy(
+            remoteHostClient: RemoteHostStatusProbe(
                 status: CodexAccountStatus(email: "business-2@example.com", planType: "team", rateLimits: nil)
             ),
-            alertPresenter: TestMenuBarAlertPresenter(),
+            alertPresenter: MenuBarAlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -1620,7 +1620,7 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
         store.load()
@@ -1649,7 +1649,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: RemoteHostClientStatusSpy(
+            remoteHostClient: RemoteHostStatusProbe(
                 status: CodexAccountStatus(
                     email: "business-1@example.com",
                     planType: "team",
@@ -1658,7 +1658,7 @@ struct MenuBarLiveValidationTests {
                     snapshotFingerprint: "snapshot-business-1"
                 )
             ),
-            alertPresenter: TestMenuBarAlertPresenter(),
+            alertPresenter: MenuBarAlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -1688,7 +1688,7 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
         let suiteName = "MenuBarLiveValidationRemoteMismatch-\(UUID().uuidString)"
@@ -1722,14 +1722,14 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: RemoteHostClientStatusSpy(
+            remoteHostClient: RemoteHostStatusProbe(
                 status: CodexAccountStatus(
                     email: "different@example.com",
                     planType: "team",
                     rateLimits: nil
                 )
             ),
-            alertPresenter: TestMenuBarAlertPresenter(),
+            alertPresenter: MenuBarAlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -1751,7 +1751,7 @@ struct MenuBarLiveValidationTests {
         let sink = RecordingValidationSink()
         let repository = try makeIsolatedRepository()
         try repository.bootstrapStorage()
-        let alertPresenter = TestMenuBarAlertPresenter()
+        let alertPresenter = MenuBarAlertPresenterProbe()
         let account = CodexAccount(
             id: UUID(),
             name: "Business 2",
@@ -1768,7 +1768,7 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
         store.load()
@@ -1795,7 +1795,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: RemoteHostClientStatusSpy(
+            remoteHostClient: RemoteHostStatusProbe(
                 readError: RemoteHostClientError.authReadFailed("cat: .codex/auth.json: Permission denied")
             ),
             alertPresenter: alertPresenter,
@@ -1851,13 +1851,13 @@ struct MenuBarLiveValidationTests {
             defaults.removePersistentDomain(forName: suiteName)
         }
 
-        let remoteHostClient = RemoteHostClientStatusSpy(
+        let remoteHostClient = RemoteHostStatusProbe(
             readError: RemoteHostClientError.authReadFailed("cat: .codex/auth.json: Permission denied")
         )
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient(),
             remoteHostClient: remoteHostClient
         )
@@ -1868,7 +1868,7 @@ struct MenuBarLiveValidationTests {
             store: store,
             settings: settings,
             remoteHostClient: remoteHostClient,
-            alertPresenter: TestMenuBarAlertPresenter(),
+            alertPresenter: MenuBarAlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -1972,7 +1972,7 @@ struct MenuBarLiveValidationTests {
             defaults.removePersistentDomain(forName: suiteName)
         }
 
-        let remoteHostClient = RemoteHostClientStatusSpy(
+        let remoteHostClient = RemoteHostStatusProbe(
             status: CodexAccountStatus(
                 email: nextAccount.email,
                 planType: "team",
@@ -1989,7 +1989,7 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient(),
             remoteHostClient: remoteHostClient
         )
@@ -2000,7 +2000,7 @@ struct MenuBarLiveValidationTests {
             store: store,
             settings: settings,
             remoteHostClient: remoteHostClient,
-            alertPresenter: TestMenuBarAlertPresenter(),
+            alertPresenter: MenuBarAlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -2070,7 +2070,7 @@ struct MenuBarLiveValidationTests {
             defaults.removePersistentDomain(forName: suiteName)
         }
 
-        let remoteHostClient = RemoteHostClientStatusSpy(
+        let remoteHostClient = RemoteHostStatusProbe(
             status: CodexAccountStatus(
                 email: account.email,
                 planType: account.planType,
@@ -2080,7 +2080,7 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient(),
             remoteHostClient: remoteHostClient
         )
@@ -2091,7 +2091,7 @@ struct MenuBarLiveValidationTests {
             store: store,
             settings: settings,
             remoteHostClient: remoteHostClient,
-            alertPresenter: TestMenuBarAlertPresenter(),
+            alertPresenter: MenuBarAlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -2118,7 +2118,7 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
         let suiteName = "MenuBarLiveValidationRemoteLimitsFallback-\(UUID().uuidString)"
@@ -2162,7 +2162,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: RemoteHostClientStatusSpy(
+            remoteHostClient: RemoteHostStatusProbe(
                 status: CodexAccountStatus(
                     email: "remote@example.com",
                     planType: "team",
@@ -2184,7 +2184,7 @@ struct MenuBarLiveValidationTests {
                     )
                 )
             ),
-            alertPresenter: TestMenuBarAlertPresenter(),
+            alertPresenter: MenuBarAlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -2247,7 +2247,7 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
         store.load()
@@ -2298,7 +2298,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: RemoteHostClientStatusSpy(
+            remoteHostClient: RemoteHostStatusProbe(
                 status: CodexAccountStatus(
                     email: "raphaelgrau@gmail.com",
                     planType: "team",
@@ -2320,7 +2320,7 @@ struct MenuBarLiveValidationTests {
                     )
                 )
             ),
-            alertPresenter: TestMenuBarAlertPresenter(),
+            alertPresenter: MenuBarAlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -2384,7 +2384,7 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
         store.load()
@@ -2449,14 +2449,14 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostClient: RemoteHostClientStatusSpy(
+            remoteHostClient: RemoteHostStatusProbe(
                 status: CodexAccountStatus(
                     email: "raphaelgrau@gmail.com",
                     planType: "team",
                     rateLimits: nil
                 )
             ),
-            alertPresenter: TestMenuBarAlertPresenter(),
+            alertPresenter: MenuBarAlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -2532,7 +2532,7 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: DisabledCodexAppProcessClient(),
+            codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
         store.load()
@@ -2554,7 +2554,7 @@ struct MenuBarLiveValidationTests {
             defaults.removePersistentDomain(forName: suiteName)
         }
 
-        let remoteHostClient = SequencedRemoteHostClientSpy(statusesByDestination: [
+        let remoteHostClient = RemoteHostSequenceProbe(statusesByDestination: [
             "user@debian-vm": [
                 CodexAccountStatus(
                     email: "raphaelgrau@icloud.com",
@@ -2612,7 +2612,7 @@ struct MenuBarLiveValidationTests {
             store: store,
             settings: settings,
             remoteHostClient: remoteHostClient,
-            alertPresenter: TestMenuBarAlertPresenter(),
+            alertPresenter: MenuBarAlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
             allowsEmptyStatePrompt: false
@@ -2668,7 +2668,7 @@ private final class RecordingValidationSink: @unchecked Sendable, MenuBarValidat
     }
 }
 
-private final class RecordingUserNotificationCenter: @unchecked Sendable, UserNotificationCentering {
+private final class RecordingUserNotificationCenter: @unchecked Sendable, UserNotificationCenterClient {
     var authorizationStatus: UNAuthorizationStatus = .notDetermined
     private(set) var requestAuthorizationCallCount = 0
     private(set) var addedRequests: [UNNotificationRequest] = []
@@ -2693,7 +2693,7 @@ private final class RecordingUserNotificationCenter: @unchecked Sendable, UserNo
     }
 }
 
-private final class RecordingApplicationForegrounder: ApplicationForegrounding {
+private final class ApplicationActivatorProbe: ApplicationActivator {
     private(set) var activateCallCount = 0
 
     func activate() {
@@ -2701,7 +2701,7 @@ private final class RecordingApplicationForegrounder: ApplicationForegrounding {
     }
 }
 
-private final class RecordingNotificationSettingsOpener: NotificationSettingsOpening {
+private final class NotificationSettingsLauncherProbe: NotificationSettingsLauncher {
     private(set) var openCallCount = 0
 
     func openNotificationSettings() {
@@ -2709,12 +2709,12 @@ private final class RecordingNotificationSettingsOpener: NotificationSettingsOpe
     }
 }
 
-private struct DisabledCodexAppProcessClient: CodexAppProcessClient {
+private struct NullCodexAppProcessClient: CodexAppProcessClient {
     func assertCodexAvailable() throws {}
     func relaunchCodex() async throws {}
 }
 
-private struct RemoteHostClientStatusSpy: RemoteHostSwitching {
+private struct RemoteHostStatusProbe: RemoteHostClient {
     var status: CodexAccountStatus?
     var statusesByDestination: [String: CodexAccountStatus] = [:]
     var readError: Error?
@@ -2747,7 +2747,7 @@ private struct RemoteHostClientStatusSpy: RemoteHostSwitching {
     }
 }
 
-private actor SequencedRemoteHostClientSpy: RemoteHostSwitching {
+private actor RemoteHostSequenceProbe: RemoteHostClient {
     private var statusesByDestination: [String: [CodexAccountStatus]]
     private var readCounts: [String: Int] = [:]
 

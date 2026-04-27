@@ -3,7 +3,7 @@ import Foundation
 @MainActor
 final class RemoteHostRuntime {
     private let settings: AppSettings
-    private let remoteHostClient: RemoteHostSwitching
+    private let remoteHostClient: RemoteHostClient
     private let remoteHostAccountVerifier: RemoteHostAccountVerifier
     private let savedAccountRelinker: SavedAccountRelinker
     private let accounts: () -> [CodexAccount]
@@ -14,7 +14,7 @@ final class RemoteHostRuntime {
 
     init(
         settings: AppSettings,
-        remoteHostClient: RemoteHostSwitching,
+        remoteHostClient: RemoteHostClient,
         remoteHostAccountVerifier: RemoteHostAccountVerifier = RemoteHostAccountVerifier(),
         savedAccountRelinker: SavedAccountRelinker = SavedAccountRelinker(),
         accounts: @escaping () -> [CodexAccount],
