@@ -109,6 +109,7 @@ Internal grouping:
 - `MenuBarCoordinator`
 - `MenuBarAccountsStore`
 - `StatusItemRuntime`
+- `MenuBarAccountCatalogProjection`
 - `MenuBarMenuBuilder`
 - `MenuBarAlertFactory`
 - `MenuBarAlertPresenter`
@@ -168,6 +169,8 @@ These types are shared between features and platform adapters. Models should rem
 `RemoteRateLimitResolution` owns remote rate-limit fallback semantics. It decides when remote app-server rate-limit payloads are meaningful and when the local catalog or verified-account fallback should be preferred.
 
 `StatusItemRuntime` is the deep status-item boundary. It owns the `NSStatusItem`, hover tracking, pointer-inside detection, title/icon transitions, and low-level status-item snapshot state for validation.
+
+`MenuBarAccountCatalogProjection` owns account catalog projection for the menu. It relinks remote account snapshots to saved accounts, resolves remote display metadata, builds local/remote availability snapshots, and orders active/non-active catalog rows before rendering.
 
 `MenuBarCoordinator` is the menu/application controller. It owns menu rebuilding, action dispatch, alerts, validation event recording, wake/timer refresh triggers, and coordination with `MenuBarAccountsStore`, `RemoteHostRuntime`, and `StatusItemRuntime`.
 
@@ -244,6 +247,13 @@ These types are shared between features and platform adapters. Models should rem
 - menu action dispatch
 - alert presentation
 - account workflow orchestration
+
+`MenuBarAccountCatalogProjection` owns:
+
+- relinking remote active accounts to saved catalog identities
+- applying remote display metadata and rate-limit fallback to catalog rows
+- deriving remote target availability for menu and notification snapshots
+- ordering active and inactive account catalog entries for presentation
 
 `MenuBarAccountsStore` does not own:
 
