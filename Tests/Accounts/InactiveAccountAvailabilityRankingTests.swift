@@ -3,7 +3,7 @@ import Testing
 
 @testable import CodexPill
 
-struct InactiveAccountAvailabilityRankingTests {
+struct AccountAvailabilityTests {
     @Test
     func availabilityServiceMarksAccountAvailableWhenBothWindowsHaveHeadroom() {
         let service = AccountAvailabilityService()
@@ -233,7 +233,9 @@ struct InactiveAccountAvailabilityRankingTests {
 
         #expect(transitions.isEmpty)
     }
+}
 
+struct AccountAvailabilityNotificationPolicyTests {
     @Test
     func notificationPolicyNotifiesWithSingleBestAccountWhenBlockedUserBecomesUnblocked() {
         let service = AccountAvailabilityService()
@@ -831,7 +833,9 @@ struct InactiveAccountAvailabilityRankingTests {
             weeklyResetAt: window.weeklyResetAt
         ))
     }
+}
 
+struct InactiveAccountAvailabilityRankingTests {
     @Test
     func prefersWeeklyHeadroomBeforeSessionReadiness() {
         let ranking = InactiveAccountAvailabilityRanking()
@@ -962,54 +966,54 @@ struct InactiveAccountAvailabilityRankingTests {
         #expect(controller.compareForMenu(active, preferred))
         #expect(controller.compareForMenu(preferred, constrained))
     }
+}
 
-    private func makeAccount(
-        id: UUID = UUID(),
-        name: String,
-        sessionUsedPercent: Int,
-        sessionResetAt: Date? = nil,
-        weeklyUsedPercent: Int,
-        weeklyResetAt: Date? = nil
-    ) -> CodexAccount {
-        let now = Date()
-        return CodexAccount(
-            id: id,
-            name: name,
-            snapshotFileName: "\(id.uuidString).json",
-            createdAt: now,
-            updatedAt: now,
-            email: "\(name.lowercased())@example.com",
+private func makeAccount(
+    id: UUID = UUID(),
+    name: String,
+    sessionUsedPercent: Int,
+    sessionResetAt: Date? = nil,
+    weeklyUsedPercent: Int,
+    weeklyResetAt: Date? = nil
+) -> CodexAccount {
+    let now = Date()
+    return CodexAccount(
+        id: id,
+        name: name,
+        snapshotFileName: "\(id.uuidString).json",
+        createdAt: now,
+        updatedAt: now,
+        email: "\(name.lowercased())@example.com",
+        planType: "pro",
+        rateLimits: CodexRateLimitSnapshot(
+            limitID: nil,
+            limitName: nil,
             planType: "pro",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: nil,
-                limitName: nil,
-                planType: "pro",
-                primary: CodexRateLimitWindow(
-                    usedPercent: sessionUsedPercent,
-                    resetsAt: sessionResetAt,
-                    windowDurationMinutes: 300
-                ),
-                secondary: CodexRateLimitWindow(
-                    usedPercent: weeklyUsedPercent,
-                    resetsAt: weeklyResetAt,
-                    windowDurationMinutes: 10_080
-                ),
-                fetchedAt: now
+            primary: CodexRateLimitWindow(
+                usedPercent: sessionUsedPercent,
+                resetsAt: sessionResetAt,
+                windowDurationMinutes: 300
             ),
-            identity: CodexAccountIdentity(
-                snapshotFingerprint: name == "Active" ? "active" : UUID().uuidString,
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "\(name.lowercased())@example.com")
-            )
+            secondary: CodexRateLimitWindow(
+                usedPercent: weeklyUsedPercent,
+                resetsAt: weeklyResetAt,
+                windowDurationMinutes: 10_080
+            ),
+            fetchedAt: now
+        ),
+        identity: CodexAccountIdentity(
+            snapshotFingerprint: name == "Active" ? "active" : UUID().uuidString,
+            remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "\(name.lowercased())@example.com")
         )
-    }
+    )
+}
 
-    @MainActor
-    private func makeNotificationSettings() -> AppSettings {
-        let suiteName = "NotificationStateStoreTests-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defaults.removePersistentDomain(forName: suiteName)
-        return AppSettings(userDefaults: defaults)
-    }
+@MainActor
+private func makeNotificationSettings() -> AppSettings {
+    let suiteName = "NotificationStateStoreTests-\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: suiteName)!
+    defaults.removePersistentDomain(forName: suiteName)
+    return AppSettings(userDefaults: defaults)
 }
 
 private enum RankingTestFailure: LocalizedError {

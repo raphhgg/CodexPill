@@ -76,6 +76,8 @@ Does not own:
 - `AccountsController`
 - `AccountCatalogState`
 - `AccountOperationState`
+- `AccountAvailability`
+- `AccountAvailabilityNotifications`
 - `InactiveAccountAvailabilityRanking`
 - `PendingSignInLifecycle`
 - `SilentPostActionRefresh`
@@ -151,6 +153,12 @@ These types are shared between features and platform adapters. Models should rem
 ## State And Workflow Ownership
 
 `AccountsController` is the deeper account-session and catalog boundary. It owns the saved-account catalog, active-account resolution, mutation result application, and silent refresh policy. Stable sub-policies that do not need controller state should be extracted behind the boundary instead of staying inline.
+
+`AccountAvailability` owns pure local and remote target availability modeling. It derives account/target status, next availability, snapshots, and availability transitions. It must not know notification policy, menu rendering, or delivery mechanics exist.
+
+`AccountAvailabilityNotifications` owns account-centric notification policy and action resolution. It may use availability snapshots and the shared inactive-account ranking to select the best currently usable account, but it must not deliver notifications or own AppKit/UserNotifications integration.
+
+`InactiveAccountAvailabilityRanking` owns ordering only. It compares local accounts and target availabilities for menu ordering and best-account selection, without owning notification decisions or target availability derivation.
 
 `MenuBarAccountsStore` is a thin observable adapter for the menu layer. It forwards menu intents into `AccountsController` and exposes account state to the menubar runtime.
 
