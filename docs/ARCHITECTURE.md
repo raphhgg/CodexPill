@@ -47,7 +47,7 @@ Test collaborators should also describe their role:
 - `Null` intentionally does nothing. Example: `NullAuthService`.
 - `ErrorCase` deterministically throws or returns a failure. Example: `RemoteHostErrorCase`.
 
-Avoid generic or framework-loaded test names such as `Spy`, `Stub`, `Mock`, `Noop`, `Throwing`, or `Passthrough`. Use the narrower role above so tests explain why the collaborator exists.
+Avoid generic or framework-loaded test names such as `Spy`, `Stub`, `Mock`, `Noop`, `Throwing`, `Recording`, or `Passthrough`. Use the narrower role above so tests explain why the collaborator exists.
 
 ### App
 

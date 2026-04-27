@@ -500,7 +500,7 @@ struct MenuBarLiveValidationTests {
 
     @Test
     func notificationCenterRequestsAuthorizationOnlyOnce() async {
-        let center = RecordingUserNotificationCenter()
+        let center = UserNotificationCenterProbe()
         let delivery = AccountAvailabilityNotificationCenter(center: center)
 
         await delivery.requestAuthorizationIfNeeded()
@@ -522,7 +522,7 @@ struct MenuBarLiveValidationTests {
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = AppSettings(userDefaults: defaults)
-        let center = RecordingUserNotificationCenter()
+        let center = UserNotificationCenterProbe()
         center.authorizationStatus = .notDetermined
         let opener = NotificationSettingsLauncherProbe()
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -564,7 +564,7 @@ struct MenuBarLiveValidationTests {
         defaults.removePersistentDomain(forName: suiteName)
         let settings = AppSettings(userDefaults: defaults)
         settings.notificationsWhenBlockedEnabled = true
-        let center = RecordingUserNotificationCenter()
+        let center = UserNotificationCenterProbe()
         center.authorizationStatus = .denied
         let opener = NotificationSettingsLauncherProbe()
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -680,7 +680,7 @@ struct MenuBarLiveValidationTests {
 
     @Test
     func notificationCenterDeliversDirectTargetActionsWhenWithinLimit() async throws {
-        let center = RecordingUserNotificationCenter()
+        let center = UserNotificationCenterProbe()
         let delivery = AccountAvailabilityNotificationCenter(center: center)
         let payload = AccountAvailabilityNotificationPayload(
             accountID: UUID(),
@@ -716,7 +716,7 @@ struct MenuBarLiveValidationTests {
 
     @Test
     func notificationCenterFallsBackToBestOptionActionWhenDirectActionsExceedLimit() async throws {
-        let center = RecordingUserNotificationCenter()
+        let center = UserNotificationCenterProbe()
         let delivery = AccountAvailabilityNotificationCenter(center: center)
         let payload = AccountAvailabilityNotificationPayload(
             accountID: UUID(),
@@ -763,7 +763,7 @@ struct MenuBarLiveValidationTests {
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = AppSettings(userDefaults: defaults)
-        let center = RecordingUserNotificationCenter()
+        let center = UserNotificationCenterProbe()
         let delivery = AccountAvailabilityNotificationCenter(center: center)
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         defer {
@@ -884,7 +884,7 @@ struct MenuBarLiveValidationTests {
 
     @Test
     func coordinatorRefreshesLiveSnapshotWhenStatusItemRuntimeStateChanges() throws {
-        let sink = RecordingValidationSink()
+        let sink = ValidationSinkProbe()
         let repository = try makeIsolatedRepository()
         let store = MenuBarAccountsStore(
             repository: repository,
@@ -1182,7 +1182,7 @@ struct MenuBarLiveValidationTests {
 
     @Test
     func coordinatorRestoresPersistedRemoteHostAccountOnStart() async throws {
-        let sink = RecordingValidationSink()
+        let sink = ValidationSinkProbe()
         let repository = try makeIsolatedRepository()
         let store = MenuBarAccountsStore(
             repository: repository,
@@ -1249,7 +1249,7 @@ struct MenuBarLiveValidationTests {
 
     @Test
     func coordinatorMarksPersistedRemoteHostDisconnectedWhenRefreshFails() async throws {
-        let sink = RecordingValidationSink()
+        let sink = ValidationSinkProbe()
         let repository = try makeIsolatedRepository()
         let store = MenuBarAccountsStore(
             repository: repository,
@@ -1310,7 +1310,7 @@ struct MenuBarLiveValidationTests {
 
     @Test
     func coordinatorMarksPersistedRemoteHostFailedWhenDesiredAccountIsMissingLocally() async throws {
-        let sink = RecordingValidationSink()
+        let sink = ValidationSinkProbe()
         let repository = try makeIsolatedRepository()
         let store = MenuBarAccountsStore(
             repository: repository,
@@ -1358,7 +1358,7 @@ struct MenuBarLiveValidationTests {
 
     @Test
     func coordinatorRestoresAllPersistedRemoteHostAccountsOnStart() async throws {
-        let sink = RecordingValidationSink()
+        let sink = ValidationSinkProbe()
         let repository = try makeIsolatedRepository()
         let store = MenuBarAccountsStore(
             repository: repository,
@@ -1433,7 +1433,7 @@ struct MenuBarLiveValidationTests {
 
     @Test
     func coordinatorShowsOnlyReachableRemoteHostsInPrimarySectionWhenRestoreIsMixed() async throws {
-        let sink = RecordingValidationSink()
+        let sink = ValidationSinkProbe()
         let repository = try makeIsolatedRepository()
         let store = MenuBarAccountsStore(
             repository: repository,
@@ -1515,7 +1515,7 @@ struct MenuBarLiveValidationTests {
 
     @Test
     func reverifyHostActionPromotesFailedHostBackToVerified() async throws {
-        let sink = RecordingValidationSink()
+        let sink = ValidationSinkProbe()
         let repository = try makeIsolatedRepository()
         let store = MenuBarAccountsStore(
             repository: repository,
@@ -1581,7 +1581,7 @@ struct MenuBarLiveValidationTests {
 
     @Test
     func adoptDetectedRemoteAccountPromotesMismatchToVerified() async throws {
-        let sink = RecordingValidationSink()
+        let sink = ValidationSinkProbe()
         let repository = try makeIsolatedRepository()
         try repository.bootstrapStorage()
 
@@ -1683,7 +1683,7 @@ struct MenuBarLiveValidationTests {
 
     @Test
     func coordinatorMarksRemoteHostFailedWhenStartupRefreshNoLongerMatchesDesiredAccount() async throws {
-        let sink = RecordingValidationSink()
+        let sink = ValidationSinkProbe()
         let repository = try makeIsolatedRepository()
         let store = MenuBarAccountsStore(
             repository: repository,
@@ -1748,7 +1748,7 @@ struct MenuBarLiveValidationTests {
 
     @Test
     func coordinatorKeepsReachableRemoteHostConnectedWhenAuthVerificationReadFails() async throws {
-        let sink = RecordingValidationSink()
+        let sink = ValidationSinkProbe()
         let repository = try makeIsolatedRepository()
         try repository.bootstrapStorage()
         let alertPresenter = MenuBarAlertPresenterProbe()
@@ -1817,7 +1817,7 @@ struct MenuBarLiveValidationTests {
 
     @Test
     func switchAccountOnHostKeepsReachableRemoteHostConnectedWhenAuthVerificationReadFails() async throws {
-        let sink = RecordingValidationSink()
+        let sink = ValidationSinkProbe()
         let repository = try makeIsolatedRepository()
         try repository.bootstrapStorage()
         let account = CodexAccount(
@@ -1900,7 +1900,7 @@ struct MenuBarLiveValidationTests {
 
     @Test
     func switchAccountOnHostPersistsPreviousVerifiedRemoteLimitsBackIntoCatalog() async throws {
-        let sink = RecordingValidationSink()
+        let sink = ValidationSinkProbe()
         let repository = try makeIsolatedRepository()
         try repository.bootstrapStorage()
         let now = Date()
@@ -2026,7 +2026,7 @@ struct MenuBarLiveValidationTests {
 
     @Test
     func switchAccountOnHostRearmsNotificationStateForActivatedRemoteAccount() async throws {
-        let sink = RecordingValidationSink()
+        let sink = ValidationSinkProbe()
         let repository = try makeIsolatedRepository()
         try repository.bootstrapStorage()
         let account = CodexAccount(
@@ -2113,7 +2113,7 @@ struct MenuBarLiveValidationTests {
 
     @Test
     func coordinatorPreservesMeaningfulSavedLimitsWhenRemoteRefreshReturnsZeroedWindows() async throws {
-        let sink = RecordingValidationSink()
+        let sink = ValidationSinkProbe()
         let repository = try makeIsolatedRepository()
         let store = MenuBarAccountsStore(
             repository: repository,
@@ -2202,7 +2202,7 @@ struct MenuBarLiveValidationTests {
 
     @Test
     func coordinatorUsesMatchingInactiveSavedAccountLimitsWhenRemoteRefreshReturnsZeroedWindows() async throws {
-        let sink = RecordingValidationSink()
+        let sink = ValidationSinkProbe()
         let repository = try makeIsolatedRepository()
         let matchingSavedAccount = CodexAccount(
             id: UUID(),
@@ -2338,7 +2338,7 @@ struct MenuBarLiveValidationTests {
 
     @Test
     func coordinatorRelinksStaleRemoteHostAccountIDsToCurrentSavedCatalogOnStartup() async throws {
-        let sink = RecordingValidationSink()
+        let sink = ValidationSinkProbe()
         let repository = try makeIsolatedRepository()
         let now = Date.now
         let currentSavedAccount = CodexAccount(
@@ -2485,7 +2485,7 @@ struct MenuBarLiveValidationTests {
         setenv(AppRuntimeEnvironment.validationAutoRefreshIntervalSecondsEnvironmentKey, "0.05", 1)
         defer { unsetenv(AppRuntimeEnvironment.validationAutoRefreshIntervalSecondsEnvironmentKey) }
 
-        let sink = RecordingValidationSink()
+        let sink = ValidationSinkProbe()
         let repository = try makeIsolatedRepository()
         let now = Date.now
         let account = CodexAccount(
@@ -2655,7 +2655,7 @@ struct MenuBarLiveValidationTests {
     }
 }
 
-private final class RecordingValidationSink: @unchecked Sendable, MenuBarValidationSink {
+private final class ValidationSinkProbe: @unchecked Sendable, MenuBarValidationSink {
     private(set) var snapshots: [MenuBarValidationSnapshot] = []
     private(set) var events: [MenuBarValidationEvent] = []
 
@@ -2668,7 +2668,7 @@ private final class RecordingValidationSink: @unchecked Sendable, MenuBarValidat
     }
 }
 
-private final class RecordingUserNotificationCenter: @unchecked Sendable, UserNotificationCenterClient {
+private final class UserNotificationCenterProbe: @unchecked Sendable, UserNotificationCenterClient {
     var authorizationStatus: UNAuthorizationStatus = .notDetermined
     private(set) var requestAuthorizationCallCount = 0
     private(set) var addedRequests: [UNNotificationRequest] = []
