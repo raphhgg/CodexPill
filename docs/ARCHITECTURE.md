@@ -174,6 +174,8 @@ These types are shared between features and platform adapters. Models should rem
 
 `MenuBarCoordinator` is the menu/application controller. It owns menu rebuilding, action dispatch, alerts, validation event recording, wake/timer refresh triggers, and coordination with `MenuBarAccountsStore`, `RemoteHostRuntime`, and `StatusItemRuntime`.
 
+`AccountAvailabilityNotificationRuntime` owns notification delivery mechanics. It translates notification decisions into copy, payloads, categories, and `UserNotifications` requests, and it opens macOS notification settings when needed. It must not decide when an account is usable or execute a switch; those stay in account notification policy/action resolution and `MenuBarCoordinator` response routing.
+
 `AccountsController` owns:
 
 - feature-level state transitions
