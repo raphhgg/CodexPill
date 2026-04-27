@@ -65,7 +65,6 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
             if let activeAccount = store.activeAccount {
                 _ = await store.refreshAccountData(for: activeAccount)
             }
-            await store.hydrateSavedAccountsMetadataIfNeeded()
         }
     }
 

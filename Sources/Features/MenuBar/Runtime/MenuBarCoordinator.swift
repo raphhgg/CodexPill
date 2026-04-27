@@ -1280,7 +1280,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
                 )
             }
 
-            await store.refreshInactiveSavedAccountsMetadata()
             self.refreshRemoteHostStateIfNeeded(markSyncing: false)
         }
     }
