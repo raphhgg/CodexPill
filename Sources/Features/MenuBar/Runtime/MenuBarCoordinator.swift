@@ -1574,10 +1574,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     private func refreshRemoteHostStateIfNeeded(markSyncing: Bool = true) {
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            await self.remoteHostRuntime.refreshAll(markSyncing: markSyncing)
-            self.rebuildMenu()
+        remoteHostRuntime.refreshAll(markSyncing: markSyncing) { [weak self] in
+            self?.rebuildMenu()
         }
     }
 

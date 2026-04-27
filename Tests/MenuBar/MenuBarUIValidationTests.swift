@@ -457,7 +457,7 @@ struct MenuBarUIValidationTests {
                 "Preferences"
             ])
             #expect(snapshot.sections[1].items.first?.contains("buildbox") == true)
-            #expect(snapshot.sections[2].items.count == 2)
+            #expect(snapshot.sections[2].items.count == 3)
             #expect(snapshot.sections[3].items.count == 1)
 
         case "hosted-menu-multiple-hosts":
@@ -469,7 +469,7 @@ struct MenuBarUIValidationTests {
                 "Manage Accounts",
                 "Preferences"
             ])
-            #expect(snapshot.sections[1].items.count == 2)
+            #expect(snapshot.sections[1].items.count == 3)
             #expect(snapshot.sections[2].items.count == 3)
             #expect(snapshot.sections[3].items.count == 2)
 
@@ -481,7 +481,7 @@ struct MenuBarUIValidationTests {
                 "Manage Accounts",
                 "Preferences"
             ])
-            #expect(snapshot.sections[1].items.count == 2)
+            #expect(snapshot.sections[1].items.count == 3)
 
         case "hosted-menu-disconnected-host":
             #expect(snapshot.sections.map(\.title) == [

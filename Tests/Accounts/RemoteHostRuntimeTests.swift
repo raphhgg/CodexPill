@@ -77,6 +77,54 @@ struct RemoteHostRuntimeTests {
         #expect(state.lastVerificationError == RemoteHostClientError.unavailable.localizedDescription)
     }
 
+    @Test
+    func refreshAllRefreshesOtherHostsWhileOneHostIsSlow() async throws {
+        let slowAccount = makeAccount(name: "Business 4", email: "business-4@example.com")
+        let fastAccount = makeAccount(name: "Business 2", email: "business-2@example.com")
+        let slowHost = RemoteHost(destination: "user@slow-host", displayName: "slow-host")
+        let fastHost = RemoteHost(destination: "user@fast-host", displayName: "fast-host")
+        let settings = makeSettings()
+        settings.updateRemoteHostState(for: slowHost) { state in
+            state.desiredAccountID = slowAccount.id
+            state.verificationStatus = .verified
+        }
+        settings.updateRemoteHostState(for: fastHost) { state in
+            state.desiredAccountID = fastAccount.id
+            state.verificationStatus = .verified
+        }
+        let client = RemoteHostClientStub(
+            statuses: [
+                slowHost.destination: CodexAccountStatus(email: slowAccount.email, planType: "team", rateLimits: nil),
+                fastHost.destination: CodexAccountStatus(email: fastAccount.email, planType: "team", rateLimits: nil)
+            ],
+            delayedDestinations: [slowHost.destination]
+        )
+        let runtime = makeRuntime(
+            settings: settings,
+            remoteHostClient: client,
+            accounts: [slowAccount, fastAccount]
+        )
+        var refreshedCount = 0
+
+        runtime.refreshAll {
+            refreshedCount += 1
+        }
+
+        try await Task.sleep(for: .milliseconds(60))
+
+        let fastState = try #require(settings.remoteHostState(for: fastHost.destination))
+        let slowState = try #require(settings.remoteHostState(for: slowHost.destination))
+        #expect(refreshedCount == 1)
+        #expect(fastState.verifiedAccount?.id == fastAccount.id)
+        #expect(slowState.verifiedAccount == nil)
+
+        try await Task.sleep(for: .milliseconds(220))
+
+        let completedSlowState = try #require(settings.remoteHostState(for: slowHost.destination))
+        #expect(refreshedCount == 2)
+        #expect(completedSlowState.verifiedAccount?.id == slowAccount.id)
+    }
+
     private func makeRuntime(
         settings: AppSettings,
         remoteHostClient: RemoteHostSwitching = RemoteHostClientStub(),
@@ -124,6 +172,8 @@ private struct RemoteHostClientStub: RemoteHostSwitching {
     var readStatusResult: Result<CodexAccountStatus, Error> = .success(
         CodexAccountStatus(email: "business@example.com", planType: "team", rateLimits: nil)
     )
+    var statuses: [String: CodexAccountStatus] = [:]
+    var delayedDestinations: Set<String> = []
 
     func testConnection(to host: RemoteHost) async throws {}
     func installationState(for account: CodexAccount, on host: RemoteHost) async throws -> RemoteHostAccountInstallationState { .installed }
@@ -132,6 +182,12 @@ private struct RemoteHostClientStub: RemoteHostSwitching {
     func refreshCodexAppServer(on host: RemoteHost) async throws {}
 
     func readCurrentAccountStatus(on host: RemoteHost) async throws -> CodexAccountStatus {
-        try readStatusResult.get()
+        if delayedDestinations.contains(host.destination) {
+            try await Task.sleep(for: .milliseconds(180))
+        }
+        if let status = statuses[host.destination] {
+            return status
+        }
+        return try readStatusResult.get()
     }
 }
