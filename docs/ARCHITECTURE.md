@@ -10,6 +10,7 @@ The current source tree is organized by responsibility, not by file type:
 
 - `Sources/App/`
 - `Sources/Features/Accounts/`
+- `Sources/Features/Hosts/`
 - `Sources/Features/MenuBar/`
 - `Sources/Core/Configuration/`
 - `Sources/Platform/Codex/`
@@ -62,6 +63,13 @@ Does not own:
 - `SignInAnotherWorkflow`
 - `SavedAccountIdentityResolver`
 - `CodexAccountMatcher`
+
+`Features/Hosts` owns:
+
+- `RemoteHostRuntime`
+- `RemoteHostAccountVerifier`
+- `RemoteHost`
+- remote-host connection and verification state transitions
 
 Internal grouping:
 
@@ -123,9 +131,11 @@ These types are shared between features and platform adapters. Models should rem
 
 `MenuBarAccountsStore` is a thin observable adapter for the menu layer. It forwards menu intents into `AccountsController` and exposes account state to the menubar runtime.
 
+`RemoteHostRuntime` is the deeper remote-host feature boundary. It owns configured-host connection state, host verification refresh, detected-account adoption state, and preservation of last verified remote metadata when a host becomes unavailable or no longer matches the desired saved account.
+
 `StatusItemRuntime` is the deep status-item boundary. It owns the `NSStatusItem`, hover tracking, pointer-inside detection, title/icon transitions, and low-level status-item snapshot state for validation.
 
-`MenuBarCoordinator` is the menu/application controller. It owns menu rebuilding, action dispatch, alerts, validation event recording, wake/timer refresh triggers, and coordination with `MenuBarAccountsStore` and `StatusItemRuntime`.
+`MenuBarCoordinator` is the menu/application controller. It owns menu rebuilding, action dispatch, alerts, validation event recording, wake/timer refresh triggers, and coordination with `MenuBarAccountsStore`, `RemoteHostRuntime`, and `StatusItemRuntime`.
 
 `AccountsController` owns:
 
@@ -165,6 +175,14 @@ These types are shared between features and platform adapters. Models should rem
 - silent refresh attempts after save, switch, and completed sign-in flows
 - optional delay before those refresh attempts
 - swallowing refresh failures so post-action UX is not interrupted
+
+`RemoteHostRuntime` owns:
+
+- restoring persisted remote-host connection state
+- deriving menu-ready remote-host state from persisted hosts and saved accounts
+- applying remote switch verification outcomes
+- preserving verified remote account metadata back into the local catalog before clearing stale host state
+- remote-host refresh and reverification state transitions
 
 `MenuBarAccountsStore` owns:
 
