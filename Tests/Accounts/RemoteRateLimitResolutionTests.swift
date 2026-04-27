@@ -3,7 +3,7 @@ import Testing
 
 @testable import CodexPill
 
-struct RemoteHostRateLimitFallbackTests {
+struct RemoteRateLimitResolutionTests {
     @Test
     func usesMatchingSavedAccountLimitsWhenRemoteAndPersistedRemoteAreBothZeroed() {
         let baseAccount = makeAccount(
@@ -39,7 +39,7 @@ struct RemoteHostRateLimitFallbackTests {
             fetchedAt: .now
         )
 
-        let result = preferredRemoteRateLimits(
+        let result = RemoteRateLimitResolution().preferredRateLimits(
             remote: remote,
             fallback: baseAccount.rateLimits,
             candidateAccounts: [savedMatchingAccount],
@@ -84,7 +84,7 @@ struct RemoteHostRateLimitFallbackTests {
             fetchedAt: .now
         )
 
-        let result = preferredRemoteRateLimits(
+        let result = RemoteRateLimitResolution().preferredRateLimits(
             remote: remote,
             fallback: baseAccount.rateLimits,
             candidateAccounts: [savedMatchingAccount],
@@ -128,7 +128,7 @@ struct RemoteHostRateLimitFallbackTests {
             fetchedAt: .now
         )
 
-        let result = preferredRemoteRateLimits(
+        let result = RemoteRateLimitResolution().preferredRateLimits(
             remote: remote,
             fallback: baseAccount.rateLimits,
             candidateAccounts: [savedMatchingAccount],
@@ -207,7 +207,7 @@ struct RemoteHostRateLimitFallbackTests {
             fetchedAt: .now
         )
 
-        let result = preferredRemoteRateLimits(
+        let result = RemoteRateLimitResolution().preferredRateLimits(
             remote: remote,
             fallback: baseAccount.rateLimits,
             candidateAccounts: [businessTwo, personal],
@@ -250,7 +250,7 @@ struct RemoteHostRateLimitFallbackTests {
             fetchedAt: .now
         )
 
-        let result = preferredRemoteRateLimits(
+        let result = RemoteRateLimitResolution().preferredRateLimits(
             remote: remote,
             fallback: baseAccount.rateLimits,
             candidateAccounts: [savedMatchingAccount],
@@ -293,7 +293,7 @@ struct RemoteHostRateLimitFallbackTests {
             fetchedAt: now
         )
 
-        let result = preferredRemoteRateLimits(
+        let result = RemoteRateLimitResolution().preferredRateLimits(
             remote: remote,
             fallback: baseAccount.rateLimits,
             candidateAccounts: [baseAccount],

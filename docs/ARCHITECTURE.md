@@ -92,6 +92,7 @@ Does not own:
 `Features/Hosts` owns:
 
 - `RemoteHostRuntime`
+- `RemoteRateLimitResolution`
 - `RemoteHostAccountVerifier`
 - `RemoteHost`
 - remote-host connection and verification state transitions
@@ -164,6 +165,8 @@ These types are shared between features and platform adapters. Models should rem
 
 `RemoteHostRuntime` is the deeper remote-host feature boundary. It owns configured-host connection state, host verification refresh, detected-account adoption state, and preservation of last verified remote metadata when a host becomes unavailable or no longer matches the desired saved account.
 
+`RemoteRateLimitResolution` owns remote rate-limit fallback semantics. It decides when remote app-server rate-limit payloads are meaningful and when the local catalog or verified-account fallback should be preferred.
+
 `StatusItemRuntime` is the deep status-item boundary. It owns the `NSStatusItem`, hover tracking, pointer-inside detection, title/icon transitions, and low-level status-item snapshot state for validation.
 
 `MenuBarCoordinator` is the menu/application controller. It owns menu rebuilding, action dispatch, alerts, validation event recording, wake/timer refresh triggers, and coordination with `MenuBarAccountsStore`, `RemoteHostRuntime`, and `StatusItemRuntime`.
@@ -214,6 +217,13 @@ These types are shared between features and platform adapters. Models should rem
 - applying remote switch verification outcomes
 - preserving verified remote account metadata back into the local catalog before clearing stale host state
 - remote-host refresh and reverification state transitions
+
+`RemoteRateLimitResolution` owns:
+
+- choosing the best fallback snapshot for a remote account
+- preserving meaningful remote rate-limit windows
+- rejecting suspicious empty or expired remote rate-limit windows
+- merging remote metadata with local catalog fallback metadata
 
 `MenuBarAccountsStore` owns:
 

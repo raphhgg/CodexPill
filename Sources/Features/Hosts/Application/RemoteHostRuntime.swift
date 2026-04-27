@@ -265,7 +265,7 @@ final class RemoteHostRuntime {
 
     private func mergedRemoteAccount(_ baseAccount: CodexAccount, status: CodexAccountStatus) -> CodexAccount {
         var account = baseAccount
-        let mergedRateLimits = preferredRemoteRateLimits(
+        let mergedRateLimits = RemoteRateLimitResolution().preferredRateLimits(
             remote: status.rateLimits,
             fallback: baseAccount.rateLimits,
             candidateAccounts: accounts(),

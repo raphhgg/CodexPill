@@ -334,7 +334,7 @@ struct MenuBarMenuState {
         resolvedAccount.applyRemoteMetadata(
             email: remoteAccount.email ?? matchedAccount.email,
             planType: remoteAccount.planType ?? matchedAccount.planType,
-            rateLimits: preferredRemoteRateLimits(
+            rateLimits: RemoteRateLimitResolution().preferredRateLimits(
                 remote: remoteAccount.rateLimits,
                 fallback: matchedAccount.rateLimits,
                 candidateAccounts: allSavedAccounts,
