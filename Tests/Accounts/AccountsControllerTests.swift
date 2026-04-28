@@ -557,6 +557,8 @@ private final class NullAuthService: CodexAuthSessionStore, CodexAuthSnapshotSto
             identity: .empty
         )
     }
+
+    func deleteAuthSnapshot(for account: CodexAccount) throws {}
 }
 
 private final class SignInAuthErrorCase: CodexAuthSessionStore, CodexAuthSnapshotStore, CodexSignInAuthStore {
@@ -579,6 +581,8 @@ private final class SignInAuthErrorCase: CodexAuthSessionStore, CodexAuthSnapsho
     func saveAuthSnapshot(_ authData: Data, named name: String, existing: CodexAccount?) throws -> CodexAccount {
         throw error
     }
+
+    func deleteAuthSnapshot(for account: CodexAccount) throws {}
 }
 
 private struct RemoteHostStatusFixture: RemoteHostClient {

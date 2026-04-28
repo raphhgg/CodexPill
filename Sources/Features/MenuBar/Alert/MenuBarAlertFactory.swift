@@ -45,6 +45,51 @@ struct MenuBarAlertFactory {
         )
     }
 
+    func makeAddAccountExpiredRequest() -> MenuBarConfirmationAlertRequest {
+        MenuBarConfirmationAlertRequest(
+            messageText: "Sign-In Expired",
+            informativeText: "The Codex sign-in code expired before the account was added.",
+            confirmTitle: "Try Again",
+            cancelTitle: "Cancel"
+        )
+    }
+
+    func makeAccountAlreadySavedRequest(accountName: String) -> MenuBarInfoAlertRequest {
+        MenuBarInfoAlertRequest(
+            messageText: "Account Already Saved",
+            informativeText: "This Codex account is already saved as \(accountName).",
+            style: .informational,
+            buttonTitle: "OK"
+        )
+    }
+
+    func makeAddAccountStartFailureRequest() -> MenuBarInfoAlertRequest {
+        MenuBarInfoAlertRequest(
+            messageText: "Couldn't Start Sign-In",
+            informativeText: "Codex could not start a sign-in session. Try again in a few minutes.",
+            style: .warning,
+            buttonTitle: "OK"
+        )
+    }
+
+    func makeAddAccountUnsafeAuthChangeRequest() -> MenuBarInfoAlertRequest {
+        MenuBarInfoAlertRequest(
+            messageText: "Couldn't Add Account",
+            informativeText: "CodexPill could not verify that your current account stayed unchanged. No account was added.",
+            style: .warning,
+            buttonTitle: "OK"
+        )
+    }
+
+    func makeAddAccountSaveFailureRequest() -> MenuBarInfoAlertRequest {
+        MenuBarInfoAlertRequest(
+            messageText: "Couldn't Save Account",
+            informativeText: "The sign-in completed, but CodexPill could not save the account. Your current Codex account was not changed.",
+            style: .warning,
+            buttonTitle: "OK"
+        )
+    }
+
     func makeSwitchAccountRequest(accountName: String, runningCLISessions: Int) -> MenuBarConfirmationAlertRequest {
         MenuBarConfirmationAlertRequest(
             messageText: "Switch account?",

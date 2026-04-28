@@ -70,6 +70,8 @@ struct AppPaths {
 }
 
 struct IsolatedCodexHomeSession {
+    private static let directoryPrefix = "CodexPill-CODEX_HOME-"
+
     let rootDirectory: URL
     let authFile: URL
     let configFile: URL
@@ -81,7 +83,7 @@ struct IsolatedCodexHomeSession {
     ) throws -> IsolatedCodexHomeSession {
         let baseDirectory = parentDirectory ?? fileManager.temporaryDirectory
         let rootDirectory = baseDirectory
-            .appendingPathComponent("CodexPill-CODEX_HOME-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("\(directoryPrefix)\(UUID().uuidString)", isDirectory: true)
         let tempDirectory = rootDirectory.appendingPathComponent("tmp", isDirectory: true)
 
         try fileManager.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
@@ -97,5 +99,27 @@ struct IsolatedCodexHomeSession {
     func cleanup(fileManager: FileManager = .default) throws {
         guard fileManager.fileExists(atPath: rootDirectory.path) else { return }
         try fileManager.removeItem(at: rootDirectory)
+    }
+
+    static func cleanupStaleSessions(
+        olderThan age: TimeInterval = 24 * 60 * 60,
+        fileManager: FileManager = .default,
+        parentDirectory: URL? = nil,
+        now: Date = Date()
+    ) throws {
+        let baseDirectory = parentDirectory ?? fileManager.temporaryDirectory
+        guard fileManager.fileExists(atPath: baseDirectory.path) else { return }
+
+        let entries = try fileManager.contentsOfDirectory(
+            at: baseDirectory,
+            includingPropertiesForKeys: [.contentModificationDateKey, .isDirectoryKey]
+        )
+        for entry in entries where entry.lastPathComponent.hasPrefix(directoryPrefix) {
+            let values = try entry.resourceValues(forKeys: [.contentModificationDateKey, .isDirectoryKey])
+            guard values.isDirectory == true else { continue }
+            let modifiedAt = values.contentModificationDate ?? .distantPast
+            guard now.timeIntervalSince(modifiedAt) >= age else { continue }
+            try? fileManager.removeItem(at: entry)
+        }
     }
 }

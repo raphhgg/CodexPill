@@ -106,6 +106,46 @@ struct AppPathsTests {
         #expect(!FileManager.default.fileExists(atPath: session.rootDirectory.path))
     }
 
+    @Test
+    func staleIsolatedCodexHomeCleanupRemovesOnlyOldSessionDirectories() throws {
+        let parentDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: parentDirectory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: parentDirectory) }
+
+        let staleSession = try IsolatedCodexHomeSession.create(
+            fileManager: .default,
+            parentDirectory: parentDirectory
+        )
+        let freshSession = try IsolatedCodexHomeSession.create(
+            fileManager: .default,
+            parentDirectory: parentDirectory
+        )
+        let unrelatedDirectory = parentDirectory.appendingPathComponent("Other-CODEX_HOME-old", isDirectory: true)
+        try FileManager.default.createDirectory(at: unrelatedDirectory, withIntermediateDirectories: true)
+
+        let now = Date()
+        try FileManager.default.setAttributes(
+            [.modificationDate: now.addingTimeInterval(-48 * 60 * 60)],
+            ofItemAtPath: staleSession.rootDirectory.path
+        )
+        try FileManager.default.setAttributes(
+            [.modificationDate: now],
+            ofItemAtPath: freshSession.rootDirectory.path
+        )
+
+        try IsolatedCodexHomeSession.cleanupStaleSessions(
+            olderThan: 24 * 60 * 60,
+            fileManager: .default,
+            parentDirectory: parentDirectory,
+            now: now
+        )
+
+        #expect(!FileManager.default.fileExists(atPath: staleSession.rootDirectory.path))
+        #expect(FileManager.default.fileExists(atPath: freshSession.rootDirectory.path))
+        #expect(FileManager.default.fileExists(atPath: unrelatedDirectory.path))
+    }
+
     private func normalizedDirectoryPath(_ url: URL) -> String {
         url.standardizedFileURL.path(percentEncoded: false).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
     }

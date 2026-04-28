@@ -57,6 +57,10 @@ struct CodexAuthSnapshotService {
         return account
     }
 
+    func deleteAuthSnapshot(for account: CodexAccount) throws {
+        try repository.deleteSnapshot(for: account)
+    }
+
     func activate(_ account: CodexAccount) throws {
         authSnapshotLogger.log("Activating snapshot for account name: \(account.name, privacy: .public)")
         let snapshot = try repository.readSnapshot(for: account)

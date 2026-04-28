@@ -1101,4 +1101,6 @@ private struct RankingNullAuthService: CodexAuthSessionStore, CodexAuthSnapshotS
             identity: .empty
         )
     }
+
+    func deleteAuthSnapshot(for account: CodexAccount) throws {}
 }

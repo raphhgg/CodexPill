@@ -100,7 +100,7 @@ struct MenuBarAddAccountSignInAlertRequest {
 enum MenuBarAddAccountSignInAlertResult {
     case completed(CodexAccount)
     case cancelled
-    case failed(String)
+    case failed(Error)
 }
 
 @MainActor
@@ -418,7 +418,7 @@ private final class AddAccountSignInWindowController: NSObject, NSWindowDelegate
             case .success(let account):
                 self.finish(with: .completed(account))
             case .failure(let error):
-                self.finish(with: .failed(error.localizedDescription))
+                self.finish(with: .failed(error))
             }
         }
     }
