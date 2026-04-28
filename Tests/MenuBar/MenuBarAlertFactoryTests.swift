@@ -35,10 +35,10 @@ struct MenuBarAlertFactoryTests {
     func addAccountWarningOmitsCliNoticeWhenNoSessionsRunning() {
         let request = factory.makeAddAccountRequest(runningCLISessions: 0)
 
-        #expect(request.messageText == "Add another account?")
-        #expect(request.confirmTitle == "Add Account")
-        #expect(request.informativeText.contains("save it in your account collection"))
-        #expect(request.informativeText.contains("signs into another Codex account in Codex"))
+        #expect(request.messageText == "Add account")
+        #expect(request.confirmTitle == "Continue")
+        #expect(request.informativeText.contains("save the account"))
+        #expect(request.informativeText.contains("without switching your current local Codex session"))
         #expect(!request.informativeText.contains("running Codex CLI session"))
     }
 
@@ -47,7 +47,34 @@ struct MenuBarAlertFactoryTests {
         let request = factory.makeAddAccountRequest(runningCLISessions: 1)
 
         #expect(request.informativeText.contains("1 running Codex CLI session was detected"))
-        #expect(request.informativeText.contains("Restart any open Codex CLI terminals after sign-in"))
+        #expect(request.informativeText.contains("They will keep using the current account unless you switch later."))
+    }
+
+    @Test
+    func addAccountSignInRequestShowsDeviceCodeCopy() {
+        let prompt = IsolatedCodexLoginPrompt(
+            url: URL(string: "https://auth.openai.com/codex/device")!,
+            userCode: "ABCD-EFGH"
+        )
+
+        let request = factory.makeAddAccountSignInRequest(prompt: prompt)
+
+        #expect(request.messageText == "Sign in to Codex")
+        #expect(request.informativeText.contains("opened the Codex sign-in page"))
+        #expect(request.userCode == "ABCD-EFGH")
+        #expect(request.copyTitle == "Copy Code")
+        #expect(request.cancelTitle == "Cancel")
+    }
+
+    @Test
+    func addAccountSuccessRequestOffersOptionalLocalSwitch() {
+        let request = factory.makeAddAccountSuccessRequest(accountName: "Business 2")
+
+        #expect(request.messageText == "Account Added")
+        #expect(request.informativeText.contains("Business 2 was saved"))
+        #expect(request.informativeText.contains("current local Codex session was not changed"))
+        #expect(request.confirmTitle == "Use on This Mac")
+        #expect(request.cancelTitle == "Done")
     }
 
     @Test

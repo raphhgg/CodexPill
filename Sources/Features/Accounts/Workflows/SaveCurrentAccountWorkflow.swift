@@ -102,10 +102,13 @@ struct SaveCurrentAccountWorkflow {
 }
 
 enum SaveCurrentAccountWorkflowError: LocalizedError {
+    case emptyAccountName
     case duplicateAccountName
 
     var errorDescription: String? {
         switch self {
+        case .emptyAccountName:
+            "Account name cannot be empty."
         case .duplicateAccountName:
             "An account with that name already exists."
         }

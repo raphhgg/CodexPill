@@ -43,6 +43,11 @@ protocol MenuBarAlertPresenter {
         onValidationStarted: @escaping (RemoteHost) -> Void,
         onValidationFinished: @escaping (RemoteHost, Result<Void, Error>) -> Void
     ) async -> RemoteHost?
+    func presentAddAccountSignIn(
+        _ request: MenuBarAddAccountSignInAlertRequest,
+        waitForCompletion: @escaping () async -> Result<CodexAccount, Error>,
+        onCancel: @escaping () -> Void
+    ) async -> MenuBarAddAccountSignInAlertResult
 }
 
 struct MenuBarTextInputAlertRequest {
@@ -79,6 +84,23 @@ struct MenuBarInfoAlertRequest {
     let informativeText: String
     let style: NSAlert.Style
     let buttonTitle: String
+}
+
+struct MenuBarAddAccountSignInAlertRequest {
+    let messageText: String
+    let informativeText: String
+    let userCode: String
+    let promptURL: URL
+    let waitingStatusText: String
+    let copiedStatusText: String
+    let copyTitle: String
+    let cancelTitle: String
+}
+
+enum MenuBarAddAccountSignInAlertResult {
+    case completed(CodexAccount)
+    case cancelled
+    case failed(String)
 }
 
 @MainActor
@@ -178,6 +200,25 @@ final class SystemMenuBarAlertPresenter {
         return result
     }
 
+    func presentAddAccountSignIn(
+        _ request: MenuBarAddAccountSignInAlertRequest,
+        waitForCompletion: @escaping () async -> Result<CodexAccount, Error>,
+        onCancel: @escaping () -> Void
+    ) async -> MenuBarAddAccountSignInAlertResult {
+        guard !AppRuntimeEnvironment.shouldSuppressInteractiveAlerts(environment: environment) else {
+            onCancel()
+            return .cancelled
+        }
+
+        let controller = AddAccountSignInWindowController(
+            request: request,
+            appIconSource: appIconSource,
+            waitForCompletion: waitForCompletion,
+            onCancel: onCancel
+        )
+        return await controller.runModal()
+    }
+
     private func textFieldAccessoryView(
         title: String,
         field: NSTextField,
@@ -239,6 +280,179 @@ private final class LiveValidationTextField: NSTextField {
     override func textDidChange(_ notification: Notification) {
         super.textDidChange(notification)
         onTextDidChange?()
+    }
+}
+
+@MainActor
+private final class AddAccountSignInWindowController: NSObject, NSWindowDelegate {
+    private let request: MenuBarAddAccountSignInAlertRequest
+    private let appIconSource: AppIconSource
+    private let waitForCompletion: () async -> Result<CodexAccount, Error>
+    private let onCancel: () -> Void
+
+    private var completion: CheckedContinuation<MenuBarAddAccountSignInAlertResult, Never>?
+    private var waitTask: Task<Void, Never>?
+    private var isFinishing = false
+
+    private lazy var statusLabel: NSTextField = {
+        let label = NSTextField(labelWithString: request.waitingStatusText)
+        label.lineBreakMode = .byWordWrapping
+        label.maximumNumberOfLines = 2
+        label.textColor = .secondaryLabelColor
+        return label
+    }()
+
+    private lazy var codeField: NSTextField = {
+        let field = NSTextField(labelWithString: request.userCode)
+        field.font = .monospacedSystemFont(ofSize: 24, weight: .semibold)
+        field.alignment = .center
+        field.isSelectable = true
+        field.translatesAutoresizingMaskIntoConstraints = false
+        field.setContentHuggingPriority(.required, for: .vertical)
+        return field
+    }()
+
+    private lazy var cancelButton: NSButton = {
+        let button = NSButton(title: request.cancelTitle, target: self, action: #selector(handleCancel))
+        button.keyEquivalent = "\u{1b}"
+        return button
+    }()
+
+    private lazy var copyButton: NSButton = {
+        let button = NSButton(title: request.copyTitle, target: self, action: #selector(handleCopyCode))
+        button.keyEquivalent = "\r"
+        return button
+    }()
+
+    private lazy var window: NSPanel = {
+        let panel = NSPanel(
+            contentRect: NSRect(x: 0, y: 0, width: 380, height: 230),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        panel.title = request.messageText
+        panel.isReleasedWhenClosed = false
+        panel.level = .modalPanel
+        panel.standardWindowButton(.zoomButton)?.isHidden = true
+        panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        panel.standardWindowButton(.documentIconButton)?.image = appIconSource.appIconImage()
+        panel.delegate = self
+        panel.contentView = contentView()
+        return panel
+    }()
+
+    init(
+        request: MenuBarAddAccountSignInAlertRequest,
+        appIconSource: AppIconSource,
+        waitForCompletion: @escaping () async -> Result<CodexAccount, Error>,
+        onCancel: @escaping () -> Void
+    ) {
+        self.request = request
+        self.appIconSource = appIconSource
+        self.waitForCompletion = waitForCompletion
+        self.onCancel = onCancel
+        super.init()
+    }
+
+    func runModal() async -> MenuBarAddAccountSignInAlertResult {
+        await withCheckedContinuation { continuation in
+            completion = continuation
+            NSApp.activate(ignoringOtherApps: true)
+            window.center()
+            window.makeKeyAndOrderFront(nil)
+            startWaiting()
+        }
+    }
+
+    private func contentView() -> NSView {
+        let messageLabel = NSTextField(labelWithString: request.informativeText)
+        messageLabel.lineBreakMode = .byWordWrapping
+        messageLabel.maximumNumberOfLines = 0
+
+        let codeContainer = NSBox()
+        codeContainer.boxType = .custom
+        codeContainer.borderType = .lineBorder
+        codeContainer.cornerRadius = 10
+        codeContainer.borderColor = .separatorColor
+        codeContainer.fillColor = .controlBackgroundColor
+        codeContainer.translatesAutoresizingMaskIntoConstraints = false
+        codeContainer.addSubview(codeField)
+
+        let spacer = NSView()
+        spacer.translatesAutoresizingMaskIntoConstraints = false
+
+        let buttonRow = NSStackView(views: [spacer, cancelButton, copyButton])
+        buttonRow.orientation = .horizontal
+        buttonRow.alignment = .centerY
+        buttonRow.spacing = 8
+
+        let stack = NSStackView(views: [messageLabel, codeContainer, statusLabel, buttonRow])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 12
+        stack.translatesAutoresizingMaskIntoConstraints = false
+
+        let content = NSView(frame: NSRect(x: 0, y: 0, width: 380, height: 230))
+        content.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 20),
+            stack.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -20),
+            stack.topAnchor.constraint(equalTo: content.topAnchor, constant: 20),
+            stack.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -20),
+            codeContainer.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            codeContainer.heightAnchor.constraint(equalToConstant: 56),
+            codeField.centerXAnchor.constraint(equalTo: codeContainer.centerXAnchor),
+            codeField.centerYAnchor.constraint(equalTo: codeContainer.centerYAnchor),
+            spacer.widthAnchor.constraint(greaterThanOrEqualToConstant: 0)
+        ])
+        return content
+    }
+
+    private func startWaiting() {
+        waitTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            let result = await self.waitForCompletion()
+            guard !Task.isCancelled else { return }
+            switch result {
+            case .success(let account):
+                self.finish(with: .completed(account))
+            case .failure(let error):
+                self.finish(with: .failed(error.localizedDescription))
+            }
+        }
+    }
+
+    @objc
+    private func handleCopyCode() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(request.userCode, forType: .string)
+        statusLabel.stringValue = request.copiedStatusText
+    }
+
+    @objc
+    private func handleCancel() {
+        onCancel()
+        finish(with: .cancelled)
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        guard !isFinishing, completion != nil else { return }
+        onCancel()
+        finish(with: .cancelled)
+    }
+
+    private func finish(with result: MenuBarAddAccountSignInAlertResult) {
+        guard let completion, !isFinishing else { return }
+        self.completion = nil
+        waitTask?.cancel()
+        isFinishing = true
+        window.makeFirstResponder(nil)
+        window.endEditing(for: nil)
+        window.close()
+        window.orderOut(nil)
+        isFinishing = false
+        completion.resume(returning: result)
     }
 }
 

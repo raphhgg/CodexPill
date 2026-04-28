@@ -11,10 +11,12 @@ final class MenuBarAlertPresenterProbe: MenuBarAlertPresenter {
     private(set) var confirmationRequests: [MenuBarConfirmationAlertRequest] = []
     private(set) var infoRequests: [MenuBarInfoAlertRequest] = []
     private(set) var hostSetupRequests: [MenuBarHostSetupAlertRequest] = []
+    private(set) var addAccountSignInRequests: [MenuBarAddAccountSignInAlertRequest] = []
 
     var textInputResponse: String?
     var confirmationResponse = false
     var hostSetupResponse: RemoteHost?
+    var addAccountSignInResult: MenuBarAddAccountSignInAlertResult = .cancelled
 
     func presentTextInput(_ request: MenuBarTextInputAlertRequest) -> String? {
         textInputRequests.append(request)
@@ -41,6 +43,15 @@ final class MenuBarAlertPresenterProbe: MenuBarAlertPresenter {
         hostSetupRequests.append(request)
         onPresented()
         return hostSetupResponse
+    }
+
+    func presentAddAccountSignIn(
+        _ request: MenuBarAddAccountSignInAlertRequest,
+        waitForCompletion _: @escaping () async -> Result<CodexAccount, Error>,
+        onCancel _: @escaping () -> Void
+    ) async -> MenuBarAddAccountSignInAlertResult {
+        addAccountSignInRequests.append(request)
+        return addAccountSignInResult
     }
 }
 

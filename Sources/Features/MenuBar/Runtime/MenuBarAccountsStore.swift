@@ -71,6 +71,18 @@ final class MenuBarAccountsStore {
         await controller.startSignInAnotherAccountFlow(named: pendingAccountName)
     }
 
+    func startIsolatedAddAccountFlow(named pendingAccountName: String?) async throws -> IsolatedAddAccountSignInSession {
+        try await controller.startIsolatedAddAccountFlow(named: pendingAccountName)
+    }
+
+    func completeIsolatedAddAccount(_ session: IsolatedAddAccountSignInSession) async throws -> CodexAccount {
+        try await controller.completeIsolatedAddAccount(session)
+    }
+
+    func cancelIsolatedAddAccount(_ session: IsolatedAddAccountSignInSession) {
+        controller.cancelIsolatedAddAccount(session)
+    }
+
     func completePendingSignedInAccountIfNeeded() async {
         await controller.completePendingSignedInAccountIfNeeded()
     }
