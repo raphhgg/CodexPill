@@ -60,21 +60,44 @@ struct MenuBarAlertFactoryTests {
         let request = factory.makeAddAccountSignInRequest(prompt: prompt)
 
         #expect(request.messageText == "Sign in to Codex")
-        #expect(request.informativeText.contains("opened the Codex sign-in page"))
+        #expect(request.informativeText.contains("Copy this code"))
         #expect(request.userCode == "ABCD-EFGH")
+        #expect(request.promptURL == prompt.url)
         #expect(request.copyTitle == "Copy Code")
+        #expect(request.openBrowserTitle == "Open Browser")
+        #expect(request.browserOpenedStatusText.contains("Browser opened"))
         #expect(request.cancelTitle == "Cancel")
     }
 
     @Test
     func addAccountSuccessRequestOffersOptionalLocalSwitch() {
-        let request = factory.makeAddAccountSuccessRequest(accountName: "Business 2")
+        let request = factory.makeAddAccountSuccessRequest(accountName: "Business 2", runningCLISessions: 0)
 
         #expect(request.messageText == "Account Added")
         #expect(request.informativeText.contains("Business 2 was saved"))
         #expect(request.informativeText.contains("current local Codex session was not changed"))
+        #expect(!request.informativeText.contains("running Codex CLI session"))
         #expect(request.confirmTitle == "Use on This Mac")
         #expect(request.cancelTitle == "Done")
+    }
+
+    @Test
+    func addAccountSuccessRequestMentionsRunningCliSessionsBeforeLocalSwitch() {
+        let request = factory.makeAddAccountSuccessRequest(accountName: "Business 2", runningCLISessions: 2)
+
+        #expect(request.informativeText.contains("2 running Codex CLI sessions were detected"))
+        #expect(request.informativeText.contains("Restart any open Codex CLI terminals to use the new account."))
+        #expect(request.confirmTitle == "Use on This Mac")
+    }
+
+    @Test
+    func addAccountDuplicateNameRequestOffersRetry() {
+        let request = factory.makeAddAccountDuplicateNameRequest()
+
+        #expect(request.messageText == "Name Already Used")
+        #expect(request.informativeText.contains("Choose a different name"))
+        #expect(request.confirmTitle == "Try Again")
+        #expect(request.cancelTitle == "Cancel")
     }
 
     @Test

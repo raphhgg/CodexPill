@@ -170,10 +170,10 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 ### `accounts.add_account.v0_contract`
 
 - `feature`: `accounts`
-- `rule`: Add Account saves a new local account through an isolated Codex sign-in flow without switching the current local account. The flow must expose the device code in-app, allow safe cancellation, route optional local use through the existing switch path, block duplicate display names and duplicate captured identities, clean temporary auth state, and never mutate real user auth from tests unless an explicit live-auth scenario opts in.
+- `rule`: Add Account saves a new local account through an isolated Codex sign-in flow without switching the current local account. The flow must expose the device code in-app before browser handoff, allow safe cancellation, route optional local use through one success-alert decision that includes any CLI restart warning, block duplicate display names and duplicate captured identities, clean temporary auth state, and never mutate real user auth from tests unless an explicit live-auth scenario opts in.
 - `owner_layer`: `integration`
 - `proofs_required`: `["unit", "integration", "deterministic_ui", "live_ui"]`
-- `scenarios`: `["add_account_duplicate_display_name_blocks_before_sign_in", "add_account_shows_device_code_and_copy_action", "add_account_copy_code_keeps_waiting", "add_account_saves_without_switching", "add_account_use_on_this_mac_routes_existing_switch_flow", "add_account_cancel_cleans_up", "add_account_duplicate_identity_blocks_after_sign_in", "add_account_expired_code_allows_try_again", "add_account_failed_before_code_clears_state", "add_account_live_auth_mutation_aborts", "add_account_catalog_save_failure_does_not_switch", "add_account_quit_cleans_up", "add_account_startup_removes_stale_temp_homes"]`
+- `scenarios`: `["add_account_duplicate_display_name_blocks_before_sign_in", "add_account_shows_device_code_and_copy_action", "add_account_copy_code_keeps_waiting", "add_account_saves_without_switching", "add_account_use_on_this_mac_switches_without_second_confirmation", "add_account_cancel_cleans_up", "add_account_duplicate_identity_blocks_after_sign_in", "add_account_expired_code_allows_try_again", "add_account_failed_before_code_clears_state", "add_account_live_auth_mutation_aborts", "add_account_catalog_save_failure_does_not_switch", "add_account_quit_cleans_up", "add_account_startup_removes_stale_temp_homes"]`
 - `automated_proofs`:
   - `add_account_duplicate_display_name_blocks_before_sign_in`: `SignInAnotherWorkflowTests.isolatedAddAccountRejectsDuplicateNameBeforeStartingLogin`
   - `add_account_shows_device_code_and_copy_action`: `MenuBarAlertFactoryTests.addAccountSignInRequestShowsDeviceCodeCopy`
@@ -184,7 +184,7 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
   - `add_account_catalog_save_failure_does_not_switch`: `SignInAnotherWorkflowTests.completeIsolatedAddAccountMapsCatalogSaveFailureAfterCapture` and `SignInAnotherWorkflowTests.completeIsolatedAddAccountMapsRepositorySaveFailureAfterSnapshotSave`
   - `add_account_startup_removes_stale_temp_homes`: `AppPathsTests.staleIsolatedCodexHomeCleanupRemovesOnlyOldSessionDirectories`
 - `copy_or_shape_proofs`:
-  - `add_account_use_on_this_mac_routes_existing_switch_flow`: `MenuBarAlertFactoryTests.addAccountSuccessRequestOffersOptionalLocalSwitch` proves the success alert exposes the intended action; `SwitchAccountWorkflowTests` prove the existing switch path itself
+  - `add_account_use_on_this_mac_switches_without_second_confirmation`: `MenuBarAlertFactoryTests.addAccountSuccessRequestOffersOptionalLocalSwitch` and `MenuBarAlertFactoryTests.addAccountSuccessRequestMentionsRunningCliSessionsBeforeLocalSwitch` prove the success alert exposes the switch action and warning copy; `SwitchAccountWorkflowTests` prove the underlying switch execution path
   - `add_account_expired_code_allows_try_again`: `MenuBarAlertFactoryTests.addAccountFailureRequestsUseSpecificRecoveryCopy` proves the retry copy/actions only
   - `add_account_failed_before_code_clears_state`: `MenuBarAlertFactoryTests.addAccountFailureRequestsUseSpecificRecoveryCopy` proves the start-failure copy only
 - `live_safe_scenarios`: `["live-add-account-name-dialog-cancelled"]`

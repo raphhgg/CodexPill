@@ -832,7 +832,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         do {
             let session = try await store.startIsolatedAddAccountFlow(named: name)
             activeIsolatedAddAccountSession = session
-            NSWorkspace.shared.open(session.prompt.url)
 
             let signInRequest = alertFactory.makeAddAccountSignInRequest(prompt: session.prompt)
             let result = await alertPresenter.presentAddAccountSignIn(
@@ -873,9 +872,14 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     private func presentAddAccountSuccess(for account: CodexAccount) {
-        let request = alertFactory.makeAddAccountSuccessRequest(accountName: account.name)
+        let runningCLISessions = cliProcessInspector.runningCLISessionCount()
+        let request = alertFactory.makeAddAccountSuccessRequest(
+            accountName: account.name,
+            runningCLISessions: runningCLISessions
+        )
         guard alertPresenter.presentConfirmation(request) else { return }
-        requestSwitch(to: account)
+        lastSwitchTargetName = account.name
+        beginLocalSwitch(to: account)
     }
 
     private func presentAddAccountFailure(_ error: Error, retryName: String) {
@@ -893,6 +897,18 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
                 }
             case .authCaptureFailed, .loginStatusVerificationFailed:
                 alertPresenter.presentInfo(alertFactory.makeErrorRequest(message: loginError.localizedDescription))
+            }
+            return
+        }
+
+        if let saveError = error as? SaveCurrentAccountWorkflowError {
+            switch saveError {
+            case .duplicateAccountName:
+                let request = alertFactory.makeAddAccountDuplicateNameRequest()
+                guard alertPresenter.presentConfirmation(request) else { return }
+                addAccount()
+            case .emptyAccountName:
+                alertPresenter.presentInfo(alertFactory.makeErrorRequest(message: saveError.localizedDescription))
             }
             return
         }

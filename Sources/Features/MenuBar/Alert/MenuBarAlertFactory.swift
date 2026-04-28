@@ -26,22 +26,42 @@ struct MenuBarAlertFactory {
     func makeAddAccountSignInRequest(prompt: IsolatedCodexLoginPrompt) -> MenuBarAddAccountSignInAlertRequest {
         MenuBarAddAccountSignInAlertRequest(
             messageText: "Sign in to Codex",
-            informativeText: "CodexPill opened the Codex sign-in page in your browser.\n\nEnter this code when prompted:",
+            informativeText: "Copy this code, then open the Codex sign-in page in your browser.",
             userCode: prompt.userCode,
             promptURL: prompt.url,
             waitingStatusText: "Waiting for browser sign-in...",
             copiedStatusText: "Code copied. Waiting for browser sign-in...",
+            browserOpenedStatusText: "Browser opened. Waiting for sign-in...",
             copyTitle: "Copy Code",
+            openBrowserTitle: "Open Browser",
             cancelTitle: "Cancel"
         )
     }
 
-    func makeAddAccountSuccessRequest(accountName: String) -> MenuBarConfirmationAlertRequest {
-        MenuBarConfirmationAlertRequest(
+    func makeAddAccountSuccessRequest(accountName: String, runningCLISessions: Int) -> MenuBarConfirmationAlertRequest {
+        let cliNotice: String
+        if runningCLISessions == 1 {
+            cliNotice = "\n\n1 running Codex CLI session was detected. Restart any open Codex CLI terminals to use the new account."
+        } else if runningCLISessions > 1 {
+            cliNotice = "\n\n\(runningCLISessions) running Codex CLI sessions were detected. Restart any open Codex CLI terminals to use the new account."
+        } else {
+            cliNotice = ""
+        }
+
+        return MenuBarConfirmationAlertRequest(
             messageText: "Account Added",
-            informativeText: "\(accountName) was saved. Your current local Codex session was not changed.",
+            informativeText: "\(accountName) was saved. Your current local Codex session was not changed.\(cliNotice)",
             confirmTitle: "Use on This Mac",
             cancelTitle: "Done"
+        )
+    }
+
+    func makeAddAccountDuplicateNameRequest() -> MenuBarConfirmationAlertRequest {
+        MenuBarConfirmationAlertRequest(
+            messageText: "Name Already Used",
+            informativeText: "Choose a different name for this saved account.",
+            confirmTitle: "Try Again",
+            cancelTitle: "Cancel"
         )
     }
 

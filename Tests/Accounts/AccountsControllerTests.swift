@@ -128,6 +128,40 @@ struct AccountsControllerTests {
     }
 
     @Test
+    func completeIsolatedAddAccountAlreadySavedDoesNotQueueSecondPendingError() async throws {
+        let existing = makeAccount(name: "Business 1", fingerprint: "captured-fingerprint")
+        let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [existing])
+        let liveIdentity = CurrentIdentityHarness(fingerprint: "live-fingerprint")
+        let identityResolver = SavedAccountIdentityResolver(
+            liveIdentitySource: liveIdentity,
+            storedAccountReconciler: StoredIdentityAdapter()
+        )
+        let authService = IsolatedAddAccountAuthProbe(
+            currentFingerprint: "live-fingerprint",
+            capturedFingerprint: "captured-fingerprint"
+        )
+        let loginSession = IsolatedAddAccountLoginSessionProbe(authData: Data("captured-auth".utf8))
+        let controller = makeController(
+            repository: repository,
+            identityResolver: identityResolver,
+            authService: authService,
+            codexAppProcessClient: CodexAppProcessProbe(),
+            isolatedLoginClient: IsolatedAddAccountLoginClientProbe(session: loginSession)
+        )
+
+        controller.load()
+        let session = try await controller.startIsolatedAddAccountFlow(named: "Business 2")
+
+        await #expect(throws: IsolatedAddAccountWorkflowError.accountAlreadySaved("Business 1")) {
+            _ = try await controller.completeIsolatedAddAccount(session)
+        }
+
+        #expect(controller.pendingErrorMessage == nil)
+        #expect(controller.consumePendingErrorMessage() == nil)
+        #expect(loginSession.cleanupCount == 1)
+    }
+
+    @Test
     func refreshAccountDataFailureDoesNotQueuePendingErrorMessage() async {
         let account = makeAccount(name: "Business 4", fingerprint: "live")
         let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [account])
@@ -361,7 +395,10 @@ struct AccountsControllerTests {
         repository: LoadingPersistingAccountCatalogProbe,
         identityResolver: SavedAccountIdentityResolver,
         authService: some CodexAuthSessionStore & CodexAuthSnapshotStore & CodexSignInAuthStore,
-        codexAppProcessClient: CodexAppProcessClient
+        codexAppProcessClient: CodexAppProcessClient,
+        isolatedLoginClient: IsolatedCodexLoginClient = IsolatedAddAccountLoginClientProbe(
+            session: IsolatedAddAccountLoginSessionProbe(authData: Data())
+        )
     ) -> AccountsController {
         AccountsController(
             identityResolver: identityResolver,
@@ -403,7 +440,8 @@ struct AccountsControllerTests {
                 codexAppProcessClient: codexAppProcessClient,
                 accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
                 repository: repository,
-                identityResolver: identityResolver
+                identityResolver: identityResolver,
+                isolatedLoginClient: isolatedLoginClient
             )
         )
     }
@@ -583,6 +621,72 @@ private final class SignInAuthErrorCase: CodexAuthSessionStore, CodexAuthSnapsho
     }
 
     func deleteAuthSnapshot(for account: CodexAccount) throws {}
+}
+
+private final class IsolatedAddAccountAuthProbe: CodexAuthSessionStore, CodexAuthSnapshotStore, CodexSignInAuthStore {
+    var currentFingerprint: String?
+    let capturedFingerprint: String?
+
+    init(currentFingerprint: String?, capturedFingerprint: String?) {
+        self.currentFingerprint = currentFingerprint
+        self.capturedFingerprint = capturedFingerprint
+    }
+
+    func activate(_ account: CodexAccount) throws {}
+    func prepareForNewSignIn() throws {}
+    func readCurrentAuthData() throws -> Data { Data() }
+    func currentAuthFingerprint() -> String? { currentFingerprint }
+    func liveIdentity(forAuthData authData: Data) -> LiveCodexAccountIdentity {
+        LiveCodexAccountIdentity(snapshotFingerprint: capturedFingerprint)
+    }
+    func restoreCurrentAuthData(_ data: Data) throws {}
+    func saveCurrentAuthSnapshot(named name: String, existing: CodexAccount?) throws -> CodexAccount {
+        try saveAuthSnapshot(Data(), named: name, existing: existing)
+    }
+    func saveAuthSnapshot(_ authData: Data, named name: String, existing: CodexAccount?) throws -> CodexAccount {
+        let id = UUID()
+        return CodexAccount(
+            id: id,
+            name: name,
+            snapshotFileName: "\(id.uuidString).json",
+            createdAt: .distantPast,
+            updatedAt: .distantPast,
+            email: nil,
+            planType: nil,
+            rateLimits: nil,
+            identity: CodexAccountIdentity(snapshotFingerprint: capturedFingerprint)
+        )
+    }
+    func deleteAuthSnapshot(for account: CodexAccount) throws {}
+}
+
+private struct IsolatedAddAccountLoginClientProbe: IsolatedCodexLoginClient {
+    let session: IsolatedCodexLoginSession
+
+    func startLogin() async throws -> IsolatedCodexLoginSession {
+        session
+    }
+}
+
+private final class IsolatedAddAccountLoginSessionProbe: IsolatedCodexLoginSession {
+    let prompt = IsolatedCodexLoginPrompt(
+        url: URL(string: "https://auth.openai.com/codex/device")!,
+        userCode: "ABCD-EFGH"
+    )
+    let codexHome = URL(fileURLWithPath: "/tmp/codexpill-test-codex-home")
+    let authData: Data
+    private(set) var cleanupCount = 0
+
+    init(authData: Data) {
+        self.authData = authData
+    }
+
+    func waitForAuthData() async throws -> Data { authData }
+    func verifyLoginStatus() async -> Bool { true }
+    func cancel() {}
+    func cleanup() {
+        cleanupCount += 1
+    }
 }
 
 private struct RemoteHostStatusFixture: RemoteHostClient {

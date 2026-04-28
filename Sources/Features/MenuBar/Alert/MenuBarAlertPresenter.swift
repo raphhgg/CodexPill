@@ -93,7 +93,9 @@ struct MenuBarAddAccountSignInAlertRequest {
     let promptURL: URL
     let waitingStatusText: String
     let copiedStatusText: String
+    let browserOpenedStatusText: String
     let copyTitle: String
+    let openBrowserTitle: String
     let cancelTitle: String
 }
 
@@ -298,6 +300,7 @@ private final class AddAccountSignInWindowController: NSObject, NSWindowDelegate
         let label = NSTextField(labelWithString: request.waitingStatusText)
         label.lineBreakMode = .byWordWrapping
         label.maximumNumberOfLines = 2
+        label.font = .systemFont(ofSize: 13)
         label.textColor = .secondaryLabelColor
         return label
     }()
@@ -320,18 +323,25 @@ private final class AddAccountSignInWindowController: NSObject, NSWindowDelegate
 
     private lazy var copyButton: NSButton = {
         let button = NSButton(title: request.copyTitle, target: self, action: #selector(handleCopyCode))
+        return button
+    }()
+
+    private lazy var openBrowserButton: NSButton = {
+        let button = NSButton(title: request.openBrowserTitle, target: self, action: #selector(handleOpenBrowser))
         button.keyEquivalent = "\r"
         return button
     }()
 
     private lazy var window: NSPanel = {
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 380, height: 230),
-            styleMask: [.titled, .closable],
+            contentRect: NSRect(x: 0, y: 0, width: 500, height: 220),
+            styleMask: [.titled],
             backing: .buffered,
             defer: false
         )
         panel.title = request.messageText
+        panel.titleVisibility = .hidden
+        panel.titlebarAppearsTransparent = true
         panel.isReleasedWhenClosed = false
         panel.level = .modalPanel
         panel.standardWindowButton(.zoomButton)?.isHidden = true
@@ -369,6 +379,7 @@ private final class AddAccountSignInWindowController: NSObject, NSWindowDelegate
         let messageLabel = NSTextField(labelWithString: request.informativeText)
         messageLabel.lineBreakMode = .byWordWrapping
         messageLabel.maximumNumberOfLines = 0
+        messageLabel.font = .systemFont(ofSize: 15)
 
         let codeContainer = NSBox()
         codeContainer.boxType = .custom
@@ -382,7 +393,7 @@ private final class AddAccountSignInWindowController: NSObject, NSWindowDelegate
         let spacer = NSView()
         spacer.translatesAutoresizingMaskIntoConstraints = false
 
-        let buttonRow = NSStackView(views: [spacer, cancelButton, copyButton])
+        let buttonRow = NSStackView(views: [spacer, cancelButton, copyButton, openBrowserButton])
         buttonRow.orientation = .horizontal
         buttonRow.alignment = .centerY
         buttonRow.spacing = 8
@@ -393,15 +404,17 @@ private final class AddAccountSignInWindowController: NSObject, NSWindowDelegate
         stack.spacing = 12
         stack.translatesAutoresizingMaskIntoConstraints = false
 
-        let content = NSView(frame: NSRect(x: 0, y: 0, width: 380, height: 230))
+        let content = NSView(frame: NSRect(x: 0, y: 0, width: 500, height: 220))
         content.addSubview(stack)
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 20),
-            stack.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -20),
-            stack.topAnchor.constraint(equalTo: content.topAnchor, constant: 20),
+            stack.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 24),
+            stack.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -24),
+            stack.topAnchor.constraint(equalTo: content.topAnchor, constant: 24),
             stack.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -20),
+            messageLabel.widthAnchor.constraint(equalTo: stack.widthAnchor),
             codeContainer.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            codeContainer.heightAnchor.constraint(equalToConstant: 56),
+            codeContainer.heightAnchor.constraint(equalToConstant: 64),
+            buttonRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
             codeField.centerXAnchor.constraint(equalTo: codeContainer.centerXAnchor),
             codeField.centerYAnchor.constraint(equalTo: codeContainer.centerYAnchor),
             spacer.widthAnchor.constraint(greaterThanOrEqualToConstant: 0)
@@ -428,6 +441,12 @@ private final class AddAccountSignInWindowController: NSObject, NSWindowDelegate
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(request.userCode, forType: .string)
         statusLabel.stringValue = request.copiedStatusText
+    }
+
+    @objc
+    private func handleOpenBrowser() {
+        NSWorkspace.shared.open(request.promptURL)
+        statusLabel.stringValue = request.browserOpenedStatusText
     }
 
     @objc

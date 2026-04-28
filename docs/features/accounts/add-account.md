@@ -18,8 +18,8 @@ As a CodexPill user, I want to add another Codex account without switching my cu
 2. CodexPill asks for the account display name.
 3. CodexPill validates the display name before sign-in starts.
 4. CodexPill starts an isolated Codex sign-in session.
-5. CodexPill opens the Codex device-auth page in the browser.
-6. CodexPill shows a sign-in alert with the device code and `Copy Code`.
+5. CodexPill shows a sign-in alert with the device code, `Copy Code`, and `Open Browser`.
+6. The user copies the code and opens the Codex device-auth page from the alert.
 7. The user completes sign-in in the browser.
 8. CodexPill captures the isolated auth snapshot and verifies it.
 9. CodexPill saves the account in the local catalog.
@@ -33,8 +33,7 @@ Title: `Sign in to Codex`
 Body:
 
 ```text
-CodexPill opened the Codex sign-in page in your browser.
-Enter this code when prompted:
+Copy this code, then open the Codex sign-in page in your browser.
 ```
 
 The code should be displayed prominently in a monospace style.
@@ -42,6 +41,7 @@ The code should be displayed prominently in a monospace style.
 Actions:
 
 - `Copy Code`: copies the code and keeps the alert open.
+- `Open Browser`: opens the Codex sign-in page and keeps the alert open.
 - `Cancel`: aborts the Add Account attempt.
 
 Status:
@@ -62,8 +62,10 @@ Body:
 
 Actions:
 
-- `Use on This Mac`: routes through the existing local switch path for that saved account.
+- `Use on This Mac`: switches to that saved account immediately without showing a second switch confirmation.
 - `Done`: dismisses the alert.
+
+If Codex CLI sessions are running, the success alert should include the same restart warning used by normal local switch confirmations before the user chooses `Use on This Mac`.
 
 Remote host actions are intentionally omitted from the v0 success alert. Users can switch the new account on a remote host from the normal account menu.
 
@@ -75,7 +77,7 @@ Given the user starts Add Account, when the user enters an empty or duplicate di
 
 ### Device Code Visibility
 
-Given CodexPill starts isolated sign-in, when Codex provides a device code, then CodexPill opens the browser and also displays the code in the app with a `Copy Code` action.
+Given CodexPill starts isolated sign-in, when Codex provides a device code, then CodexPill displays the code in the app with `Copy Code` and `Open Browser` actions before opening the browser.
 
 ### Copy Code Keeps Waiting
 
@@ -85,9 +87,11 @@ Given the sign-in alert is visible, when the user selects `Copy Code`, then the 
 
 Given the user completes browser sign-in, when CodexPill captures and saves the isolated account, then the saved account appears in the catalog and the live local Codex auth remains unchanged.
 
-### Existing Switch Path
+### Use On This Mac
 
-Given the success alert is visible, when the user selects `Use on This Mac`, then CodexPill routes through the existing local account switch confirmation and execution path.
+Given the success alert is visible, when the user selects `Use on This Mac`, then CodexPill switches to the saved account directly and does not show a second switch confirmation.
+
+Given one or more Codex CLI sessions are running, when the success alert is visible, then the alert warns that open Codex CLI terminals must be restarted to use the new account.
 
 ### Cancel During Sign-In
 

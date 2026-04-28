@@ -330,7 +330,12 @@ final class AccountsController {
             operationState.succeed()
             return result.savedAccount
         } catch {
-            operationState.fail(error)
+            if let workflowError = error as? IsolatedAddAccountWorkflowError,
+               case .accountAlreadySaved = workflowError {
+                operationState.succeed()
+            } else {
+                operationState.fail(error)
+            }
             throw error
         }
     }
