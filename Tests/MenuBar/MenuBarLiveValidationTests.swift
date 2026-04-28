@@ -810,7 +810,8 @@ struct MenuBarLiveValidationTests {
         defaults.removePersistentDomain(forName: suiteName)
         let settings = AppSettings(userDefaults: defaults)
         let alertPresenter = MenuBarAlertPresenterProbe()
-        alertPresenter.hostSetupResponse = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
+        let panelPresenter = MenuBarPanelPresenterProbe()
+        panelPresenter.hostSetupResponse = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
         alertPresenter.confirmationResponse = false
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         defer {
@@ -824,6 +825,7 @@ struct MenuBarLiveValidationTests {
             settings: settings,
             remoteHostClient: RemoteHostStatusProbe(),
             alertPresenter: alertPresenter,
+            panelPresenter: panelPresenter,
             allowsEmptyStatePrompt: false
         )
 
@@ -855,7 +857,8 @@ struct MenuBarLiveValidationTests {
         defaults.removePersistentDomain(forName: suiteName)
         let settings = AppSettings(userDefaults: defaults)
         let alertPresenter = MenuBarAlertPresenterProbe()
-        alertPresenter.hostSetupResponse = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
+        let panelPresenter = MenuBarPanelPresenterProbe()
+        panelPresenter.hostSetupResponse = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
         alertPresenter.confirmationResponse = true
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         defer {
@@ -869,6 +872,7 @@ struct MenuBarLiveValidationTests {
             settings: settings,
             remoteHostClient: remoteHostClient,
             alertPresenter: alertPresenter,
+            panelPresenter: panelPresenter,
             allowsEmptyStatePrompt: false
         )
 

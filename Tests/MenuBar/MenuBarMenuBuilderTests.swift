@@ -10,13 +10,9 @@ final class MenuBarAlertPresenterProbe: MenuBarAlertPresenter {
     private(set) var textInputRequests: [MenuBarTextInputAlertRequest] = []
     private(set) var confirmationRequests: [MenuBarConfirmationAlertRequest] = []
     private(set) var infoRequests: [MenuBarInfoAlertRequest] = []
-    private(set) var hostSetupRequests: [MenuBarHostSetupAlertRequest] = []
-    private(set) var addAccountSignInRequests: [MenuBarAddAccountSignInAlertRequest] = []
 
     var textInputResponse: String?
     var confirmationResponse = false
-    var hostSetupResponse: RemoteHost?
-    var addAccountSignInResult: MenuBarAddAccountSignInAlertResult = .cancelled
 
     func presentTextInput(_ request: MenuBarTextInputAlertRequest) -> String? {
         textInputRequests.append(request)
@@ -31,9 +27,18 @@ final class MenuBarAlertPresenterProbe: MenuBarAlertPresenter {
     func presentInfo(_ request: MenuBarInfoAlertRequest) {
         infoRequests.append(request)
     }
+}
+
+@MainActor
+final class MenuBarPanelPresenterProbe: MenuBarPanelPresenter {
+    private(set) var hostSetupRequests: [MenuBarHostSetupPanelRequest] = []
+    private(set) var addAccountSignInRequests: [MenuBarAddAccountSignInPanelRequest] = []
+
+    var hostSetupResponse: RemoteHost?
+    var addAccountSignInResult: MenuBarAddAccountSignInPanelResult = .cancelled
 
     func presentHostSetup(
-        _ request: MenuBarHostSetupAlertRequest,
+        _ request: MenuBarHostSetupPanelRequest,
         testConnection _: @escaping (RemoteHost) async -> Result<Void, Error>,
         onPresented: @escaping () -> Void = {},
         onCancelled _: @escaping () -> Void = {},
@@ -46,10 +51,10 @@ final class MenuBarAlertPresenterProbe: MenuBarAlertPresenter {
     }
 
     func presentAddAccountSignIn(
-        _ request: MenuBarAddAccountSignInAlertRequest,
+        _ request: MenuBarAddAccountSignInPanelRequest,
         waitForCompletion _: @escaping () async -> Result<CodexAccount, Error>,
         onCancel _: @escaping () -> Void
-    ) async -> MenuBarAddAccountSignInAlertResult {
+    ) async -> MenuBarAddAccountSignInPanelResult {
         addAccountSignInRequests.append(request)
         return addAccountSignInResult
     }
@@ -116,12 +121,15 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func realAlertPresenterCancelsInteractivePromptsDuringAutomatedTests() async {
-        let presenter = SystemMenuBarAlertPresenter(
+    func realPresentersCancelInteractivePromptsDuringAutomatedTests() async {
+        let alertPresenter = SystemMenuBarAlertPresenter(
+            environment: [AppRuntimeEnvironment.xctestConfigurationFilePathEnvironmentKey: "/tmp/test.xctestconfiguration"]
+        )
+        let panelPresenter = SystemMenuBarPanelPresenter(
             environment: [AppRuntimeEnvironment.xctestConfigurationFilePathEnvironmentKey: "/tmp/test.xctestconfiguration"]
         )
 
-        let textValue = presenter.presentTextInput(
+        let textValue = alertPresenter.presentTextInput(
             MenuBarTextInputAlertRequest(
                 messageText: "Rename",
                 informativeText: "Rename account",
@@ -131,7 +139,7 @@ struct MenuBarMenuBuilderTests {
                 cancelTitle: "Cancel"
             )
         )
-        let confirmation = presenter.presentConfirmation(
+        let confirmation = alertPresenter.presentConfirmation(
             MenuBarConfirmationAlertRequest(
                 messageText: "Remove",
                 informativeText: "Delete account",
@@ -140,8 +148,8 @@ struct MenuBarMenuBuilderTests {
             )
         )
         var cancelled = false
-        let hostValue = await presenter.presentHostSetup(
-            MenuBarHostSetupAlertRequest(
+        let hostValue = await panelPresenter.presentHostSetup(
+            MenuBarHostSetupPanelRequest(
                 messageText: "Add host",
                 informativeText: "Connect a host",
                 fieldTitle: "SSH Destination",
@@ -1246,7 +1254,8 @@ struct MenuBarMenuBuilderTests {
             statusItemRuntime: statusItemRuntime,
             store: store,
             settings: settings,
-            alertPresenter: MenuBarAlertPresenterProbe()
+            alertPresenter: MenuBarAlertPresenterProbe(),
+            panelPresenter: MenuBarPanelPresenterProbe()
         )
         return (coordinator, statusItem)
     }

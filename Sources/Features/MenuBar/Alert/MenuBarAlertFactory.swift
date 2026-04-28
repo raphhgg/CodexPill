@@ -23,8 +23,8 @@ struct MenuBarAlertFactory {
         )
     }
 
-    func makeAddAccountSignInRequest(prompt: IsolatedCodexLoginPrompt) -> MenuBarAddAccountSignInAlertRequest {
-        MenuBarAddAccountSignInAlertRequest(
+    func makeAddAccountSignInRequest(prompt: IsolatedCodexLoginPrompt) -> MenuBarAddAccountSignInPanelRequest {
+        MenuBarAddAccountSignInPanelRequest(
             messageText: "Sign in to Codex",
             informativeText: "Copy this code, then open the Codex sign-in page in your browser.",
             userCode: prompt.userCode,
@@ -140,8 +140,8 @@ struct MenuBarAlertFactory {
         )
     }
 
-    func makeAddHostRequest() -> MenuBarHostSetupAlertRequest {
-        MenuBarHostSetupAlertRequest(
+    func makeAddHostRequest() -> MenuBarHostSetupPanelRequest {
+        MenuBarHostSetupPanelRequest(
             messageText: "Add remote host",
             informativeText: "Enter the SSH destination for the host you want CodexPill to target, for example user@host.",
             fieldTitle: "SSH Destination",
