@@ -41,6 +41,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let remoteHostClient: RemoteHostClient
     private let cliProcessInspector: CodexCLIProcessInspector
     private let alertPresenter: MenuBarAlertPresenter
+    private let panelPresenter: MenuBarPanelPresenter
     private let alertFactory: MenuBarAlertFactory
     private let notificationStateStore: NotificationStateStore
     private let notificationDelivery: AccountAvailabilityNotifier
@@ -81,6 +82,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         remoteHostClient: RemoteHostClient = UnavailableRemoteHostClient(),
         cliProcessInspector: CodexCLIProcessInspector = CodexCLIProcessInspector(),
         alertPresenter: MenuBarAlertPresenter,
+        panelPresenter: MenuBarPanelPresenter? = nil,
         alertFactory: MenuBarAlertFactory = MenuBarAlertFactory(),
         notificationDelivery: AccountAvailabilityNotifier = AccountAvailabilityNotificationCenter(),
         applicationActivator: ApplicationActivator = NSApplicationActivator(),
@@ -96,6 +98,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.remoteHostClient = remoteHostClient
         self.cliProcessInspector = cliProcessInspector
         self.alertPresenter = alertPresenter
+        self.panelPresenter = panelPresenter ?? SystemMenuBarPanelPresenter()
         self.alertFactory = alertFactory
         self.notificationStateStore = NotificationStateStore(settings: settings)
         self.notificationDelivery = notificationDelivery
@@ -495,7 +498,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         sealValidationRun?.recordAddHostMenuAction()
         Task { @MainActor [weak self] in
             guard let self else { return }
-            guard let remoteHost = await self.alertPresenter.presentHostSetup(
+            guard let remoteHost = await self.panelPresenter.presentHostSetup(
                 self.alertFactory.makeAddHostRequest(),
                 testConnection: { [weak self] host in
                     guard let self else {
@@ -834,7 +837,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             activeIsolatedAddAccountSession = session
 
             let signInRequest = alertFactory.makeAddAccountSignInRequest(prompt: session.prompt)
-            let result = await alertPresenter.presentAddAccountSignIn(
+            let result = await panelPresenter.presentAddAccountSignIn(
                 signInRequest,
                 waitForCompletion: { [store] in
                     do {
