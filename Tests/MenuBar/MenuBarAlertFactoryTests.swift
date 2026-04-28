@@ -78,6 +78,22 @@ struct MenuBarAlertFactoryTests {
     }
 
     @Test
+    func addAccountFailureRequestsUseSpecificRecoveryCopy() {
+        let expired = factory.makeAddAccountExpiredRequest()
+        #expect(expired.messageText == "Sign-In Expired")
+        #expect(expired.confirmTitle == "Try Again")
+        #expect(expired.cancelTitle == "Cancel")
+
+        let duplicate = factory.makeAccountAlreadySavedRequest(accountName: "Business 4")
+        #expect(duplicate.messageText == "Account Already Saved")
+        #expect(duplicate.informativeText.contains("Business 4"))
+
+        #expect(factory.makeAddAccountStartFailureRequest().messageText == "Couldn't Start Sign-In")
+        #expect(factory.makeAddAccountUnsafeAuthChangeRequest().messageText == "Couldn't Add Account")
+        #expect(factory.makeAddAccountSaveFailureRequest().messageText == "Couldn't Save Account")
+    }
+
+    @Test
     func removeAccountWarningMentionsCurrentAccountConsequence() {
         let request = factory.makeRemoveAccountRequest(accountName: "Work", isCurrent: true)
 

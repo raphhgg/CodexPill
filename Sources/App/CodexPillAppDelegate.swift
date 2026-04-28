@@ -9,6 +9,8 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
     private var wakeObserver: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        try? IsolatedCodexHomeSession.cleanupStaleSessions()
+
         let environment = ProcessInfo.processInfo.environment
         let defaults = AppRuntimeEnvironment.validationUserDefaultsSuiteName(environment: environment)
             .flatMap(UserDefaults.init(suiteName:))

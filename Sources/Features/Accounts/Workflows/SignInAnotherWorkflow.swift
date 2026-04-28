@@ -102,11 +102,20 @@ struct SignInAnotherWorkflow {
             throw IsolatedAddAccountWorkflowError.accountAlreadySaved(matchedAccount.name)
         }
 
-        let saved = try authService.saveAuthSnapshot(authData, named: session.accountName, existing: nil)
+        let saved: CodexAccount
+        do {
+            saved = try authService.saveAuthSnapshot(authData, named: session.accountName, existing: nil)
+        } catch {
+            throw IsolatedAddAccountWorkflowError.catalogSaveFailed
+        }
         var updatedAccounts = existingAccounts
         updatedAccounts.append(saved)
         updatedAccounts.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-        try repository.saveAccounts(updatedAccounts)
+        do {
+            try repository.saveAccounts(updatedAccounts)
+        } catch {
+            throw IsolatedAddAccountWorkflowError.catalogSaveFailed
+        }
 
         return CompletePendingSignedInAccountResult(
             savedAccount: saved,
@@ -214,6 +223,7 @@ struct SignInAnotherWorkflow {
 enum IsolatedAddAccountWorkflowError: Equatable, LocalizedError {
     case liveAuthChanged
     case accountAlreadySaved(String)
+    case catalogSaveFailed
 
     var errorDescription: String? {
         switch self {
@@ -221,6 +231,8 @@ enum IsolatedAddAccountWorkflowError: Equatable, LocalizedError {
             "CodexPill could not verify that your current account stayed unchanged. No account was added."
         case .accountAlreadySaved(let name):
             "This Codex account is already saved as \(name)."
+        case .catalogSaveFailed:
+            "The sign-in completed, but CodexPill could not save the account. Your current Codex account was not changed."
         }
     }
 }

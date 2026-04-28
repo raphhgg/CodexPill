@@ -74,6 +74,8 @@ The following behavior should be treated as automated first and should not live 
   - `SignInAnotherWorkflowTests`
 - sign-in-another duplicate-name preflight and terminal pending-error handling:
   - `SignInAnotherWorkflowTests` plus `AccountsControllerTests`
+- isolated Add Account success, duplicate identity, cancel, save-failure, and stale-temp cleanup behavior:
+  - `SignInAnotherWorkflowTests`, `MenuBarAlertFactoryTests`, and `AppPathsTests`
 - switch-account relaunch and persistence behavior:
   - `SwitchAccountWorkflowTests`
 - remote-host SSH command mapping and failure surfacing:
@@ -178,6 +180,14 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `owner_layer`: `unit`
 - `proofs_required`: `["unit"]`
 - `scenarios`: `["sign_in_another_terminal_completion_error"]`
+
+### `accounts.add_account.isolated_failure_cleanup`
+
+- `feature`: `accounts`
+- `rule`: Isolated Add Account must terminate and clean temporary `CODEX_HOME` state on cancellation, timeout, duplicate captured identity, live-auth mutation, and save failure. Retry after an expired code starts a fresh isolated login; stale isolated homes from interrupted attempts are removed on next app launch.
+- `owner_layer`: `integration`
+- `proofs_required`: `["unit", "integration"]`
+- `scenarios`: `["isolated_add_account_cancel_cleanup", "isolated_add_account_duplicate_identity", "isolated_add_account_live_auth_changed", "isolated_add_account_catalog_save_failure", "stale_isolated_codex_home_cleanup"]`
 
 ### `accounts.scheduled_refresh.requested_and_completed`
 
