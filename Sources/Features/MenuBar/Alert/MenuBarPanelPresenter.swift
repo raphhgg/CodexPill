@@ -470,10 +470,15 @@ private struct MenuBarAddAccountSignInPanelView: View {
 }
 
 private struct MenuBarHostSetupPanelView: View {
+    private enum Field {
+        case destination
+    }
+
     let request: MenuBarHostSetupPanelRequest
     @ObservedObject var model: MenuBarHostSetupPanelModel
     let onCancel: () -> Void
     let onAddHost: () -> Void
+    @FocusState private var focusedField: Field?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -495,6 +500,7 @@ private struct MenuBarHostSetupPanelView: View {
                 TextField(request.placeholder, text: $model.destination)
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 320)
+                    .focused($focusedField, equals: .destination)
                     .onSubmit {
                         model.validateImmediatelyOrSubmit(onSubmit: onAddHost)
                     }
@@ -527,6 +533,9 @@ private struct MenuBarHostSetupPanelView: View {
         .padding(.horizontal, 24)
         .padding(.bottom, 18)
         .frame(width: 520)
+        .onAppear {
+            focusedField = .destination
+        }
     }
 
     private var statusColor: Color {
