@@ -74,7 +74,7 @@ struct MenuBarAlertFactoryTests {
         #expect(request.informativeText.contains("Business 2 was saved"))
         #expect(request.informativeText.contains("current local Codex session was not changed"))
         #expect(request.confirmTitle == "Use on This Mac")
-        #expect(request.cancelTitle == "OK")
+        #expect(request.cancelTitle == "Done")
     }
 
     @Test

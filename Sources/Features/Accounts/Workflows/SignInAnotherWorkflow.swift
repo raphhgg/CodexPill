@@ -5,6 +5,7 @@ protocol CodexSignInAuthStore: CodexAuthSnapshotStore {
     func readCurrentAuthData() throws -> Data
     func saveAuthSnapshot(_ authData: Data, named name: String, existing: CodexAccount?) throws -> CodexAccount
     func currentAuthFingerprint() -> String?
+    func liveIdentity(forAuthData authData: Data) -> LiveCodexAccountIdentity
 }
 
 extension CodexAuthSnapshotService: CodexSignInAuthStore {}
@@ -88,6 +89,17 @@ struct SignInAnotherWorkflow {
         }
         guard authService.currentAuthFingerprint() == session.liveAuthFingerprintBefore else {
             throw IsolatedAddAccountWorkflowError.liveAuthChanged
+        }
+
+        let capturedIdentity = authService.liveIdentity(forAuthData: authData)
+        let matchOutcome = identityResolver.resolve(
+            liveIdentity: capturedIdentity,
+            accounts: existingAccounts
+        )
+        if matchOutcome.isSafeForOverwrite,
+           let matchedAccountID = matchOutcome.matchedAccountID,
+           let matchedAccount = existingAccounts.first(where: { $0.id == matchedAccountID }) {
+            throw IsolatedAddAccountWorkflowError.accountAlreadySaved(matchedAccount.name)
         }
 
         let saved = try authService.saveAuthSnapshot(authData, named: session.accountName, existing: nil)
@@ -199,13 +211,16 @@ struct SignInAnotherWorkflow {
     }
 }
 
-enum IsolatedAddAccountWorkflowError: LocalizedError {
+enum IsolatedAddAccountWorkflowError: Equatable, LocalizedError {
     case liveAuthChanged
+    case accountAlreadySaved(String)
 
     var errorDescription: String? {
         switch self {
         case .liveAuthChanged:
             "CodexPill could not verify that your current account stayed unchanged. No account was added."
+        case .accountAlreadySaved(let name):
+            "This Codex account is already saved as \(name)."
         }
     }
 }

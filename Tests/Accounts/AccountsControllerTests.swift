@@ -533,6 +533,7 @@ private final class NullAuthService: CodexAuthSessionStore, CodexAuthSnapshotSto
 
     func readCurrentAuthData() throws -> Data { Data() }
     func currentAuthFingerprint() -> String? { nil }
+    func liveIdentity(forAuthData authData: Data) -> LiveCodexAccountIdentity { .empty }
     func restoreCurrentAuthData(_ data: Data) throws {}
     func saveCurrentAuthSnapshot(named name: String, existing: CodexAccount?) throws -> CodexAccount {
         try saveAuthSnapshot(Data(), named: name, existing: existing)
@@ -569,6 +570,7 @@ private final class SignInAuthErrorCase: CodexAuthSessionStore, CodexAuthSnapsho
     func prepareForNewSignIn() throws {}
     func readCurrentAuthData() throws -> Data { Data() }
     func currentAuthFingerprint() -> String? { nil }
+    func liveIdentity(forAuthData authData: Data) -> LiveCodexAccountIdentity { .empty }
     func restoreCurrentAuthData(_ data: Data) throws {}
     func saveCurrentAuthSnapshot(named name: String, existing: CodexAccount?) throws -> CodexAccount {
         try saveAuthSnapshot(Data(), named: name, existing: existing)

@@ -114,6 +114,16 @@ struct CodexAuthSnapshotService {
         return CodexAuthDataParser.remoteIdentity(from: current)
     }
 
+    func liveIdentity(forAuthData authData: Data) -> LiveCodexAccountIdentity {
+        LiveCodexAccountIdentity(
+            stableAccountID: Self.stableAccountID(for: authData),
+            authPrincipalIdentity: Self.authPrincipalIdentity(for: authData),
+            workspaceIdentity: Self.workspaceIdentity(for: authData),
+            snapshotFingerprint: Self.snapshotFingerprint(for: authData),
+            remoteIdentity: CodexAuthDataParser.remoteIdentity(from: authData)
+        )
+    }
+
     func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {
         accounts.map { account in
             var reconciled = account
@@ -147,12 +157,12 @@ struct CodexAuthSnapshotService {
         }
     }
 
-    private static func snapshotFingerprint(for data: Data) -> String {
+    static func snapshotFingerprint(for data: Data) -> String {
         let digest = SHA256.hash(data: data)
         return digest.map { String(format: "%02x", $0) }.joined()
     }
 
-    private static func stableAccountID(for data: Data) -> String? {
+    static func stableAccountID(for data: Data) -> String? {
         CodexAuthDataParser.stableAccountID(from: data)
     }
 

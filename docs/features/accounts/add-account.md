@@ -63,7 +63,7 @@ Body:
 Actions:
 
 - `Use on This Mac`: routes through the existing local switch path for that saved account.
-- `OK`: dismisses the alert.
+- `Done`: dismisses the alert.
 
 Remote host actions are intentionally omitted from the v0 success alert. Users can switch the new account on a remote host from the normal account menu.
 

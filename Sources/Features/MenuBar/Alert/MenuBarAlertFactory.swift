@@ -41,7 +41,7 @@ struct MenuBarAlertFactory {
             messageText: "Account Added",
             informativeText: "\(accountName) was saved. Your current local Codex session was not changed.",
             confirmTitle: "Use on This Mac",
-            cancelTitle: "OK"
+            cancelTitle: "Done"
         )
     }
 
