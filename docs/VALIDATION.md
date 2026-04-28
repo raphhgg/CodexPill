@@ -76,6 +76,8 @@ The following behavior should be treated as automated first and should not live 
   - `SignInAnotherWorkflowTests` plus `AccountsControllerTests`
 - isolated Add Account success, duplicate identity, cancel, save-failure, and stale-temp cleanup behavior:
   - `SignInAnotherWorkflowTests`, `MenuBarAlertFactoryTests`, and `AppPathsTests`
+- Add Account v0 contract coverage:
+  - `SignInAnotherWorkflowTests`, `MenuBarAlertFactoryTests`, `AppPathsTests`, `MenuBarUIValidationTests`, and `SCENARIO=live-add-account-name-dialog-cancelled make verify-ui-live`
 - switch-account relaunch and persistence behavior:
   - `SwitchAccountWorkflowTests`
 - remote-host SSH command mapping and failure surfacing:
@@ -164,6 +166,30 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `proofs_required`: `["live_ui"]`
 - `scenarios`: `["live-add-account-name-dialog-cancelled", "add-account-name-dialog-cancelled"]`
 - `event_evidence`: `["menu_action_dispatched", "add_account_name_dialog_presented", "add_account_name_dialog_cancelled"]`
+
+### `accounts.add_account.v0_contract`
+
+- `feature`: `accounts`
+- `rule`: Add Account saves a new local account through an isolated Codex sign-in flow without switching the current local account. The flow must expose the device code in-app, allow safe cancellation, route optional local use through the existing switch path, block duplicate display names and duplicate captured identities, clean temporary auth state, and never mutate real user auth from tests unless an explicit live-auth scenario opts in.
+- `owner_layer`: `integration`
+- `proofs_required`: `["unit", "integration", "deterministic_ui", "live_ui"]`
+- `scenarios`: `["add_account_duplicate_display_name_blocks_before_sign_in", "add_account_shows_device_code_and_copy_action", "add_account_copy_code_keeps_waiting", "add_account_saves_without_switching", "add_account_use_on_this_mac_routes_existing_switch_flow", "add_account_cancel_cleans_up", "add_account_duplicate_identity_blocks_after_sign_in", "add_account_expired_code_allows_try_again", "add_account_failed_before_code_clears_state", "add_account_live_auth_mutation_aborts", "add_account_catalog_save_failure_does_not_switch", "add_account_quit_cleans_up", "add_account_startup_removes_stale_temp_homes"]`
+- `automated_proofs`:
+  - `add_account_duplicate_display_name_blocks_before_sign_in`: `SignInAnotherWorkflowTests.isolatedAddAccountRejectsDuplicateNameBeforeStartingLogin`
+  - `add_account_shows_device_code_and_copy_action`: `MenuBarAlertFactoryTests.addAccountSignInRequestShowsDeviceCodeCopy`
+  - `add_account_copy_code_keeps_waiting`: covered by the native sign-in alert contract; manual/live UI because AppKit clipboard interaction must not expose the code in artifacts
+  - `add_account_saves_without_switching`: `SignInAnotherWorkflowTests.completeIsolatedAddAccountPersistsCapturedAuthWithoutChangingActiveAccount`
+  - `add_account_use_on_this_mac_routes_existing_switch_flow`: `MenuBarAlertFactoryTests.addAccountSuccessRequestOffersOptionalLocalSwitch` plus existing `SwitchAccountWorkflowTests`
+  - `add_account_cancel_cleans_up`: `SignInAnotherWorkflowTests.cancelIsolatedAddAccountTerminatesLoginAndCleansTemporaryHome`
+  - `add_account_duplicate_identity_blocks_after_sign_in`: `SignInAnotherWorkflowTests.completeIsolatedAddAccountRejectsAlreadySavedCapturedIdentity`
+  - `add_account_expired_code_allows_try_again`: `MenuBarAlertFactoryTests.addAccountFailureRequestsUseSpecificRecoveryCopy`
+  - `add_account_failed_before_code_clears_state`: `MenuBarAlertFactoryTests.addAccountFailureRequestsUseSpecificRecoveryCopy`
+  - `add_account_live_auth_mutation_aborts`: `SignInAnotherWorkflowTests.completeIsolatedAddAccountAbortsWhenLiveAuthChangesDuringSignIn`
+  - `add_account_catalog_save_failure_does_not_switch`: `SignInAnotherWorkflowTests.completeIsolatedAddAccountMapsCatalogSaveFailureAfterCapture` and `SignInAnotherWorkflowTests.completeIsolatedAddAccountMapsRepositorySaveFailureAfterSnapshotSave`
+  - `add_account_quit_cleans_up`: coordinator invalidation cancels the active isolated session; live quit validation is manual-only unless an explicit live process-mutation scenario is added
+  - `add_account_startup_removes_stale_temp_homes`: `AppPathsTests.staleIsolatedCodexHomeCleanupRemovesOnlyOldSessionDirectories`
+- `live_safe_scenarios`: `["live-add-account-name-dialog-cancelled"]`
+- `manual_or_live_auth_gaps`: `["real_browser_device_auth_completion", "copy_code_clipboard_interaction", "app_quit_during_real_device_auth"]`
 
 ### `accounts.add_account.duplicate_name_preflight`
 
