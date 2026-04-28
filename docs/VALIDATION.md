@@ -177,19 +177,18 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `automated_proofs`:
   - `add_account_duplicate_display_name_blocks_before_sign_in`: `SignInAnotherWorkflowTests.isolatedAddAccountRejectsDuplicateNameBeforeStartingLogin`
   - `add_account_shows_device_code_and_copy_action`: `MenuBarAlertFactoryTests.addAccountSignInRequestShowsDeviceCodeCopy`
-  - `add_account_copy_code_keeps_waiting`: covered by the native sign-in alert contract; manual/live UI because AppKit clipboard interaction must not expose the code in artifacts
   - `add_account_saves_without_switching`: `SignInAnotherWorkflowTests.completeIsolatedAddAccountPersistsCapturedAuthWithoutChangingActiveAccount`
-  - `add_account_use_on_this_mac_routes_existing_switch_flow`: `MenuBarAlertFactoryTests.addAccountSuccessRequestOffersOptionalLocalSwitch` plus existing `SwitchAccountWorkflowTests`
   - `add_account_cancel_cleans_up`: `SignInAnotherWorkflowTests.cancelIsolatedAddAccountTerminatesLoginAndCleansTemporaryHome`
   - `add_account_duplicate_identity_blocks_after_sign_in`: `SignInAnotherWorkflowTests.completeIsolatedAddAccountRejectsAlreadySavedCapturedIdentity`
-  - `add_account_expired_code_allows_try_again`: `MenuBarAlertFactoryTests.addAccountFailureRequestsUseSpecificRecoveryCopy`
-  - `add_account_failed_before_code_clears_state`: `MenuBarAlertFactoryTests.addAccountFailureRequestsUseSpecificRecoveryCopy`
   - `add_account_live_auth_mutation_aborts`: `SignInAnotherWorkflowTests.completeIsolatedAddAccountAbortsWhenLiveAuthChangesDuringSignIn`
   - `add_account_catalog_save_failure_does_not_switch`: `SignInAnotherWorkflowTests.completeIsolatedAddAccountMapsCatalogSaveFailureAfterCapture` and `SignInAnotherWorkflowTests.completeIsolatedAddAccountMapsRepositorySaveFailureAfterSnapshotSave`
-  - `add_account_quit_cleans_up`: coordinator invalidation cancels the active isolated session; live quit validation is manual-only unless an explicit live process-mutation scenario is added
   - `add_account_startup_removes_stale_temp_homes`: `AppPathsTests.staleIsolatedCodexHomeCleanupRemovesOnlyOldSessionDirectories`
+- `copy_or_shape_proofs`:
+  - `add_account_use_on_this_mac_routes_existing_switch_flow`: `MenuBarAlertFactoryTests.addAccountSuccessRequestOffersOptionalLocalSwitch` proves the success alert exposes the intended action; `SwitchAccountWorkflowTests` prove the existing switch path itself
+  - `add_account_expired_code_allows_try_again`: `MenuBarAlertFactoryTests.addAccountFailureRequestsUseSpecificRecoveryCopy` proves the retry copy/actions only
+  - `add_account_failed_before_code_clears_state`: `MenuBarAlertFactoryTests.addAccountFailureRequestsUseSpecificRecoveryCopy` proves the start-failure copy only
 - `live_safe_scenarios`: `["live-add-account-name-dialog-cancelled"]`
-- `manual_or_live_auth_gaps`: `["real_browser_device_auth_completion", "copy_code_clipboard_interaction", "app_quit_during_real_device_auth"]`
+- `manual_or_live_auth_gaps`: `["real_browser_device_auth_completion", "copy_code_clipboard_interaction", "success_alert_use_on_this_mac_coordinator_wiring", "expired_code_try_again_starts_fresh_login", "failed_before_code_state_cleanup", "app_quit_during_real_device_auth"]`
 
 ### `accounts.add_account.duplicate_name_preflight`
 
