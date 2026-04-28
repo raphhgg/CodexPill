@@ -3,6 +3,8 @@ import Foundation
 protocol CodexSignInAuthStore: CodexAuthSnapshotStore {
     func prepareForNewSignIn() throws
     func readCurrentAuthData() throws -> Data
+    func saveAuthSnapshot(_ authData: Data, named name: String, existing: CodexAccount?) throws -> CodexAccount
+    func currentAuthFingerprint() -> String?
 }
 
 extension CodexAuthSnapshotService: CodexSignInAuthStore {}
@@ -16,32 +18,97 @@ struct CompletePendingSignedInAccountResult {
     let activeAccountID: UUID?
 }
 
+final class IsolatedAddAccountSignInSession {
+    let accountName: String
+    let prompt: IsolatedCodexLoginPrompt
+
+    fileprivate let liveAuthFingerprintBefore: String?
+    fileprivate let loginSession: IsolatedCodexLoginSession
+
+    init(
+        accountName: String,
+        liveAuthFingerprintBefore: String?,
+        loginSession: IsolatedCodexLoginSession
+    ) {
+        self.accountName = accountName
+        self.liveAuthFingerprintBefore = liveAuthFingerprintBefore
+        self.loginSession = loginSession
+        self.prompt = loginSession.prompt
+    }
+}
+
 struct SignInAnotherWorkflow {
     private let authService: CodexSignInAuthStore
     private let codexAppProcessClient: CodexAppProcessClient
     private let accountStatusClient: CodexAccountStatusClient
     private let repository: AccountCatalogStore
     private let identityResolver: SavedAccountIdentityResolver
+    private let isolatedLoginClient: IsolatedCodexLoginClient
 
     init(
         authService: CodexSignInAuthStore,
         codexAppProcessClient: CodexAppProcessClient,
         accountStatusClient: CodexAccountStatusClient,
         repository: AccountCatalogStore,
-        identityResolver: SavedAccountIdentityResolver
+        identityResolver: SavedAccountIdentityResolver,
+        isolatedLoginClient: IsolatedCodexLoginClient = SystemIsolatedCodexLoginClient()
     ) {
         self.authService = authService
         self.codexAppProcessClient = codexAppProcessClient
         self.accountStatusClient = accountStatusClient
         self.repository = repository
         self.identityResolver = identityResolver
+        self.isolatedLoginClient = isolatedLoginClient
+    }
+
+    func startIsolatedAddAccount(
+        named pendingAccountName: String?,
+        existingAccounts: [CodexAccount]
+    ) async throws -> IsolatedAddAccountSignInSession {
+        let resolvedName = try validateNewAccountName(pendingAccountName, existingAccounts: existingAccounts)
+        let liveAuthFingerprintBefore = authService.currentAuthFingerprint()
+        let loginSession = try await isolatedLoginClient.startLogin()
+        return IsolatedAddAccountSignInSession(
+            accountName: resolvedName,
+            liveAuthFingerprintBefore: liveAuthFingerprintBefore,
+            loginSession: loginSession
+        )
+    }
+
+    func completeIsolatedAddAccount(
+        _ session: IsolatedAddAccountSignInSession,
+        existingAccounts: [CodexAccount],
+        activeAccountID: UUID?
+    ) async throws -> CompletePendingSignedInAccountResult {
+        defer { session.loginSession.cleanup() }
+
+        let authData = try await session.loginSession.waitForAuthData()
+        guard await session.loginSession.verifyLoginStatus() else {
+            throw IsolatedCodexLoginError.loginStatusVerificationFailed
+        }
+        guard authService.currentAuthFingerprint() == session.liveAuthFingerprintBefore else {
+            throw IsolatedAddAccountWorkflowError.liveAuthChanged
+        }
+
+        let saved = try authService.saveAuthSnapshot(authData, named: session.accountName, existing: nil)
+        var updatedAccounts = existingAccounts
+        updatedAccounts.append(saved)
+        updatedAccounts.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        try repository.saveAccounts(updatedAccounts)
+
+        return CompletePendingSignedInAccountResult(
+            savedAccount: saved,
+            activeAccountID: activeAccountID
+        )
+    }
+
+    func cancelIsolatedAddAccount(_ session: IsolatedAddAccountSignInSession) {
+        session.loginSession.cancel()
+        session.loginSession.cleanup()
     }
 
     func prepare(named pendingAccountName: String?, existingAccounts: [CodexAccount]) throws -> SignInAnotherPreparationResult {
-        let resolvedName = resolveAccountName(pendingAccountName, fallbackEmail: nil)
-        guard !existingAccounts.contains(where: { $0.name.caseInsensitiveCompare(resolvedName) == .orderedSame }) else {
-            throw SaveCurrentAccountWorkflowError.duplicateAccountName
-        }
+        let resolvedName = try validateNewAccountName(pendingAccountName, existingAccounts: existingAccounts)
 
         try codexAppProcessClient.assertCodexAvailable()
         try authService.prepareForNewSignIn()
@@ -115,5 +182,30 @@ struct SignInAnotherWorkflow {
         }
 
         return "Codex Account"
+    }
+
+    private func validateNewAccountName(
+        _ customName: String?,
+        existingAccounts: [CodexAccount]
+    ) throws -> String {
+        let resolvedName = customName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !resolvedName.isEmpty else {
+            throw SaveCurrentAccountWorkflowError.emptyAccountName
+        }
+        guard !existingAccounts.contains(where: { $0.name.caseInsensitiveCompare(resolvedName) == .orderedSame }) else {
+            throw SaveCurrentAccountWorkflowError.duplicateAccountName
+        }
+        return resolvedName
+    }
+}
+
+enum IsolatedAddAccountWorkflowError: LocalizedError {
+    case liveAuthChanged
+
+    var errorDescription: String? {
+        switch self {
+        case .liveAuthChanged:
+            "CodexPill could not verify that your current account stayed unchanged. No account was added."
+        }
     }
 }

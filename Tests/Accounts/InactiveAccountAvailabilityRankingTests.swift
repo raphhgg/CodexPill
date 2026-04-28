@@ -1080,9 +1080,14 @@ private struct RankingNullAuthService: CodexAuthSessionStore, CodexAuthSnapshotS
     func activate(_ account: CodexAccount) throws {}
     func prepareForNewSignIn() throws {}
     func readCurrentAuthData() throws -> Data { Data() }
+    func currentAuthFingerprint() -> String? { nil }
     func restoreCurrentAuthData(_ data: Data) throws {}
 
     func saveCurrentAuthSnapshot(named name: String, existing: CodexAccount?) throws -> CodexAccount {
+        try saveAuthSnapshot(Data(), named: name, existing: existing)
+    }
+
+    func saveAuthSnapshot(_ authData: Data, named name: String, existing: CodexAccount?) throws -> CodexAccount {
         existing ?? CodexAccount(
             id: UUID(),
             name: name,

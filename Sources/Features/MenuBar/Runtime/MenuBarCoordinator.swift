@@ -231,8 +231,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             payload: ["enteredName": name]
         )
 
-        menuBarCoordinatorLogger.log("Dispatching add-account task to store")
-        Task { await store.startSignInAnotherAccountFlow(named: name) }
+        menuBarCoordinatorLogger.log("Dispatching isolated add-account task to store")
+        Task { @MainActor [weak self] in
+            await self?.beginIsolatedAddAccount(named: name)
+        }
     }
 
     @objc
@@ -822,6 +824,48 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         guard accepted else { return }
         sealValidationRun?.recordSwitchConfirmationAccepted(targetAccount: account)
         beginLocalSwitch(to: account)
+    }
+
+    private func beginIsolatedAddAccount(named name: String) async {
+        do {
+            let session = try await store.startIsolatedAddAccountFlow(named: name)
+            NSWorkspace.shared.open(session.prompt.url)
+
+            let signInRequest = alertFactory.makeAddAccountSignInRequest(prompt: session.prompt)
+            let result = await alertPresenter.presentAddAccountSignIn(
+                signInRequest,
+                waitForCompletion: { [store] in
+                    do {
+                        let account = try await store.completeIsolatedAddAccount(session)
+                        return .success(account)
+                    } catch {
+                        return .failure(error)
+                    }
+                },
+                onCancel: { [store] in
+                    store.cancelIsolatedAddAccount(session)
+                }
+            )
+
+            switch result {
+            case .completed(let account):
+                presentAddAccountSuccess(for: account)
+            case .failed(let message):
+                let pendingMessage = store.consumePendingErrorMessage() ?? message
+                alertPresenter.presentInfo(alertFactory.makeErrorRequest(message: pendingMessage))
+            case .cancelled:
+                break
+            }
+        } catch {
+            let pendingMessage = store.consumePendingErrorMessage() ?? error.localizedDescription
+            alertPresenter.presentInfo(alertFactory.makeErrorRequest(message: pendingMessage))
+        }
+    }
+
+    private func presentAddAccountSuccess(for account: CodexAccount) {
+        let request = alertFactory.makeAddAccountSuccessRequest(accountName: account.name)
+        guard alertPresenter.presentConfirmation(request) else { return }
+        requestSwitch(to: account)
     }
 
     private func beginLocalSwitch(to account: CodexAccount) {

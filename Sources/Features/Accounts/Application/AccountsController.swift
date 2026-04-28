@@ -301,6 +301,45 @@ final class AccountsController {
         }
     }
 
+    func startIsolatedAddAccountFlow(named pendingAccountName: String?) async throws -> IsolatedAddAccountSignInSession {
+        accountsControllerLogger.log("Starting isolated add-account flow")
+        operationState.begin(status: "Adding account...")
+        do {
+            let session = try await signInAnotherWorkflow.startIsolatedAddAccount(
+                named: pendingAccountName,
+                existingAccounts: accounts
+            )
+            return session
+        } catch {
+            operationState.fail(error)
+            throw error
+        }
+    }
+
+    func completeIsolatedAddAccount(_ session: IsolatedAddAccountSignInSession) async throws -> CodexAccount {
+        do {
+            let result = try await signInAnotherWorkflow.completeIsolatedAddAccount(
+                session,
+                existingAccounts: accounts,
+                activeAccountID: activeAccountID
+            )
+            catalogState.applySavedAccount(
+                result.savedAccount,
+                activeAccountID: result.activeAccountID
+            )
+            operationState.succeed()
+            return result.savedAccount
+        } catch {
+            operationState.fail(error)
+            throw error
+        }
+    }
+
+    func cancelIsolatedAddAccount(_ session: IsolatedAddAccountSignInSession) {
+        signInAnotherWorkflow.cancelIsolatedAddAccount(session)
+        operationState.succeed()
+    }
+
     func completePendingSignedInAccountIfNeeded() async {
         refreshActiveAccount()
         let decision = pendingSignInLifecycle.beginCompletion(activeAccountID: activeAccountID)
