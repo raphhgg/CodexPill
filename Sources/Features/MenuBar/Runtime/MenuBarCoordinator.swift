@@ -72,6 +72,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private var pendingSwitchValidationTargetName: String?
     private var previousNotificationSnapshots: [UUID: AccountAvailabilitySnapshot] = [:]
     private var cachedNotificationAuthorizationState: NotificationAuthorizationState = .unknown
+    private var activeIsolatedAddAccountSession: IsolatedAddAccountSignInSession?
 
     init(
         statusItemRuntime: StatusItemRuntime,
@@ -139,6 +140,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         pendingSignInMonitorTimer?.invalidate()
         wakeRefreshTask?.cancel()
         notificationWaitTask?.cancel()
+        cancelActiveIsolatedAddAccountSession()
         sealValidationRun?.cancelIfUnfinished()
         statusItemRuntime.invalidate()
     }
@@ -829,6 +831,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private func beginIsolatedAddAccount(named name: String) async {
         do {
             let session = try await store.startIsolatedAddAccountFlow(named: name)
+            activeIsolatedAddAccountSession = session
             NSWorkspace.shared.open(session.prompt.url)
 
             let signInRequest = alertFactory.makeAddAccountSignInRequest(prompt: session.prompt)
@@ -846,6 +849,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
                     store.cancelIsolatedAddAccount(session)
                 }
             )
+            if activeIsolatedAddAccountSession === session {
+                activeIsolatedAddAccountSession = nil
+            }
 
             switch result {
             case .completed(let account):
@@ -858,6 +864,12 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         } catch {
             presentAddAccountFailure(error, retryName: name)
         }
+    }
+
+    private func cancelActiveIsolatedAddAccountSession() {
+        guard let session = activeIsolatedAddAccountSession else { return }
+        activeIsolatedAddAccountSession = nil
+        store.cancelIsolatedAddAccount(session)
     }
 
     private func presentAddAccountSuccess(for account: CodexAccount) {

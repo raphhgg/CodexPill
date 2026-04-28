@@ -4,6 +4,7 @@ protocol CodexSignInAuthStore: CodexAuthSnapshotStore {
     func prepareForNewSignIn() throws
     func readCurrentAuthData() throws -> Data
     func saveAuthSnapshot(_ authData: Data, named name: String, existing: CodexAccount?) throws -> CodexAccount
+    func deleteAuthSnapshot(for account: CodexAccount) throws
     func currentAuthFingerprint() -> String?
     func liveIdentity(forAuthData authData: Data) -> LiveCodexAccountIdentity
 }
@@ -114,6 +115,7 @@ struct SignInAnotherWorkflow {
         do {
             try repository.saveAccounts(updatedAccounts)
         } catch {
+            try? authService.deleteAuthSnapshot(for: saved)
             throw IsolatedAddAccountWorkflowError.catalogSaveFailed
         }
 

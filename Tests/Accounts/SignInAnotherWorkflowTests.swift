@@ -268,6 +268,7 @@ struct SignInAnotherWorkflowTests {
         }
         #expect(auth.savedNames == ["Business 2"])
         #expect(auth.savedAuthData == [Data("isolated-auth".utf8)])
+        #expect(auth.deletedSnapshotNames == ["Business 2"])
         #expect(repository.savedAccounts == nil)
         #expect(loginSession.cleanupCount == 1)
     }
@@ -382,6 +383,7 @@ private final class SignInAnotherAuthSnapshotProbe: CodexSignInAuthStore, LiveCo
     private(set) var prepareForNewSignInCount = 0
     private(set) var savedNames: [String] = []
     private(set) var savedAuthData: [Data] = []
+    private(set) var deletedSnapshotNames: [String] = []
 
     init(
         savedAccount: CodexAccount,
@@ -419,6 +421,10 @@ private final class SignInAnotherAuthSnapshotProbe: CodexSignInAuthStore, LiveCo
             throw saveAuthSnapshotError
         }
         return try saveCurrentAuthSnapshot(named: name, existing: existing)
+    }
+
+    func deleteAuthSnapshot(for account: CodexAccount) throws {
+        deletedSnapshotNames.append(account.name)
     }
 
     func currentAuthFingerprint() -> String? {
