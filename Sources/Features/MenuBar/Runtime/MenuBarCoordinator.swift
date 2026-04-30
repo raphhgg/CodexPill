@@ -50,6 +50,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let notificationPolicy = AccountAvailabilityNotificationPolicy()
     private let notificationActionResolver = AccountAvailabilityNotificationActionResolver()
     private let notificationPayloadRenderer = AccountAvailabilityNotificationPayloadRenderer()
+    private let accountActionFlow = AccountActionFlow()
     private let menuBuilder = MenuBarMenuBuilder()
     private var autoRefreshTimer: Timer?
     private var wakeRefreshTask: Task<Void, Never>?
@@ -811,16 +812,11 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
                 activeIsolatedAddAccountSession = nil
             }
 
-            switch result {
-            case .completed(let account):
-                presentAddAccountSuccess(for: account)
-            case .failed(let error):
-                presentAddAccountFailure(error, retryName: name)
-            case .cancelled:
-                break
-            }
+            handleAddAccountCompletion(result, retryName: name)
         } catch {
-            presentAddAccountFailure(error, retryName: name)
+            handleAddAccountFailure(
+                accountActionFlow.resolveAddAccountStartFailure(error, retryName: name)
+            )
         }
     }
 
@@ -836,55 +832,71 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             accountName: account.name,
             runningCLISessions: runningCLISessions
         )
-        guard alertPresenter.presentConfirmation(request) else { return }
-        lastSwitchTargetName = account.name
-        beginLocalSwitch(to: account)
+        let accepted = alertPresenter.presentConfirmation(request)
+        handleAddAccountSuccessConfirmation(
+            accountActionFlow.resolveAddAccountSuccessConfirmation(
+                account: account,
+                accepted: accepted
+            )
+        )
     }
 
-    private func presentAddAccountFailure(_ error: Error, retryName: String) {
+    private func handleAddAccountCompletion(_ result: MenuBarAddAccountSignInPanelResult, retryName: String) {
+        let flowResult: AccountActionFlow.AddAccountResult
+        switch result {
+        case .completed(let account):
+            flowResult = .completed(account)
+        case .failed(let error):
+            flowResult = .failed(error)
+        case .cancelled:
+            flowResult = .cancelled
+        }
+
+        switch accountActionFlow.resolveAddAccountCompletion(flowResult, retryName: retryName) {
+        case .offerLocalSwitch(let account):
+            presentAddAccountSuccess(for: account)
+        case .handleFailure(let step):
+            handleAddAccountFailure(step)
+        case .none:
+            break
+        }
+    }
+
+    private func handleAddAccountSuccessConfirmation(_ step: AccountActionFlow.AddAccountConfirmationStep) {
+        switch step {
+        case .switchLocally(let account):
+            lastSwitchTargetName = account.name
+            beginLocalSwitch(to: account)
+        case .none:
+            break
+        }
+    }
+
+    private func handleAddAccountFailure(_ step: AccountActionFlow.AddAccountFailureStep) {
         _ = store.consumePendingErrorMessage()
 
-        if let loginError = error as? IsolatedCodexLoginError {
-            switch loginError {
-            case .promptUnavailable:
-                alertPresenter.presentInfo(alertFactory.makeAddAccountStartFailureRequest())
-            case .authCaptureTimedOut:
-                let request = alertFactory.makeAddAccountExpiredRequest()
-                guard alertPresenter.presentConfirmation(request) else { return }
-                Task { @MainActor [weak self] in
-                    await self?.beginIsolatedAddAccount(named: retryName)
-                }
-            case .authCaptureFailed, .loginStatusVerificationFailed:
-                alertPresenter.presentInfo(alertFactory.makeErrorRequest(message: loginError.localizedDescription))
+        switch step {
+        case .showStartFailure:
+            alertPresenter.presentInfo(alertFactory.makeAddAccountStartFailureRequest())
+        case .offerExpiredCodeRetry(let retryName):
+            let request = alertFactory.makeAddAccountExpiredRequest()
+            guard alertPresenter.presentConfirmation(request) else { return }
+            Task { @MainActor [weak self] in
+                await self?.beginIsolatedAddAccount(named: retryName)
             }
-            return
+        case .showError(let message):
+            alertPresenter.presentInfo(alertFactory.makeErrorRequest(message: message))
+        case .offerDuplicateNameRecovery:
+            let request = alertFactory.makeAddAccountDuplicateNameRequest()
+            guard alertPresenter.presentConfirmation(request) else { return }
+            addAccount()
+        case .showUnsafeAuthChange:
+            alertPresenter.presentInfo(alertFactory.makeAddAccountUnsafeAuthChangeRequest())
+        case .showSaveFailure:
+            alertPresenter.presentInfo(alertFactory.makeAddAccountSaveFailureRequest())
+        case .showAccountAlreadySaved(let accountName):
+            alertPresenter.presentInfo(alertFactory.makeAccountAlreadySavedRequest(accountName: accountName))
         }
-
-        if let saveError = error as? AccountDisplayNameError {
-            switch saveError {
-            case .duplicateAccountName:
-                let request = alertFactory.makeAddAccountDuplicateNameRequest()
-                guard alertPresenter.presentConfirmation(request) else { return }
-                addAccount()
-            case .emptyAccountName:
-                alertPresenter.presentInfo(alertFactory.makeErrorRequest(message: saveError.localizedDescription))
-            }
-            return
-        }
-
-        if let workflowError = error as? AddAccountWorkflowError {
-            switch workflowError {
-            case .liveAuthChanged:
-                alertPresenter.presentInfo(alertFactory.makeAddAccountUnsafeAuthChangeRequest())
-            case .catalogSaveFailed:
-                alertPresenter.presentInfo(alertFactory.makeAddAccountSaveFailureRequest())
-            case .accountAlreadySaved(let accountName):
-                alertPresenter.presentInfo(alertFactory.makeAccountAlreadySavedRequest(accountName: accountName))
-            }
-            return
-        }
-
-        alertPresenter.presentInfo(alertFactory.makeErrorRequest(message: error.localizedDescription))
     }
 
     private func beginLocalSwitch(to account: CodexAccount) {

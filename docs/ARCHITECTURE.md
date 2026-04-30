@@ -154,6 +154,8 @@ These types are shared between features and platform adapters. Models should rem
 
 `AccountsController` is the deeper account-session and catalog boundary. It owns the saved-account catalog, active-account resolution, mutation result application, and silent refresh policy. Stable sub-policies that do not need controller state should be extracted behind the boundary instead of staying inline.
 
+`AccountActionFlow` owns account action sequencing decisions that do not require AppKit access. It maps Add Account completion and failure outcomes into next UI steps, including retry prompts, duplicate-name recovery, duplicate captured identity messaging, live-auth mutation failures, catalog save failures, and the direct local switch step after a confirmed Add Account success.
+
 `AccountAvailability` owns pure local and remote target availability modeling. It derives account/target status, next availability, snapshots, and availability transitions. It must not know notification policy, menu rendering, or delivery mechanics exist.
 
 `AccountAvailabilityNotifications` owns account-centric notification policy and action resolution. It may use availability snapshots and the shared inactive-account ranking to select the best currently usable account, but it must not deliver notifications or own AppKit/UserNotifications integration.
@@ -170,7 +172,7 @@ These types are shared between features and platform adapters. Models should rem
 
 `MenuBarAccountCatalogProjection` owns account catalog projection for the menu. It relinks remote account snapshots to saved accounts, resolves remote display metadata, builds local/remote availability snapshots, and orders active/non-active catalog rows before rendering.
 
-`MenuBarCoordinator` is the menu/application controller. It owns menu rebuilding, action dispatch, alerts, validation event recording, wake/timer refresh triggers, and coordination with `MenuBarAccountsStore`, `RemoteHostRuntime`, and `StatusItemRuntime`.
+`MenuBarCoordinator` is the menu/application controller. It owns menu rebuilding, `@objc` menu selector dispatch, alert and panel presentation, user-response plumbing, validation event recording, wake/timer refresh triggers, and final coordination with `MenuBarAccountsStore`, `RemoteHostRuntime`, and `StatusItemRuntime`. Account-flow policy should enter through `AccountActionFlow` rather than inline Add Account decision trees.
 
 `AccountAvailabilityNotificationRuntime` owns notification delivery mechanics. It translates notification decisions into copy, payloads, categories, and `UserNotifications` requests, and it opens macOS notification settings when needed. It must not decide when an account is usable or execute a switch; those stay in account notification policy/action resolution and `MenuBarCoordinator` response routing.
 
@@ -207,6 +209,13 @@ These types are shared between features and platform adapters. Models should rem
 - duplicate captured identity rejection
 - live-auth mutation guard before catalog save
 - temporary auth cleanup on cancel, failure, timeout, and success
+
+`AccountActionFlow` owns:
+
+- Add Account success and failure routing into presentation-neutral flow steps
+- expired-code retry and duplicate-name recovery decisions
+- live-auth mutation, catalog save failure, and duplicate captured identity user-step mapping
+- bypassing normal switch confirmation after the user accepts the Add Account success prompt
 
 `SilentPostActionRefresh` owns:
 
