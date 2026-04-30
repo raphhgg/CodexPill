@@ -2,7 +2,7 @@
 
 Issue: RGR-147
 
-Status: prototype-only. Do not treat this document as a production decision until the current-account-card variants have been reviewed.
+Status: selected direction is Marker Only.
 
 ## Prototype Data
 
@@ -21,7 +21,9 @@ Status: prototype-only. Do not treat this document as a production decision unti
 
 ## Recommended Direction
 
-No production direction is selected yet. The next review should compare the prototype screenshots against the current card and choose whether pacing should be text-first, bar-first, or deferred.
+Use the Marker Only option for the first implementation. It preserves the existing current-account card copy and adds only a neutral expected-pace marker inside the Session and Weekly progress bars.
+
+Do not change the email color, account header layout, reset text, usage text, saved account rows, ranking, switching, notifications, or persistence.
 
 ## Rejected For V1
 

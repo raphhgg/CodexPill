@@ -26,7 +26,7 @@ struct ActiveAccountMenuContent: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
-                Text(accountMetadataLine)
+                Text(verbatim: accountMetadataLine)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.trailing)
@@ -142,7 +142,7 @@ struct RemoteHostMenuContent: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
-                Text(secondaryBadge)
+                Text(verbatim: secondaryBadge)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.trailing)
@@ -249,13 +249,18 @@ struct ActiveLimitRow: View {
     var body: some View {
         let displayedUsedPercent = window?.displayedUsedPercent(at: now) ?? 0
         let usageText = window.map { "\($0.displayedUsedPercent(at: now))% used" } ?? "--"
+        let expectedPercent = window.flatMap { expectedRateLimitUsagePercent(for: $0, now: now) }
 
         VStack(alignment: .leading, spacing: 5) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.primary)
-            ProgressView(value: Double(displayedUsedPercent), total: 100)
-                .tint(tintColor)
+            ActiveLimitProgressBar(
+                usedPercent: displayedUsedPercent,
+                expectedPercent: expectedPercent,
+                tintColor: tintColor
+            )
+            .frame(height: 5)
             HStack {
                 Text(usageText)
                     .monospacedDigit()
@@ -271,5 +276,39 @@ struct ActiveLimitRow: View {
             }
             .font(.caption)
         }
+    }
+}
+
+private struct ActiveLimitProgressBar: View {
+    let usedPercent: Int
+    let expectedPercent: Int?
+    let tintColor: Color
+
+    var body: some View {
+        GeometryReader { geometry in
+            let width = geometry.size.width
+            let progressWidth = width * clampedFraction(usedPercent)
+            let markerX = expectedPercent.map { width * clampedFraction($0) }
+
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(Color.secondary.opacity(0.16))
+                Capsule()
+                    .fill(tintColor)
+                    .frame(width: progressWidth)
+
+                if let markerX {
+                    Rectangle()
+                        .fill(Color.secondary.opacity(0.72))
+                        .frame(width: 2)
+                        .offset(x: min(max(markerX - 1, 0), max(width - 2, 0)))
+                }
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
+    private func clampedFraction(_ percent: Int) -> Double {
+        min(max(Double(percent), 0), 100) / 100
     }
 }

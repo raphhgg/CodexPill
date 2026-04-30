@@ -46,6 +46,8 @@ The following behavior should be treated as automated first and should not live 
   - unit plus deterministic UI validation
 - progress-bar accent color customization and reset behavior:
   - unit plus deterministic UI validation
+- current account pacing markers:
+  - unit plus deterministic UI validation
 - inactive account rendering and switch-action wiring metadata:
   - deterministic UI plus `SCENARIO=live-menu-open make verify-ui-live`
 - custom menubar rows stay flush with the rendered menu width:
@@ -118,6 +120,14 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `owner_layer`: `unit`
 - `proofs_required`: `["unit", "deterministic_ui"]`
 - `scenarios`: `["custom_progress_accent_color", "reset_progress_accent_color"]`
+
+### `accounts.current_cards.show_expected_pace_marker_only`
+
+- `feature`: `accounts`
+- `rule`: Current local and remote account cards may show a neutral expected-pace marker inside Session and Weekly progress bars when reset-window duration is available, but they must not add pacing text or affect saved account catalog rows, ranking, switching, notifications, or persistence.
+- `owner_layer`: `unit`
+- `proofs_required`: `["unit", "deterministic_ui"]`
+- `scenarios`: `["current_account_card", "remote_account_card", "missing_reset_window_duration"]`
 
 ### `menubar.inactive_accounts.render_and_wired_for_switch`
 
