@@ -105,10 +105,11 @@ struct MenuBarUIValidationTests {
         let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, menu: menu, now: now)
 
         let accountItem = try #require(snapshot.menuItems.first(where: { item in
-            item.children.first?.title == "Not currently in use" &&
+            item.children.dropFirst().first?.title == "Not currently in use" &&
                 item.children.contains(where: { $0.title == "Switch on This Mac" })
         }))
-        let statusItem = try #require(accountItem.children.first)
+        let emailItem = try #require(accountItem.children.first)
+        let statusItem = try #require(accountItem.children.dropFirst().first)
         let localAction = try #require(accountItem.children.first(where: { $0.title == "Switch on This Mac" }))
         let renameAction = try #require(accountItem.children.first(where: { $0.title == "Rename…" }))
         let removeAction = try #require(accountItem.children.first(where: { $0.title == "Remove…" }))
@@ -116,6 +117,8 @@ struct MenuBarUIValidationTests {
         #expect(accountItem.viewFrameWidth == nil)
         #expect(accountItem.hasAction == false)
         #expect(accountItem.actionSelector == nil)
+        #expect(emailItem.title.hasSuffix("@example.com"))
+        #expect(emailItem.isEnabled == false)
         #expect(statusItem.title == "Not currently in use")
         #expect(statusItem.isEnabled == false)
         #expect(localAction.actionSelector == "switchAccount:")

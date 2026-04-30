@@ -122,7 +122,7 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 ### `menubar.inactive_accounts.render_and_wired_for_switch`
 
 - `feature`: `menubar`
-- `rule`: Saved inactive accounts must render in `Accounts` or `More Accounts…` as submenu parent rows, and those submenus must expose enabled `switchAccount:` targets in the live runtime snapshot.
+- `rule`: Saved inactive accounts must render in `Accounts` or `More Accounts…` as submenu parent rows. Their submenus must show a disabled email identity row, fall back to `No email` when the email is unknown, preserve the disabled usage row below it, and expose enabled `switchAccount:` targets in the live runtime snapshot.
 - `owner_layer`: `live_ui`
 - `proofs_required`: `["deterministic_ui", "live_ui"]`
 - `scenarios`: `["accounts_section", "overflow_accounts"]`

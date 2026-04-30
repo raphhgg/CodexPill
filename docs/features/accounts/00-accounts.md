@@ -148,6 +148,7 @@ The account submenu is the per-account action surface. It should identify the ac
 
 The submenu currently contains:
 
+- A disabled email identity row such as `name@example.com` or `No email`.
 - A disabled usage row such as `In use on: This Mac`.
 - Switch actions for available targets, such as `Switch on This Mac` and `Switch on debian-vm`.
 - Management actions: `Rename…` and `Remove…`.
@@ -163,7 +164,7 @@ Recommended order:
 3. Switch actions.
 4. Rename and remove actions.
 
-If the email is unknown, omit the row instead of showing placeholder noise.
+If the email is unknown, show `No email` in the same disabled informational row.
 
 ### Actions
 

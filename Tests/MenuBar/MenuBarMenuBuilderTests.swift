@@ -374,10 +374,12 @@ struct MenuBarMenuBuilderTests {
             menu.items.first(where: { $0.submenu?.title == business3.name })
         )
         let submenu = try #require(visibleRow.submenu)
-        let statusItem = try #require(submenu.items.first)
+        let emailItem = try #require(submenu.items.first)
+        let statusItem = try #require(submenu.items.dropFirst().first)
         let localAction = try #require(submenu.items.first(where: { $0.title == "Switch on This Mac" }))
         let renameAction = try #require(submenu.items.first(where: { $0.title == "Rename…" }))
         let removeAction = try #require(submenu.items.first(where: { $0.title == "Remove…" }))
+        let localActionIndex = try #require(submenu.items.firstIndex(where: { $0.title == "Switch on This Mac" }))
         let renameIndex = try #require(submenu.items.firstIndex(where: { $0.title == "Rename…" }))
         let removeIndex = try #require(submenu.items.firstIndex(where: { $0.title == "Remove…" }))
 
@@ -388,8 +390,11 @@ struct MenuBarMenuBuilderTests {
         #expect(visibleRow.representedObject as? String == business3.id.uuidString)
         #expect(visibleRow.action != #selector(MenuBarCoordinator.switchAccount(_:)))
         #expect(visibleRow.isEnabled == true)
+        #expect(emailItem.title == "business 3@example.com")
+        #expect(emailItem.isEnabled == false)
         #expect(statusItem.title == "Not currently in use")
         #expect(statusItem.isEnabled == false)
+        #expect(localActionIndex > 1)
         #expect(localAction.action == #selector(MenuBarCoordinator.switchAccount(_:)))
         #expect(localAction.target === coordinator)
         #expect(localAction.representedObject as? String == business3.id.uuidString)
@@ -400,6 +405,31 @@ struct MenuBarMenuBuilderTests {
         #expect(submenu.items[renameIndex - 1].isSeparatorItem)
         #expect(removeIndex == renameIndex + 1)
         #expect(menu.autoenablesItems)
+    }
+
+    @Test
+    func inactiveAccountSubmenuShowsNoEmailFallbackBeforeUsage() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        var account = makeAccount(name: "Business 3", withRateLimits: true)
+        account.email = nil
+        let menu = builder.makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                inactiveAccounts: [account]
+            ),
+            target: coordinator
+        )
+
+        let accountItem = try #require(menu.items.first(where: { $0.attributedTitle?.string.contains(account.name) == true }))
+        let submenu = try #require(accountItem.submenu)
+        let emailItem = try #require(submenu.items.first)
+        let statusItem = try #require(submenu.items.dropFirst().first)
+
+        #expect(emailItem.title == "No email")
+        #expect(emailItem.isEnabled == false)
+        #expect(statusItem.title == "Not currently in use")
+        #expect(statusItem.isEnabled == false)
     }
 
     @Test
@@ -421,7 +451,10 @@ struct MenuBarMenuBuilderTests {
 
         let moreAccounts = try #require(menu.items.first(where: { $0.title == "More Accounts…" }))
         let firstOverflowAccount = try #require(moreAccounts.submenu?.items.first)
-        let overflowSwitch = try #require(firstOverflowAccount.submenu?.items.first(where: { $0.title == "Switch on This Mac" }))
+        let overflowSubmenu = try #require(firstOverflowAccount.submenu)
+        let overflowEmail = try #require(overflowSubmenu.items.first)
+        let overflowUsage = try #require(overflowSubmenu.items.dropFirst().first)
+        let overflowSwitch = try #require(overflowSubmenu.items.first(where: { $0.title == "Switch on This Mac" }))
 
         #expect(moreAccounts.image == nil)
         #expect(moreAccounts.submenu?.title == "More Accounts…")
@@ -432,6 +465,10 @@ struct MenuBarMenuBuilderTests {
         )
         #expect(firstOverflowAccount.submenu != nil)
         #expect(firstOverflowAccount.action != #selector(MenuBarCoordinator.switchAccount(_:)))
+        #expect(overflowEmail.title.hasSuffix("@example.com"))
+        #expect(overflowEmail.isEnabled == false)
+        #expect(overflowUsage.title == "Not currently in use")
+        #expect(overflowUsage.isEnabled == false)
         #expect(overflowSwitch.action == #selector(MenuBarCoordinator.switchAccount(_:)))
     }
 
@@ -454,6 +491,7 @@ struct MenuBarMenuBuilderTests {
 
         let accountItem = try #require(menu.items.first(where: { $0.attributedTitle?.string.contains(inactive.name) == true }))
         let submenu = try #require(accountItem.submenu)
+        let emailItem = try #require(submenu.items.first)
         let statusItem = try #require(submenu.items.first(where: { $0.title == "Not currently in use" }))
         let localAction = try #require(submenu.items.first(where: { $0.title == "Switch on This Mac" }))
         let remoteAction = try #require(submenu.items.first(where: { $0.title == "Switch on devbox" }))
@@ -464,6 +502,8 @@ struct MenuBarMenuBuilderTests {
         #expect(accountItem.attributedTitle?.string.contains("S ") == true)
         #expect(accountItem.attributedTitle?.string.contains("W ") == true)
         #expect(accountItem.attributedTitle?.string.contains("Remote") == false)
+        #expect(emailItem.title == "business 3@example.com")
+        #expect(emailItem.isEnabled == false)
         #expect(statusItem.isEnabled == false)
         #expect(localAction.action == #selector(MenuBarCoordinator.switchAccount(_:)))
         #expect(localAction.representedObject as? String == inactive.id.uuidString)
@@ -510,9 +550,13 @@ struct MenuBarMenuBuilderTests {
 
         let pendingItem = try #require(menu.items.first(where: { $0.attributedTitle?.string.contains(pending.name) == true }))
         let failedItem = try #require(menu.items.first(where: { $0.attributedTitle?.string.contains(failed.name) == true }))
-        let pendingStatus = try #require(pendingItem.submenu?.items.first)
-        let failedStatus = try #require(failedItem.submenu?.items.first)
+        let pendingEmail = try #require(pendingItem.submenu?.items.first)
+        let failedEmail = try #require(failedItem.submenu?.items.first)
+        let pendingStatus = try #require(pendingItem.submenu?.items.dropFirst().first)
+        let failedStatus = try #require(failedItem.submenu?.items.dropFirst().first)
 
+        #expect(pendingEmail.title == "business 3@example.com")
+        #expect(failedEmail.title == "business 4@example.com")
         #expect(pendingStatus.title == "Pending on: buildbox")
         #expect(failedStatus.title == "Verification failed on: debian-vm")
     }
@@ -1067,10 +1111,13 @@ struct MenuBarMenuBuilderTests {
                 .first
         )
         let accountItem = try #require(menu.items.first(where: { $0.attributedTitle?.string.contains(canonical.name) == true }))
-        let usageStatusItem = try #require(accountItem.submenu?.items.first)
+        let emailItem = try #require(accountItem.submenu?.items.first)
+        let usageStatusItem = try #require(accountItem.submenu?.items.dropFirst().first)
 
         #expect(remoteCard.rootView.remoteHost.activeAccount?.id == canonical.id)
         #expect(remoteCard.rootView.remoteHost.activeAccount?.rateLimits?.primary?.usedPercent == canonical.rateLimits?.primary?.usedPercent)
+        #expect(emailItem.title == canonical.email)
+        #expect(emailItem.isEnabled == false)
         #expect(usageStatusItem.title == "In use on: debian-vm")
     }
 

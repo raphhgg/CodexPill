@@ -169,6 +169,7 @@ struct MenuBarMenuBuilder {
     private func inactiveAccountTargetMenu(for entry: MenuBarAccountCatalogEntry, state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenu {
         let account = entry.account
         let submenu = configuredMenu(title: account.name)
+        submenu.addItem(inactiveAccountEmailItem(for: account))
         submenu.addItem(inactiveAccountUsageStatusItem(for: entry, state: state))
         submenu.addItem(.separator())
 
@@ -193,6 +194,14 @@ struct MenuBarMenuBuilder {
         submenu.addItem(renameAccountMenuItem(for: account, state: state, target: target))
         submenu.addItem(removeAccountMenuItem(for: account, state: state, target: target))
         return submenu
+    }
+
+    private func inactiveAccountEmailItem(for account: CodexAccount) -> NSMenuItem {
+        let email = account.email?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let title = email.flatMap { $0.isEmpty ? nil : $0 } ?? "No email"
+        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        item.isEnabled = false
+        return item
     }
 
     private func inactiveAccountUsageStatusItem(for entry: MenuBarAccountCatalogEntry, state: MenuBarMenuState) -> NSMenuItem {
