@@ -28,4 +28,4 @@ Do not change the email color, account header layout, reset text, usage text, sa
 ## Rejected For V1
 
 - Pacing on saved account rows remains out of scope for this prototype.
-- Production current-account cards must stay unchanged until a variant is explicitly selected.
+- Text-based pacing labels and colored overrun segments remain out of scope for the first production implementation.
