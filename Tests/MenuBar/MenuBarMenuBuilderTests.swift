@@ -1241,7 +1241,7 @@ struct MenuBarMenuBuilderTests {
         let reset = try #require(displayMenu.items.first(where: { $0.title == "Use Default" }))
 
         #expect(accent.action == #selector(MenuBarCoordinator.chooseProgressAccentColor(_:)))
-        #expect(accent.image != nil)
+        #expect(accent.image == nil)
         #expect(reset.action == #selector(MenuBarCoordinator.resetProgressAccentColor(_:)))
         #expect(!reset.isEnabled)
     }
@@ -1263,6 +1263,9 @@ struct MenuBarMenuBuilderTests {
         #expect(!icon.isEnabled)
         #expect(Array(titles.prefix(3)) == ["Icon", "Label", "Style"])
         #expect(titles.firstIndex(of: "Show Markers") == titles.firstIndex(of: "Accent Color…").map { $0 - 1 })
+        #expect(preferencesMenu.items.first(where: { $0.title == "Label" })?.image == nil)
+        #expect(preferencesMenu.items.first(where: { $0.title == "Style" })?.image == nil)
+        #expect(preferencesMenu.items.first(where: { $0.title == "Accent Color…" })?.image == nil)
         #expect(showMarkers.action == #selector(MenuBarCoordinator.togglePacingMarkers(_:)))
         #expect(showMarkers.state == .on)
     }
