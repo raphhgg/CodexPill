@@ -270,6 +270,9 @@ enum MenuBarValidationSupport {
         guard let window, let resetStatus = resetStatusText(for: window, now: now) else {
             return "\(title): \(percentText)"
         }
+        if let pacing = rateLimitPacing(for: window, now: now) {
+            return "\(title): \(percentText), \(resetStatus), \(pacing.deltaText) \(pacing.status.text)"
+        }
         return "\(title): \(percentText), \(resetStatus)"
     }
 

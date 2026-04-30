@@ -131,6 +131,63 @@ func resetStatusText(for window: CodexRateLimitWindow, now: Date) -> String? {
     return "Resets in \(cardResetText(until: resetsAt, now: now))"
 }
 
+struct RateLimitPacing: Equatable {
+    enum Status: Equatable {
+        case under
+        case onPace
+        case over
+
+        var text: String {
+            switch self {
+            case .under:
+                return "Room left"
+            case .onPace:
+                return "On pace"
+            case .over:
+                return "Over pace"
+            }
+        }
+    }
+
+    let expectedPercent: Int
+    let deltaPoints: Int
+    let status: Status
+
+    var deltaText: String {
+        deltaPoints > 0 ? "+\(deltaPoints)" : "\(deltaPoints)"
+    }
+}
+
+func rateLimitPacing(for window: CodexRateLimitWindow, now: Date = .now) -> RateLimitPacing? {
+    guard let resetsAt = window.resetsAt,
+          resetsAt > now,
+          let durationMinutes = window.windowDurationMinutes,
+          durationMinutes > 0 else {
+        return nil
+    }
+
+    let totalSeconds = Double(durationMinutes * 60)
+    let remainingSeconds = min(max(resetsAt.timeIntervalSince(now), 0), totalSeconds)
+    let elapsedPercent = ((totalSeconds - remainingSeconds) / totalSeconds) * 100
+    let expectedPercent = Int(elapsedPercent.rounded())
+    let deltaPoints = window.displayedUsedPercent(at: now) - expectedPercent
+
+    let status: RateLimitPacing.Status
+    if deltaPoints >= 12 {
+        status = .over
+    } else if deltaPoints <= -12 {
+        status = .under
+    } else {
+        status = .onPace
+    }
+
+    return RateLimitPacing(
+        expectedPercent: min(max(expectedPercent, 0), 100),
+        deltaPoints: deltaPoints,
+        status: status
+    )
+}
+
 func statusItemTooltipText(for account: CodexAccount?, now: Date = .now) -> String? {
     guard let account else { return nil }
 

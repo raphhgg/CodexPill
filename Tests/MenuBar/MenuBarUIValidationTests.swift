@@ -18,7 +18,8 @@ struct MenuBarUIValidationTests {
         let summary = try! #require(snapshot.sections.first(where: { $0.title == "Current Account" })?.items.first(where: { $0.contains("Primary • Pro") }))
         #expect(summary.contains("Primary • Pro"))
         #expect(summary.contains("primary@example.com"))
-        #expect(summary.contains("Session: 42% used"))
+        #expect(summary.contains("Session: 92% used, Resets in 1h, +12 Over pace"))
+        #expect(summary.contains("Weekly: 86% used, Resets in 1d, 0 On pace"))
     }
 
     @Test
@@ -446,6 +447,8 @@ struct MenuBarUIValidationTests {
                 "Preferences"
             ])
             #expect(snapshot.statusMessage == nil)
+            #expect(snapshot.sections[0].items.first?.contains("Session: 92% used, Resets in 1h, +12 Over pace") == true)
+            #expect(snapshot.sections[0].items.first?.contains("Weekly: 86% used, Resets in 1d, 0 On pace") == true)
             #expect(snapshot.sections[1].items.count == 3)
             #expect(snapshot.sections[2].items.count == 1)
             #expect(snapshot.sections[3].items.contains("Add Account…"))
@@ -460,6 +463,7 @@ struct MenuBarUIValidationTests {
                 "Preferences"
             ])
             #expect(snapshot.sections[1].items.first?.contains("buildbox") == true)
+            #expect(snapshot.sections[1].items.first?.contains("Session: 11% used, Resets in 1h, -69 Room left") == true)
             #expect(snapshot.sections[2].items.count == 3)
             #expect(snapshot.sections[3].items.count == 1)
 
@@ -559,12 +563,14 @@ struct MenuBarUIValidationTests {
         case "hosted-menu-default":
             return [
                 "Current Account section includes the active account summary",
+                "Current Account covers over-pace and on-pace production indicators",
                 "Two inactive accounts are visible and one account overflows into More Accounts…",
                 "Status message is omitted when the menu is not busy"
             ]
         case "hosted-menu-with-host":
             return [
                 "Remote host state renders in its own section",
+                "Remote account card covers under-pace production indicators",
                 "Accounts continues to reflect the local saved-account catalog",
                 "One inactive account still overflows into More Accounts… with a connected host present"
             ]
@@ -639,8 +645,8 @@ struct MenuBarUIValidationTests {
                 name: "Primary",
                 email: "primary@example.com",
                 planType: "pro",
-                sessionUsedPercent: 42,
-                weeklyUsedPercent: 68,
+                sessionUsedPercent: 92,
+                weeklyUsedPercent: 86,
                 now: now
             )
 
