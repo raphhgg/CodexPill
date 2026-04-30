@@ -300,6 +300,12 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     @objc
+    func togglePacingMarkers(_ sender: NSMenuItem) {
+        recordMenuAction("togglePacingMarkers")
+        settings.pacingMarkersEnabled.toggle()
+    }
+
+    @objc
     func toggleNotificationsWhenBlocked(_ sender: NSMenuItem) {
         recordMenuAction("toggleNotificationsWhenBlocked")
         let hadAnyNotificationsEnabled = notificationStateStore.whenBlockedEnabled || notificationStateStore.whenOutEnabled
@@ -759,6 +765,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             statusBarIndicatorStyle: settings.statusBarIndicatorStyle,
             statusBarDisplayMode: settings.statusBarDisplayMode,
             progressAccentColor: settings.progressAccentColor,
+            pacingMarkersEnabled: settings.pacingMarkersEnabled,
             hasCustomProgressAccentColor: settings.hasCustomProgressAccentColor,
             isBusy: store.isBusy,
             statusMessage: store.statusMessage,
@@ -1118,6 +1125,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             _ = settings.statusBarDisplayMode
             _ = settings.visibleInactiveAccountCount
             _ = settings.progressAccentColor
+            _ = settings.pacingMarkersEnabled
             _ = settings.remoteHostStates
             _ = settings.notificationsWhenBlockedEnabled
             _ = settings.notificationsWhenOutEnabled

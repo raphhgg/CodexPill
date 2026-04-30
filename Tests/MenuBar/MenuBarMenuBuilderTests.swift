@@ -203,8 +203,8 @@ struct MenuBarMenuBuilderTests {
         let menu = builder.makeMenu(state: state, target: coordinator)
         let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, menu: menu)
 
-        let display = try #require(snapshot.menuItems.first(where: { $0.title == "Display" }))
-        let content = try #require(display.children.first(where: { $0.title == "Content" }))
+        let display = try #require(snapshot.menuItems.first(where: { $0.title == "Preferences" }))
+        let content = try #require(display.children.first(where: { $0.title == "Label" }))
         let iconOnly = try #require(content.children.first(where: { $0.title == "Icon Only" }))
         let iconAndText = try #require(content.children.first(where: { $0.title == "Icon + Text" }))
         let textOnHover = try #require(content.children.first(where: { $0.title == "Text on Hover" }))
@@ -881,7 +881,8 @@ struct MenuBarMenuBuilderTests {
             rootView: ActiveAccountMenuContent(
                 account: makeAccount(name: "Business 2", withRateLimits: true),
                 activeRemoteLocations: [],
-                progressAccentColor: .blue
+                progressAccentColor: .blue,
+                showsPacingMarkers: true
             )
         )
 
@@ -897,6 +898,7 @@ struct MenuBarMenuBuilderTests {
             rootView: RemoteHostMenuContent(
                 remoteHost: makeRemoteHost(activeAccount: makeAccount(name: "Personal 1", withRateLimits: true)),
                 progressAccentColor: .blue,
+                showsPacingMarkers: true,
                 primaryActionTitle: nil,
                 onPrimaryAction: nil,
                 isPrimaryActionEnabled: true,
@@ -1234,7 +1236,7 @@ struct MenuBarMenuBuilderTests {
             target: coordinator
         )
 
-        let displayMenu = try #require(menu.items.first(where: { $0.title == "Display" })?.submenu)
+        let displayMenu = try #require(menu.items.first(where: { $0.title == "Preferences" })?.submenu)
         let accent = try #require(displayMenu.items.first(where: { $0.title == "Accent Color…" }))
         let reset = try #require(displayMenu.items.first(where: { $0.title == "Use Default" }))
 
@@ -1242,6 +1244,27 @@ struct MenuBarMenuBuilderTests {
         #expect(accent.image != nil)
         #expect(reset.action == #selector(MenuBarCoordinator.resetProgressAccentColor(_:)))
         #expect(!reset.isEnabled)
+    }
+
+    @Test
+    func preferencesMenuGroupsIconAndMarkerControls() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let menu = builder.makeMenu(
+            state: makeState(activeAccount: makeAccount(name: "Active", withRateLimits: true)),
+            target: coordinator
+        )
+
+        let preferencesMenu = try #require(menu.items.first(where: { $0.title == "Preferences" })?.submenu)
+        let titles = preferencesMenu.items.map(\.title)
+        let icon = try #require(preferencesMenu.items.first(where: { $0.title == "Icon" }))
+        let showMarkers = try #require(preferencesMenu.items.first(where: { $0.title == "Show Markers" }))
+
+        #expect(!icon.isEnabled)
+        #expect(Array(titles.prefix(3)) == ["Icon", "Label", "Style"])
+        #expect(titles.firstIndex(of: "Show Markers") == titles.firstIndex(of: "Accent Color…").map { $0 - 1 })
+        #expect(showMarkers.action == #selector(MenuBarCoordinator.togglePacingMarkers(_:)))
+        #expect(showMarkers.state == .on)
     }
 
     @Test
@@ -1257,7 +1280,7 @@ struct MenuBarMenuBuilderTests {
             target: coordinator
         )
 
-        let displayMenu = try #require(menu.items.first(where: { $0.title == "Display" })?.submenu)
+        let displayMenu = try #require(menu.items.first(where: { $0.title == "Preferences" })?.submenu)
         let reset = try #require(displayMenu.items.first(where: { $0.title == "Use Default" }))
 
         #expect(reset.action == #selector(MenuBarCoordinator.resetProgressAccentColor(_:)))
@@ -1340,10 +1363,10 @@ struct MenuBarMenuBuilderTests {
 
     private func statusItemContentMenu(in menu: NSMenu) -> NSMenu? {
         menu.items
-            .first(where: { $0.title == "Display" })?
+            .first(where: { $0.title == "Preferences" })?
             .submenu?
             .items
-            .first(where: { $0.title == "Content" })?
+            .first(where: { $0.title == "Label" })?
             .submenu
     }
 

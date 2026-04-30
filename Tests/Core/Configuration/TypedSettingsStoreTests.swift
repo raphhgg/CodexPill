@@ -50,6 +50,7 @@ struct StatusBarPreferencesStoreTests {
         #expect(store.statusBarIndicatorStyle == .twinPills)
         #expect(store.statusBarMonochrome)
         #expect(store.statusBarDisplayMode == .textOnHover)
+        #expect(store.pacingMarkersEnabled)
         #expect(colorsEqual(store.progressAccentColor, StatusBarProgressColorDefaults.accent))
     }
 
@@ -73,10 +74,12 @@ struct StatusBarPreferencesStoreTests {
 
         let first = StatusBarPreferencesStore(userDefaults: defaults)
         first.progressAccentColor = accent
+        first.pacingMarkersEnabled = false
 
         let second = StatusBarPreferencesStore(userDefaults: defaults)
         #expect(colorsEqual(second.progressAccentColor, accent))
         #expect(second.hasCustomProgressAccentColor)
+        #expect(!second.pacingMarkersEnabled)
 
         second.resetProgressAccentColor()
 

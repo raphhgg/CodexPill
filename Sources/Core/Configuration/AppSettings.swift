@@ -245,12 +245,19 @@ final class StatusBarPreferencesStore {
         }
     }
 
+    var pacingMarkersEnabled: Bool {
+        didSet {
+            userDefaults.set(pacingMarkersEnabled, forKey: Self.pacingMarkersEnabledKey)
+        }
+    }
+
     private let userDefaults: UserDefaults
 
     private static let statusBarIndicatorStyleKey = "statusBarIndicatorStyle"
     private static let statusBarMonochromeKey = "statusBarMonochrome"
     private static let statusBarDisplayModeKey = "statusBarDisplayMode"
     private static let progressAccentColorKey = "progressAccentColor"
+    private static let pacingMarkersEnabledKey = "pacingMarkersEnabled"
 
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
@@ -272,6 +279,7 @@ final class StatusBarPreferencesStore {
             key: Self.progressAccentColorKey,
             defaultColor: StatusBarProgressColorDefaults.accent
         )
+        pacingMarkersEnabled = userDefaults.object(forKey: Self.pacingMarkersEnabledKey) as? Bool ?? true
     }
 
     var hasCustomProgressAccentColor: Bool {
@@ -606,6 +614,11 @@ final class AppSettings {
     var progressAccentColor: NSColor {
         get { statusBarPreferences.progressAccentColor }
         set { statusBarPreferences.progressAccentColor = newValue }
+    }
+
+    var pacingMarkersEnabled: Bool {
+        get { statusBarPreferences.pacingMarkersEnabled }
+        set { statusBarPreferences.pacingMarkersEnabled = newValue }
     }
 
     var hasCustomProgressAccentColor: Bool {

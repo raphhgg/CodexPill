@@ -12,6 +12,18 @@ struct AppSettingsTests {
 
         #expect(settings.statusBarIndicatorStyle == .twinPills)
         #expect(settings.statusBarMonochrome)
+        #expect(settings.pacingMarkersEnabled)
+    }
+
+    @Test
+    func pacingMarkersPreferencePersistsAcrossInstances() {
+        let defaults = makeDefaults()
+        let first = AppSettings(userDefaults: defaults)
+        first.pacingMarkersEnabled = false
+
+        let second = AppSettings(userDefaults: defaults)
+
+        #expect(!second.pacingMarkersEnabled)
     }
 
     @Test

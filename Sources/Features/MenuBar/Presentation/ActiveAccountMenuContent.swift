@@ -4,6 +4,7 @@ struct ActiveAccountMenuContent: View {
     let account: CodexAccount
     let activeRemoteLocations: [String]
     let progressAccentColor: Color
+    let showsPacingMarkers: Bool
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 30)) { timeline in
@@ -45,12 +46,14 @@ struct ActiveAccountMenuContent: View {
                 title: "Session",
                 window: account.rateLimits?.primary,
                 tintColor: progressAccentColor,
+                showsPacingMarkers: showsPacingMarkers,
                 now: now
             )
             ActiveLimitRow(
                 title: "Weekly",
                 window: account.rateLimits?.secondary,
                 tintColor: progressAccentColor,
+                showsPacingMarkers: showsPacingMarkers,
                 now: now
             )
         }
@@ -116,6 +119,7 @@ struct InactiveAccountMenuContent: View {
 struct RemoteHostMenuContent: View {
     let remoteHost: RemoteHostMenuState
     let progressAccentColor: Color
+    let showsPacingMarkers: Bool
     let primaryActionTitle: String?
     let onPrimaryAction: (() -> Void)?
     let isPrimaryActionEnabled: Bool
@@ -154,12 +158,14 @@ struct RemoteHostMenuContent: View {
                     title: "Session",
                     window: activeAccount.rateLimits?.primary,
                     tintColor: progressAccentColor,
+                    showsPacingMarkers: showsPacingMarkers,
                     now: now
                 )
                 ActiveLimitRow(
                     title: "Weekly",
                     window: activeAccount.rateLimits?.secondary,
                     tintColor: progressAccentColor,
+                    showsPacingMarkers: showsPacingMarkers,
                     now: now
                 )
             } else if let statusMessage {
@@ -244,12 +250,13 @@ struct ActiveLimitRow: View {
     let title: String
     let window: CodexRateLimitWindow?
     let tintColor: Color
+    let showsPacingMarkers: Bool
     let now: Date
 
     var body: some View {
         let displayedUsedPercent = window?.displayedUsedPercent(at: now) ?? 0
         let usageText = window.map { "\($0.displayedUsedPercent(at: now))% used" } ?? "--"
-        let expectedPercent = window.flatMap { expectedRateLimitUsagePercent(for: $0, now: now) }
+        let expectedPercent = showsPacingMarkers ? window.flatMap { expectedRateLimitUsagePercent(for: $0, now: now) } : nil
 
         VStack(alignment: .leading, spacing: 5) {
             Text(title)

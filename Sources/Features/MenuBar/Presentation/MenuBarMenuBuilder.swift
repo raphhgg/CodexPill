@@ -97,7 +97,8 @@ struct MenuBarMenuBuilder {
             rootView: ActiveAccountMenuContent(
                 account: account,
                 activeRemoteLocations: state.activeAccountRemoteLocations,
-                progressAccentColor: Color(nsColor: state.progressAccentColor)
+                progressAccentColor: Color(nsColor: state.progressAccentColor),
+                showsPacingMarkers: state.pacingMarkersEnabled
             )
         )
         item.view = configuredHostedMenuView(view, width: width)
@@ -110,6 +111,7 @@ struct MenuBarMenuBuilder {
             rootView: RemoteHostMenuContent(
                 remoteHost: remoteHost,
                 progressAccentColor: Color(nsColor: state.progressAccentColor),
+                showsPacingMarkers: state.pacingMarkersEnabled,
                 primaryActionTitle: remoteHostCardActionTitle(for: remoteHost),
                 onPrimaryAction: remoteHostCardAction(for: remoteHost, target: target),
                 isPrimaryActionEnabled: state.canConfigureHosts,
@@ -532,13 +534,15 @@ struct MenuBarMenuBuilder {
     }
 
     private func statusBarMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Display", action: nil, keyEquivalent: "")
-        item.image = NSImage(systemSymbolName: "slider.horizontal.3", accessibilityDescription: "Display")
+        let item = NSMenuItem(title: "Preferences", action: nil, keyEquivalent: "")
+        item.image = NSImage(systemSymbolName: "slider.horizontal.3", accessibilityDescription: "Preferences")
 
-        let submenu = configuredMenu(title: "Display")
+        let submenu = configuredMenu(title: "Preferences")
+        submenu.addItem(disabledInfoItem("Icon"))
         submenu.addItem(statusBarDisplayMenuItem(state: state, target: target))
         submenu.addItem(statusBarStyleMenuItem(state: state, target: target))
         submenu.addItem(.separator())
+        submenu.addItem(pacingMarkersMenuItem(state: state, target: target))
         submenu.addItem(progressAccentColorItem(state: state, target: target))
         submenu.addItem(resetProgressAccentColorItem(state: state, target: target))
 
@@ -574,6 +578,13 @@ struct MenuBarMenuBuilder {
         return item
     }
 
+    private func pacingMarkersMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Show Markers", action: #selector(MenuBarCoordinator.togglePacingMarkers(_:)), keyEquivalent: "")
+        item.target = target
+        item.state = state.pacingMarkersEnabled ? .on : .off
+        return item
+    }
+
     private func resetProgressAccentColorItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
         let item = NSMenuItem(title: "Use Default", action: #selector(MenuBarCoordinator.resetProgressAccentColor(_:)), keyEquivalent: "")
         item.target = target
@@ -582,10 +593,10 @@ struct MenuBarMenuBuilder {
     }
 
     private func statusBarStyleMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Indicator", action: nil, keyEquivalent: "")
-        item.image = NSImage(systemSymbolName: "square.2.layers.3d.top.filled", accessibilityDescription: "Indicator")
+        let item = NSMenuItem(title: "Style", action: nil, keyEquivalent: "")
+        item.image = NSImage(systemSymbolName: "square.2.layers.3d.top.filled", accessibilityDescription: "Style")
 
-        let submenu = configuredMenu(title: "Indicator")
+        let submenu = configuredMenu(title: "Style")
         let monochrome = NSMenuItem(title: "Monochrome", action: #selector(MenuBarCoordinator.toggleStatusBarMonochrome(_:)), keyEquivalent: "")
         monochrome.target = target
         monochrome.state = state.statusBarMonochrome ? .on : .off
@@ -605,10 +616,10 @@ struct MenuBarMenuBuilder {
     }
 
     private func statusBarDisplayMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Content", action: nil, keyEquivalent: "")
-        item.image = NSImage(systemSymbolName: "character.textbox", accessibilityDescription: "Content")
+        let item = NSMenuItem(title: "Label", action: nil, keyEquivalent: "")
+        item.image = NSImage(systemSymbolName: "character.textbox", accessibilityDescription: "Label")
 
-        let submenu = configuredMenu(title: "Content")
+        let submenu = configuredMenu(title: "Label")
         for mode in StatusBarDisplayMode.allCases {
             let option: NSMenuItem
             if state.canSelectStatusBarDisplayMode(mode) {

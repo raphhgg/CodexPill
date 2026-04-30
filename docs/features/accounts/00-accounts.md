@@ -66,7 +66,7 @@ The card should show:
 - Email when it fits the current visual design.
 - Session usage and reset timing.
 - Weekly usage and reset timing.
-- A neutral expected-pace marker inside each usage bar when reset-window duration is available. This marker is visual only; it must not add pacing text to the card.
+- A neutral expected-pace marker inside each usage bar when reset-window duration is available and `Preferences > Show Markers` is enabled. This marker is visual only; it must not add pacing text to the card.
 
 If CodexPill cannot match the live local Codex auth to a saved account, it should show a clear unmatched or empty state instead of displaying stale saved-account data as current.
 
@@ -81,7 +81,7 @@ The card should show:
 - Connection state.
 - Plan and email when available.
 - Session and weekly usage values from the remote target.
-- The same neutral expected-pace marker as the local current account when reset-window duration is available.
+- The same neutral expected-pace marker as the local current account when reset-window duration is available and `Preferences > Show Markers` is enabled.
 
 Remote cards must prefer remote target values over local catalog values when the remote active account is verified. The user should not see the local catalog's stale limits as if they represented the remote host.
 

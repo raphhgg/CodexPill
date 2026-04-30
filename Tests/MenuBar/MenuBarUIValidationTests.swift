@@ -224,8 +224,8 @@ struct MenuBarUIValidationTests {
         )
 
         let preferences = try! #require(snapshot.sections.first(where: { $0.title == "Preferences" }))
-        #expect(preferences.items.contains("Menu Bar Content: Icon Only"))
-        #expect(!preferences.items.contains("Menu Bar Content: Text on Hover"))
+        #expect(preferences.items.contains("Label: Icon Only"))
+        #expect(!preferences.items.contains("Label: Text on Hover"))
     }
 
     @Test
