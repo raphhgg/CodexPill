@@ -66,7 +66,6 @@ The card should show:
 - Email when it fits the current visual design.
 - Session usage and reset timing.
 - Weekly usage and reset timing.
-- Compact pacing comparison on session and weekly rows when both usage and reset window data are available.
 
 If CodexPill cannot match the live local Codex auth to a saved account, it should show a clear unmatched or empty state instead of displaying stale saved-account data as current.
 
@@ -81,7 +80,6 @@ The card should show:
 - Connection state.
 - Plan and email when available.
 - Session and weekly usage values from the remote target.
-- Compact pacing comparison using the same model and visual language as the local current account when remote usage and reset window data are available.
 
 Remote cards must prefer remote target values over local catalog values when the remote active account is verified. The user should not see the local catalog's stale limits as if they represented the remote host.
 
@@ -117,14 +115,6 @@ Each visible row should show:
 - A submenu affordance.
 
 Rows should stay compact. Detailed target actions belong in the account submenu.
-
-Saved catalog rows do not show pacing indicators in the first pacing implementation; pacing belongs only to current local and current remote account cards.
-
-### Pacing Model
-
-Current account cards compare actual used percentage with a simple linear expectation: expected usage equals the elapsed percentage of the reset window.
-
-When the app has usage, future reset time, and reset-window duration, the session and weekly progress bars show a neutral expected marker and a small delta badge near the reset copy. Positive deltas mean the account is over the elapsed-window expectation, negative deltas mean there is room left, and near-zero deltas are on pace. Missing reset or window-duration data falls back to the existing usage and reset row without inventing pacing.
 
 ### Row Data Source
 

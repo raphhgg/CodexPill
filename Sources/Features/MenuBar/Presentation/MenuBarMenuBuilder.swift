@@ -22,6 +22,7 @@ final class HostAccountMenuItemPayload: NSObject {
 @MainActor
 struct MenuBarMenuBuilder {
     private let minimumMenuContentWidth: CGFloat = 372
+    private let pacingPrototypeMenuContentWidth: CGFloat = 690
     private let nativeMenuItemPaddingAllowance: CGFloat = 52
 
     func makeMenu(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenu {
@@ -558,7 +559,7 @@ struct MenuBarMenuBuilder {
                     accentColor: Color(nsColor: state.progressAccentColor)
                 )
             )
-            variantItem.view = configuredHostedMenuView(view, width: minimumMenuContentWidth)
+            variantItem.view = configuredHostedMenuView(view, width: pacingPrototypeMenuContentWidth)
             submenu.addItem(variantItem)
         }
 

@@ -89,7 +89,6 @@ case "${SCENARIO}" in
   hosted-menu-default)
     ASSERTIONS_JSON='[
     "Current Account section includes the active account summary",
-    "Current Account covers over-pace and on-pace production indicators",
     "Two inactive accounts are visible and one account overflows into More Accounts…",
     "Status message is omitted when the menu is not busy"
   ]'
@@ -111,7 +110,6 @@ case "${SCENARIO}" in
   hosted-menu-with-host)
     ASSERTIONS_JSON='[
     "Remote host state renders in its own section",
-    "Remote account card covers under-pace production indicators",
     "Accounts continues to reflect the local saved-account catalog",
     "One inactive account still overflows into More Accounts… with a connected host present"
   ]'
@@ -145,8 +143,8 @@ case "${SCENARIO}" in
   hosted-pacing-prototypes)
     ASSERTIONS_JSON='[
     "Debug pacing prototype menu is visible only in the prototype scenario",
-    "Five materially different variants render with session and weekly sample rows",
-    "Prototype samples cover under, near, over, severe, and missing data states"
+    "Baseline plus five materially different variants render with the current account card layout",
+    "Prototype variants compare text placement and progress bar treatments without changing production cards"
   ]'
     ;;
 esac
