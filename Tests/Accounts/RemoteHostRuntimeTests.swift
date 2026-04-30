@@ -133,7 +133,7 @@ struct RemoteHostRuntimeTests {
         markAccountActivated: @escaping (UUID) -> Void = { _ in }
     ) -> RemoteHostRuntime {
         RemoteHostRuntime(
-            settings: settings,
+            settings: settings.remoteHostSettings,
             remoteHostClient: remoteHostClient,
             accounts: { accounts },
             persistAccountMetadata: persistAccountMetadata,

@@ -147,9 +147,19 @@ These adapters are the only place where the app should know about live auth file
 
 - `CodexAccount`
 - `CodexRateLimits`
-- `AppSettings`
+- typed `UserDefaults`-backed settings stores
 
 These types are shared between features and platform adapters. Models should remain free of process or storage policy. App-wide configuration may persist lightweight preferences, but it should not take on UI workflow or process-control behavior.
+
+Settings persistence is split by feature boundary:
+
+- `MenuPreferencesStore` owns menu refresh cadence and visible inactive-account count options.
+- `StatusBarPreferencesStore` owns status-item indicator style, monochrome mode, display mode, and progress accent color helpers.
+- `RemoteHostSettingsStore` owns persisted remote-host state, configured-host compatibility helpers, and legacy remote-host key migration.
+- `NotificationPreferencesStore` owns notification workflow toggles and the legacy `notificationsBeforeYouRunOutEnabled` migration.
+- `NotificationStateStore` owns per-account notification delivery state and deterministic update ordering.
+
+`AppSettings` remains only as a compatibility facade that assembles these stores from one `UserDefaults` instance and forwards legacy property names. Feature/runtime boundaries should depend on the typed store they need where practical: remote-host runtime uses `RemoteHostSettingsStore`, account notification delivery uses `NotificationPreferencesStore` plus `NotificationStateStore`, and menu rendering reads menu/status-bar preferences without owning remote-host or notification persistence internals.
 
 ## State And Workflow Ownership
 

@@ -64,21 +64,26 @@ struct AccountAvailabilityNotificationWindow: Equatable {
 }
 
 @MainActor
-final class NotificationStateStore {
-    private let settings: AppSettings
+final class AccountAvailabilityNotificationStore {
+    private let preferences: NotificationPreferencesStore
+    private let stateStore: NotificationStateStore
 
-    init(settings: AppSettings) {
-        self.settings = settings
+    init(
+        preferences: NotificationPreferencesStore,
+        stateStore: NotificationStateStore
+    ) {
+        self.preferences = preferences
+        self.stateStore = stateStore
     }
 
     var whenBlockedEnabled: Bool {
-        get { settings.notificationsWhenBlockedEnabled }
-        set { settings.notificationsWhenBlockedEnabled = newValue }
+        get { preferences.notificationsWhenBlockedEnabled }
+        set { preferences.notificationsWhenBlockedEnabled = newValue }
     }
 
     var whenOutEnabled: Bool {
-        get { settings.notificationsWhenOutEnabled }
-        set { settings.notificationsWhenOutEnabled = newValue }
+        get { preferences.notificationsWhenOutEnabled }
+        set { preferences.notificationsWhenOutEnabled = newValue }
     }
 
     func shouldDeliverNotification(
@@ -87,7 +92,7 @@ final class NotificationStateStore {
         window: AccountAvailabilityNotificationWindow
     ) -> Bool {
         guard isEnabled(for: reason) else { return false }
-        guard let persistedState = settings.accountNotificationState(for: accountID) else {
+        guard let persistedState = stateStore.accountNotificationState(for: accountID) else {
             return true
         }
 
@@ -100,7 +105,7 @@ final class NotificationStateStore {
         window: AccountAvailabilityNotificationWindow,
         notifiedAt: Date = .now
     ) {
-        settings.updateAccountNotificationState(for: accountID) { state in
+        stateStore.updateAccountNotificationState(for: accountID) { state in
             state.isArmed = false
             state.lastNotification = PersistedAccountNotificationRecord(
                 reason: persistableReason(reason),
@@ -111,14 +116,14 @@ final class NotificationStateStore {
     }
 
     func markAccountActivated(_ accountID: UUID) {
-        settings.updateAccountNotificationState(for: accountID) { state in
+        stateStore.updateAccountNotificationState(for: accountID) { state in
             state.isArmed = true
             state.lastNotification = nil
         }
     }
 
     func state(for accountID: UUID) -> PersistedAccountNotificationState? {
-        settings.accountNotificationState(for: accountID)
+        stateStore.accountNotificationState(for: accountID)
     }
 
     private func isEnabled(for reason: AccountAvailabilityNotificationReason) -> Bool {

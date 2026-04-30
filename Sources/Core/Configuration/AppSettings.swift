@@ -177,18 +177,48 @@ struct PersistedAccountNotificationState: Codable, Equatable, Identifiable {
 
 @MainActor
 @Observable
-final class AppSettings {
+final class MenuPreferencesStore {
+    var refreshIntervalMinutes: Int {
+        didSet {
+            userDefaults.set(refreshIntervalMinutes, forKey: Self.refreshIntervalKey)
+        }
+    }
+
+    var visibleInactiveAccountCount: Int {
+        didSet {
+            userDefaults.set(visibleInactiveAccountCount, forKey: Self.visibleInactiveAccountCountKey)
+        }
+    }
+
+    let refreshIntervalOptions = [1, 2, 5, 10, 15, 30]
+    let visibleInactiveAccountCountOptions = [2, 3, 5, 0]
+
+    private let userDefaults: UserDefaults
+
+    private static let refreshIntervalKey = "refreshIntervalMinutes"
+    private static let visibleInactiveAccountCountKey = "visibleInactiveAccountCount"
+
+    init(userDefaults: UserDefaults = .standard) {
+        self.userDefaults = userDefaults
+
+        let storedRefreshInterval = userDefaults.integer(forKey: Self.refreshIntervalKey)
+        refreshIntervalMinutes = refreshIntervalOptions.contains(storedRefreshInterval) ? storedRefreshInterval : 5
+
+        let storedVisibleInactiveAccountCount = userDefaults.integer(forKey: Self.visibleInactiveAccountCountKey)
+        visibleInactiveAccountCount = visibleInactiveAccountCountOptions.contains(storedVisibleInactiveAccountCount)
+            ? storedVisibleInactiveAccountCount
+            : 2
+    }
+}
+
+@MainActor
+@Observable
+final class StatusBarPreferencesStore {
     private struct StoredColorComponents: Codable {
         let red: Double
         let green: Double
         let blue: Double
         let alpha: Double
-    }
-
-    var refreshIntervalMinutes: Int {
-        didSet {
-            userDefaults.set(refreshIntervalMinutes, forKey: Self.refreshIntervalKey)
-        }
     }
 
     var statusBarIndicatorStyle: StatusBarIndicatorStyle {
@@ -209,40 +239,126 @@ final class AppSettings {
         }
     }
 
-    var visibleInactiveAccountCount: Int {
-        didSet {
-            userDefaults.set(visibleInactiveAccountCount, forKey: Self.visibleInactiveAccountCountKey)
-        }
-    }
-
     var progressAccentColor: NSColor {
         didSet {
             persistColor(progressAccentColor, key: Self.progressAccentColorKey)
         }
     }
 
+    private let userDefaults: UserDefaults
+
+    private static let statusBarIndicatorStyleKey = "statusBarIndicatorStyle"
+    private static let statusBarMonochromeKey = "statusBarMonochrome"
+    private static let statusBarDisplayModeKey = "statusBarDisplayMode"
+    private static let progressAccentColorKey = "progressAccentColor"
+
+    init(userDefaults: UserDefaults = .standard) {
+        self.userDefaults = userDefaults
+
+        let storedStyle = userDefaults.string(forKey: Self.statusBarIndicatorStyleKey)
+        if storedStyle == "notchedSquare" {
+            statusBarIndicatorStyle = .stackedBars
+        } else if storedStyle == "splitCapsule" {
+            statusBarIndicatorStyle = .twinPills
+        } else {
+            statusBarIndicatorStyle = storedStyle.flatMap(StatusBarIndicatorStyle.init(rawValue:)) ?? .twinPills
+        }
+
+        statusBarMonochrome = userDefaults.object(forKey: Self.statusBarMonochromeKey) as? Bool ?? true
+        statusBarDisplayMode = userDefaults.string(forKey: Self.statusBarDisplayModeKey)
+            .flatMap(StatusBarDisplayMode.init(rawValue:)) ?? .textOnHover
+        progressAccentColor = Self.loadColor(
+            from: userDefaults,
+            key: Self.progressAccentColorKey,
+            defaultColor: StatusBarProgressColorDefaults.accent
+        )
+    }
+
+    var hasCustomProgressAccentColor: Bool {
+        !Self.colorsEqual(progressAccentColor, StatusBarProgressColorDefaults.accent)
+    }
+
+    func resetProgressAccentColor() {
+        progressAccentColor = StatusBarProgressColorDefaults.accent
+    }
+
+    private func persistColor(_ color: NSColor, key: String) {
+        let normalized = Self.normalizedColor(color)
+        let components = StoredColorComponents(
+            red: Double(normalized.redComponent),
+            green: Double(normalized.greenComponent),
+            blue: Double(normalized.blueComponent),
+            alpha: Double(normalized.alphaComponent)
+        )
+
+        if Self.colorsEqual(color, StatusBarProgressColorDefaults.accent) {
+            userDefaults.removeObject(forKey: key)
+            return
+        }
+
+        if let data = try? JSONEncoder().encode(components) {
+            userDefaults.set(data, forKey: key)
+        }
+    }
+
+    private static func loadColor(from userDefaults: UserDefaults, key: String, defaultColor: NSColor) -> NSColor {
+        guard let data = userDefaults.data(forKey: key),
+              let components = try? JSONDecoder().decode(StoredColorComponents.self, from: data)
+        else {
+            return defaultColor
+        }
+
+        return NSColor(
+            deviceRed: components.red,
+            green: components.green,
+            blue: components.blue,
+            alpha: components.alpha
+        )
+    }
+
+    private static func normalizedColor(_ color: NSColor) -> NSColor {
+        if let deviceRGB = color.usingColorSpace(.deviceRGB) {
+            return deviceRGB
+        }
+
+        if let sRGB = color.usingColorSpace(.sRGB) {
+            return sRGB
+        }
+
+        return color
+    }
+
+    private static func colorsEqual(_ lhs: NSColor, _ rhs: NSColor) -> Bool {
+        let left = normalizedColor(lhs)
+        let right = normalizedColor(rhs)
+
+        return abs(left.redComponent - right.redComponent) < 0.001
+            && abs(left.greenComponent - right.greenComponent) < 0.001
+            && abs(left.blueComponent - right.blueComponent) < 0.001
+            && abs(left.alphaComponent - right.alphaComponent) < 0.001
+    }
+}
+
+@MainActor
+@Observable
+final class RemoteHostSettingsStore {
     var remoteHostStates: [PersistedRemoteHostState] {
         didSet {
             persistCodable(remoteHostStates, key: Self.remoteHostsKey)
         }
     }
 
-    var notificationsWhenBlockedEnabled: Bool {
-        didSet {
-            userDefaults.set(notificationsWhenBlockedEnabled, forKey: Self.notificationsWhenBlockedEnabledKey)
-        }
-    }
+    private let userDefaults: UserDefaults
 
-    var notificationsWhenOutEnabled: Bool {
-        didSet {
-            userDefaults.set(notificationsWhenOutEnabled, forKey: Self.notificationsWhenOutEnabledKey)
-        }
-    }
+    private static let remoteHostsKey = "remoteHosts"
+    private static let remoteHostKey = "remoteHost"
+    private static let remoteHostInstalledAccountIDsKey = "remoteHostInstalledAccountIDs"
+    private static let remoteHostActiveAccountKey = "remoteHostActiveAccount"
 
-    var accountNotificationStates: [PersistedAccountNotificationState] {
-        didSet {
-            persistCodable(accountNotificationStates, key: Self.accountNotificationStatesKey)
-        }
+    init(userDefaults: UserDefaults = .standard) {
+        self.userDefaults = userDefaults
+        remoteHostStates = Self.loadCodable(from: userDefaults, key: Self.remoteHostsKey)
+            ?? Self.loadLegacyRemoteHostStates(from: userDefaults)
     }
 
     var configuredRemoteHost: RemoteHost? {
@@ -292,71 +408,6 @@ final class AppSettings {
         }
     }
 
-    let refreshIntervalOptions = [1, 2, 5, 10, 15, 30]
-    let visibleInactiveAccountCountOptions = [2, 3, 5, 0]
-
-    private let userDefaults: UserDefaults
-
-    private static let refreshIntervalKey = "refreshIntervalMinutes"
-    private static let statusBarIndicatorStyleKey = "statusBarIndicatorStyle"
-    private static let statusBarMonochromeKey = "statusBarMonochrome"
-    private static let statusBarDisplayModeKey = "statusBarDisplayMode"
-    private static let visibleInactiveAccountCountKey = "visibleInactiveAccountCount"
-    private static let progressAccentColorKey = "progressAccentColor"
-    private static let remoteHostsKey = "remoteHosts"
-    private static let remoteHostKey = "remoteHost"
-    private static let remoteHostInstalledAccountIDsKey = "remoteHostInstalledAccountIDs"
-    private static let remoteHostActiveAccountKey = "remoteHostActiveAccount"
-    private static let notificationsWhenBlockedEnabledKey = "notificationsWhenBlockedEnabled"
-    private static let notificationsWhenOutEnabledKey = "notificationsWhenOutEnabled"
-    private static let legacyNotificationsBeforeYouRunOutEnabledKey = "notificationsBeforeYouRunOutEnabled"
-    private static let accountNotificationStatesKey = "accountNotificationStates"
-
-    init(userDefaults: UserDefaults = .standard) {
-        self.userDefaults = userDefaults
-
-        let storedRefreshInterval = userDefaults.integer(forKey: Self.refreshIntervalKey)
-        refreshIntervalMinutes = refreshIntervalOptions.contains(storedRefreshInterval) ? storedRefreshInterval : 5
-
-        let storedStyle = userDefaults.string(forKey: Self.statusBarIndicatorStyleKey)
-        if storedStyle == "notchedSquare" {
-            statusBarIndicatorStyle = .stackedBars
-        } else if storedStyle == "splitCapsule" {
-            statusBarIndicatorStyle = .twinPills
-        } else {
-            statusBarIndicatorStyle = storedStyle.flatMap(StatusBarIndicatorStyle.init(rawValue:)) ?? .twinPills
-        }
-
-        statusBarMonochrome = userDefaults.object(forKey: Self.statusBarMonochromeKey) as? Bool ?? true
-        statusBarDisplayMode = userDefaults.string(forKey: Self.statusBarDisplayModeKey)
-            .flatMap(StatusBarDisplayMode.init(rawValue:)) ?? .textOnHover
-
-        let storedVisibleInactiveAccountCount = userDefaults.integer(forKey: Self.visibleInactiveAccountCountKey)
-        visibleInactiveAccountCount = visibleInactiveAccountCountOptions.contains(storedVisibleInactiveAccountCount)
-            ? storedVisibleInactiveAccountCount
-            : 2
-
-        progressAccentColor = Self.loadColor(
-            from: userDefaults,
-            key: Self.progressAccentColorKey,
-            defaultColor: StatusBarProgressColorDefaults.accent
-        )
-        notificationsWhenBlockedEnabled = userDefaults.bool(forKey: Self.notificationsWhenBlockedEnabledKey)
-        notificationsWhenOutEnabled = userDefaults.object(forKey: Self.notificationsWhenOutEnabledKey) as? Bool
-            ?? userDefaults.bool(forKey: Self.legacyNotificationsBeforeYouRunOutEnabledKey)
-        accountNotificationStates = Self.loadCodable(from: userDefaults, key: Self.accountNotificationStatesKey) ?? []
-        remoteHostStates = Self.loadCodable(from: userDefaults, key: Self.remoteHostsKey)
-            ?? Self.loadLegacyRemoteHostStates(from: userDefaults)
-    }
-
-    var hasCustomProgressAccentColor: Bool {
-        !Self.colorsEqual(progressAccentColor, StatusBarProgressColorDefaults.accent)
-    }
-
-    func resetProgressAccentColor() {
-        progressAccentColor = StatusBarProgressColorDefaults.accent
-    }
-
     func upsertRemoteHost(_ host: RemoteHost) {
         updateRemoteHostState(for: host) { _ in }
     }
@@ -384,46 +435,6 @@ final class AppSettings {
         remoteHostStates.sort { $0.host.displayName.localizedCaseInsensitiveCompare($1.host.displayName) == .orderedAscending }
     }
 
-    func accountNotificationState(for accountID: UUID) -> PersistedAccountNotificationState? {
-        accountNotificationStates.first(where: { $0.accountID == accountID })
-    }
-
-    func updateAccountNotificationState(
-        for accountID: UUID,
-        mutate: (inout PersistedAccountNotificationState) -> Void
-    ) {
-        if let index = accountNotificationStates.firstIndex(where: { $0.accountID == accountID }) {
-            var updated = accountNotificationStates[index]
-            mutate(&updated)
-            accountNotificationStates[index] = updated
-            return
-        }
-
-        var state = PersistedAccountNotificationState(accountID: accountID)
-        mutate(&state)
-        accountNotificationStates.append(state)
-        accountNotificationStates.sort { $0.accountID.uuidString < $1.accountID.uuidString }
-    }
-
-    private func persistColor(_ color: NSColor, key: String) {
-        let normalized = Self.normalizedColor(color)
-        let components = StoredColorComponents(
-            red: Double(normalized.redComponent),
-            green: Double(normalized.greenComponent),
-            blue: Double(normalized.blueComponent),
-            alpha: Double(normalized.alphaComponent)
-        )
-
-        if Self.colorsEqual(color, StatusBarProgressColorDefaults.accent) {
-            userDefaults.removeObject(forKey: key)
-            return
-        }
-
-        if let data = try? JSONEncoder().encode(components) {
-            userDefaults.set(data, forKey: key)
-        }
-    }
-
     private func persistCodable<T: Codable>(_ value: T?, key: String) {
         guard let value else {
             userDefaults.removeObject(forKey: key)
@@ -433,21 +444,6 @@ final class AppSettings {
         if let data = try? JSONEncoder().encode(value) {
             userDefaults.set(data, forKey: key)
         }
-    }
-
-    private static func loadColor(from userDefaults: UserDefaults, key: String, defaultColor: NSColor) -> NSColor {
-        guard let data = userDefaults.data(forKey: key),
-              let components = try? JSONDecoder().decode(StoredColorComponents.self, from: data)
-        else {
-            return defaultColor
-        }
-
-        return NSColor(
-            deviceRed: components.red,
-            green: components.green,
-            blue: components.blue,
-            alpha: components.alpha
-        )
     }
 
     private static func loadCodable<T: Codable>(from userDefaults: UserDefaults, key: String) -> T? {
@@ -475,26 +471,223 @@ final class AppSettings {
             )
         ]
     }
+}
 
-    private static func normalizedColor(_ color: NSColor) -> NSColor {
-        if let deviceRGB = color.usingColorSpace(.deviceRGB) {
-            return deviceRGB
+@MainActor
+@Observable
+final class NotificationPreferencesStore {
+    var notificationsWhenBlockedEnabled: Bool {
+        didSet {
+            userDefaults.set(notificationsWhenBlockedEnabled, forKey: Self.notificationsWhenBlockedEnabledKey)
         }
-
-        if let sRGB = color.usingColorSpace(.sRGB) {
-            return sRGB
-        }
-
-        return color
     }
 
-    private static func colorsEqual(_ lhs: NSColor, _ rhs: NSColor) -> Bool {
-        let left = normalizedColor(lhs)
-        let right = normalizedColor(rhs)
+    var notificationsWhenOutEnabled: Bool {
+        didSet {
+            userDefaults.set(notificationsWhenOutEnabled, forKey: Self.notificationsWhenOutEnabledKey)
+        }
+    }
 
-        return abs(left.redComponent - right.redComponent) < 0.001
-            && abs(left.greenComponent - right.greenComponent) < 0.001
-            && abs(left.blueComponent - right.blueComponent) < 0.001
-            && abs(left.alphaComponent - right.alphaComponent) < 0.001
+    private let userDefaults: UserDefaults
+
+    private static let notificationsWhenBlockedEnabledKey = "notificationsWhenBlockedEnabled"
+    private static let notificationsWhenOutEnabledKey = "notificationsWhenOutEnabled"
+    private static let legacyNotificationsBeforeYouRunOutEnabledKey = "notificationsBeforeYouRunOutEnabled"
+
+    init(userDefaults: UserDefaults = .standard) {
+        self.userDefaults = userDefaults
+        notificationsWhenBlockedEnabled = userDefaults.bool(forKey: Self.notificationsWhenBlockedEnabledKey)
+        notificationsWhenOutEnabled = userDefaults.object(forKey: Self.notificationsWhenOutEnabledKey) as? Bool
+            ?? userDefaults.bool(forKey: Self.legacyNotificationsBeforeYouRunOutEnabledKey)
+    }
+}
+
+@MainActor
+@Observable
+final class NotificationStateStore {
+    var accountNotificationStates: [PersistedAccountNotificationState] {
+        didSet {
+            persistCodable(accountNotificationStates, key: Self.accountNotificationStatesKey)
+        }
+    }
+
+    private let userDefaults: UserDefaults
+
+    private static let accountNotificationStatesKey = "accountNotificationStates"
+
+    init(userDefaults: UserDefaults = .standard) {
+        self.userDefaults = userDefaults
+        accountNotificationStates = Self.loadCodable(from: userDefaults, key: Self.accountNotificationStatesKey) ?? []
+    }
+
+    func accountNotificationState(for accountID: UUID) -> PersistedAccountNotificationState? {
+        accountNotificationStates.first(where: { $0.accountID == accountID })
+    }
+
+    func updateAccountNotificationState(
+        for accountID: UUID,
+        mutate: (inout PersistedAccountNotificationState) -> Void
+    ) {
+        if let index = accountNotificationStates.firstIndex(where: { $0.accountID == accountID }) {
+            var updated = accountNotificationStates[index]
+            mutate(&updated)
+            accountNotificationStates[index] = updated
+            return
+        }
+
+        var state = PersistedAccountNotificationState(accountID: accountID)
+        mutate(&state)
+        accountNotificationStates.append(state)
+        accountNotificationStates.sort { $0.accountID.uuidString < $1.accountID.uuidString }
+    }
+
+    private func persistCodable<T: Codable>(_ value: T?, key: String) {
+        guard let value else {
+            userDefaults.removeObject(forKey: key)
+            return
+        }
+
+        if let data = try? JSONEncoder().encode(value) {
+            userDefaults.set(data, forKey: key)
+        }
+    }
+
+    private static func loadCodable<T: Codable>(from userDefaults: UserDefaults, key: String) -> T? {
+        guard let data = userDefaults.data(forKey: key) else {
+            return nil
+        }
+
+        return try? JSONDecoder().decode(T.self, from: data)
+    }
+}
+
+@MainActor
+@Observable
+final class AppSettings {
+    let menuPreferences: MenuPreferencesStore
+    let statusBarPreferences: StatusBarPreferencesStore
+    let remoteHostSettings: RemoteHostSettingsStore
+    let notificationPreferences: NotificationPreferencesStore
+    let notificationState: NotificationStateStore
+
+    init(userDefaults: UserDefaults = .standard) {
+        menuPreferences = MenuPreferencesStore(userDefaults: userDefaults)
+        statusBarPreferences = StatusBarPreferencesStore(userDefaults: userDefaults)
+        remoteHostSettings = RemoteHostSettingsStore(userDefaults: userDefaults)
+        notificationPreferences = NotificationPreferencesStore(userDefaults: userDefaults)
+        notificationState = NotificationStateStore(userDefaults: userDefaults)
+    }
+
+    var refreshIntervalMinutes: Int {
+        get { menuPreferences.refreshIntervalMinutes }
+        set { menuPreferences.refreshIntervalMinutes = newValue }
+    }
+
+    var visibleInactiveAccountCount: Int {
+        get { menuPreferences.visibleInactiveAccountCount }
+        set { menuPreferences.visibleInactiveAccountCount = newValue }
+    }
+
+    var statusBarIndicatorStyle: StatusBarIndicatorStyle {
+        get { statusBarPreferences.statusBarIndicatorStyle }
+        set { statusBarPreferences.statusBarIndicatorStyle = newValue }
+    }
+
+    var statusBarMonochrome: Bool {
+        get { statusBarPreferences.statusBarMonochrome }
+        set { statusBarPreferences.statusBarMonochrome = newValue }
+    }
+
+    var statusBarDisplayMode: StatusBarDisplayMode {
+        get { statusBarPreferences.statusBarDisplayMode }
+        set { statusBarPreferences.statusBarDisplayMode = newValue }
+    }
+
+    var progressAccentColor: NSColor {
+        get { statusBarPreferences.progressAccentColor }
+        set { statusBarPreferences.progressAccentColor = newValue }
+    }
+
+    var hasCustomProgressAccentColor: Bool {
+        statusBarPreferences.hasCustomProgressAccentColor
+    }
+
+    var remoteHostStates: [PersistedRemoteHostState] {
+        get { remoteHostSettings.remoteHostStates }
+        set { remoteHostSettings.remoteHostStates = newValue }
+    }
+
+    var configuredRemoteHost: RemoteHost? {
+        get { remoteHostSettings.configuredRemoteHost }
+        set { remoteHostSettings.configuredRemoteHost = newValue }
+    }
+
+    var remoteHostInstalledAccountIDs: [UUID] {
+        get { remoteHostSettings.remoteHostInstalledAccountIDs }
+        set { remoteHostSettings.remoteHostInstalledAccountIDs = newValue }
+    }
+
+    var remoteHostActiveAccount: CodexAccount? {
+        get { remoteHostSettings.remoteHostActiveAccount }
+        set { remoteHostSettings.remoteHostActiveAccount = newValue }
+    }
+
+    var remoteHostDesiredAccountID: UUID? {
+        get { remoteHostSettings.remoteHostDesiredAccountID }
+        set { remoteHostSettings.remoteHostDesiredAccountID = newValue }
+    }
+
+    var notificationsWhenBlockedEnabled: Bool {
+        get { notificationPreferences.notificationsWhenBlockedEnabled }
+        set { notificationPreferences.notificationsWhenBlockedEnabled = newValue }
+    }
+
+    var notificationsWhenOutEnabled: Bool {
+        get { notificationPreferences.notificationsWhenOutEnabled }
+        set { notificationPreferences.notificationsWhenOutEnabled = newValue }
+    }
+
+    var accountNotificationStates: [PersistedAccountNotificationState] {
+        get { notificationState.accountNotificationStates }
+        set { notificationState.accountNotificationStates = newValue }
+    }
+
+    var refreshIntervalOptions: [Int] {
+        menuPreferences.refreshIntervalOptions
+    }
+
+    var visibleInactiveAccountCountOptions: [Int] {
+        menuPreferences.visibleInactiveAccountCountOptions
+    }
+
+    func resetProgressAccentColor() {
+        statusBarPreferences.resetProgressAccentColor()
+    }
+
+    func upsertRemoteHost(_ host: RemoteHost) {
+        remoteHostSettings.upsertRemoteHost(host)
+    }
+
+    func removeRemoteHost(destination: String) {
+        remoteHostSettings.removeRemoteHost(destination: destination)
+    }
+
+    func remoteHostState(for destination: String) -> PersistedRemoteHostState? {
+        remoteHostSettings.remoteHostState(for: destination)
+    }
+
+    func updateRemoteHostState(for host: RemoteHost, mutate: (inout PersistedRemoteHostState) -> Void) {
+        remoteHostSettings.updateRemoteHostState(for: host, mutate: mutate)
+    }
+
+    func accountNotificationState(for accountID: UUID) -> PersistedAccountNotificationState? {
+        notificationState.accountNotificationState(for: accountID)
+    }
+
+    func updateAccountNotificationState(
+        for accountID: UUID,
+        mutate: (inout PersistedAccountNotificationState) -> Void
+    ) {
+        notificationState.updateAccountNotificationState(for: accountID, mutate: mutate)
     }
 }

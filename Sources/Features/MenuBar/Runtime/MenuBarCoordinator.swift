@@ -38,7 +38,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let alertPresenter: MenuBarAlertPresenter
     private let panelPresenter: MenuBarPanelPresenter
     private let alertFactory: MenuBarAlertFactory
-    private let notificationStateStore: NotificationStateStore
+    private let notificationStateStore: AccountAvailabilityNotificationStore
     private let notificationDelivery: AccountAvailabilityNotifier
     private let applicationActivator: ApplicationActivator
     private let notificationSettingsLauncher: NotificationSettingsLauncher
@@ -95,7 +95,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.alertPresenter = alertPresenter
         self.panelPresenter = panelPresenter ?? SystemMenuBarPanelPresenter()
         self.alertFactory = alertFactory
-        self.notificationStateStore = NotificationStateStore(settings: settings)
+        self.notificationStateStore = AccountAvailabilityNotificationStore(
+            preferences: settings.notificationPreferences,
+            stateStore: settings.notificationState
+        )
         self.notificationDelivery = notificationDelivery
         self.applicationActivator = applicationActivator
         self.notificationSettingsLauncher = notificationSettingsLauncher
@@ -104,7 +107,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.sealValidationRun = sealValidationRun ?? CodexPillSealValidationConfiguration.makeRun()
         self.allowsEmptyStatePrompt = allowsEmptyStatePrompt
         self.remoteHostRuntime = RemoteHostRuntime(
-            settings: settings,
+            settings: settings.remoteHostSettings,
             remoteHostClient: remoteHostClient,
             accounts: { store.accounts },
             persistAccountMetadata: { store.persistAccountMetadata($0) },

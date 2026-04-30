@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 final class RemoteHostRuntime {
-    private let settings: AppSettings
+    private let settings: RemoteHostSettingsStore
     private let remoteHostClient: RemoteHostClient
     private let remoteHostAccountVerifier: RemoteHostAccountVerifier
     private let savedAccountRelinker: SavedAccountRelinker
@@ -13,7 +13,7 @@ final class RemoteHostRuntime {
     private var connectionStates: [String: RemoteHostConnectionState] = [:]
 
     init(
-        settings: AppSettings,
+        settings: RemoteHostSettingsStore,
         remoteHostClient: RemoteHostClient,
         remoteHostAccountVerifier: RemoteHostAccountVerifier = RemoteHostAccountVerifier(),
         savedAccountRelinker: SavedAccountRelinker = SavedAccountRelinker(),

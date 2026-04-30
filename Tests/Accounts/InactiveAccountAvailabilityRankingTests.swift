@@ -765,7 +765,11 @@ struct AccountAvailabilityNotificationPolicyTests {
     @MainActor
     @Test
     func notificationStateStoreSuppressesDisabledReasons() {
-        let store = NotificationStateStore(settings: makeNotificationSettings())
+        let settings = makeNotificationSettings()
+        let store = AccountAvailabilityNotificationStore(
+            preferences: settings.notificationPreferences,
+            stateStore: settings.notificationState
+        )
         let accountID = UUID()
 
         #expect(
@@ -780,7 +784,11 @@ struct AccountAvailabilityNotificationPolicyTests {
     @MainActor
     @Test
     func notificationStateStoreDoesNotRepeatUntilAccountIsActivated() {
-        let store = NotificationStateStore(settings: makeNotificationSettings())
+        let settings = makeNotificationSettings()
+        let store = AccountAvailabilityNotificationStore(
+            preferences: settings.notificationPreferences,
+            stateStore: settings.notificationState
+        )
         let accountID = UUID()
         let firstWindow = AccountAvailabilityNotificationWindow(
             sessionResetAt: Date().addingTimeInterval(1800),
@@ -809,7 +817,10 @@ struct AccountAvailabilityNotificationPolicyTests {
     @Test
     func notificationStateStorePersistsRecordedWindowAndReason() throws {
         let settings = makeNotificationSettings()
-        let store = NotificationStateStore(settings: settings)
+        let store = AccountAvailabilityNotificationStore(
+            preferences: settings.notificationPreferences,
+            stateStore: settings.notificationState
+        )
         let accountID = UUID()
         let now = Date()
         let window = AccountAvailabilityNotificationWindow(
