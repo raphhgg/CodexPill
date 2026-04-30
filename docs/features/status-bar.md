@@ -12,7 +12,7 @@ The status bar gives the user a lightweight answer before opening the menu: whic
 - Optional label text.
 - Hover-expanded text behavior.
 - Compact session/weekly indicators.
-- The `Preferences` submenu groups `Menu Bar` controls for label and icon style, and `Usage Bars` controls for pacing marker visibility and accent color.
+- The `Preferences` submenu exposes `Menu Bar Label`, `Icon Style`, and `Usage Bars` controls for label mode, icon style, pacing marker visibility, and accent color.
 - Tooltip text.
 
 ## Relationship To Accounts

@@ -204,8 +204,7 @@ struct MenuBarMenuBuilderTests {
         let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, menu: menu)
 
         let display = try #require(snapshot.menuItems.first(where: { $0.title == "Preferences" }))
-        let menuBar = try #require(display.children.first(where: { $0.title == "Menu Bar" }))
-        let content = try #require(menuBar.children.first(where: { $0.title == "Label" }))
+        let content = try #require(display.children.first(where: { $0.title == "Menu Bar Label" }))
         let iconOnly = try #require(content.children.first(where: { $0.title == "Icon Only" }))
         let iconAndText = try #require(content.children.first(where: { $0.title == "Icon + Text" }))
         let textOnHover = try #require(content.children.first(where: { $0.title == "Text on Hover" }))
@@ -1258,17 +1257,14 @@ struct MenuBarMenuBuilderTests {
         )
 
         let preferencesMenu = try #require(menu.items.first(where: { $0.title == "Preferences" })?.submenu)
-        let menuBarMenu = try #require(preferencesMenu.items.first(where: { $0.title == "Menu Bar" })?.submenu)
         let usageBarsMenu = try #require(preferencesMenu.items.first(where: { $0.title == "Usage Bars" })?.submenu)
-        let menuBarTitles = menuBarMenu.items.map(\.title)
         let usageBarTitles = usageBarsMenu.items.map(\.title)
         let showMarkers = try #require(usageBarsMenu.items.first(where: { $0.title == "Show Pace Markers" }))
 
-        #expect(preferencesMenu.items.map(\.title) == ["Menu Bar", "Usage Bars"])
-        #expect(menuBarTitles == ["Label", "Icon Style"])
+        #expect(preferencesMenu.items.map(\.title) == ["Menu Bar Label", "Icon Style", "Usage Bars"])
         #expect(usageBarTitles == ["Show Pace Markers", "Accent Color…", "Use Default"])
-        #expect(menuBarMenu.items.first(where: { $0.title == "Label" })?.image == nil)
-        #expect(menuBarMenu.items.first(where: { $0.title == "Icon Style" })?.image == nil)
+        #expect(preferencesMenu.items.first(where: { $0.title == "Menu Bar Label" })?.image == nil)
+        #expect(preferencesMenu.items.first(where: { $0.title == "Icon Style" })?.image == nil)
         #expect(usageBarsMenu.items.first(where: { $0.title == "Accent Color…" })?.image == nil)
         #expect(showMarkers.action == #selector(MenuBarCoordinator.togglePacingMarkers(_:)))
         #expect(showMarkers.state == .on)
@@ -1374,10 +1370,7 @@ struct MenuBarMenuBuilderTests {
             .first(where: { $0.title == "Preferences" })?
             .submenu?
             .items
-            .first(where: { $0.title == "Menu Bar" })?
-            .submenu?
-            .items
-            .first(where: { $0.title == "Label" })?
+            .first(where: { $0.title == "Menu Bar Label" })?
             .submenu
     }
 

@@ -98,7 +98,7 @@ enum MenuBarValidationSupport {
             title: "Preferences",
             items: [
                 "Refresh Time: \(state.refreshIntervalMinutes) minutes",
-                "Label: \(state.effectiveStatusBarDisplayMode.menuTitle)",
+                "Menu Bar Label: \(state.effectiveStatusBarDisplayMode.menuTitle)",
                 "Icon Style: \(state.statusBarIndicatorStyle.menuTitle)",
                 state.pacingMarkersEnabled ? "Show Pace Markers: On" : "Show Pace Markers: Off",
                 "Accent Color: \(colorHexString(for: state.progressAccentColor))",

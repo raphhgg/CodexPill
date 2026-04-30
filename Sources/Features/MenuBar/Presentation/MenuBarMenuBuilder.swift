@@ -538,18 +538,10 @@ struct MenuBarMenuBuilder {
         item.image = NSImage(systemSymbolName: "slider.horizontal.3", accessibilityDescription: "Preferences")
 
         let submenu = configuredMenu(title: "Preferences")
-        submenu.addItem(menuBarPreferencesMenuItem(state: state, target: target))
-        submenu.addItem(usageBarsPreferencesMenuItem(state: state, target: target))
-
-        item.submenu = submenu
-        return item
-    }
-
-    private func menuBarPreferencesMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Menu Bar", action: nil, keyEquivalent: "")
-        let submenu = configuredMenu(title: "Menu Bar")
         submenu.addItem(statusBarDisplayMenuItem(state: state, target: target))
         submenu.addItem(statusBarStyleMenuItem(state: state, target: target))
+        submenu.addItem(usageBarsPreferencesMenuItem(state: state, target: target))
+
         item.submenu = submenu
         return item
     }
@@ -628,9 +620,9 @@ struct MenuBarMenuBuilder {
     }
 
     private func statusBarDisplayMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Label", action: nil, keyEquivalent: "")
+        let item = NSMenuItem(title: "Menu Bar Label", action: nil, keyEquivalent: "")
 
-        let submenu = configuredMenu(title: "Label")
+        let submenu = configuredMenu(title: "Menu Bar Label")
         for mode in StatusBarDisplayMode.allCases {
             let option: NSMenuItem
             if state.canSelectStatusBarDisplayMode(mode) {
