@@ -6,128 +6,6 @@ import Testing
 @MainActor
 struct AccountsControllerTests {
     @Test
-    func startSignInAnotherAccountFlowClearsActiveAccountUntilCodexCompletesSignIn() async {
-        let business1 = makeAccount(name: "Business 1", fingerprint: "business-1")
-        let business2 = makeAccount(name: "Business 2", fingerprint: "business-2")
-        let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [business1, business2])
-        let liveIdentity = CurrentIdentityHarness(fingerprint: "business-2")
-        let identityResolver = SavedAccountIdentityResolver(
-            liveIdentitySource: liveIdentity,
-            storedAccountReconciler: StoredIdentityAdapter()
-        )
-        let controller = AccountsController(
-            identityResolver: identityResolver,
-            loadAccountsUseCase: LoadAccountsUseCase(
-                repository: repository,
-                identityResolver: identityResolver
-            ),
-            refreshActiveAccountUseCase: RefreshActiveAccountUseCase(
-                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
-                identityResolver: identityResolver,
-                repository: repository
-            ),
-            hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
-                authService: NullAuthService(),
-                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
-                identityResolver: identityResolver,
-                repository: repository
-            ),
-            deleteSavedAccountUseCase: DeleteSavedAccountUseCase(
-                repository: repository,
-                identityResolver: identityResolver
-            ),
-            renameSavedAccountUseCase: RenameSavedAccountUseCase(repository: repository),
-            persistSavedAccountMetadataUseCase: PersistSavedAccountMetadataUseCase(repository: repository),
-            switchAccountWorkflow: SwitchAccountWorkflow(
-                authService: NullAuthService(),
-                repository: repository,
-                codexAppProcessClient: NullCodexAppProcessClient(),
-                identityResolver: identityResolver
-            ),
-            saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow(
-                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
-                authService: NullAuthService(),
-                repository: repository,
-                identityResolver: identityResolver
-            ),
-            signInAnotherWorkflow: makeSignInAnotherWorkflow(
-                repository: repository,
-                identityResolver: identityResolver
-            )
-        )
-
-        controller.load()
-        #expect(controller.activeAccountID == business2.id)
-
-        liveIdentity.fingerprint = "business-1"
-
-        await controller.startSignInAnotherAccountFlow(named: "Business 3")
-
-        #expect(controller.activeAccountID == nil)
-        #expect(controller.hasPendingSignedInAccount)
-    }
-
-    @Test
-    func startSignInAnotherAccountFlowRejectsDuplicateNameBeforeOpeningCodexSignIn() async {
-        let business1 = makeAccount(name: "Business 1", fingerprint: "business-1")
-        let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [business1])
-        let liveIdentity = CurrentIdentityHarness(fingerprint: "business-1")
-        let identityResolver = SavedAccountIdentityResolver(
-            liveIdentitySource: liveIdentity,
-            storedAccountReconciler: StoredIdentityAdapter()
-        )
-        let processClient = CodexAppProcessProbe()
-        let authService = NullAuthService()
-        let controller = makeController(
-            repository: repository,
-            identityResolver: identityResolver,
-            authService: authService,
-            codexAppProcessClient: processClient
-        )
-
-        controller.load()
-        await controller.startSignInAnotherAccountFlow(named: " business 1 ")
-
-        #expect(controller.activeAccountID == business1.id)
-        #expect(!controller.hasPendingSignedInAccount)
-        #expect(processClient.availabilityCheckCount == 0)
-        #expect(processClient.relaunchCount == 0)
-        #expect(authService.prepareForNewSignInCount == 0)
-        #expect(controller.consumePendingErrorMessage() == "An account with that name already exists.")
-    }
-
-    @Test
-    func completePendingSignedInAccountClearsPendingFlowAfterTerminalSaveFailure() async {
-        let business1 = makeAccount(name: "Business 1", fingerprint: "business-1")
-        let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [business1])
-        let liveIdentity = CurrentIdentityHarness(fingerprint: "business-1")
-        let identityResolver = SavedAccountIdentityResolver(
-            liveIdentitySource: liveIdentity,
-            storedAccountReconciler: StoredIdentityAdapter()
-        )
-        let authService = SignInAuthErrorCase(error: SaveCurrentAccountWorkflowError.duplicateAccountName)
-        let controller = makeController(
-            repository: repository,
-            identityResolver: identityResolver,
-            authService: authService,
-            codexAppProcessClient: CodexAppProcessProbe()
-        )
-
-        controller.load()
-        await controller.startSignInAnotherAccountFlow(named: "Business 2")
-        liveIdentity.fingerprint = nil
-
-        await controller.completePendingSignedInAccountIfNeeded()
-
-        #expect(!controller.hasPendingSignedInAccount)
-        #expect(controller.consumePendingErrorMessage() == "An account with that name already exists.")
-
-        await controller.completePendingSignedInAccountIfNeeded()
-
-        #expect(controller.consumePendingErrorMessage() == nil)
-    }
-
-    @Test
     func completeIsolatedAddAccountAlreadySavedDoesNotQueueSecondPendingError() async throws {
         let existing = makeAccount(name: "Business 1", fingerprint: "captured-fingerprint")
         let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [existing])
@@ -145,14 +23,13 @@ struct AccountsControllerTests {
             repository: repository,
             identityResolver: identityResolver,
             authService: authService,
-            codexAppProcessClient: CodexAppProcessProbe(),
             isolatedLoginClient: IsolatedAddAccountLoginClientProbe(session: loginSession)
         )
 
         controller.load()
         let session = try await controller.startIsolatedAddAccountFlow(named: "Business 2")
 
-        await #expect(throws: IsolatedAddAccountWorkflowError.accountAlreadySaved("Business 1")) {
+        await #expect(throws: AddAccountWorkflowError.accountAlreadySaved("Business 1")) {
             _ = try await controller.completeIsolatedAddAccount(session)
         }
 
@@ -198,13 +75,7 @@ struct AccountsControllerTests {
                 codexAppProcessClient: NullCodexAppProcessClient(),
                 identityResolver: identityResolver
             ),
-            saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow(
-                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
-                authService: NullAuthService(),
-                repository: repository,
-                identityResolver: identityResolver
-            ),
-            signInAnotherWorkflow: makeSignInAnotherWorkflow(
+            addAccountWorkflow: makeAddAccountWorkflow(
                 repository: repository,
                 identityResolver: identityResolver
             )
@@ -293,13 +164,7 @@ struct AccountsControllerTests {
                     )
                 )
             ),
-            saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow(
-                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
-                authService: NullAuthService(),
-                repository: repository,
-                identityResolver: identityResolver
-            ),
-            signInAnotherWorkflow: makeSignInAnotherWorkflow(
+            addAccountWorkflow: makeAddAccountWorkflow(
                 repository: repository,
                 identityResolver: identityResolver
             )
@@ -356,13 +221,7 @@ struct AccountsControllerTests {
             switchAccountOnHostWorkflow: SwitchAccountOnHostWorkflow(
                 remoteHostClient: RemoteHostErrorCase(error: RemoteHostClientError.authReadFailed("cat: .codex/auth.json: Permission denied"))
             ),
-            saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow(
-                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
-                authService: NullAuthService(),
-                repository: repository,
-                identityResolver: identityResolver
-            ),
-            signInAnotherWorkflow: makeSignInAnotherWorkflow(
+            addAccountWorkflow: makeAddAccountWorkflow(
                 repository: repository,
                 identityResolver: identityResolver
             )
@@ -378,14 +237,12 @@ struct AccountsControllerTests {
         #expect(controller.pendingErrorMessage == "cat: .codex/auth.json: Permission denied")
     }
 
-    private func makeSignInAnotherWorkflow(
+    private func makeAddAccountWorkflow(
         repository: AccountCatalogStore,
         identityResolver: SavedAccountIdentityResolver
-    ) -> SignInAnotherWorkflow {
-        SignInAnotherWorkflow(
+    ) -> AddAccountWorkflow {
+        AddAccountWorkflow(
             authService: NullAuthService(),
-            codexAppProcessClient: NullCodexAppProcessClient(),
-            accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
             repository: repository,
             identityResolver: identityResolver
         )
@@ -394,8 +251,7 @@ struct AccountsControllerTests {
     private func makeController(
         repository: LoadingPersistingAccountCatalogProbe,
         identityResolver: SavedAccountIdentityResolver,
-        authService: some CodexAuthSessionStore & CodexAuthSnapshotStore & CodexSignInAuthStore,
-        codexAppProcessClient: CodexAppProcessClient,
+        authService: some CodexAuthSessionStore & CodexSignInAuthStore,
         isolatedLoginClient: IsolatedCodexLoginClient = IsolatedAddAccountLoginClientProbe(
             session: IsolatedAddAccountLoginSessionProbe(authData: Data())
         )
@@ -426,19 +282,11 @@ struct AccountsControllerTests {
             switchAccountWorkflow: SwitchAccountWorkflow(
                 authService: authService,
                 repository: repository,
-                codexAppProcessClient: codexAppProcessClient,
+                codexAppProcessClient: NullCodexAppProcessClient(),
                 identityResolver: identityResolver
             ),
-            saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow(
-                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
+            addAccountWorkflow: AddAccountWorkflow(
                 authService: authService,
-                repository: repository,
-                identityResolver: identityResolver
-            ),
-            signInAnotherWorkflow: SignInAnotherWorkflow(
-                authService: authService,
-                codexAppProcessClient: codexAppProcessClient,
-                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
                 repository: repository,
                 identityResolver: identityResolver,
                 isolatedLoginClient: isolatedLoginClient
@@ -560,22 +408,14 @@ private final class CodexAppProcessProbe: CodexAppProcessClient {
     }
 }
 
-private final class NullAuthService: CodexAuthSessionStore, CodexAuthSnapshotStore, CodexSignInAuthStore {
-    private(set) var prepareForNewSignInCount = 0
+private final class NullAuthService: CodexAuthSessionStore, CodexSignInAuthStore {
 
     func activate(_ account: CodexAccount) throws {}
-
-    func prepareForNewSignIn() throws {
-        prepareForNewSignInCount += 1
-    }
 
     func readCurrentAuthData() throws -> Data { Data() }
     func currentAuthFingerprint() -> String? { nil }
     func liveIdentity(forAuthData authData: Data) -> LiveCodexAccountIdentity { .empty }
     func restoreCurrentAuthData(_ data: Data) throws {}
-    func saveCurrentAuthSnapshot(named name: String, existing: CodexAccount?) throws -> CodexAccount {
-        try saveAuthSnapshot(Data(), named: name, existing: existing)
-    }
 
     func saveAuthSnapshot(_ authData: Data, named name: String, existing: CodexAccount?) throws -> CodexAccount {
         if let existing {
@@ -599,7 +439,7 @@ private final class NullAuthService: CodexAuthSessionStore, CodexAuthSnapshotSto
     func deleteAuthSnapshot(for account: CodexAccount) throws {}
 }
 
-private final class SignInAuthErrorCase: CodexAuthSessionStore, CodexAuthSnapshotStore, CodexSignInAuthStore {
+private final class SignInAuthErrorCase: CodexAuthSessionStore, CodexSignInAuthStore {
     let error: Error
 
     init(error: Error) {
@@ -607,14 +447,10 @@ private final class SignInAuthErrorCase: CodexAuthSessionStore, CodexAuthSnapsho
     }
 
     func activate(_ account: CodexAccount) throws {}
-    func prepareForNewSignIn() throws {}
     func readCurrentAuthData() throws -> Data { Data() }
     func currentAuthFingerprint() -> String? { nil }
     func liveIdentity(forAuthData authData: Data) -> LiveCodexAccountIdentity { .empty }
     func restoreCurrentAuthData(_ data: Data) throws {}
-    func saveCurrentAuthSnapshot(named name: String, existing: CodexAccount?) throws -> CodexAccount {
-        try saveAuthSnapshot(Data(), named: name, existing: existing)
-    }
 
     func saveAuthSnapshot(_ authData: Data, named name: String, existing: CodexAccount?) throws -> CodexAccount {
         throw error
@@ -623,7 +459,7 @@ private final class SignInAuthErrorCase: CodexAuthSessionStore, CodexAuthSnapsho
     func deleteAuthSnapshot(for account: CodexAccount) throws {}
 }
 
-private final class IsolatedAddAccountAuthProbe: CodexAuthSessionStore, CodexAuthSnapshotStore, CodexSignInAuthStore {
+private final class IsolatedAddAccountAuthProbe: CodexAuthSessionStore, CodexSignInAuthStore {
     var currentFingerprint: String?
     let capturedFingerprint: String?
 
@@ -633,16 +469,12 @@ private final class IsolatedAddAccountAuthProbe: CodexAuthSessionStore, CodexAut
     }
 
     func activate(_ account: CodexAccount) throws {}
-    func prepareForNewSignIn() throws {}
     func readCurrentAuthData() throws -> Data { Data() }
     func currentAuthFingerprint() -> String? { currentFingerprint }
     func liveIdentity(forAuthData authData: Data) -> LiveCodexAccountIdentity {
         LiveCodexAccountIdentity(snapshotFingerprint: capturedFingerprint)
     }
     func restoreCurrentAuthData(_ data: Data) throws {}
-    func saveCurrentAuthSnapshot(named name: String, existing: CodexAccount?) throws -> CodexAccount {
-        try saveAuthSnapshot(Data(), named: name, existing: existing)
-    }
     func saveAuthSnapshot(_ authData: Data, named name: String, existing: CodexAccount?) throws -> CodexAccount {
         let id = UUID()
         return CodexAccount(

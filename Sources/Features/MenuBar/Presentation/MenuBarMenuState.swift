@@ -131,11 +131,7 @@ struct MenuBarMenuState {
         self.notificationAuthorizationState = notificationAuthorizationState
     }
 
-    var canSaveCurrentAccount: Bool {
-        !isBusy
-    }
-
-    var canSignInAnotherAccount: Bool {
+    var canAddAccount: Bool {
         !isBusy
     }
 

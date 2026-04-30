@@ -1,12 +1,8 @@
 # Accounts
 
-CodexPill accounts are locally saved Codex authentication snapshots with user-facing metadata. Account features must preserve a clear distinction between saving an account and switching the active Codex account.
+CodexPill accounts are locally saved Codex authentication snapshots with user-facing metadata. Account features must preserve a clear distinction between adding an account and switching the active Codex account.
 
 ## Feature Inventory
-
-### Save Current Account
-
-Save the currently active Codex account into CodexPill's local catalog.
 
 ### Add Account
 

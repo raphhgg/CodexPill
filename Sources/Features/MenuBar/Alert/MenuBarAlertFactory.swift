@@ -1,17 +1,6 @@
 import AppKit
 
 struct MenuBarAlertFactory {
-    func makeSaveCurrentAccountRequest(activeAccountEmail: String?) -> MenuBarTextInputAlertRequest {
-        MenuBarTextInputAlertRequest(
-            messageText: "Save current account",
-            informativeText: "Choose a label for this saved account. Use distinct names if multiple accounts share the same email.",
-            fieldTitle: "Account Name",
-            placeholder: activeAccountEmail ?? "Personal 1",
-            confirmTitle: "Save",
-            cancelTitle: "Cancel"
-        )
-    }
-
     func makeAddAccountRequest(runningCLISessions: Int) -> MenuBarTextInputAlertRequest {
         MenuBarTextInputAlertRequest(
             messageText: "Add account",

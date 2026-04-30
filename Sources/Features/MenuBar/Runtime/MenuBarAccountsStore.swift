@@ -27,16 +27,11 @@ final class MenuBarAccountsStore {
     var pendingErrorMessage: String? { controller.pendingErrorMessage }
     var statusMessage: String { controller.statusMessage }
     var isBusy: Bool { controller.isBusy }
-    var hasPendingSignedInAccount: Bool { controller.hasPendingSignedInAccount }
     var activeAccount: CodexAccount? { controller.activeAccount }
     var inactiveAccounts: [CodexAccount] { controller.inactiveAccounts }
     var sortedInactiveAccounts: [CodexAccount] { controller.sortedInactiveAccounts }
     func load() {
         controller.load()
-    }
-
-    func saveCurrentAccountSnapshot(named customName: String?) async {
-        await controller.saveCurrentAccountSnapshot(named: customName)
     }
 
     func switchToAccount(_ account: CodexAccount) async {
@@ -67,10 +62,6 @@ final class MenuBarAccountsStore {
         controller.persistAccountMetadata(account)
     }
 
-    func startSignInAnotherAccountFlow(named pendingAccountName: String?) async {
-        await controller.startSignInAnotherAccountFlow(named: pendingAccountName)
-    }
-
     func startIsolatedAddAccountFlow(named pendingAccountName: String?) async throws -> IsolatedAddAccountSignInSession {
         try await controller.startIsolatedAddAccountFlow(named: pendingAccountName)
     }
@@ -81,10 +72,6 @@ final class MenuBarAccountsStore {
 
     func cancelIsolatedAddAccount(_ session: IsolatedAddAccountSignInSession) {
         controller.cancelIsolatedAddAccount(session)
-    }
-
-    func completePendingSignedInAccountIfNeeded() async {
-        await controller.completePendingSignedInAccountIfNeeded()
     }
 
     func refreshActiveAccount() {

@@ -16,18 +16,6 @@ struct CodexAuthSnapshotService {
         return try Data(contentsOf: repository.paths.codexAuthFile)
     }
 
-    func saveCurrentAuthSnapshot(
-        named name: String,
-        existing: CodexAccount? = nil
-    ) throws -> CodexAccount {
-        let authData = try readCurrentAuthData()
-        return try saveAuthSnapshot(
-            authData,
-            named: name,
-            existing: existing
-        )
-    }
-
     func saveAuthSnapshot(
         _ authData: Data,
         named name: String,
@@ -69,18 +57,6 @@ struct CodexAuthSnapshotService {
 
     func restoreCurrentAuthData(_ data: Data) throws {
         try data.write(to: repository.paths.codexAuthFile, options: .atomic)
-    }
-
-    func prepareForNewSignIn() throws {
-        let authFile = repository.paths.codexAuthFile
-        let fileManager = FileManager.default
-
-        let exists = fileManager.fileExists(atPath: authFile.path)
-        authSnapshotLogger.log("Preparing for new sign-in. Auth file exists: \(exists, privacy: .public)")
-        guard exists else { return }
-        authSnapshotLogger.log("Removing auth file at \(authFile.path, privacy: .public)")
-        try fileManager.removeItem(at: authFile)
-        authSnapshotLogger.log("Removed auth file successfully")
     }
 
     func currentAuthFingerprint() -> String? {

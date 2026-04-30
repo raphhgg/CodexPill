@@ -34,7 +34,7 @@ if [[ "${SCENARIO}" != "hosted-menu-default" ]]; then
   case "${SCENARIO}" in
     hosted-menu-busy|hosted-menu-empty|hosted-menu-with-host|hosted-menu-multiple-hosts|hosted-menu-disconnected-host|host-account-missing-on-host)
       ;;
-    live-menu-open|live-account-switch|live-remote-host-switch|live-add-host-destination-validation-failed|live-add-host-prompt|live-save-current-account-name-dialog-cancelled|live-save-current-prompt|live-add-account-name-dialog-cancelled|live-sign-in-another-prompt|live-scheduled-refresh)
+    live-menu-open|live-account-switch|live-remote-host-switch|live-add-host-destination-validation-failed|live-add-host-prompt|live-add-account-name-dialog-cancelled|live-add-account-prompt|live-scheduled-refresh)
       ARTIFACT_ROOT="${BUILD_ROOT}/verification/${AGENT_NAME}/${SCENARIO}" \
       ./scripts/live_menubar_smoke.sh
       exit $?
@@ -52,7 +52,7 @@ if [[ "${SCENARIO}" != "hosted-menu-default" ]]; then
   "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/verify_ui.sh",
   "gaps": [
     "Unknown scenario '${SCENARIO}'",
-    "Try SCENARIO=hosted-menu-default, hosted-menu-busy, hosted-menu-empty, hosted-menu-with-host, hosted-menu-multiple-hosts, hosted-menu-disconnected-host, host-account-missing-on-host, live-menu-open, live-account-switch, live-remote-host-switch, live-add-host-destination-validation-failed, live-save-current-account-name-dialog-cancelled, live-add-account-name-dialog-cancelled, live-scheduled-refresh, or live-status-item-hover"
+    "Try SCENARIO=hosted-menu-default, hosted-menu-busy, hosted-menu-empty, hosted-menu-with-host, hosted-menu-multiple-hosts, hosted-menu-disconnected-host, host-account-missing-on-host, live-menu-open, live-account-switch, live-remote-host-switch, live-add-host-destination-validation-failed, live-add-account-name-dialog-cancelled, live-scheduled-refresh, or live-status-item-hover"
   ],
   "scenario": "${SCENARIO}",
   "status": "failed"
@@ -103,7 +103,7 @@ case "${SCENARIO}" in
   hosted-menu-empty)
     ASSERTIONS_JSON='[
     "Empty state shows no active saved account",
-    "Save Current Account remains available when the menu is idle and empty",
+    "Add Account remains available when the menu is idle and empty",
     "Remove Account still renders as a stable control even when no saved accounts exist"
   ]'
     ;;

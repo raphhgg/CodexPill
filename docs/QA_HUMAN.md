@@ -32,7 +32,7 @@ Human QA is residual in this repo. If an agent can prove a behavior through test
 
 Verify:
 
-- save-current-account prompts show the expected copy
+- Add Account prompts show the expected copy
 - duplicate-name rejection is understandable to a human and returns the app to a stable state
 
 ### 2. Real Sign-In-Another Flow

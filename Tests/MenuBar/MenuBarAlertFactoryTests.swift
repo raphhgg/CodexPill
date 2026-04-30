@@ -8,21 +8,6 @@ struct MenuBarAlertFactoryTests {
     private let factory = MenuBarAlertFactory()
 
     @Test
-    func saveCurrentAccountUsesEmailPlaceholderWhenAvailable() {
-        let request = factory.makeSaveCurrentAccountRequest(activeAccountEmail: "person@example.com")
-
-        #expect(request.placeholder == "person@example.com")
-        #expect(request.confirmTitle == "Save")
-    }
-
-    @Test
-    func saveCurrentAccountFallsBackToDefaultPlaceholder() {
-        let request = factory.makeSaveCurrentAccountRequest(activeAccountEmail: nil)
-
-        #expect(request.placeholder == "Personal 1")
-    }
-
-    @Test
     func switchAccountWarningMentionsRunningCliSessions() {
         let request = factory.makeSwitchAccountRequest(accountName: "Work", runningCLISessions: 2)
 

@@ -93,21 +93,19 @@ struct MenuBarMenuStateTests {
     func busyStateDisablesInteractiveActions() {
         let state = makeState(inactiveAccounts: [], isBusy: true)
 
-        #expect(!state.canSaveCurrentAccount)
-        #expect(!state.canSignInAnotherAccount)
+        #expect(!state.canAddAccount)
         #expect(!state.canShowAbout)
     }
 
     @Test
-    func activeSavedAccountStillAllowsSaveCurrentAccount() {
+    func activeSavedAccountStillAllowsAddAccount() {
         let state = makeState(
             activeAccount: makeAccount(name: "Active"),
             inactiveAccounts: [],
             isBusy: false
         )
 
-        #expect(state.canSaveCurrentAccount)
-        #expect(state.canSignInAnotherAccount)
+        #expect(state.canAddAccount)
     }
 
     @Test
@@ -455,10 +453,10 @@ struct MenuBarMenuStateTests {
     }
 
     @Test
-    func emptyStateAllowsSavingCurrentAccount() {
+    func emptyStateAllowsAddAccount() {
         let state = makeState(inactiveAccounts: [], isBusy: false)
 
-        #expect(state.canSaveCurrentAccount)
+        #expect(state.canAddAccount)
         #expect(state.allSavedAccounts.isEmpty)
     }
 

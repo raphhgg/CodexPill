@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env zsh
 set -euo pipefail
 
 APP_NAME="CodexPill"
@@ -36,11 +36,8 @@ case "${SCENARIO}" in
   live-scheduled-refresh)
     INVARIANT_IDS_JSON='["accounts.scheduled_refresh.requested_and_completed"]'
     ;;
-  live-add-account-name-dialog-cancelled|live-sign-in-another-prompt)
+  live-add-account-name-dialog-cancelled|live-add-account-prompt)
     INVARIANT_IDS_JSON='["accounts.add_account.name_dialog_presented","accounts.add_account.name_dialog_cancelled","accounts.add_account.cancel_keeps_account_state"]'
-    ;;
-  live-save-current-account-name-dialog-cancelled|live-save-current-prompt)
-    INVARIANT_IDS_JSON='["accounts.save_current_account.name_dialog_presented","accounts.save_current_account.name_dialog_cancelled","accounts.save_current_account.cancel_keeps_account_state"]'
     ;;
   *)
     INVARIANT_IDS_JSON='["menubar.status_item_content.fallback_icon_only","menubar.inactive_accounts.render_and_wired_for_switch","menubar.custom_rows.stay_flush_with_rendered_menu_width"]'
@@ -50,7 +47,7 @@ esac
 mkdir -p "${ARTIFACT_ROOT}/screenshots" "${ARTIFACT_ROOT}/logs"
 rm -f "${VALIDATION_EVENTS_PATH}"
 
-if [[ "${SCENARIO}" == "live-account-switch" || "${SCENARIO}" == "live-remote-host-switch" || "${SCENARIO}" == "live-save-current-account-name-dialog-cancelled" || "${SCENARIO}" == "live-save-current-prompt" || "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-sign-in-another-prompt" || "${SCENARIO}" == "live-add-host-destination-validation-failed" || "${SCENARIO}" == "live-add-host-prompt" ]]; then
+if [[ "${SCENARIO}" == "live-account-switch" || "${SCENARIO}" == "live-remote-host-switch" || "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-add-account-prompt" || "${SCENARIO}" == "live-add-host-destination-validation-failed" || "${SCENARIO}" == "live-add-host-prompt" ]]; then
   rm -rf "${SEAL_PROOF_OUTPUT_PATH}"
 fi
 
@@ -377,21 +374,21 @@ RUN_MENUBAR_ENV=(
   "CODEXPILL_VALIDATION_SCENARIO=${SCENARIO}"
 )
 
-if [[ "${SCENARIO}" == "live-account-switch" || "${SCENARIO}" == "live-remote-host-switch" || "${SCENARIO}" == "live-save-current-account-name-dialog-cancelled" || "${SCENARIO}" == "live-save-current-prompt" || "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-sign-in-another-prompt" || "${SCENARIO}" == "live-add-host-destination-validation-failed" || "${SCENARIO}" == "live-add-host-prompt" ]]; then
+if [[ "${SCENARIO}" == "live-account-switch" || "${SCENARIO}" == "live-remote-host-switch" || "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-add-account-prompt" || "${SCENARIO}" == "live-add-host-destination-validation-failed" || "${SCENARIO}" == "live-add-host-prompt" ]]; then
   RUN_MENUBAR_ENV+=(
     "CODEXPILL_SEAL_PROOF_OUTPUT=${PWD}/${SEAL_PROOF_OUTPUT_PATH}"
   )
 fi
 
-if [[ "${SCENARIO}" == "live-account-switch" || "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-sign-in-another-prompt" || "${SCENARIO}" == "live-add-host-destination-validation-failed" || "${SCENARIO}" == "live-add-host-prompt" ]]; then
+if [[ "${SCENARIO}" == "live-account-switch" || "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-add-host-destination-validation-failed" || "${SCENARIO}" == "live-add-host-prompt" ]]; then
   RUN_MENUBAR_ENV+=(
     "CODEXPILL_VALIDATION_ALLOW_INTERACTIVE_ALERTS=1"
   )
 fi
 
-if [[ "${SCENARIO}" == "live-save-current-account-name-dialog-cancelled" || "${SCENARIO}" == "live-save-current-prompt" ]]; then
+if [[ "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-add-account-prompt" ]]; then
   RUN_MENUBAR_ENV+=(
-    "CODEXPILL_VALIDATION_TRIGGER_SAVE_CURRENT_PROMPT=1"
+    "CODEXPILL_VALIDATION_TRIGGER_ADD_ACCOUNT_PROMPT=1"
   )
 fi
 
@@ -561,11 +558,6 @@ end
 
 add_account_menu = find_child(menu_items, "Add Account…")
 abort "Missing Add Account… menu in runtime snapshot" unless add_account_menu
-
-save_current_account = find_child(add_account_menu.fetch("children", []), "Save Current Account")
-if !["live-account-switch", "live-remote-host-switch", "live-save-current-account-name-dialog-cancelled", "live-save-current-prompt", "live-add-account-name-dialog-cancelled", "live-sign-in-another-prompt", "live-add-host-destination-validation-failed", "live-add-host-prompt"].include?(scenario)
-  abort "Missing Add Account… > Save Current Account item in runtime snapshot" unless save_current_account
-end
 
 display_menu = find_child(menu_items, "Display")
 abort "Missing Display menu in runtime snapshot" unless display_menu
@@ -749,19 +741,11 @@ checks << {
   end
 }
 
-if save_current_account
-  checks << {
-    "title" => "Save Current Account stays enabled when the menu is idle",
-    "passed" => save_current_account["isEnabled"] == true && save_current_account["hasAction"] == true,
-    "actual" => save_current_account
-  }
-else
-  checks << {
-    "title" => "Add Account stays available as the current direct account action",
-    "passed" => add_account_menu["isEnabled"] == true && add_account_menu["hasAction"] == true,
-    "actual" => add_account_menu
-  }
-end
+checks << {
+  "title" => "Add Account stays available as the current direct account action",
+  "passed" => add_account_menu["isEnabled"] == true && add_account_menu["hasAction"] == true,
+  "actual" => add_account_menu
+}
 
 if !uses_isolated_account_switch_fixture
   checks << {
@@ -1154,18 +1138,14 @@ end tell
 EOF
 }
 
-trigger_save_current_prompt() {
+trigger_add_account_prompt() {
   osascript <<'EOF'
 tell application "System Events"
     tell process "CodexPill"
         tell menu bar 2
             click menu bar item 1
             delay 0.5
-            tell menu item "Add Account…" of menu 1 of menu bar item 1
-                tell menu 1
-                    click menu item "Save Current Account"
-                end tell
-            end tell
+            click menu item "Add Account…" of menu 1 of menu bar item 1
         end tell
     end tell
 end tell
@@ -1339,7 +1319,7 @@ end tell
 EOF
 }
 
-read_save_current_prompt_proof() {
+read_add_account_prompt_proof() {
   ruby - "${VALIDATION_EVENTS_PATH}" <<'RUBY'
 require "json"
 
@@ -1356,9 +1336,9 @@ else
 end
 
 requirements = [
-  ["menu_action_dispatched", "menu_action_dispatched", ->(event) { event.dig("payload", "action") == "addCurrentAccount" }],
-  ["save_current_prompt_presented", "save_current_account_name_dialog_presented", ->(_event) { true }],
-  ["save_current_prompt_cancelled", "save_current_account_name_dialog_cancelled", ->(_event) { true }]
+  ["menu_action_dispatched", "menu_action_dispatched", ->(event) { event.dig("payload", "action") == "addAccount" }],
+  ["add_account_prompt_presented", "add_account_name_dialog_presented", ->(_event) { true }],
+  ["add_account_prompt_cancelled", "add_account_name_dialog_cancelled", ->(_event) { true }]
 ]
 
 cursor = 0
@@ -2036,20 +2016,8 @@ print JSON.generate({
 ' "${UI_TREE_PATH}")"
 LAYOUT_PROOF_PASSED="$(printf '%s' "${LAYOUT_PROOF_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["passed"] ? "1" : "0")')"
 
-if [[ "${SCENARIO}" == "live-save-current-account-name-dialog-cancelled" || "${SCENARIO}" == "live-save-current-prompt" ]]; then
-  SAVE_CURRENT_PROOF_JSON=""
-  for _ in $(seq 1 20); do
-    SAVE_CURRENT_PROOF_JSON="$(read_save_current_prompt_proof)"
-    if [[ "$(printf '%s' "${SAVE_CURRENT_PROOF_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["passed"] ? "1" : "0")')" == "1" ]]; then
-      break
-    fi
-    sleep 0.5
-  done
-
-  SAVE_CURRENT_PROOF_PASSED="$(printf '%s' "${SAVE_CURRENT_PROOF_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["passed"] ? "1" : "0")')"
-  SAVE_CURRENT_PROOF_SEQUENCE="$(printf '%s' "${SAVE_CURRENT_PROOF_JSON}" | ruby -rjson -e 'print(JSON.generate(JSON.parse(STDIN.read)["proofSequence"]))')"
-
-  if [[ "${SAVE_CURRENT_PROOF_PASSED}" != "1" ]]; then
+if [[ "${SCENARIO}" == "live-add-account-prompt" ]]; then
+  if ! trigger_add_account_prompt >/dev/null 2>&1; then
     cat > "${SUMMARY_PATH}" <<EOF
 {
   "invariantIds": ${INVARIANT_IDS_JSON},
@@ -2069,20 +2037,113 @@ if [[ "${SCENARIO}" == "live-save-current-account-name-dialog-cancelled" || "${S
     "logs/run-menubar.log"
   ],
   "assertions": [
-    "The running app dispatched the validation Save Current Account action"
+    "Accessibility enumerated the open menu"
   ],
   "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
   "gaps": [
-    "The app did not emit the expected Save Current Account prompt event sequence."
+    "The live probe could not trigger the Add Account... menu action."
   ],
   "scenario": "${SCENARIO}",
   "status": "failed",
-  "proofSequence": ${SAVE_CURRENT_PROOF_SEQUENCE},
-  "failureClass": "product_regression",
-  "failureStep": "save_current_prompt_events"
+  "failureClass": "environment_block",
+  "failureStep": "add_account_prompt_menu_path"
 }
 EOF
-    echo "Live save-current prompt smoke failed: prompt event proof did not complete." >&2
+    echo "Live add-account prompt smoke failed: could not trigger the menu path." >&2
+    exit 19
+  fi
+
+  PROMPT_CANCELLED=0
+  for _ in $(seq 1 20); do
+    if cancel_text_input_prompt >/dev/null 2>&1; then
+      PROMPT_CANCELLED=1
+      break
+    fi
+    sleep 0.5
+  done
+
+  if [[ "${PROMPT_CANCELLED}" -ne 1 ]]; then
+    cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "screenshots/${SCENARIO}.png",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "seal-proof/manifest.json",
+    "seal-proof/evidence/events.jsonl",
+    "logs/seal-verifier.stdout.log",
+    "logs/seal-verifier.stderr.log",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "The live probe triggered the Add Account... menu action"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [
+    "The Add Account name dialog was not reachable for cancellation."
+  ],
+  "scenario": "${SCENARIO}",
+  "status": "failed",
+  "failureClass": "environment_block",
+  "failureStep": "add_account_prompt_cancel"
+}
+EOF
+    echo "Live add-account prompt smoke failed: could not cancel the dialog." >&2
+    exit 20
+  fi
+
+  ADD_ACCOUNT_PROMPT_PROOF_JSON=""
+  for _ in $(seq 1 20); do
+    ADD_ACCOUNT_PROMPT_PROOF_JSON="$(read_add_account_prompt_proof)"
+    if [[ "$(printf '%s' "${ADD_ACCOUNT_PROMPT_PROOF_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["passed"] ? "1" : "0")')" == "1" ]]; then
+      break
+    fi
+    sleep 0.5
+  done
+
+  ADD_ACCOUNT_PROMPT_PROOF_PASSED="$(printf '%s' "${ADD_ACCOUNT_PROMPT_PROOF_JSON}" | ruby -rjson -e 'print(JSON.parse(STDIN.read)["passed"] ? "1" : "0")')"
+  ADD_ACCOUNT_PROMPT_PROOF_SEQUENCE="$(printf '%s' "${ADD_ACCOUNT_PROMPT_PROOF_JSON}" | ruby -rjson -e 'print(JSON.generate(JSON.parse(STDIN.read)["proofSequence"]))')"
+
+  if [[ "${ADD_ACCOUNT_PROMPT_PROOF_PASSED}" != "1" ]]; then
+    cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "screenshots/${SCENARIO}.png",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "seal-proof/manifest.json",
+    "seal-proof/evidence/events.jsonl",
+    "logs/seal-verifier.stdout.log",
+    "logs/seal-verifier.stderr.log",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "The running app dispatched the validation Add Account action"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": [
+    "The app did not emit the expected Add Account prompt event sequence."
+  ],
+  "scenario": "${SCENARIO}",
+  "status": "failed",
+  "proofSequence": ${ADD_ACCOUNT_PROMPT_PROOF_SEQUENCE},
+  "failureClass": "product_regression",
+  "failureStep": "add_account_prompt_events"
+}
+EOF
+    echo "Live add-account prompt smoke failed: prompt event proof did not complete." >&2
     exit 19
   fi
 
@@ -2106,21 +2167,21 @@ EOF
     "logs/run-menubar.log"
   ],
   "assertions": [
-    "The running app dispatched the validation Save Current Account action",
-    "The Save Current Account prompt was presented",
-    "The Save Current Account prompt was cancelled cleanly"
+    "The running app dispatched the validation Add Account action",
+    "The Add Account prompt was presented",
+    "The Add Account prompt was cancelled cleanly"
   ],
   "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
   "gaps": $(seal_proof_failure_gaps_json),
   "scenario": "${SCENARIO}",
   "status": "failed",
-  "proofSequence": ${SAVE_CURRENT_PROOF_SEQUENCE},
+  "proofSequence": ${ADD_ACCOUNT_PROMPT_PROOF_SEQUENCE},
   "sealProofVerificationMode": "${SEAL_PROOF_VERIFICATION_MODE}",
   "failureClass": "product_regression",
   "failureStep": "seal_proof_verification"
 }
 EOF
-    echo "Live save-current prompt smoke failed: Seal proof did not verify." >&2
+    echo "Live add-account prompt smoke failed: Seal proof did not verify." >&2
     exit 20
   fi
 
@@ -2144,26 +2205,26 @@ EOF
   ],
   "assertions": [
     "Accessibility enumerated the open menu",
-    "The running app dispatched the validation Save Current Account action",
-    "The Save Current Account prompt was presented",
-    "The Save Current Account prompt was cancelled cleanly",
+    "The running app dispatched the validation Add Account action",
+    "The Add Account prompt was presented",
+    "The Add Account prompt was cancelled cleanly",
     "The Seal proof manifest exists and the Seal proof gate completed"
   ],
   "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
   "gaps": [],
   "scenario": "${SCENARIO}",
-  "sealProofScenario": "save-current-account-name-dialog-cancelled",
+  "sealProofScenario": "add-account-name-dialog-cancelled",
   "status": "passed",
-  "proofSequence": ${SAVE_CURRENT_PROOF_SEQUENCE},
+  "proofSequence": ${ADD_ACCOUNT_PROMPT_PROOF_SEQUENCE},
   "sealProofVerificationMode": "${SEAL_PROOF_VERIFICATION_MODE}"
 }
 EOF
 
-  echo "Live save-current prompt smoke artifacts written to ${ARTIFACT_ROOT}"
+  echo "Live add-account prompt smoke artifacts written to ${ARTIFACT_ROOT}"
   exit 0
 fi
 
-if [[ "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-sign-in-another-prompt" ]]; then
+if [[ "${SCENARIO}" == "live-add-account-name-dialog-cancelled" ]]; then
   if ! trigger_add_account_name_dialog >/dev/null 2>&1; then
     cat > "${SUMMARY_PATH}" <<EOF
 {
@@ -3199,7 +3260,7 @@ EOF
 fi
 
 if [[ "${SCENARIO}" == "live-menu-open" && "${ACCOUNT_SUBMENU_PROOF_PASSED}" != "1" ]]; then
-  ACCOUNT_SUBMENU_GAP="$(printf '%s' "${ACCOUNT_SUBMENU_PROOF_JSON}" | ruby -rjson -e 'proof = JSON.parse(STDIN.read); target = proof["targetName"]; titles = Array(proof["childTitles"]); failure = proof["failure"]; if target && !target.empty? then print("Accessibility did not reveal the expected switch submenu for #{target}. Child titles: #{titles.join(", ")}. Failure: #{failure || "missing_switch_target"}.") else print("The live probe could not find an account row to open as a submenu target. Failure: #{failure || "missing_target"}.") end')"
+  ACCOUNT_SUBMENU_GAP_JSON='"Accessibility did not reveal the expected Switch on This Mac target inside a saved-account submenu. See accountSubmenuProbe for target and child-title details."'
   cat > "${SUMMARY_PATH}" <<EOF
 {
   "invariantIds": ${INVARIANT_IDS_JSON},
@@ -3227,14 +3288,14 @@ if [[ "${SCENARIO}" == "live-menu-open" && "${ACCOUNT_SUBMENU_PROOF_PASSED}" != 
   ],
   "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
   "gaps": [
-    "${ACCOUNT_SUBMENU_GAP}"
+    ${ACCOUNT_SUBMENU_GAP_JSON}
   ],
   "scenario": "${SCENARIO}",
   "status": "failed",
   "accountSubmenuProbe": ${ACCOUNT_SUBMENU_PROOF_JSON}
 }
 EOF
-  echo "Live menubar smoke failed: account submenu did not open through Accessibility." >&2
+  echo "Live menubar smoke failed: saved-account submenu proof did not reveal switch targets." >&2
   exit 25
 fi
 

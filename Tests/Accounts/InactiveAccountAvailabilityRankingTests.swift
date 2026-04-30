@@ -944,16 +944,8 @@ struct InactiveAccountAvailabilityRankingTests {
                 codexAppProcessClient: NullCodexAppProcessClient(),
                 identityResolver: identityResolver
             ),
-            saveCurrentAccountWorkflow: SaveCurrentAccountWorkflow(
-                accountStatusClient: RankingAccountStatusErrorCase(error: RankingTestFailure.backgroundRefreshFailed),
+            addAccountWorkflow: AddAccountWorkflow(
                 authService: RankingNullAuthService(),
-                repository: repository,
-                identityResolver: identityResolver
-            ),
-            signInAnotherWorkflow: SignInAnotherWorkflow(
-                authService: RankingNullAuthService(),
-                codexAppProcessClient: NullCodexAppProcessClient(),
-                accountStatusClient: RankingAccountStatusErrorCase(error: RankingTestFailure.backgroundRefreshFailed),
                 repository: repository,
                 identityResolver: identityResolver
             )
@@ -1076,17 +1068,12 @@ private struct NullCodexAppProcessClient: CodexAppProcessClient {
     func relaunchCodex() async throws {}
 }
 
-private struct RankingNullAuthService: CodexAuthSessionStore, CodexAuthSnapshotStore, CodexSignInAuthStore {
+private struct RankingNullAuthService: CodexAuthSessionStore, CodexSignInAuthStore {
     func activate(_ account: CodexAccount) throws {}
-    func prepareForNewSignIn() throws {}
     func readCurrentAuthData() throws -> Data { Data() }
     func currentAuthFingerprint() -> String? { nil }
     func liveIdentity(forAuthData authData: Data) -> LiveCodexAccountIdentity { .empty }
     func restoreCurrentAuthData(_ data: Data) throws {}
-
-    func saveCurrentAuthSnapshot(named name: String, existing: CodexAccount?) throws -> CodexAccount {
-        try saveAuthSnapshot(Data(), named: name, existing: existing)
-    }
 
     func saveAuthSnapshot(_ authData: Data, named name: String, existing: CodexAccount?) throws -> CodexAccount {
         existing ?? CodexAccount(

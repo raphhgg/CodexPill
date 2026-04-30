@@ -54,7 +54,7 @@ Reduce the current orchestration load in:
 Target direction:
 
 - thin UI/menu layer
-- application-level use cases for save/switch/refresh/sign-in-another flows
+- application-level use cases for save/switch/refresh/Add Account flows
 - infrastructure adapters for file I/O, process control, and app-server reads
 - feature-oriented grouping for product logic and platform-oriented grouping for integrations
 

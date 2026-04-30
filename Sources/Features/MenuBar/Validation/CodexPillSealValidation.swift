@@ -34,10 +34,6 @@ final class CodexPillSealValidationRun {
     private var didRecordAccountBefore = false
     private var didFinish = false
 
-    convenience init(outputDirectory: URL) throws {
-        try self.init(scenario: .saveCurrentAccountNameDialogCancelled, outputDirectory: outputDirectory)
-    }
-
     fileprivate init(scenario: CodexPillSealScenario, outputDirectory: URL) throws {
         self.scenario = scenario
         try SealRecorder.register(features: [Self.feature(scenarios: [scenario])])
@@ -47,48 +43,6 @@ final class CodexPillSealValidationRun {
             executionMode: .liveUI,
             outputDirectory: outputDirectory
         )
-    }
-
-    func recordSaveCurrentAccountMenuAction(
-        activeAccount: CodexAccount?,
-        savedAccounts: [CodexAccount]
-    ) {
-        guard !didFinish else { return }
-        do {
-            try run.recordEvent(
-                "menu_action_dispatched",
-                step: "menu_action_dispatch",
-                invariantIds: [scenario.nameDialogPresentedID],
-                payload: [
-                    "action": .string(scenario.menuAction),
-                    "activeAccountId": .string(activeAccount?.id.uuidString ?? "")
-                ]
-            )
-            if !didRecordAccountBefore {
-                try run.recordSnapshot(
-                    id: EvidenceID("account_before"),
-                    path: "evidence/account-before.json",
-                    value: AccountStateSnapshot(activeAccount: activeAccount, savedAccounts: savedAccounts)
-                )
-                didRecordAccountBefore = true
-            }
-        } catch {
-            codexPillSealValidationLogger.error("Failed to record Seal menu action proof: \(error.localizedDescription, privacy: .public)")
-        }
-    }
-
-    func recordSaveCurrentAccountNameDialogPresented(activeAccountEmail: String?) {
-        guard !didFinish else { return }
-        recordNameDialogPresented(additionalPayload: [
-            "activeAccountEmail": .string(activeAccountEmail ?? "")
-        ])
-    }
-
-    func recordSaveCurrentAccountNameDialogCancelled(
-        activeAccount: CodexAccount?,
-        savedAccounts: [CodexAccount]
-    ) {
-        recordNameDialogCancelled(activeAccount: activeAccount, savedAccounts: savedAccounts)
     }
 
     func recordAddAccountMenuAction(
@@ -758,9 +712,7 @@ private struct CodexPillSealScenario {
 
     init?(legacyScenario: String) {
         switch legacyScenario {
-        case "live-save-current-account-name-dialog-cancelled", "live-save-current-prompt":
-            self = .saveCurrentAccountNameDialogCancelled
-        case "live-add-account-name-dialog-cancelled", "live-sign-in-another-prompt":
+        case "live-add-account-name-dialog-cancelled", "live-add-account-prompt":
             self = .addAccountNameDialogCancelled
         case "live-account-switch":
             self = .switchAccountChangesActiveAccount
@@ -772,21 +724,6 @@ private struct CodexPillSealScenario {
             return nil
         }
     }
-
-    static let saveCurrentAccountNameDialogCancelled = CodexPillSealScenario(
-        id: ScenarioID("save-current-account-name-dialog-cancelled"),
-        menuAction: "addCurrentAccount",
-        dialogID: "save_current_account_name",
-        dialogTitle: "Save Current Account",
-        dialogStep: "save_current_account_name_dialog",
-        presentedEventName: "save_current_account_name_dialog_presented",
-        cancelledEventName: "save_current_account_name_dialog_cancelled",
-        nameDialogPresentedID: InvariantID("accounts.save_current_account.name_dialog_presented"),
-        nameDialogCancelledID: InvariantID("accounts.save_current_account.name_dialog_cancelled"),
-        cancelKeepsAccountStateID: InvariantID("accounts.save_current_account.cancel_keeps_account_state"),
-        presentedAndCancelledExpectation: "The Save Current Account name dialog is presented and cancelled",
-        nonMutatingExpectation: "Cancelling the Save Current Account name dialog does not create or change a saved account"
-    )
 
     static let addAccountNameDialogCancelled = CodexPillSealScenario(
         id: ScenarioID("add-account-name-dialog-cancelled"),

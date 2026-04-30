@@ -268,7 +268,7 @@ struct MenuBarMenuBuilder {
         let item = NSMenuItem(title: "Add Account…", action: #selector(MenuBarCoordinator.addAccount), keyEquivalent: "")
         item.image = NSImage(systemSymbolName: "plus.circle", accessibilityDescription: "Add Account")
         item.target = target
-        item.isEnabled = state.canSignInAnotherAccount
+        item.isEnabled = state.canAddAccount
         return item
     }
 

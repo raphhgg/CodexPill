@@ -20,11 +20,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private static let liveProofLayer = "live_ui"
     private static let hoverInvariantIDs = ["menubar.text_on_hover.stays_visible_inside_resized_bounds"]
     private static let switchInvariantIDs = ["accounts.switch_account.menu_action_changes_active_account"]
-    private static let saveCurrentNameDialogInvariantIDs = [
-        "accounts.save_current_account.name_dialog_presented",
-        "accounts.save_current_account.name_dialog_cancelled",
-        "accounts.save_current_account.cancel_keeps_account_state"
-    ]
     private static let addAccountNameDialogInvariantIDs = [
         "accounts.add_account.name_dialog_presented",
         "accounts.add_account.name_dialog_cancelled",
@@ -57,7 +52,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let notificationPayloadRenderer = AccountAvailabilityNotificationPayloadRenderer()
     private let menuBuilder = MenuBarMenuBuilder()
     private var autoRefreshTimer: Timer?
-    private var pendingSignInMonitorTimer: Timer?
     private var wakeRefreshTask: Task<Void, Never>?
     private var notificationWaitTask: Task<Void, Never>?
     private var hasPromptedForEmptyState = false
@@ -133,14 +127,12 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         rebuildMenu()
         scheduleAutoRefresh()
         syncBackgroundState()
-        triggerValidationScenarioIfNeeded()
         refreshNotificationAuthorizationState()
         refreshRemoteHostStateIfNeeded()
     }
 
     func invalidate() {
         autoRefreshTimer?.invalidate()
-        pendingSignInMonitorTimer?.invalidate()
         wakeRefreshTask?.cancel()
         notificationWaitTask?.cancel()
         cancelActiveIsolatedAddAccountSession()
@@ -158,42 +150,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
                 self.performScheduledRefresh()
             }
         }
-    }
-
-    @objc
-    func addCurrentAccount() {
-        recordMenuAction("addCurrentAccount")
-        sealValidationRun?.recordSaveCurrentAccountMenuAction(
-            activeAccount: store.activeAccount,
-            savedAccounts: store.accounts
-        )
-        let request = alertFactory.makeSaveCurrentAccountRequest(activeAccountEmail: store.activeAccount?.email)
-        recordValidationEvent(
-            "save_current_prompt_presented",
-            step: "save_current_prompt",
-            invariantIds: Self.saveCurrentNameDialogInvariantIDs
-        )
-        sealValidationRun?.recordSaveCurrentAccountNameDialogPresented(activeAccountEmail: store.activeAccount?.email)
-
-        guard let name = alertPresenter.presentTextInput(request) else {
-            recordValidationEvent(
-                "save_current_prompt_cancelled",
-                step: "save_current_prompt",
-                invariantIds: Self.saveCurrentNameDialogInvariantIDs
-            )
-            sealValidationRun?.recordSaveCurrentAccountNameDialogCancelled(
-                activeAccount: store.activeAccount,
-                savedAccounts: store.accounts
-            )
-            return
-        }
-        recordValidationEvent(
-            "save_current_prompt_confirmed",
-            step: "save_current_prompt",
-            invariantIds: Self.saveCurrentNameDialogInvariantIDs,
-            payload: ["enteredName": name]
-        )
-        Task { await store.saveCurrentAccountSnapshot(named: name) }
     }
 
     @objc
@@ -904,7 +860,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             return
         }
 
-        if let saveError = error as? SaveCurrentAccountWorkflowError {
+        if let saveError = error as? AccountDisplayNameError {
             switch saveError {
             case .duplicateAccountName:
                 let request = alertFactory.makeAddAccountDuplicateNameRequest()
@@ -916,7 +872,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             return
         }
 
-        if let workflowError = error as? IsolatedAddAccountWorkflowError {
+        if let workflowError = error as? AddAccountWorkflowError {
             switch workflowError {
             case .liveAuthChanged:
                 alertPresenter.presentInfo(alertFactory.makeAddAccountUnsafeAuthChangeRequest())
@@ -1368,41 +1324,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     private func syncBackgroundState() {
-        schedulePendingSignInMonitorIfNeeded()
         promptForEmptyStateIfNeeded()
-    }
-
-    private func schedulePendingSignInMonitorIfNeeded() {
-        guard store.hasPendingSignedInAccount else {
-            pendingSignInMonitorTimer?.invalidate()
-            pendingSignInMonitorTimer = nil
-            return
-        }
-
-        guard pendingSignInMonitorTimer == nil else { return }
-
-        pendingSignInMonitorTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                guard let self else { return }
-                await self.store.completePendingSignedInAccountIfNeeded()
-                if !self.store.hasPendingSignedInAccount {
-                    self.pendingSignInMonitorTimer?.invalidate()
-                    self.pendingSignInMonitorTimer = nil
-                }
-            }
-        }
-    }
-
-    private func triggerValidationScenarioIfNeeded() {
-        guard validationScenario == "live-save-current-account-name-dialog-cancelled"
-            || validationScenario == "live-save-current-prompt"
-        else { return }
-        guard AppRuntimeEnvironment.shouldTriggerSaveCurrentPromptValidation() else { return }
-
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            self.addCurrentAccount()
-        }
     }
 
     private func promptForEmptyStateIfNeeded() {
@@ -1411,7 +1333,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         hasPromptedForEmptyState = true
         DispatchQueue.main.async { [weak self] in
             guard let self, self.store.accounts.isEmpty, !self.store.isBusy else { return }
-            self.addCurrentAccount()
+            self.addAccount()
         }
     }
 

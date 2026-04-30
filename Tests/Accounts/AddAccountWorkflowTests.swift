@@ -3,87 +3,40 @@ import Testing
 
 @testable import CodexPill
 
-struct SignInAnotherWorkflowTests {
-    @Test
-    func prepareClearsLiveAuthAndDoesNotRelaunchUntilRequested() throws {
-        let auth = SignInAnotherAuthSnapshotProbe(savedAccount: makeAccount(name: "ignored", fingerprint: "fingerprint"))
-        let processClient = SignInAnotherCodexProcessProbe()
-        let workflow = SignInAnotherWorkflow(
-            authService: auth,
-            codexAppProcessClient: processClient,
-            accountStatusClient: SignInAnotherStatusFixture(status: CodexAccountStatus(email: nil, planType: nil, rateLimits: nil)),
-            repository: SignInAnotherAccountCatalogProbe(),
-            identityResolver: makeResolver(auth: auth)
-        )
-
-        let result = try workflow.prepare(named: "  Secondary  ", existingAccounts: [])
-
-        #expect(result.pendingAccountName == "Secondary")
-        #expect(auth.prepareForNewSignInCount == 1)
-        #expect(processClient.availabilityCheckCount == 1)
-        #expect(processClient.relaunchCount == 0)
-    }
-
-    @Test
-    func prepareRejectsDuplicateNameBeforeClearingLiveAuthOrCheckingCodexAvailability() {
-        let existing = makeAccount(name: "Business 1", fingerprint: "business-1")
-        let auth = SignInAnotherAuthSnapshotProbe(savedAccount: makeAccount(name: "ignored", fingerprint: "fingerprint"))
-        let processClient = SignInAnotherCodexProcessProbe()
-        let workflow = SignInAnotherWorkflow(
-            authService: auth,
-            codexAppProcessClient: processClient,
-            accountStatusClient: SignInAnotherStatusFixture(status: CodexAccountStatus(email: nil, planType: nil, rateLimits: nil)),
-            repository: SignInAnotherAccountCatalogProbe(),
-            identityResolver: makeResolver(auth: auth)
-        )
-
-        #expect(throws: SaveCurrentAccountWorkflowError.duplicateAccountName) {
-            _ = try workflow.prepare(named: " business 1 ", existingAccounts: [existing])
-        }
-        #expect(auth.prepareForNewSignInCount == 0)
-        #expect(processClient.availabilityCheckCount == 0)
-        #expect(processClient.relaunchCount == 0)
-    }
-
+struct AddAccountWorkflowTests {
     @Test
     func isolatedAddAccountRejectsEmptyNameBeforeStartingLogin() async {
-        let auth = SignInAnotherAuthSnapshotProbe(savedAccount: makeAccount(name: "ignored", fingerprint: "fingerprint"))
-        let loginClient = SignInAnotherIsolatedLoginClientProbe()
-        let workflow = SignInAnotherWorkflow(
+        let auth = AddAccountAuthSnapshotProbe(savedAccount: makeAccount(name: "ignored", fingerprint: "fingerprint"))
+        let loginClient = AddAccountIsolatedLoginClientProbe()
+        let workflow = AddAccountWorkflow(
             authService: auth,
-            codexAppProcessClient: SignInAnotherCodexProcessProbe(),
-            accountStatusClient: SignInAnotherStatusFixture(status: CodexAccountStatus(email: nil, planType: nil, rateLimits: nil)),
-            repository: SignInAnotherAccountCatalogProbe(),
+            repository: AddAccountCatalogProbe(),
             identityResolver: makeResolver(auth: auth),
             isolatedLoginClient: loginClient
         )
 
-        await #expect(throws: SaveCurrentAccountWorkflowError.emptyAccountName) {
+        await #expect(throws: AccountDisplayNameError.emptyAccountName) {
             _ = try await workflow.startIsolatedAddAccount(named: "   ", existingAccounts: [])
         }
         #expect(loginClient.startLoginCount == 0)
-        #expect(auth.prepareForNewSignInCount == 0)
     }
 
     @Test
     func isolatedAddAccountRejectsDuplicateNameBeforeStartingLogin() async {
         let existing = makeAccount(name: "Business 1", fingerprint: "business-1")
-        let auth = SignInAnotherAuthSnapshotProbe(savedAccount: makeAccount(name: "ignored", fingerprint: "fingerprint"))
-        let loginClient = SignInAnotherIsolatedLoginClientProbe()
-        let workflow = SignInAnotherWorkflow(
+        let auth = AddAccountAuthSnapshotProbe(savedAccount: makeAccount(name: "ignored", fingerprint: "fingerprint"))
+        let loginClient = AddAccountIsolatedLoginClientProbe()
+        let workflow = AddAccountWorkflow(
             authService: auth,
-            codexAppProcessClient: SignInAnotherCodexProcessProbe(),
-            accountStatusClient: SignInAnotherStatusFixture(status: CodexAccountStatus(email: nil, planType: nil, rateLimits: nil)),
-            repository: SignInAnotherAccountCatalogProbe(),
+            repository: AddAccountCatalogProbe(),
             identityResolver: makeResolver(auth: auth),
             isolatedLoginClient: loginClient
         )
 
-        await #expect(throws: SaveCurrentAccountWorkflowError.duplicateAccountName) {
+        await #expect(throws: AccountDisplayNameError.duplicateAccountName) {
             _ = try await workflow.startIsolatedAddAccount(named: " business 1 ", existingAccounts: [existing])
         }
         #expect(loginClient.startLoginCount == 0)
-        #expect(auth.prepareForNewSignInCount == 0)
     }
 
     @Test
@@ -91,18 +44,16 @@ struct SignInAnotherWorkflowTests {
         let activeAccountID = UUID()
         let active = makeAccount(id: activeAccountID, name: "Personal", fingerprint: "live-fingerprint")
         let captured = makeAccount(name: "Business 2", fingerprint: "isolated-fingerprint")
-        let auth = SignInAnotherAuthSnapshotProbe(
+        let auth = AddAccountAuthSnapshotProbe(
             savedAccount: captured,
             currentAuthData: Data("live-auth".utf8),
             currentFingerprint: "live-fingerprint"
         )
-        let repository = SignInAnotherAccountCatalogProbe()
-        let loginSession = SignInAnotherIsolatedLoginSessionProbe(authData: Data("isolated-auth".utf8))
-        let loginClient = SignInAnotherIsolatedLoginClientProbe(session: loginSession)
-        let workflow = SignInAnotherWorkflow(
+        let repository = AddAccountCatalogProbe()
+        let loginSession = AddAccountIsolatedLoginSessionProbe(authData: Data("isolated-auth".utf8))
+        let loginClient = AddAccountIsolatedLoginClientProbe(session: loginSession)
+        let workflow = AddAccountWorkflow(
             authService: auth,
-            codexAppProcessClient: SignInAnotherCodexProcessProbe(),
-            accountStatusClient: SignInAnotherStatusFixture(status: CodexAccountStatus(email: nil, planType: nil, rateLimits: nil)),
             repository: repository,
             identityResolver: makeResolver(auth: auth),
             isolatedLoginClient: loginClient
@@ -131,18 +82,16 @@ struct SignInAnotherWorkflowTests {
         let activeAccountID = UUID()
         let active = makeAccount(id: activeAccountID, name: "Personal", fingerprint: "live-fingerprint")
         let captured = makeAccount(name: "Business 2", fingerprint: "isolated-fingerprint")
-        let auth = SignInAnotherAuthSnapshotProbe(
+        let auth = AddAccountAuthSnapshotProbe(
             savedAccount: captured,
             currentAuthData: Data("live-auth".utf8),
             currentFingerprint: "live-fingerprint"
         )
-        let repository = SignInAnotherAccountCatalogProbe()
-        let loginSession = SignInAnotherIsolatedLoginSessionProbe(authData: Data("isolated-auth".utf8))
-        let loginClient = SignInAnotherIsolatedLoginClientProbe(session: loginSession)
-        let workflow = SignInAnotherWorkflow(
+        let repository = AddAccountCatalogProbe()
+        let loginSession = AddAccountIsolatedLoginSessionProbe(authData: Data("isolated-auth".utf8))
+        let loginClient = AddAccountIsolatedLoginClientProbe(session: loginSession)
+        let workflow = AddAccountWorkflow(
             authService: auth,
-            codexAppProcessClient: SignInAnotherCodexProcessProbe(),
-            accountStatusClient: SignInAnotherStatusFixture(status: CodexAccountStatus(email: nil, planType: nil, rateLimits: nil)),
             repository: repository,
             identityResolver: makeResolver(auth: auth),
             isolatedLoginClient: loginClient
@@ -151,7 +100,7 @@ struct SignInAnotherWorkflowTests {
         let session = try await workflow.startIsolatedAddAccount(named: " Business 2 ", existingAccounts: [active])
         auth.currentFingerprint = "changed-live-fingerprint"
 
-        await #expect(throws: IsolatedAddAccountWorkflowError.liveAuthChanged) {
+        await #expect(throws: AddAccountWorkflowError.liveAuthChanged) {
             _ = try await workflow.completeIsolatedAddAccount(
                 session,
                 existingAccounts: [active],
@@ -169,26 +118,24 @@ struct SignInAnotherWorkflowTests {
     func completeIsolatedAddAccountRejectsAlreadySavedCapturedIdentity() async throws {
         let existing = makeAccount(name: "Business 4", fingerprint: "isolated-fingerprint")
         let captured = makeAccount(name: "Business 7", fingerprint: "isolated-fingerprint")
-        let auth = SignInAnotherAuthSnapshotProbe(
+        let auth = AddAccountAuthSnapshotProbe(
             savedAccount: captured,
             currentAuthData: Data("live-auth".utf8),
             currentFingerprint: "live-fingerprint",
             capturedIdentity: LiveCodexAccountIdentity(snapshotFingerprint: "isolated-fingerprint")
         )
-        let repository = SignInAnotherAccountCatalogProbe()
-        let loginSession = SignInAnotherIsolatedLoginSessionProbe(authData: Data("isolated-auth".utf8))
-        let workflow = SignInAnotherWorkflow(
+        let repository = AddAccountCatalogProbe()
+        let loginSession = AddAccountIsolatedLoginSessionProbe(authData: Data("isolated-auth".utf8))
+        let workflow = AddAccountWorkflow(
             authService: auth,
-            codexAppProcessClient: SignInAnotherCodexProcessProbe(),
-            accountStatusClient: SignInAnotherStatusFixture(status: CodexAccountStatus(email: nil, planType: nil, rateLimits: nil)),
             repository: repository,
             identityResolver: makeResolver(auth: auth),
-            isolatedLoginClient: SignInAnotherIsolatedLoginClientProbe(session: loginSession)
+            isolatedLoginClient: AddAccountIsolatedLoginClientProbe(session: loginSession)
         )
 
         let session = try await workflow.startIsolatedAddAccount(named: "Business 7", existingAccounts: [existing])
 
-        await #expect(throws: IsolatedAddAccountWorkflowError.accountAlreadySaved("Business 4")) {
+        await #expect(throws: AddAccountWorkflowError.accountAlreadySaved("Business 4")) {
             _ = try await workflow.completeIsolatedAddAccount(
                 session,
                 existingAccounts: [existing],
@@ -205,26 +152,24 @@ struct SignInAnotherWorkflowTests {
     func completeIsolatedAddAccountMapsCatalogSaveFailureAfterCapture() async throws {
         let active = makeAccount(name: "Personal", fingerprint: "live-fingerprint")
         let captured = makeAccount(name: "Business 2", fingerprint: "isolated-fingerprint")
-        let auth = SignInAnotherAuthSnapshotProbe(
+        let auth = AddAccountAuthSnapshotProbe(
             savedAccount: captured,
             currentAuthData: Data("live-auth".utf8),
             currentFingerprint: "live-fingerprint"
         )
         auth.saveAuthSnapshotError = CocoaError(.fileWriteUnknown)
-        let repository = SignInAnotherAccountCatalogProbe()
-        let loginSession = SignInAnotherIsolatedLoginSessionProbe(authData: Data("isolated-auth".utf8))
-        let workflow = SignInAnotherWorkflow(
+        let repository = AddAccountCatalogProbe()
+        let loginSession = AddAccountIsolatedLoginSessionProbe(authData: Data("isolated-auth".utf8))
+        let workflow = AddAccountWorkflow(
             authService: auth,
-            codexAppProcessClient: SignInAnotherCodexProcessProbe(),
-            accountStatusClient: SignInAnotherStatusFixture(status: CodexAccountStatus(email: nil, planType: nil, rateLimits: nil)),
             repository: repository,
             identityResolver: makeResolver(auth: auth),
-            isolatedLoginClient: SignInAnotherIsolatedLoginClientProbe(session: loginSession)
+            isolatedLoginClient: AddAccountIsolatedLoginClientProbe(session: loginSession)
         )
 
         let session = try await workflow.startIsolatedAddAccount(named: "Business 2", existingAccounts: [active])
 
-        await #expect(throws: IsolatedAddAccountWorkflowError.catalogSaveFailed) {
+        await #expect(throws: AddAccountWorkflowError.catalogSaveFailed) {
             _ = try await workflow.completeIsolatedAddAccount(
                 session,
                 existingAccounts: [active],
@@ -240,26 +185,24 @@ struct SignInAnotherWorkflowTests {
     func completeIsolatedAddAccountMapsRepositorySaveFailureAfterSnapshotSave() async throws {
         let active = makeAccount(name: "Personal", fingerprint: "live-fingerprint")
         let captured = makeAccount(name: "Business 2", fingerprint: "isolated-fingerprint")
-        let auth = SignInAnotherAuthSnapshotProbe(
+        let auth = AddAccountAuthSnapshotProbe(
             savedAccount: captured,
             currentAuthData: Data("live-auth".utf8),
             currentFingerprint: "live-fingerprint"
         )
-        let repository = SignInAnotherAccountCatalogProbe()
+        let repository = AddAccountCatalogProbe()
         repository.saveError = CocoaError(.fileWriteOutOfSpace)
-        let loginSession = SignInAnotherIsolatedLoginSessionProbe(authData: Data("isolated-auth".utf8))
-        let workflow = SignInAnotherWorkflow(
+        let loginSession = AddAccountIsolatedLoginSessionProbe(authData: Data("isolated-auth".utf8))
+        let workflow = AddAccountWorkflow(
             authService: auth,
-            codexAppProcessClient: SignInAnotherCodexProcessProbe(),
-            accountStatusClient: SignInAnotherStatusFixture(status: CodexAccountStatus(email: nil, planType: nil, rateLimits: nil)),
             repository: repository,
             identityResolver: makeResolver(auth: auth),
-            isolatedLoginClient: SignInAnotherIsolatedLoginClientProbe(session: loginSession)
+            isolatedLoginClient: AddAccountIsolatedLoginClientProbe(session: loginSession)
         )
 
         let session = try await workflow.startIsolatedAddAccount(named: "Business 2", existingAccounts: [active])
 
-        await #expect(throws: IsolatedAddAccountWorkflowError.catalogSaveFailed) {
+        await #expect(throws: AddAccountWorkflowError.catalogSaveFailed) {
             _ = try await workflow.completeIsolatedAddAccount(
                 session,
                 existingAccounts: [active],
@@ -275,19 +218,17 @@ struct SignInAnotherWorkflowTests {
 
     @Test
     func cancelIsolatedAddAccountTerminatesLoginAndCleansTemporaryHome() async throws {
-        let auth = SignInAnotherAuthSnapshotProbe(
+        let auth = AddAccountAuthSnapshotProbe(
             savedAccount: makeAccount(name: "Business 2", fingerprint: "isolated-fingerprint"),
             currentAuthData: Data("live-auth".utf8),
             currentFingerprint: "live-fingerprint"
         )
-        let loginSession = SignInAnotherIsolatedLoginSessionProbe(authData: Data("isolated-auth".utf8))
-        let workflow = SignInAnotherWorkflow(
+        let loginSession = AddAccountIsolatedLoginSessionProbe(authData: Data("isolated-auth".utf8))
+        let workflow = AddAccountWorkflow(
             authService: auth,
-            codexAppProcessClient: SignInAnotherCodexProcessProbe(),
-            accountStatusClient: SignInAnotherStatusFixture(status: CodexAccountStatus(email: nil, planType: nil, rateLimits: nil)),
-            repository: SignInAnotherAccountCatalogProbe(),
+            repository: AddAccountCatalogProbe(),
             identityResolver: makeResolver(auth: auth),
-            isolatedLoginClient: SignInAnotherIsolatedLoginClientProbe(session: loginSession)
+            isolatedLoginClient: AddAccountIsolatedLoginClientProbe(session: loginSession)
         )
 
         let session = try await workflow.startIsolatedAddAccount(named: "Business 2", existingAccounts: [])
@@ -297,66 +238,12 @@ struct SignInAnotherWorkflowTests {
         #expect(loginSession.cleanupCount == 1)
     }
 
-    @Test
-    func completePendingSignInSkipsUntilLiveAuthExists() async throws {
-        let auth = SignInAnotherAuthSnapshotProbe(
-            savedAccount: makeAccount(name: "ignored", fingerprint: "fingerprint"),
-            currentAuthData: nil
-        )
-        let repository = SignInAnotherAccountCatalogProbe()
-        let workflow = SignInAnotherWorkflow(
-            authService: auth,
-            codexAppProcessClient: SignInAnotherCodexProcessProbe(),
-            accountStatusClient: SignInAnotherStatusFixture(status: CodexAccountStatus(email: nil, planType: nil, rateLimits: nil)),
-            repository: repository,
-            identityResolver: makeResolver(auth: auth)
-        )
-
-        let result = try await workflow.completePendingSignIn(
-            pendingAccountName: "Secondary",
-            existingAccounts: []
-        )
-
-        #expect(result == nil)
-        #expect(repository.savedAccounts == nil)
-    }
-
-    @Test
-    func completePendingSignInPersistsLiveAuthWhenCodexAppWritesIt() async throws {
-        let account = makeAccount(name: "ignored", fingerprint: "live-fingerprint")
-        let auth = SignInAnotherAuthSnapshotProbe(
-            savedAccount: account,
-            currentAuthData: Data("auth".utf8),
-            currentFingerprint: "live-fingerprint"
-        )
-        let repository = SignInAnotherAccountCatalogProbe()
-        let workflow = SignInAnotherWorkflow(
-            authService: auth,
-            codexAppProcessClient: SignInAnotherCodexProcessProbe(),
-            accountStatusClient: SignInAnotherStatusFixture(
-                status: CodexAccountStatus(email: "person@example.com", planType: "pro", rateLimits: nil)
-            ),
-            repository: repository,
-            identityResolver: makeResolver(auth: auth)
-        )
-
-        let result = try await workflow.completePendingSignIn(
-            pendingAccountName: "Secondary",
-            existingAccounts: []
-        )
-
-        #expect(auth.savedNames == ["Secondary"])
-        #expect(repository.savedAccounts?.count == 1)
-        #expect(result?.savedAccount.email == "person@example.com")
-        #expect(result?.savedAccount.planType == "pro")
-        #expect(result?.activeAccountID == account.id)
-    }
 }
 
-private func makeResolver(auth: SignInAnotherAuthSnapshotProbe) -> SavedAccountIdentityResolver {
+private func makeResolver(auth: AddAccountAuthSnapshotProbe) -> SavedAccountIdentityResolver {
     SavedAccountIdentityResolver(
         liveIdentitySource: auth,
-        storedAccountReconciler: SignInAnotherStoredIdentityAdapter()
+        storedAccountReconciler: AddAccountStoredIdentityAdapter()
     )
 }
 
@@ -374,13 +261,12 @@ private func makeAccount(id: UUID = UUID(), name: String, fingerprint: String) -
     )
 }
 
-private final class SignInAnotherAuthSnapshotProbe: CodexSignInAuthStore, LiveCodexAccountIdentitySource {
+private final class AddAccountAuthSnapshotProbe: CodexSignInAuthStore, LiveCodexAccountIdentitySource {
     let savedAccount: CodexAccount
     var currentAuthData: Data?
     var currentFingerprint: String?
     var capturedIdentity: LiveCodexAccountIdentity
     var saveAuthSnapshotError: Error?
-    private(set) var prepareForNewSignInCount = 0
     private(set) var savedNames: [String] = []
     private(set) var savedAuthData: [Data] = []
     private(set) var deletedSnapshotNames: [String] = []
@@ -397,10 +283,6 @@ private final class SignInAnotherAuthSnapshotProbe: CodexSignInAuthStore, LiveCo
         self.capturedIdentity = capturedIdentity
     }
 
-    func prepareForNewSignIn() throws {
-        prepareForNewSignInCount += 1
-    }
-
     func readCurrentAuthData() throws -> Data {
         guard let currentAuthData else {
             throw CocoaError(.fileReadNoSuchFile)
@@ -408,19 +290,15 @@ private final class SignInAnotherAuthSnapshotProbe: CodexSignInAuthStore, LiveCo
         return currentAuthData
     }
 
-    func saveCurrentAuthSnapshot(named name: String, existing: CodexAccount?) throws -> CodexAccount {
-        savedNames.append(name)
-        var account = existing ?? savedAccount
-        account.name = existing?.name ?? name
-        return account
-    }
-
     func saveAuthSnapshot(_ authData: Data, named name: String, existing: CodexAccount?) throws -> CodexAccount {
+        savedNames.append(name)
         savedAuthData.append(authData)
         if let saveAuthSnapshotError {
             throw saveAuthSnapshotError
         }
-        return try saveCurrentAuthSnapshot(named: name, existing: existing)
+        var account = existing ?? savedAccount
+        account.name = name
+        return account
     }
 
     func deleteAuthSnapshot(for account: CodexAccount) throws {
@@ -440,7 +318,7 @@ private final class SignInAnotherAuthSnapshotProbe: CodexSignInAuthStore, LiveCo
     }
 }
 
-private final class SignInAnotherCodexProcessProbe: CodexAppProcessClient {
+private final class AddAccountCodexProcessProbe: CodexAppProcessClient {
     private(set) var availabilityCheckCount = 0
     private(set) var relaunchCount = 0
 
@@ -453,7 +331,7 @@ private final class SignInAnotherCodexProcessProbe: CodexAppProcessClient {
     }
 }
 
-private struct SignInAnotherStatusFixture: CodexAccountStatusClient {
+private struct AddAccountStatusFixture: CodexAccountStatusClient {
     let status: CodexAccountStatus
 
     func readCurrentAccountStatus() async throws -> CodexAccountStatus {
@@ -461,7 +339,7 @@ private struct SignInAnotherStatusFixture: CodexAccountStatusClient {
     }
 }
 
-private final class SignInAnotherAccountCatalogProbe: AccountCatalogStore {
+private final class AddAccountCatalogProbe: AccountCatalogStore {
     private(set) var savedAccounts: [CodexAccount]?
     var saveError: Error?
 
@@ -473,17 +351,17 @@ private final class SignInAnotherAccountCatalogProbe: AccountCatalogStore {
     }
 }
 
-private struct SignInAnotherStoredIdentityAdapter: StoredAccountIdentityReconciler {
+private struct AddAccountStoredIdentityAdapter: StoredAccountIdentityReconciler {
     func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {
         accounts
     }
 }
 
-private final class SignInAnotherIsolatedLoginClientProbe: IsolatedCodexLoginClient {
-    private let session: SignInAnotherIsolatedLoginSessionProbe
+private final class AddAccountIsolatedLoginClientProbe: IsolatedCodexLoginClient {
+    private let session: AddAccountIsolatedLoginSessionProbe
     private(set) var startLoginCount = 0
 
-    init(session: SignInAnotherIsolatedLoginSessionProbe = SignInAnotherIsolatedLoginSessionProbe()) {
+    init(session: AddAccountIsolatedLoginSessionProbe = AddAccountIsolatedLoginSessionProbe()) {
         self.session = session
     }
 
@@ -493,7 +371,7 @@ private final class SignInAnotherIsolatedLoginClientProbe: IsolatedCodexLoginCli
     }
 }
 
-private final class SignInAnotherIsolatedLoginSessionProbe: IsolatedCodexLoginSession {
+private final class AddAccountIsolatedLoginSessionProbe: IsolatedCodexLoginSession {
     let prompt = IsolatedCodexLoginPrompt(
         url: URL(string: "https://auth.openai.com/codex/device")!,
         userCode: "ABCD-EFGH"

@@ -79,13 +79,11 @@ Does not own:
 - `AccountAvailability`
 - `AccountAvailabilityNotifications`
 - `InactiveAccountAvailabilityRanking`
-- `PendingSignInLifecycle`
 - `SilentPostActionRefresh`
 - `LoadAccountsUseCase`
 - `RefreshActiveAccountUseCase`
-- `SaveCurrentAccountWorkflow`
 - `SwitchAccountWorkflow`
-- `SignInAnotherWorkflow`
+- `AddAccountWorkflow`
 - `SavedAccountIdentityResolver`
 - `CodexAccountMatcher`
 
@@ -202,12 +200,13 @@ These types are shared between features and platform adapters. Models should rem
 - inactive-account availability sorting for menu presentation
 - the ranking comparison contract used by `AccountsController.compareForMenu`
 
-`PendingSignInLifecycle` owns:
+`AddAccountWorkflow` owns:
 
-- pending sign-in state after preparing `Sign In Another Account…`
-- completion-in-flight state for post-login save flows
-- clearing/retaining the pending sign-in marker
-- gating metadata hydration while sign-in completion is unresolved
+- Add Account display-name validation before isolated sign-in starts
+- isolated Codex sign-in session capture
+- duplicate captured identity rejection
+- live-auth mutation guard before catalog save
+- temporary auth cleanup on cancel, failure, timeout, and success
 
 `SilentPostActionRefresh` owns:
 
@@ -274,7 +273,7 @@ The use cases and workflows own the multi-step business operations:
 - refresh the active account from live Codex data
 - save the current account snapshot
 - switch accounts
-- prepare sign-in-another flows
+- prepare Add Account flows
 
 ## Current Truth Sources
 

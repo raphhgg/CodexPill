@@ -934,44 +934,6 @@ struct MenuBarLiveValidationTests {
     }
 
     @Test
-    func sealValidationRunEmitsSaveCurrentNameDialogProof() throws {
-        let proofDirectory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("CodexPillSealValidation-\(UUID().uuidString)", isDirectory: true)
-        let now = Date()
-        let account = CodexAccount(
-            id: UUID(),
-            name: "Personal",
-            snapshotFileName: "personal.json",
-            createdAt: now,
-            updatedAt: now,
-            email: "personal@example.com",
-            planType: "pro",
-            rateLimits: nil,
-            identity: .empty
-        )
-        let run = try CodexPillSealValidationRun(outputDirectory: proofDirectory)
-
-        run.recordSaveCurrentAccountMenuAction(activeAccount: account, savedAccounts: [account])
-        run.recordSaveCurrentAccountNameDialogPresented(activeAccountEmail: account.email)
-        run.recordSaveCurrentAccountNameDialogCancelled(activeAccount: account, savedAccounts: [account])
-
-        let manifestURL = proofDirectory.appendingPathComponent("manifest.json")
-        let manifest = try JSONSerialization.jsonObject(with: Data(contentsOf: manifestURL)) as? [String: Any]
-        let runMetadata = manifest?["run"] as? [String: Any]
-        let evidence = manifest?["evidence"] as? [[String: Any]]
-
-        #expect(runMetadata?["feature"] as? String == "accounts")
-        #expect(runMetadata?["scenario"] as? String == "save-current-account-name-dialog-cancelled")
-        #expect(evidence?.compactMap { $0["path"] as? String } == [
-            "evidence/events.jsonl",
-            "evidence/account-before.json",
-            "evidence/name-dialog-snapshot.json",
-            "evidence/account-after.json",
-        ])
-        #expect(FileManager.default.fileExists(atPath: proofDirectory.appendingPathComponent("evidence/events.jsonl").path))
-    }
-
-    @Test
     func sealValidationRunEmitsAddAccountNameDialogProof() throws {
         let proofDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("CodexPillSealValidation-\(UUID().uuidString)", isDirectory: true)

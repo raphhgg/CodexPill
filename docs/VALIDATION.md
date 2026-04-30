@@ -54,10 +54,6 @@ The following behavior should be treated as automated first and should not live 
   - `CODEXPILL_ALLOW_LIVE_ACCOUNT_SWITCH_VALIDATION=1 SCENARIO=live-account-switch make verify-ui-live`
 - text-on-hover behavior:
   - unit plus `SCENARIO=live-status-item-hover make verify-ui-live`
-- save-current-account naming and duplicate handling:
-  - `SaveCurrentAccountWorkflowTests`
-- save-current-account prompt presentation and cancellation:
-  - `SCENARIO=live-save-current-account-name-dialog-cancelled make verify-ui-live`
 - Add Account name-dialog presentation and cancellation:
   - `SCENARIO=live-add-account-name-dialog-cancelled make verify-ui-live`
 - scheduled refresh timer requests and completes a background refresh:
@@ -70,14 +66,12 @@ The following behavior should be treated as automated first and should not live 
   - `CodexAppServerClientTests`
 - background wake or timer refresh failures stay silent in the UI:
   - `AccountsControllerTests`
-- sign-in-another persistence and duplicate-avoidance rules:
-  - `SignInAnotherWorkflowTests`
-- sign-in-another duplicate-name preflight and terminal pending-error handling:
-  - `SignInAnotherWorkflowTests` plus `AccountsControllerTests`
+- Add Account duplicate-name preflight:
+  - `AddAccountWorkflowTests`
 - isolated Add Account success, duplicate identity, cancel, save-failure, and stale-temp cleanup behavior:
-  - `SignInAnotherWorkflowTests`, `MenuBarAlertFactoryTests`, and `AppPathsTests`
+  - `AddAccountWorkflowTests`, `MenuBarAlertFactoryTests`, and `AppPathsTests`
 - Add Account v0 contract coverage:
-  - `SignInAnotherWorkflowTests`, `MenuBarAlertFactoryTests`, `AppPathsTests`, `MenuBarUIValidationTests`, and `SCENARIO=live-add-account-name-dialog-cancelled make verify-ui-live`
+  - `AddAccountWorkflowTests`, `MenuBarAlertFactoryTests`, `AppPathsTests`, `MenuBarUIValidationTests`, and `SCENARIO=live-add-account-name-dialog-cancelled make verify-ui-live`
 - switch-account relaunch and persistence behavior:
   - `SwitchAccountWorkflowTests`
 - remote-host SSH command mapping and failure surfacing:
@@ -141,23 +135,6 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `proofs_required`: `["live_ui"]`
 - `scenarios`: `["live-menu-open"]`
 
-### `accounts.save_current_account.refreshes_existing_snapshot`
-
-- `feature`: `accounts`
-- `rule`: `Save Current Account` stays available when the active auth already matches a saved account, because the workflow refreshes the existing snapshot.
-- `owner_layer`: `integration`
-- `proofs_required`: `["integration", "live_ui"]`
-- `scenarios`: `["active_saved_account", "matched_saved_identity"]`
-
-### `accounts.save_current_account.name_dialog_cancelled`
-
-- `feature`: `accounts`
-- `rule`: Triggering `Save Current Account` from the running menubar presents the name dialog and allows clean cancellation without mutating account state.
-- `owner_layer`: `live_ui`
-- `proofs_required`: `["live_ui"]`
-- `scenarios`: `["live-save-current-account-name-dialog-cancelled", "save-current-account-name-dialog-cancelled"]`
-- `event_evidence`: `["menu_action_dispatched", "save_current_account_name_dialog_presented", "save_current_account_name_dialog_cancelled"]`
-
 ### `accounts.add_account.name_dialog_cancelled`
 
 - `feature`: `accounts`
@@ -175,13 +152,13 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `proofs_required`: `["unit", "integration", "deterministic_ui", "live_ui"]`
 - `scenarios`: `["add_account_duplicate_display_name_blocks_before_sign_in", "add_account_shows_device_code_and_copy_action", "add_account_copy_code_keeps_waiting", "add_account_saves_without_switching", "add_account_use_on_this_mac_switches_without_second_confirmation", "add_account_cancel_cleans_up", "add_account_duplicate_identity_blocks_after_sign_in", "add_account_expired_code_allows_try_again", "add_account_failed_before_code_clears_state", "add_account_live_auth_mutation_aborts", "add_account_catalog_save_failure_does_not_switch", "add_account_quit_cleans_up", "add_account_startup_removes_stale_temp_homes"]`
 - `automated_proofs`:
-  - `add_account_duplicate_display_name_blocks_before_sign_in`: `SignInAnotherWorkflowTests.isolatedAddAccountRejectsDuplicateNameBeforeStartingLogin`
+  - `add_account_duplicate_display_name_blocks_before_sign_in`: `AddAccountWorkflowTests.isolatedAddAccountRejectsDuplicateNameBeforeStartingLogin`
   - `add_account_shows_device_code_and_copy_action`: `MenuBarAlertFactoryTests.addAccountSignInRequestShowsDeviceCodeCopy`
-  - `add_account_saves_without_switching`: `SignInAnotherWorkflowTests.completeIsolatedAddAccountPersistsCapturedAuthWithoutChangingActiveAccount`
-  - `add_account_cancel_cleans_up`: `SignInAnotherWorkflowTests.cancelIsolatedAddAccountTerminatesLoginAndCleansTemporaryHome`
-  - `add_account_duplicate_identity_blocks_after_sign_in`: `SignInAnotherWorkflowTests.completeIsolatedAddAccountRejectsAlreadySavedCapturedIdentity`
-  - `add_account_live_auth_mutation_aborts`: `SignInAnotherWorkflowTests.completeIsolatedAddAccountAbortsWhenLiveAuthChangesDuringSignIn`
-  - `add_account_catalog_save_failure_does_not_switch`: `SignInAnotherWorkflowTests.completeIsolatedAddAccountMapsCatalogSaveFailureAfterCapture` and `SignInAnotherWorkflowTests.completeIsolatedAddAccountMapsRepositorySaveFailureAfterSnapshotSave`
+  - `add_account_saves_without_switching`: `AddAccountWorkflowTests.completeIsolatedAddAccountPersistsCapturedAuthWithoutChangingActiveAccount`
+  - `add_account_cancel_cleans_up`: `AddAccountWorkflowTests.cancelIsolatedAddAccountTerminatesLoginAndCleansTemporaryHome`
+  - `add_account_duplicate_identity_blocks_after_sign_in`: `AddAccountWorkflowTests.completeIsolatedAddAccountRejectsAlreadySavedCapturedIdentity`
+  - `add_account_live_auth_mutation_aborts`: `AddAccountWorkflowTests.completeIsolatedAddAccountAbortsWhenLiveAuthChangesDuringSignIn`
+  - `add_account_catalog_save_failure_does_not_switch`: `AddAccountWorkflowTests.completeIsolatedAddAccountMapsCatalogSaveFailureAfterCapture` and `AddAccountWorkflowTests.completeIsolatedAddAccountMapsRepositorySaveFailureAfterSnapshotSave`
   - `add_account_startup_removes_stale_temp_homes`: `AppPathsTests.staleIsolatedCodexHomeCleanupRemovesOnlyOldSessionDirectories`
 - `copy_or_shape_proofs`:
   - `add_account_use_on_this_mac_switches_without_second_confirmation`: `MenuBarAlertFactoryTests.addAccountSuccessRequestOffersOptionalLocalSwitch` and `MenuBarAlertFactoryTests.addAccountSuccessRequestMentionsRunningCliSessionsBeforeLocalSwitch` prove the success alert exposes the switch action and warning copy; `SwitchAccountWorkflowTests` prove the underlying switch execution path
@@ -196,7 +173,7 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `rule`: Add Account rejects duplicate saved-account names before clearing live auth, relaunching Codex, or starting a pending sign-in.
 - `owner_layer`: `unit`
 - `proofs_required`: `["unit"]`
-- `scenarios`: `["sign_in_another_duplicate_name_preflight"]`
+- `scenarios`: `["add_account_duplicate_name_preflight"]`
 
 ### `accounts.add_account.terminal_completion_error_clears_pending_sign_in`
 
@@ -204,7 +181,7 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `rule`: If pending Add Account completion reaches a terminal save failure, CodexPill surfaces one error and clears the pending sign-in so the monitor does not re-alert repeatedly.
 - `owner_layer`: `unit`
 - `proofs_required`: `["unit"]`
-- `scenarios`: `["sign_in_another_terminal_completion_error"]`
+- `scenarios`: `["add_account_terminal_completion_error"]`
 
 ### `accounts.add_account.isolated_failure_cleanup`
 

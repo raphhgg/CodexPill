@@ -13,6 +13,12 @@ struct CodexAccountStatus: Equatable {
     }
 }
 
+protocol CodexAccountStatusClient {
+    func readCurrentAccountStatus() async throws -> CodexAccountStatus
+}
+
+extension CodexAppServerClient: CodexAccountStatusClient {}
+
 struct CodexCLICommand: Equatable {
     let executableURL: URL
     let arguments: [String]
