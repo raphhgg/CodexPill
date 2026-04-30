@@ -113,6 +113,20 @@ struct MenuBarAccountPresentationTests {
     }
 
     @Test
+    func expectedPaceMarkerPercentRequiresEnabledPreferenceAndWindowData() {
+        let now = Date(timeIntervalSince1970: 1_744_195_200)
+        let window = CodexRateLimitWindow(
+            usedPercent: 70,
+            resetsAt: now.addingTimeInterval(150 * 60),
+            windowDurationMinutes: 300
+        )
+
+        #expect(expectedPaceMarkerPercent(for: window, showsPacingMarkers: true, now: now) == 50)
+        #expect(expectedPaceMarkerPercent(for: window, showsPacingMarkers: false, now: now) == nil)
+        #expect(expectedPaceMarkerPercent(for: nil, showsPacingMarkers: true, now: now) == nil)
+    }
+
+    @Test
     func statusItemTooltipShowsIdentityAndResetCountdownsForFullLimits() {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
         let account = CodexAccount(

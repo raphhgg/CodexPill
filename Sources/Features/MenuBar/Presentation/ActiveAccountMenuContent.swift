@@ -256,7 +256,11 @@ struct ActiveLimitRow: View {
     var body: some View {
         let displayedUsedPercent = window?.displayedUsedPercent(at: now) ?? 0
         let usageText = window.map { "\($0.displayedUsedPercent(at: now))% used" } ?? "--"
-        let expectedPercent = showsPacingMarkers ? window.flatMap { expectedRateLimitUsagePercent(for: $0, now: now) } : nil
+        let expectedPercent = expectedPaceMarkerPercent(
+            for: window,
+            showsPacingMarkers: showsPacingMarkers,
+            now: now
+        )
 
         VStack(alignment: .leading, spacing: 5) {
             Text(title)

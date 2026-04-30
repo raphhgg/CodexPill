@@ -857,7 +857,7 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func pacingPrototypeMenuShowsFiveDebugVariantsWhenEnabled() throws {
+    func pacingPrototypeMenuShowsAllDebugVariantsWhenEnabled() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(

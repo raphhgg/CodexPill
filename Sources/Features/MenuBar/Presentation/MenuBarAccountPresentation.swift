@@ -145,6 +145,15 @@ func expectedRateLimitUsagePercent(for window: CodexRateLimitWindow, now: Date =
     return min(max(Int(elapsedPercent.rounded()), 0), 100)
 }
 
+func expectedPaceMarkerPercent(
+    for window: CodexRateLimitWindow?,
+    showsPacingMarkers: Bool,
+    now: Date = .now
+) -> Int? {
+    guard showsPacingMarkers, let window else { return nil }
+    return expectedRateLimitUsagePercent(for: window, now: now)
+}
+
 func statusItemTooltipText(for account: CodexAccount?, now: Date = .now) -> String? {
     guard let account else { return nil }
 
