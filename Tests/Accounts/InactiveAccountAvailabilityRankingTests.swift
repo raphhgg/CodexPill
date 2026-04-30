@@ -929,6 +929,7 @@ struct InactiveAccountAvailabilityRankingTests {
             hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
                 authService: RankingNullAuthService(),
                 accountStatusClient: RankingAccountStatusErrorCase(error: RankingTestFailure.backgroundRefreshFailed),
+                savedAccountStatusClient: DisabledAccountStatusClient(),
                 identityResolver: identityResolver,
                 repository: repository
             ),
@@ -1071,6 +1072,7 @@ private struct NullCodexAppProcessClient: CodexAppProcessClient {
 private struct RankingNullAuthService: CodexAuthSessionStore, CodexSignInAuthStore {
     func activate(_ account: CodexAccount) throws {}
     func readCurrentAuthData() throws -> Data { Data() }
+    func readAuthSnapshot(for account: CodexAccount) throws -> Data { Data() }
     func currentAuthFingerprint() -> String? { nil }
     func liveIdentity(forAuthData authData: Data) -> LiveCodexAccountIdentity { .empty }
     func restoreCurrentAuthData(_ data: Data) throws {}

@@ -431,6 +431,53 @@ struct CodexAppServerClientTests {
     }
 
     @Test
+    func consumeOutputDataPrefersCompleteCodexLimitByIDOverFallbackRateLimits() throws {
+        let decoder = JSONDecoder()
+        let state = AppServerSessionState()
+
+        let accountLine = #"{"id":2,"result":{"account":{"email":"user@example.com","planType":"team"}}}"#
+        let rateLimitsLine = #"{"id":3,"result":{"rateLimits":{"planType":"team","primary":{"usedPercent":90,"resetsAt":2000000000,"windowDurationMins":300},"secondary":{"usedPercent":80,"resetsAt":2000500000,"windowDurationMins":10080}},"rateLimitsByLimitId":{"codex":{"limitId":"codex","limitName":"Codex","planType":"team","primary":{"usedPercent":21,"resetsAt":2000000000,"windowDurationMins":300},"secondary":{"usedPercent":34,"resetsAt":2000500000,"windowDurationMins":10080}}}}}"#
+
+        #expect(try consumeOutputData(Data((accountLine + "\n").utf8), decoder: decoder, state: state) == nil)
+        let status = try consumeOutputData(Data((rateLimitsLine + "\n").utf8), decoder: decoder, state: state)
+
+        #expect(status?.rateLimits?.limitID == "codex")
+        #expect(status?.rateLimits?.primary?.usedPercent == 21)
+        #expect(status?.rateLimits?.secondary?.usedPercent == 34)
+    }
+
+    @Test
+    func readSavedAccountStatusTreatsPrematureExitBeforeRateLimitResponseAsSessionFailure() async throws {
+        let fileManager = FileManager.default
+        let directory = fileManager.temporaryDirectory
+            .appendingPathComponent("CodexPill-AppServerClientTests-\(UUID().uuidString)", isDirectory: true)
+        try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? fileManager.removeItem(at: directory) }
+
+        let requestsFile = directory.appendingPathComponent("requests.jsonl")
+        let script = directory.appendingPathComponent("codex-fixture.sh")
+        let scriptBody = """
+        #!/bin/sh
+        head -n 4 > "\(requestsFile.path)"
+        printf '%s\\n' '{"id":2,"result":{"account":{"email":"user@example.com","planType":"team"}}}'
+        exit 0
+        """
+        try Data(scriptBody.utf8).write(to: script)
+        try fileManager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
+        let client = CodexAppServerClient(environment: ["CODEX_CLI_PATH": script.path])
+
+        await #expect(throws: CodexAppServerError.server("Codex app-server ended before returning rate limits.")) {
+            _ = try await client.readSavedAccountStatus(authData: Data("{}".utf8))
+        }
+
+        let requests = try String(contentsOf: requestsFile, encoding: .utf8)
+        #expect(requests.contains(#""method":"initialize""#))
+        #expect(requests.contains(#""method":"initialized""#))
+        #expect(requests.contains(#""method":"account/read""#))
+        #expect(requests.contains(#""method":"account/rateLimits/read""#))
+    }
+
+    @Test
     func consumeOutputDataIgnoresNotificationFramesWithoutIDs() throws {
         let decoder = JSONDecoder()
         let state = AppServerSessionState()

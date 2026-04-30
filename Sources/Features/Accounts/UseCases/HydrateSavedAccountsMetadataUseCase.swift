@@ -3,6 +3,7 @@ import Foundation
 protocol CodexAuthSessionStore: CodexAuthActivator {
     func readCurrentAuthData() throws -> Data
     func restoreCurrentAuthData(_ data: Data) throws
+    func readAuthSnapshot(for account: CodexAccount) throws -> Data
 }
 
 extension CodexAuthSnapshotService: CodexAuthSessionStore {
@@ -16,18 +17,19 @@ struct HydrateSavedAccountsMetadataResult {
 
 struct HydrateSavedAccountsMetadataUseCase {
     private let authService: CodexAuthSessionStore
-    private let accountStatusClient: CodexAccountStatusClient
+    private let savedAccountStatusClient: SavedCodexAccountStatusClient
     private let identityResolver: SavedAccountIdentityResolver
     private let repository: AccountCatalogStore
 
     init(
         authService: CodexAuthSessionStore,
         accountStatusClient: CodexAccountStatusClient,
+        savedAccountStatusClient: SavedCodexAccountStatusClient,
         identityResolver: SavedAccountIdentityResolver,
         repository: AccountCatalogStore
     ) {
         self.authService = authService
-        self.accountStatusClient = accountStatusClient
+        self.savedAccountStatusClient = savedAccountStatusClient
         self.identityResolver = identityResolver
         self.repository = repository
     }
@@ -52,28 +54,26 @@ struct HydrateSavedAccountsMetadataUseCase {
             )
         }
 
-        let originalAuthData = try authService.readCurrentAuthData()
         var updatedAccounts = accounts
         var hydratedAccountIDs: [UUID] = []
-        var shouldRestoreOriginalAuth = true
-
-        defer {
-            if shouldRestoreOriginalAuth {
-                try? authService.restoreCurrentAuthData(originalAuthData)
-            }
-        }
 
         for accountID in candidateAccountIDs {
             guard let index = updatedAccounts.firstIndex(where: { $0.id == accountID }) else { continue }
 
-            try authService.activate(updatedAccounts[index])
-            let remote = try await accountStatusClient.readCurrentAccountStatus()
-            let hasFreshRateLimits = remote.rateLimits != nil
+            let remote: CodexAccountStatus
+            do {
+                let snapshot = try authService.readAuthSnapshot(for: updatedAccounts[index])
+                remote = try await savedAccountStatusClient.readSavedAccountStatus(authData: snapshot)
+            } catch {
+                continue
+            }
+            let hasFreshRateLimits = appServerRateLimitsAreComplete(remote.rateLimits)
+                && !appServerRateLimitsLookSuspiciouslyZeroed(remote.rateLimits)
 
             updatedAccounts[index].applyRemoteMetadata(
                 email: remote.email ?? updatedAccounts[index].email,
                 planType: remote.planType ?? updatedAccounts[index].planType,
-                rateLimits: remote.rateLimits ?? updatedAccounts[index].rateLimits,
+                rateLimits: hasFreshRateLimits ? remote.rateLimits : updatedAccounts[index].rateLimits,
                 preferRateLimitPlan: hasFreshRateLimits
             )
 
@@ -82,9 +82,6 @@ struct HydrateSavedAccountsMetadataUseCase {
                 hydratedAccountIDs.append(accountID)
             }
         }
-
-        try authService.restoreCurrentAuthData(originalAuthData)
-        shouldRestoreOriginalAuth = false
 
         if updatedAccounts != accounts {
             try repository.saveAccounts(updatedAccounts)

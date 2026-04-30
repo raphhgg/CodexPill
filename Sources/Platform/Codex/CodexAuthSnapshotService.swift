@@ -16,6 +16,10 @@ struct CodexAuthSnapshotService {
         return try Data(contentsOf: repository.paths.codexAuthFile)
     }
 
+    func readAuthSnapshot(for account: CodexAccount) throws -> Data {
+        try repository.readSnapshot(for: account)
+    }
+
     func saveAuthSnapshot(
         _ authData: Data,
         named name: String,

@@ -10,7 +10,7 @@ final class MenuBarAccountsStore {
         repository: AccountRepository,
         authService: CodexAuthSnapshotService,
         codexAppProcessClient: CodexAppProcessClient,
-        accountStatusClient: CodexAccountStatusClient,
+        accountStatusClient: CodexAccountStatusClient & SavedCodexAccountStatusClient,
         remoteHostClient: RemoteHostClient = UnavailableRemoteHostClient()
     ) {
         self.controller = AccountsController(

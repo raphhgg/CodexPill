@@ -59,7 +59,7 @@ final class AccountsController {
         repository: AccountRepository,
         authService: CodexAuthSnapshotService,
         codexAppProcessClient: CodexAppProcessClient,
-        accountStatusClient: CodexAccountStatusClient,
+        accountStatusClient: CodexAccountStatusClient & SavedCodexAccountStatusClient,
         remoteHostClient: RemoteHostClient = UnavailableRemoteHostClient()
     ) {
         self.identityResolver = SavedAccountIdentityResolver(
@@ -85,6 +85,7 @@ final class AccountsController {
         self.hydrateSavedAccountsMetadataUseCase = HydrateSavedAccountsMetadataUseCase(
             authService: authService,
             accountStatusClient: accountStatusClient,
+            savedAccountStatusClient: accountStatusClient,
             identityResolver: self.identityResolver,
             repository: repository
         )

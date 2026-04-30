@@ -60,6 +60,7 @@ struct AccountsControllerTests {
             hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
                 authService: NullAuthService(),
                 accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
+                savedAccountStatusClient: DisabledAccountStatusClient(),
                 identityResolver: identityResolver,
                 repository: repository
             ),
@@ -140,6 +141,7 @@ struct AccountsControllerTests {
             hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
                 authService: NullAuthService(),
                 accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
+                savedAccountStatusClient: DisabledAccountStatusClient(),
                 identityResolver: identityResolver,
                 repository: repository
             ),
@@ -203,6 +205,7 @@ struct AccountsControllerTests {
             hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
                 authService: NullAuthService(),
                 accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
+                savedAccountStatusClient: DisabledAccountStatusClient(),
                 identityResolver: identityResolver,
                 repository: repository
             ),
@@ -270,6 +273,7 @@ struct AccountsControllerTests {
             hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
                 authService: authService,
                 accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
+                savedAccountStatusClient: DisabledAccountStatusClient(),
                 identityResolver: identityResolver,
                 repository: repository
             ),
@@ -413,6 +417,7 @@ private final class NullAuthService: CodexAuthSessionStore, CodexSignInAuthStore
     func activate(_ account: CodexAccount) throws {}
 
     func readCurrentAuthData() throws -> Data { Data() }
+    func readAuthSnapshot(for account: CodexAccount) throws -> Data { Data() }
     func currentAuthFingerprint() -> String? { nil }
     func liveIdentity(forAuthData authData: Data) -> LiveCodexAccountIdentity { .empty }
     func restoreCurrentAuthData(_ data: Data) throws {}
@@ -448,6 +453,7 @@ private final class SignInAuthErrorCase: CodexAuthSessionStore, CodexSignInAuthS
 
     func activate(_ account: CodexAccount) throws {}
     func readCurrentAuthData() throws -> Data { Data() }
+    func readAuthSnapshot(for account: CodexAccount) throws -> Data { Data() }
     func currentAuthFingerprint() -> String? { nil }
     func liveIdentity(forAuthData authData: Data) -> LiveCodexAccountIdentity { .empty }
     func restoreCurrentAuthData(_ data: Data) throws {}
@@ -470,6 +476,7 @@ private final class IsolatedAddAccountAuthProbe: CodexAuthSessionStore, CodexSig
 
     func activate(_ account: CodexAccount) throws {}
     func readCurrentAuthData() throws -> Data { Data() }
+    func readAuthSnapshot(for account: CodexAccount) throws -> Data { Data() }
     func currentAuthFingerprint() -> String? { currentFingerprint }
     func liveIdentity(forAuthData authData: Data) -> LiveCodexAccountIdentity {
         LiveCodexAccountIdentity(snapshotFingerprint: capturedFingerprint)

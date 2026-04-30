@@ -19,6 +19,12 @@ protocol CodexAccountStatusClient {
 
 extension CodexAppServerClient: CodexAccountStatusClient {}
 
+protocol SavedCodexAccountStatusClient {
+    func readSavedAccountStatus(authData: Data) async throws -> CodexAccountStatus
+}
+
+extension CodexAppServerClient: SavedCodexAccountStatusClient {}
+
 struct CodexCLICommand: Equatable {
     let executableURL: URL
     let arguments: [String]
@@ -30,17 +36,21 @@ final class CodexAppServerClient {
     private static let responseTimeout: Duration = .seconds(10)
     private let statusSource: StatusSource
     private let sleeper: Sleeper
+    private let command: CodexCLICommand
 
     init(environment: [String: String] = ProcessInfo.processInfo.environment) {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let command = Self.makeAppServerCommand(environment: environment)
+        self.command = command
         statusSource = { refreshToken in
             try await Self.readAccountStatus(
                 decoder: decoder,
                 executableURL: command.executableURL,
                 arguments: command.arguments,
-                refreshToken: refreshToken
+                environment: environment,
+                refreshToken: refreshToken,
+                requireRateLimitResponse: false
             )
         }
         sleeper = { duration in
@@ -52,6 +62,10 @@ final class CodexAppServerClient {
         statusSource: @escaping StatusSource,
         sleeper: @escaping Sleeper
     ) {
+        command = CodexCLICommand(
+            executableURL: URL(fileURLWithPath: "/usr/bin/env"),
+            arguments: ["codex", "app-server"]
+        )
         self.statusSource = statusSource
         self.sleeper = sleeper
     }
@@ -100,6 +114,24 @@ final class CodexAppServerClient {
         }
 
         throw latestError ?? CocoaError(.coderReadCorrupt)
+    }
+
+    func readSavedAccountStatus(authData: Data) async throws -> CodexAccountStatus {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let session = try IsolatedCodexHomeSession.create()
+        defer { try? session.cleanup() }
+
+        try authData.write(to: session.authFile, options: .atomic)
+
+        return try await Self.readAccountStatus(
+            decoder: decoder,
+            executableURL: command.executableURL,
+            arguments: command.arguments,
+            environment: Self.isolatedAppServerEnvironment(command: command, session: session),
+            refreshToken: true,
+            requireRateLimitResponse: true
+        )
     }
 
     private func shouldRetry(status: CodexAccountStatus?, attemptIndex: Int, totalAttempts: Int) -> Bool {
@@ -172,7 +204,9 @@ final class CodexAppServerClient {
         decoder: JSONDecoder,
         executableURL: URL,
         arguments: [String],
-        refreshToken: Bool
+        environment: [String: String]?,
+        refreshToken: Bool,
+        requireRateLimitResponse: Bool
     ) async throws -> CodexAccountStatus {
         try await withCheckedThrowingContinuation { continuation in
             let process = Process()
@@ -214,6 +248,7 @@ final class CodexAppServerClient {
 
             process.executableURL = executableURL
             process.arguments = arguments
+            process.environment = environment
             process.standardInput = inputPipe
             process.standardOutput = outputPipe
             process.standardError = errorPipe
@@ -236,8 +271,15 @@ final class CodexAppServerClient {
                     state.appendErrorOutput(trailingError)
                 }
 
-                if process.terminationStatus == 0, let partialStatus = state.partialStatus() {
+                if process.terminationStatus == 0,
+                   !requireRateLimitResponse,
+                   let partialStatus = state.partialStatus() {
                     finish(.success(partialStatus))
+                    return
+                }
+
+                if process.terminationStatus == 0, requireRateLimitResponse, !state.hasRateLimitResponse() {
+                    finish(.failure(CodexAppServerError.server("Codex app-server ended before returning rate limits.")))
                     return
                 }
 
@@ -257,7 +299,7 @@ final class CodexAppServerClient {
 
                 Task {
                     try? await Task.sleep(for: responseTimeout)
-                    if let partialStatus = state.partialStatus() {
+                    if !requireRateLimitResponse, let partialStatus = state.partialStatus() {
                         finish(.success(partialStatus))
                         return
                     }
@@ -271,6 +313,22 @@ final class CodexAppServerClient {
                 finish(.failure(error))
             }
         }
+    }
+
+    private static func isolatedAppServerEnvironment(
+        command: CodexCLICommand,
+        session: IsolatedCodexHomeSession,
+        base: [String: String] = ProcessInfo.processInfo.environment
+    ) -> [String: String] {
+        var environment = base
+        let executableDirectory = command.executableURL.deletingLastPathComponent().path
+        environment["CODEX_HOME"] = session.rootDirectory.path
+        environment["HOME"] = FileManager.default.homeDirectoryForCurrentUser.path
+        environment["LOGNAME"] = NSUserName()
+        environment["PATH"] = "\(executableDirectory):/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+        environment["TMPDIR"] = session.tempDirectory.path
+        environment["USER"] = NSUserName()
+        return environment
     }
 }
 
@@ -440,6 +498,12 @@ final class AppServerSessionState: @unchecked Sendable {
         return makeAccountStatus(account: accountResponse, rateLimits: rateLimitResponse)
     }
 
+    func hasRateLimitResponse() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return rateLimitResponse != nil
+    }
+
     func markFinished() -> Bool {
         lock.lock()
         defer { lock.unlock() }
@@ -457,7 +521,7 @@ private func makeAccountStatus(
     return CodexAccountStatus(
         email: account.account?.email,
         planType: account.account?.planType,
-        rateLimits: rateLimits?.rateLimits?.toModel(),
+        rateLimits: rateLimits?.preferredRateLimits(),
         stableAccountID: account.account?.stableAccountID,
         authPrincipalIdentity: account.account?.authPrincipalIdentity,
         workspaceIdentity: account.account?.workspaceIdentity,
@@ -524,6 +588,23 @@ struct AppServerAccountResponse: Decodable {
 
 struct AppServerRateLimitsResponse: Decodable {
     let rateLimits: RateLimitSnapshot?
+    let rateLimitsByLimitId: [String: RateLimitSnapshot]?
+
+    init(
+        rateLimits: RateLimitSnapshot?,
+        rateLimitsByLimitId: [String: RateLimitSnapshot]? = nil
+    ) {
+        self.rateLimits = rateLimits
+        self.rateLimitsByLimitId = rateLimitsByLimitId
+    }
+
+    func preferredRateLimits() -> CodexRateLimitSnapshot? {
+        if let codex = rateLimitsByLimitId?["codex"]?.toModel(),
+           appServerRateLimitsAreComplete(codex) {
+            return codex
+        }
+        return rateLimits?.toModel()
+    }
 }
 
 struct RateLimitSnapshot: Decodable {
