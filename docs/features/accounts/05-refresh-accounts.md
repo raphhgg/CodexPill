@@ -2,7 +2,7 @@
 
 ## Spike Result: Isolated Saved-Account Status Reads
 
-Status: `inconclusive`
+Status: `accepted`
 
 Issue: `RGR-140`
 
@@ -10,9 +10,9 @@ Date: 2026-04-30
 
 ### Decision
 
-Do not implement scheduled inactive saved-account refresh yet.
+Implement inactive saved-account refresh through isolated saved-account status reads.
 
-The isolated saved-account read shape is promising for non-secret account metadata, but the current proof did not return session or weekly rate-limit windows. CodexPill should keep preserving previous meaningful rate-limit data for inactive saved accounts until a Codex status source reliably returns complete limit data from isolated state.
+The original RGR-140 probe was inconclusive because it closed the app-server stdin/session before the asynchronous rate-limit response arrived. A corrected follow-up probe kept the session open until the `account/rateLimits/read` response id arrived or timed out, and proved that CodexPill can read account identity, plan, session limits, and weekly limits for saved catalog accounts from isolated temporary `CODEX_HOME` directories without mutating live local auth.
 
 ### Evidence
 
@@ -22,11 +22,12 @@ Sanitized manual probe:
 - Codex version: `codex-cli 0.126.0-alpha.8`
 - Isolated environment: temporary `CODEX_HOME` directory named with the `CodexPill-CODEX_HOME-spike-<random>` prefix, seeded only with a saved snapshot copied to `auth.json`, with a `tmp` subdirectory and `TMPDIR` scoped to that isolated root.
 - Saved catalog shape observed: 10 saved accounts and 10 saved snapshots.
-- Status source: `codex app-server` over stdio with `initialize`, `account/read`, and `account/rateLimits/read` requests.
+- Status source: `codex app-server` over stdio with `initialize`, `initialized`, `account/read`, and `account/rateLimits/read` requests.
 - Account identity read: yes.
 - Plan read: yes.
-- Session limit read: no.
-- Weekly limit read: no.
+- Session limit read: yes.
+- Weekly limit read: yes.
+- Complete limit source: `result.rateLimitsByLimitId["codex"]` when present and complete, with `result.rateLimits` as the legacy fallback.
 - Live local auth changed: no. The live `~/.codex/auth.json` hash, size, and modification time were unchanged before and after the isolated probe.
 - App-server process behavior: a child `codex app-server` process was launched by the probe and exited without probe termination. Existing app-server process count was unchanged before and after the probe.
 - Temporary state cleanup: the isolated root was removed after the probe.
@@ -34,26 +35,31 @@ Sanitized manual probe:
 
 Control probe:
 
-- Running the same app-server request sequence against the normal live Codex home also returned account identity and plan but did not return a rate-limit response.
-- That means the missing limit proof is not enough to reject isolated `CODEX_HOME`; it is a current status-source gap for this Codex executable and protocol surface.
+- The original probe produced `complete_response_ids: [1, 2]` and never received the `account/rateLimits/read` response id before the process exited after about 1.18 seconds.
+- The corrected probe kept stdin/session alive after sending `account/rateLimits/read`, then waited for response id `3` or timeout.
+- Across the visible saved account catalog, isolated `CODEX_HOME` reads returned account metadata plus complete session and weekly windows.
 
 ### Recommended Path
 
-Keep the current `Refresh Time` behavior limited to surfaces that already have reliable status reads: the active local account and configured remote hosts.
+Extend `Refresh Time` for inactive saved catalog accounts with isolated saved-account status reads.
 
 For inactive saved catalog accounts:
 
-- show and preserve the last meaningful saved rate-limit data;
+- iterate saved catalog accounts on refresh;
+- create a temporary isolated `CODEX_HOME` for each account;
+- copy the saved snapshot to isolated `auth.json`;
+- run `/Applications/Codex.app/Contents/Resources/codex app-server`;
+- send `initialize`, `initialized`, `account/read`, and `account/rateLimits/read`;
+- keep stdin/session open until the rate-limit response arrives or timeout fires;
+- prefer `rateLimitsByLimitId["codex"]` when present and complete, with `rateLimits` as fallback;
 - do not overwrite meaningful limits with partial, missing, zeroed, or suspicious isolated results;
-- avoid background live-auth switch-and-restore;
-- defer scheduled inactive saved-account refresh until a follow-up spike or Codex update proves complete isolated reads for identity, plan, session limits, and weekly limits.
+- rebuild the menu after catalog refresh;
+- avoid background live-auth switch-and-restore.
 
-The safest candidate status source remains `codex app-server` launched as a short-lived child process with isolated `CODEX_HOME`, because it already works for account identity and plan without mutating live auth. It is not accepted for scheduled full-catalog refresh until `account/rateLimits/read` returns complete primary and secondary windows in isolated mode.
+The safest accepted status source is `codex app-server` launched as a short-lived child process with isolated `CODEX_HOME`, because it reads the full local account status surface without changing the user's live Codex auth state.
 
 ### Follow-Up Trigger
 
-Create the ready-for-agent implementation issue only after one of these is true:
+Ready-for-agent implementation issue: `RGR-141`.
 
-- `codex app-server` returns complete `account/rateLimits/read` data from isolated `CODEX_HOME`;
-- another Codex-supported status command returns account identity, plan, session limits, and weekly limits from isolated `CODEX_HOME`;
-- product direction explicitly accepts a metadata-only inactive-account refresh that leaves previous rate-limit data untouched.
+The implementation must include regression coverage for the corrected app-server session behavior: a missing rate-limit response from a prematurely closed session is a probe failure, not proof that isolated reads are unavailable.
