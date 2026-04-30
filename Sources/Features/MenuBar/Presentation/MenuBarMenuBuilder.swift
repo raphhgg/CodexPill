@@ -538,14 +538,28 @@ struct MenuBarMenuBuilder {
         item.image = NSImage(systemSymbolName: "slider.horizontal.3", accessibilityDescription: "Preferences")
 
         let submenu = configuredMenu(title: "Preferences")
-        submenu.addItem(disabledInfoItem("Icon"))
+        submenu.addItem(menuBarPreferencesMenuItem(state: state, target: target))
+        submenu.addItem(usageBarsPreferencesMenuItem(state: state, target: target))
+
+        item.submenu = submenu
+        return item
+    }
+
+    private func menuBarPreferencesMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Menu Bar", action: nil, keyEquivalent: "")
+        let submenu = configuredMenu(title: "Menu Bar")
         submenu.addItem(statusBarDisplayMenuItem(state: state, target: target))
         submenu.addItem(statusBarStyleMenuItem(state: state, target: target))
-        submenu.addItem(.separator())
+        item.submenu = submenu
+        return item
+    }
+
+    private func usageBarsPreferencesMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Usage Bars", action: nil, keyEquivalent: "")
+        let submenu = configuredMenu(title: "Usage Bars")
         submenu.addItem(pacingMarkersMenuItem(state: state, target: target))
         submenu.addItem(progressAccentColorItem(state: state, target: target))
         submenu.addItem(resetProgressAccentColorItem(state: state, target: target))
-
         item.submenu = submenu
         return item
     }
@@ -578,7 +592,7 @@ struct MenuBarMenuBuilder {
     }
 
     private func pacingMarkersMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Show Markers", action: #selector(MenuBarCoordinator.togglePacingMarkers(_:)), keyEquivalent: "")
+        let item = NSMenuItem(title: "Show Pace Markers", action: #selector(MenuBarCoordinator.togglePacingMarkers(_:)), keyEquivalent: "")
         item.target = target
         item.state = state.pacingMarkersEnabled ? .on : .off
         return item
@@ -592,9 +606,9 @@ struct MenuBarMenuBuilder {
     }
 
     private func statusBarStyleMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Style", action: nil, keyEquivalent: "")
+        let item = NSMenuItem(title: "Icon Style", action: nil, keyEquivalent: "")
 
-        let submenu = configuredMenu(title: "Style")
+        let submenu = configuredMenu(title: "Icon Style")
         let monochrome = NSMenuItem(title: "Monochrome", action: #selector(MenuBarCoordinator.toggleStatusBarMonochrome(_:)), keyEquivalent: "")
         monochrome.target = target
         monochrome.state = state.statusBarMonochrome ? .on : .off

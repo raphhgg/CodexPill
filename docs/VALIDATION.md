@@ -124,7 +124,7 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 ### `accounts.current_cards.show_expected_pace_marker_only`
 
 - `feature`: `accounts`
-- `rule`: Current local and remote account cards may show a neutral expected-pace marker inside Session and Weekly progress bars when reset-window duration is available and `Preferences > Show Markers` is enabled, but they must not add pacing text or affect saved account catalog rows, ranking, switching, notifications, or persistence.
+- `rule`: Current local and remote account cards may show a neutral expected-pace marker inside Session and Weekly progress bars when reset-window duration is available and `Preferences > Usage Bars > Show Pace Markers` is enabled, but they must not add pacing text or affect saved account catalog rows, ranking, switching, notifications, or persistence.
 - `owner_layer`: `unit`
 - `proofs_required`: `["unit", "deterministic_ui"]`
 - `scenarios`: `["current_account_card", "remote_account_card", "missing_reset_window_duration", "show_markers_preference"]`
