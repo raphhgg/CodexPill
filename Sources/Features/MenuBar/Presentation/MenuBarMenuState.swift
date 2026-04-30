@@ -86,6 +86,7 @@ struct MenuBarMenuState {
     let statusBarIndicatorStyle: StatusBarIndicatorStyle
     let statusBarDisplayMode: StatusBarDisplayMode
     let progressAccentColor: NSColor
+    let pacingMarkersEnabled: Bool
     let hasCustomProgressAccentColor: Bool
     let isBusy: Bool
     let statusMessage: String
@@ -106,6 +107,7 @@ struct MenuBarMenuState {
         statusBarIndicatorStyle: StatusBarIndicatorStyle,
         statusBarDisplayMode: StatusBarDisplayMode,
         progressAccentColor: NSColor = StatusBarProgressColorDefaults.accent,
+        pacingMarkersEnabled: Bool = true,
         hasCustomProgressAccentColor: Bool = false,
         isBusy: Bool,
         statusMessage: String,
@@ -125,6 +127,7 @@ struct MenuBarMenuState {
         self.statusBarIndicatorStyle = statusBarIndicatorStyle
         self.statusBarDisplayMode = statusBarDisplayMode
         self.progressAccentColor = progressAccentColor
+        self.pacingMarkersEnabled = pacingMarkersEnabled
         self.hasCustomProgressAccentColor = hasCustomProgressAccentColor
         self.isBusy = isBusy
         self.statusMessage = statusMessage

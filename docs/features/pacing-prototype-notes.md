@@ -1,34 +1,31 @@
 # Pacing Prototype Notes
 
-Issue: RGR-146
+Issue: RGR-147
+
+Status: selected direction is Marker Only.
 
 ## Prototype Data
 
-- Session window: 5h.
-- Weekly window: 7d.
-- Expected usage is the elapsed window percentage.
-- Delta is actual used percentage minus expected usage percentage.
-- Samples cover under pace, near pace, moderately over pace, severely over pace, and missing usage/reset data.
+- The prototype keeps the current account card structure: account header, updated/email row, Session row, Weekly row, existing progress bar geometry, usage text on the left, reset text on the right.
+- Prototype data is intentionally fixed so each visual option can be compared against the same baseline.
+- Session demonstrates an over-pace case; Weekly demonstrates a below-pace case.
 
 ## Variants Reviewed
 
-- Inline Marker: compact and readable, but adding copy beside every row makes the card feel busy.
-- Below Label Ghost: understandable after inspection, but it spends an extra line per row and weakens scan density.
-- Right Badge Band: strongest compact option. The bar shows expected range, the delta badge gives exact magnitude, and reset copy can stay on the right/below side.
-- Bar Only: cleanest visual option, but too subtle without teaching text; users can miss what the secondary tone means.
-- Expanded Detail: best for learning/debugging, too tall for the normal current-account card.
+- Current Baseline: unchanged card for side-by-side comparison.
+- Text Beside Usage: adds compact pacing text next to the used percentage on the left.
+- Text Under Usage: puts pacing detail under the used percentage on the left.
+- Text Under Reset: puts pacing detail under the reset timing on the right.
+- Marker Only: keeps text unchanged and adds only an expected-pace marker in the bar.
+- Two-Tone Overrun: keeps text unchanged and highlights the over-pace bar segment.
 
 ## Recommended Direction
 
-Use the current local and current remote account cards only for the first production implementation. Put pacing on the existing session and weekly rows with an expected marker or narrow expected band plus a small numeric delta badge near the reset side.
+Use the Marker Only option for the first implementation. It preserves the existing current-account card copy and adds only a neutral expected-pace marker inside the Session and Weekly progress bars.
 
-Prefer neutral/accent visuals first: existing accent fill, neutral expected marker/band, and restrained orange only for clearly over-pace states. Avoid red/green in the first production pass because the prototype makes red read like an error before the user is actually blocked.
-
-Recommended wording: keep production copy minimal. Use `On pace`, `Over pace`, and `Room left` only when text is necessary; otherwise use a compact numeric badge such as `+20` or `-30`.
+Do not change the email color, account header layout, reset text, usage text, saved account rows, ranking, switching, notifications, or persistence.
 
 ## Rejected For V1
 
-- All saved account rows: too dense for the current menu and likely to make account scanning worse.
-- Friendly copy such as `Fast` or `Plenty left`: short, but less precise and slightly judgmental.
-- Bar-only encoding: elegant but not self-explanatory enough for a first shipped version.
-- Expanded-only detail: useful for debug review, not useful for at-a-glance account choice.
+- Pacing on saved account rows remains out of scope for this prototype.
+- Text-based pacing labels and colored overrun segments remain out of scope for the first production implementation.

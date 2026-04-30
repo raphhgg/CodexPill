@@ -224,8 +224,8 @@ struct MenuBarUIValidationTests {
         )
 
         let preferences = try! #require(snapshot.sections.first(where: { $0.title == "Preferences" }))
-        #expect(preferences.items.contains("Menu Bar Content: Icon Only"))
-        #expect(!preferences.items.contains("Menu Bar Content: Text on Hover"))
+        #expect(preferences.items.contains("Menu Bar Label: Icon Only"))
+        #expect(!preferences.items.contains("Menu Bar Label: Text on Hover"))
     }
 
     @Test
@@ -518,7 +518,7 @@ struct MenuBarUIValidationTests {
                 "Pacing Prototypes"
             ])
             let section = try #require(snapshot.sections.last)
-            #expect(section.items.count == 5)
+            #expect(section.items.count == 6)
             #expect(section.items.allSatisfy { $0.contains("Session") && $0.contains("Weekly") })
 
         case "hosted-menu-busy":
@@ -593,8 +593,8 @@ struct MenuBarUIValidationTests {
         case "hosted-pacing-prototypes":
             return [
                 "Debug pacing prototype menu is visible only in the prototype scenario",
-                "Five materially different variants render with session and weekly sample rows",
-                "Prototype samples cover under, near, over, severe, and missing data states"
+                "Baseline plus five materially different variants render with the current account card layout",
+                "Prototype variants compare text placement and progress bar treatments without changing production cards"
             ]
         case "hosted-menu-busy":
             return [

@@ -143,8 +143,8 @@ case "${SCENARIO}" in
   hosted-pacing-prototypes)
     ASSERTIONS_JSON='[
     "Debug pacing prototype menu is visible only in the prototype scenario",
-    "Five materially different variants render with session and weekly sample rows",
-    "Prototype samples cover under, near, over, severe, and missing data states"
+    "Baseline plus five materially different variants render with the current account card layout",
+    "Prototype variants compare text placement and progress bar treatments without changing production cards"
   ]'
     ;;
 esac

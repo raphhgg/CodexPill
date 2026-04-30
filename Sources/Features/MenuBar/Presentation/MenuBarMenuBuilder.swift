@@ -22,6 +22,7 @@ final class HostAccountMenuItemPayload: NSObject {
 @MainActor
 struct MenuBarMenuBuilder {
     private let minimumMenuContentWidth: CGFloat = 372
+    private let pacingPrototypeMenuContentWidth: CGFloat = 690
     private let nativeMenuItemPaddingAllowance: CGFloat = 52
 
     func makeMenu(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenu {
@@ -96,7 +97,8 @@ struct MenuBarMenuBuilder {
             rootView: ActiveAccountMenuContent(
                 account: account,
                 activeRemoteLocations: state.activeAccountRemoteLocations,
-                progressAccentColor: Color(nsColor: state.progressAccentColor)
+                progressAccentColor: Color(nsColor: state.progressAccentColor),
+                showsPacingMarkers: state.pacingMarkersEnabled
             )
         )
         item.view = configuredHostedMenuView(view, width: width)
@@ -109,6 +111,7 @@ struct MenuBarMenuBuilder {
             rootView: RemoteHostMenuContent(
                 remoteHost: remoteHost,
                 progressAccentColor: Color(nsColor: state.progressAccentColor),
+                showsPacingMarkers: state.pacingMarkersEnabled,
                 primaryActionTitle: remoteHostCardActionTitle(for: remoteHost),
                 onPrimaryAction: remoteHostCardAction(for: remoteHost, target: target),
                 isPrimaryActionEnabled: state.canConfigureHosts,
@@ -531,16 +534,24 @@ struct MenuBarMenuBuilder {
     }
 
     private func statusBarMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Display", action: nil, keyEquivalent: "")
-        item.image = NSImage(systemSymbolName: "slider.horizontal.3", accessibilityDescription: "Display")
+        let item = NSMenuItem(title: "Preferences", action: nil, keyEquivalent: "")
+        item.image = NSImage(systemSymbolName: "slider.horizontal.3", accessibilityDescription: "Preferences")
 
-        let submenu = configuredMenu(title: "Display")
+        let submenu = configuredMenu(title: "Preferences")
         submenu.addItem(statusBarDisplayMenuItem(state: state, target: target))
         submenu.addItem(statusBarStyleMenuItem(state: state, target: target))
-        submenu.addItem(.separator())
+        submenu.addItem(usageBarsPreferencesMenuItem(state: state, target: target))
+
+        item.submenu = submenu
+        return item
+    }
+
+    private func usageBarsPreferencesMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Usage Bars", action: nil, keyEquivalent: "")
+        let submenu = configuredMenu(title: "Usage Bars")
+        submenu.addItem(pacingMarkersMenuItem(state: state, target: target))
         submenu.addItem(progressAccentColorItem(state: state, target: target))
         submenu.addItem(resetProgressAccentColorItem(state: state, target: target))
-
         item.submenu = submenu
         return item
     }
@@ -558,7 +569,7 @@ struct MenuBarMenuBuilder {
                     accentColor: Color(nsColor: state.progressAccentColor)
                 )
             )
-            variantItem.view = configuredHostedMenuView(view, width: minimumMenuContentWidth)
+            variantItem.view = configuredHostedMenuView(view, width: pacingPrototypeMenuContentWidth)
             submenu.addItem(variantItem)
         }
 
@@ -569,7 +580,13 @@ struct MenuBarMenuBuilder {
     private func progressAccentColorItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
         let item = NSMenuItem(title: "Accent Color…", action: #selector(MenuBarCoordinator.chooseProgressAccentColor(_:)), keyEquivalent: "")
         item.target = target
-        item.image = colorSwatchImage(for: state.progressAccentColor)
+        return item
+    }
+
+    private func pacingMarkersMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Show Pace Markers", action: #selector(MenuBarCoordinator.togglePacingMarkers(_:)), keyEquivalent: "")
+        item.target = target
+        item.state = state.pacingMarkersEnabled ? .on : .off
         return item
     }
 
@@ -581,10 +598,9 @@ struct MenuBarMenuBuilder {
     }
 
     private func statusBarStyleMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Indicator", action: nil, keyEquivalent: "")
-        item.image = NSImage(systemSymbolName: "square.2.layers.3d.top.filled", accessibilityDescription: "Indicator")
+        let item = NSMenuItem(title: "Icon Style", action: nil, keyEquivalent: "")
 
-        let submenu = configuredMenu(title: "Indicator")
+        let submenu = configuredMenu(title: "Icon Style")
         let monochrome = NSMenuItem(title: "Monochrome", action: #selector(MenuBarCoordinator.toggleStatusBarMonochrome(_:)), keyEquivalent: "")
         monochrome.target = target
         monochrome.state = state.statusBarMonochrome ? .on : .off
@@ -604,10 +620,9 @@ struct MenuBarMenuBuilder {
     }
 
     private func statusBarDisplayMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Content", action: nil, keyEquivalent: "")
-        item.image = NSImage(systemSymbolName: "character.textbox", accessibilityDescription: "Content")
+        let item = NSMenuItem(title: "Menu Bar Label", action: nil, keyEquivalent: "")
 
-        let submenu = configuredMenu(title: "Content")
+        let submenu = configuredMenu(title: "Menu Bar Label")
         for mode in StatusBarDisplayMode.allCases {
             let option: NSMenuItem
             if state.canSelectStatusBarDisplayMode(mode) {
@@ -629,24 +644,6 @@ struct MenuBarMenuBuilder {
         NSMenu(title: title)
     }
 
-    private func colorSwatchImage(for color: NSColor) -> NSImage {
-        let size = NSSize(width: 12, height: 12)
-        let image = NSImage(size: size)
-        image.lockFocus()
-
-        let rect = NSRect(origin: .zero, size: size).insetBy(dx: 1, dy: 1)
-        let path = NSBezierPath(roundedRect: rect, xRadius: 3, yRadius: 3)
-        color.setFill()
-        path.fill()
-
-        NSColor.separatorColor.setStroke()
-        path.lineWidth = 1
-        path.stroke()
-
-        image.unlockFocus()
-        image.isTemplate = false
-        return image
-    }
 }
 
 private struct SectionHeaderLabel: View {

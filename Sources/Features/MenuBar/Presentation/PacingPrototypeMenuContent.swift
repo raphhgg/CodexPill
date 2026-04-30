@@ -1,160 +1,107 @@
 import SwiftUI
 
 enum PacingPrototypeVariant: String, CaseIterable, Identifiable {
-    case inlineMarker
-    case stackedGhost
-    case rightBadgeBand
-    case barOnlyTone
-    case expandedDetail
+    case currentBaseline
+    case textBesideUsage
+    case textUnderUsage
+    case textUnderReset
+    case markerOnly
+    case twoToneOverrun
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .inlineMarker:
-            return "Inline Marker"
-        case .stackedGhost:
-            return "Below Label Ghost"
-        case .rightBadgeBand:
-            return "Right Badge Band"
-        case .barOnlyTone:
-            return "Bar Only"
-        case .expandedDetail:
-            return "Expanded Detail"
+        case .currentBaseline:
+            return "Current Baseline"
+        case .textBesideUsage:
+            return "Text Beside Usage"
+        case .textUnderUsage:
+            return "Text Under Usage"
+        case .textUnderReset:
+            return "Text Under Reset"
+        case .markerOnly:
+            return "Marker Only"
+        case .twoToneOverrun:
+            return "Two-Tone Overrun"
+        }
+    }
+
+    var summary: String {
+        switch self {
+        case .currentBaseline:
+            return "Existing card with no pacing copy or marker"
+        case .textBesideUsage:
+            return "Pacing copy stays next to the used percentage on the left"
+        case .textUnderUsage:
+            return "Pacing copy sits below the used percentage on the left"
+        case .textUnderReset:
+            return "Pacing copy sits below reset timing on the right"
+        case .markerOnly:
+            return "Only the bar shows expected pace"
+        case .twoToneOverrun:
+            return "The bar highlights only the over-pace segment"
         }
     }
 }
 
-struct PacingPrototypeSample: Identifiable {
-    enum WindowKind {
-        case session
-        case weekly
+private struct PacingPrototypeWindow: Identifiable {
+    enum Pace {
+        case under
+        case onTrack
+        case over
 
-        var title: String {
+        var label: String {
             switch self {
-            case .session:
-                return "Session"
-            case .weekly:
-                return "Weekly"
+            case .under:
+                return "Room left"
+            case .onTrack:
+                return "On track"
+            case .over:
+                return "Fast pace"
             }
         }
 
-        var totalMinutes: Double {
+        var color: Color {
             switch self {
-            case .session:
-                return 5 * 60
-            case .weekly:
-                return 7 * 24 * 60
+            case .under:
+                return .secondary
+            case .onTrack:
+                return .secondary
+            case .over:
+                return .orange
             }
         }
     }
 
     let id = UUID()
     let title: String
-    let kind: WindowKind
-    let usedPercent: Double?
-    let remainingMinutes: Double?
+    let usedPercent: Int
+    let expectedPercent: Int
+    let resetText: String
 
-    var expectedPercent: Double? {
-        guard let remainingMinutes else { return nil }
-        let elapsed = 1 - min(max(remainingMinutes / kind.totalMinutes, 0), 1)
-        return elapsed * 100
+    var deltaPoints: Int {
+        usedPercent - expectedPercent
     }
 
-    var deltaPoints: Double? {
-        guard let usedPercent, let expectedPercent else { return nil }
-        return usedPercent - expectedPercent
-    }
-
-    var severity: PacingSeverity {
-        guard let deltaPoints else { return .missing }
-        if deltaPoints >= 30 { return .severe }
+    var pace: Pace {
         if deltaPoints >= 12 { return .over }
         if deltaPoints <= -12 { return .under }
-        return .steady
+        return .onTrack
     }
 
     var usageText: String {
-        guard let usedPercent else { return "--" }
-        return "\(Int(usedPercent.rounded()))% used"
+        "\(usedPercent)% used"
     }
 
-    var expectedText: String {
-        guard let expectedPercent else { return "No reset" }
-        return "\(Int(expectedPercent.rounded()))% expected"
-    }
-
-    var deltaText: String {
-        guard let deltaPoints else { return "--" }
-        let rounded = Int(deltaPoints.rounded())
-        if rounded > 0 { return "+\(rounded)" }
-        return "\(rounded)"
-    }
-
-    var resetText: String {
-        guard let remainingMinutes else { return "No reset data" }
-        if remainingMinutes < 60 {
-            return "Resets in \(Int(max(1, remainingMinutes.rounded())))min"
-        }
-        if remainingMinutes < 24 * 60 {
-            let hours = Int(remainingMinutes) / 60
-            let minutes = Int(remainingMinutes) % 60
-            return minutes == 0 ? "Resets in \(hours)h" : "Resets in \(hours)h\(String(format: "%02d", minutes))"
-        }
-        let days = Int(max(1, remainingMinutes / (24 * 60)))
-        return "Resets in \(days)d"
-    }
-}
-
-enum PacingSeverity {
-    case under
-    case steady
-    case over
-    case severe
-    case missing
-
-    var neutralWord: String {
-        switch self {
+    var pacingText: String {
+        switch pace {
         case .under:
-            return "Room left"
-        case .steady:
-            return "On pace"
+            return "\(abs(deltaPoints)) pts below pace"
+        case .onTrack:
+            return "On track"
         case .over:
-            return "Over pace"
-        case .severe:
-            return "High pace"
-        case .missing:
-            return "No pace"
-        }
-    }
-
-    var friendlyWord: String {
-        switch self {
-        case .under:
-            return "Plenty left"
-        case .steady:
-            return "Steady"
-        case .over:
-            return "Fast"
-        case .severe:
-            return "Very fast"
-        case .missing:
-            return "Unavailable"
-        }
-    }
-
-    var color: Color {
-        switch self {
-        case .under:
-            return .secondary
-        case .steady:
-            return .accentColor
-        case .over:
-            return .orange
-        case .severe:
-            return .red
-        case .missing:
-            return .secondary
+            return "\(deltaPoints) pts over pace"
         }
     }
 }
@@ -164,195 +111,203 @@ struct PacingPrototypeMenuContent: View {
     let accentColor: Color
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(variant.title)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            PacingPrototypeCard(variant: variant, accentColor: accentColor)
+
+            Text(variant.summary)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    fileprivate static let windows: [PacingPrototypeWindow] = [
+        .init(title: "Session", usedPercent: 70, expectedPercent: 50, resetText: "Resets in 2h30"),
+        .init(title: "Weekly", usedPercent: 42, expectedPercent: 57, resetText: "Resets in 3d")
+    ]
+}
+
+private struct PacingPrototypeCard: View {
+    let variant: PacingPrototypeVariant
+    let accentColor: Color
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 9) {
             HStack(alignment: .firstTextBaseline) {
-                Text(variant.title)
-                    .font(.system(size: 14, weight: .semibold))
+                Text("Personal")
+                    .font(.system(size: 15, weight: .semibold))
                 Spacer()
-                Text(scopeText)
-                    .font(.caption)
+                Text("Pro")
                     .foregroundStyle(.secondary)
             }
 
-            ForEach(Self.samples) { sample in
-                PacingPrototypeRow(
-                    sample: sample,
+            HStack(alignment: .firstTextBaseline) {
+                Text("Updated 59 seconds ago")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(verbatim: "raphaelgrau@gmail.com")
+                    .font(.caption)
+                    .foregroundColor(Color(nsColor: .secondaryLabelColor))
+                    .multilineTextAlignment(.trailing)
+            }
+            .padding(.top, -2)
+
+            ForEach(PacingPrototypeMenuContent.windows) { window in
+                PacingPrototypeLimitRow(
+                    window: window,
                     variant: variant,
                     accentColor: accentColor
                 )
             }
         }
         .padding(.horizontal, 14)
-        .padding(.top, 6)
+        .padding(.top, 4)
         .padding(.bottom, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(nsColor: .controlBackgroundColor).opacity(0.18))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
-
-    private var scopeText: String {
-        switch variant {
-        case .expandedDetail:
-            return "Expanded only"
-        default:
-            return "Current cards"
-        }
-    }
-
-    static let samples: [PacingPrototypeSample] = [
-        .init(title: "Under", kind: .session, usedPercent: 20, remainingMinutes: 150),
-        .init(title: "Near", kind: .weekly, usedPercent: 57, remainingMinutes: 3 * 24 * 60),
-        .init(title: "Over", kind: .session, usedPercent: 70, remainingMinutes: 150),
-        .init(title: "Severe", kind: .weekly, usedPercent: 92, remainingMinutes: 3 * 24 * 60),
-        .init(title: "Missing", kind: .session, usedPercent: nil, remainingMinutes: nil)
-    ]
 }
 
-private struct PacingPrototypeRow: View {
-    let sample: PacingPrototypeSample
+private struct PacingPrototypeLimitRow: View {
+    let window: PacingPrototypeWindow
     let variant: PacingPrototypeVariant
     let accentColor: Color
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(window.title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
+
+            PacingPrototypeProgressBar(
+                window: window,
+                variant: variant,
+                accentColor: accentColor
+            )
+            .frame(height: 5)
+
             switch variant {
-            case .inlineMarker:
-                inlineHeader(word: sample.severity.friendlyWord)
-                PacingPrototypeBar(sample: sample, accentColor: accentColor, style: .expectedMarker)
-            case .stackedGhost:
-                Text("\(sample.title) \(sample.kind.title)")
-                    .font(.caption.weight(.semibold))
-                Text("\(sample.usageText) · \(sample.severity.neutralWord)")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                PacingPrototypeBar(sample: sample, accentColor: accentColor, style: .ghostExpected)
-            case .rightBadgeBand:
-                HStack(alignment: .firstTextBaseline) {
-                    Text("\(sample.title) \(sample.kind.title)")
-                        .font(.caption.weight(.semibold))
-                    Spacer()
-                    Text(sample.deltaText)
-                        .font(.caption2.monospacedDigit().weight(.semibold))
-                        .foregroundStyle(sample.severity.color)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1)
-                        .background(Capsule().fill(sample.severity.color.opacity(0.12)))
-                }
-                PacingPrototypeBar(sample: sample, accentColor: accentColor, style: .paceBand)
-                Text(sample.resetText)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            case .barOnlyTone:
-                inlineHeader(word: "")
-                PacingPrototypeBar(sample: sample, accentColor: accentColor, style: .twoTone)
-            case .expandedDetail:
-                Text("\(sample.title) \(sample.kind.title)")
-                    .font(.caption.weight(.semibold))
-                HStack {
-                    Text(sample.usageText)
-                    Spacer()
-                    Text(sample.expectedText)
-                    Spacer()
-                    Text("\(sample.deltaText) pace")
-                        .foregroundStyle(sample.severity.color)
-                }
-                .font(.caption2.monospacedDigit())
-                PacingPrototypeBar(sample: sample, accentColor: accentColor, style: .expectedMarker)
-                Text("\(sample.severity.neutralWord) · \(sample.resetText)")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+            case .textUnderUsage:
+                usageWithPaceUnderUsage
+            case .textUnderReset:
+                usageWithPaceUnderReset
+            case .textBesideUsage:
+                usageWithInlinePace
+            case .currentBaseline, .markerOnly, .twoToneOverrun:
+                baselineUsage
             }
         }
     }
 
-    private func inlineHeader(word: String) -> some View {
+    private var baselineUsage: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text("\(sample.title) \(sample.kind.title)")
-                .font(.caption.weight(.semibold))
-            Text(sample.usageText)
-                .font(.caption.monospacedDigit())
+            Text(window.usageText)
+                .monospacedDigit()
+                .foregroundStyle(.primary)
+            Spacer()
+            Text(window.resetText)
                 .foregroundStyle(.secondary)
-            if !word.isEmpty {
-                Text(word)
-                    .font(.caption)
-                    .foregroundStyle(sample.severity.color)
+        }
+        .font(.caption)
+    }
+
+    private var usageWithInlinePace: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(window.usageText)
+                .monospacedDigit()
+                .foregroundStyle(.primary)
+            Text(window.pace.label)
+                .foregroundStyle(window.pace.color)
+            Spacer()
+            Text(window.resetText)
+                .foregroundStyle(.secondary)
+        }
+        .font(.caption)
+    }
+
+    private var usageWithPaceUnderUsage: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(window.usageText)
+                    .monospacedDigit()
+                    .foregroundStyle(.primary)
+                Text(window.pacingText)
+                    .foregroundStyle(window.pace.color)
             }
             Spacer()
-            Text(sample.resetText)
-                .font(.caption2)
+            Text(window.resetText)
                 .foregroundStyle(.secondary)
         }
+        .font(.caption)
+    }
+
+    private var usageWithPaceUnderReset: some View {
+        HStack(alignment: .top) {
+            Text(window.usageText)
+                .monospacedDigit()
+                .foregroundStyle(.primary)
+            Spacer()
+            VStack(alignment: .trailing, spacing: 1) {
+                Text(window.resetText)
+                    .foregroundStyle(.secondary)
+                Text(window.pacingText)
+                    .foregroundStyle(window.pace.color)
+            }
+        }
+        .font(.caption)
     }
 }
 
-private enum PacingPrototypeBarStyle {
-    case expectedMarker
-    case ghostExpected
-    case paceBand
-    case twoTone
-}
-
-private struct PacingPrototypeBar: View {
-    let sample: PacingPrototypeSample
+private struct PacingPrototypeProgressBar: View {
+    let window: PacingPrototypeWindow
+    let variant: PacingPrototypeVariant
     let accentColor: Color
-    let style: PacingPrototypeBarStyle
 
     var body: some View {
-        GeometryReader { proxy in
-            let width = proxy.size.width
-            let used = clamped(sample.usedPercent)
-            let expected = clamped(sample.expectedPercent)
+        GeometryReader { geometry in
+            let width = geometry.size.width
+            let usedWidth = width * fraction(window.usedPercent)
+            let expectedWidth = width * fraction(window.expectedPercent)
+
             ZStack(alignment: .leading) {
-                Capsule().fill(Color.secondary.opacity(0.14))
+                Capsule()
+                    .fill(Color.secondary.opacity(0.16))
 
-                if style == .paceBand, let expected {
+                if variant == .textUnderReset {
                     Capsule()
-                        .fill(Color.secondary.opacity(0.16))
-                        .frame(width: width * CGFloat(min(1, (expected + 8) / 100)))
+                        .fill(Color.secondary.opacity(0.18))
+                        .frame(width: min(width, expectedWidth + 12))
                 }
 
-                if style == .ghostExpected, let expected {
+                Capsule()
+                    .fill(accentColor)
+                    .frame(width: usedWidth)
+
+                if variant == .twoToneOverrun, window.usedPercent > window.expectedPercent {
                     Capsule()
-                        .fill(Color.secondary.opacity(0.24))
-                        .frame(width: width * CGFloat(expected / 100))
+                        .fill(window.pace.color.opacity(0.78))
+                        .frame(width: max(0, usedWidth - expectedWidth))
+                        .offset(x: expectedWidth)
                 }
 
-                if let used {
-                    Capsule()
-                        .fill(fillColor)
-                        .frame(width: width * CGFloat(used / 100))
-                }
-
-                if style == .twoTone,
-                   let used,
-                   let expected,
-                   used > expected {
-                    Capsule()
-                        .fill(sample.severity.color.opacity(0.75))
-                        .frame(width: width * CGFloat((used - expected) / 100))
-                        .offset(x: width * CGFloat(expected / 100))
-                }
-
-                if style == .expectedMarker, let expected {
+                if variant != .currentBaseline && variant != .twoToneOverrun {
                     Rectangle()
-                        .fill(Color.primary.opacity(0.55))
-                        .frame(width: 2, height: 9)
-                        .offset(x: max(0, min(width - 2, width * CGFloat(expected / 100))))
+                        .fill(Color.secondary.opacity(0.72))
+                        .frame(width: 2)
+                        .offset(x: min(max(expectedWidth - 1, 0), max(width - 2, 0)))
                 }
             }
         }
-        .frame(height: 7)
-        .opacity(sample.usedPercent == nil ? 0.55 : 1)
+        .accessibilityHidden(true)
     }
 
-    private var fillColor: Color {
-        switch style {
-        case .twoTone:
-            return accentColor.opacity(0.8)
-        default:
-            return sample.severity == .severe ? .orange : accentColor
-        }
-    }
-
-    private func clamped(_ value: Double?) -> Double? {
-        value.map { min(max($0, 0), 100) }
+    private func fraction(_ percent: Int) -> Double {
+        min(max(Double(percent), 0), 100) / 100
     }
 }

@@ -131,6 +131,29 @@ func resetStatusText(for window: CodexRateLimitWindow, now: Date) -> String? {
     return "Resets in \(cardResetText(until: resetsAt, now: now))"
 }
 
+func expectedRateLimitUsagePercent(for window: CodexRateLimitWindow, now: Date = .now) -> Int? {
+    guard let resetsAt = window.resetsAt,
+          resetsAt > now,
+          let durationMinutes = window.windowDurationMinutes,
+          durationMinutes > 0 else {
+        return nil
+    }
+
+    let totalSeconds = Double(durationMinutes * 60)
+    let remainingSeconds = min(max(resetsAt.timeIntervalSince(now), 0), totalSeconds)
+    let elapsedPercent = ((totalSeconds - remainingSeconds) / totalSeconds) * 100
+    return min(max(Int(elapsedPercent.rounded()), 0), 100)
+}
+
+func expectedPaceMarkerPercent(
+    for window: CodexRateLimitWindow?,
+    showsPacingMarkers: Bool,
+    now: Date = .now
+) -> Int? {
+    guard showsPacingMarkers, let window else { return nil }
+    return expectedRateLimitUsagePercent(for: window, now: now)
+}
+
 func statusItemTooltipText(for account: CodexAccount?, now: Date = .now) -> String? {
     guard let account else { return nil }
 

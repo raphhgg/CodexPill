@@ -408,7 +408,7 @@ struct MenuBarLiveValidationTests {
             actionTrace: nil,
             menuItems: [
                 .init(
-                    title: "Display",
+                    title: "Preferences",
                     isEnabled: true,
                     state: "off",
                     hasAction: false,

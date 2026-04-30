@@ -98,8 +98,9 @@ enum MenuBarValidationSupport {
             title: "Preferences",
             items: [
                 "Refresh Time: \(state.refreshIntervalMinutes) minutes",
-                "Menu Bar Content: \(state.effectiveStatusBarDisplayMode.menuTitle)",
-                "Menu Bar Indicator: \(state.statusBarIndicatorStyle.menuTitle)",
+                "Menu Bar Label: \(state.effectiveStatusBarDisplayMode.menuTitle)",
+                "Icon Style: \(state.statusBarIndicatorStyle.menuTitle)",
+                state.pacingMarkersEnabled ? "Show Pace Markers: On" : "Show Pace Markers: Off",
                 "Accent Color: \(colorHexString(for: state.progressAccentColor))",
                 state.statusBarMonochrome ? "Monochrome: On" : "Monochrome: Off",
                 state.canShowAbout ? "About" : "About (disabled)"
@@ -171,34 +172,11 @@ enum MenuBarValidationSupport {
     static func makeHostedValidationView(state: MenuBarMenuState, now: Date = .now) -> some View {
         let snapshot = makeSnapshot(state: state, now: now)
 
-        return VStack(alignment: .leading, spacing: 16) {
-            ForEach(snapshot.sections, id: \.title) { section in
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(section.title)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.secondary)
-
-                    ForEach(Array(section.items.enumerated()), id: \.offset) { _, item in
-                        Text(item)
-                            .font(.system(size: 13))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.vertical, 3)
-                    }
-                }
-            }
-
-            if let statusMessage = snapshot.statusMessage {
-                VStack(alignment: .leading, spacing: 6) {
-                    Divider()
-                    Text(statusMessage)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
+        return Group {
             if state.showsPacingPrototypeMenu {
-                Divider()
                 VStack(alignment: .leading, spacing: 12) {
+                    Text("Pacing Current Account Card Prototypes")
+                        .font(.system(size: 16, weight: .semibold))
                     ForEach(PacingPrototypeVariant.allCases) { variant in
                         PacingPrototypeMenuContent(
                             variant: variant,
@@ -206,10 +184,36 @@ enum MenuBarValidationSupport {
                         )
                     }
                 }
+            } else {
+                VStack(alignment: .leading, spacing: 16) {
+                    ForEach(snapshot.sections, id: \.title) { section in
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(section.title)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.secondary)
+
+                            ForEach(Array(section.items.enumerated()), id: \.offset) { _, item in
+                                Text(item)
+                                    .font(.system(size: 13))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.vertical, 3)
+                            }
+                        }
+                    }
+
+                    if let statusMessage = snapshot.statusMessage {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Divider()
+                            Text(statusMessage)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
             }
         }
         .padding(18)
-        .frame(width: 360, alignment: .leading)
+        .frame(width: state.showsPacingPrototypeMenu ? 720 : 360, alignment: .leading)
         .background(Color(nsColor: .windowBackgroundColor))
     }
 
@@ -274,10 +278,7 @@ enum MenuBarValidationSupport {
     }
 
     private static func pacingPrototypeSummary(for variant: PacingPrototypeVariant) -> String {
-        let samples = PacingPrototypeMenuContent.samples.map { sample in
-            "\(sample.title) \(sample.kind.title) \(sample.usageText) \(sample.deltaText)"
-        }
-        return "\(variant.title): \(samples.joined(separator: " | "))"
+        "\(variant.title): Session and Weekly current-card prototype"
     }
 
     private static func managementSectionItems(for state: MenuBarMenuState) -> [String] {

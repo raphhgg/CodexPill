@@ -61,7 +61,7 @@ Entries:
 - `Hosts`: entry point owned by [Remote Hosts](remote-hosts.md).
 - `Notifications`: entry point owned by [Notifications](notifications.md).
 - `Refresh Interval`: setting that controls scheduled refresh cadence.
-- `Status Bar`: settings owned by [Status Bar](status-bar.md).
+- `Preferences`: status icon, label, pacing marker, and accent settings owned by [Status Bar](status-bar.md).
 - `About`: app-level informational alert.
 - `Quit`: app-level quit command, separated from status and controls.
 
