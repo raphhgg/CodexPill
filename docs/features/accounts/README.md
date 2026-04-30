@@ -18,6 +18,8 @@ Activate a saved account on This Mac or on a configured remote host through the 
 
 Refresh account metadata, plan, and rate-limit snapshots from Codex.
 
+See [Refresh Accounts](05-refresh-accounts.md).
+
 ### Remote Account Setup
 
 Install and switch saved account snapshots on configured remote hosts.
