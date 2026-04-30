@@ -849,6 +849,7 @@ struct MenuBarMenuBuilderTests {
         let view = NSHostingView(
             rootView: ActiveAccountMenuContent(
                 account: makeAccount(name: "Business 2", withRateLimits: true),
+                activeRemoteLocations: [],
                 progressAccentColor: .blue
             )
         )
@@ -1150,6 +1151,47 @@ struct MenuBarMenuBuilderTests {
 
         #expect(remoteCards.count == 2)
         #expect(menu.items.filter { $0.view != nil }.count == 6)
+    }
+
+    @Test
+    func sameLocalAndVerifiedRemoteAccountCollapsesRemoteCardButKeepsHostSubmenu() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let active = makeAccount(name: "Business 2", withRateLimits: true)
+        var remote = active
+        remote.updatedAt = active.updatedAt.addingTimeInterval(60)
+        let menu = builder.makeMenu(
+            state: makeState(
+                activeAccount: active,
+                remoteHosts: [
+                    makeRemoteHost(
+                        name: "debian-vm",
+                        destination: "user@debian-vm",
+                        desiredAccount: active,
+                        activeAccount: remote,
+                        deployedAccountIDs: [active.id]
+                    )
+                ]
+            ),
+            target: coordinator
+        )
+
+        let remoteCards = menu.items.compactMap(\.view).compactMap { $0 as? NSHostingView<RemoteHostMenuContent> }
+        let currentCard = try #require(
+            menu.items
+                .compactMap(\.view)
+                .compactMap { $0 as? NSHostingView<ActiveAccountMenuContent> }
+                .first
+        )
+        let hostsMenu = try #require(menu.items.first(where: { $0.title == "Hosts" })?.submenu)
+        let hostSubmenu = try #require(hostsMenu.items.first(where: { $0.title == "debian-vm" })?.submenu)
+        let statusRow = try #require(hostSubmenu.items.first(where: { $0.title == "Status: Connected" }))
+        let desiredRow = try #require(hostSubmenu.items.first(where: { $0.title == "Desired account: Business 2" }))
+
+        #expect(remoteCards.isEmpty)
+        #expect(currentCard.rootView.activeRemoteLocations == ["debian-vm"])
+        #expect(statusRow.isEnabled == false)
+        #expect(desiredRow.isEnabled == false)
     }
 
     @Test

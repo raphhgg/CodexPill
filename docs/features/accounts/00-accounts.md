@@ -85,13 +85,13 @@ Remote cards must prefer remote target values over local catalog values when the
 
 ### Duplicate Local And Remote Accounts
 
-If the same saved account is active locally and remotely, CodexPill may collapse or simplify duplicated presentation only when the app can still make target context clear.
+If the same saved account is active locally and on a connected verified remote host, CodexPill collapses the duplicate primary remote account card into the `Current Account` section and labels the remote location, such as `Also active on debian-vm`. The `Current Account` card continues to show local current-account limits; remote host management and troubleshooting remain under `Hosts`.
 
 The user must be able to answer:
 
 - Is this account active on This Mac?
 - Is this account active on a remote host?
-- Which limits belong to which target?
+- Where do I inspect or manage the remote host if it needs attention?
 
 ### Error And Pending States
 

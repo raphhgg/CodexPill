@@ -463,6 +463,17 @@ struct MenuBarUIValidationTests {
             #expect(snapshot.sections[2].items.count == 3)
             #expect(snapshot.sections[3].items.count == 1)
 
+        case "hosted-menu-local-and-remote-same-account":
+            #expect(snapshot.sections.map(\.title) == [
+                "Current Account",
+                "Accounts",
+                "Manage Accounts",
+                "Preferences"
+            ])
+            #expect(snapshot.sections[0].items.first?.contains("Also active on debian-vm") == true)
+            #expect(snapshot.sections.contains(where: { $0.title == "Remote Accounts" }) == false)
+            #expect(snapshot.remoteHosts.map(\.name) == ["debian-vm"])
+
         case "hosted-menu-multiple-hosts":
             #expect(snapshot.sections.map(\.title) == [
                 "Current Account",
@@ -543,6 +554,12 @@ struct MenuBarUIValidationTests {
                 "Remote host state renders in its own section",
                 "Accounts continues to reflect the local saved-account catalog",
                 "One inactive account still overflows into More Accounts… with a connected host present"
+            ]
+        case "hosted-menu-local-and-remote-same-account":
+            return [
+                "Same saved account active locally and on a verified host collapses to Current Account",
+                "Current Account communicates the remote host location",
+                "Connected host metadata remains in the snapshot for Hosts management"
             ]
         case "hosted-menu-multiple-hosts":
             return [
@@ -661,6 +678,42 @@ struct MenuBarUIValidationTests {
                     connectionState: .connected,
                     activeAccount: remoteActive,
                     deployedAccountIDs: others.map(\.id)
+                )],
+                visibleInactiveAccountCount: 2,
+                visibleInactiveAccountCountOptions: [2, 3, 5, 0],
+                refreshIntervalMinutes: 5,
+                refreshIntervalOptions: [1, 2, 5, 10, 15, 30],
+                statusBarMonochrome: false,
+                statusBarIndicatorStyle: .dualArcBadge,
+                statusBarDisplayMode: .textOnHover,
+                isBusy: false,
+                statusMessage: "Ready"
+            )
+
+        case "hosted-menu-local-and-remote-same-account":
+            let active = makeAccount(
+                name: "Primary",
+                email: "primary@example.com",
+                planType: "pro",
+                sessionUsedPercent: 42,
+                weeklyUsedPercent: 68,
+                now: now
+            )
+            let research = makeAccount(name: "Research", email: "research@example.com", planType: "pro", sessionUsedPercent: 8, weeklyUsedPercent: 35, now: now)
+            var remoteActive = active
+            remoteActive.updatedAt = active.updatedAt.addingTimeInterval(60)
+
+            return MenuBarMenuState(
+                activeAccount: active,
+                inactiveAccounts: [research],
+                remoteHosts: [RemoteHostMenuState(
+                    name: "debian-vm",
+                    destination: "user@debian-vm",
+                    connectionState: .connected,
+                    desiredAccount: active,
+                    activeAccount: remoteActive,
+                    verificationStatus: .verified,
+                    deployedAccountIDs: [active.id, research.id]
                 )],
                 visibleInactiveAccountCount: 2,
                 visibleInactiveAccountCountOptions: [2, 3, 5, 0],

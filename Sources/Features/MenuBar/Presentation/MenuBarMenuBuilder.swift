@@ -44,10 +44,10 @@ struct MenuBarMenuBuilder {
             menu.addItem(disabledInfoItem("No active saved account"))
         }
 
-        if !state.connectedRemoteHosts.isEmpty {
+        if !state.primaryRemoteAccountHosts.isEmpty {
             menu.addItem(.separator())
             menu.addItem(sectionHeaderItem("Remote Accounts", width: menuContentWidth, bottomPadding: 4))
-            for remoteHost in state.connectedRemoteHosts {
+            for remoteHost in state.primaryRemoteAccountHosts {
                 menu.addItem(remoteHostItem(for: remoteHost, state: state, target: target, width: menuContentWidth))
             }
         }
@@ -92,6 +92,7 @@ struct MenuBarMenuBuilder {
         let view = NSHostingView(
             rootView: ActiveAccountMenuContent(
                 account: account,
+                activeRemoteLocations: state.activeAccountRemoteLocations,
                 progressAccentColor: Color(nsColor: state.progressAccentColor)
             )
         )

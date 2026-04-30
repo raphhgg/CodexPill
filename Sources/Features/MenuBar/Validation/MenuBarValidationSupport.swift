@@ -125,16 +125,20 @@ enum MenuBarValidationSupport {
         if let activeAccount = state.activeAccount {
             sections.append(.init(
                 title: "Current Account",
-                items: [accountSummary(for: activeAccount, now: now)]
+                items: [accountSummary(
+                    for: activeAccount,
+                    activeRemoteLocations: state.activeAccountRemoteLocations,
+                    now: now
+                )]
             ))
         } else {
             sections.append(.init(title: "Current Account", items: ["No active saved account"]))
         }
 
-        if !state.connectedRemoteHosts.isEmpty {
+        if !state.primaryRemoteAccountHosts.isEmpty {
             sections.append(.init(
                 title: "Remote Accounts",
-                items: state.connectedRemoteHosts.map { remoteHostSummary(for: $0, now: now) }
+                items: state.primaryRemoteAccountHosts.map { remoteHostSummary(for: $0, now: now) }
             ))
         }
 
@@ -188,12 +192,17 @@ enum MenuBarValidationSupport {
         .background(Color(nsColor: .windowBackgroundColor))
     }
 
-    private static func accountSummary(for account: CodexAccount, now: Date) -> String {
+    private static func accountSummary(
+        for account: CodexAccount,
+        activeRemoteLocations: [String] = [],
+        now: Date
+    ) -> String {
         let plan = menuPlanDisplayName(account.effectivePlanType)
         let email = account.email ?? "No email"
         let session = usageLine(title: "Session", window: account.rateLimits?.primary, now: now)
         let weekly = usageLine(title: "Weekly", window: account.rateLimits?.secondary, now: now)
-        return "\(account.name) • \(plan) • \(email) • \(session) • \(weekly)"
+        let location = activeRemoteLocations.isEmpty ? nil : activeLocationsLine(for: activeRemoteLocations)
+        return ([account.name, plan, email, location, session, weekly].compactMap { $0 }).joined(separator: " • ")
     }
 
     private static func inactiveAccountSummary(for entry: MenuBarAccountCatalogEntry, now: Date) -> String {
@@ -224,6 +233,15 @@ enum MenuBarValidationSupport {
         }
 
         return components.joined(separator: " • ")
+    }
+
+    private static func activeLocationsLine(for locations: [String]) -> String {
+        switch locations.count {
+        case 1:
+            return "Also active on \(locations[0])"
+        default:
+            return "Also active on \(locations.joined(separator: ", "))"
+        }
     }
 
     private static func usageLine(title: String, window: CodexRateLimitWindow?, now: Date) -> String {

@@ -441,6 +441,127 @@ struct MenuBarMenuStateTests {
     }
 
     @Test
+    func sameVerifiedLocalAndRemoteAccountCollapsesRemotePrimaryCard() {
+        let local = makeAccount(name: "Business 4", withRateLimits: true)
+        var remote = local
+        remote.updatedAt = local.updatedAt.addingTimeInterval(60)
+        let state = makeState(
+            activeAccount: local,
+            inactiveAccounts: [],
+            remoteHosts: [
+                RemoteHostMenuState(
+                    name: "debian-vm",
+                    destination: "debian-vm",
+                    connectionState: .connected,
+                    desiredAccount: local,
+                    activeAccount: remote,
+                    verificationStatus: .verified,
+                    deployedAccountIDs: [local.id]
+                )
+            ]
+        )
+
+        #expect(state.connectedRemoteHosts.count == 1)
+        #expect(state.primaryRemoteAccountHosts.isEmpty)
+        #expect(state.activeAccountRemoteLocations == ["debian-vm"])
+        #expect(state.accountCatalogEntries.first?.placement == .localAndRemote)
+    }
+
+    @Test
+    func sameVerifiedRemoteAccountWithDifferentInspectableDataKeepsRemotePrimaryCard() {
+        let now = Date()
+        let local = makeAccount(name: "Business 4", withRateLimits: true)
+        var remote = local
+        remote.applyRemoteMetadata(
+            email: "remote-business@example.com",
+            planType: "team",
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: nil,
+                limitName: nil,
+                planType: "team",
+                primary: CodexRateLimitWindow(
+                    usedPercent: 82,
+                    resetsAt: now.addingTimeInterval(2 * 60 * 60),
+                    windowDurationMinutes: 300
+                ),
+                secondary: CodexRateLimitWindow(
+                    usedPercent: 44,
+                    resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60),
+                    windowDurationMinutes: 10_080
+                ),
+                fetchedAt: now
+            )
+        )
+        let state = makeState(
+            activeAccount: local,
+            inactiveAccounts: [],
+            remoteHosts: [
+                RemoteHostMenuState(
+                    name: "debian-vm",
+                    destination: "debian-vm",
+                    connectionState: .connected,
+                    desiredAccount: local,
+                    activeAccount: remote,
+                    verificationStatus: .verified,
+                    deployedAccountIDs: [local.id]
+                )
+            ]
+        )
+
+        #expect(state.primaryRemoteAccountHosts.map(\.name) == ["debian-vm"])
+        #expect(state.activeAccountRemoteLocations.isEmpty)
+        #expect(state.accountCatalogEntries.first?.placement == .localAndRemote)
+    }
+
+    @Test
+    func differentVerifiedRemoteAccountKeepsRemotePrimaryCard() {
+        let local = makeAccount(name: "Business 4", withRateLimits: true)
+        let remote = makeAccount(name: "Business 5", withRateLimits: true)
+        let state = makeState(
+            activeAccount: local,
+            inactiveAccounts: [remote],
+            remoteHosts: [
+                RemoteHostMenuState(
+                    name: "debian-vm",
+                    destination: "debian-vm",
+                    connectionState: .connected,
+                    desiredAccount: remote,
+                    activeAccount: remote,
+                    verificationStatus: .verified,
+                    deployedAccountIDs: [remote.id]
+                )
+            ]
+        )
+
+        #expect(state.primaryRemoteAccountHosts.map(\.name) == ["debian-vm"])
+        #expect(state.activeAccountRemoteLocations.isEmpty)
+    }
+
+    @Test
+    func failedSameRemoteAccountKeepsRemotePrimaryCardVisibleForRecovery() {
+        let local = makeAccount(name: "Business 4", withRateLimits: true)
+        let state = makeState(
+            activeAccount: local,
+            inactiveAccounts: [],
+            remoteHosts: [
+                RemoteHostMenuState(
+                    name: "debian-vm",
+                    destination: "debian-vm",
+                    connectionState: .connected,
+                    desiredAccount: local,
+                    activeAccount: local,
+                    verificationStatus: .failed,
+                    lastVerificationError: "Verification failed.",
+                    deployedAccountIDs: [local.id]
+                )
+            ]
+        )
+
+        #expect(state.primaryRemoteAccountHosts.map(\.name) == ["debian-vm"])
+        #expect(state.activeAccountRemoteLocations.isEmpty)
+    }
+
+    @Test
     func removeAccountsIsAvailableWhenSavedAccountsExist() {
         let state = makeState(
             activeAccount: makeAccount(name: "Active"),

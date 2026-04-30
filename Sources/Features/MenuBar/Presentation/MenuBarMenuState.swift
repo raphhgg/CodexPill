@@ -163,6 +163,16 @@ struct MenuBarMenuState {
         accountCatalogProjection.connectedRemoteHosts
     }
 
+    var primaryRemoteAccountHosts: [RemoteHostMenuState] {
+        connectedRemoteHosts.filter { !shouldCollapseRemoteAccountCard(for: $0) }
+    }
+
+    var activeAccountRemoteLocations: [String] {
+        connectedRemoteHosts
+            .filter(shouldCollapseRemoteAccountCard)
+            .map(\.name)
+    }
+
     var remoteTargetAvailabilities: [String: AccountTargetAvailability] {
         accountCatalogProjection.remoteTargetAvailabilities
     }
@@ -227,4 +237,57 @@ struct MenuBarMenuState {
             remoteHosts: remoteHosts
         )
     }
+
+    private func shouldCollapseRemoteAccountCard(for remoteHost: RemoteHostMenuState) -> Bool {
+        guard let activeAccount,
+              remoteHost.connectionState == .connected,
+              remoteHost.verificationStatus == .verified,
+              remoteHost.lastVerificationError?.isEmpty ?? true,
+              remoteHost.activeAccount?.id == activeAccount.id else {
+            return false
+        }
+
+        if let desiredAccount = remoteHost.desiredAccount,
+           desiredAccount.id != activeAccount.id {
+            return false
+        }
+        if let detectedAccount = remoteHost.detectedAccount,
+           detectedAccount.id != activeAccount.id {
+            return false
+        }
+        guard let remoteAccount = remoteHost.activeAccount else {
+            return false
+        }
+        return remoteAccount.hasSameInspectableAccountData(as: activeAccount)
+    }
+}
+
+private extension CodexAccount {
+    func hasSameInspectableAccountData(as other: CodexAccount) -> Bool {
+        normalizedInspectableEmail == other.normalizedInspectableEmail
+            && normalizedCodexPlanType(effectivePlanType) == normalizedCodexPlanType(other.effectivePlanType)
+            && rateLimits?.inspectableData == other.rateLimits?.inspectableData
+    }
+
+    var normalizedInspectableEmail: String? {
+        guard let email else { return nil }
+        let normalized = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return normalized.isEmpty ? nil : normalized
+    }
+}
+
+private extension CodexRateLimitSnapshot {
+    var inspectableData: InspectableRateLimitData {
+        InspectableRateLimitData(
+            planType: normalizedCodexPlanType(planType),
+            primary: primary,
+            secondary: secondary
+        )
+    }
+}
+
+private struct InspectableRateLimitData: Equatable {
+    let planType: String?
+    let primary: CodexRateLimitWindow?
+    let secondary: CodexRateLimitWindow?
 }

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ActiveAccountMenuContent: View {
     let account: CodexAccount
+    let activeRemoteLocations: [String]
     let progressAccentColor: Color
 
     var body: some View {
@@ -32,6 +33,14 @@ struct ActiveAccountMenuContent: View {
             }
             .padding(.top, -2)
 
+            if !activeRemoteLocations.isEmpty {
+                Text(activeLocationsLine)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, -2)
+            }
+
             ActiveLimitRow(
                 title: "Session",
                 window: account.rateLimits?.primary,
@@ -56,6 +65,15 @@ struct ActiveAccountMenuContent: View {
             return "No email"
         }
         return email
+    }
+
+    private var activeLocationsLine: String {
+        switch activeRemoteLocations.count {
+        case 1:
+            return "Also active on \(activeRemoteLocations[0])"
+        default:
+            return "Also active on \(activeRemoteLocations.joined(separator: ", "))"
+        }
     }
 }
 

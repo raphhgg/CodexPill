@@ -293,13 +293,21 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `proofs_required`: `["live_ui"]`
 - `scenarios`: `["persisted_host_refresh_failure"]`
 
+### `hosts.connected_cards.collapse_duplicate_local_and_remote_current_account`
+
+- `feature`: `hosts`
+- `rule`: A connected verified host whose resolved active account is the same saved account as `Current Account` is collapsed out of the primary `Remote Accounts` cards and is communicated from the current-account presentation instead. Hosts that are disconnected, unverified, verifying, failed, mismatched, or using a different account remain visible through the existing remote host/account presentation rules.
+- `owner_layer`: `unit`
+- `proofs_required`: `["unit", "deterministic_ui"]`
+- `scenarios`: `["hosted_menu_local_and_remote_same_account", "hosted_menu_with_host", "hosted_menu_disconnected_host"]`
+
 ### `hosts.connected_cards.render_per_reachable_host_only`
 
 - `feature`: `hosts`
-- `rule`: Each reachable configured host with an active remote account renders its own `Remote Accounts` card, while unreachable hosts stay persisted but do not render primary remote cards.
+- `rule`: Each reachable configured host with an active remote account renders its own `Remote Accounts` card unless it is eligible for duplicate local/remote current-account collapse, while unreachable hosts stay persisted but do not render primary remote cards.
 - `owner_layer`: `live_ui`
 - `proofs_required`: `["deterministic_ui", "live_ui"]`
-- `scenarios`: `["hosted_menu_multiple_hosts", "mixed_persisted_host_restore"]`
+- `scenarios`: `["hosted_menu_multiple_hosts", "hosted_menu_with_host", "mixed_persisted_host_restore"]`
 
 ### `hosts.disconnected_hosts.remain_targetable_without_remote_card`
 
