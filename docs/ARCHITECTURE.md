@@ -72,6 +72,7 @@ Key boundaries:
 Key boundaries:
 
 - `MenuBarCoordinator`
+- `MenuBarHostActionCoordinator`
 - `MenuBarAccountsStore`
 - `MenuBarAccountCatalogProjection`
 - `MenuBarMenuBuilder`
@@ -148,6 +149,8 @@ Settings persistence is split by feature boundary:
 `MenuBarAccountCatalogProjection` owns menu-facing account projection: relinking remote snapshots to saved accounts, resolving display metadata, building availability snapshots, and ordering catalog entries before rendering.
 
 `MenuBarCoordinator` is the menu/application controller. It owns menu rebuilding, selector dispatch, alert/panel presentation, user-response plumbing, validation event recording, wake/timer refresh triggers, and coordination between account, host, notification, and status-item boundaries.
+
+`MenuBarHostActionCoordinator` is the menubar runtime boundary for host-specific user actions. It owns add-host, remove-host, reverify-host, adopt-detected-account, and switch-account-on-host sequencing while `MenuBarCoordinator` keeps AppKit selector entry points and menu rebuild callbacks.
 
 `StatusItemRuntime` owns the `NSStatusItem`, hover tracking, pointer-inside detection, title/icon transitions, tooltip rendering, and low-level status-item snapshot state.
 

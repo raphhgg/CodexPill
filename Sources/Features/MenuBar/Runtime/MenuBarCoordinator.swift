@@ -25,9 +25,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         "accounts.add_account.name_dialog_cancelled",
         "accounts.add_account.cancel_keeps_account_state"
     ]
-    private static let addHostPromptInvariantIDs = ["hosts.add_host.destination_validation_failed"]
-    private static let remoteHostSwitchInvariantIDs = ["hosts.switch_account_on_host.changes_remote_active_account"]
-    private static let remoteHostReverifyInvariantIDs = ["hosts.reverify_remote_account.refreshes_remote_verification_state"]
     private static let scheduledRefreshInvariantIDs = ["accounts.scheduled_refresh.requested_and_completed"]
 
     private let statusItemRuntime: StatusItemRuntime
@@ -71,6 +68,36 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private var previousNotificationSnapshots: [UUID: AccountAvailabilitySnapshot] = [:]
     private var cachedNotificationAuthorizationState: NotificationAuthorizationState = .unknown
     private var activeIsolatedAddAccountSession: IsolatedAddAccountSignInSession?
+    private lazy var hostActionCoordinator = MenuBarHostActionCoordinator(
+        store: store,
+        settings: settings,
+        remoteHostClient: remoteHostClient,
+        remoteHostRuntime: remoteHostRuntime,
+        alertPresenter: alertPresenter,
+        panelPresenter: panelPresenter,
+        alertFactory: alertFactory,
+        sealValidationRun: sealValidationRun,
+        recordMenuAction: { [weak self] name, payload in
+            self?.recordMenuAction(name, payload: payload)
+        },
+        recordValidationEvent: { [weak self] name, step, invariantIds, payload in
+            self?.recordValidationEvent(
+                name,
+                step: step,
+                invariantIds: invariantIds,
+                payload: payload
+            )
+        },
+        rebuildMenu: { [weak self] in
+            self?.rebuildMenu()
+        },
+        cancelMenuTracking: { [weak self] in
+            self?.statusItemRuntime.menu?.cancelTracking()
+        },
+        setLastSwitchTargetName: { [weak self] name in
+            self?.lastSwitchTargetName = name
+        }
+    )
 
     init(
         statusItemRuntime: StatusItemRuntime,
@@ -395,317 +422,48 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     @objc
     func switchAccountOnHost(_ sender: NSMenuItem) {
-        guard
-            let payload = sender.representedObject as? HostAccountMenuItemPayload,
-            let remoteHost = settings.remoteHostState(for: payload.hostDestination)?.host,
-            let account = store.accounts.first(where: { $0.id == payload.accountID })
-        else {
-            return
-        }
-
-        recordMenuAction("switchAccountOnHost", payload: [
-            "targetName": account.name,
-            "hostName": remoteHost.displayName
-        ])
-        sealValidationRun?.recordRemoteHostSwitchMenuAction(
-            targetName: account.name,
-            hostName: remoteHost.displayName
+        guard let payload = sender.representedObject as? HostAccountMenuItemPayload else { return }
+        hostActionCoordinator.switchAccountOnHost(
+            accountID: payload.accountID,
+            hostDestination: payload.hostDestination
         )
-        recordValidationEvent(
-            "remote_host_switch_started",
-            step: "remote_host_switch_start",
-            invariantIds: Self.remoteHostSwitchInvariantIDs,
-            payload: [
-                "targetName": account.name,
-                "hostName": remoteHost.displayName
-            ]
-        )
-        sealValidationRun?.recordRemoteHostSwitchStarted(
-            targetName: account.name,
-            hostName: remoteHost.displayName
-        )
-        lastSwitchTargetName = account.name
-        remoteHostRuntime.beginHostSwitch(to: account, on: remoteHost)
-        rebuildMenu()
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            let result = await self.store.switchToAccountOnHost(account, on: remoteHost)
-            self.remoteHostRuntime.applySwitchOutcome(result, account: account, host: remoteHost)
-            switch result {
-            case .verified:
-                self.recordValidationEvent(
-                    "remote_host_active_account_changed",
-                    step: "remote_host_switch_result",
-                    invariantIds: Self.remoteHostSwitchInvariantIDs,
-                    payload: [
-                        "targetName": account.name,
-                        "hostName": remoteHost.displayName
-                    ]
-                )
-                self.sealValidationRun?.recordRemoteHostActiveAccountChanged(
-                    targetName: account.name,
-                    hostName: remoteHost.displayName
-                )
-            case .notVerified(let message, _):
-                self.recordValidationEvent(
-                    "remote_host_switch_not_verified",
-                    step: "remote_host_switch_result",
-                    invariantIds: Self.remoteHostSwitchInvariantIDs,
-                    payload: [
-                        "targetName": account.name,
-                        "hostName": remoteHost.displayName,
-                        "message": message
-                    ]
-                )
-            case .failed(let message, let hostReachable):
-                self.recordValidationEvent(
-                    "remote_host_switch_failed",
-                    step: "remote_host_switch_result",
-                    invariantIds: Self.remoteHostSwitchInvariantIDs,
-                    payload: [
-                        "targetName": account.name,
-                        "hostName": remoteHost.displayName,
-                        "message": message,
-                        "hostReachable": hostReachable ? "true" : "false"
-                    ]
-                )
-            }
-            self.rebuildMenu()
-        }
     }
 
     @objc
     func addHost(_ sender: NSMenuItem) {
-        recordMenuAction("addHost")
-        sealValidationRun?.recordAddHostMenuAction()
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            guard let remoteHost = await self.panelPresenter.presentHostSetup(
-                self.alertFactory.makeAddHostRequest(),
-                testConnection: { [weak self] host in
-                    guard let self else {
-                        return .failure(RemoteHostClientError.unavailable)
-                    }
-                    do {
-                        try await self.remoteHostClient.testConnection(to: host)
-                        return .success(())
-                    } catch {
-                        return .failure(error)
-                    }
-                },
-                onPresented: { [weak self] in
-                    self?.recordValidationEvent(
-                        "add_host_setup_presented",
-                        step: "add_host_setup",
-                        invariantIds: Self.addHostPromptInvariantIDs
-                    )
-                    self?.sealValidationRun?.recordAddHostSetupPresented()
-                },
-                onCancelled: { [weak self] in
-                    self?.recordValidationEvent(
-                        "add_host_setup_cancelled",
-                        step: "add_host_setup",
-                        invariantIds: Self.addHostPromptInvariantIDs
-                    )
-                },
-                onValidationStarted: { [weak self] host in
-                    self?.recordValidationEvent(
-                        "add_host_validation_started",
-                        step: "add_host_validation",
-                        invariantIds: Self.addHostPromptInvariantIDs,
-                        payload: ["hostName": host.destination]
-                    )
-                    self?.sealValidationRun?.recordAddHostValidationStarted(hostName: host.destination)
-                },
-                onValidationFinished: { [weak self] host, result in
-                    switch result {
-                    case .success:
-                        self?.recordValidationEvent(
-                            "add_host_validation_succeeded",
-                            step: "add_host_validation",
-                            invariantIds: Self.addHostPromptInvariantIDs,
-                            payload: ["hostName": host.destination]
-                        )
-                    case .failure(let error):
-                        self?.recordValidationEvent(
-                            "add_host_validation_failed",
-                            step: "add_host_validation",
-                            invariantIds: Self.addHostPromptInvariantIDs,
-                            payload: [
-                                "hostName": host.destination,
-                                "message": error.localizedDescription
-                            ]
-                        )
-                        self?.sealValidationRun?.recordAddHostValidationFailed(
-                            hostName: host.destination,
-                            message: error.localizedDescription
-                        )
-                    }
-                }
-            ) else {
-                return
-            }
-
-            guard let activeAccount = self.store.activeAccount else {
-                self.recordValidationEvent(
-                    "add_host_account_setup_unavailable",
-                    step: "add_host_account_setup",
-                    invariantIds: Self.addHostPromptInvariantIDs,
-                    payload: ["hostName": remoteHost.displayName]
-                )
-                self.rebuildMenu()
-                return
-            }
-
-            let shouldInstallCurrentAccount = self.alertPresenter.presentConfirmation(
-                self.alertFactory.makeInstallCurrentAccountOnHostRequest(
-                    accountName: activeAccount.name,
-                    hostName: remoteHost.displayName
-                )
-            )
-
-            guard shouldInstallCurrentAccount else {
-                self.recordValidationEvent(
-                    "add_host_account_setup_cancelled",
-                    step: "add_host_account_setup",
-                    invariantIds: Self.addHostPromptInvariantIDs,
-                    payload: ["hostName": remoteHost.displayName]
-                )
-                self.rebuildMenu()
-                return
-            }
-
-            self.settings.updateRemoteHostState(for: remoteHost) { state in
-                state.desiredAccountID = activeAccount.id
-                state.verificationStatus = .verifying
-                state.lastVerificationError = nil
-            }
-            self.remoteHostRuntime.beginHostSwitch(to: activeAccount, on: remoteHost)
-            self.rebuildMenu()
-            let result = await self.store.switchToAccountOnHost(activeAccount, on: remoteHost)
-            self.remoteHostRuntime.applySwitchOutcome(
-                result,
-                account: activeAccount,
-                host: remoteHost,
-                recordsInstalledAccountOnFailure: true
-            )
-            self.rebuildMenu()
-        }
+        hostActionCoordinator.addHost()
     }
 
     @objc
     func removeHost(_ sender: NSMenuItem) {
-        guard
-            let payload = sender.representedObject as? HostSelectionMenuItemPayload,
-            let hostState = settings.remoteHostState(for: payload.hostDestination)
-        else { return }
-        let remoteHost = hostState.host
-        recordMenuAction("removeHost", payload: ["hostName": remoteHost.displayName])
-        guard alertPresenter.presentConfirmation(alertFactory.makeRemoveHostRequest(hostName: remoteHost.displayName)) else {
-            return
-        }
-
-        remoteHostRuntime.removeHost(hostState)
-        rebuildMenu()
+        guard let payload = sender.representedObject as? HostSelectionMenuItemPayload else { return }
+        hostActionCoordinator.removeHost(hostDestination: payload.hostDestination)
     }
 
     @objc
     func reverifyHost(_ sender: NSMenuItem) {
-        guard
-            let payload = sender.representedObject as? HostSelectionMenuItemPayload,
-            let hostState = settings.remoteHostState(for: payload.hostDestination)
-        else { return }
-
-        reverifyHost(hostState: hostState)
+        guard let payload = sender.representedObject as? HostSelectionMenuItemPayload else { return }
+        hostActionCoordinator.reverifyHost(hostDestination: payload.hostDestination)
     }
 
     func reverifyHost(hostDestination: String) {
-        guard let hostState = settings.remoteHostState(for: hostDestination) else { return }
-        reverifyHost(hostState: hostState)
-    }
-
-    private func reverifyHost(hostState: PersistedRemoteHostState) {
-        guard let baseAccount = remoteHostRuntime.beginReverification(hostState: hostState) else { return }
-        statusItemRuntime.menu?.cancelTracking()
-
-        recordMenuAction("reverifyHost", payload: [
-            "hostName": hostState.host.displayName,
-            "accountName": baseAccount.name
-        ])
-        recordValidationEvent(
-            "remote_host_reverify_started",
-            step: "remote_host_reverify_start",
-            invariantIds: Self.remoteHostReverifyInvariantIDs,
-            payload: [
-                "hostName": hostState.host.displayName,
-                "accountName": baseAccount.name
-            ]
-        )
-
-        rebuildMenu()
-
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            await self.remoteHostRuntime.refresh(
-                host: hostState.host,
-                baseAccount: baseAccount,
-                fallbackConnectionState: .disconnected
-            )
-
-            let refreshedState = self.settings.remoteHostState(for: hostState.host.destination)
-            let eventName = refreshedState?.verificationStatus == .verified
-                ? "remote_host_reverify_succeeded"
-                : "remote_host_reverify_failed"
-            self.recordValidationEvent(
-                eventName,
-                step: "remote_host_reverify_result",
-                invariantIds: Self.remoteHostReverifyInvariantIDs,
-                payload: [
-                    "hostName": hostState.host.displayName,
-                    "accountName": baseAccount.name
-                ]
-            )
-            self.rebuildMenu()
-        }
+        hostActionCoordinator.reverifyHost(hostDestination: hostDestination)
     }
 
     @objc
     func adoptDetectedRemoteAccount(_ sender: NSMenuItem) {
-        guard
-            let payload = sender.representedObject as? HostAccountMenuItemPayload,
-            let hostState = settings.remoteHostState(for: payload.hostDestination)
-        else { return }
-
-        adoptDetectedRemoteAccount(
-            hostState: hostState,
+        guard let payload = sender.representedObject as? HostAccountMenuItemPayload else { return }
+        hostActionCoordinator.adoptDetectedRemoteAccount(
+            hostDestination: payload.hostDestination,
             accountID: payload.accountID
         )
     }
 
     func adoptDetectedRemoteAccount(hostDestination: String, accountID: UUID) {
-        guard let hostState = settings.remoteHostState(for: hostDestination) else { return }
-        adoptDetectedRemoteAccount(hostState: hostState, accountID: accountID)
-    }
-
-    private func adoptDetectedRemoteAccount(hostState: PersistedRemoteHostState, accountID: UUID) {
-        guard let detectedAccount = remoteHostRuntime.beginAdoptingDetectedAccount(hostState: hostState, accountID: accountID) else { return }
-        statusItemRuntime.menu?.cancelTracking()
-
-        recordMenuAction("adoptDetectedRemoteAccount", payload: [
-            "hostName": hostState.host.displayName,
-            "accountName": detectedAccount.name
-        ])
-        rebuildMenu()
-
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            await self.remoteHostRuntime.refresh(
-                host: hostState.host,
-                baseAccount: detectedAccount,
-                fallbackConnectionState: .connected
-            )
-            self.rebuildMenu()
-        }
+        hostActionCoordinator.adoptDetectedRemoteAccount(
+            hostDestination: hostDestination,
+            accountID: accountID
+        )
     }
 
     @objc
