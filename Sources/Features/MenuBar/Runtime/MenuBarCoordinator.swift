@@ -1,7 +1,6 @@
 import AppKit
 import Observation
 import OSLog
-import UserNotifications
 
 private let menuBarCoordinatorLogger = Logger(subsystem: "com.raphhgg.codexpill", category: "MenuBarCoordinator")
 
@@ -49,9 +48,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let sealValidationRun: CodexPillSealValidationRun?
     private let allowsEmptyStatePrompt: Bool
     private let remoteHostRuntime: RemoteHostRuntime
-    private let notificationPolicy = AccountAvailabilityNotificationPolicy()
-    private let notificationActionResolver = AccountAvailabilityNotificationActionResolver()
-    private let notificationPayloadRenderer = AccountAvailabilityNotificationPayloadRenderer()
     private let accountActionFlow = AccountActionFlow()
     private let menuBuilder = MenuBarMenuBuilder()
     private var autoRefreshTimer: Timer?
@@ -68,9 +64,28 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private var lastObservedActiveAccountName: String?
     private var pendingSwitchValidationTargetID: UUID?
     private var pendingSwitchValidationTargetName: String?
-    private var previousNotificationSnapshots: [UUID: AccountAvailabilitySnapshot] = [:]
-    private var cachedNotificationAuthorizationState: NotificationAuthorizationState = .unknown
     private var activeIsolatedAddAccountSession: IsolatedAddAccountSignInSession?
+    private lazy var notificationWorkflow = MenuBarNotificationWorkflow(
+        stateStore: notificationStateStore,
+        delivery: notificationDelivery,
+        applicationActivator: applicationActivator,
+        settingsLauncher: notificationSettingsLauncher,
+        scheduleRefresh: { [weak self] date in
+            self?.scheduleNotificationEvaluation(at: date)
+        },
+        presentLocalSwitch: { [weak self] resolution in
+            self?.presentNotificationDrivenLocalSwitch(resolution: resolution)
+        },
+        presentRemoteSwitch: { [weak self] resolution, hostDestination in
+            self?.presentNotificationDrivenRemoteSwitch(
+                resolution: resolution,
+                hostDestination: hostDestination
+            )
+        },
+        rebuildMenu: { [weak self] in
+            self?.rebuildMenu()
+        }
+    )
     private lazy var hostActionCoordinator = MenuBarHostActionCoordinator(
         store: store,
         settings: settings,
@@ -166,13 +181,12 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         statusItemRuntime.start(presentation: statusItemPresentation(for: menuState()))
         lastObservedActiveAccountID = store.activeAccountID
         lastObservedActiveAccountName = store.activeAccount?.name
-        previousNotificationSnapshots = notificationSnapshotMap(for: menuState())
+        notificationWorkflow.start(with: menuState())
         startObservingStore()
         startObservingSettings()
         rebuildMenu()
         scheduleAutoRefresh()
         syncBackgroundState()
-        refreshNotificationAuthorizationState()
         refreshRemoteHostStateIfNeeded()
         registerRevealShortcutFromSettings()
     }
@@ -391,53 +405,19 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     @objc
     func toggleNotificationsWhenBlocked(_ sender: NSMenuItem) {
         recordMenuAction("toggleNotificationsWhenBlocked")
-        let hadAnyNotificationsEnabled = notificationStateStore.whenBlockedEnabled || notificationStateStore.whenOutEnabled
-        notificationStateStore.whenBlockedEnabled.toggle()
-        if !hadAnyNotificationsEnabled, notificationStateStore.whenBlockedEnabled {
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                await self.notificationDelivery.requestAuthorizationIfNeeded()
-                self.refreshNotificationAuthorizationState()
-            }
-        }
+        notificationWorkflow.handleNotificationToggle(enabled: \.whenBlockedEnabled)
     }
 
     @objc
     func toggleNotificationsWhenOut(_ sender: NSMenuItem) {
         recordMenuAction("toggleNotificationsWhenOut")
-        let hadAnyNotificationsEnabled = notificationStateStore.whenBlockedEnabled || notificationStateStore.whenOutEnabled
-        notificationStateStore.whenOutEnabled.toggle()
-        if !hadAnyNotificationsEnabled, notificationStateStore.whenOutEnabled {
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                await self.notificationDelivery.requestAuthorizationIfNeeded()
-                self.refreshNotificationAuthorizationState()
-            }
-        }
+        notificationWorkflow.handleNotificationToggle(enabled: \.whenOutEnabled)
     }
 
     @objc
     func enableNotifications(_ sender: NSMenuItem) {
         recordMenuAction("enableNotifications")
-        if !notificationStateStore.whenBlockedEnabled && !notificationStateStore.whenOutEnabled {
-            notificationStateStore.whenBlockedEnabled = true
-            notificationStateStore.whenOutEnabled = true
-        }
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            var state = await self.notificationDelivery.authorizationState()
-            switch state {
-            case .denied:
-                self.notificationSettingsLauncher.openNotificationSettings()
-            case .notDetermined, .unknown:
-                await self.notificationDelivery.requestAuthorizationIfNeeded()
-                state = await self.notificationDelivery.authorizationState()
-            case .authorized:
-                break
-            }
-            self.cachedNotificationAuthorizationState = state
-            self.rebuildMenu()
-        }
+        notificationWorkflow.enableNotifications()
     }
 
     @objc
@@ -584,9 +564,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             hasCustomProgressAccentColor: settings.hasCustomProgressAccentColor,
             isBusy: store.isBusy,
             statusMessage: store.statusMessage,
-            notificationsWhenBlockedEnabled: notificationStateStore.whenBlockedEnabled,
-            notificationsWhenOutEnabled: notificationStateStore.whenOutEnabled,
-            notificationAuthorizationState: cachedNotificationAuthorizationState,
+            notificationsWhenBlockedEnabled: notificationWorkflow.whenBlockedEnabled,
+            notificationsWhenOutEnabled: notificationWorkflow.whenOutEnabled,
+            notificationAuthorizationState: notificationWorkflow.authorizationState,
             showsPacingPrototypeMenu: validationScenario == "live-pacing-prototypes"
         )
     }
@@ -759,52 +739,11 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     func handleNotificationResponse(actionIdentifier: String?, userInfo: [AnyHashable: Any]) async {
-        let resolvedActionIdentifier = actionIdentifier ?? UNNotificationDefaultActionIdentifier
-        guard resolvedActionIdentifier != UNNotificationDefaultActionIdentifier else {
-            applicationActivator.activate()
-            return
-        }
-
-        guard
-            let accountIDString = userInfo["accountID"] as? String,
-            let notifiedAccountID = UUID(uuidString: accountIDString)
-        else {
-            applicationActivator.activate()
-            return
-        }
-
-        let requestedTarget = requestedNotificationTarget(
-            actionIdentifier: resolvedActionIdentifier,
-            userInfo: userInfo
+        notificationWorkflow.handleResponse(
+            actionIdentifier: actionIdentifier,
+            userInfo: userInfo,
+            state: menuState()
         )
-
-        let state = menuState()
-        let resolution = notificationActionResolver.resolve(
-            notifiedAccountID: notifiedAccountID,
-            requestedTarget: requestedTarget,
-            currentSnapshots: state.availabilitySnapshots,
-            activeAccounts: activeNotificationContexts(from: state),
-            settings: AccountAvailabilityNotificationSettings(
-                whenBlockedEnabled: notificationStateStore.whenBlockedEnabled,
-                whenOutEnabled: notificationStateStore.whenOutEnabled
-            )
-        )
-
-        applicationActivator.activate()
-
-        guard let resolution else {
-            return
-        }
-
-        switch resolution.target {
-        case .local:
-            presentNotificationDrivenLocalSwitch(resolution: resolution)
-        case .remote(let hostDestination):
-            presentNotificationDrivenRemoteSwitch(
-                resolution: resolution,
-                hostDestination: hostDestination
-            )
-        }
     }
 
     private func recordMenuAction(_ name: String, payload: [String: String] = [:]) {
@@ -895,7 +834,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         rebuildMenu(using: state)
         presentPendingErrorIfNeeded()
         syncBackgroundState()
-        evaluateNotifications(using: state)
+        notificationWorkflow.evaluate(using: state)
     }
 
     private func recordActiveAccountTransitionIfNeeded() {
@@ -909,7 +848,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
         guard currentActiveAccountID != lastObservedActiveAccountID else { return }
         if let currentActiveAccountID {
-            notificationStateStore.markAccountActivated(currentActiveAccountID)
+            notificationWorkflow.markAccountActivated(currentActiveAccountID)
         }
 
         guard
@@ -970,83 +909,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         statusItemRuntime.update(presentation: statusItemPresentation(for: state))
         scheduleAutoRefresh()
         rebuildMenu(using: state)
-        evaluateNotifications(using: state)
-    }
-
-    private func evaluateNotifications(using state: MenuBarMenuState, now: Date = .now) {
-        let currentSnapshots = state.availabilitySnapshots
-        defer {
-            previousNotificationSnapshots = notificationSnapshotMap(for: state)
-        }
-
-        let decision = notificationPolicy.decision(
-            previousSnapshots: Array(previousNotificationSnapshots.values),
-            currentSnapshots: currentSnapshots,
-            activeAccounts: activeNotificationContexts(from: state),
-            settings: AccountAvailabilityNotificationSettings(
-                whenBlockedEnabled: notificationStateStore.whenBlockedEnabled,
-                whenOutEnabled: notificationStateStore.whenOutEnabled
-            ),
-            now: now
-        )
-        scheduleNotificationEvaluation(at: decision?.waitUntil)
-
-        guard let decision, decision.shouldNotify else { return }
-        guard notificationStateStore.shouldDeliverNotification(
-            for: decision.account.id,
-            reason: decision.reason,
-            window: decision.window
-        ) else {
-            return
-        }
-        guard let payload = notificationPayloadRenderer.payload(for: decision, state: state) else { return }
-
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            let delivered = await self.notificationDelivery.deliver(payload)
-            guard delivered else { return }
-            self.notificationStateStore.recordNotification(
-                for: decision.account.id,
-                reason: decision.reason,
-                window: decision.window,
-                notifiedAt: now
-            )
-        }
-    }
-
-    private func notificationSnapshotMap(for state: MenuBarMenuState) -> [UUID: AccountAvailabilitySnapshot] {
-        Dictionary(uniqueKeysWithValues: state.availabilitySnapshots.map { ($0.account.id, $0) })
-    }
-
-    private func activeNotificationContexts(from state: MenuBarMenuState) -> [ActiveAccountAvailabilityContext] {
-        var contexts: [ActiveAccountAvailabilityContext] = []
-        if let activeAccount = state.activeAccount {
-            contexts.append(ActiveAccountAvailabilityContext(target: .local, accountID: activeAccount.id))
-        }
-        contexts.append(contentsOf: state.connectedRemoteHosts.compactMap { remoteHost in
-            guard let remoteAccount = remoteHost.activeAccount else { return nil }
-            return ActiveAccountAvailabilityContext(
-                target: .remote(hostDestination: remoteHost.destination),
-                accountID: remoteAccount.id
-            )
-        })
-        return contexts
-    }
-
-    private func requestedNotificationTarget(
-        actionIdentifier: String,
-        userInfo: [AnyHashable: Any]
-    ) -> AccountAvailabilityNotificationRequestedTarget {
-        switch actionIdentifier {
-        case "use_local":
-            return .local
-        case "use_remote":
-            return .remote(preferredHostDestination: userInfo["remoteHostDestination"] as? String)
-        case "use_best_option":
-            return .bestOption
-        default:
-            return .bestOption
-        }
+        notificationWorkflow.evaluate(using: state)
     }
 
     private func presentNotificationDrivenLocalSwitch(
@@ -1100,16 +963,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             try? await Task.sleep(for: .seconds(delay))
             guard !Task.isCancelled else { return }
             self.performScheduledRefresh()
-        }
-    }
-
-    private func refreshNotificationAuthorizationState() {
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            let state = await self.notificationDelivery.authorizationState()
-            guard self.cachedNotificationAuthorizationState != state else { return }
-            self.cachedNotificationAuthorizationState = state
-            self.rebuildMenu()
         }
     }
 

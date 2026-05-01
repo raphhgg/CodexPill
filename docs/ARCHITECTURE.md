@@ -73,6 +73,7 @@ Key boundaries:
 
 - `MenuBarCoordinator`
 - `MenuBarHostActionCoordinator`
+- `MenuBarNotificationWorkflow`
 - `MenuBarAccountsStore`
 - `MenuBarAccountCatalogProjection`
 - `MenuBarMenuBuilder`
@@ -166,9 +167,11 @@ Settings persistence is split by feature boundary:
 
 `MenuBarHostActionCoordinator` is the menubar runtime boundary for host-specific user actions. It owns add-host, remove-host, reverify-host, adopt-detected-account, and switch-account-on-host sequencing while `MenuBarCoordinator` keeps AppKit selector entry points and menu rebuild callbacks.
 
+`MenuBarNotificationWorkflow` is the menubar runtime boundary for account-availability notification orchestration. It owns previous availability snapshot tracking, authorization-state refresh interaction, policy evaluation, payload/action rendering, stale notification response resolution, dedupe state updates, and re-evaluation scheduling callbacks. It delegates local account switching, remote host switching, alert presentation, app activation, and refresh execution back to coordinator-owned runtime collaborators; it uses `AccountAvailabilityNotifications` for account-centric policy and `AccountAvailabilityNotificationRuntime` for macOS delivery mechanics.
+
 `StatusItemRuntime` owns the `NSStatusItem`, hover tracking, pointer-inside detection, title/icon transitions, tooltip rendering, and low-level status-item snapshot state.
 
-`AccountAvailabilityNotificationRuntime` owns notification delivery mechanics: copy rendering, payloads, categories, `UserNotifications` requests, and macOS notification settings launch.
+`AccountAvailabilityNotificationRuntime` owns notification delivery mechanics and rendering primitives: copy/payload renderers, notification categories, `UserNotifications` requests, and macOS notification settings launch. It does not decide when to notify or how notification clicks map to account-switch actions.
 
 ## Truth Sources
 
