@@ -243,6 +243,47 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
+    func revealShortcutRowDisplaysShortcutWithoutNativeKeyEquivalent() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let shortcut = KeyboardShortcut(keyCode: 11, modifiers: [.control, .shift])
+        let menu = builder.makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                revealStatusItemTitleShortcut: shortcut
+            ),
+            target: coordinator
+        )
+
+        let contentMenu = try #require(statusItemContentMenu(in: menu))
+        let revealShortcut = try #require(contentMenu.items.first(where: { $0.title.hasPrefix("Reveal Shortcut…") }))
+
+        #expect(revealShortcut.attributedTitle?.string == "Reveal Shortcut…\t⌃⇧B")
+        #expect(revealShortcut.keyEquivalent == "")
+        #expect(revealShortcut.keyEquivalentModifierMask.isEmpty)
+        #expect(revealShortcut.action == #selector(MenuBarCoordinator.configureRevealStatusItemTitleShortcut(_:)))
+    }
+
+    @Test
+    func revealShortcutRowDisplaysNoneWhenShortcutIsCleared() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let menu = builder.makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                revealStatusItemTitleShortcut: nil
+            ),
+            target: coordinator
+        )
+
+        let contentMenu = try #require(statusItemContentMenu(in: menu))
+        let revealShortcut = try #require(contentMenu.items.first(where: { $0.title.hasPrefix("Reveal Shortcut…") }))
+
+        #expect(revealShortcut.attributedTitle?.string == "Reveal Shortcut…\tNone")
+        #expect(revealShortcut.keyEquivalent == "")
+    }
+
+    @Test
     func addAccountIsDirectMenuAction() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
@@ -1449,7 +1490,8 @@ struct MenuBarMenuBuilderTests {
         notificationsWhenBlockedEnabled: Bool = false,
         notificationsWhenOutEnabled: Bool = false,
         notificationAuthorizationState: NotificationAuthorizationState = .unknown,
-        showsPacingPrototypeMenu: Bool = false
+        showsPacingPrototypeMenu: Bool = false,
+        revealStatusItemTitleShortcut: CodexPill.KeyboardShortcut? = .defaultRevealStatusItemTitle
     ) -> MenuBarMenuState {
         MenuBarMenuState(
             activeAccount: activeAccount,
@@ -1462,6 +1504,7 @@ struct MenuBarMenuBuilderTests {
             statusBarMonochrome: false,
             statusBarIndicatorStyle: .dualArcBadge,
             statusBarDisplayMode: .textOnHover,
+            revealStatusItemTitleShortcut: revealStatusItemTitleShortcut,
             progressAccentColor: progressAccentColor,
             hasCustomProgressAccentColor: hasCustomProgressAccentColor,
             isBusy: false,

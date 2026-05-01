@@ -126,19 +126,7 @@ private struct CodexSignInPanel: View {
                 .font(.system(size: 15))
                 .foregroundStyle(.primary)
 
-            Text(request.userCode)
-                .font(.system(size: 24, weight: .semibold, design: .monospaced))
-                .frame(maxWidth: .infinity)
-                .frame(height: 64)
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color(nsColor: .controlBackgroundColor))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
-                        )
-                )
-                .textSelection(.enabled)
+            PanelValueBox(value: request.userCode)
 
             Text(statusText)
                 .font(.system(size: 13))
