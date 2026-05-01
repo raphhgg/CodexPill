@@ -32,7 +32,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     private let statusItemRuntime: StatusItemRuntime
     private let store: MenuBarAccountsStore
-    private let settings: AppSettings
+    private let settings: CodexPillSettingsStore
+    private let menuDisplaySettings: MenuDisplaySettingsStore
+    private let statusItemSettings: StatusItemSettingsStore
     private let remoteHostClient: RemoteHostClient
     private let cliProcessInspector: CodexCLIProcessInspector
     private let alertPresenter: MenuBarAlertPresenter
@@ -73,7 +75,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     init(
         statusItemRuntime: StatusItemRuntime,
         store: MenuBarAccountsStore,
-        settings: AppSettings,
+        settings: CodexPillSettingsStore,
         remoteHostClient: RemoteHostClient = UnavailableRemoteHostClient(),
         cliProcessInspector: CodexCLIProcessInspector = CodexCLIProcessInspector(),
         alertPresenter: MenuBarAlertPresenter,
@@ -90,6 +92,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.statusItemRuntime = statusItemRuntime
         self.store = store
         self.settings = settings
+        self.menuDisplaySettings = settings.menuDisplaySettings
+        self.statusItemSettings = settings.statusItemSettings
         self.remoteHostClient = remoteHostClient
         self.cliProcessInspector = cliProcessInspector
         self.alertPresenter = alertPresenter
@@ -254,14 +258,14 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     func selectRefreshInterval(_ sender: NSMenuItem) {
         recordMenuAction("selectRefreshInterval")
         guard let minutes = sender.representedObject as? Int else { return }
-        settings.refreshIntervalMinutes = minutes
+        menuDisplaySettings.refreshIntervalMinutes = minutes
     }
 
     @objc
     func selectVisibleInactiveAccountCount(_ sender: NSMenuItem) {
         recordMenuAction("selectVisibleInactiveAccountCount")
         guard let count = sender.representedObject as? Int else { return }
-        settings.visibleInactiveAccountCount = count
+        menuDisplaySettings.visibleInactiveAccountCount = count
     }
 
     @objc
@@ -273,13 +277,13 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         else {
             return
         }
-        settings.statusBarIndicatorStyle = style
+        statusItemSettings.statusBarIndicatorStyle = style
     }
 
     @objc
     func toggleStatusBarMonochrome(_ sender: NSMenuItem) {
         recordMenuAction("toggleStatusBarMonochrome")
-        settings.statusBarMonochrome.toggle()
+        statusItemSettings.statusBarMonochrome.toggle()
     }
 
     @objc
@@ -292,10 +296,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             return
         }
         if !menuState().hasStatusItemContentData, mode != .iconOnly {
-            settings.statusBarDisplayMode = .iconOnly
+            statusItemSettings.statusBarDisplayMode = .iconOnly
             return
         }
-        settings.statusBarDisplayMode = mode
+        statusItemSettings.statusBarDisplayMode = mode
     }
 
     @objc
@@ -308,13 +312,13 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     func resetProgressAccentColor(_ sender: NSMenuItem) {
         recordMenuAction("resetProgressAccentColor")
         settings.resetProgressAccentColor()
-        NSColorPanel.shared.color = settings.progressAccentColor
+        NSColorPanel.shared.color = statusItemSettings.progressAccentColor
     }
 
     @objc
     func togglePacingMarkers(_ sender: NSMenuItem) {
         recordMenuAction("togglePacingMarkers")
-        settings.pacingMarkersEnabled.toggle()
+        statusItemSettings.pacingMarkersEnabled.toggle()
     }
 
     @objc
@@ -769,15 +773,15 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             activeAccount: store.activeAccount,
             inactiveAccounts: store.sortedInactiveAccounts,
             remoteHosts: remoteHostRuntime.menuStates(),
-            visibleInactiveAccountCount: settings.visibleInactiveAccountCount,
-            visibleInactiveAccountCountOptions: settings.visibleInactiveAccountCountOptions,
-            refreshIntervalMinutes: settings.refreshIntervalMinutes,
+            visibleInactiveAccountCount: menuDisplaySettings.visibleInactiveAccountCount,
+            visibleInactiveAccountCountOptions: menuDisplaySettings.visibleInactiveAccountCountOptions,
+            refreshIntervalMinutes: menuDisplaySettings.refreshIntervalMinutes,
             refreshIntervalOptions: settings.refreshIntervalOptions,
-            statusBarMonochrome: settings.statusBarMonochrome,
-            statusBarIndicatorStyle: settings.statusBarIndicatorStyle,
-            statusBarDisplayMode: settings.statusBarDisplayMode,
-            progressAccentColor: settings.progressAccentColor,
-            pacingMarkersEnabled: settings.pacingMarkersEnabled,
+            statusBarMonochrome: statusItemSettings.statusBarMonochrome,
+            statusBarIndicatorStyle: statusItemSettings.statusBarIndicatorStyle,
+            statusBarDisplayMode: statusItemSettings.statusBarDisplayMode,
+            progressAccentColor: statusItemSettings.progressAccentColor,
+            pacingMarkersEnabled: statusItemSettings.pacingMarkersEnabled,
             hasCustomProgressAccentColor: settings.hasCustomProgressAccentColor,
             isBusy: store.isBusy,
             statusMessage: store.statusMessage,
@@ -1004,7 +1008,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     private func scheduleAutoRefresh() {
         autoRefreshTimer?.invalidate()
-        let interval = AppRuntimeEnvironment.validationAutoRefreshIntervalSeconds() ?? TimeInterval(settings.refreshIntervalMinutes * 60)
+        let interval = AppRuntimeEnvironment.validationAutoRefreshIntervalSeconds() ?? TimeInterval(menuDisplaySettings.refreshIntervalMinutes * 60)
         autoRefreshTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.performScheduledRefresh()
@@ -1131,13 +1135,13 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     private func observeSettingsChanges() {
         withObservationTracking {
-            _ = settings.refreshIntervalMinutes
-            _ = settings.statusBarIndicatorStyle
-            _ = settings.statusBarMonochrome
-            _ = settings.statusBarDisplayMode
-            _ = settings.visibleInactiveAccountCount
-            _ = settings.progressAccentColor
-            _ = settings.pacingMarkersEnabled
+            _ = menuDisplaySettings.refreshIntervalMinutes
+            _ = statusItemSettings.statusBarIndicatorStyle
+            _ = statusItemSettings.statusBarMonochrome
+            _ = statusItemSettings.statusBarDisplayMode
+            _ = menuDisplaySettings.visibleInactiveAccountCount
+            _ = statusItemSettings.progressAccentColor
+            _ = statusItemSettings.pacingMarkersEnabled
             _ = settings.remoteHostStates
             _ = settings.notificationsWhenBlockedEnabled
             _ = settings.notificationsWhenOutEnabled
@@ -1414,10 +1418,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private func statusItemPresentation(for state: MenuBarMenuState) -> StatusItemRuntimePresentation {
         StatusItemRuntimePresentation(
             activeAccount: store.activeAccount,
-            indicatorStyle: settings.statusBarIndicatorStyle,
-            monochrome: settings.statusBarMonochrome,
+            indicatorStyle: statusItemSettings.statusBarIndicatorStyle,
+            monochrome: statusItemSettings.statusBarMonochrome,
             displayMode: state.effectiveStatusBarDisplayMode,
-            progressAccentColor: settings.progressAccentColor
+            progressAccentColor: statusItemSettings.progressAccentColor
         )
     }
 
@@ -1429,14 +1433,14 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         panel.isContinuous = true
         panel.setTarget(self)
         panel.setAction(#selector(handleProgressColorPanelChanged(_:)))
-        panel.color = settings.progressAccentColor
+        panel.color = statusItemSettings.progressAccentColor
         NSApp.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
     }
 
     @objc
     private func handleProgressColorPanelChanged(_ sender: NSColorPanel) {
-        settings.progressAccentColor = sender.color.withAlphaComponent(1)
+        statusItemSettings.progressAccentColor = sender.color.withAlphaComponent(1)
     }
 
     private func handleStatusItemRuntimeEvent(_ event: StatusItemRuntime.Event) {

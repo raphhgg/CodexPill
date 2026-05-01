@@ -4,11 +4,11 @@ import Testing
 @testable import CodexPill
 
 @MainActor
-struct AppSettingsTests {
+struct CodexPillSettingsStoreTests {
     @Test
     func statusBarDefaultsUseTwinPillsAndMonochrome() {
         let defaults = makeDefaults()
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
 
         #expect(settings.statusBarIndicatorStyle == .twinPills)
         #expect(settings.statusBarMonochrome)
@@ -18,10 +18,10 @@ struct AppSettingsTests {
     @Test
     func pacingMarkersPreferencePersistsAcrossInstances() {
         let defaults = makeDefaults()
-        let first = AppSettings(userDefaults: defaults)
+        let first = CodexPillSettingsStore(userDefaults: defaults)
         first.pacingMarkersEnabled = false
 
-        let second = AppSettings(userDefaults: defaults)
+        let second = CodexPillSettingsStore(userDefaults: defaults)
 
         #expect(!second.pacingMarkersEnabled)
     }
@@ -29,7 +29,7 @@ struct AppSettingsTests {
     @Test
     func progressAccentColorDefaultAndReset() {
         let defaults = makeDefaults()
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
 
         #expect(colorsEqual(settings.progressAccentColor, StatusBarProgressColorDefaults.accent))
         #expect(settings.hasCustomProgressAccentColor == false)
@@ -48,10 +48,10 @@ struct AppSettingsTests {
         let defaults = makeDefaults()
         let accent = NSColor(calibratedRed: 0.14, green: 0.55, blue: 0.31, alpha: 1)
 
-        let first = AppSettings(userDefaults: defaults)
+        let first = CodexPillSettingsStore(userDefaults: defaults)
         first.progressAccentColor = accent
 
-        let second = AppSettings(userDefaults: defaults)
+        let second = CodexPillSettingsStore(userDefaults: defaults)
 
         #expect(colorsEqual(second.progressAccentColor, accent))
         #expect(second.hasCustomProgressAccentColor)
@@ -60,11 +60,11 @@ struct AppSettingsTests {
     @Test
     func configuredRemoteHostPersistsAcrossInstances() {
         let defaults = makeDefaults()
-        let first = AppSettings(userDefaults: defaults)
+        let first = CodexPillSettingsStore(userDefaults: defaults)
         first.configuredRemoteHost = RemoteHost(destination: "user@buildbox", displayName: "Build Box")
         first.remoteHostInstalledAccountIDs = [UUID()]
 
-        let second = AppSettings(userDefaults: defaults)
+        let second = CodexPillSettingsStore(userDefaults: defaults)
 
         #expect(second.configuredRemoteHost == RemoteHost(destination: "user@buildbox", displayName: "Build Box"))
         #expect(second.remoteHostInstalledAccountIDs.count == 1)
@@ -84,7 +84,7 @@ struct AppSettingsTests {
             rateLimits: nil,
             identity: .empty
         )
-        let first = AppSettings(userDefaults: defaults)
+        let first = CodexPillSettingsStore(userDefaults: defaults)
         first.remoteHostStates = [
             PersistedRemoteHostState(
                 host: RemoteHost(destination: "user@buildbox", displayName: "Build Box"),
@@ -96,7 +96,7 @@ struct AppSettingsTests {
             PersistedRemoteHostState(host: RemoteHost(destination: "user@debian-vm", displayName: "Debian VM"))
         ]
 
-        let second = AppSettings(userDefaults: defaults)
+        let second = CodexPillSettingsStore(userDefaults: defaults)
 
         #expect(second.remoteHostStates.count == 2)
         #expect(second.remoteHostStates[0].host.displayName == "Build Box")
@@ -128,11 +128,11 @@ struct AppSettingsTests {
             identity: .empty
         )
 
-        let first = AppSettings(userDefaults: defaults)
+        let first = CodexPillSettingsStore(userDefaults: defaults)
         first.configuredRemoteHost = RemoteHost(destination: "user@buildbox", displayName: "Build Box")
         first.remoteHostActiveAccount = account
 
-        let second = AppSettings(userDefaults: defaults)
+        let second = CodexPillSettingsStore(userDefaults: defaults)
 
         #expect(second.remoteHostActiveAccount == account)
         #expect(second.remoteHostState(for: "user@buildbox")?.verificationStatus == .verified)
@@ -143,11 +143,11 @@ struct AppSettingsTests {
         let defaults = makeDefaults()
         let accountID = UUID()
 
-        let first = AppSettings(userDefaults: defaults)
+        let first = CodexPillSettingsStore(userDefaults: defaults)
         first.configuredRemoteHost = RemoteHost(destination: "user@buildbox", displayName: "Build Box")
         first.remoteHostDesiredAccountID = accountID
 
-        let second = AppSettings(userDefaults: defaults)
+        let second = CodexPillSettingsStore(userDefaults: defaults)
 
         #expect(second.remoteHostDesiredAccountID == accountID)
         #expect(second.remoteHostActiveAccount == nil)
@@ -160,7 +160,7 @@ struct AppSettingsTests {
         let desiredID = UUID()
         let detectedID = UUID()
 
-        let first = AppSettings(userDefaults: defaults)
+        let first = CodexPillSettingsStore(userDefaults: defaults)
         first.remoteHostStates = [
             PersistedRemoteHostState(
                 host: RemoteHost(destination: "user@buildbox", displayName: "Build Box"),
@@ -172,7 +172,7 @@ struct AppSettingsTests {
             )
         ]
 
-        let second = AppSettings(userDefaults: defaults)
+        let second = CodexPillSettingsStore(userDefaults: defaults)
         let persisted = try #require(second.remoteHostState(for: "user@buildbox"))
         #expect(persisted.desiredAccountID == desiredID)
         #expect(persisted.detectedAccountID == detectedID)
@@ -182,7 +182,7 @@ struct AppSettingsTests {
     @Test
     func updateAndRemoveRemoteHostStateUseDestinationIdentity() {
         let defaults = makeDefaults()
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
         let buildbox = RemoteHost(destination: "user@buildbox", displayName: "Build Box")
         let debian = RemoteHost(destination: "user@debian-vm", displayName: "Debian VM")
         let accountID = UUID()
@@ -206,7 +206,7 @@ struct AppSettingsTests {
     @Test
     func upsertingExistingHostPreservesInstalledAccountsAndActiveAccount() throws {
         let defaults = makeDefaults()
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
         let originalHost = RemoteHost(destination: "user@buildbox", displayName: "Build Box")
         let renamedHost = RemoteHost(destination: "user@buildbox", displayName: "Primary Build Box")
         let account = CodexAccount(
@@ -260,7 +260,7 @@ struct AppSettingsTests {
         defaults.set(try JSONEncoder().encode([account.id]), forKey: "remoteHostInstalledAccountIDs")
         defaults.set(try JSONEncoder().encode(account), forKey: "remoteHostActiveAccount")
 
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
 
         #expect(settings.remoteHostStates == [
             PersistedRemoteHostState(
@@ -306,7 +306,7 @@ struct AppSettingsTests {
             forKey: "remoteHosts"
         )
 
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
 
         #expect(settings.remoteHostStates == [
             PersistedRemoteHostState(
@@ -324,11 +324,11 @@ struct AppSettingsTests {
     func notificationSettingsPersistAcrossInstances() {
         let defaults = makeDefaults()
 
-        let first = AppSettings(userDefaults: defaults)
+        let first = CodexPillSettingsStore(userDefaults: defaults)
         first.notificationsWhenBlockedEnabled = true
         first.notificationsWhenOutEnabled = true
 
-        let second = AppSettings(userDefaults: defaults)
+        let second = CodexPillSettingsStore(userDefaults: defaults)
 
         #expect(second.notificationsWhenBlockedEnabled)
         #expect(second.notificationsWhenOutEnabled)
@@ -339,7 +339,7 @@ struct AppSettingsTests {
         let defaults = makeDefaults()
         defaults.set(true, forKey: "notificationsBeforeYouRunOutEnabled")
 
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
 
         #expect(settings.notificationsWhenOutEnabled)
     }
@@ -350,7 +350,7 @@ struct AppSettingsTests {
         let accountID = UUID()
         let now = Date()
 
-        let first = AppSettings(userDefaults: defaults)
+        let first = CodexPillSettingsStore(userDefaults: defaults)
         first.updateAccountNotificationState(for: accountID) { state in
             state.isArmed = false
             state.lastNotification = PersistedAccountNotificationRecord(
@@ -363,7 +363,7 @@ struct AppSettingsTests {
             )
         }
 
-        let second = AppSettings(userDefaults: defaults)
+        let second = CodexPillSettingsStore(userDefaults: defaults)
         let persisted = try #require(second.accountNotificationState(for: accountID))
 
         #expect(!persisted.isArmed)
@@ -372,7 +372,7 @@ struct AppSettingsTests {
     }
 
     private func makeDefaults() -> UserDefaults {
-        let suiteName = "AppSettingsTests-\(UUID().uuidString)"
+        let suiteName = "CodexPillSettingsStoreTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         return defaults

@@ -38,7 +38,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationRemoveAccount-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
         settings.remoteHostStates = [
             PersistedRemoteHostState(
                 host: host,
@@ -159,7 +159,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationNotificationSwitch-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
         settings.notificationsWhenOutEnabled = true
         settings.remoteHostStates = [
             PersistedRemoteHostState(
@@ -284,7 +284,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationNotificationFailure-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
         settings.notificationsWhenOutEnabled = true
         settings.remoteHostStates = [
             PersistedRemoteHostState(
@@ -374,7 +374,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationLocalNotificationSwitch-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
         settings.notificationsWhenBlockedEnabled = true
         let alertPresenter = MenuBarAlertPresenterProbe()
         alertPresenter.confirmationResponse = true
@@ -592,7 +592,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationEnableNotifications-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
         let center = UserNotificationCenterProbe()
         center.authorizationStatus = .notDetermined
         let opener = NotificationSettingsLauncherProbe()
@@ -633,7 +633,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationDeniedNotifications-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
         settings.notificationsWhenBlockedEnabled = true
         let center = UserNotificationCenterProbe()
         center.authorizationStatus = .denied
@@ -833,7 +833,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationNotificationPermission-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
         let center = UserNotificationCenterProbe()
         let delivery = AccountAvailabilityNotificationCenter(center: center)
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -879,7 +879,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationAddHostCancel-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
         let alertPresenter = MenuBarAlertPresenterProbe()
         let panelPresenter = MenuBarPanelPresenterProbe()
         panelPresenter.hostSetupResponse = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
@@ -926,7 +926,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationAddHostConfirmed-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
         let alertPresenter = MenuBarAlertPresenterProbe()
         let panelPresenter = MenuBarPanelPresenterProbe()
         panelPresenter.hostSetupResponse = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
@@ -970,7 +970,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
         settings.statusBarDisplayMode = .textOnHover
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         defer {
@@ -1230,7 +1230,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationRemoteRestore-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
         settings.configuredRemoteHost = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
         settings.remoteHostActiveAccount = CodexAccount(
             id: UUID(),
@@ -1297,7 +1297,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationRemoteFailure-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
         let persistedAccount = CodexAccount(
             id: UUID(),
             name: "Business 2",
@@ -1358,7 +1358,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationMissingDesiredRemote-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
         settings.remoteHostStates = [
             PersistedRemoteHostState(
                 host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"),
@@ -1406,7 +1406,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationMultipleRemoteRestore-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
         settings.remoteHostStates = [
             PersistedRemoteHostState(
                 host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"),
@@ -1481,7 +1481,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationMixedRemoteRestore-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
         settings.remoteHostStates = [
             PersistedRemoteHostState(
                 host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"),
@@ -1563,7 +1563,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationReverifyRemote-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
         let persistedAccount = CodexAccount(
             id: UUID(),
             name: "Business 2",
@@ -1665,7 +1665,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationAdoptDetectedRemote-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
         settings.remoteHostStates = [
             PersistedRemoteHostState(
                 host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"),
@@ -1731,7 +1731,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationRemoteMismatch-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
         let persistedAccount = CodexAccount(
             id: UUID(),
             name: "Business 2",
@@ -1813,7 +1813,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationReachableRemoteFailure-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
         settings.remoteHostStates = [
             PersistedRemoteHostState(
                 host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"),
@@ -1873,7 +1873,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationReachableRemoteSwitchFailure-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
         settings.remoteHostStates = [
             PersistedRemoteHostState(
                 host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"),
@@ -1994,7 +1994,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationRemoteCatalogBackfill-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
         settings.remoteHostStates = [
             PersistedRemoteHostState(
                 host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"),
@@ -2085,7 +2085,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationNotificationRearm-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
         settings.remoteHostStates = [
             PersistedRemoteHostState(host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"))
         ]
@@ -2161,7 +2161,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationRemoteLimitsFallback-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
         settings.configuredRemoteHost = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
         settings.remoteHostActiveAccount = CodexAccount(
             id: UUID(),
@@ -2292,7 +2292,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationRemoteInactiveFallback-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
         settings.remoteHostStates = [
             PersistedRemoteHostState(
                 host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"),
@@ -2429,7 +2429,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationRelinkedRemoteHost-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
         let staleRemoteAccount = CodexAccount(
             id: UUID(),
             name: "Business 2",
@@ -2577,7 +2577,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationScheduledRemoteRefresh-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
         settings.remoteHostStates = [
             PersistedRemoteHostState(
                 host: RemoteHost(destination: "user@debian-vm", displayName: "debian-vm"),

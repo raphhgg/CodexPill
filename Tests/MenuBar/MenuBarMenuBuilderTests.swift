@@ -1419,7 +1419,7 @@ struct MenuBarMenuBuilderTests {
         let suiteName = "MenuBarMenuBuilderTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = AppSettings(userDefaults: defaults)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         let statusItemRuntime = StatusItemRuntime(statusItem: statusItem)
         let coordinator = MenuBarCoordinator(

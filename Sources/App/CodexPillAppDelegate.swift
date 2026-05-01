@@ -4,7 +4,7 @@ import UserNotifications
 @MainActor
 final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     private var coordinator: MenuBarCoordinator!
-    private var settings: AppSettings!
+    private var settings: CodexPillSettingsStore!
     private var statusItemRuntime: StatusItemRuntime!
     private var wakeObserver: NSObjectProtocol?
 
@@ -15,7 +15,7 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
         let defaults = AppRuntimeEnvironment.validationUserDefaultsSuiteName(environment: environment)
             .flatMap(UserDefaults.init(suiteName:))
             ?? .standard
-        settings = AppSettings(userDefaults: defaults)
+        settings = CodexPillSettingsStore(userDefaults: defaults)
         ValidationAppBootstrap.applyFixtureIfPresent(to: settings, environment: environment)
 
         let repository = try! AccountRepository()

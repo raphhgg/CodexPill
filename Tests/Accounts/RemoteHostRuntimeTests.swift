@@ -126,7 +126,7 @@ struct RemoteHostRuntimeTests {
     }
 
     private func makeRuntime(
-        settings: AppSettings,
+        settings: CodexPillSettingsStore,
         remoteHostClient: RemoteHostClient = RemoteHostClientFixture(),
         accounts: [CodexAccount],
         persistAccountMetadata: @escaping (CodexAccount) -> Void = { _ in },
@@ -141,11 +141,11 @@ struct RemoteHostRuntimeTests {
         )
     }
 
-    private func makeSettings() -> AppSettings {
+    private func makeSettings() -> CodexPillSettingsStore {
         let suiteName = "RemoteHostRuntimeTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        return AppSettings(userDefaults: defaults)
+        return CodexPillSettingsStore(userDefaults: defaults)
     }
 
     private func makeAccount(

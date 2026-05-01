@@ -377,7 +377,7 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 ### `notifications.state.settings_and_records_persist`
 
 - `feature`: `notifications`
-- `rule`: Notification mode toggles and per-account dedupe state persist across launches through `AppSettings`, so ignored notifications do not repeat after restart and activation re-arm state survives process restarts.
+- `rule`: Notification mode toggles and per-account dedupe state persist across launches through `CodexPillSettingsStore`, so ignored notifications do not repeat after restart and activation re-arm state survives process restarts.
 - `owner_layer`: `integration`
 - `proofs_required`: `["integration"]`
 - `scenarios`: `["settings_round_trip", "notification_state_round_trip"]`

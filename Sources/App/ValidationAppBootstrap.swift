@@ -7,7 +7,7 @@ struct ValidationAppBootstrapFixture: Codable {
 enum ValidationAppBootstrap {
     @MainActor
     static func applyFixtureIfPresent(
-        to settings: AppSettings,
+        to settings: CodexPillSettingsStore,
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) {
         guard let fixtureURL = AppRuntimeEnvironment.validationSettingsFixtureURL(environment: environment) else {

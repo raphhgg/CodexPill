@@ -117,13 +117,13 @@ Core models should remain free of process control, storage policy, AppKit, Swift
 
 Settings persistence is split by feature boundary:
 
-- `MenuPreferencesStore` owns menu refresh cadence and visible inactive-account count options.
-- `StatusBarPreferencesStore` owns status-item indicator style, monochrome mode, display mode, pacing marker visibility, and progress accent color helpers.
+- `MenuDisplaySettingsStore` owns menu refresh cadence and visible inactive-account count options.
+- `StatusItemSettingsStore` owns status-item indicator style, monochrome mode, display mode, pacing marker visibility, and progress accent color helpers.
 - `RemoteHostSettingsStore` owns persisted remote-host state, configured-host compatibility helpers, and legacy remote-host key migration.
 - `NotificationPreferencesStore` owns notification workflow toggles and legacy notification-setting migration.
 - `NotificationStateStore` owns per-account notification delivery state and deterministic update ordering.
 
-`AppSettings` remains a compatibility facade that assembles these stores from one `UserDefaults` instance and forwards legacy property names. Feature/runtime boundaries should depend on the typed store they need where practical.
+`CodexPillSettingsStore` remains a compatibility facade that assembles these stores from one `UserDefaults` instance and forwards legacy property names. Feature/runtime boundaries should depend on the typed store they need where practical.
 
 ## Boundary Notes
 

@@ -4,10 +4,10 @@ import Testing
 @testable import CodexPill
 
 @MainActor
-struct MenuPreferencesStoreTests {
+struct MenuDisplaySettingsStoreTests {
     @Test
     func defaultsUseRefreshAndVisibleAccountDefaults() {
-        let store = MenuPreferencesStore(userDefaults: makeDefaults())
+        let store = MenuDisplaySettingsStore(userDefaults: makeDefaults())
 
         #expect(store.refreshIntervalMinutes == 5)
         #expect(store.visibleInactiveAccountCount == 5)
@@ -18,11 +18,11 @@ struct MenuPreferencesStoreTests {
     @Test
     func preferencesPersistAcrossInstances() {
         let defaults = makeDefaults()
-        let first = MenuPreferencesStore(userDefaults: defaults)
+        let first = MenuDisplaySettingsStore(userDefaults: defaults)
         first.refreshIntervalMinutes = 10
         first.visibleInactiveAccountCount = 0
 
-        let second = MenuPreferencesStore(userDefaults: defaults)
+        let second = MenuDisplaySettingsStore(userDefaults: defaults)
 
         #expect(second.refreshIntervalMinutes == 10)
         #expect(second.visibleInactiveAccountCount == 0)
@@ -34,7 +34,7 @@ struct MenuPreferencesStoreTests {
         defaults.set(99, forKey: "refreshIntervalMinutes")
         defaults.set(99, forKey: "visibleInactiveAccountCount")
 
-        let store = MenuPreferencesStore(userDefaults: defaults)
+        let store = MenuDisplaySettingsStore(userDefaults: defaults)
 
         #expect(store.refreshIntervalMinutes == 5)
         #expect(store.visibleInactiveAccountCount == 5)
@@ -42,10 +42,10 @@ struct MenuPreferencesStoreTests {
 }
 
 @MainActor
-struct StatusBarPreferencesStoreTests {
+struct StatusItemSettingsStoreTests {
     @Test
     func defaultsUseCurrentStatusBarPreferences() {
-        let store = StatusBarPreferencesStore(userDefaults: makeDefaults())
+        let store = StatusItemSettingsStore(userDefaults: makeDefaults())
 
         #expect(store.statusBarIndicatorStyle == .twinPills)
         #expect(store.statusBarMonochrome)
@@ -62,7 +62,7 @@ struct StatusBarPreferencesStoreTests {
         let defaults = makeDefaults()
         defaults.set(rawValue, forKey: "statusBarIndicatorStyle")
 
-        let store = StatusBarPreferencesStore(userDefaults: defaults)
+        let store = StatusItemSettingsStore(userDefaults: defaults)
 
         #expect(store.statusBarIndicatorStyle == expectedStyle)
     }
@@ -72,18 +72,18 @@ struct StatusBarPreferencesStoreTests {
         let defaults = makeDefaults()
         let accent = NSColor(calibratedRed: 0.14, green: 0.55, blue: 0.31, alpha: 1)
 
-        let first = StatusBarPreferencesStore(userDefaults: defaults)
+        let first = StatusItemSettingsStore(userDefaults: defaults)
         first.progressAccentColor = accent
         first.pacingMarkersEnabled = false
 
-        let second = StatusBarPreferencesStore(userDefaults: defaults)
+        let second = StatusItemSettingsStore(userDefaults: defaults)
         #expect(colorsEqual(second.progressAccentColor, accent))
         #expect(second.hasCustomProgressAccentColor)
         #expect(!second.pacingMarkersEnabled)
 
         second.resetProgressAccentColor()
 
-        let reset = StatusBarPreferencesStore(userDefaults: defaults)
+        let reset = StatusItemSettingsStore(userDefaults: defaults)
         #expect(colorsEqual(reset.progressAccentColor, StatusBarProgressColorDefaults.accent))
         #expect(!reset.hasCustomProgressAccentColor)
     }

@@ -1013,11 +1013,11 @@ private func makeAccount(
 }
 
 @MainActor
-private func makeNotificationSettings() -> AppSettings {
+private func makeNotificationSettings() -> CodexPillSettingsStore {
     let suiteName = "NotificationStateStoreTests-\(UUID().uuidString)"
     let defaults = UserDefaults(suiteName: suiteName)!
     defaults.removePersistentDomain(forName: suiteName)
-    return AppSettings(userDefaults: defaults)
+    return CodexPillSettingsStore(userDefaults: defaults)
 }
 
 private enum RankingTestFailure: LocalizedError {
