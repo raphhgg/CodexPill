@@ -100,6 +100,15 @@ Key boundaries:
 - local command execution for SSH-backed operations;
 - Codex app process control.
 
+Reusable Codex app-server access is split into these platform boundaries:
+
+- `CodexAppServerClient` is the production facade used by CodexPill account reads.
+- `CodexAppServerConfiguration` owns executable path, environment, and timeout policy.
+- `CodexAppServerProcessRunner` owns `codex app-server` process launch, stdin/stdout wiring, termination, and timeout completion.
+- `CodexAppServerSession` owns JSON-RPC request construction and response sequencing.
+- `CodexAppServerAccountParser` and `CodexAppServerRateLimitParser` map raw app-server payload DTOs into generic app-server DTOs.
+- `CodexPillAccountStatusMapper` maps generic app-server DTOs into CodexPill account and rate-limit models.
+
 `Platform/Hosts` owns host-client implementations used by validation or host adapters.
 
 `Platform/Persistence` owns:

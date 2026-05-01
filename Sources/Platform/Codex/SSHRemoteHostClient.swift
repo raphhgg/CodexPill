@@ -373,7 +373,7 @@ struct SSHRemoteHostClient: RemoteHostClient {
                 }
 
                 if process.terminationStatus == 0, let partialStatus = state.partialStatus() {
-                    finish(.success(partialStatus))
+                    finish(.success(CodexPillAccountStatusMapper().status(from: partialStatus)))
                     return
                 }
 
@@ -391,7 +391,7 @@ struct SSHRemoteHostClient: RemoteHostClient {
                 Task {
                     try? await Task.sleep(for: Self.responseTimeout)
                     if let partialStatus = state.partialStatus() {
-                        finish(.success(partialStatus))
+                        finish(.success(CodexPillAccountStatusMapper().status(from: partialStatus)))
                         return
                     }
                     finish(.failure(appServerFailure(
