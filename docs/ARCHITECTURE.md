@@ -169,6 +169,8 @@ Settings persistence is split by feature boundary:
 
 `MenuBarHostActionCoordinator` is the menubar runtime boundary for host-specific user actions. It owns add-host, remove-host, reverify-host, adopt-detected-account, and switch-account-on-host sequencing while `MenuBarCoordinator` keeps AppKit selector entry points and menu rebuild callbacks.
 
+`MenuBarValidationObserver` is observer instrumentation for menubar validation. It owns translation from runtime events to validation event names, invariant IDs, payload sanitization, menu snapshot/action-trace recording, file sink forwarding, and Seal proof forwarding. Production coordinators should call semantic observer methods only; they should not know validation artifact formats or Seal lifecycle details. The observer is disabled/no-op in normal production paths when validation configuration is absent.
+
 `MenuBarNotificationWorkflow` is the menubar runtime boundary for account-availability notification orchestration. It owns previous availability snapshot tracking, authorization-state refresh interaction, policy evaluation, payload/action rendering, stale notification response resolution, dedupe state updates, and re-evaluation scheduling callbacks. It delegates local account switching, remote host switching, alert presentation, app activation, and refresh execution back to coordinator-owned runtime collaborators; it uses `AccountAvailabilityNotifications` for account-centric policy and `AccountAvailabilityNotificationRuntime` for macOS delivery mechanics.
 
 `StatusItemRuntime` owns the `NSStatusItem`, hover tracking, pointer-inside detection, title/icon transitions, tooltip rendering, and low-level status-item snapshot state.

@@ -21,9 +21,8 @@ struct MenuBarHostActionCoordinatorTests {
         #expect(hostState.desiredAccountID == account.id)
         #expect(hostState.verifiedAccount?.id == account.id)
         #expect(hostState.verificationStatus == .verified)
-        #expect(harness.lastSwitchTargetName == account.name)
         #expect(harness.menuActions.map(\.name) == ["switchAccountOnHost"])
-        #expect(harness.validationEvents.contains { $0.name == "remote_host_active_account_changed" })
+        #expect(harness.validationSink.events.contains { $0.event == "remote_host_active_account_changed" })
     }
 
     @Test
@@ -92,7 +91,7 @@ struct MenuBarHostActionCoordinatorTests {
         #expect(hostState.verificationStatus == .verified)
         #expect(hostState.verifiedAccount?.id == account.id)
         #expect(harness.cancelMenuTrackingCount == 1)
-        #expect(harness.validationEvents.contains { $0.name == "remote_host_reverify_succeeded" })
+        #expect(harness.validationSink.events.contains { $0.event == "remote_host_reverify_succeeded" })
     }
 
     @Test
@@ -167,10 +166,9 @@ private final class MenuBarHostActionCoordinatorHarness {
     var coordinator: MenuBarHostActionCoordinator!
 
     private(set) var menuActions: [MenuActionRecord] = []
-    private(set) var validationEvents: [ValidationEventRecord] = []
     private(set) var rebuildCount = 0
     private(set) var cancelMenuTrackingCount = 0
-    private(set) var lastSwitchTargetName: String?
+    let validationSink = ValidationSinkProbe()
 
     private let suiteName = "MenuBarHostActionCoordinatorTests-\(UUID().uuidString)"
 
@@ -200,28 +198,19 @@ private final class MenuBarHostActionCoordinatorHarness {
             alertPresenter: alertPresenter,
             panelPresenter: panelPresenter,
             alertFactory: MenuBarAlertFactory(),
-            sealValidationRun: nil,
+            validationObserver: MenuBarValidationObserver(
+                sink: validationSink,
+                scenario: "host-action-coordinator-tests",
+                sealRun: nil
+            ),
             recordMenuAction: { [weak self] name, payload in
                 self?.menuActions.append(MenuActionRecord(name: name, payload: payload))
-            },
-            recordValidationEvent: { [weak self] name, step, invariantIds, payload in
-                self?.validationEvents.append(
-                    ValidationEventRecord(
-                        name: name,
-                        step: step,
-                        invariantIds: invariantIds,
-                        payload: payload
-                    )
-                )
             },
             rebuildMenu: { [weak self] in
                 self?.rebuildCount += 1
             },
             cancelMenuTracking: { [weak self] in
                 self?.cancelMenuTrackingCount += 1
-            },
-            setLastSwitchTargetName: { [weak self] name in
-                self?.lastSwitchTargetName = name
             }
         )
     }
@@ -270,13 +259,6 @@ private struct MenuActionRecord: Equatable {
     let payload: [String: String]
 }
 
-private struct ValidationEventRecord: Equatable {
-    let name: String
-    let step: String
-    let invariantIds: [String]
-    let payload: [String: String]
-}
-
 private struct RemoteHostClientFixture: RemoteHostClient {
     var status = CodexAccountStatus(email: "business@example.com", planType: "team")
 
@@ -290,5 +272,18 @@ private struct RemoteHostClientFixture: RemoteHostClient {
     func refreshCodexAppServer(on host: RemoteHost) async throws {}
     func readCurrentAccountStatus(on host: RemoteHost) async throws -> CodexAccountStatus {
         status
+    }
+}
+
+private final class ValidationSinkProbe: @unchecked Sendable, MenuBarValidationSink {
+    private(set) var snapshots: [MenuBarValidationSnapshot] = []
+    private(set) var events: [MenuBarValidationEvent] = []
+
+    func record(_ snapshot: MenuBarValidationSnapshot) throws {
+        snapshots.append(snapshot)
+    }
+
+    func record(_ event: MenuBarValidationEvent) throws {
+        events.append(event)
     }
 }

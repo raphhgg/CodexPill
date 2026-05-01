@@ -13,10 +13,6 @@ extension MenuBarAccountsStore: MenuBarHostActionAccountsStore {}
 
 @MainActor
 final class MenuBarHostActionCoordinator {
-    private static let addHostPromptInvariantIDs = ["hosts.add_host.destination_validation_failed"]
-    private static let remoteHostSwitchInvariantIDs = ["hosts.switch_account_on_host.changes_remote_active_account"]
-    private static let remoteHostReverifyInvariantIDs = ["hosts.reverify_remote_account.refreshes_remote_verification_state"]
-
     private let store: MenuBarHostActionAccountsStore
     private let settings: CodexPillSettingsStore
     private let remoteHostClient: RemoteHostClient
@@ -24,12 +20,10 @@ final class MenuBarHostActionCoordinator {
     private let alertPresenter: AlertPresenter
     private let panelPresenter: PanelPresenter
     private let alertFactory: MenuBarAlertFactory
-    private let sealValidationRun: CodexPillSealValidationRun?
+    private let validationObserver: MenuBarValidationObserver
     private let recordMenuAction: (String, [String: String]) -> Void
-    private let recordValidationEvent: (String, String, [String], [String: String]) -> Void
     private let rebuildMenu: () -> Void
     private let cancelMenuTracking: () -> Void
-    private let setLastSwitchTargetName: (String?) -> Void
 
     init(
         store: MenuBarHostActionAccountsStore,
@@ -39,12 +33,10 @@ final class MenuBarHostActionCoordinator {
         alertPresenter: AlertPresenter,
         panelPresenter: PanelPresenter,
         alertFactory: MenuBarAlertFactory,
-        sealValidationRun: CodexPillSealValidationRun?,
+        validationObserver: MenuBarValidationObserver,
         recordMenuAction: @escaping (String, [String: String]) -> Void,
-        recordValidationEvent: @escaping (String, String, [String], [String: String]) -> Void,
         rebuildMenu: @escaping () -> Void,
-        cancelMenuTracking: @escaping () -> Void,
-        setLastSwitchTargetName: @escaping (String?) -> Void
+        cancelMenuTracking: @escaping () -> Void
     ) {
         self.store = store
         self.settings = settings
@@ -53,12 +45,10 @@ final class MenuBarHostActionCoordinator {
         self.alertPresenter = alertPresenter
         self.panelPresenter = panelPresenter
         self.alertFactory = alertFactory
-        self.sealValidationRun = sealValidationRun
+        self.validationObserver = validationObserver
         self.recordMenuAction = recordMenuAction
-        self.recordValidationEvent = recordValidationEvent
         self.rebuildMenu = rebuildMenu
         self.cancelMenuTracking = cancelMenuTracking
-        self.setLastSwitchTargetName = setLastSwitchTargetName
     }
 
     func switchAccountOnHost(accountID: UUID, hostDestination: String) {
@@ -73,24 +63,10 @@ final class MenuBarHostActionCoordinator {
             "targetName": account.name,
             "hostName": remoteHost.displayName
         ])
-        sealValidationRun?.recordRemoteHostSwitchMenuAction(
+        validationObserver.recordRemoteHostSwitchMenuAction(
             targetName: account.name,
             hostName: remoteHost.displayName
         )
-        recordValidationEvent(
-            "remote_host_switch_started",
-            "remote_host_switch_start",
-            Self.remoteHostSwitchInvariantIDs,
-            [
-                "targetName": account.name,
-                "hostName": remoteHost.displayName
-            ]
-        )
-        sealValidationRun?.recordRemoteHostSwitchStarted(
-            targetName: account.name,
-            hostName: remoteHost.displayName
-        )
-        setLastSwitchTargetName(account.name)
         remoteHostRuntime.beginHostSwitch(to: account, on: remoteHost)
         rebuildMenu()
         Task { @MainActor [weak self] in
@@ -104,7 +80,7 @@ final class MenuBarHostActionCoordinator {
 
     func addHost() {
         recordMenuAction("addHost", [:])
-        sealValidationRun?.recordAddHostMenuAction()
+        validationObserver.recordAddHostMenuAction()
         Task { @MainActor [weak self] in
             guard let self else { return }
             guard let remoteHost = await self.panelPresenter.presentHostSetup(
@@ -121,33 +97,16 @@ final class MenuBarHostActionCoordinator {
                     }
                 },
                 onPresented: { [weak self] in
-                    self?.recordValidationEvent(
-                        "add_host_setup_presented",
-                        "add_host_setup",
-                        Self.addHostPromptInvariantIDs,
-                        [:]
-                    )
-                    self?.sealValidationRun?.recordAddHostSetupPresented()
+                    self?.validationObserver.recordAddHostSetupPresented()
                 },
                 onCancelled: { [weak self] in
-                    self?.recordValidationEvent(
-                        "add_host_setup_cancelled",
-                        "add_host_setup",
-                        Self.addHostPromptInvariantIDs,
-                        [:]
-                    )
+                    self?.validationObserver.recordAddHostSetupCancelled()
                 },
                 onValidationStarted: { [weak self] host in
-                    self?.recordValidationEvent(
-                        "add_host_validation_started",
-                        "add_host_validation",
-                        Self.addHostPromptInvariantIDs,
-                        ["hostName": host.destination]
-                    )
-                    self?.sealValidationRun?.recordAddHostValidationStarted(hostName: host.destination)
+                    self?.validationObserver.recordAddHostValidationStarted(host: host)
                 },
                 onValidationFinished: { [weak self] host, result in
-                    self?.recordAddHostValidationFinished(host: host, result: result)
+                    self?.validationObserver.recordAddHostValidationFinished(host: host, result: result)
                 }
             ) else {
                 return
@@ -187,14 +146,9 @@ final class MenuBarHostActionCoordinator {
             "hostName": hostState.host.displayName,
             "accountName": baseAccount.name
         ])
-        recordValidationEvent(
-            "remote_host_reverify_started",
-            "remote_host_reverify_start",
-            Self.remoteHostReverifyInvariantIDs,
-            [
-                "hostName": hostState.host.displayName,
-                "accountName": baseAccount.name
-            ]
+        validationObserver.recordRemoteHostReverifyStarted(
+            hostName: hostState.host.displayName,
+            accountName: baseAccount.name
         )
 
         rebuildMenu()
@@ -208,17 +162,10 @@ final class MenuBarHostActionCoordinator {
             )
 
             let refreshedState = self.settings.remoteHostState(for: hostState.host.destination)
-            let eventName = refreshedState?.verificationStatus == .verified
-                ? "remote_host_reverify_succeeded"
-                : "remote_host_reverify_failed"
-            self.recordValidationEvent(
-                eventName,
-                "remote_host_reverify_result",
-                Self.remoteHostReverifyInvariantIDs,
-                [
-                    "hostName": hostState.host.displayName,
-                    "accountName": baseAccount.name
-                ]
+            self.validationObserver.recordRemoteHostReverifyResult(
+                succeeded: refreshedState?.verificationStatus == .verified,
+                hostName: hostState.host.displayName,
+                accountName: baseAccount.name
             )
             self.rebuildMenu()
         }
@@ -252,11 +199,8 @@ final class MenuBarHostActionCoordinator {
 
     private func installActiveAccountOnNewHost(_ remoteHost: RemoteHost) async {
         guard let activeAccount = store.activeAccount else {
-            recordValidationEvent(
-                "add_host_account_setup_unavailable",
-                "add_host_account_setup",
-                Self.addHostPromptInvariantIDs,
-                ["hostName": remoteHost.displayName]
+            validationObserver.recordAddHostAccountSetupUnavailable(
+                hostName: remoteHost.displayName
             )
             rebuildMenu()
             return
@@ -270,11 +214,8 @@ final class MenuBarHostActionCoordinator {
         )
 
         guard shouldInstallCurrentAccount else {
-            recordValidationEvent(
-                "add_host_account_setup_cancelled",
-                "add_host_account_setup",
-                Self.addHostPromptInvariantIDs,
-                ["hostName": remoteHost.displayName]
+            validationObserver.recordAddHostAccountSetupCancelled(
+                hostName: remoteHost.displayName
             )
             rebuildMenu()
             return
@@ -302,73 +243,6 @@ final class MenuBarHostActionCoordinator {
         account: CodexAccount,
         host remoteHost: RemoteHost
     ) {
-        switch result {
-        case .verified:
-            recordValidationEvent(
-                "remote_host_active_account_changed",
-                "remote_host_switch_result",
-                Self.remoteHostSwitchInvariantIDs,
-                [
-                    "targetName": account.name,
-                    "hostName": remoteHost.displayName
-                ]
-            )
-            sealValidationRun?.recordRemoteHostActiveAccountChanged(
-                targetName: account.name,
-                hostName: remoteHost.displayName
-            )
-        case .notVerified(let message, _):
-            recordValidationEvent(
-                "remote_host_switch_not_verified",
-                "remote_host_switch_result",
-                Self.remoteHostSwitchInvariantIDs,
-                [
-                    "targetName": account.name,
-                    "hostName": remoteHost.displayName,
-                    "message": message
-                ]
-            )
-        case .failed(let message, let hostReachable):
-            recordValidationEvent(
-                "remote_host_switch_failed",
-                "remote_host_switch_result",
-                Self.remoteHostSwitchInvariantIDs,
-                [
-                    "targetName": account.name,
-                    "hostName": remoteHost.displayName,
-                    "message": message,
-                    "hostReachable": hostReachable ? "true" : "false"
-                ]
-            )
-        }
-    }
-
-    private func recordAddHostValidationFinished(
-        host: RemoteHost,
-        result: Result<Void, Error>
-    ) {
-        switch result {
-        case .success:
-            recordValidationEvent(
-                "add_host_validation_succeeded",
-                "add_host_validation",
-                Self.addHostPromptInvariantIDs,
-                ["hostName": host.destination]
-            )
-        case .failure(let error):
-            recordValidationEvent(
-                "add_host_validation_failed",
-                "add_host_validation",
-                Self.addHostPromptInvariantIDs,
-                [
-                    "hostName": host.destination,
-                    "message": error.localizedDescription
-                ]
-            )
-            sealValidationRun?.recordAddHostValidationFailed(
-                hostName: host.destination,
-                message: error.localizedDescription
-            )
-        }
+        validationObserver.recordRemoteHostSwitchResult(result, account: account, host: remoteHost)
     }
 }
