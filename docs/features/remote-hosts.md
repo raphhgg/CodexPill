@@ -5,7 +5,7 @@ Remote Hosts owns configuring SSH targets, installing saved account snapshots on
 ## Entry Points
 
 - `Hosts` in the App Controls section.
-- Remote account cards in the `Remote Accounts` section when a host is connected and verified.
+- Active account cards in `Active Account(s)` when a host is connected, verified, and has a resolved active account.
 - Per-account submenu actions such as `Switch on <host>` or `Install on <host> and switch`.
 
 ## Add Host Panel

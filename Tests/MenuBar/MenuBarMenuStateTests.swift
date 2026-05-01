@@ -441,7 +441,7 @@ struct MenuBarMenuStateTests {
     }
 
     @Test
-    func sameVerifiedLocalAndRemoteAccountCollapsesRemotePrimaryCard() {
+    func sameVerifiedLocalAndRemoteAccountGroupsIntoOneActiveCard() {
         let local = makeAccount(name: "Business 4", withRateLimits: true)
         var remote = local
         remote.updatedAt = local.updatedAt.addingTimeInterval(60)
@@ -462,8 +462,11 @@ struct MenuBarMenuStateTests {
         )
 
         #expect(state.connectedRemoteHosts.count == 1)
-        #expect(state.primaryRemoteAccountHosts.isEmpty)
-        #expect(state.activeAccountRemoteLocations == ["debian-vm"])
+        #expect(state.activeAccountsSectionTitle == "Active Account")
+        #expect(state.activeAccountCards.count == 1)
+        #expect(state.activeAccountCards.first?.account.id == local.id)
+        #expect(state.activeAccountCards.first?.locations == ["This Mac", "debian-vm"])
+        #expect(state.activeAccountCards.first?.showsUpdatedTime == false)
         #expect(state.accountCatalogEntries.first?.placement == .localAndRemote)
     }
 
@@ -491,7 +494,7 @@ struct MenuBarMenuStateTests {
     }
 
     @Test
-    func sameVerifiedLocalAndRemoteAccountWithDifferentIDsCollapsesRemotePrimaryCard() {
+    func sameVerifiedLocalAndRemoteAccountWithDifferentIDsGroupsIntoOneActiveCard() {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
         let local = makeAccount(name: "Personal", withRateLimits: true)
         let remote = CodexAccount(
@@ -540,13 +543,16 @@ struct MenuBarMenuStateTests {
         )
 
         #expect(state.connectedRemoteHosts.count == 1)
-        #expect(state.primaryRemoteAccountHosts.isEmpty)
-        #expect(state.activeAccountRemoteLocations == ["debian-vm"])
+        #expect(state.activeAccountsSectionTitle == "Active Account")
+        #expect(state.activeAccountCards.count == 1)
+        #expect(state.activeAccountCards.first?.account.id == local.id)
+        #expect(state.activeAccountCards.first?.locations == ["This Mac", "debian-vm"])
+        #expect(state.activeAccountCards.first?.showsUpdatedTime == false)
         #expect(state.accountCatalogEntries.first?.placement == .localAndRemote)
     }
 
     @Test
-    func sameVerifiedRemoteAccountWithDifferentInspectableDataKeepsRemotePrimaryCard() {
+    func sameVerifiedRemoteAccountWithDifferentInspectableDataRendersSeparateActiveCard() {
         let now = Date()
         let local = makeAccount(name: "Business 4", withRateLimits: true)
         let remote = CodexAccount(
@@ -594,13 +600,14 @@ struct MenuBarMenuStateTests {
             ]
         )
 
-        #expect(state.primaryRemoteAccountHosts.map(\.name) == ["debian-vm"])
-        #expect(state.activeAccountRemoteLocations.isEmpty)
+        #expect(state.activeAccountsSectionTitle == "Active Accounts")
+        #expect(state.activeAccountCards.map(\.account.name) == ["Business 4", "Business 4"])
+        #expect(state.activeAccountCards.map(\.locations) == [["This Mac"], ["debian-vm"]])
         #expect(state.accountCatalogEntries.first?.placement == .local)
     }
 
     @Test
-    func differentVerifiedRemoteAccountKeepsRemotePrimaryCard() {
+    func differentVerifiedRemoteAccountRendersSeparateActiveCard() {
         let local = makeAccount(name: "Business 4", withRateLimits: true)
         let remote = makeAccount(name: "Business 5", withRateLimits: true)
         let state = makeState(
@@ -619,12 +626,48 @@ struct MenuBarMenuStateTests {
             ]
         )
 
-        #expect(state.primaryRemoteAccountHosts.map(\.name) == ["debian-vm"])
-        #expect(state.activeAccountRemoteLocations.isEmpty)
+        #expect(state.activeAccountsSectionTitle == "Active Accounts")
+        #expect(state.activeAccountCards.map(\.account.name) == ["Business 4", "Business 5"])
+        #expect(state.activeAccountCards.map(\.locations) == [["This Mac"], ["debian-vm"]])
     }
 
     @Test
-    func failedSameRemoteAccountKeepsRemotePrimaryCardVisibleForRecovery() {
+    func sameRemoteAccountOnMultipleHostsGroupsIntoOneActiveCard() {
+        let remote = makeAccount(name: "Business 5", withRateLimits: true)
+        let state = makeState(
+            activeAccount: nil,
+            inactiveAccounts: [remote],
+            remoteHosts: [
+                RemoteHostMenuState(
+                    name: "buildbox",
+                    destination: "buildbox",
+                    connectionState: .connected,
+                    desiredAccount: remote,
+                    activeAccount: remote,
+                    verificationStatus: .verified,
+                    deployedAccountIDs: [remote.id]
+                ),
+                RemoteHostMenuState(
+                    name: "debian-vm",
+                    destination: "debian-vm",
+                    connectionState: .connected,
+                    desiredAccount: remote,
+                    activeAccount: remote,
+                    verificationStatus: .verified,
+                    deployedAccountIDs: [remote.id]
+                )
+            ]
+        )
+
+        #expect(state.activeAccountsSectionTitle == "Active Account")
+        #expect(state.activeAccountCards.count == 1)
+        #expect(state.activeAccountCards.first?.account.name == "Business 5")
+        #expect(state.activeAccountCards.first?.locations == ["buildbox", "debian-vm"])
+        #expect(state.activeAccountCards.first?.showsUpdatedTime == false)
+    }
+
+    @Test
+    func failedSameRemoteAccountStaysOutOfActiveCardsForRecovery() {
         let local = makeAccount(name: "Business 4", withRateLimits: true)
         let state = makeState(
             activeAccount: local,
@@ -643,8 +686,10 @@ struct MenuBarMenuStateTests {
             ]
         )
 
-        #expect(state.primaryRemoteAccountHosts.map(\.name) == ["debian-vm"])
-        #expect(state.activeAccountRemoteLocations.isEmpty)
+        #expect(state.activeAccountsSectionTitle == "Active Account")
+        #expect(state.activeAccountCards.map(\.account.name) == ["Business 4"])
+        #expect(state.activeAccountCards.map(\.locations) == [[]])
+        #expect(state.activeAccountCards.first?.showsUpdatedTime == true)
     }
 
     @Test

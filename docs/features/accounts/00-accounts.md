@@ -46,16 +46,16 @@ Remote host setup installs and switches saved account snapshots on configured re
 
 The whole menubar layout, including section ordering and the lower App Controls section, is owned by [Menubar](../menubar.md). Accounts owns the account-specific content inside those sections.
 
-## Current Account UX
+## Active Account UX
 
-Current account presentation answers: "Which account am I using right now?"
+Active account presentation answers: "Which account am I using right now, and where?"
 
-CodexPill can show one or two current-account surfaces:
+CodexPill shows active accounts in one unified top section:
 
-- `Current Account`: the active local account on This Mac.
-- `Remote Accounts`: active verified accounts on connected remote hosts.
+- `Active Account`: one active account card.
+- `Active Accounts`: multiple active account cards.
 
-### Local Current Account
+### Local Active Account
 
 The local current account appears first when CodexPill can match the live local Codex auth state to a saved account.
 
@@ -70,15 +70,14 @@ The card should show:
 
 If CodexPill cannot match the live local Codex auth to a saved account, it should show a clear unmatched or empty state instead of displaying stale saved-account data as current.
 
-### Remote Account Cards
+### Remote Active Account Cards
 
-Remote account cards appear for connected verified remote hosts.
+Remote active account cards appear in the same top section for connected verified remote hosts.
 
 The card should show:
 
 - Saved account display name.
 - Remote host name or destination.
-- Connection state.
 - Plan and email when available.
 - Session and weekly usage values from the remote target.
 - The same neutral expected-pace marker as the local current account when reset-window duration is available and `Preferences > Usage Bars > Show Pace Markers` is enabled.
@@ -87,9 +86,11 @@ Remote cards must prefer remote target values over local catalog values when the
 
 ### Duplicate Local And Remote Accounts
 
-If the same saved account is active locally and on a connected verified remote host, CodexPill collapses the duplicate primary remote account card into the `Current Account` section and shows compact location context in the metadata line, such as `This Mac + debian-vm`. The `Current Account` card continues to show local current-account limits; remote host management and troubleshooting remain under `Hosts`.
+If the same saved account is active locally and on a connected verified remote host, CodexPill renders one active account card and shows compact location context in the metadata line, such as `This Mac + debian-vm`. The card continues to show local current-account limits; remote host management and troubleshooting remain under `Hosts`.
 
 If only the local account is active, the metadata line shows freshness, such as `Updated 1min ago`. If local and remote accounts are different and therefore render as separate cards, the local card shows `This Mac` and each remote card shows its host context.
+
+If the same saved account is active on multiple connected verified remote hosts and not active locally, CodexPill renders one active account card with the host names joined in the metadata line, such as `buildbox + debian-vm`.
 
 The user must be able to answer:
 
@@ -107,7 +108,7 @@ When the app cannot verify a remote account, it should either hide the remote ac
 
 The `Accounts` section lists saved accounts that can be selected for local or remote use.
 
-The catalog is not the same as current-account presentation. It shows saved options, while `Current Account` and `Remote Accounts` show active targets.
+The catalog is not the same as active-account presentation. It shows saved options, while `Active Account(s)` shows active targets.
 
 ### Row Content
 

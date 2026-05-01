@@ -880,8 +880,8 @@ struct MenuBarMenuBuilderTests {
         let view = NSHostingView(
             rootView: ActiveAccountMenuContent(
                 account: makeAccount(name: "Business 2", withRateLimits: true),
-                activeRemoteLocations: [],
-                hasSeparateRemoteAccountCards: false,
+                locations: [],
+                showsUpdatedTime: true,
                 progressAccentColor: .blue,
                 showsPacingMarkers: true
             )
@@ -894,23 +894,38 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func remoteAccountHostedViewFitsWithinConfiguredMenuWidth() {
-        let view = NSHostingView(
-            rootView: RemoteHostMenuContent(
-                remoteHost: makeRemoteHost(activeAccount: makeAccount(name: "Personal 1", withRateLimits: true)),
-                progressAccentColor: .blue,
-                showsPacingMarkers: true,
-                primaryActionTitle: nil,
-                onPrimaryAction: nil,
-                isPrimaryActionEnabled: true,
-                isPrimaryActionProminent: false
-            )
+    func activeAccountsSectionAddsSubtleDividerBetweenCardsOnly() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let menu = builder.makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                remoteHosts: [
+                    makeRemoteHost(activeAccount: makeAccount(name: "Business 2", withRateLimits: true))
+                ]
+            ),
+            target: coordinator
         )
 
-        view.frame = NSRect(x: 0, y: 0, width: 372, height: 1)
-        view.layoutSubtreeIfNeeded()
+        let hostedViewNames = menu.items.compactMap(\.view).map { String(describing: type(of: $0)) }
 
-        #expect(view.fittingSize.width <= 372)
+        #expect(hostedViewNames.filter { $0.contains("ActiveAccountMenuContent") }.count == 2)
+        #expect(hostedViewNames.filter { $0.contains("ActiveAccountCardDivider") }.count == 1)
+    }
+
+    @Test
+    func singleActiveAccountDoesNotAddActiveCardDivider() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let menu = builder.makeMenu(
+            state: makeState(activeAccount: makeAccount(name: "Active", withRateLimits: true)),
+            target: coordinator
+        )
+
+        let hostedViewNames = menu.items.compactMap(\.view).map { String(describing: type(of: $0)) }
+
+        #expect(hostedViewNames.filter { $0.contains("ActiveAccountMenuContent") }.count == 1)
+        #expect(hostedViewNames.contains(where: { $0.contains("ActiveAccountCardDivider") }) == false)
     }
 
     @Test
@@ -1041,13 +1056,12 @@ struct MenuBarMenuBuilderTests {
         #expect(
             menu.items
                 .compactMap(\.view)
-                .compactMap { $0 as? NSHostingView<RemoteHostMenuContent> }
-                .isEmpty
+                .contains(where: { String(describing: type(of: $0)).contains("RemoteHostMenuContent") }) == false
         )
     }
 
     @Test
-    func remoteMismatchCardExposesAdoptDetectedAccountAction() throws {
+    func remoteMismatchStaysInHostSubmenuAndDoesNotRenderActiveCard() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let desired = makeAccount(name: "Business 2", withRateLimits: true)
@@ -1069,17 +1083,20 @@ struct MenuBarMenuBuilderTests {
             target: coordinator
         )
 
-        let remoteCard = try #require(
-            menu.items
-                .compactMap(\.view)
-                .compactMap { $0 as? NSHostingView<RemoteHostMenuContent> }
-                .first
-        )
+        let activeCards = menu.items
+            .compactMap(\.view)
+            .compactMap { $0 as? NSHostingView<ActiveAccountMenuContent> }
+        let hasRemoteCards = menu.items
+            .compactMap(\.view)
+            .contains(where: { String(describing: type(of: $0)).contains("RemoteHostMenuContent") })
+        let hostsMenu = try #require(menu.items.first(where: { $0.title == "Hosts" })?.submenu)
+        let hostSubmenu = try #require(hostsMenu.items.first(where: { $0.title == "buildbox" })?.submenu)
+        let adoptAction = try #require(hostSubmenu.items.first(where: { $0.title == "Use Detected Account (Business 1)" }))
 
-        #expect(remoteCard.rootView.remoteHost.detectedAccount?.name == "Business 1")
-        #expect(remoteCard.rootView.primaryActionTitle == "Use Business 1")
-        #expect(remoteCard.rootView.onPrimaryAction != nil)
-        #expect(remoteCard.rootView.isPrimaryActionProminent == true)
+        #expect(activeCards.count == 1)
+        #expect(activeCards.first?.rootView.account.name == "Active")
+        #expect(hasRemoteCards == false)
+        #expect(adoptAction.action == #selector(MenuBarCoordinator.adoptDetectedRemoteAccount(_:)))
     }
 
     @Test
@@ -1108,7 +1125,7 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func remoteHostCardAndAccountUsageResolveAgainstCanonicalSavedAccountIdentity() throws {
+    func activeRemoteAccountCardAndAccountUsageResolveAgainstCanonicalSavedAccountIdentity() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let canonical = makeAccount(name: "Business 2", withRateLimits: true)
@@ -1142,22 +1159,23 @@ struct MenuBarMenuBuilderTests {
         let remoteCard = try #require(
             menu.items
                 .compactMap(\.view)
-                .compactMap { $0 as? NSHostingView<RemoteHostMenuContent> }
+                .compactMap { $0 as? NSHostingView<ActiveAccountMenuContent> }
                 .first
         )
         let accountItem = try #require(menu.items.first(where: { $0.attributedTitle?.string.contains(canonical.name) == true }))
         let emailItem = try #require(accountItem.submenu?.items.first)
         let usageStatusItem = try #require(accountItem.submenu?.items.dropFirst().first)
 
-        #expect(remoteCard.rootView.remoteHost.activeAccount?.id == canonical.id)
-        #expect(remoteCard.rootView.remoteHost.activeAccount?.rateLimits?.primary?.usedPercent == canonical.rateLimits?.primary?.usedPercent)
+        #expect(remoteCard.rootView.account.id == canonical.id)
+        #expect(remoteCard.rootView.account.rateLimits?.primary?.usedPercent == canonical.rateLimits?.primary?.usedPercent)
+        #expect(remoteCard.rootView.locations == ["debian-vm"])
         #expect(emailItem.title == canonical.email)
         #expect(emailItem.isEnabled == false)
         #expect(usageStatusItem.title == "In use on: debian-vm")
     }
 
     @Test
-    func remoteAccountsSectionRendersOneHostedCardPerConnectedHost() throws {
+    func activeAccountsSectionRendersLocalAndOneHostedCardPerConnectedHost() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
@@ -1179,12 +1197,16 @@ struct MenuBarMenuBuilderTests {
             target: coordinator
         )
 
-        let remoteCards = menu.items.compactMap(\.view).filter {
-            String(describing: type(of: $0)).contains("RemoteHostMenuContent")
-        }
+        let activeCards = menu.items
+            .compactMap(\.view)
+            .compactMap { $0 as? NSHostingView<ActiveAccountMenuContent> }
+        let hasRemoteCards = menu.items
+            .compactMap(\.view)
+            .contains(where: { String(describing: type(of: $0)).contains("RemoteHostMenuContent") })
 
-        #expect(remoteCards.count == 2)
-        #expect(menu.items.filter { $0.view != nil }.count == 6)
+        #expect(activeCards.map(\.rootView.account.name) == ["Active", "Business 2", "Business 3"])
+        #expect(activeCards.map(\.rootView.locations) == [["This Mac"], ["devbox"], ["buildbox"]])
+        #expect(hasRemoteCards == false)
     }
 
     @Test
@@ -1210,7 +1232,9 @@ struct MenuBarMenuBuilderTests {
             target: coordinator
         )
 
-        let remoteCards = menu.items.compactMap(\.view).compactMap { $0 as? NSHostingView<RemoteHostMenuContent> }
+        let hasRemoteCards = menu.items
+            .compactMap(\.view)
+            .contains(where: { String(describing: type(of: $0)).contains("RemoteHostMenuContent") })
         let currentCard = try #require(
             menu.items
                 .compactMap(\.view)
@@ -1222,8 +1246,8 @@ struct MenuBarMenuBuilderTests {
         let statusRow = try #require(hostSubmenu.items.first(where: { $0.title == "Status: Connected" }))
         let desiredRow = try #require(hostSubmenu.items.first(where: { $0.title == "Desired account: Business 2" }))
 
-        #expect(remoteCards.isEmpty)
-        #expect(currentCard.rootView.activeRemoteLocations == ["debian-vm"])
+        #expect(hasRemoteCards == false)
+        #expect(currentCard.rootView.locations == ["This Mac", "debian-vm"])
         #expect(statusRow.isEnabled == false)
         #expect(desiredRow.isEnabled == false)
     }

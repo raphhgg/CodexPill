@@ -448,8 +448,7 @@ struct MenuBarLiveValidationTests {
 
         let snapshot = MenuBarValidationSupport.makeSnapshot(state: state)
 
-        let remoteSection = try #require(snapshot.sections.first(where: { $0.title == "Remote Accounts" }))
-        #expect(remoteSection.items.first?.contains("Desired: Business 2") == true)
+        #expect(snapshot.sections.contains(where: { $0.title == "Remote Accounts" }) == false)
         #expect(snapshot.remoteHosts.count == 1)
         #expect(snapshot.remoteHosts.first?.desiredAccount?.name == "Business 2")
         #expect(snapshot.remoteHosts.first?.activeAccount == nil)
@@ -464,7 +463,7 @@ struct MenuBarLiveValidationTests {
         let eventsOutputURL = temporaryDirectory.appendingPathComponent("validation-events.jsonl")
         let snapshot = MenuBarValidationSnapshot(
             sections: [
-                .init(title: "Current Account", items: ["Primary • Pro • primary@example.com"])
+                .init(title: "Active Account", items: ["Primary • Pro • primary@example.com"])
             ],
             statusMessage: "Refreshing account data...",
             currentAccount: .init(
@@ -1281,7 +1280,7 @@ struct MenuBarLiveValidationTests {
         coordinator.start()
         try? await Task.sleep(for: .milliseconds(50))
 
-        #expect(sink.snapshots.contains(where: { $0.sections.contains(where: { $0.title == "Remote Accounts" }) }))
+        #expect(sink.snapshots.contains(where: { $0.sections.contains(where: { $0.title == "Active Account" }) }))
         #expect(sink.snapshots.last?.remoteHosts.first?.activeAccount?.email == "remote@example.com")
     }
 
@@ -2232,7 +2231,7 @@ struct MenuBarLiveValidationTests {
         try? await Task.sleep(for: .milliseconds(50))
 
         let remoteSummary = try #require(
-            sink.snapshots.last?.sections.first(where: { $0.title == "Remote Accounts" })?.items.first
+            sink.snapshots.last?.sections.first(where: { $0.title == "Active Account" })?.items.first
         )
         #expect(remoteSummary.contains("Session: 97% used"))
         #expect(remoteSummary.contains("Weekly: 15% used"))
@@ -2368,7 +2367,7 @@ struct MenuBarLiveValidationTests {
         try? await Task.sleep(for: .milliseconds(50))
 
         let remoteSummary = try #require(
-            sink.snapshots.last?.sections.first(where: { $0.title == "Remote Accounts" })?.items.first
+            sink.snapshots.last?.sections.first(where: { $0.title == "Active Account" })?.items.first
         )
         #expect(remoteSummary.contains("Session: 100% used"))
         #expect(remoteSummary.contains("Weekly: 16% used"))
@@ -2512,7 +2511,7 @@ struct MenuBarLiveValidationTests {
         #expect(abs(actualPrimaryReset.timeIntervalSince(expectedPrimaryReset)) < 1)
 
         let remoteSummary = try #require(
-            sink.snapshots.last?.sections.first(where: { $0.title == "Remote Accounts" })?.items.first
+            sink.snapshots.last?.sections.first(where: { $0.title == "Active Account" })?.items.first
         )
         #expect(remoteSummary.contains("Session: 100% used"))
         #expect(remoteSummary.contains("Weekly: 16% used"))
@@ -2660,7 +2659,7 @@ struct MenuBarLiveValidationTests {
         try? await Task.sleep(for: .milliseconds(220))
 
         let remoteSummary = try #require(
-            sink.snapshots.last?.sections.first(where: { $0.title == "Remote Accounts" })?.items.first
+            sink.snapshots.last?.sections.first(where: { $0.title == "Active Account" })?.items.first
         )
         #expect(remoteSummary.contains("Session: 39% used"))
         #expect(remoteSummary.contains("Weekly: 6% used"))

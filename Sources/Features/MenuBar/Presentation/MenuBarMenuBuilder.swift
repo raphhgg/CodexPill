@@ -37,20 +37,17 @@ struct MenuBarMenuBuilder {
         menu.removeAllItems()
         menu.delegate = target
 
-        if let activeAccount = state.activeAccount {
-            menu.addItem(sectionHeaderItem("Current Account", width: menuContentWidth, bottomPadding: 4))
-            menu.addItem(activeAccountItem(for: activeAccount, state: state, width: menuContentWidth))
-        } else {
-            menu.addItem(sectionHeaderItem("Current Account", width: menuContentWidth, bottomPadding: 4))
-            menu.addItem(disabledInfoItem("No active saved account"))
-        }
-
-        if !state.primaryRemoteAccountHosts.isEmpty {
-            menu.addItem(.separator())
-            menu.addItem(sectionHeaderItem("Remote Accounts", width: menuContentWidth, bottomPadding: 4))
-            for remoteHost in state.primaryRemoteAccountHosts {
-                menu.addItem(remoteHostItem(for: remoteHost, state: state, target: target, width: menuContentWidth))
+        if !state.activeAccountCards.isEmpty {
+            menu.addItem(sectionHeaderItem(state.activeAccountsSectionTitle, width: menuContentWidth, bottomPadding: 4))
+            for (index, activeAccountCard) in state.activeAccountCards.enumerated() {
+                if index > 0 {
+                    menu.addItem(activeAccountDividerItem(width: menuContentWidth))
+                }
+                menu.addItem(activeAccountItem(for: activeAccountCard, state: state, width: menuContentWidth))
             }
+        } else {
+            menu.addItem(sectionHeaderItem("Active Account", width: menuContentWidth, bottomPadding: 4))
+            menu.addItem(disabledInfoItem("No active saved account"))
         }
 
         if !state.visibleAccountEntries.isEmpty {
@@ -91,13 +88,13 @@ struct MenuBarMenuBuilder {
         menu.addItem(quit)
     }
 
-    private func activeAccountItem(for account: CodexAccount, state: MenuBarMenuState, width: CGFloat) -> NSMenuItem {
+    private func activeAccountItem(for card: ActiveAccountCard, state: MenuBarMenuState, width: CGFloat) -> NSMenuItem {
         let item = NSMenuItem()
         let view = NSHostingView(
             rootView: ActiveAccountMenuContent(
-                account: account,
-                activeRemoteLocations: state.activeAccountRemoteLocations,
-                hasSeparateRemoteAccountCards: !state.primaryRemoteAccountHosts.isEmpty,
+                account: card.account,
+                locations: card.locations,
+                showsUpdatedTime: card.showsUpdatedTime,
                 progressAccentColor: Color(nsColor: state.progressAccentColor),
                 showsPacingMarkers: state.pacingMarkersEnabled
             )
@@ -106,20 +103,11 @@ struct MenuBarMenuBuilder {
         return item
     }
 
-    private func remoteHostItem(for remoteHost: RemoteHostMenuState, state: MenuBarMenuState, target: MenuBarCoordinator, width: CGFloat) -> NSMenuItem {
+    private func activeAccountDividerItem(width: CGFloat) -> NSMenuItem {
         let item = NSMenuItem()
-        let view = NSHostingView(
-            rootView: RemoteHostMenuContent(
-                remoteHost: remoteHost,
-                progressAccentColor: Color(nsColor: state.progressAccentColor),
-                showsPacingMarkers: state.pacingMarkersEnabled,
-                primaryActionTitle: remoteHostCardActionTitle(for: remoteHost),
-                onPrimaryAction: remoteHostCardAction(for: remoteHost, target: target),
-                isPrimaryActionEnabled: state.canConfigureHosts,
-                isPrimaryActionProminent: remoteHostCardActionIsProminent(for: remoteHost)
-            )
-        )
-        item.view = configuredHostedMenuView(view, width: width)
+        let view = NSHostingView(rootView: ActiveAccountCardDivider())
+        view.frame = NSRect(x: 0, y: 0, width: width, height: 17)
+        item.view = view
         return item
     }
 
@@ -472,49 +460,6 @@ struct MenuBarMenuBuilder {
         case .failed:
             return "Failed"
         }
-    }
-
-    private func remoteHostCardActionTitle(for remoteHost: RemoteHostMenuState) -> String? {
-        if let detectedAccount = remoteHost.detectedAccount,
-           detectedAccount.id != remoteHost.desiredAccount?.id {
-            return "Use \(detectedAccount.name)"
-        }
-
-        switch remoteHost.verificationStatus {
-        case .failed, .unverified:
-            return "Re-verify"
-        case .verified, .verifying:
-            return nil
-        }
-    }
-
-    private func remoteHostCardAction(for remoteHost: RemoteHostMenuState, target: MenuBarCoordinator) -> (() -> Void)? {
-        if let detectedAccount = remoteHost.detectedAccount,
-           detectedAccount.id != remoteHost.desiredAccount?.id {
-            return { [weak target] in
-                target?.adoptDetectedRemoteAccount(
-                    hostDestination: remoteHost.destination,
-                    accountID: detectedAccount.id
-                )
-            }
-        }
-
-        switch remoteHost.verificationStatus {
-        case .failed, .unverified:
-            return { [weak target] in
-                target?.reverifyHost(hostDestination: remoteHost.destination)
-            }
-        case .verified, .verifying:
-            return nil
-        }
-    }
-
-    private func remoteHostCardActionIsProminent(for remoteHost: RemoteHostMenuState) -> Bool {
-        if let detectedAccount = remoteHost.detectedAccount,
-           detectedAccount.id != remoteHost.desiredAccount?.id {
-            return true
-        }
-        return false
     }
 
     private func refreshIntervalMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {

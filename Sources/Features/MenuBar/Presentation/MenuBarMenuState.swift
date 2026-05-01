@@ -74,6 +74,12 @@ struct RemoteHostMenuState: Codable, Equatable {
     }
 }
 
+struct ActiveAccountCard: Equatable {
+    let account: CodexAccount
+    let locations: [String]
+    let showsUpdatedTime: Bool
+}
+
 struct MenuBarMenuState {
     let activeAccount: CodexAccount?
     let inactiveAccounts: [CodexAccount]
@@ -169,14 +175,53 @@ struct MenuBarMenuState {
         accountCatalogProjection.connectedRemoteHosts
     }
 
-    var primaryRemoteAccountHosts: [RemoteHostMenuState] {
-        connectedRemoteHosts.filter { !shouldCollapseRemoteAccountCard(for: $0) }
+    var activeAccountCards: [ActiveAccountCard] {
+        var cards: [ActiveAccountCard] = []
+        let verifiedRemoteHosts = connectedRemoteHosts.filter(\.isVerified)
+        let localRemoteHosts = verifiedRemoteHosts.filter { remoteHost in
+            guard let activeAccount,
+                  let remoteAccount = remoteHost.activeAccount else {
+                return false
+            }
+            return remoteAccount.matchesSameAccount(as: activeAccount)
+        }
+        let remoteHostsNotRepresentedByLocal = verifiedRemoteHosts.filter { remoteHost in
+            guard let activeAccount,
+                  let remoteAccount = remoteHost.activeAccount else {
+                return true
+            }
+            return !remoteAccount.matchesSameAccount(as: activeAccount)
+        }
+
+        if let activeAccount {
+            let locations = localRemoteHosts.isEmpty && remoteHostsNotRepresentedByLocal.isEmpty
+                ? []
+                : ["This Mac"] + localRemoteHosts.map(\.name)
+            cards.append(
+                ActiveAccountCard(
+                    account: activeAccount,
+                    locations: locations,
+                    showsUpdatedTime: locations.isEmpty
+                )
+            )
+        }
+
+        for group in groupedRemoteActiveHosts(remoteHostsNotRepresentedByLocal) {
+            guard let displayAccount = group.first?.activeAccount else { continue }
+            cards.append(
+                ActiveAccountCard(
+                    account: displayAccount,
+                    locations: group.map(\.name),
+                    showsUpdatedTime: false
+                )
+            )
+        }
+
+        return cards
     }
 
-    var activeAccountRemoteLocations: [String] {
-        connectedRemoteHosts
-            .filter(shouldCollapseRemoteAccountCard)
-            .map(\.name)
+    var activeAccountsSectionTitle: String {
+        activeAccountCards.count == 1 ? "Active Account" : "Active Accounts"
     }
 
     func isAccountActiveLocally(_ account: CodexAccount) -> Bool {
@@ -262,25 +307,19 @@ struct MenuBarMenuState {
         )
     }
 
-    private func shouldCollapseRemoteAccountCard(for remoteHost: RemoteHostMenuState) -> Bool {
-        guard let activeAccount,
-              remoteHost.connectionState == .connected,
-              remoteHost.verificationStatus == .verified,
-              remoteHost.lastVerificationError?.isEmpty ?? true,
-              let remoteAccount = remoteHost.activeAccount,
-              remoteAccount.matchesSameAccount(as: activeAccount) else {
-            return false
+    private func groupedRemoteActiveHosts(_ remoteHosts: [RemoteHostMenuState]) -> [[RemoteHostMenuState]] {
+        remoteHosts.reduce(into: [[RemoteHostMenuState]]()) { groups, remoteHost in
+            guard let remoteAccount = remoteHost.activeAccount else { return }
+            if let index = groups.firstIndex(where: { group in
+                group.contains { existingHost in
+                    existingHost.activeAccount?.matchesSameAccount(as: remoteAccount) == true
+                }
+            }) {
+                groups[index].append(remoteHost)
+            } else {
+                groups.append([remoteHost])
+            }
         }
-
-        if let desiredAccount = remoteHost.desiredAccount,
-           !desiredAccount.matchesSameAccount(as: activeAccount) {
-            return false
-        }
-        if let detectedAccount = remoteHost.detectedAccount,
-           !detectedAccount.matchesSameAccount(as: activeAccount) {
-            return false
-        }
-        return true
     }
 }
 

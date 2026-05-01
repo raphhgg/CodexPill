@@ -132,24 +132,19 @@ enum MenuBarValidationSupport {
     private static func accountSections(for state: MenuBarMenuState, now: Date) -> [MenuBarValidationSnapshot.Section] {
         var sections: [MenuBarValidationSnapshot.Section] = []
 
-        if let activeAccount = state.activeAccount {
+        if !state.activeAccountCards.isEmpty {
             sections.append(.init(
-                title: "Current Account",
-                items: [accountSummary(
-                    for: activeAccount,
-                    location: currentAccountLocationLine(for: state, now: now),
-                    now: now
-                )]
+                title: state.activeAccountsSectionTitle,
+                items: state.activeAccountCards.map { card in
+                    accountSummary(
+                        for: card.account,
+                        location: activeAccountLocationLine(for: card, now: now),
+                        now: now
+                    )
+                }
             ))
         } else {
-            sections.append(.init(title: "Current Account", items: ["No active saved account"]))
-        }
-
-        if !state.primaryRemoteAccountHosts.isEmpty {
-            sections.append(.init(
-                title: "Remote Accounts",
-                items: state.primaryRemoteAccountHosts.map { remoteHostSummary(for: $0, now: now) }
-            ))
+            sections.append(.init(title: "Active Account", items: ["No active saved account"]))
         }
 
         if !state.visibleAccountEntries.isEmpty {
@@ -175,7 +170,7 @@ enum MenuBarValidationSupport {
         return Group {
             if state.showsPacingPrototypeMenu {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Pacing Current Account Card Prototypes")
+                    Text("Pacing Active Account Card Prototypes")
                         .font(.system(size: 16, weight: .semibold))
                     ForEach(PacingPrototypeVariant.allCases) { variant in
                         PacingPrototypeMenuContent(
@@ -237,39 +232,14 @@ enum MenuBarValidationSupport {
         return "\(entry.account.name) • \(detail) • \(placement.badgeText)"
     }
 
-    private static func remoteHostSummary(for remoteHost: RemoteHostMenuState, now: Date) -> String {
-        var components = [
-            remoteHost.name,
-            remoteHost.connectionState.menuTitle,
-            remoteHost.verificationStatus.rawValue
-        ]
-
-        if let activeAccount = remoteHost.activeAccount {
-            components.append(accountSummary(for: activeAccount, now: now))
-        } else if let detectedAccount = remoteHost.detectedAccount {
-            components.append("Detected: \(accountSummary(for: detectedAccount, now: now))")
-        } else if let desiredAccount = remoteHost.desiredAccount {
-            components.append("Desired: \(accountSummary(for: desiredAccount, now: now))")
+    private static func activeAccountLocationLine(for card: ActiveAccountCard, now: Date) -> String {
+        if !card.locations.isEmpty {
+            return card.locations.joined(separator: " + ")
         }
-
-        if let lastVerificationError = remoteHost.lastVerificationError, !lastVerificationError.isEmpty {
-            components.append(lastVerificationError)
+        if card.showsUpdatedTime {
+            return "Updated \(compactElapsedTime(since: card.account.lastRemoteRefreshAt, now: now)) ago"
         }
-
-        return components.joined(separator: " • ")
-    }
-
-    private static func currentAccountLocationLine(for state: MenuBarMenuState, now: Date) -> String {
-        if !state.activeAccountRemoteLocations.isEmpty {
-            return (["This Mac"] + state.activeAccountRemoteLocations).joined(separator: " + ")
-        }
-        if !state.primaryRemoteAccountHosts.isEmpty {
-            return "This Mac"
-        }
-        guard let activeAccount = state.activeAccount else {
-            return "This Mac"
-        }
-        return "Updated \(compactElapsedTime(since: activeAccount.lastRemoteRefreshAt, now: now)) ago"
+        return "This Mac"
     }
 
     private static func usageLine(title: String, window: CodexRateLimitWindow?, now: Date) -> String {

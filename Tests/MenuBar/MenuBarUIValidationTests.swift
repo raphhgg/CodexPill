@@ -15,7 +15,7 @@ struct MenuBarUIValidationTests {
             now: now
         )
 
-        let summary = try! #require(snapshot.sections.first(where: { $0.title == "Current Account" })?.items.first(where: { $0.contains("Primary • Pro") }))
+        let summary = try! #require(snapshot.sections.first(where: { $0.title == "Active Account" })?.items.first(where: { $0.contains("Primary • Pro") }))
         #expect(summary.contains("Primary • Pro"))
         #expect(summary.contains("primary@example.com"))
         #expect(summary.contains("Session: 42% used"))
@@ -44,11 +44,10 @@ struct MenuBarUIValidationTests {
             now: now
         )
 
-        let hostSummary = try! #require(snapshot.sections.first(where: { $0.title == "Remote Accounts" })?.items.first)
+        let hostSummary = try! #require(snapshot.sections.first(where: { $0.title == "Active Accounts" })?.items.first(where: { $0.contains("Remote Active") }))
         let otherAccounts = try! #require(snapshot.sections.first(where: { $0.title == "Accounts" }))
 
         #expect(hostSummary.contains("buildbox"))
-        #expect(hostSummary.contains("Connected"))
         #expect(hostSummary.contains("Remote Active"))
         #expect(otherAccounts.items.count == 3)
         #expect(otherAccounts.items.allSatisfy { !$0.contains("remote-active@example.com") })
@@ -62,10 +61,11 @@ struct MenuBarUIValidationTests {
             now: now
         )
 
-        let remoteSection = try! #require(snapshot.sections.first(where: { $0.title == "Remote Accounts" }))
+        let remoteSection = try! #require(snapshot.sections.first(where: { $0.title == "Active Accounts" }))
         let accountsSection = try! #require(snapshot.sections.first(where: { $0.title == "Accounts" }))
 
-        #expect(remoteSection.items.count == 2)
+        #expect(remoteSection.items.count == 3)
+        #expect(remoteSection.items.contains(where: { $0.contains("Primary") && $0.contains("This Mac") }))
         #expect(remoteSection.items.contains(where: { $0.contains("buildbox") && $0.contains("Buildbox Active") }))
         #expect(remoteSection.items.contains(where: { $0.contains("debian-vm") && $0.contains("Debian Active") }))
         #expect(accountsSection.items.count == 3)
@@ -439,7 +439,7 @@ struct MenuBarUIValidationTests {
         switch scenario {
         case "hosted-menu-default":
             #expect(snapshot.sections.map(\.title) == [
-                "Current Account",
+                "Active Account",
                 "Accounts",
                 "More Accounts…",
                 "Manage Accounts",
@@ -452,20 +452,19 @@ struct MenuBarUIValidationTests {
 
         case "hosted-menu-with-host":
             #expect(snapshot.sections.map(\.title) == [
-                "Current Account",
-                "Remote Accounts",
+                "Active Accounts",
                 "Accounts",
                 "More Accounts…",
                 "Manage Accounts",
                 "Preferences"
             ])
-            #expect(snapshot.sections[1].items.first?.contains("buildbox") == true)
-            #expect(snapshot.sections[2].items.count == 3)
-            #expect(snapshot.sections[3].items.count == 1)
+            #expect(snapshot.sections[0].items.contains(where: { $0.contains("buildbox") && $0.contains("Remote Active") }))
+            #expect(snapshot.sections[1].items.count == 3)
+            #expect(snapshot.sections[2].items.count == 1)
 
         case "hosted-menu-local-and-remote-same-account":
             #expect(snapshot.sections.map(\.title) == [
-                "Current Account",
+                "Active Account",
                 "Accounts",
                 "Manage Accounts",
                 "Preferences"
@@ -476,20 +475,19 @@ struct MenuBarUIValidationTests {
 
         case "hosted-menu-multiple-hosts":
             #expect(snapshot.sections.map(\.title) == [
-                "Current Account",
-                "Remote Accounts",
+                "Active Accounts",
                 "Accounts",
                 "More Accounts…",
                 "Manage Accounts",
                 "Preferences"
             ])
+            #expect(snapshot.sections[0].items.count == 3)
             #expect(snapshot.sections[1].items.count == 3)
-            #expect(snapshot.sections[2].items.count == 3)
-            #expect(snapshot.sections[3].items.count == 2)
+            #expect(snapshot.sections[2].items.count == 2)
 
         case "host-account-missing-on-host":
             #expect(snapshot.sections.map(\.title) == [
-                "Current Account",
+                "Active Account",
                 "Accounts",
                 "More Accounts…",
                 "Manage Accounts",
@@ -499,7 +497,7 @@ struct MenuBarUIValidationTests {
 
         case "hosted-menu-disconnected-host":
             #expect(snapshot.sections.map(\.title) == [
-                "Current Account",
+                "Active Account",
                 "Accounts",
                 "More Accounts…",
                 "Manage Accounts",
@@ -510,7 +508,7 @@ struct MenuBarUIValidationTests {
 
         case "hosted-pacing-prototypes":
             #expect(snapshot.sections.map(\.title) == [
-                "Current Account",
+                "Active Account",
                 "Accounts",
                 "More Accounts…",
                 "Manage Accounts",
@@ -523,7 +521,7 @@ struct MenuBarUIValidationTests {
 
         case "hosted-menu-busy":
             #expect(snapshot.sections.map(\.title) == [
-                "Current Account",
+                "Active Account",
                 "Manage Accounts",
                 "Preferences"
             ])
@@ -532,7 +530,7 @@ struct MenuBarUIValidationTests {
 
         case "hosted-menu-empty":
             #expect(snapshot.sections.map(\.title) == [
-                "Current Account",
+                "Active Account",
                 "Manage Accounts",
                 "Preferences"
             ])
@@ -558,25 +556,25 @@ struct MenuBarUIValidationTests {
         switch scenario {
         case "hosted-menu-default":
             return [
-                "Current Account section includes the active account summary",
+                "Active Account section includes the active account summary",
                 "Two inactive accounts are visible and one account overflows into More Accounts…",
                 "Status message is omitted when the menu is not busy"
             ]
         case "hosted-menu-with-host":
             return [
-                "Remote host state renders in its own section",
+                "Remote host active account renders as an active account card",
                 "Accounts continues to reflect the local saved-account catalog",
                 "One inactive account still overflows into More Accounts… with a connected host present"
             ]
         case "hosted-menu-local-and-remote-same-account":
             return [
-                "Same saved account active locally and on a verified host collapses to Current Account",
-                "Current Account communicates the remote host location",
+                "Same saved account active locally and on a verified host collapses to one Active Account card",
+                "Active Account communicates the remote host location",
                 "Connected host metadata remains in the snapshot for Hosts management"
             ]
         case "hosted-menu-multiple-hosts":
             return [
-                "Each connected host renders its own remote-account card",
+                "Each connected host with a different account renders its own active-account card",
                 "Accounts still reflects only the local saved-account catalog",
                 "Overflow account behavior stays intact with multiple connected hosts"
             ]
@@ -587,7 +585,7 @@ struct MenuBarUIValidationTests {
             ]
         case "hosted-menu-disconnected-host":
             return [
-                "Disconnected hosts stay out of the primary Remote Accounts section",
+                "Disconnected hosts stay out of the primary Active Account section",
                 "Configured hosts remain available under Hosts and per-account switch targets"
             ]
         case "hosted-pacing-prototypes":

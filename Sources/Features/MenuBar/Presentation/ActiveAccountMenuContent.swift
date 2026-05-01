@@ -2,8 +2,8 @@ import SwiftUI
 
 struct ActiveAccountMenuContent: View {
     let account: CodexAccount
-    let activeRemoteLocations: [String]
-    let hasSeparateRemoteAccountCards: Bool
+    let locations: [String]
+    let showsUpdatedTime: Bool
     let progressAccentColor: Color
     let showsPacingMarkers: Bool
 
@@ -64,14 +64,12 @@ struct ActiveAccountMenuContent: View {
     }
 
     private func activeAccountMetadataPrefix(now: Date) -> String {
-        if activeRemoteLocations.isEmpty {
-            if hasSeparateRemoteAccountCards {
-                return "This Mac"
-            }
+        if locations.isEmpty {
+            guard showsUpdatedTime else { return "This Mac" }
             return "Updated \(compactElapsedTime(since: account.lastRemoteRefreshAt, now: now)) ago"
         }
 
-        return (["This Mac"] + activeRemoteLocations).joined(separator: " + ")
+        return locations.joined(separator: " + ")
     }
 }
 
@@ -111,142 +109,15 @@ struct InactiveAccountMenuContent: View {
     }
 }
 
-struct RemoteHostMenuContent: View {
-    let remoteHost: RemoteHostMenuState
-    let progressAccentColor: Color
-    let showsPacingMarkers: Bool
-    let primaryActionTitle: String?
-    let onPrimaryAction: (() -> Void)?
-    let isPrimaryActionEnabled: Bool
-    let isPrimaryActionProminent: Bool
-
+struct ActiveAccountCardDivider: View {
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 30)) { timeline in
-            content(now: timeline.date)
-        }
-    }
-
-    private func content(now: Date) -> some View {
-        VStack(alignment: .leading, spacing: 9) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(primaryTitle)
-                    .font(.system(size: 15, weight: .semibold))
-                Spacer()
-                Text(primaryBadge)
-                    .foregroundStyle(.secondary)
-            }
-
-            HStack(alignment: .firstTextBaseline) {
-                Text(remoteHostSubtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text(verbatim: secondaryBadge)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.trailing)
-            }
-            .padding(.top, -2)
-
-            if let activeAccount = remoteHost.activeAccount {
-                ActiveLimitRow(
-                    title: "Session",
-                    window: activeAccount.rateLimits?.primary,
-                    tintColor: progressAccentColor,
-                    showsPacingMarkers: showsPacingMarkers,
-                    now: now
-                )
-                ActiveLimitRow(
-                    title: "Weekly",
-                    window: activeAccount.rateLimits?.secondary,
-                    tintColor: progressAccentColor,
-                    showsPacingMarkers: showsPacingMarkers,
-                    now: now
-                )
-            } else if let statusMessage {
-                Text(statusMessage)
-                    .font(.caption)
-                    .foregroundStyle(statusMessageColor)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            if let primaryActionTitle {
-                if isPrimaryActionProminent {
-                    Button(action: { onPrimaryAction?() }) {
-                        Text(primaryActionTitle)
-                            .lineLimit(1)
-                    }
-                    .buttonStyle(BorderedProminentButtonStyle())
-                    .controlSize(.small)
-                    .disabled(!isPrimaryActionEnabled || onPrimaryAction == nil)
-                } else {
-                    Button(action: { onPrimaryAction?() }) {
-                        Text(primaryActionTitle)
-                            .lineLimit(1)
-                    }
-                    .buttonStyle(BorderedButtonStyle())
-                    .controlSize(.small)
-                    .disabled(!isPrimaryActionEnabled || onPrimaryAction == nil)
-                }
-            }
+        VStack(spacing: 0) {
+            Spacer(minLength: 7)
+            Divider()
+                .opacity(0.55)
+            Spacer(minLength: 9)
         }
         .padding(.horizontal, 14)
-        .padding(.top, 4)
-        .padding(.bottom, 10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var primaryTitle: String {
-        remoteHost.displayAccount?.name ?? remoteHost.name
-    }
-
-    private var primaryBadge: String {
-        if let activeAccount = remoteHost.displayAccount {
-            return menuPlanDisplayName(activeAccount.effectivePlanType)
-        }
-        return remoteHost.connectionState.menuTitle
-    }
-
-    private var secondaryBadge: String {
-        guard let email = remoteHost.displayAccount?.email, !email.isEmpty else {
-            return remoteHost.destination
-        }
-        return email
-    }
-
-    private var remoteHostSubtitle: String {
-        guard remoteHost.activeAccount != nil,
-              remoteHost.connectionState == .connected,
-              remoteHost.verificationStatus == .verified else {
-            return "\(remoteHost.name) • \(remoteHost.connectionState.menuTitle)"
-        }
-        return remoteHost.name
-    }
-
-    private var statusMessage: String? {
-        switch remoteHost.verificationStatus {
-        case .verified:
-            return nil
-        case .verifying:
-            return "Verifying remote runtime identity…"
-        case .unverified:
-            return "Waiting for remote runtime verification."
-        case .failed:
-            if let detectedAccount = remoteHost.detectedAccount,
-               let desiredAccount = remoteHost.desiredAccount,
-               detectedAccount.id != desiredAccount.id {
-                return "Detected \(detectedAccount.name) on host. Expected \(desiredAccount.name)."
-            }
-            if let lastVerificationError = remoteHost.lastVerificationError,
-               !lastVerificationError.isEmpty {
-                return lastVerificationError
-            }
-            return "Remote runtime identity could not be verified."
-        }
-    }
-
-    private var statusMessageColor: Color {
-        remoteHost.verificationStatus == .failed ? .red : .secondary
     }
 }
 

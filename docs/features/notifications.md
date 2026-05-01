@@ -21,7 +21,7 @@ Permission recovery:
 
 `Current Runs Out` notifications should explain why they fired:
 
-- Title pattern: `<Current Account> is out on <Target>`
+- Title pattern: `<Active Account> is out on <Target>`
 - Body pattern: `<Limit summary>. <Fallback Account> is ready.`
 
 `Account Available` notifications should keep the copy simple:

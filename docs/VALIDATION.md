@@ -84,11 +84,11 @@ The following behavior should be treated as automated first and should not live 
   - `DeleteSavedAccountUseCaseTests`, `ValidationRemoteHostClientTests`, `SSHRemoteHostClientTests`, and `MenuBarLiveValidationTests`
 - persisted remote-host refresh fallback when a host is offline:
   - `MenuBarLiveValidationTests`
-- multiple connected remote hosts render distinct primary remote-account cards without changing the local accounts catalog:
+- multiple connected remote hosts render verified active account cards without changing the local accounts catalog:
   - deterministic UI plus `MenuBarLiveValidationTests`
-- disconnected configured hosts stay manageable without rendering a primary remote-account card:
+- disconnected configured hosts stay manageable without rendering an active account card:
   - deterministic UI plus `MenuBarLiveValidationTests`
-- validation-only live remote host switching proves submenu dispatch and remote-card update without depending on a real SSH box:
+- validation-only live remote host switching proves submenu dispatch and active-card update without depending on a real SSH box:
   - `SCENARIO=live-remote-host-switch make verify-ui-live`
 - Add Host destination validation failure:
   - `SCENARIO=live-add-host-destination-validation-failed make verify-ui-live`
@@ -123,10 +123,10 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `proofs_required`: `["unit", "deterministic_ui"]`
 - `scenarios`: `["custom_progress_accent_color", "reset_progress_accent_color"]`
 
-### `accounts.current_cards.show_expected_pace_marker_only`
+### `accounts.active_cards.show_expected_pace_marker_only`
 
 - `feature`: `accounts`
-- `rule`: Current local and remote account cards may show a neutral expected-pace marker inside Session and Weekly progress bars when reset-window duration is available and `Preferences > Usage Bars > Show Pace Markers` is enabled, but they must not add pacing text or affect saved account catalog rows, ranking, switching, notifications, or persistence.
+- `rule`: Active account cards may show a neutral expected-pace marker inside Session and Weekly progress bars when reset-window duration is available and `Preferences > Usage Bars > Show Pace Markers` is enabled, but they must not add pacing text or affect saved account catalog rows, ranking, switching, notifications, or persistence.
 - `owner_layer`: `unit`
 - `proofs_required`: `["unit", "deterministic_ui"]`
 - `scenarios`: `["current_account_card", "remote_account_card", "missing_reset_window_duration", "show_markers_preference"]`
@@ -304,7 +304,7 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 ### `hosts.switch_account_on_host.changes_remote_active_account`
 
 - `feature`: `hosts`
-- `rule`: Selecting `Switch on <host>` from a saved account submenu dispatches the host-targeted switch workflow and updates the primary remote-account card to the chosen account.
+- `rule`: Selecting `Switch on <host>` from a saved account submenu dispatches the host-targeted switch workflow and updates the host's active account card to the chosen account.
 - `owner_layer`: `live_ui`
 - `proofs_required`: `["integration", "live_ui"]`
 - `scenarios`: `["live-remote-host-switch"]`
@@ -313,31 +313,31 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 ### `hosts.refresh_failure.preserves_fallback_state_and_marks_disconnected`
 
 - `feature`: `hosts`
-- `rule`: When CodexPill restores a persisted remote host and the remote refresh fails, it preserves the last known remote account fallback while marking the host disconnected and hiding the primary remote-account card.
+- `rule`: When CodexPill restores a persisted remote host and the remote refresh fails, it preserves the last known remote account fallback while marking the host disconnected and hiding the host from active account cards.
 - `owner_layer`: `live_ui`
 - `proofs_required`: `["live_ui"]`
 - `scenarios`: `["persisted_host_refresh_failure"]`
 
-### `hosts.connected_cards.collapse_duplicate_local_and_remote_current_account`
+### `accounts.active_cards.group_local_and_remote_same_account`
 
-- `feature`: `hosts`
-- `rule`: A connected verified host whose resolved active account is the same saved account as `Current Account` is collapsed out of the primary `Remote Accounts` cards and is communicated from the current-account presentation instead. Hosts that are disconnected, unverified, verifying, failed, mismatched, or using a different account remain visible through the existing remote host/account presentation rules.
+- `feature`: `accounts`
+- `rule`: If the same saved account is active locally and on one or more connected verified remote hosts, CodexPill renders one `Active Account` card with compact location context such as `This Mac + debian-vm`; it must not render a duplicate remote active card for the same saved account.
 - `owner_layer`: `unit`
 - `proofs_required`: `["unit", "deterministic_ui"]`
 - `scenarios`: `["hosted_menu_local_and_remote_same_account", "hosted_menu_with_host", "hosted_menu_disconnected_host"]`
 
-### `hosts.connected_cards.render_per_reachable_host_only`
+### `accounts.active_cards.render_verified_active_targets_only`
 
-- `feature`: `hosts`
-- `rule`: Each reachable configured host with an active remote account renders its own `Remote Accounts` card unless it is eligible for duplicate local/remote current-account collapse, while unreachable hosts stay persisted but do not render primary remote cards.
+- `feature`: `accounts`
+- `rule`: The top active-account section renders local and connected verified remote active accounts as one collection. Different active accounts render as separate cards under `Active Accounts`; the same remote account used on multiple hosts is grouped into one card with joined host context. Unreachable, unverified, verifying, failed, or missing-active-account hosts stay persisted but do not render active account cards.
 - `owner_layer`: `live_ui`
 - `proofs_required`: `["deterministic_ui", "live_ui"]`
 - `scenarios`: `["hosted_menu_multiple_hosts", "hosted_menu_with_host", "mixed_persisted_host_restore"]`
 
-### `hosts.disconnected_hosts.remain_targetable_without_remote_card`
+### `hosts.disconnected_hosts.remain_targetable_without_active_card`
 
 - `feature`: `hosts`
-- `rule`: A disconnected configured host remains available under `Hosts` and per-account remote switch targets, but it does not render in the primary `Remote Accounts` section.
+- `rule`: A disconnected configured host remains available under `Hosts` and per-account remote switch targets, but it does not render in the primary `Active Account(s)` section.
 - `owner_layer`: `deterministic_ui`
 - `proofs_required`: `["deterministic_ui", "live_ui"]`
 - `scenarios`: `["hosted_menu_disconnected_host", "persisted_host_refresh_failure"]`

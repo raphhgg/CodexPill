@@ -12,33 +12,24 @@ The menubar popup is CodexPill's primary product surface. It combines account st
 
 The menu is ordered as:
 
-1. `Current Account`
-2. `Remote Accounts`, when one or more remote hosts are connected
-3. `Accounts`, when saved catalog entries are visible
-4. `More Accounts…`, when saved catalog entries overflow the visible limit
-5. App Controls
-6. Status message, when needed
-7. `Quit`
+1. `Active Account` or `Active Accounts`
+2. `Accounts`, when saved catalog entries are visible
+3. `More Accounts…`, when saved catalog entries overflow the visible limit
+4. App Controls
+5. Status message, when needed
+6. `Quit`
 
-## Current Account Section
+## Active Account Section
 
 Owned behavior: [Accounts](accounts/00-accounts.md).
 
 UX responsibility here:
 
-- Present the active local saved account first.
-- Show enough plan and session/weekly usage information to answer "what am I using right now?"
-- If no saved account matches the live local Codex account, show a clear empty state instead of pretending an account is active.
-
-## Remote Accounts Section
-
-Owned behavior: [Remote Hosts](remote-hosts.md).
-
-UX responsibility here:
-
-- Show connected remote hosts separately from the local current account.
-- Prefer remote target values for the remote card when the remote account is verified.
-- Hide disconnected or invalid remote account cards unless the host needs an explicit user-facing recovery state.
+- Use `Active Account` for one active account card and `Active Accounts` for multiple active account cards.
+- Present the active local saved account and connected verified remote active accounts in one unified section.
+- Collapse the local and remote surfaces into one card when the same saved account is active on This Mac and a connected verified remote host.
+- Show enough plan, location, and session/weekly usage information to answer "what am I using right now and where?"
+- If no saved account matches any live active account, show a clear empty state instead of pretending an account is active.
 
 ## Accounts Section
 
