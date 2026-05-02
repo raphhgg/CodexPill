@@ -487,7 +487,7 @@ final class CodexPillSealValidationRun {
                                 rule: scenario.scheduledRefreshRequestedAndCompletedRule
                             ),
                             SealInvariantRef(
-                                id: scenario.scheduledRefreshPreservesAccountCatalogID,
+                                id: scenario.scheduledRefreshPreservesAccountCatalogIdentityID,
                                 requiredEvidence: [
                                     EvidenceRequirement(id: EvidenceID("account_before"), kind: .snapshot),
                                     EvidenceRequirement(id: EvidenceID("account_after"), kind: .snapshot)
@@ -663,8 +663,8 @@ private struct CodexPillSealScenario {
         remoteHostSwitchID.map { [$0] } ?? []
     }
 
-    var scheduledRefreshPreservesAccountCatalogID: InvariantID {
-        InvariantID("accounts.scheduled_refresh.preserves_account_catalog")
+    var scheduledRefreshPreservesAccountCatalogIdentityID: InvariantID {
+        InvariantID("accounts.scheduled_refresh.preserves_account_catalog_identity")
     }
 
     var scheduledRefreshNoBlockingAlertID: InvariantID {
@@ -675,7 +675,7 @@ private struct CodexPillSealScenario {
         guard let scheduledRefreshRequestedAndCompletedID else { return [] }
         return [
             scheduledRefreshRequestedAndCompletedID,
-            scheduledRefreshPreservesAccountCatalogID,
+            scheduledRefreshPreservesAccountCatalogIdentityID,
             scheduledRefreshNoBlockingAlertID
         ]
     }
@@ -973,7 +973,7 @@ private struct CodexPillSealScenario {
         cancelledEventName: "scheduled_refresh_failed",
         nameDialogPresentedID: InvariantID("accounts.scheduled_refresh.requested_and_completed"),
         nameDialogCancelledID: InvariantID("accounts.scheduled_refresh.failed"),
-        cancelKeepsAccountStateID: InvariantID("accounts.scheduled_refresh.preserves_account_catalog"),
+        cancelKeepsAccountStateID: InvariantID("accounts.scheduled_refresh.preserves_account_catalog_identity"),
         presentedAndCancelledExpectation: "Scheduled refresh requests and completes",
         nonMutatingExpectation: "Scheduled refresh preserves the saved account catalog",
         scheduledRefreshRequestedAndCompletedID: InvariantID("accounts.scheduled_refresh.requested_and_completed"),

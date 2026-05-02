@@ -1281,7 +1281,7 @@ struct MenuBarLiveValidationTests {
         let invariants = expectations?.first?["invariants"] as? [[String: Any]]
         #expect(invariants?.compactMap { $0["id"] as? String } == [
             "accounts.scheduled_refresh.requested_and_completed",
-            "accounts.scheduled_refresh.preserves_account_catalog",
+            "accounts.scheduled_refresh.preserves_account_catalog_identity",
             "accounts.scheduled_refresh.no_blocking_alert_visible",
         ])
 
