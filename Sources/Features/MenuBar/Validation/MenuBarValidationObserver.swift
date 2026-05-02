@@ -217,16 +217,31 @@ final class MenuBarValidationObserver {
         return true
     }
 
-    func recordScheduledRefreshRequested(accountName: String) {
+    func recordScheduledRefreshRequested(
+        accountName: String,
+        activeAccount: CodexAccount?,
+        savedAccounts: [CodexAccount]
+    ) {
         recordEvent(
             "scheduled_refresh_requested",
             step: "scheduled_refresh_request",
             invariantIds: Self.scheduledRefreshInvariantIDs,
             payload: ["accountName": accountName]
         )
+        sealRun?.recordScheduledRefreshRequested(
+            accountName: accountName,
+            activeAccount: activeAccount,
+            savedAccounts: savedAccounts
+        )
     }
 
-    func recordScheduledRefreshResult(accountName: String, error: String?) {
+    func recordScheduledRefreshResult(
+        accountName: String,
+        error: String?,
+        activeAccount: CodexAccount?,
+        savedAccounts: [CodexAccount],
+        menuSnapshot: MenuBarValidationSnapshot
+    ) {
         if let error {
             recordEvent(
                 "scheduled_refresh_failed",
@@ -245,6 +260,32 @@ final class MenuBarValidationObserver {
                 payload: ["accountName": accountName]
             )
         }
+        sealRun?.recordScheduledRefreshResult(
+            accountName: accountName,
+            error: error,
+            activeAccount: activeAccount,
+            savedAccounts: savedAccounts,
+            menuSnapshot: menuSnapshotWithActionTrace(menuSnapshot)
+        )
+    }
+
+    private func menuSnapshotWithActionTrace(_ snapshot: MenuBarValidationSnapshot) -> MenuBarValidationSnapshot {
+        MenuBarValidationSnapshot(
+            sections: snapshot.sections,
+            statusMessage: snapshot.statusMessage,
+            currentAccount: snapshot.currentAccount,
+            remoteHosts: snapshot.remoteHosts,
+            hasStatusItemContentData: snapshot.hasStatusItemContentData,
+            effectiveStatusBarDisplayMode: snapshot.effectiveStatusBarDisplayMode,
+            statusItem: snapshot.statusItem,
+            actionTrace: .init(
+                lastMenuAction: lastMenuAction,
+                lastSwitchTargetName: lastSwitchTargetName,
+                lastConfirmationRequest: lastConfirmationRequest,
+                lastConfirmationAccepted: lastConfirmationAccepted
+            ),
+            menuItems: snapshot.menuItems
+        )
     }
 
     func recordStatusItemRuntimeEvent(_ event: StatusItemRuntime.Event) {

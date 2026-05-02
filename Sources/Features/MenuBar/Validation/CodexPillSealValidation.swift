@@ -171,6 +171,77 @@ final class CodexPillSealValidationRun {
         }
     }
 
+    func recordScheduledRefreshRequested(
+        accountName: String,
+        activeAccount: CodexAccount?,
+        savedAccounts: [CodexAccount]
+    ) {
+        guard !didFinish else { return }
+        do {
+            try run.recordEvent(
+                "scheduled_refresh_requested",
+                step: "scheduled_refresh_request",
+                invariantIds: scenario.scheduledRefreshInvariantIDs,
+                payload: ["accountName": .string(accountName)]
+            )
+            if !didRecordAccountBefore {
+                try run.recordSnapshot(
+                    id: EvidenceID("account_before"),
+                    path: "evidence/account-before.json",
+                    value: AccountStateSnapshot(activeAccount: activeAccount, savedAccounts: savedAccounts)
+                )
+                didRecordAccountBefore = true
+            }
+        } catch {
+            codexPillSealValidationLogger.error("Failed to record Seal scheduled-refresh request proof: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    func recordScheduledRefreshResult(
+        accountName: String,
+        error: String?,
+        activeAccount: CodexAccount?,
+        savedAccounts: [CodexAccount],
+        menuSnapshot: MenuBarValidationSnapshot
+    ) {
+        guard !didFinish else { return }
+        do {
+            if let error {
+                try run.recordEvent(
+                    "scheduled_refresh_failed",
+                    step: "scheduled_refresh_result",
+                    invariantIds: scenario.scheduledRefreshInvariantIDs,
+                    payload: [
+                        "accountName": .string(accountName),
+                        "error": .string(error)
+                    ]
+                )
+                return
+            }
+
+            try run.recordEvent(
+                "scheduled_refresh_completed",
+                step: "scheduled_refresh_result",
+                invariantIds: scenario.scheduledRefreshInvariantIDs,
+                payload: ["accountName": .string(accountName)]
+            )
+            try run.recordSnapshot(
+                id: EvidenceID("account_after"),
+                path: "evidence/account-after.json",
+                value: AccountStateSnapshot(activeAccount: activeAccount, savedAccounts: savedAccounts)
+            )
+            try run.recordSnapshot(
+                id: EvidenceID("menu_after"),
+                path: "evidence/menu-after.json",
+                value: ScheduledRefreshMenuEvidence(snapshot: menuSnapshot)
+            )
+            try run.finish()
+            didFinish = true
+        } catch {
+            codexPillSealValidationLogger.error("Failed to finish Seal scheduled-refresh proof: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
     func recordAddHostMenuAction() {
         guard !didFinish else { return }
         do {
@@ -398,6 +469,45 @@ final class CodexPillSealValidationRun {
     }
 
     private static func makeScenario(_ scenario: CodexPillSealScenario) throws -> SealScenario {
+        if let scheduledRefreshRequestedAndCompletedID = scenario.scheduledRefreshRequestedAndCompletedID,
+           let scheduledRefreshExpectation = scenario.scheduledRefreshExpectation {
+            return try SealScenario(
+                id: scenario.id,
+                scenarioType: .happyPath,
+                supportedExecutionModes: [.liveUI],
+                expectations: [
+                    try SealExpectation(
+                        text: scheduledRefreshExpectation,
+                        invariants: [
+                            SealInvariantRef(
+                                id: scheduledRefreshRequestedAndCompletedID,
+                                requiredEvidence: [
+                                    EvidenceRequirement(id: EvidenceID("events"), kind: .eventStream)
+                                ],
+                                rule: scenario.scheduledRefreshRequestedAndCompletedRule
+                            ),
+                            SealInvariantRef(
+                                id: scenario.scheduledRefreshPreservesAccountCatalogID,
+                                requiredEvidence: [
+                                    EvidenceRequirement(id: EvidenceID("account_before"), kind: .snapshot),
+                                    EvidenceRequirement(id: EvidenceID("account_after"), kind: .snapshot)
+                                ],
+                                rule: scenario.scheduledRefreshPreservesAccountCatalogRule
+                            ),
+                            SealInvariantRef(
+                                id: scenario.scheduledRefreshNoBlockingAlertID,
+                                requiredEvidence: [
+                                    EvidenceRequirement(id: EvidenceID("events"), kind: .eventStream),
+                                    EvidenceRequirement(id: EvidenceID("menu_after"), kind: .snapshot)
+                                ],
+                                rule: scenario.scheduledRefreshNoBlockingAlertRule
+                            )
+                        ]
+                    )
+                ]
+            )
+        }
+
         if let hostValidationID = scenario.hostValidationID,
            let hostExpectation = scenario.hostExpectation {
             return try SealScenario(
@@ -533,11 +643,13 @@ private struct CodexPillSealScenario {
     let switchChangesActiveAccountID: InvariantID?
     let hostValidationID: InvariantID?
     let remoteHostSwitchID: InvariantID?
+    let scheduledRefreshRequestedAndCompletedID: InvariantID?
     let presentedAndCancelledExpectation: String
     let nonMutatingExpectation: String
     let switchExpectation: String?
     let hostExpectation: String?
     let remoteHostSwitchExpectation: String?
+    let scheduledRefreshExpectation: String?
 
     var switchInvariantIDs: [InvariantID] {
         switchChangesActiveAccountID.map { [$0] } ?? []
@@ -549,6 +661,23 @@ private struct CodexPillSealScenario {
 
     var remoteHostSwitchInvariantIDs: [InvariantID] {
         remoteHostSwitchID.map { [$0] } ?? []
+    }
+
+    var scheduledRefreshPreservesAccountCatalogID: InvariantID {
+        InvariantID("accounts.scheduled_refresh.preserves_account_catalog")
+    }
+
+    var scheduledRefreshNoBlockingAlertID: InvariantID {
+        InvariantID("accounts.scheduled_refresh.no_blocking_alert")
+    }
+
+    var scheduledRefreshInvariantIDs: [InvariantID] {
+        guard let scheduledRefreshRequestedAndCompletedID else { return [] }
+        return [
+            scheduledRefreshRequestedAndCompletedID,
+            scheduledRefreshPreservesAccountCatalogID,
+            scheduledRefreshNoBlockingAlertID
+        ]
     }
 
     var nameDialogPresentedRule: SealRule {
@@ -668,6 +797,36 @@ private struct CodexPillSealScenario {
         ])
     }
 
+    var scheduledRefreshRequestedAndCompletedRule: SealRule {
+        .eventSequence([
+            EventExpectation("scheduled_refresh_requested"),
+            EventExpectation("scheduled_refresh_completed"),
+        ])
+    }
+
+    var scheduledRefreshPreservesAccountCatalogRule: SealRule {
+        .snapshotsEqual(
+            SnapshotsEqualRule(
+                before: EvidenceID("account_before"),
+                after: EvidenceID("account_after"),
+                paths: ["savedAccounts"]
+            )
+        )
+    }
+
+    var scheduledRefreshNoBlockingAlertRule: SealRule {
+        .all([
+            .eventExists(EventExpectation("scheduled_refresh_completed")),
+            .snapshotEquals(
+                SnapshotEqualsRule(
+                    evidence: EvidenceID("menu_after"),
+                    path: "noBlockingAlert",
+                    value: .bool(true)
+                )
+            )
+        ])
+    }
+
     private init(
         featureID: FeatureID = FeatureID("accounts"),
         id: ScenarioID,
@@ -687,7 +846,9 @@ private struct CodexPillSealScenario {
         hostValidationID: InvariantID? = nil,
         hostExpectation: String? = nil,
         remoteHostSwitchID: InvariantID? = nil,
-        remoteHostSwitchExpectation: String? = nil
+        remoteHostSwitchExpectation: String? = nil,
+        scheduledRefreshRequestedAndCompletedID: InvariantID? = nil,
+        scheduledRefreshExpectation: String? = nil
     ) {
         self.featureID = featureID
         self.id = id
@@ -703,11 +864,13 @@ private struct CodexPillSealScenario {
         self.switchChangesActiveAccountID = switchChangesActiveAccountID
         self.hostValidationID = hostValidationID
         self.remoteHostSwitchID = remoteHostSwitchID
+        self.scheduledRefreshRequestedAndCompletedID = scheduledRefreshRequestedAndCompletedID
         self.presentedAndCancelledExpectation = presentedAndCancelledExpectation
         self.nonMutatingExpectation = nonMutatingExpectation
         self.switchExpectation = switchExpectation
         self.hostExpectation = hostExpectation
         self.remoteHostSwitchExpectation = remoteHostSwitchExpectation
+        self.scheduledRefreshExpectation = scheduledRefreshExpectation
     }
 
     init?(legacyScenario: String) {
@@ -720,6 +883,8 @@ private struct CodexPillSealScenario {
             self = .addHostDestinationValidationFailed
         case "live-remote-host-switch":
             self = .switchAccountOnHostChangesRemoteActiveAccount
+        case "live-scheduled-refresh":
+            self = .scheduledRefreshPreservesAccountCatalog
         default:
             return nil
         }
@@ -792,6 +957,23 @@ private struct CodexPillSealScenario {
         remoteHostSwitchID: InvariantID("hosts.switch_account_on_host.changes_remote_active_account"),
         remoteHostSwitchExpectation: "Switching account through a host submenu changes that host's active remote account"
     )
+
+    static let scheduledRefreshPreservesAccountCatalog = CodexPillSealScenario(
+        id: ScenarioID("scheduled-refresh-preserves-account-catalog"),
+        menuAction: "scheduledRefresh",
+        dialogID: "scheduled_refresh",
+        dialogTitle: "Scheduled Refresh",
+        dialogStep: "scheduled_refresh",
+        presentedEventName: "scheduled_refresh_requested",
+        cancelledEventName: "scheduled_refresh_failed",
+        nameDialogPresentedID: InvariantID("accounts.scheduled_refresh.requested_and_completed"),
+        nameDialogCancelledID: InvariantID("accounts.scheduled_refresh.failed"),
+        cancelKeepsAccountStateID: InvariantID("accounts.scheduled_refresh.preserves_account_catalog"),
+        presentedAndCancelledExpectation: "Scheduled refresh requests and completes",
+        nonMutatingExpectation: "Scheduled refresh preserves the saved account catalog",
+        scheduledRefreshRequestedAndCompletedID: InvariantID("accounts.scheduled_refresh.requested_and_completed"),
+        scheduledRefreshExpectation: "Scheduled refresh completes without changing the saved account catalog or blocking the menubar"
+    )
 }
 
 private struct AccountStateSnapshot: Encodable {
@@ -813,6 +995,22 @@ private struct SavedAccountSnapshot: Encodable {
         self.id = account.id.uuidString
         self.name = account.name
         self.email = account.email
+    }
+}
+
+private struct ScheduledRefreshMenuEvidence: Encodable {
+    let statusMessage: String?
+    let menuItemCount: Int
+    let lastMenuAction: String?
+    let lastConfirmationRequest: String?
+    let noBlockingAlert: Bool
+
+    init(snapshot: MenuBarValidationSnapshot) {
+        self.statusMessage = snapshot.statusMessage
+        self.menuItemCount = snapshot.menuItems.count
+        self.lastMenuAction = snapshot.actionTrace?.lastMenuAction
+        self.lastConfirmationRequest = snapshot.actionTrace?.lastConfirmationRequest
+        self.noBlockingAlert = snapshot.actionTrace?.lastConfirmationRequest == nil
     }
 }
 

@@ -374,9 +374,15 @@ RUN_MENUBAR_ENV=(
   "CODEXPILL_VALIDATION_SCENARIO=${SCENARIO}"
 )
 
-if [[ "${SCENARIO}" == "live-account-switch" || "${SCENARIO}" == "live-remote-host-switch" || "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-add-account-prompt" || "${SCENARIO}" == "live-add-host-destination-validation-failed" || "${SCENARIO}" == "live-add-host-prompt" ]]; then
+if [[ "${SCENARIO}" == "live-account-switch" || "${SCENARIO}" == "live-remote-host-switch" || "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-add-account-prompt" || "${SCENARIO}" == "live-add-host-destination-validation-failed" || "${SCENARIO}" == "live-add-host-prompt" || "${SCENARIO}" == "live-scheduled-refresh" ]]; then
   RUN_MENUBAR_ENV+=(
     "CODEXPILL_SEAL_PROOF_OUTPUT=${PWD}/${SEAL_PROOF_OUTPUT_PATH}"
+  )
+fi
+
+if [[ "${SCENARIO}" == "live-scheduled-refresh" ]]; then
+  RUN_MENUBAR_ENV+=(
+    "CODEXPILL_VALIDATION_AUTO_REFRESH_INTERVAL_SECONDS=2"
   )
 fi
 
@@ -559,16 +565,16 @@ end
 add_account_menu = find_child(menu_items, "Add Account…")
 abort "Missing Add Account… menu in runtime snapshot" unless add_account_menu
 
-display_menu = find_child(menu_items, "Display")
-abort "Missing Display menu in runtime snapshot" unless display_menu
+preferences_menu = find_child(menu_items, "Preferences")
+abort "Missing Preferences menu in runtime snapshot" unless preferences_menu
 
-content_menu = find_child(display_menu.fetch("children", []), "Content")
-abort "Missing Display > Content menu in runtime snapshot" unless content_menu
+content_menu = find_child(preferences_menu.fetch("children", []), "Menu Bar Label")
+abort "Missing Preferences > Menu Bar Label menu in runtime snapshot" unless content_menu
 
 icon_only = find_child(content_menu.fetch("children", []), "Icon Only")
 icon_and_text = find_child(content_menu.fetch("children", []), "Icon + Text")
 text_on_hover = find_child(content_menu.fetch("children", []), "Text on Hover")
-abort "Missing one or more Display > Content options in runtime snapshot" unless icon_only && icon_and_text && text_on_hover
+abort "Missing one or more Preferences > Menu Bar Label options in runtime snapshot" unless icon_only && icon_and_text && text_on_hover
 
 has_status_item_content_data = snapshot.fetch("hasStatusItemContentData", false)
 effective_display_mode = snapshot.fetch("effectiveStatusBarDisplayMode", nil)
@@ -635,7 +641,7 @@ current_account_name = meaningful_value(current_account["name"])
 expected_catalog_account_names = saved_account_names
 
 current_account_summary = snapshot.fetch("sections", [])
-  .find { |section| section["title"] == "Current Account" }
+  .find { |section| ["Active Account", "Current Account"].include?(section["title"]) }
   &.fetch("items", [])
   &.first
 live_auth_identity_match = identity_match(current_account, live_auth_status)
@@ -792,7 +798,7 @@ File.write(
   assertions_path,
   JSON.pretty_generate(
     {
-      "checkedPath" => ["Display", "Content"],
+      "checkedPath" => ["Preferences", "Menu Bar Label"],
       "hasStatusItemContentData" => has_status_item_content_data,
       "effectiveStatusBarDisplayMode" => effective_display_mode,
       "appServerReportedCurrentStatusData" => app_server_reported_current_status_data,

@@ -701,7 +701,11 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         guard !store.isBusy else { return }
         Task {
             if let activeAccount = store.activeAccount {
-                self.validationObserver.recordScheduledRefreshRequested(accountName: activeAccount.name)
+                self.validationObserver.recordScheduledRefreshRequested(
+                    accountName: activeAccount.name,
+                    activeAccount: activeAccount,
+                    savedAccounts: self.store.accounts
+                )
                 let outcome = await store.refreshAccountData(for: activeAccount)
                 let error: String?
                 switch outcome {
@@ -712,7 +716,14 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
                 }
                 self.validationObserver.recordScheduledRefreshResult(
                     accountName: activeAccount.name,
-                    error: error
+                    error: error,
+                    activeAccount: self.store.activeAccount,
+                    savedAccounts: self.store.accounts,
+                    menuSnapshot: MenuBarValidationSupport.makeSnapshot(
+                        state: self.menuState(),
+                        menu: self.statusItemRuntime.menu,
+                        statusItemState: self.statusItemRuntime.snapshotState()
+                    )
                 )
             }
 

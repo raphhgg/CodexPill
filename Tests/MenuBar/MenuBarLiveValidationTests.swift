@@ -1218,6 +1218,161 @@ struct MenuBarLiveValidationTests {
     }
 
     @Test
+    func sealValidationRunEmitsScheduledRefreshProof() throws {
+        let proofDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CodexPillSealValidation-\(UUID().uuidString)", isDirectory: true)
+        let now = Date()
+        let account = CodexAccount(
+            id: UUID(),
+            name: "Personal",
+            snapshotFileName: "personal.json",
+            createdAt: now,
+            updatedAt: now,
+            email: "personal@example.com",
+            planType: "pro",
+            rateLimits: nil,
+            identity: .empty
+        )
+        let run = try #require(CodexPillSealValidationConfiguration.makeRun(environment: [
+            CodexPillSealValidationConfiguration.proofOutputPathEnvironmentKey: proofDirectory.path,
+            MenuBarValidationConfiguration.scenarioEnvironmentKey: "live-scheduled-refresh",
+        ]))
+
+        run.recordScheduledRefreshRequested(
+            accountName: account.name,
+            activeAccount: account,
+            savedAccounts: [account]
+        )
+        run.recordScheduledRefreshResult(
+            accountName: account.name,
+            error: nil,
+            activeAccount: account,
+            savedAccounts: [account],
+            menuSnapshot: MenuBarValidationSupport.makeSnapshot(
+                state: makeMenuState(activeAccount: account),
+                actionTrace: .init(
+                    lastMenuAction: nil,
+                    lastSwitchTargetName: nil,
+                    lastConfirmationRequest: nil,
+                    lastConfirmationAccepted: nil
+                )
+            )
+        )
+
+        let manifestURL = proofDirectory.appendingPathComponent("manifest.json")
+        let manifest = try JSONSerialization.jsonObject(with: Data(contentsOf: manifestURL)) as? [String: Any]
+        let runMetadata = manifest?["run"] as? [String: Any]
+        let evidence = manifest?["evidence"] as? [[String: Any]]
+
+        #expect(runMetadata?["feature"] as? String == "accounts")
+        #expect(runMetadata?["scenario"] as? String == "scheduled-refresh-preserves-account-catalog")
+        #expect(evidence?.compactMap { $0["path"] as? String } == [
+            "evidence/events.jsonl",
+            "evidence/account-before.json",
+            "evidence/account-after.json",
+            "evidence/menu-after.json",
+        ])
+        #expect(FileManager.default.fileExists(atPath: proofDirectory.appendingPathComponent("evidence/events.jsonl").path))
+        #expect(FileManager.default.fileExists(atPath: proofDirectory.appendingPathComponent("evidence/account-before.json").path))
+        #expect(FileManager.default.fileExists(atPath: proofDirectory.appendingPathComponent("evidence/account-after.json").path))
+        #expect(FileManager.default.fileExists(atPath: proofDirectory.appendingPathComponent("evidence/menu-after.json").path))
+
+        let expectations = manifest?["targetedExpectations"] as? [[String: Any]]
+        let invariants = expectations?.first?["invariants"] as? [[String: Any]]
+        #expect(invariants?.compactMap { $0["id"] as? String } == [
+            "accounts.scheduled_refresh.requested_and_completed",
+            "accounts.scheduled_refresh.preserves_account_catalog",
+            "accounts.scheduled_refresh.no_blocking_alert",
+        ])
+
+        let eventsURL = proofDirectory.appendingPathComponent("evidence/events.jsonl")
+        let events = try String(contentsOf: eventsURL, encoding: .utf8)
+            .split(separator: "\n")
+            .compactMap { try JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any] }
+        #expect(events.compactMap { $0["event"] as? String } == [
+            "scheduled_refresh_requested",
+            "scheduled_refresh_completed",
+        ])
+
+        let menuAfterURL = proofDirectory.appendingPathComponent("evidence/menu-after.json")
+        let menuAfter = try JSONSerialization.jsonObject(with: Data(contentsOf: menuAfterURL)) as? [String: Any]
+        #expect(menuAfter?["noBlockingAlert"] as? Bool == true)
+        #expect(menuAfter?["lastConfirmationRequest"] == nil || menuAfter?["lastConfirmationRequest"] is NSNull)
+
+        let noBlockingAlertRule = invariants?
+            .first { $0["id"] as? String == "accounts.scheduled_refresh.no_blocking_alert" }?["rule"] as? [String: Any]
+        let childRules = noBlockingAlertRule?["rules"] as? [[String: Any]]
+        #expect(noBlockingAlertRule?["type"] as? String == "all")
+        #expect(childRules?.contains { rule in
+            rule["type"] as? String == "snapshot_equals"
+                && rule["evidence"] as? String == "menu_after"
+                && rule["path"] as? String == "noBlockingAlert"
+                && rule["value"] as? Bool == true
+        } == true)
+    }
+
+    @Test
+    func sealValidationRunDoesNotFinishPassingScheduledRefreshProofOnFailure() throws {
+        let proofDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CodexPillSealValidation-\(UUID().uuidString)", isDirectory: true)
+        let now = Date()
+        let account = CodexAccount(
+            id: UUID(),
+            name: "Personal",
+            snapshotFileName: "personal.json",
+            createdAt: now,
+            updatedAt: now,
+            email: "personal@example.com",
+            planType: "pro",
+            rateLimits: nil,
+            identity: .empty
+        )
+        let run = try #require(CodexPillSealValidationConfiguration.makeRun(environment: [
+            CodexPillSealValidationConfiguration.proofOutputPathEnvironmentKey: proofDirectory.path,
+            MenuBarValidationConfiguration.scenarioEnvironmentKey: "live-scheduled-refresh",
+        ]))
+
+        run.recordScheduledRefreshRequested(
+            accountName: account.name,
+            activeAccount: account,
+            savedAccounts: [account]
+        )
+        run.recordScheduledRefreshResult(
+            accountName: account.name,
+            error: "Refresh failed",
+            activeAccount: account,
+            savedAccounts: [account],
+            menuSnapshot: MenuBarValidationSupport.makeSnapshot(state: makeMenuState(activeAccount: account))
+        )
+
+        #expect(!FileManager.default.fileExists(atPath: proofDirectory.appendingPathComponent("manifest.json").path))
+        let eventsURL = proofDirectory.appendingPathComponent("evidence/events.jsonl")
+        let events = try String(contentsOf: eventsURL, encoding: .utf8)
+            .split(separator: "\n")
+            .compactMap { try JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any] }
+        #expect(events.compactMap { $0["event"] as? String } == [
+            "scheduled_refresh_requested",
+            "scheduled_refresh_failed",
+        ])
+    }
+
+    private func makeMenuState(activeAccount: CodexAccount? = nil) -> MenuBarMenuState {
+        MenuBarMenuState(
+            activeAccount: activeAccount,
+            inactiveAccounts: [],
+            visibleInactiveAccountCount: 3,
+            visibleInactiveAccountCountOptions: [1, 3, 5],
+            refreshIntervalMinutes: 5,
+            refreshIntervalOptions: [5, 15, 30],
+            statusBarMonochrome: false,
+            statusBarIndicatorStyle: .dualArcBadge,
+            statusBarDisplayMode: .iconAndText,
+            isBusy: false,
+            statusMessage: ""
+        )
+    }
+
+    @Test
     func coordinatorRestoresPersistedRemoteHostAccountOnStart() async throws {
         let sink = ValidationSinkProbe()
         let repository = try makeIsolatedRepository()
