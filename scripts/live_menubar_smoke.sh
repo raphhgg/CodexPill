@@ -1880,6 +1880,46 @@ EOF
     exit 23
   fi
 
+  if ! verify_seal_proof; then
+    cat > "${SUMMARY_PATH}" <<EOF
+{
+  "invariantIds": ${INVARIANT_IDS_JSON},
+  "proofLayer": "${PROOF_LAYER}",
+  "artifacts": [
+    "live-auth-status.json",
+    "app-server-status.json",
+    "live-menu-snapshot.json",
+    "runtime-assertions.json",
+    "ui-tree.json",
+    "validation-events.jsonl",
+    "seal-proof/manifest.json",
+    "seal-proof/evidence/events.jsonl",
+    "seal-proof/evidence/account-before.json",
+    "seal-proof/evidence/account-after.json",
+    "seal-proof/evidence/ui-after-refresh.json",
+    "logs/seal-verifier.stdout.log",
+    "logs/seal-verifier.stderr.log",
+    "logs/run-menubar.log"
+  ],
+  "assertions": [
+    "The app emitted a runtime menu snapshot during launch",
+    "The scheduled refresh timer requested a background refresh",
+    "The scheduled refresh completed successfully"
+  ],
+  "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
+  "gaps": $(seal_proof_failure_gaps_json),
+  "scenario": "${SCENARIO}",
+  "status": "failed",
+  "proofSequence": ${SCHEDULED_REFRESH_PROOF_SEQUENCE},
+  "sealProofVerificationMode": "${SEAL_PROOF_VERIFICATION_MODE}",
+  "failureClass": "product_regression",
+  "failureStep": "seal_proof_verification"
+}
+EOF
+    echo "Live scheduled-refresh smoke failed: Seal proof did not verify." >&2
+    exit 24
+  fi
+
   SCREENSHOT_ARTIFACTS=""
   if [[ "${SCENARIO_SCREENSHOT_CAPTURED}" -eq 1 ]]; then
     SCREENSHOT_ARTIFACTS='"screenshots/'"${SCENARIO}"'.png",'
@@ -1897,6 +1937,13 @@ EOF
     "runtime-assertions.json",
     "ui-tree.json",
     "validation-events.jsonl",
+    "seal-proof/manifest.json",
+    "seal-proof/evidence/events.jsonl",
+    "seal-proof/evidence/account-before.json",
+    "seal-proof/evidence/account-after.json",
+    "seal-proof/evidence/ui-after-refresh.json",
+    "logs/seal-verifier.stdout.log",
+    "logs/seal-verifier.stderr.log",
     "logs/run-menubar.log"
   ],
   "assertions": [
@@ -1908,7 +1955,9 @@ EOF
   "gaps": [],
   "scenario": "${SCENARIO}",
   "status": "passed",
-  "proofSequence": ${SCHEDULED_REFRESH_PROOF_SEQUENCE}
+  "sealProofScenario": "scheduled-refresh-preserves-account-catalog",
+  "proofSequence": ${SCHEDULED_REFRESH_PROOF_SEQUENCE},
+  "sealProofVerificationMode": "${SEAL_PROOF_VERIFICATION_MODE}"
 }
 EOF
 
