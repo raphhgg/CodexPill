@@ -208,6 +208,11 @@ private struct AddHostPanel: View {
         case destination
     }
 
+    private enum AccessibilityID {
+        static let hostNameField = "add-host-host-name-field"
+        static let destinationField = "add-host-destination-field"
+    }
+
     let request: MenuBarHostSetupPanelRequest
     @ObservedObject var model: AddHostPanelModel
     let onCancel: () -> Void
@@ -226,6 +231,8 @@ private struct AddHostPanel: View {
                 TextField(request.namePlaceholder, text: $model.hostName)
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 320)
+                    .accessibilityIdentifier(AccessibilityID.hostNameField)
+                    .accessibilityLabel(request.nameFieldTitle)
             }
 
             VStack(alignment: .leading, spacing: 6) {
@@ -235,6 +242,8 @@ private struct AddHostPanel: View {
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 320)
                     .focused($focusedField, equals: .destination)
+                    .accessibilityIdentifier(AccessibilityID.destinationField)
+                    .accessibilityLabel(request.fieldTitle)
                     .onSubmit {
                         model.validateImmediatelyOrSubmit(onSubmit: onAddHost)
                     }

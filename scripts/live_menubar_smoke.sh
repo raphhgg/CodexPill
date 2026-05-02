@@ -1195,6 +1195,8 @@ populate_host_setup_destination() {
   osascript - "$destination" <<'EOF'
 on run argv
     set destination to item 1 of argv
+    set destinationFieldIdentifier to "add-host-destination-field"
+    set destinationFieldLabel to "SSH Destination"
     try
         set previousClipboard to the clipboard
     on error
@@ -1207,10 +1209,57 @@ on run argv
             tell process "CodexPill"
                 if not (exists window 1) then error "No host setup window"
                 tell window 1
-                    if not (exists text field 2) then error "No host destination field"
-                    click text field 2
+                    set destinationField to missing value
+                    set candidateFields to entire contents
+                    repeat with currentField in candidateFields
+                        try
+                            if (role of currentField as text) is "AXTextField" then
+                                if destinationField is equal to missing value then
+                                    try
+                                        if (identifier of currentField as text) is destinationFieldIdentifier then set destinationField to currentField
+                                    end try
+                                end if
+                                if destinationField is equal to missing value then
+                                    try
+                                        if (name of currentField as text) is destinationFieldLabel then set destinationField to currentField
+                                    end try
+                                end if
+                                if destinationField is equal to missing value then
+                                    try
+                                        if (description of currentField as text) is destinationFieldLabel then set destinationField to currentField
+                                    end try
+                                end if
+                            end if
+                        end try
+                    end repeat
+                    if destinationField is equal to missing value then
+                        set fieldDebug to {}
+                        repeat with currentField in candidateFields
+                            try
+                                if (role of currentField as text) is "AXTextField" then
+                                    set fieldName to ""
+                                    set fieldIdentifier to ""
+                                    set fieldDescription to ""
+                                    try
+                                        set fieldName to name of currentField as text
+                                    end try
+                                    try
+                                        set fieldIdentifier to identifier of currentField as text
+                                    end try
+                                    try
+                                        set fieldDescription to description of currentField as text
+                                    end try
+                                    set end of fieldDebug to "name=" & fieldName & ", identifier=" & fieldIdentifier & ", description=" & fieldDescription
+                                end if
+                            end try
+                        end repeat
+                        error "No host destination field with accessibility identifier " & destinationFieldIdentifier & "; candidates: " & fieldDebug
+                    end if
+                    set focused of destinationField to true
+                    click destinationField
                     keystroke "a" using command down
-                    keystroke "v" using command down
+                    keystroke destination
+                    delay 0.3
                 end tell
             end tell
         end tell
@@ -2477,7 +2526,9 @@ EOF
     exit 23
   fi
 
-  if ! populate_host_setup_destination "codexpill-validation.invalid" >/dev/null 2>&1; then
+  POPULATE_HOST_SETUP_ERROR=""
+  if ! POPULATE_HOST_SETUP_ERROR="$(populate_host_setup_destination "codexpill-validation.invalid" 2>&1)"; then
+    POPULATE_HOST_SETUP_ERROR_JSON="$(printf '%s' "${POPULATE_HOST_SETUP_ERROR}" | ruby -rjson -e 'print(JSON.generate(STDIN.read))')"
     cancel_text_input_prompt >/dev/null 2>&1 || true
     cat > "${SUMMARY_PATH}" <<EOF
 {
@@ -2500,13 +2551,14 @@ EOF
   "gaps": [
     "The live probe could not enter a destination into the Add Host setup dialog."
   ],
+  "populateError": ${POPULATE_HOST_SETUP_ERROR_JSON},
   "scenario": "${SCENARIO}",
   "status": "failed",
   "failureClass": "environment_block",
   "failureStep": "add_host_setup_populate"
 }
 EOF
-    echo "Live add-host destination validation smoke failed: could not populate the destination field." >&2
+    echo "Live add-host destination validation smoke failed: could not populate the destination field: ${POPULATE_HOST_SETUP_ERROR}" >&2
     exit 24
   fi
 
