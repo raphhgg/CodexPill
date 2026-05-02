@@ -1,17 +1,16 @@
-import AppKit
 import Foundation
 import Observation
+
+struct StatusItemAccentColor: Codable, Equatable {
+    let red: Double
+    let green: Double
+    let blue: Double
+    let alpha: Double
+}
 
 @MainActor
 @Observable
 final class StatusItemSettingsStore {
-    private struct StoredColorComponents: Codable {
-        let red: Double
-        let green: Double
-        let blue: Double
-        let alpha: Double
-    }
-
     var statusBarIndicatorStyle: StatusBarIndicatorStyle {
         didSet {
             userDefaults.set(statusBarIndicatorStyle.rawValue, forKey: Self.statusBarIndicatorStyleKey)
@@ -30,7 +29,7 @@ final class StatusItemSettingsStore {
         }
     }
 
-    var progressAccentColor: NSColor {
+    var progressAccentColor: StatusItemAccentColor? {
         didSet {
             persistColor(progressAccentColor, key: Self.progressAccentColorKey)
         }
@@ -73,38 +72,26 @@ final class StatusItemSettingsStore {
         statusBarMonochrome = userDefaults.object(forKey: Self.statusBarMonochromeKey) as? Bool ?? true
         statusBarDisplayMode = userDefaults.string(forKey: Self.statusBarDisplayModeKey)
             .flatMap(StatusBarDisplayMode.init(rawValue:)) ?? .textOnHover
-        progressAccentColor = Self.loadColor(
-            from: userDefaults,
-            key: Self.progressAccentColorKey,
-            defaultColor: StatusBarProgressColorDefaults.accent
-        )
+        progressAccentColor = Self.loadColor(from: userDefaults, key: Self.progressAccentColorKey)
         pacingMarkersEnabled = userDefaults.object(forKey: Self.pacingMarkersEnabledKey) as? Bool ?? true
         revealStatusItemTitleShortcut = Self.loadRevealShortcut(from: userDefaults)
     }
 
     var hasCustomProgressAccentColor: Bool {
-        !Self.colorsEqual(progressAccentColor, StatusBarProgressColorDefaults.accent)
+        progressAccentColor != nil
     }
 
     func resetProgressAccentColor() {
-        progressAccentColor = StatusBarProgressColorDefaults.accent
+        progressAccentColor = nil
     }
 
-    private func persistColor(_ color: NSColor, key: String) {
-        let normalized = Self.normalizedColor(color)
-        let components = StoredColorComponents(
-            red: Double(normalized.redComponent),
-            green: Double(normalized.greenComponent),
-            blue: Double(normalized.blueComponent),
-            alpha: Double(normalized.alphaComponent)
-        )
-
-        if Self.colorsEqual(color, StatusBarProgressColorDefaults.accent) {
+    private func persistColor(_ color: StatusItemAccentColor?, key: String) {
+        guard let color else {
             userDefaults.removeObject(forKey: key)
             return
         }
 
-        if let data = try? JSONEncoder().encode(components) {
+        if let data = try? JSONEncoder().encode(color) {
             userDefaults.set(data, forKey: key)
         }
     }
@@ -143,40 +130,13 @@ final class StatusItemSettingsStore {
         return shortcut.isValid ? shortcut : nil
     }
 
-    private static func loadColor(from userDefaults: UserDefaults, key: String, defaultColor: NSColor) -> NSColor {
+    private static func loadColor(from userDefaults: UserDefaults, key: String) -> StatusItemAccentColor? {
         guard let data = userDefaults.data(forKey: key),
-              let components = try? JSONDecoder().decode(StoredColorComponents.self, from: data)
+              let components = try? JSONDecoder().decode(StatusItemAccentColor.self, from: data)
         else {
-            return defaultColor
+            return nil
         }
 
-        return NSColor(
-            deviceRed: components.red,
-            green: components.green,
-            blue: components.blue,
-            alpha: components.alpha
-        )
-    }
-
-    private static func normalizedColor(_ color: NSColor) -> NSColor {
-        if let deviceRGB = color.usingColorSpace(.deviceRGB) {
-            return deviceRGB
-        }
-
-        if let sRGB = color.usingColorSpace(.sRGB) {
-            return sRGB
-        }
-
-        return color
-    }
-
-    private static func colorsEqual(_ lhs: NSColor, _ rhs: NSColor) -> Bool {
-        let left = normalizedColor(lhs)
-        let right = normalizedColor(rhs)
-
-        return abs(left.redComponent - right.redComponent) < 0.001
-            && abs(left.greenComponent - right.greenComponent) < 0.001
-            && abs(left.blueComponent - right.blueComponent) < 0.001
-            && abs(left.alphaComponent - right.alphaComponent) < 0.001
+        return components
     }
 }

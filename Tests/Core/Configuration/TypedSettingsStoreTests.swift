@@ -1,4 +1,4 @@
-import AppKit
+import Foundation
 import Testing
 
 @testable import CodexPill
@@ -52,7 +52,7 @@ struct StatusItemSettingsStoreTests {
         #expect(store.statusBarDisplayMode == .textOnHover)
         #expect(store.pacingMarkersEnabled)
         #expect(store.revealStatusItemTitleShortcut == .defaultRevealStatusItemTitle)
-        #expect(colorsEqual(store.progressAccentColor, StatusBarProgressColorDefaults.accent))
+        #expect(store.progressAccentColor == nil)
     }
 
     @Test(arguments: [
@@ -71,21 +71,21 @@ struct StatusItemSettingsStoreTests {
     @Test
     func customAccentPersistsAndResetRemovesCustomColor() {
         let defaults = makeDefaults()
-        let accent = NSColor(calibratedRed: 0.14, green: 0.55, blue: 0.31, alpha: 1)
+        let accent = StatusItemAccentColor(red: 0.14, green: 0.55, blue: 0.31, alpha: 1)
 
         let first = StatusItemSettingsStore(userDefaults: defaults)
         first.progressAccentColor = accent
         first.pacingMarkersEnabled = false
 
         let second = StatusItemSettingsStore(userDefaults: defaults)
-        #expect(colorsEqual(second.progressAccentColor, accent))
+        #expect(second.progressAccentColor == accent)
         #expect(second.hasCustomProgressAccentColor)
         #expect(!second.pacingMarkersEnabled)
 
         second.resetProgressAccentColor()
 
         let reset = StatusItemSettingsStore(userDefaults: defaults)
-        #expect(colorsEqual(reset.progressAccentColor, StatusBarProgressColorDefaults.accent))
+        #expect(reset.progressAccentColor == nil)
         #expect(!reset.hasCustomProgressAccentColor)
     }
 
@@ -260,14 +260,4 @@ private func makeAccount() -> CodexAccount {
         rateLimits: nil,
         identity: .empty
     )
-}
-
-private func colorsEqual(_ lhs: NSColor, _ rhs: NSColor) -> Bool {
-    let left = (lhs.usingColorSpace(.deviceRGB) ?? lhs.usingColorSpace(.sRGB)) ?? lhs
-    let right = (rhs.usingColorSpace(.deviceRGB) ?? rhs.usingColorSpace(.sRGB)) ?? rhs
-
-    return abs(left.redComponent - right.redComponent) < 0.001
-        && abs(left.greenComponent - right.greenComponent) < 0.001
-        && abs(left.blueComponent - right.blueComponent) < 0.001
-        && abs(left.alphaComponent - right.alphaComponent) < 0.001
 }

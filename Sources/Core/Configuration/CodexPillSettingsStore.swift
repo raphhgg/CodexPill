@@ -1,4 +1,3 @@
-import AppKit
 import Foundation
 import Observation
 
@@ -44,7 +43,7 @@ final class CodexPillSettingsStore {
         set { statusItemSettings.statusBarDisplayMode = newValue }
     }
 
-    var progressAccentColor: NSColor {
+    var progressAccentColor: StatusItemAccentColor? {
         get { statusItemSettings.progressAccentColor }
         set { statusItemSettings.progressAccentColor = newValue }
     }
