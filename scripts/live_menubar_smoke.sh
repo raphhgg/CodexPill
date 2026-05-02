@@ -47,7 +47,7 @@ esac
 mkdir -p "${ARTIFACT_ROOT}/screenshots" "${ARTIFACT_ROOT}/logs"
 rm -f "${VALIDATION_EVENTS_PATH}"
 
-if [[ "${SCENARIO}" == "live-account-switch" || "${SCENARIO}" == "live-remote-host-switch" || "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-add-account-prompt" || "${SCENARIO}" == "live-add-host-destination-validation-failed" || "${SCENARIO}" == "live-add-host-prompt" ]]; then
+if [[ "${SCENARIO}" == "live-account-switch" || "${SCENARIO}" == "live-remote-host-switch" || "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-add-account-prompt" || "${SCENARIO}" == "live-add-host-destination-validation-failed" || "${SCENARIO}" == "live-add-host-prompt" || "${SCENARIO}" == "live-scheduled-refresh" ]]; then
   rm -rf "${SEAL_PROOF_OUTPUT_PATH}"
 fi
 
