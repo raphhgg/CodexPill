@@ -2,6 +2,8 @@
 
 This repo uses invariant-driven validation for behavior changes.
 
+Seal-backed runtime validation migration is tracked in [seal-runtime-validation-migration-plan.md](seal-runtime-validation-migration-plan.md). That plan records the move from CodexPill-owned runtime/live gates toward Seal-owned proof verification and reporting while keeping lower-level CodexPill tests where they still add value.
+
 ## Local rule
 
 When behavior changes:
