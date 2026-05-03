@@ -114,7 +114,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         notificationSettingsLauncher: NotificationSettingsLauncher = SystemNotificationSettingsLauncher(),
         validationSink: MenuBarValidationSink? = nil,
         validationScenario: String? = MenuBarValidationConfiguration.scenario(),
-        sealValidationRun: CodexPillSealValidationRun? = nil,
+        sealProofRecorder: CodexPillSealProofRecorder? = nil,
         validationObserver: MenuBarValidationObserver? = nil,
         allowsEmptyStatePrompt: Bool = true
     ) {
@@ -143,7 +143,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.validationObserver = validationObserver ?? MenuBarValidationObserver(
             sink: validationSink,
             scenario: validationScenario,
-            sealRun: sealValidationRun
+            sealProofRecorder: sealProofRecorder
         )
         self.allowsEmptyStatePrompt = allowsEmptyStatePrompt
         self.remoteHostRuntime = RemoteHostRuntime(

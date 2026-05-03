@@ -12,8 +12,10 @@ backlog, not a cleanup patch. No tests are deleted by this slice.
 - `docs/VALIDATION.md`
 - `docs/feature-to-seal-scenario-coverage.md`
 - repository test layout under `Tests/`
-- current Seal-backed scenario declarations in
-  `Sources/Features/MenuBar/Validation/CodexPillSealValidation.swift`
+- current Seal-backed scenario declarations in feature-owned validation
+  catalogs under `Sources/Features/Accounts/Validation/` and
+  `Sources/Features/Hosts/Validation/`, plus shared proof runtime under
+  `Sources/Features/Validation/`
 
 The issue brief referenced `docs/seal-runtime-validation-migration-plan.md`.
 That file is not present in this checkout. The landed CodexPill-owned coverage

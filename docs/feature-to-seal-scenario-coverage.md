@@ -28,9 +28,11 @@ these product semantics as Seal product truth.
 
 ## Existing Seal Runtime/Live Scenarios
 
-Current Seal-backed scenarios are implemented in
-`Sources/Features/MenuBar/Validation/CodexPillSealValidation.swift` and
-accepted in `docs/seal-validation-migration-acceptance-RGR-188.md`.
+Current Seal-backed scenarios are implemented by feature-owned validation
+catalogs in `Sources/Features/Accounts/Validation/` and
+`Sources/Features/Hosts/Validation/`, with shared proof composition/runtime in
+`Sources/Features/Validation/`. They are accepted in
+`docs/seal-validation-migration-acceptance-RGR-188.md`.
 
 | Feature claim | Legacy live scenario | Seal scenario | Category |
 | --- | --- | --- | --- |

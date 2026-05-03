@@ -11,7 +11,7 @@ struct MenuBarValidationObserverTests {
         let observer = MenuBarValidationObserver(
             sink: sink,
             scenario: "observer-tests",
-            sealRun: nil
+            sealProofRecorder: nil
         )
 
         observer.recordMenuAction(
@@ -44,7 +44,7 @@ struct MenuBarValidationObserverTests {
         let observer = MenuBarValidationObserver(
             sink: sink,
             scenario: "observer-tests",
-            sealRun: nil
+            sealProofRecorder: nil
         )
         let previous = makeAccount(name: "Personal", email: "personal@example.com")
         let target = makeAccount(name: "Business", email: "business@example.com")
@@ -88,7 +88,7 @@ struct MenuBarValidationObserverTests {
         let observer = MenuBarValidationObserver(
             sink: sink,
             scenario: "observer-tests",
-            sealRun: nil
+            sealProofRecorder: nil
         )
         let account = makeAccount(name: "Business", email: "business@example.com")
         let host = RemoteHost(destination: "user@buildbox", displayName: "Buildbox")

@@ -12,6 +12,7 @@ The source tree is organized by responsibility:
 - `Sources/Features/Accounts/`
 - `Sources/Features/Hosts/`
 - `Sources/Features/MenuBar/`
+- `Sources/Features/Validation/`
 - `Sources/Core/Configuration/`
 - `Sources/Core/Models/`
 - `Sources/Platform/Codex/`
@@ -33,7 +34,7 @@ Platform -> Core
 
 ### App
 
-`Sources/App/` owns bootstrap, lifecycle wiring, validation bootstrap, and dependency assembly.
+`Sources/App/` owns bootstrap, lifecycle wiring, and dependency assembly.
 
 It does not own menu composition, account workflows, file I/O policy, Codex process control, or Codex protocol details.
 
@@ -89,6 +90,20 @@ Key boundaries:
 - `GlobalShortcutRuntime`
 - `KeyboardShortcutPresentation`
 - `AccountAvailabilityNotificationRuntime`
+
+`Features/Validation` owns CodexPill's shared validation composition and Seal runtime adapter. It is not product behavior and it is not Seal itself: it may adapt CodexPill feature validation APIs to `SealRecorder`, but generic proof contracts, manifest semantics, verifier output, and reusable recorder primitives belong in Seal. This layer is UI-surface-neutral, so it may define registry seams, proof sessions, and validation-owned evidence DTOs, but it must not import AppKit, SwiftUI, or MenuBar-specific snapshot types.
+
+Key boundaries:
+
+- `CodexPillSealProofRecorderFactory`
+- `CodexPillSealProofRecorderRegistry`
+- `CodexPillSealProofRecorder`
+- `CodexPillSealProofSession`
+
+Feature-specific Seal scenario contracts live with the feature they prove:
+
+- `AccountValidationRecorder`, `AccountSealScenarioCatalog`, `AccountSealProofRecorder`, and `AccountSealProofRecorderRegistry` live in `Features/Accounts/Validation`.
+- `HostValidationRecorder`, `HostSealScenarioCatalog`, `HostSealProofRecorder`, and `HostSealProofRecorderRegistry` live in `Features/Hosts/Validation`.
 
 ### Platform
 
@@ -169,7 +184,15 @@ Settings persistence is split by feature boundary:
 
 `MenuBarHostActionCoordinator` is the menubar runtime boundary for host-specific user actions. It owns add-host, remove-host, reverify-host, adopt-detected-account, and switch-account-on-host sequencing while `MenuBarCoordinator` keeps AppKit selector entry points and menu rebuild callbacks.
 
-`MenuBarValidationObserver` is observer instrumentation for menubar validation. It owns translation from runtime events to validation event names, invariant IDs, payload sanitization, menu snapshot/action-trace recording, file sink forwarding, and Seal proof forwarding. Production coordinators should call semantic observer methods only; they should not know validation artifact formats or Seal lifecycle details. The observer is disabled/no-op in normal production paths when validation configuration is absent.
+`CodexPillSealProofRecorderFactory` is the product validation composition boundary. It reads validation environment, asks per-feature `CodexPillSealProofRecorderRegistry` implementations whether they own the requested legacy scenario, and returns the injected `CodexPillSealProofRecorder` facade for the active scenario.
+
+`CodexPillSealProofRecorder` is the small product validation composition container injected into menubar instrumentation. It does not own scenario definitions or feature event APIs; it exposes the active feature-owned recorder selected by the factory.
+
+`CodexPillSealProofSession` is the local Seal runtime adapter. It owns Seal feature registration, run start, event/snapshot recording, finish, and cancellation for CodexPill. If this shape proves reusable across another Apple client, it should be promoted into Seal or a Seal-owned Apple adapter rather than expanded as CodexPill product code.
+
+`AccountValidationRecorder` and `HostValidationRecorder` are the feature validation tracking-plan APIs. They list the semantic events a feature exposes for live proof, in feature language. `AccountSealScenarioCatalog` and `HostSealScenarioCatalog` own feature-specific Seal scenario IDs, invariant IDs, rules, and expectations. `AccountSealProofRecorder` and `HostSealProofRecorder` implement the feature APIs by capturing evidence and writing Seal proof events. Validation evidence DTOs must stay independent from AppKit, SwiftUI, and MenuBar snapshot types.
+
+`MenuBarValidationObserver` is observer instrumentation for menubar validation. It owns translation from runtime events to validation event names, invariant IDs, payload sanitization, menu snapshot/action-trace recording, file sink forwarding, and forwarding semantic evidence to the product validation proof boundary. Production coordinators should call semantic observer methods only; they should not know validation artifact formats or Seal lifecycle details. The observer is disabled/no-op in normal production paths when validation configuration is absent.
 
 `MenuBarNotificationWorkflow` is the menubar runtime boundary for account-availability notification orchestration. It owns previous availability snapshot tracking, authorization-state refresh interaction, policy evaluation, payload/action rendering, stale notification response resolution, dedupe state updates, and re-evaluation scheduling callbacks. It delegates local account switching, remote host switching, alert presentation, app activation, and refresh execution back to coordinator-owned runtime collaborators; it uses `AccountAvailabilityNotifications` for account-centric policy and `AccountAvailabilityNotificationRuntime` for macOS delivery mechanics.
 
