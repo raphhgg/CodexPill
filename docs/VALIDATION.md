@@ -25,8 +25,10 @@ Anything an agent can verify in this repo should be expressed as automated proof
 - `make verify-ui` must write hosted screenshots plus JSON artifacts under `build/verification/<agent>/<scenario>/`
 - `make verify-ui-live` must write at least `summary.json`, `runtime-assertions.json`, `live-menu-snapshot.json`, `validation-events.jsonl`, and a screenshot
 - live summaries should include `proofSequence` and `failureStep` when a scenario relies on app-emitted runtime events
-- Seal-backed live summaries must list `logs/seal-verifier.result.json`, and that artifact must record verifier pass/fail status, feature, scenario, checked invariant IDs, verifier mode, and failure diagnostics when verification fails
-- For Seal-backed live scenarios, `summary.verdict_source` must be `"seal"` and top-level `summary.status` is only a temporary compatibility envelope derived from `logs/seal-verifier.result.json`
+- Seal-backed live summaries must list Seal-owned `seal-proof/result.json` and `seal-proof/report.md` artifacts
+- `summary.sealResultPath` must point to Seal's `result.json` artifact and `summary.sealReportPath` must point to Seal's `report.md` artifact
+- Seal-backed result JSON is the machine-readable gate evidence; the Markdown report is human-readable review evidence produced by Seal, not by CodexPill rendering logic
+- For Seal-backed live scenarios, `summary.verdict_source` must be `"seal"` and top-level `summary.status` is only a temporary compatibility envelope derived from `seal-proof/result.json`
 - For Seal-backed live scenarios, `validation-events.jsonl` and legacy proof-sequence fields are diagnostic-only; they cannot make a run pass when the Seal proof is missing or rejected
 - Seal-backed live scenarios must clear stale `seal-proof/` and Seal verifier log/result artifacts before each run so neither stale Seal output nor stale legacy events can affect the verdict
 - validation and test harnesses must never read from or write to the default user Application Support catalog
@@ -41,6 +43,7 @@ Anything an agent can verify in this repo should be expressed as automated proof
 - Track manual-only gaps as explicit issues or feature-document open questions until they can be covered by automated proof.
 - Use [feature-to-seal-scenario-coverage.md](feature-to-seal-scenario-coverage.md) as the CodexPill-owned map from feature claims to Seal migration candidates. Seal docs may link to that map for adoption pressure or release-readiness context, but CodexPill remains the owner of the product semantics.
 - Use [test-suite-relevance-after-seal-runtime-migration.md](test-suite-relevance-after-seal-runtime-migration.md) as the CodexPill-owned review of which lower-layer tests still add value after Seal owns migrated runtime/live proof, which legacy runtime assertions are migration candidates, and which tests are risky because they may mutate live auth or real user state if isolation is weakened.
+- For PR or Linear handoff of Seal-backed live validation, attach or link `summary.sealReportPath` from the artifact root as the human-readable report, and include `summary.sealResultPath` as the machine-readable gate evidence. Do not paste the report body into PRs or Linear comments and do not parse Markdown for pass/fail status.
 
 ## Automated coverage
 

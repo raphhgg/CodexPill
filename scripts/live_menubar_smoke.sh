@@ -14,7 +14,9 @@ VALIDATION_EVENTS_PATH="${ARTIFACT_ROOT}/validation-events.jsonl"
 SEAL_PROOF_OUTPUT_PATH="${ARTIFACT_ROOT}/seal-proof"
 SEAL_VERIFIER_STDOUT_PATH="${ARTIFACT_ROOT}/logs/seal-verifier.stdout.log"
 SEAL_VERIFIER_STDERR_PATH="${ARTIFACT_ROOT}/logs/seal-verifier.stderr.log"
-SEAL_VERIFIER_RESULT_PATH="${ARTIFACT_ROOT}/logs/seal-verifier.result.json"
+SEAL_VERIFIER_OUTPUT_PATH="${ARTIFACT_ROOT}/seal-proof"
+SEAL_VERIFIER_RESULT_PATH="${SEAL_VERIFIER_OUTPUT_PATH}/result.json"
+SEAL_VERIFIER_REPORT_PATH="${SEAL_VERIFIER_OUTPUT_PATH}/report.md"
 SEAL_PACKAGE_PATH="${CODEXPILL_SEAL_PACKAGE_PATH:-../Seal}"
 RUNTIME_ASSERTIONS_PATH="${ARTIFACT_ROOT}/runtime-assertions.json"
 APP_SERVER_STATUS_PATH="${ARTIFACT_ROOT}/app-server-status.json"
@@ -75,16 +77,19 @@ finalize_seal_summary() {
     return "${exit_status}"
   fi
 
-  ruby -rjson - "${SUMMARY_PATH}" "${SEAL_VERIFIER_RESULT_PATH}" "${exit_status}" <<'RUBY'
-summary_path, seal_result_path, exit_status = ARGV
+  ruby -rjson - "${SUMMARY_PATH}" "${SEAL_VERIFIER_RESULT_PATH}" "${SEAL_VERIFIER_REPORT_PATH}" "${exit_status}" <<'RUBY'
+summary_path, seal_result_path, seal_report_path, exit_status = ARGV
 summary = JSON.parse(File.read(summary_path))
 artifacts = summary.fetch("artifacts", [])
 
 unless artifacts.include?("validation-events.jsonl")
   artifacts << "validation-events.jsonl"
 end
-unless artifacts.include?("logs/seal-verifier.result.json")
-  artifacts << "logs/seal-verifier.result.json"
+unless artifacts.include?("seal-proof/result.json")
+  artifacts << "seal-proof/result.json"
+end
+unless artifacts.include?("seal-proof/report.md")
+  artifacts << "seal-proof/report.md"
 end
 summary["artifacts"] = artifacts
 
@@ -92,17 +97,24 @@ summary["verdict_source"] = "seal"
 summary["compatibilityStatusEnvelope"] = {
   "statusField" => "summary.status",
   "temporary" => true,
-  "statusDerivedFrom" => "logs/seal-verifier.result.json"
+  "statusDerivedFrom" => "seal-proof/result.json"
 }
 summary["legacyValidationEvents"] = {
   "path" => "validation-events.jsonl",
   "diagnosticOnly" => true
 }
-summary["sealVerifierResultPath"] = "logs/seal-verifier.result.json"
+summary["sealResultPath"] = "seal-proof/result.json"
+summary["sealReportPath"] = "seal-proof/report.md"
+summary["sealReport"] = {
+  "path" => "seal-proof/report.md",
+  "diagnosticOnly" => false,
+  "source" => "seal-verifier"
+}
 
 if File.exist?(seal_result_path)
   result = JSON.parse(File.read(seal_result_path))
-  verdict = result["status"].to_s.empty? ? (result["passed"] ? "passed" : "failed") : result["status"]
+  run_verdict = result.dig("run", "verdict")
+  verdict = run_verdict.to_s.empty? ? (result["status"].to_s.empty? ? (result["passed"] ? "passed" : "failed") : result["status"]) : run_verdict
   summary["sealVerifierRunVerdict"] = verdict
   summary["sealVerifierPassed"] = result["passed"] == true || verdict == "passed"
   summary["sealProofVerificationMode"] ||= result["sealProofVerificationMode"]
@@ -119,6 +131,13 @@ else
   summary["gaps"] = gaps
 end
 
+unless File.exist?(seal_report_path)
+  gaps = summary["gaps"].is_a?(Array) ? summary["gaps"] : []
+  missing_report_gap = "Seal Markdown report was missing, so human-readable Seal review evidence is unavailable."
+  gaps << missing_report_gap unless gaps.include?(missing_report_gap)
+  summary["gaps"] = gaps
+end
+
 File.write(summary_path, JSON.pretty_generate(summary) + "\n")
 RUBY
   return "${exit_status}"
@@ -132,7 +151,7 @@ TRAPEXIT() {
 
 if is_seal_backed_scenario "${SCENARIO}"; then
   rm -rf "${SEAL_PROOF_OUTPUT_PATH}"
-  rm -f "${SEAL_VERIFIER_STDOUT_PATH}" "${SEAL_VERIFIER_STDERR_PATH}" "${SEAL_VERIFIER_RESULT_PATH}"
+  rm -f "${SEAL_VERIFIER_STDOUT_PATH}" "${SEAL_VERIFIER_STDERR_PATH}"
 fi
 
 cat > "${COMMAND_PATH}" <<EOF
@@ -1564,9 +1583,11 @@ RUBY
 
 verify_seal_proof() {
   local proof_dir="${PWD}/${SEAL_PROOF_OUTPUT_PATH}"
+  local verifier_output_dir="${PWD}/${SEAL_VERIFIER_OUTPUT_PATH}"
   local manifest_path="${proof_dir}/manifest.json"
   SEAL_PROOF_VERIFICATION_MODE="manifest_missing"
   SEAL_PROOF_FAILURE_GAP="Seal proof manifest was missing or rejected by the Seal verifier."
+  mkdir -p "${SEAL_VERIFIER_OUTPUT_PATH}"
 
   if [[ ! -f "${manifest_path}" ]]; then
     : > "${SEAL_VERIFIER_STDOUT_PATH}"
@@ -1605,12 +1626,11 @@ verify_seal_proof() {
     fi
 
     SEAL_PROOF_VERIFICATION_MODE="explicit_verifier_command"
-    if "${verifier_command[@]}" "${proof_dir}" > "${SEAL_VERIFIER_STDOUT_PATH}" 2> "${SEAL_VERIFIER_STDERR_PATH}"; then
-      write_seal_verifier_result "passed" "" "[]"
+    if "${verifier_command[@]}" --result-json --markdown-report --output-dir "${SEAL_VERIFIER_OUTPUT_PATH}" "${proof_dir}" > "${SEAL_VERIFIER_RESULT_PATH}" 2> "${SEAL_VERIFIER_STDERR_PATH}"; then
+      : > "${SEAL_VERIFIER_STDOUT_PATH}"
       return 0
     fi
     SEAL_PROOF_FAILURE_GAP="$(read_seal_proof_failure_gap)"
-    write_seal_verifier_result "failed" "seal_proof_verification" "$(seal_proof_failure_gaps_json)"
     return 1
   fi
 
@@ -1621,13 +1641,12 @@ verify_seal_proof() {
     SEAL_PROOF_VERIFICATION_MODE="seal_swift_run"
     if (
       cd "${seal_package_path}"
-      swift run seal-verifier --verbose "${proof_dir}"
-    ) > "${SEAL_VERIFIER_STDOUT_PATH}" 2> "${SEAL_VERIFIER_STDERR_PATH}"; then
-      write_seal_verifier_result "passed" "" "[]"
+      swift run seal-verifier --result-json --markdown-report --output-dir "${verifier_output_dir}" "${proof_dir}"
+    ) > "${SEAL_VERIFIER_RESULT_PATH}" 2> "${SEAL_VERIFIER_STDERR_PATH}"; then
+      : > "${SEAL_VERIFIER_STDOUT_PATH}"
       return 0
     fi
     SEAL_PROOF_FAILURE_GAP="$(read_seal_proof_failure_gap)"
-    write_seal_verifier_result "failed" "seal_proof_verification" "$(seal_proof_failure_gaps_json)"
     return 1
   fi
 
@@ -1671,7 +1690,7 @@ result = {
     "seal-proof/manifest.json",
     "logs/seal-verifier.stdout.log",
     "logs/seal-verifier.stderr.log",
-    "logs/seal-verifier.result.json"
+    "seal-proof/result.json"
   ]
 }
 
@@ -2044,7 +2063,7 @@ EOF
     "seal-proof/evidence/ui-after-refresh.json",
     "logs/seal-verifier.stdout.log",
     "logs/seal-verifier.stderr.log",
-    "logs/seal-verifier.result.json",
+    "seal-proof/result.json",
     "logs/run-menubar.log"
   ],
   "assertions": [
@@ -2090,7 +2109,7 @@ EOF
     "seal-proof/evidence/ui-after-refresh.json",
     "logs/seal-verifier.stdout.log",
     "logs/seal-verifier.stderr.log",
-    "logs/seal-verifier.result.json",
+    "seal-proof/result.json",
     "logs/run-menubar.log"
   ],
   "assertions": [
@@ -2285,7 +2304,7 @@ if [[ "${SCENARIO}" == "live-add-account-prompt" ]]; then
     "seal-proof/evidence/events.jsonl",
     "logs/seal-verifier.stdout.log",
     "logs/seal-verifier.stderr.log",
-    "logs/seal-verifier.result.json",
+    "seal-proof/result.json",
     "logs/run-menubar.log"
   ],
   "assertions": [
@@ -2331,7 +2350,7 @@ EOF
     "seal-proof/evidence/events.jsonl",
     "logs/seal-verifier.stdout.log",
     "logs/seal-verifier.stderr.log",
-    "logs/seal-verifier.result.json",
+    "seal-proof/result.json",
     "logs/run-menubar.log"
   ],
   "assertions": [
@@ -2380,7 +2399,7 @@ EOF
     "seal-proof/evidence/events.jsonl",
     "logs/seal-verifier.stdout.log",
     "logs/seal-verifier.stderr.log",
-    "logs/seal-verifier.result.json",
+    "seal-proof/result.json",
     "logs/run-menubar.log"
   ],
   "assertions": [
@@ -2418,7 +2437,7 @@ EOF
     "seal-proof/evidence/events.jsonl",
     "logs/seal-verifier.stdout.log",
     "logs/seal-verifier.stderr.log",
-    "logs/seal-verifier.result.json",
+    "seal-proof/result.json",
     "logs/run-menubar.log"
   ],
   "assertions": [
@@ -2456,7 +2475,7 @@ EOF
     "seal-proof/evidence/events.jsonl",
     "logs/seal-verifier.stdout.log",
     "logs/seal-verifier.stderr.log",
-    "logs/seal-verifier.result.json",
+    "seal-proof/result.json",
     "logs/run-menubar.log"
   ],
   "assertions": [
@@ -2498,7 +2517,7 @@ if [[ "${SCENARIO}" == "live-add-account-name-dialog-cancelled" ]]; then
     "seal-proof/evidence/events.jsonl",
     "logs/seal-verifier.stdout.log",
     "logs/seal-verifier.stderr.log",
-    "logs/seal-verifier.result.json",
+    "seal-proof/result.json",
     "logs/run-menubar.log"
   ],
   "assertions": [
@@ -2544,7 +2563,7 @@ EOF
     "seal-proof/evidence/events.jsonl",
     "logs/seal-verifier.stdout.log",
     "logs/seal-verifier.stderr.log",
-    "logs/seal-verifier.result.json",
+    "seal-proof/result.json",
     "logs/run-menubar.log"
   ],
   "assertions": [
@@ -2593,7 +2612,7 @@ EOF
     "seal-proof/evidence/events.jsonl",
     "logs/seal-verifier.stdout.log",
     "logs/seal-verifier.stderr.log",
-    "logs/seal-verifier.result.json",
+    "seal-proof/result.json",
     "logs/run-menubar.log"
   ],
   "assertions": [
@@ -2632,7 +2651,7 @@ EOF
     "seal-proof/evidence/events.jsonl",
     "logs/seal-verifier.stdout.log",
     "logs/seal-verifier.stderr.log",
-    "logs/seal-verifier.result.json",
+    "seal-proof/result.json",
     "logs/run-menubar.log"
   ],
   "assertions": [
@@ -2673,7 +2692,7 @@ EOF
     "seal-proof/evidence/account-after.json",
     "logs/seal-verifier.stdout.log",
     "logs/seal-verifier.stderr.log",
-    "logs/seal-verifier.result.json",
+    "seal-proof/result.json",
     "logs/run-menubar.log"
   ],
   "assertions": [
@@ -2851,7 +2870,7 @@ EOF
     "seal-proof/evidence/host-validation-snapshot.json",
     "logs/seal-verifier.stdout.log",
     "logs/seal-verifier.stderr.log",
-    "logs/seal-verifier.result.json",
+    "seal-proof/result.json",
     "logs/run-menubar.log"
   ],
   "assertions": [
@@ -2891,7 +2910,7 @@ EOF
     "seal-proof/evidence/host-validation-snapshot.json",
     "logs/seal-verifier.stdout.log",
     "logs/seal-verifier.stderr.log",
-    "logs/seal-verifier.result.json",
+    "seal-proof/result.json",
     "logs/run-menubar.log"
   ],
   "assertions": [
@@ -3160,7 +3179,7 @@ EOF
     "seal-proof/evidence/events.jsonl",
     "logs/seal-verifier.stdout.log",
     "logs/seal-verifier.stderr.log",
-    "logs/seal-verifier.result.json",
+    "seal-proof/result.json",
     "logs/run-menubar.log"
   ],
   "assertions": [
@@ -3201,7 +3220,7 @@ EOF
     "seal-proof/evidence/account-after.json",
     "logs/seal-verifier.stdout.log",
     "logs/seal-verifier.stderr.log",
-    "logs/seal-verifier.result.json",
+    "seal-proof/result.json",
     "logs/run-menubar.log"
   ],
   "assertions": [
@@ -3368,7 +3387,7 @@ EOF
     "seal-proof/evidence/events.jsonl",
     "logs/seal-verifier.stdout.log",
     "logs/seal-verifier.stderr.log",
-    "logs/seal-verifier.result.json",
+    "seal-proof/result.json",
     "validation-app-support/accounts.json",
     "validation-settings.json",
     "logs/run-menubar.log"
@@ -3408,7 +3427,7 @@ EOF
     "seal-proof/evidence/events.jsonl",
     "logs/seal-verifier.stdout.log",
     "logs/seal-verifier.stderr.log",
-    "logs/seal-verifier.result.json",
+    "seal-proof/result.json",
     "validation-app-support/accounts.json",
     "validation-settings.json",
     "logs/run-menubar.log"
