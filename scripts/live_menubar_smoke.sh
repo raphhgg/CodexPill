@@ -23,6 +23,15 @@ VALIDATION_APP_SUPPORT_DIR="${ARTIFACT_ROOT}/validation-app-support"
 VALIDATION_SETTINGS_FIXTURE_PATH="${ARTIFACT_ROOT}/validation-settings.json"
 VALIDATION_DEFAULTS_SUITE="CodexPill.validation.${AGENT_NAME}.${SCENARIO//[^[:alnum:]]/_}"
 PROOF_LAYER="live_ui"
+SEAL_BACKED_SCENARIOS=(
+  live-account-switch
+  live-remote-host-switch
+  live-add-account-name-dialog-cancelled
+  live-add-account-prompt
+  live-add-host-destination-validation-failed
+  live-add-host-prompt
+  live-scheduled-refresh
+)
 
 case "${SCENARIO}" in
   live-account-switch)
@@ -48,8 +57,82 @@ esac
 mkdir -p "${ARTIFACT_ROOT}/screenshots" "${ARTIFACT_ROOT}/logs"
 rm -f "${VALIDATION_EVENTS_PATH}"
 
-if [[ "${SCENARIO}" == "live-account-switch" || "${SCENARIO}" == "live-remote-host-switch" || "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-add-account-prompt" || "${SCENARIO}" == "live-add-host-destination-validation-failed" || "${SCENARIO}" == "live-add-host-prompt" || "${SCENARIO}" == "live-scheduled-refresh" ]]; then
+is_seal_backed_scenario() {
+  local candidate="$1"
+  local seal_scenario
+  for seal_scenario in "${SEAL_BACKED_SCENARIOS[@]}"; do
+    if [[ "${candidate}" == "${seal_scenario}" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+finalize_seal_summary() {
+  local exit_status="$1"
+
+  if ! is_seal_backed_scenario "${SCENARIO}" || [[ ! -f "${SUMMARY_PATH}" ]]; then
+    return "${exit_status}"
+  fi
+
+  ruby -rjson - "${SUMMARY_PATH}" "${SEAL_VERIFIER_RESULT_PATH}" "${exit_status}" <<'RUBY'
+summary_path, seal_result_path, exit_status = ARGV
+summary = JSON.parse(File.read(summary_path))
+artifacts = summary.fetch("artifacts", [])
+
+unless artifacts.include?("validation-events.jsonl")
+  artifacts << "validation-events.jsonl"
+end
+unless artifacts.include?("logs/seal-verifier.result.json")
+  artifacts << "logs/seal-verifier.result.json"
+end
+summary["artifacts"] = artifacts
+
+summary["verdict_source"] = "seal"
+summary["compatibilityStatusEnvelope"] = {
+  "statusField" => "summary.status",
+  "temporary" => true,
+  "statusDerivedFrom" => "logs/seal-verifier.result.json"
+}
+summary["legacyValidationEvents"] = {
+  "path" => "validation-events.jsonl",
+  "diagnosticOnly" => true
+}
+summary["sealVerifierResultPath"] = "logs/seal-verifier.result.json"
+
+if File.exist?(seal_result_path)
+  result = JSON.parse(File.read(seal_result_path))
+  verdict = result["status"].to_s.empty? ? (result["passed"] ? "passed" : "failed") : result["status"]
+  summary["sealVerifierRunVerdict"] = verdict
+  summary["sealVerifierPassed"] = result["passed"] == true || verdict == "passed"
+  summary["sealProofVerificationMode"] ||= result["sealProofVerificationMode"]
+  summary["status"] = summary["sealVerifierPassed"] ? "passed" : "failed"
+else
+  summary["sealVerifierRunVerdict"] = "missing"
+  summary["sealVerifierPassed"] = false
+  summary["status"] = "failed"
+  summary["failureClass"] ||= "product_regression"
+  summary["failureStep"] ||= "seal_proof_verification"
+  gaps = summary["gaps"].is_a?(Array) ? summary["gaps"] : []
+  missing_gap = "Seal verifier result was missing, so Seal is not available as the authoritative verdict."
+  gaps << missing_gap unless gaps.include?(missing_gap)
+  summary["gaps"] = gaps
+end
+
+File.write(summary_path, JSON.pretty_generate(summary) + "\n")
+RUBY
+  return "${exit_status}"
+}
+
+TRAPEXIT() {
+  local exit_status="$?"
+  finalize_seal_summary "${exit_status}"
+  return "${exit_status}"
+}
+
+if is_seal_backed_scenario "${SCENARIO}"; then
   rm -rf "${SEAL_PROOF_OUTPUT_PATH}"
+  rm -f "${SEAL_VERIFIER_STDOUT_PATH}" "${SEAL_VERIFIER_STDERR_PATH}" "${SEAL_VERIFIER_RESULT_PATH}"
 fi
 
 cat > "${COMMAND_PATH}" <<EOF
@@ -1609,9 +1692,9 @@ RUBY
 read_seal_proof_failure_gap() {
   ruby - "${SEAL_VERIFIER_STDOUT_PATH}" "${SEAL_VERIFIER_STDERR_PATH}" <<'RUBY'
 stdout_path, stderr_path = ARGV
-text = [stdout_path, stderr_path].filter_map do |path|
+text = [stdout_path, stderr_path].map do |path|
   File.exist?(path) ? File.read(path) : nil
-end.join("\n")
+end.compact.join("\n")
 
 reason = text.lines.map(&:strip).find { |line| line.start_with?("reason: ") }
 diagnostic = text.lines.map(&:strip).find { |line| line.start_with?("- error ") }

@@ -26,6 +26,9 @@ Anything an agent can verify in this repo should be expressed as automated proof
 - `make verify-ui-live` must write at least `summary.json`, `runtime-assertions.json`, `live-menu-snapshot.json`, `validation-events.jsonl`, and a screenshot
 - live summaries should include `proofSequence` and `failureStep` when a scenario relies on app-emitted runtime events
 - Seal-backed live summaries must list `logs/seal-verifier.result.json`, and that artifact must record verifier pass/fail status, feature, scenario, checked invariant IDs, verifier mode, and failure diagnostics when verification fails
+- For Seal-backed live scenarios, `summary.verdict_source` must be `"seal"` and top-level `summary.status` is only a temporary compatibility envelope derived from `logs/seal-verifier.result.json`
+- For Seal-backed live scenarios, `validation-events.jsonl` and legacy proof-sequence fields are diagnostic-only; they cannot make a run pass when the Seal proof is missing or rejected
+- Seal-backed live scenarios must clear stale `seal-proof/` and Seal verifier log/result artifacts before each run so neither stale Seal output nor stale legacy events can affect the verdict
 - validation and test harnesses must never read from or write to the default user Application Support catalog
 - validation and test harnesses must never control real product processes, such as quitting, force-quitting, relaunching, or driving the installed Codex app, unless the scenario explicitly opts into live mutation
 - validation and test harnesses must never surface blocking native alerts; they must capture alert intent through non-interactive test presenters or validation artifacts instead
