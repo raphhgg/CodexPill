@@ -40,6 +40,7 @@ Anything an agent can verify in this repo should be expressed as automated proof
 - Add or extend live smoke scenarios when runtime behavior must be proven by an agent.
 - Track manual-only gaps as explicit issues or feature-document open questions until they can be covered by automated proof.
 - Use [feature-to-seal-scenario-coverage.md](feature-to-seal-scenario-coverage.md) as the CodexPill-owned map from feature claims to Seal migration candidates. Seal docs may link to that map for adoption pressure or release-readiness context, but CodexPill remains the owner of the product semantics.
+- Use [test-suite-relevance-after-seal-runtime-migration.md](test-suite-relevance-after-seal-runtime-migration.md) as the CodexPill-owned review of which lower-layer tests still add value after Seal owns migrated runtime/live proof, which legacy runtime assertions are migration candidates, and which tests are risky because they may mutate live auth or real user state if isolation is weakened.
 
 ## Automated coverage
 
