@@ -104,11 +104,15 @@ Remote pending, failed, disconnected, or unverified states should not be present
 
 When the app cannot verify a remote account, it should either hide the remote account card or show an explicit recovery state owned by the Remote Hosts feature.
 
-## Account Catalog UX
+## Account Menu And Catalog UX
 
-The `Accounts` section lists saved accounts that can be selected for local or remote use.
+CodexPill adapts the saved-account menu to the account and host setup:
 
-The catalog is not the same as active-account presentation. It shows saved options, while `Active Account(s)` shows active targets.
+- With one saved account and no configured host, CodexPill hides the saved-account list and shows `Account > Add Account…, Rename…, Remove…`.
+- With multiple saved accounts and no configured host, CodexPill shows `Other Accounts` rows excluding the active local account. The active local account is managed through `Account > Rename…, Remove…`, and `Add Account…` remains a top-level action.
+- With configured hosts, CodexPill keeps the visible saved-account row design because each row can expose local and remote target actions.
+
+The catalog is not the same as active-account presentation. It shows saved options, while `Active Account(s)` shows active targets. Management actions for the active local account should not force an otherwise duplicate row to appear in the saved-account list.
 
 ### Row Content
 

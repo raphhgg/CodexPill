@@ -147,13 +147,13 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `proofs_required`: `["unit", "deterministic_ui"]`
 - `scenarios`: `["current_account_card", "remote_account_card", "missing_reset_window_duration", "show_markers_preference"]`
 
-### `menubar.inactive_accounts.render_and_wired_for_switch`
+### `menubar.account_catalog.adapts_to_account_and_host_shape`
 
 - `feature`: `menubar`
-- `rule`: Saved inactive accounts must render in `Accounts` or `More Accounts…` as submenu parent rows. Their submenus must show a disabled email identity row, fall back to `No email` when the email is unknown, preserve the disabled usage row below it, and expose enabled `switchAccount:` targets in the live runtime snapshot.
+- `rule`: Saved account catalog presentation must adapt to the setup. A single saved account with no hosts uses `Account > Add Account…, Rename…, Remove…` and does not render a duplicate catalog row. Multiple saved accounts with no hosts render `Other Accounts` rows that exclude the active local account, while active local management stays under `Account > Rename…, Remove…`. Configured hosts keep the full `Accounts` / `More Accounts…` row design because rows expose local and remote target actions. Account row submenus must show a disabled email identity row, fall back to `No email` when the email is unknown, preserve the disabled usage row below it, and expose enabled `switchAccount:` targets in the live runtime snapshot.
 - `owner_layer`: `live_ui`
 - `proofs_required`: `["deterministic_ui", "live_ui"]`
-- `scenarios`: `["accounts_section", "overflow_accounts"]`
+- `scenarios`: `["single_account_management_menu", "other_accounts_excludes_active_local", "hosts_keep_full_accounts_section", "overflow_accounts"]`
 
 ### `menubar.custom_rows.stay_flush_with_rendered_menu_width`
 

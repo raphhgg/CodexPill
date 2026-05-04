@@ -223,12 +223,62 @@ struct MenuBarMenuState {
         return Array(accountCatalogEntries.dropFirst(visibleCount))
     }
 
+    var accountListSectionTitle: String {
+        shouldShowOtherAccountsList ? "Other Accounts" : "Accounts"
+    }
+
+    var visibleDisplayAccountEntries: [MenuBarAccountCatalogEntry] {
+        guard shouldShowOtherAccountsList else {
+            return shouldShowSingleAccountManagementMenu ? [] : visibleAccountEntries
+        }
+        return visibleEntries(from: accountEntriesExcludingActiveLocalAccount)
+    }
+
+    var overflowDisplayAccountEntries: [MenuBarAccountCatalogEntry] {
+        guard shouldShowOtherAccountsList else {
+            return shouldShowSingleAccountManagementMenu ? [] : overflowAccountEntries
+        }
+        return overflowEntries(from: accountEntriesExcludingActiveLocalAccount)
+    }
+
+    var shouldShowSingleAccountManagementMenu: Bool {
+        remoteHosts.isEmpty && allSavedAccounts.count == 1
+    }
+
+    var shouldShowActiveAccountManagementMenu: Bool {
+        remoteHosts.isEmpty && allSavedAccounts.count > 1 && activeAccount != nil
+    }
+
+    var accountForAccountManagementMenu: CodexAccount? {
+        activeAccount ?? allSavedAccounts.first
+    }
+
     private var nonActiveAccountVisibilityLimit: Int {
         max(0, visibleInactiveAccountCount)
     }
 
     private var shouldLimitVisibleInactiveAccounts: Bool {
         visibleInactiveAccountCount > 0
+    }
+
+    private var shouldShowOtherAccountsList: Bool {
+        remoteHosts.isEmpty && allSavedAccounts.count > 1
+    }
+
+    private var accountEntriesExcludingActiveLocalAccount: [MenuBarAccountCatalogEntry] {
+        guard let activeAccount else { return accountCatalogEntries }
+        return accountCatalogEntries.filter { !$0.account.matchesSameAccount(as: activeAccount) }
+    }
+
+    private func visibleEntries(from entries: [MenuBarAccountCatalogEntry]) -> [MenuBarAccountCatalogEntry] {
+        guard shouldLimitVisibleInactiveAccounts else { return entries }
+        return Array(entries.prefix(nonActiveAccountVisibilityLimit))
+    }
+
+    private func overflowEntries(from entries: [MenuBarAccountCatalogEntry]) -> [MenuBarAccountCatalogEntry] {
+        guard shouldLimitVisibleInactiveAccounts else { return [] }
+        guard entries.count > nonActiveAccountVisibilityLimit else { return [] }
+        return Array(entries.dropFirst(nonActiveAccountVisibilityLimit))
     }
 
     var shouldShowStatusMessage: Bool {

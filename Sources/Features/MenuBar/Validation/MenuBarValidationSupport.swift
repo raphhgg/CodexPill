@@ -148,17 +148,17 @@ enum MenuBarValidationSupport {
             sections.append(.init(title: "Active Account", items: ["No active saved account"]))
         }
 
-        if !state.visibleAccountEntries.isEmpty {
+        if !state.visibleDisplayAccountEntries.isEmpty {
             sections.append(.init(
-                title: "Accounts",
-                items: state.visibleAccountEntries.map { inactiveAccountSummary(for: $0, now: now) }
+                title: state.accountListSectionTitle,
+                items: state.visibleDisplayAccountEntries.map { inactiveAccountSummary(for: $0, now: now) }
             ))
         }
 
-        if !state.overflowAccountEntries.isEmpty {
+        if !state.overflowDisplayAccountEntries.isEmpty {
             sections.append(.init(
                 title: "More Accounts…",
-                items: state.overflowAccountEntries.map { inactiveAccountSummary(for: $0, now: now) }
+                items: state.overflowDisplayAccountEntries.map { inactiveAccountSummary(for: $0, now: now) }
             ))
         }
 

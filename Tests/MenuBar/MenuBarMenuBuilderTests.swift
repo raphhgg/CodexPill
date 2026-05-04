@@ -288,7 +288,10 @@ struct MenuBarMenuBuilderTests {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", withRateLimits: true)),
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                inactiveAccounts: [makeAccount(name: "Other", withRateLimits: true)]
+            ),
             target: coordinator
         )
 
@@ -446,6 +449,82 @@ struct MenuBarMenuBuilderTests {
         #expect(submenu.items[renameIndex - 1].isSeparatorItem)
         #expect(removeIndex == renameIndex + 1)
         #expect(menu.autoenablesItems)
+    }
+
+    @Test
+    func singleAccountWithoutHostsUsesAccountManagementSubmenu() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let active = makeAccount(name: "Personal", withRateLimits: true)
+        let state = makeState(activeAccount: active)
+        let menu = builder.makeMenu(state: state, target: coordinator)
+        let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, menu: menu)
+
+        let accountMenu = try #require(menu.items.first(where: { $0.title == "Account" })?.submenu)
+        let addAccount = try #require(accountMenu.items.first(where: { $0.title == "Add Account…" }))
+        let rename = try #require(accountMenu.items.first(where: { $0.title == "Rename…" }))
+        let remove = try #require(accountMenu.items.first(where: { $0.title == "Remove…" }))
+
+        #expect(snapshot.sections.contains(where: { $0.title == "Accounts" }) == false)
+        #expect(snapshot.sections.contains(where: { $0.title == "Other Accounts" }) == false)
+        #expect(menu.items.contains(where: { $0.title == "Add Account…" }) == false)
+        #expect(addAccount.action == #selector(MenuBarCoordinator.addAccount))
+        #expect(rename.action == #selector(MenuBarCoordinator.renameAccount(_:)))
+        #expect(rename.representedObject as? String == active.id.uuidString)
+        #expect(remove.action == #selector(MenuBarCoordinator.removeAccount(_:)))
+        #expect(remove.representedObject as? String == active.id.uuidString)
+    }
+
+    @Test
+    func multipleAccountsWithoutHostsShowsOtherAccountsAndManagesActiveAccountSeparately() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let active = makeAccount(name: "Personal", withRateLimits: true)
+        let business1 = makeAccount(name: "Business 1", withRateLimits: true)
+        let business2 = makeAccount(name: "Business 2", withRateLimits: true)
+        let state = makeState(
+            activeAccount: active,
+            inactiveAccounts: [business1, business2]
+        )
+        let menu = builder.makeMenu(state: state, target: coordinator)
+        let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, menu: menu)
+
+        let accountSection = try #require(snapshot.sections.first(where: { $0.title == "Other Accounts" }))
+        let activeRow = menu.items.first(where: { $0.submenu?.title == active.name })
+        let accountMenu = try #require(menu.items.first(where: { $0.title == "Account" })?.submenu)
+        let rename = try #require(accountMenu.items.first(where: { $0.title == "Rename…" }))
+        let remove = try #require(accountMenu.items.first(where: { $0.title == "Remove…" }))
+        let addAccount = try #require(menu.items.first(where: { $0.title == "Add Account…" }))
+
+        #expect(accountSection.items.count == 2)
+        #expect(accountSection.items.allSatisfy { !$0.contains(active.name) })
+        #expect(activeRow == nil)
+        #expect(addAccount.action == #selector(MenuBarCoordinator.addAccount))
+        #expect(rename.representedObject as? String == active.id.uuidString)
+        #expect(remove.representedObject as? String == active.id.uuidString)
+    }
+
+    @Test
+    func configuredHostsKeepFullAccountsListForTargetActions() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let active = makeAccount(name: "Personal", withRateLimits: true)
+        let business = makeAccount(name: "Business 1", withRateLimits: true)
+        let state = makeState(
+            activeAccount: active,
+            inactiveAccounts: [business],
+            remoteHosts: [makeRemoteHost(activeAccount: nil)]
+        )
+        let menu = builder.makeMenu(state: state, target: coordinator)
+        let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, menu: menu)
+
+        let accountSection = try #require(snapshot.sections.first(where: { $0.title == "Accounts" }))
+        let activeRow = try #require(menu.items.first(where: { $0.submenu?.title == active.name }))
+        let activeSubmenu = try #require(activeRow.submenu)
+
+        #expect(accountSection.items.contains(where: { $0.contains(active.name) }))
+        #expect(activeSubmenu.items.contains(where: { $0.title == "Install on devbox and switch" }))
+        #expect(menu.items.contains(where: { $0.title == "Account" }) == false)
     }
 
     @Test

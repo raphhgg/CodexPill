@@ -50,23 +50,30 @@ struct MenuBarMenuBuilder {
             menu.addItem(disabledInfoItem("No active saved account"))
         }
 
-        if !state.visibleAccountEntries.isEmpty {
+        if !state.visibleDisplayAccountEntries.isEmpty {
             menu.addItem(.separator())
-            menu.addItem(sectionHeaderItem("Accounts", width: menuContentWidth, bottomPadding: 4))
-            for entry in state.visibleAccountEntries {
+            menu.addItem(sectionHeaderItem(state.accountListSectionTitle, width: menuContentWidth, bottomPadding: 4))
+            for entry in state.visibleDisplayAccountEntries {
                 menu.addItem(inactiveAccountItem(for: entry, state: state, target: target, width: menuContentWidth))
             }
         }
 
-        if !state.overflowAccountEntries.isEmpty {
-            if state.visibleAccountEntries.isEmpty {
+        if !state.overflowDisplayAccountEntries.isEmpty {
+            if state.visibleDisplayAccountEntries.isEmpty {
                 menu.addItem(.separator())
             }
-            menu.addItem(moreAccountsMenuItem(accounts: state.overflowAccountEntries, state: state, target: target))
+            menu.addItem(moreAccountsMenuItem(accounts: state.overflowDisplayAccountEntries, state: state, target: target))
         }
 
         menu.addItem(.separator())
-        menu.addItem(addAccountMenuItem(state: state, target: target))
+        if state.shouldShowSingleAccountManagementMenu {
+            menu.addItem(accountManagementMenuItem(state: state, target: target, includesAddAccount: true))
+        } else {
+            menu.addItem(addAccountMenuItem(state: state, target: target))
+            if state.shouldShowActiveAccountManagementMenu {
+                menu.addItem(accountManagementMenuItem(state: state, target: target, includesAddAccount: false))
+            }
+        }
         menu.addItem(hostsMenuItem(state: state, target: target))
         menu.addItem(notificationsMenuItem(state: state, target: target))
         menu.addItem(refreshIntervalMenuItem(state: state, target: target))
@@ -129,7 +136,7 @@ struct MenuBarMenuBuilder {
     }
 
     private func contentWidth(for state: MenuBarMenuState) -> CGFloat {
-        let widestNativeAccountRow = (state.visibleAccountEntries + state.overflowAccountEntries)
+        let widestNativeAccountRow = (state.visibleDisplayAccountEntries + state.overflowDisplayAccountEntries)
             .map {
                 inactiveAccountTitleWidth(
                     for: $0.displayAccount,
@@ -274,6 +281,31 @@ struct MenuBarMenuBuilder {
         item.image = NSImage(systemSymbolName: "plus.circle", accessibilityDescription: "Add Account")
         item.target = target
         item.isEnabled = state.canAddAccount
+        return item
+    }
+
+    private func accountManagementMenuItem(
+        state: MenuBarMenuState,
+        target: MenuBarCoordinator,
+        includesAddAccount: Bool
+    ) -> NSMenuItem {
+        let item = NSMenuItem(title: "Account", action: nil, keyEquivalent: "")
+        item.image = NSImage(systemSymbolName: "person.crop.circle", accessibilityDescription: "Account")
+
+        let submenu = configuredMenu(title: "Account")
+        if includesAddAccount {
+            submenu.addItem(addAccountMenuItem(state: state, target: target))
+            if state.accountForAccountManagementMenu != nil {
+                submenu.addItem(.separator())
+            }
+        }
+
+        if let account = state.accountForAccountManagementMenu {
+            submenu.addItem(renameAccountMenuItem(for: account, state: state, target: target))
+            submenu.addItem(removeAccountMenuItem(for: account, state: state, target: target))
+        }
+
+        item.submenu = submenu
         return item
     }
 

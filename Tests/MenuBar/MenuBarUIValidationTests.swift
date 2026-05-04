@@ -28,7 +28,7 @@ struct MenuBarUIValidationTests {
             state: makeHostedValidationState(for: "hosted-menu-default", now: now),
             now: now
         )
-        let accountsSection = try #require(snapshot.sections.first(where: { $0.title == "Accounts" }))
+        let accountsSection = try #require(snapshot.sections.first(where: { $0.title == "Other Accounts" }))
         let summary = try #require(accountsSection.items.first(where: { $0.contains(" • S ") && $0.contains("  W ") }))
 
         #expect(!summary.contains("research@example.com"))
@@ -181,7 +181,17 @@ struct MenuBarUIValidationTests {
     func accountsDoNotInventFullUsageWhenRateLimitsAreMissing() {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
         let state = MenuBarMenuState(
-            activeAccount: nil,
+            activeAccount: CodexAccount(
+                id: UUID(),
+                name: "Primary",
+                snapshotFileName: "\(UUID().uuidString).json",
+                createdAt: now,
+                updatedAt: now,
+                email: "primary@example.com",
+                planType: "pro",
+                rateLimits: nil,
+                identity: .empty
+            ),
             inactiveAccounts: [
                 CodexAccount(
                     id: UUID(),
@@ -208,7 +218,7 @@ struct MenuBarUIValidationTests {
         )
 
         let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, now: now)
-        let summary = try! #require(snapshot.sections.first(where: { $0.title == "Accounts" })?.items.first)
+        let summary = try! #require(snapshot.sections.first(where: { $0.title == "Other Accounts" })?.items.first)
 
         #expect(summary.contains("S --"))
         #expect(summary.contains("W --"))
