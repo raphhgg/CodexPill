@@ -123,6 +123,14 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 
 ## Current feature invariants
 
+### `validation.seal_run_adapter.resolves_account_switch`
+
+- `feature`: `validation`
+- `rule`: The CodexPill-owned Seal runner adapter must accept Seal's generic `--scenario`, `--proof-output`, and `--artifact-root` inputs, resolve `switch-account-changes-active-account` locally, emit proof through the existing account-switch proof emitter, and write adapter diagnostics under the runner-owned `adapter/` directory without teaching Seal CodexPill scenario semantics.
+- `owner_layer`: `integration`
+- `proofs_required`: `["integration", "seal_run"]`
+- `scenarios`: `["switch-account-changes-active-account", "unsupported-scenario"]`
+
 ### `menubar.status_item_content.fallback_icon_only`
 
 - `feature`: `menubar`
