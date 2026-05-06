@@ -45,7 +45,8 @@ policy drift, or injected error mapping.
 | Platform persistence | `Tests/Platform/Persistence/AppPathsTests.swift` | Keep. Validation path isolation and isolated `CODEX_HOME` cleanup prevent real user-state mutation. Seal depends on this safety boundary rather than replacing it. |
 | Platform Codex | `Tests/Platform/Codex/*Tests.swift` | Keep. App-server parsing, auth snapshot handling, JSON-RPC errors, transient retry, status mapping, and sensitive auth parsing are protocol and safety tests. |
 | Platform hosts | `Tests/Platform/Hosts/*Tests.swift` | Keep. SSH command mapping, remote copy/sign-out command behavior, remote app-server refresh, and validation remote-host fixtures are injected boundary tests. |
-| Accounts use cases and workflows | `Tests/Accounts/*Tests.swift` | Keep, with targeted backlog checks. These tests own account matching, add/switch/remove/rename workflows, remote-host orchestration, refresh, ranking, operation state, and failure ordering. |
+| Accounts use cases and workflows | `Tests/Accounts/*Tests.swift` | Keep, with targeted backlog checks. These tests own account matching, add/switch/remove/rename workflows, refresh, ranking, operation state, and failure ordering. |
+| Host use cases and workflows | `Tests/Hosts/*Tests.swift` | Keep. These tests own remote-host runtime state, remote account verification, remote rate-limit resolution, and switch-on-host orchestration. |
 | Menubar presentation and deterministic UI | `Tests/MenuBar/MenuBarMenu*Tests.swift`, `MenuBarAccount*Tests.swift`, `ActiveAccountsProjectionTests.swift`, `StatusBarIconRendererTests.swift`, `KeyboardShortcutPresentationTests.swift`, `MenuBarUIValidationTests.swift` | Keep. Static menu shape, copy, layout, projection, sorting, overflow, and deterministic screenshots are better owned below Seal. |
 | Menubar runtime units | `Tests/MenuBar/StatusItem*Tests.swift`, `GlobalShortcutRuntimeTests.swift`, `MenuBarHostActionCoordinatorTests.swift`, `MenuBarNotificationWorkflowTests.swift`, `AccountAvailabilityNotificationRuntimeTests.swift` | Keep. These tests inject OS/runtime seams and cover policy, event emission, registration failure, notification workflow, and coordinator routing. |
 | Menubar alert and form tests | `Tests/MenuBar/MenuBarAlertFactoryTests.swift`, `MenuBarHostSetupFormStateTests.swift`, `ShortcutCapturePanelTests.swift` | Keep. Copy/action shape and native-panel state are lower-layer or manual/OS adjacent. |
@@ -208,7 +209,7 @@ that future rewrites must preserve their isolation.
 ## Verification Notes
 
 - Repository layout cross-check: test suites currently live under
-  `Tests/Accounts`, `Tests/App`, `Tests/Core`, `Tests/MenuBar`,
+  `Tests/Accounts`, `Tests/App`, `Tests/Core`, `Tests/Hosts`, `Tests/MenuBar`,
   `Tests/Platform`, and `Tests/Support`.
 - Seal coverage cross-check: five migrated runtime/live scenarios are listed in
   `docs/feature-to-seal-scenario-coverage.md`; the remaining runtime/live

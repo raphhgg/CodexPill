@@ -256,6 +256,7 @@ Avoid generic test names such as `Spy`, `Stub`, `Mock`, `Noop`, `Throwing`, `Rec
 Tests should mirror stable source ownership boundaries once those boundaries exist:
 
 - `Tests/Accounts/`
+- `Tests/Hosts/`
 - `Tests/MenuBar/`
 - `Tests/Platform/Codex/`
 - `Tests/Platform/Hosts/`
@@ -268,7 +269,7 @@ Do not add deeper `unit/integration/e2e` folders unless suite volume or tooling 
 
 ## Placement Rule
 
-If a change affects account workflows, host workflows, menu behavior, notification behavior, or settings state, it belongs in `Features`.
+If a change affects account workflows, host workflows, menu behavior, notification behavior, or settings state, it belongs in `Features`, with host feature tests owned by `Tests/Hosts/`.
 
 If a change touches file paths, snapshot storage, Codex process control, app-server I/O, shell commands, SSH, or process inspection, it belongs in `Platform`.
 
