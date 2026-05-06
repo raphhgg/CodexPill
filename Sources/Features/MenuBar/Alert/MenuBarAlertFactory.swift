@@ -54,17 +54,29 @@ struct MenuBarAlertFactory {
         )
     }
 
-    func makeAddAccountExpiredRequest() -> MenuBarConfirmationAlertRequest {
-        MenuBarConfirmationAlertRequest(
-            messageText: "Sign-In Expired",
-            informativeText: """
-            The Codex sign-in code expired before the account was added.
+    func makeAddAccountSignInRetryRequest(
+        outcome: AccountActionFlow.AddAccountSignInFailureOutcome
+    ) -> MenuBarConfirmationAlertRequest {
+        switch outcome {
+        case .expiredCode:
+            MenuBarConfirmationAlertRequest(
+                messageText: "Sign-In Expired",
+                informativeText: """
+                The Codex sign-in code expired before the account was added.
 
-            If ChatGPT asked you to enable device-code authorization, enable it in ChatGPT Security Settings, then try again.
-            """,
-            confirmTitle: "Try Again",
-            cancelTitle: "Cancel"
-        )
+                If ChatGPT asked you to enable device-code authorization, enable it in ChatGPT Security Settings, then try again.
+                """,
+                confirmTitle: "Try Again",
+                cancelTitle: "Cancel"
+            )
+        case .promptUnavailable, .captureFailed, .verificationFailed:
+            MenuBarConfirmationAlertRequest(
+                messageText: "Couldn't Add Account",
+                informativeText: makeAddAccountSignInFailureRequest(outcome: outcome).informativeText,
+                confirmTitle: "Try Again",
+                cancelTitle: "Cancel"
+            )
+        }
     }
 
     func makeAccountAlreadySavedRequest(accountName: String) -> MenuBarInfoAlertRequest {
@@ -76,7 +88,41 @@ struct MenuBarAlertFactory {
         )
     }
 
-    func makeAddAccountStartFailureRequest(reason: String? = nil) -> MenuBarInfoAlertRequest {
+    func makeAddAccountSignInFailureRequest(
+        outcome: AccountActionFlow.AddAccountSignInFailureOutcome
+    ) -> MenuBarInfoAlertRequest {
+        switch outcome {
+        case .promptUnavailable(let reason):
+            return makeAddAccountStartFailureRequest(reason: reason)
+        case .expiredCode:
+            return MenuBarInfoAlertRequest(
+                messageText: "Sign-In Expired",
+                informativeText: """
+                The Codex sign-in code expired before the account was added.
+
+                If ChatGPT asked you to enable device-code authorization, enable it in ChatGPT Security Settings, then try again.
+                """,
+                style: .warning,
+                buttonTitle: "OK"
+            )
+        case .captureFailed:
+            return MenuBarInfoAlertRequest(
+                messageText: "Couldn't Add Account",
+                informativeText: "The Codex sign-in did not complete.",
+                style: .warning,
+                buttonTitle: "OK"
+            )
+        case .verificationFailed:
+            return MenuBarInfoAlertRequest(
+                messageText: "Couldn't Add Account",
+                informativeText: "CodexPill could not verify the signed-in account.",
+                style: .warning,
+                buttonTitle: "OK"
+            )
+        }
+    }
+
+    private func makeAddAccountStartFailureRequest(reason: String? = nil) -> MenuBarInfoAlertRequest {
         let detail: String
         if let reason, !reason.isEmpty {
             detail = "\n\nCodex reported: \(reason)"

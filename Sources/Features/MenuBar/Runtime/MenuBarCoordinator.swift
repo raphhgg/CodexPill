@@ -648,10 +648,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         _ = store.consumePendingErrorMessage()
 
         switch step {
-        case .showStartFailure(let reason):
-            alertPresenter.presentInfo(alertFactory.makeAddAccountStartFailureRequest(reason: reason))
-        case .offerExpiredCodeRetry(let retryName):
-            let request = alertFactory.makeAddAccountExpiredRequest()
+        case .showSignInFailure(let outcome):
+            alertPresenter.presentInfo(alertFactory.makeAddAccountSignInFailureRequest(outcome: outcome))
+        case .offerSignInRetry(let outcome, let retryName):
+            let request = alertFactory.makeAddAccountSignInRetryRequest(outcome: outcome)
             guard alertPresenter.presentConfirmation(request) else { return }
             Task { @MainActor [weak self] in
                 await self?.beginIsolatedAddAccount(named: retryName)

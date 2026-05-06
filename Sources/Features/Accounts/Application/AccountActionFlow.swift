@@ -13,9 +13,16 @@ struct AccountActionFlow {
         case none
     }
 
+    enum AddAccountSignInFailureOutcome: Equatable {
+        case promptUnavailable(reason: String?)
+        case expiredCode
+        case captureFailed
+        case verificationFailed
+    }
+
     enum AddAccountFailureStep: Equatable {
-        case showStartFailure(reason: String?)
-        case offerExpiredCodeRetry(retryName: String)
+        case showSignInFailure(AddAccountSignInFailureOutcome)
+        case offerSignInRetry(outcome: AddAccountSignInFailureOutcome, retryName: String)
         case showError(message: String)
         case offerDuplicateNameRecovery
         case showUnsafeAuthChange
@@ -54,11 +61,13 @@ struct AccountActionFlow {
         if let loginError = error as? IsolatedCodexLoginError {
             switch loginError {
             case .promptUnavailable(let reason):
-                return .showStartFailure(reason: reason)
+                return .showSignInFailure(.promptUnavailable(reason: reason))
             case .authCaptureTimedOut:
-                return .offerExpiredCodeRetry(retryName: retryName)
-            case .authCaptureFailed, .loginStatusVerificationFailed:
-                return .showError(message: loginError.localizedDescription)
+                return .offerSignInRetry(outcome: .expiredCode, retryName: retryName)
+            case .authCaptureFailed:
+                return .showSignInFailure(.captureFailed)
+            case .loginStatusVerificationFailed:
+                return .showSignInFailure(.verificationFailed)
             }
         }
 

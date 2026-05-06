@@ -51,7 +51,7 @@ struct AccountActionFlowTests {
             retryName: "Business 2"
         )
 
-        #expect(step == .offerExpiredCodeRetry(retryName: "Business 2"))
+        #expect(step == .offerSignInRetry(outcome: .expiredCode, retryName: "Business 2"))
     }
 
     @Test
@@ -61,7 +61,27 @@ struct AccountActionFlowTests {
             retryName: "Business 2"
         )
 
-        #expect(step == .showStartFailure(reason: "error sending request"))
+        #expect(step == .showSignInFailure(.promptUnavailable(reason: "error sending request")))
+    }
+
+    @Test
+    func authCaptureFailureMapsToAccountSignInOutcome() {
+        let step = AccountActionFlow().resolveAddAccountStartFailure(
+            IsolatedCodexLoginError.authCaptureFailed,
+            retryName: "Business 2"
+        )
+
+        #expect(step == .showSignInFailure(.captureFailed))
+    }
+
+    @Test
+    func loginVerificationFailureMapsToAccountSignInOutcome() {
+        let step = AccountActionFlow().resolveAddAccountStartFailure(
+            IsolatedCodexLoginError.loginStatusVerificationFailed,
+            retryName: "Business 2"
+        )
+
+        #expect(step == .showSignInFailure(.verificationFailed))
     }
 
     @Test

@@ -11,6 +11,7 @@ As a CodexPill user, I want to add another Codex account without changing This M
 - Add Account captures the new sign-in through a temporary isolated `CODEX_HOME`.
 - Temporary isolated auth state is treated as sensitive and must be cleaned up after success, cancellation, timeout, or failure.
 - Only one Add Account sign-in may run at a time.
+- Add Account classifies isolated sign-in failures as account-domain outcomes before the menubar renders native alerts or retry panels.
 - After the account is saved, CodexPill attempts a best-effort isolated status read so the new account can show available session or weekly usage immediately. Returned windows are classified by duration instead of App Server `primary` / `secondary` field position.
 - CodexPill must not log or expose raw auth payloads.
 

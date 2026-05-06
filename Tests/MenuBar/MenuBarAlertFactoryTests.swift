@@ -88,7 +88,7 @@ struct MenuBarAlertFactoryTests {
 
     @Test
     func addAccountFailureRequestsUseSpecificRecoveryCopy() {
-        let expired = factory.makeAddAccountExpiredRequest()
+        let expired = factory.makeAddAccountSignInRetryRequest(outcome: .expiredCode)
         #expect(expired.messageText == "Sign-In Expired")
         #expect(expired.informativeText.contains("enable device-code authorization"))
         #expect(expired.informativeText.contains("ChatGPT Security Settings"))
@@ -99,20 +99,33 @@ struct MenuBarAlertFactoryTests {
         #expect(duplicate.messageText == "Account Already Saved")
         #expect(duplicate.informativeText.contains("Business 4"))
 
-        #expect(factory.makeAddAccountStartFailureRequest().messageText == "Couldn't Start Sign-In")
+        #expect(factory.makeAddAccountSignInFailureRequest(outcome: .promptUnavailable(reason: nil)).messageText == "Couldn't Start Sign-In")
         #expect(factory.makeAddAccountUnsafeAuthChangeRequest().messageText == "Couldn't Add Account")
         #expect(factory.makeAddAccountSaveFailureRequest().messageText == "Couldn't Save Account")
     }
 
     @Test
     func addAccountStartFailureCanIncludeSanitizedCodexReason() {
-        let request = factory.makeAddAccountStartFailureRequest(reason: "error sending request")
+        let request = factory.makeAddAccountSignInFailureRequest(
+            outcome: .promptUnavailable(reason: "error sending request")
+        )
 
         #expect(request.messageText == "Couldn't Start Sign-In")
         #expect(request.informativeText.contains("Check your network connection"))
         #expect(request.informativeText.contains("enable device-code authorization"))
         #expect(request.informativeText.contains("ChatGPT Security Settings"))
         #expect(request.informativeText.contains("Codex reported: error sending request"))
+    }
+
+    @Test
+    func addAccountSignInFailureOutcomesRenderWithoutPlatformErrors() {
+        let capture = factory.makeAddAccountSignInFailureRequest(outcome: .captureFailed)
+        #expect(capture.messageText == "Couldn't Add Account")
+        #expect(capture.informativeText == "The Codex sign-in did not complete.")
+
+        let verification = factory.makeAddAccountSignInFailureRequest(outcome: .verificationFailed)
+        #expect(verification.messageText == "Couldn't Add Account")
+        #expect(verification.informativeText == "CodexPill could not verify the signed-in account.")
     }
 
     @Test

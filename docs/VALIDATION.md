@@ -195,13 +195,14 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
   - `add_account_rejects_overlapping_sign_in_without_clearing_pending_flow`: `AccountsControllerTests.startIsolatedAddAccountRejectsOverlapWithoutClearingActiveOperation`
   - `add_account_cancel_cleans_up`: `AddAccountWorkflowTests.cancelIsolatedAddAccountTerminatesLoginAndCleansTemporaryHome`
   - `add_account_duplicate_identity_blocks_after_sign_in`: `AddAccountWorkflowTests.completeIsolatedAddAccountRejectsAlreadySavedCapturedIdentity`
+  - `add_account_sign_in_failures_are_account_outcomes`: `AccountActionFlowTests.promptUnavailablePreservesSanitizedFailureReason`, `AccountActionFlowTests.expiredSignInCodeOffersRetryWithOriginalName`, `AccountActionFlowTests.authCaptureFailureMapsToAccountSignInOutcome`, and `AccountActionFlowTests.loginVerificationFailureMapsToAccountSignInOutcome`
   - `add_account_live_auth_mutation_aborts`: `AddAccountWorkflowTests.completeIsolatedAddAccountAbortsWhenLiveAuthChangesDuringSignIn`
   - `add_account_catalog_save_failure_does_not_switch`: `AddAccountWorkflowTests.completeIsolatedAddAccountMapsCatalogSaveFailureAfterCapture` and `AddAccountWorkflowTests.completeIsolatedAddAccountMapsRepositorySaveFailureAfterSnapshotSave`
   - `add_account_startup_removes_stale_temp_homes`: `AppPathsTests.staleIsolatedCodexHomeCleanupRemovesOnlyOldSessionDirectories`
 - `copy_or_shape_proofs`:
   - `add_account_use_on_this_mac_switches_without_second_confirmation`: `MenuBarAlertFactoryTests.addAccountSuccessRequestOffersOptionalLocalSwitch` and `MenuBarAlertFactoryTests.addAccountSuccessRequestMentionsRunningCliSessionsBeforeLocalSwitch` prove the success alert exposes the switch action and warning copy; `SwitchAccountWorkflowTests` prove the underlying switch execution path
   - `add_account_expired_code_allows_try_again`: `MenuBarAlertFactoryTests.addAccountFailureRequestsUseSpecificRecoveryCopy` proves the retry copy/actions only
-  - `add_account_failed_before_code_clears_state`: `MenuBarAlertFactoryTests.addAccountFailureRequestsUseSpecificRecoveryCopy` proves the start-failure copy only
+  - `add_account_failed_before_code_clears_state`: `MenuBarAlertFactoryTests.addAccountFailureRequestsUseSpecificRecoveryCopy` and `MenuBarAlertFactoryTests.addAccountSignInFailureOutcomesRenderWithoutPlatformErrors` prove sign-in outcome rendering only
 - `live_safe_scenarios`: `["live-add-account-name-dialog-cancelled"]`
 - `manual_or_live_auth_gaps`: `["real_browser_device_auth_completion", "copy_code_clipboard_interaction", "success_alert_use_on_this_mac_coordinator_wiring", "expired_code_try_again_starts_fresh_login", "failed_before_code_state_cleanup", "app_quit_during_real_device_auth"]`
 
