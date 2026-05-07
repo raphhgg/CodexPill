@@ -44,6 +44,16 @@ private struct AccountStateSnapshot: Encodable {
     }
 }
 
+private struct PostSwitchRefreshSnapshot: Encodable {
+    let targetAccountId: String
+    let targetAccountName: String
+    let relaunchRequested: Bool
+    let refreshCompleted: Bool
+    let activeAccountIdAfterRefresh: String?
+    let activeAccountNameAfterRefresh: String?
+    let refreshedSavedAccountIds: [String]
+}
+
 private struct HostCatalogSnapshot: Encodable {
     let hosts: [String]
     let hostCount: Int
@@ -275,10 +285,38 @@ struct CodexPillProofEmitter {
                 "toName": .string(business.name)
             ]
         )
+        try run.recordEvent(
+            "codex_relaunch_requested",
+            step: "codex_relaunch",
+            invariantIds: [switchInvariantID],
+            payload: ["targetAccountId": .string(business.id)]
+        )
+        try run.recordEvent(
+            "post_switch_refresh_completed",
+            step: "post_switch_refresh",
+            invariantIds: [switchInvariantID],
+            payload: [
+                "targetAccountId": .string(business.id),
+                "activeAccountId": .string(business.id)
+            ]
+        )
         try run.recordSnapshot(
             id: EvidenceID("account_after"),
             path: "evidence/account-after.json",
             value: AccountStateSnapshot(activeAccount: business, savedAccounts: savedAccounts)
+        )
+        try run.recordSnapshot(
+            id: EvidenceID("post_switch_refresh"),
+            path: "evidence/post-switch-refresh.json",
+            value: PostSwitchRefreshSnapshot(
+                targetAccountId: business.id,
+                targetAccountName: business.name,
+                relaunchRequested: true,
+                refreshCompleted: true,
+                activeAccountIdAfterRefresh: business.id,
+                activeAccountNameAfterRefresh: business.name,
+                refreshedSavedAccountIds: savedAccounts.map(\.id)
+            )
         )
         try run.finish()
     }
@@ -751,7 +789,8 @@ struct CodexPillProofEmitter {
                                     requiredEvidence: [
                                         EvidenceRequirement(id: EvidenceID("events"), kind: .eventStream),
                                         EvidenceRequirement(id: EvidenceID("account_before"), kind: .snapshot),
-                                        EvidenceRequirement(id: EvidenceID("account_after"), kind: .snapshot)
+                                        EvidenceRequirement(id: EvidenceID("account_after"), kind: .snapshot),
+                                        EvidenceRequirement(id: EvidenceID("post_switch_refresh"), kind: .snapshot)
                                     ],
                                     rule: .all([
                                         .eventSequence([
@@ -761,13 +800,29 @@ struct CodexPillProofEmitter {
                                             EventExpectation("switch_confirmation_presented"),
                                             EventExpectation("switch_confirmation_accepted"),
                                             EventExpectation("switch_workflow_started"),
-                                            EventExpectation("active_account_changed")
+                                            EventExpectation("codex_relaunch_requested"),
+                                            EventExpectation("post_switch_refresh_completed")
                                         ]),
+                                        .eventExists(EventExpectation("active_account_changed")),
                                         .snapshotsDiffer(
                                             SnapshotsDifferRule(
                                                 before: EvidenceID("account_before"),
                                                 after: EvidenceID("account_after"),
                                                 paths: ["activeAccountId"]
+                                            )
+                                        ),
+                                        .snapshotEquals(
+                                            SnapshotEqualsRule(
+                                                evidence: EvidenceID("post_switch_refresh"),
+                                                path: "relaunchRequested",
+                                                value: .bool(true)
+                                            )
+                                        ),
+                                        .snapshotEquals(
+                                            SnapshotEqualsRule(
+                                                evidence: EvidenceID("post_switch_refresh"),
+                                                path: "refreshCompleted",
+                                                value: .bool(true)
                                             )
                                         )
                                     ])

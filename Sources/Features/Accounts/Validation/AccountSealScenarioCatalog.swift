@@ -64,7 +64,8 @@ enum AccountSealScenarioCatalog {
                                 requiredEvidence: [
                                     EvidenceRequirement(id: EvidenceID("events"), kind: .eventStream),
                                     EvidenceRequirement(id: EvidenceID("account_before"), kind: .snapshot),
-                                    EvidenceRequirement(id: EvidenceID("account_after"), kind: .snapshot)
+                                    EvidenceRequirement(id: EvidenceID("account_after"), kind: .snapshot),
+                                    EvidenceRequirement(id: EvidenceID("post_switch_refresh"), kind: .snapshot)
                                 ],
                                 rule: scenario.switchChangesActiveAccountRule
                             )
@@ -224,13 +225,29 @@ struct AccountSealScenario {
                 EventExpectation("switch_confirmation_presented"),
                 EventExpectation("switch_confirmation_accepted"),
                 EventExpectation("switch_workflow_started"),
-                EventExpectation("active_account_changed")
+                EventExpectation("codex_relaunch_requested"),
+                EventExpectation("post_switch_refresh_completed")
             ]),
+            .eventExists(EventExpectation("active_account_changed")),
             .snapshotsDiffer(
                 SnapshotsDifferRule(
                     before: EvidenceID("account_before"),
                     after: EvidenceID("account_after"),
                     paths: ["activeAccountId"]
+                )
+            ),
+            .snapshotEquals(
+                SnapshotEqualsRule(
+                    evidence: EvidenceID("post_switch_refresh"),
+                    path: "relaunchRequested",
+                    value: .bool(true)
+                )
+            ),
+            .snapshotEquals(
+                SnapshotEqualsRule(
+                    evidence: EvidenceID("post_switch_refresh"),
+                    path: "refreshCompleted",
+                    value: .bool(true)
                 )
             )
         ])

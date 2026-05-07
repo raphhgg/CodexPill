@@ -22,7 +22,7 @@ final class MenuBarAccountsStore {
         controller.load()
     }
 
-    func switchToAccount(_ account: CodexAccount) async {
+    func switchToAccount(_ account: CodexAccount) async -> Bool {
         await controller.switchToAccount(account)
     }
 

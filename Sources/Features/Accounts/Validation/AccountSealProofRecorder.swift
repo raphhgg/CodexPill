@@ -115,6 +115,42 @@ final class AccountSealProofRecorder: AccountValidationRecorder {
         recordSwitchEvent("switch_workflow_started", step: "switch_workflow_start", targetAccount: targetAccount)
     }
 
+    func recordCodexRelaunchRequested(targetAccount: CodexAccount) {
+        recordSwitchEvent("codex_relaunch_requested", step: "codex_relaunch", targetAccount: targetAccount)
+    }
+
+    func recordPostSwitchRefreshCompleted(
+        targetAccount: CodexAccount,
+        activeAccount: CodexAccount?,
+        savedAccounts: [CodexAccount]
+    ) {
+        guard !session.isFinished else { return }
+        do {
+            try session.recordEvent(
+                "post_switch_refresh_completed",
+                step: "post_switch_refresh",
+                invariantIds: scenario.switchInvariantIDs,
+                payload: [
+                    "targetName": .string(targetAccount.name),
+                    "targetAccountId": .string(targetAccount.id.uuidString),
+                    "activeAccountId": .string(activeAccount?.id.uuidString ?? "")
+                ]
+            )
+            try session.recordSnapshot(
+                id: EvidenceID("post_switch_refresh"),
+                path: "evidence/post-switch-refresh.json",
+                value: AccountSealPostSwitchRefreshEvidence(
+                    targetAccount: targetAccount,
+                    activeAccount: activeAccount,
+                    savedAccounts: savedAccounts
+                )
+            )
+            try session.finish()
+        } catch {
+            accountSealProofRecorderLogger.error("Failed to finish Seal post-switch refresh proof: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
     func recordActiveAccountChanged(
         fromName: String?,
         toName: String,
@@ -137,9 +173,8 @@ final class AccountSealProofRecorder: AccountValidationRecorder {
                 path: "evidence/account-after.json",
                 value: AccountSealAccountStateSnapshot(activeAccount: activeAccount, savedAccounts: savedAccounts)
             )
-            try session.finish()
         } catch {
-            accountSealProofRecorderLogger.error("Failed to finish Seal switch-account proof: \(error.localizedDescription, privacy: .public)")
+            accountSealProofRecorderLogger.error("Failed to record Seal active-account-change proof: \(error.localizedDescription, privacy: .public)")
         }
     }
 

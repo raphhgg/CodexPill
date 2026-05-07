@@ -675,11 +675,21 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         validationObserver.recordSwitchWorkflowStarted(targetAccount: account)
         Task { @MainActor [weak self] in
             guard let self else { return }
-            await self.store.switchToAccount(account)
+            let didRefreshAfterSwitch = await self.store.switchToAccount(account)
+            if self.store.activeAccountID == account.id {
+                self.validationObserver.recordCodexRelaunchRequested(targetAccount: account)
+            }
             self.validationObserver.clearPendingSwitchIfTargetDidNotActivate(
                 targetID: account.id,
                 activeAccountID: self.store.activeAccountID
             )
+            if didRefreshAfterSwitch {
+                self.validationObserver.recordPostSwitchRefreshCompleted(
+                    targetAccount: account,
+                    activeAccount: self.store.activeAccount,
+                    savedAccounts: self.store.accounts
+                )
+            }
         }
     }
 

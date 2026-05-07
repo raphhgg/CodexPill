@@ -103,7 +103,8 @@ final class AccountsController {
         }
     }
 
-    func switchToAccount(_ account: CodexAccount) async {
+    func switchToAccount(_ account: CodexAccount) async -> Bool {
+        var didRefreshAfterSwitch = false
         await perform("Switching to \(account.name)...") {
             catalogState.setActiveAccountID(
                 try await switchAccountWorkflow.run(
@@ -111,8 +112,9 @@ final class AccountsController {
                     accounts: accounts
                 )
             )
-            await applySilentPostActionRefresh(after: .seconds(2))
+            didRefreshAfterSwitch = await applySilentPostActionRefresh(after: .seconds(2))
         }
+        return didRefreshAfterSwitch
     }
 
     func switchToAccountOnHost(_ account: CodexAccount, on host: RemoteHost) async -> RemoteHostSwitchOutcome {
@@ -386,14 +388,16 @@ final class AccountsController {
         }
     }
 
-    private func applySilentPostActionRefresh(after delay: Duration) async {
+    private func applySilentPostActionRefresh(after delay: Duration) async -> Bool {
         if let result = await silentPostActionRefresh.run(
             after: delay,
             activeAccountID: activeAccountID,
             accounts: accounts
         ) {
             catalogState.applyRefreshed(result)
+            return true
         }
+        return false
     }
 
     private func hydrateSavedAccountsMetadataAfterAddingAccount() async {

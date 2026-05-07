@@ -13,6 +13,12 @@ protocol AccountValidationRecorder {
     func recordSwitchConfirmationPresented(targetAccount: CodexAccount)
     func recordSwitchConfirmationAccepted(targetAccount: CodexAccount)
     func recordSwitchWorkflowStarted(targetAccount: CodexAccount)
+    func recordCodexRelaunchRequested(targetAccount: CodexAccount)
+    func recordPostSwitchRefreshCompleted(
+        targetAccount: CodexAccount,
+        activeAccount: CodexAccount?,
+        savedAccounts: [CodexAccount]
+    )
     func recordActiveAccountChanged(
         fromName: String?,
         toName: String,

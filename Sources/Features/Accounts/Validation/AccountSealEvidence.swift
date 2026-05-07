@@ -49,6 +49,32 @@ struct AccountSealScheduledRefreshUIEvidence: Encodable {
     }
 }
 
+struct AccountSealPostSwitchRefreshEvidence: Encodable {
+    let targetAccountId: String
+    let targetAccountName: String
+    let relaunchRequested: Bool
+    let refreshCompleted: Bool
+    let activeAccountIdAfterRefresh: String?
+    let activeAccountNameAfterRefresh: String?
+    let refreshedSavedAccountIds: [String]
+
+    init(
+        targetAccount: CodexAccount,
+        activeAccount: CodexAccount?,
+        savedAccounts: [CodexAccount],
+        relaunchRequested: Bool = true,
+        refreshCompleted: Bool = true
+    ) {
+        self.targetAccountId = targetAccount.id.uuidString
+        self.targetAccountName = targetAccount.name
+        self.relaunchRequested = relaunchRequested
+        self.refreshCompleted = refreshCompleted
+        self.activeAccountIdAfterRefresh = activeAccount?.id.uuidString
+        self.activeAccountNameAfterRefresh = activeAccount?.name
+        self.refreshedSavedAccountIds = savedAccounts.map { $0.id.uuidString }
+    }
+}
+
 struct AccountSealNameDialogSnapshot: Encodable {
     let dialogId: String
     let title: String

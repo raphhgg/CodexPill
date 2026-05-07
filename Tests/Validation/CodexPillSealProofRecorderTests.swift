@@ -85,6 +85,8 @@ struct CodexPillSealProofRecorderTests {
         recorder.recordSwitchConfirmationAccepted(targetAccount: business)
         recorder.recordSwitchWorkflowStarted(targetAccount: business)
         recorder.recordActiveAccountChanged(fromName: personal.name, toName: business.name, activeAccount: business, savedAccounts: [personal, business])
+        recorder.recordCodexRelaunchRequested(targetAccount: business)
+        recorder.recordPostSwitchRefreshCompleted(targetAccount: business, activeAccount: business, savedAccounts: [personal, business])
 
         let manifestURL = proofDirectory.appendingPathComponent("manifest.json")
         let manifest = try JSONSerialization.jsonObject(with: Data(contentsOf: manifestURL)) as? [String: Any]
@@ -97,6 +99,7 @@ struct CodexPillSealProofRecorderTests {
             "evidence/events.jsonl",
             "evidence/account-before.json",
             "evidence/account-after.json",
+            "evidence/post-switch-refresh.json",
         ])
         #expect(FileManager.default.fileExists(atPath: proofDirectory.appendingPathComponent("evidence/events.jsonl").path))
 
@@ -107,7 +110,15 @@ struct CodexPillSealProofRecorderTests {
             "switch_confirmation_accepted",
             "switch_workflow_started",
             "active_account_changed",
+            "codex_relaunch_requested",
+            "post_switch_refresh_completed",
         ])
+
+        let postSwitchRefreshURL = proofDirectory.appendingPathComponent("evidence/post-switch-refresh.json")
+        let postSwitchRefresh = try JSONSerialization.jsonObject(with: Data(contentsOf: postSwitchRefreshURL)) as? [String: Any]
+        #expect(postSwitchRefresh?["relaunchRequested"] as? Bool == true)
+        #expect(postSwitchRefresh?["refreshCompleted"] as? Bool == true)
+        #expect(postSwitchRefresh?["activeAccountIdAfterRefresh"] as? String == business.id.uuidString)
     }
 
     @Test

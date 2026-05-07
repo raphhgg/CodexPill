@@ -179,6 +179,37 @@ final class MenuBarValidationObserver {
         sealProofRecorder?.account?.recordSwitchWorkflowStarted(targetAccount: targetAccount)
     }
 
+    func recordCodexRelaunchRequested(targetAccount: CodexAccount) {
+        recordEvent(
+            "codex_relaunch_requested",
+            step: "codex_relaunch",
+            invariantIds: Self.switchInvariantIDs,
+            payload: ["targetName": targetAccount.name]
+        )
+        sealProofRecorder?.account?.recordCodexRelaunchRequested(targetAccount: targetAccount)
+    }
+
+    func recordPostSwitchRefreshCompleted(
+        targetAccount: CodexAccount,
+        activeAccount: CodexAccount?,
+        savedAccounts: [CodexAccount]
+    ) {
+        recordEvent(
+            "post_switch_refresh_completed",
+            step: "post_switch_refresh",
+            invariantIds: Self.switchInvariantIDs,
+            payload: [
+                "targetName": targetAccount.name,
+                "activeAccountId": activeAccount?.id.uuidString ?? ""
+            ]
+        )
+        sealProofRecorder?.account?.recordPostSwitchRefreshCompleted(
+            targetAccount: targetAccount,
+            activeAccount: activeAccount,
+            savedAccounts: savedAccounts
+        )
+    }
+
     func clearPendingSwitchIfTargetDidNotActivate(targetID: UUID, activeAccountID: UUID?) {
         guard pendingSwitchTargetID == targetID, activeAccountID != targetID else { return }
         pendingSwitchTargetID = nil

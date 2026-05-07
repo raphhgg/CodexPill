@@ -312,12 +312,12 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 ### `accounts.switch_account.menu_action_changes_active_account`
 
 - `feature`: `accounts`
-- `rule`: Selecting an inactive account emits the switch workflow event sequence and changes the active-account snapshot. For the selected runtime validation flow, Seal runner artifacts are the authoritative pass/fail gate.
+- `rule`: Selecting an inactive account emits the switch workflow event sequence, changes the active-account snapshot, requests a Codex relaunch, and records completed post-switch refresh evidence. For the selected runtime validation flow, Seal runner artifacts are the authoritative pass/fail gate.
 - `owner_layer`: `seal_run`
 - `proofs_required`: `["integration", "seal_run"]`
 - `scenarios`: `["live-account-switch", "switch-account-changes-active-account"]`
-- `event_evidence`: `["menu_action_dispatched", "switch_confirmation_presented", "switch_confirmation_accepted", "switch_workflow_started", "active_account_changed"]`
-- `snapshot_evidence`: `["account_before", "account_after"]`
+- `event_evidence`: `["menu_action_dispatched", "switch_confirmation_presented", "switch_confirmation_accepted", "switch_workflow_started", "active_account_changed", "codex_relaunch_requested", "post_switch_refresh_completed"]`
+- `snapshot_evidence`: `["account_before", "account_after", "post_switch_refresh"]`
 - `seal_only_runtime_validation`: Prefer `swift run --package-path ../Seal seal run --scenario switch-account-changes-active-account`, which resolves the CodexPill-owned adapter from `.seal/run.yml` and uses Seal's default artifact layout. `make verify-account-switch-seal` remains a compatibility wrapper with a stable `build/verification/<agent>/...` artifact root. Seal outputs under `proof/`, `reports/`, and `adapter/` are authoritative; CodexPill's `codexpill-summary.json` is compatibility-only.
 
 ### `menubar.text_on_hover.stays_visible_inside_resized_bounds`
