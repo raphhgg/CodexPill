@@ -4,8 +4,6 @@ set -euo pipefail
 SCENARIO="${SCENARIO:-switch-account-changes-active-account}"
 AGENT_NAME="${AGENT_NAME:-local}"
 ARTIFACT_ROOT="${ARTIFACT_ROOT:-build/verification/${AGENT_NAME}/${SCENARIO}}"
-PROOF_OUTPUT="${ARTIFACT_ROOT}/proof"
-ADAPTER_PATH="${CODEXPILL_SEAL_ADAPTER_PATH:-scripts/seal_run_adapter.sh}"
 SEAL_PACKAGE_PATH="${CODEXPILL_SEAL_PACKAGE_PATH:-../Seal}"
 SEAL_COMMAND="${CODEXPILL_SEAL_COMMAND:-swift run --package-path ${SEAL_PACKAGE_PATH} seal}"
 SUMMARY_PATH="${ARTIFACT_ROOT}/codexpill-summary.json"
@@ -45,7 +43,7 @@ RUBY
 mkdir -p "${ARTIFACT_ROOT}"
 
 cat > "${COMMAND_PATH}" <<EOF
-${SEAL_COMMAND} run --scenario ${SCENARIO} --output ${ARTIFACT_ROOT} --proof-output ${PROOF_OUTPUT} --adapter ${ADAPTER_PATH}
+${SEAL_COMMAND} run --scenario ${SCENARIO} --output ${ARTIFACT_ROOT}
 EOF
 
 seal_parts_file="$(mktemp)"
@@ -65,9 +63,7 @@ fi
 set +e
 "${seal_command[@]}" run \
   --scenario "${SCENARIO}" \
-  --output "${ARTIFACT_ROOT}" \
-  --proof-output "${PROOF_OUTPUT}" \
-  --adapter "${ADAPTER_PATH}"
+  --output "${ARTIFACT_ROOT}"
 seal_exit=$?
 set -e
 

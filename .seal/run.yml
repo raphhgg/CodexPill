@@ -1,0 +1,6 @@
+version: 1
+scenarios:
+  switch-account-changes-active-account:
+    adapter: scripts/seal_run_adapter.sh
+  add-host-destination-validation-failed:
+    adapter: scripts/seal_run_adapter.sh

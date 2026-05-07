@@ -39,17 +39,25 @@ The emitter refuses to write under default Codex production data directories:
 ## Seal-Only Runtime Validation
 
 CodexPill has a client-owned adapter for Seal's provisional `seal run` command.
-Run the selected account-switch runtime validation through the repo-local
-Makefile target:
+Run the selected account-switch runtime validation through the config-backed
+runner path:
 
 ```bash
-AGENT_NAME=symphony-RGR-253 make verify-account-switch-seal
+swift run --package-path ../Seal seal run --scenario switch-account-changes-active-account
+```
+
+For Add Host validation failure:
+
+```bash
+swift run --package-path ../Seal seal run --scenario add-host-destination-validation-failed
 ```
 
 The adapter accepts Seal's generic `--scenario`, `--proof-output`, and
-`--artifact-root` inputs, resolves the CodexPill-owned deterministic account
-switch scenario, emits proof through `make emit-account-switch-proof`, and writes
-CodexPill diagnostics under the runner-owned `adapter/` directory.
+`--artifact-root` inputs. Seal resolves the adapter from `.seal/run.yml` for
+both selected scenarios, defaults omitted output to
+`build/seal-runs/<scenario>/<timestamp>/`, defaults proof output to
+`<artifact-root>/proof`, and records that resolution in `reports/result.json`
+and `reports/report.md`.
 
 The authoritative artifacts for this selected flow are:
 
@@ -58,12 +66,12 @@ The authoritative artifacts for this selected flow are:
 - `reports/report.md`
 - `adapter/`
 
-`codexpill-summary.json` is compatibility-only. It points report consumers to
-Seal artifacts, records the Seal runner exit code, and marks legacy CodexPill
-runtime outputs such as `summary.json` and `validation-events.jsonl` as
-non-authoritative. The wrapper removes stale legacy output for this scenario
-before invoking `seal run`, so old CodexPill runtime artifacts cannot make the
-selected flow pass.
+`codexpill-summary.json` is compatibility-only when using the Makefile wrappers.
+It points report consumers to Seal artifacts, records the Seal runner exit code,
+and marks legacy CodexPill runtime outputs such as `summary.json` and
+`validation-events.jsonl` as non-authoritative. The wrappers remove stale legacy
+output for the selected scenario before invoking `seal run`, so old CodexPill
+runtime artifacts cannot make the selected flow pass.
 
 The direct proof-emitter development path remains:
 
@@ -82,6 +90,13 @@ give the required machine-readable and human-readable evidence, and the runner
 exit codes distinguish failed proof, invalid or incomplete proof, adapter
 failure, and runner/setup error. The remaining friction is adapter ceremony and
 build cost, not missing report authority.
+
+RGR-257 adoption note: `.seal/run.yml` removes the repeated adapter flag for the
+two selected flows and Seal's defaults remove repeated proof-output setup. The
+Makefile wrappers still pass an explicit output root for compatibility with
+agent workflows, but the preferred reviewer command is now the shorter
+`seal run --scenario ...` form above. The remaining ceremony is the SwiftPM
+package-path prefix while Seal is consumed from a sibling checkout.
 
 The first failure path exercised by this prototype is adapter-side scenario
 resolution: unsupported scenarios exit non-zero and write diagnostics under
@@ -160,11 +175,12 @@ AGENT_NAME=symphony-RGR-254 make verify-add-host-validation-failure-seal
 ```
 
 The CodexPill-owned adapter accepts the Seal runner contract explicitly and
-routes the scenario to `make emit-add-host-validation-failure-proof`. The proof
-is deterministic rather than live UI driven: it records validation start,
-handled validation failure, before/after host catalog snapshots, and sanitized
-domain feedback. Raw SSH output and sensitive host-specific material are not
-included in proof diagnostics.
+routes the scenario to `make emit-add-host-validation-failure-proof`. Through
+`.seal/run.yml`, Seal now finds that same adapter without an explicit
+`--adapter` flag. The proof is deterministic rather than live UI driven: it
+records validation start, handled validation failure, before/after host catalog
+snapshots, and sanitized domain feedback. Raw SSH output and sensitive
+host-specific material are not included in proof diagnostics.
 
 The wrapper keeps `codexpill-summary.json` as a compatibility pointer only.
 Seal's `proof/`, `reports/result.json`, `reports/report.md`, and `adapter/`
@@ -173,7 +189,7 @@ wrapper removes stale legacy runtime artifacts before invoking `seal run`, so
 old CodexPill summaries or event logs cannot make the selected flow pass.
 
 Pattern check after RGR-254: the RGR-253 compatibility-pointer approach scales
-to this second flow without adding CodexPill business semantics to Seal. The
-friction remains the explicit adapter ceremony and per-scenario wrapper naming;
-that should feed a later Seal adapter-UX decision rather than be solved with
-CodexPill-specific runner behavior.
+to this second flow without adding CodexPill business semantics to Seal. RGR-257
+removes the repeated adapter and proof-output flags for the two selected flows;
+the remaining friction is the sibling-checkout SwiftPM package-path prefix and
+the optional compatibility wrapper layer.

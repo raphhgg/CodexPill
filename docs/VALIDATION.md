@@ -134,7 +134,7 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 ### `validation.seal_only_runtime.account_switch_authority`
 
 - `feature`: `validation`
-- `rule`: The selected CodexPill runtime validation flow for `switch-account-changes-active-account` must run through `seal run`; `proof/`, `reports/result.json`, `reports/report.md`, and `adapter/` are the only authoritative pass/fail artifacts. CodexPill may write a compatibility summary, but it must only point to Seal artifacts and mark legacy runtime output as non-authoritative.
+- `rule`: The selected CodexPill runtime validation flow for `switch-account-changes-active-account` must run through config-backed `seal run`; `proof/`, `reports/result.json`, `reports/report.md`, and `adapter/` are the only authoritative pass/fail artifacts. CodexPill may write a compatibility summary, but it must only point to Seal artifacts and mark legacy runtime output as non-authoritative.
 - `owner_layer`: `integration`
 - `proofs_required`: `["integration", "seal_run"]`
 - `scenarios`: `["switch-account-changes-active-account"]`
@@ -307,7 +307,7 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `scenarios`: `["live-account-switch", "switch-account-changes-active-account"]`
 - `event_evidence`: `["menu_action_dispatched", "switch_confirmation_presented", "switch_confirmation_accepted", "switch_workflow_started", "active_account_changed"]`
 - `snapshot_evidence`: `["account_before", "account_after"]`
-- `seal_only_runtime_validation`: `make verify-account-switch-seal` runs the CodexPill-owned explicit adapter through `seal run`. Seal outputs under `proof/`, `reports/`, and `adapter/` are authoritative; CodexPill's `codexpill-summary.json` is compatibility-only.
+- `seal_only_runtime_validation`: Prefer `swift run --package-path ../Seal seal run --scenario switch-account-changes-active-account`, which resolves the CodexPill-owned adapter from `.seal/run.yml` and uses Seal's default artifact layout. `make verify-account-switch-seal` remains a compatibility wrapper with a stable `build/verification/<agent>/...` artifact root. Seal outputs under `proof/`, `reports/`, and `adapter/` are authoritative; CodexPill's `codexpill-summary.json` is compatibility-only.
 
 ### `menubar.text_on_hover.stays_visible_inside_resized_bounds`
 
@@ -360,7 +360,7 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `proofs_required`: `["seal_runtime"]`
 - `scenarios`: `["live-add-host-destination-validation-failed", "add-host-destination-validation-failed"]`
 - `event_evidence`: `["menu_action_dispatched", "add_host_setup_presented", "add_host_validation_started", "add_host_validation_failed"]`
-- `seal_only_runtime_validation`: `make verify-add-host-validation-failure-seal` runs the CodexPill-owned explicit adapter through `seal run`. Seal outputs under `proof/`, `reports/`, and `adapter/` are authoritative; CodexPill's `codexpill-summary.json` is compatibility-only. The deterministic proof records before/after host catalog snapshots, handled validation failure, and sanitized domain feedback without raw SSH output.
+- `seal_only_runtime_validation`: Prefer `swift run --package-path ../Seal seal run --scenario add-host-destination-validation-failed`, which resolves the CodexPill-owned adapter from `.seal/run.yml` and uses Seal's default artifact layout. `make verify-add-host-validation-failure-seal` remains a compatibility wrapper with a stable `build/verification/<agent>/...` artifact root. Seal outputs under `proof/`, `reports/`, and `adapter/` are authoritative; CodexPill's `codexpill-summary.json` is compatibility-only. The deterministic proof records before/after host catalog snapshots, handled validation failure, and sanitized domain feedback without raw SSH output.
 
 ### `hosts.switch_workflow.installs_missing_accounts_before_switch`
 

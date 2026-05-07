@@ -23,10 +23,20 @@ struct CodexPillSealOnlyRuntimeValidationScriptTests {
             #!/usr/bin/env bash
             set -euo pipefail
             output=""
+            saw_adapter=0
+            saw_proof_output=0
             while [[ $# -gt 0 ]]; do
               case "$1" in
                 --output)
                   output="$2"
+                  shift 2
+                  ;;
+                --adapter)
+                  saw_adapter=1
+                  shift 2
+                  ;;
+                --proof-output)
+                  saw_proof_output=1
                   shift 2
                   ;;
                 *)
@@ -34,6 +44,8 @@ struct CodexPillSealOnlyRuntimeValidationScriptTests {
                   ;;
               esac
             done
+            test "${saw_adapter}" = "0"
+            test "${saw_proof_output}" = "0"
             mkdir -p "${output}/proof" "${output}/reports" "${output}/adapter"
             printf '{"scenario":"switch-account-changes-active-account"}\\n' > "${output}/proof/manifest.json"
             printf '{"status":"passed"}\\n' > "${output}/reports/result.json"
@@ -178,6 +190,27 @@ struct CodexPillSealOnlyRuntimeValidationScriptTests {
         #expect(summary["scenario"] as? String == "add-host-destination-validation-failed")
         #expect(summary["authoritativeRuntimeValidation"] as? String == "seal")
         #expect(summary["doesNotDefineIndependentVerdict"] as? Bool == true)
+    }
+
+    @Test
+    func wrapperUsesSealConfigBackedAdapterAndProofOutputDefault() throws {
+        let script = try String(contentsOf: Self.repoRoot().appendingPathComponent("scripts/verify_account_switch_seal.sh"))
+
+        #expect(script.contains(#""${seal_command[@]}" run \"#))
+        #expect(script.contains(#"--scenario "${SCENARIO}"#))
+        #expect(script.contains(#"--output "${ARTIFACT_ROOT}""#))
+        #expect(!script.contains(#"--adapter "${ADAPTER_PATH}""#))
+        #expect(!script.contains(#"--proof-output "${PROOF_OUTPUT}""#))
+    }
+
+    @Test
+    func sealRunConfigMapsSelectedScenariosToCodexPillAdapter() throws {
+        let config = try String(contentsOf: Self.repoRoot().appendingPathComponent(".seal/run.yml"))
+
+        #expect(config.contains("version: 1"))
+        #expect(config.contains("switch-account-changes-active-account:"))
+        #expect(config.contains("add-host-destination-validation-failed:"))
+        #expect(config.components(separatedBy: "adapter: scripts/seal_run_adapter.sh").count == 3)
     }
 
     private static func repoRoot() -> URL {

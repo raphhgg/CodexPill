@@ -56,14 +56,19 @@ make verify-ui-live
 Seal-only account-switch runtime validation:
 
 ```bash
-make verify-account-switch-seal
+swift run --package-path ../Seal seal run --scenario switch-account-changes-active-account
 ```
 
 Seal-only Add Host validation-failure runtime validation:
 
 ```bash
-make verify-add-host-validation-failure-seal
+swift run --package-path ../Seal seal run --scenario add-host-destination-validation-failed
 ```
+
+Those shorter commands resolve the CodexPill adapter from `.seal/run.yml` and
+use Seal's default artifact layout under `build/seal-runs/<scenario>/...`. The
+Make targets remain as compatibility entry points for agents that need a stable
+`build/verification/<agent>/<scenario>/` artifact root.
 
 ## Validation Artifacts
 
