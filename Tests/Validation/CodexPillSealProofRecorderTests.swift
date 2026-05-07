@@ -193,6 +193,51 @@ struct CodexPillSealProofRecorderTests {
     }
 
     @Test
+    func proofRecorderEmitsRemoteHostRefreshFailureProof() throws {
+        let proofDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CodexPillSealProof-\(UUID().uuidString)", isDirectory: true)
+        let proofRecorder = try #require(CodexPillSealProofRecorderFactory.makeRecorder(environment: [
+            CodexPillSealProofRecorderFactory.proofOutputPathEnvironmentKey: proofDirectory.path,
+            CodexPillSealProofRecorderFactory.legacyScenarioEnvironmentKey: "persisted_host_refresh_failure",
+        ]))
+        let recorder = try #require(proofRecorder.host)
+
+        recorder.recordRemoteHostRefreshStarted(hostName: "buildbox", fallbackAccountName: "Business 2")
+        recorder.recordRemoteHostRefreshFailed(hostName: "buildbox", message: "ssh: connection refused")
+        recorder.recordRemoteHostMarkedDisconnected(hostName: "buildbox", fallbackAccountName: "Business 2")
+
+        let manifestURL = proofDirectory.appendingPathComponent("manifest.json")
+        let manifest = try JSONSerialization.jsonObject(with: Data(contentsOf: manifestURL)) as? [String: Any]
+        let runMetadata = manifest?["run"] as? [String: Any]
+        let evidence = manifest?["evidence"] as? [[String: Any]]
+
+        #expect(runMetadata?["feature"] as? String == "hosts")
+        #expect(runMetadata?["scenario"] as? String == "remote-host-refresh-failure-preserves-fallback-state")
+        #expect(evidence?.compactMap { $0["path"] as? String } == [
+            "evidence/host-before-refresh.json",
+            "evidence/events.jsonl",
+            "evidence/host-after-refresh.json",
+        ])
+        #expect(FileManager.default.fileExists(atPath: proofDirectory.appendingPathComponent("evidence/events.jsonl").path))
+        #expect(FileManager.default.fileExists(atPath: proofDirectory.appendingPathComponent("evidence/host-before-refresh.json").path))
+        #expect(FileManager.default.fileExists(atPath: proofDirectory.appendingPathComponent("evidence/host-after-refresh.json").path))
+
+        let events = try proofEvents(in: proofDirectory)
+        #expect(events.compactMap { $0["event"] as? String } == [
+            "remote_host_refresh_started",
+            "remote_host_refresh_failed",
+            "remote_host_marked_disconnected",
+        ])
+
+        let hostAfterURL = proofDirectory.appendingPathComponent("evidence/host-after-refresh.json")
+        let hostAfter = try JSONSerialization.jsonObject(with: Data(contentsOf: hostAfterURL)) as? [String: Any]
+        #expect(hostAfter?["connectionState"] as? String == "disconnected")
+        #expect(hostAfter?["activeAccountPresented"] as? Bool == false)
+        #expect(hostAfter?["remoteActiveCardVisible"] as? Bool == false)
+        #expect(hostAfter?["fallbackAccountName"] as? String == "Business 2")
+    }
+
+    @Test
     func proofRecorderEmitsScheduledRefreshProof() throws {
         let proofDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("CodexPillSealProof-\(UUID().uuidString)", isDirectory: true)

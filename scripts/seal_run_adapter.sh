@@ -12,6 +12,7 @@ Usage: seal_run_adapter.sh --scenario <scenario-id> --proof-output <path> --arti
 Supported scenarios:
   switch-account-changes-active-account
   add-host-destination-validation-failed
+  remote-host-refresh-failure-preserves-fallback-state
 USAGE
 }
 
@@ -76,13 +77,16 @@ case "${SCENARIO}" in
   add-host-destination-validation-failed)
     CODEXPILL_ENTRYPOINT="make emit-add-host-validation-failure-proof"
     ;;
+  remote-host-refresh-failure-preserves-fallback-state)
+    CODEXPILL_ENTRYPOINT="make emit-remote-host-refresh-failure-proof"
+    ;;
   *)
     log "unsupported scenario: ${SCENARIO}"
     cat >"${SCENARIO_METADATA_PATH}" <<JSON
 {
   "scenario": "$(printf '%s' "${SCENARIO}" | json_escape)",
   "status": "unsupported",
-  "supportedScenarios": ["switch-account-changes-active-account", "add-host-destination-validation-failed"]
+  "supportedScenarios": ["switch-account-changes-active-account", "add-host-destination-validation-failed", "remote-host-refresh-failure-preserves-fallback-state"]
 }
 JSON
     echo "Unsupported CodexPill Seal runner scenario: ${SCENARIO}" >&2

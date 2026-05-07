@@ -111,6 +111,82 @@ final class HostSealProofRecorder: HostValidationRecorder {
         }
     }
 
+    func recordRemoteHostRefreshStarted(hostName: String, fallbackAccountName: String) {
+        guard !session.isFinished else { return }
+        do {
+            try session.recordSnapshot(
+                id: EvidenceID("host_before_refresh"),
+                path: "evidence/host-before-refresh.json",
+                value: HostSealRefreshFailureSnapshot(
+                    hostName: hostName,
+                    fallbackAccountName: fallbackAccountName,
+                    connectionState: "connected",
+                    activeAccountPresented: true,
+                    remoteActiveCardVisible: true,
+                    failureMessage: nil
+                )
+            )
+            try session.recordEvent(
+                "remote_host_refresh_started",
+                step: "remote_host_refresh_start",
+                invariantIds: scenario.remoteHostRefreshFailureInvariantIDs,
+                payload: [
+                    "hostName": .string(hostName),
+                    "fallbackAccountName": .string(fallbackAccountName)
+                ]
+            )
+        } catch {
+            hostSealProofRecorderLogger.error("Failed to record Seal remote-host refresh start proof: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    func recordRemoteHostRefreshFailed(hostName: String, message: String) {
+        guard !session.isFinished else { return }
+        do {
+            try session.recordEvent(
+                "remote_host_refresh_failed",
+                step: "remote_host_refresh_result",
+                invariantIds: scenario.remoteHostRefreshFailureInvariantIDs,
+                payload: [
+                    "hostName": .string(hostName),
+                    "message": .string(message)
+                ]
+            )
+        } catch {
+            hostSealProofRecorderLogger.error("Failed to record Seal remote-host refresh failure proof: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    func recordRemoteHostMarkedDisconnected(hostName: String, fallbackAccountName: String) {
+        guard !session.isFinished else { return }
+        do {
+            try session.recordEvent(
+                "remote_host_marked_disconnected",
+                step: "remote_host_state_update",
+                invariantIds: scenario.remoteHostRefreshFailureInvariantIDs,
+                payload: [
+                    "hostName": .string(hostName),
+                    "fallbackAccountName": .string(fallbackAccountName)
+                ]
+            )
+            try session.recordSnapshot(
+                id: EvidenceID("host_after_refresh"),
+                path: "evidence/host-after-refresh.json",
+                value: HostSealRefreshFailureSnapshot(
+                    hostName: hostName,
+                    fallbackAccountName: fallbackAccountName,
+                    connectionState: "disconnected",
+                    activeAccountPresented: false,
+                    remoteActiveCardVisible: false,
+                    failureMessage: "ssh: connection refused"
+                )
+            )
+            try session.finish()
+        } catch {
+            hostSealProofRecorderLogger.error("Failed to finish Seal remote-host refresh failure proof: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
     func cancelIfUnfinished() {
         session.cancelIfUnfinished()
     }

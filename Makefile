@@ -9,7 +9,7 @@ PROOF_EMITTER_BINARY := $(DERIVED_DATA)/Build/Products/Debug/CodexPillProofEmitt
 DEV_BUNDLE_ID ?= com.raphhgg.codexpill.dev
 STAGING_BUNDLE_ID ?= com.raphhgg.codexpill.staging
 
-.PHONY: diagnose generate prepare-result-bundle build test mutation build-proof-emitter emit-account-switch-proof emit-add-host-validation-failure-proof verify-account-switch-seal verify-add-host-validation-failure-seal run verify-ui verify-ui-live clean
+.PHONY: diagnose generate prepare-result-bundle build test mutation build-proof-emitter emit-account-switch-proof emit-add-host-validation-failure-proof emit-remote-host-refresh-failure-proof verify-account-switch-seal verify-add-host-validation-failure-seal verify-remote-host-refresh-failure-seal run verify-ui verify-ui-live clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -59,11 +59,21 @@ emit-add-host-validation-failure-proof: build-proof-emitter
 	fi
 	"$(PROOF_EMITTER_BINARY)" emit-add-host-validation-failure-proof --output-dir "$${OUTPUT_DIR}"
 
+emit-remote-host-refresh-failure-proof: build-proof-emitter
+	@if [ -z "$${OUTPUT_DIR:-}" ]; then \
+		echo "Set OUTPUT_DIR to the proof output directory."; \
+		exit 64; \
+	fi
+	"$(PROOF_EMITTER_BINARY)" emit-remote-host-refresh-failure-proof --output-dir "$${OUTPUT_DIR}"
+
 verify-account-switch-seal:
 	./scripts/verify_account_switch_seal.sh
 
 verify-add-host-validation-failure-seal:
 	SCENARIO=add-host-destination-validation-failed ./scripts/verify_account_switch_seal.sh
+
+verify-remote-host-refresh-failure-seal:
+	SCENARIO=remote-host-refresh-failure-preserves-fallback-state ./scripts/verify_account_switch_seal.sh
 
 test: generate prepare-result-bundle
 	xcodebuild test \

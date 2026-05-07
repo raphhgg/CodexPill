@@ -7,6 +7,8 @@ private let switchInvariantID = InvariantID("accounts.switch_account.menu_action
 private let addHostFeatureID = FeatureID("hosts")
 private let addHostScenarioID = ScenarioID("add-host-destination-validation-failed")
 private let addHostInvariantID = InvariantID("hosts.add_host.destination_validation_failed")
+private let remoteHostRefreshFailureScenarioID = ScenarioID("remote-host-refresh-failure-preserves-fallback-state")
+private let remoteHostRefreshFailureInvariantID = InvariantID("hosts.remote_host_refresh_failure.preserves_fallback_state")
 
 private struct FixtureAccount: Encodable {
     let id: String
@@ -51,6 +53,15 @@ private struct HostValidationFailureSnapshot: Encodable {
     let rawSSHOutputIncluded: Bool
 }
 
+private struct RemoteHostRefreshFailureSnapshot: Encodable {
+    let hostName: String
+    let fallbackAccountName: String
+    let connectionState: String
+    let activeAccountPresented: Bool
+    let remoteActiveCardVisible: Bool
+    let failureMessage: String?
+}
+
 @main
 struct CodexPillProofEmitter {
     static func main() {
@@ -63,6 +74,8 @@ struct CodexPillProofEmitter {
                 try emitAccountSwitchProof(to: outputDirectory)
             case .addHostValidationFailure:
                 try emitAddHostValidationFailureProof(to: outputDirectory)
+            case .remoteHostRefreshFailure:
+                try emitRemoteHostRefreshFailureProof(to: outputDirectory)
             }
             print(outputDirectory.path)
         } catch {
@@ -243,6 +256,75 @@ struct CodexPillProofEmitter {
         try run.finish()
     }
 
+    private static func emitRemoteHostRefreshFailureProof(to outputDirectory: URL) throws {
+        let hostName = "buildbox"
+        let fallbackAccountName = "Business 2"
+        let failureMessage = "ssh: connection refused"
+
+        try SealRecorder.register(features: [try remoteHostRefreshFailureFeature()])
+        let run = try SealRecorder.startRun(
+            feature: addHostFeatureID,
+            scenario: remoteHostRefreshFailureScenarioID,
+            executionMode: .integration,
+            outputDirectory: outputDirectory,
+            runID: "run_codexpill_remote_host_refresh_failure_v1_boundary"
+        )
+        defer { run.cancelIfUnfinished() }
+
+        try run.recordSnapshot(
+            id: EvidenceID("host_before_refresh"),
+            path: "evidence/host-before-refresh.json",
+            value: RemoteHostRefreshFailureSnapshot(
+                hostName: hostName,
+                fallbackAccountName: fallbackAccountName,
+                connectionState: "connected",
+                activeAccountPresented: true,
+                remoteActiveCardVisible: true,
+                failureMessage: nil
+            )
+        )
+        try run.recordEvent(
+            "remote_host_refresh_started",
+            step: "remote_host_refresh_start",
+            invariantIds: [remoteHostRefreshFailureInvariantID],
+            payload: [
+                "hostName": .string(hostName),
+                "fallbackAccountName": .string(fallbackAccountName)
+            ]
+        )
+        try run.recordEvent(
+            "remote_host_refresh_failed",
+            step: "remote_host_refresh_result",
+            invariantIds: [remoteHostRefreshFailureInvariantID],
+            payload: [
+                "hostName": .string(hostName),
+                "message": .string(failureMessage)
+            ]
+        )
+        try run.recordEvent(
+            "remote_host_marked_disconnected",
+            step: "remote_host_state_update",
+            invariantIds: [remoteHostRefreshFailureInvariantID],
+            payload: [
+                "hostName": .string(hostName),
+                "fallbackAccountName": .string(fallbackAccountName)
+            ]
+        )
+        try run.recordSnapshot(
+            id: EvidenceID("host_after_refresh"),
+            path: "evidence/host-after-refresh.json",
+            value: RemoteHostRefreshFailureSnapshot(
+                hostName: hostName,
+                fallbackAccountName: fallbackAccountName,
+                connectionState: "disconnected",
+                activeAccountPresented: false,
+                remoteActiveCardVisible: false,
+                failureMessage: failureMessage
+            )
+        )
+        try run.finish()
+    }
+
     private static func accountSwitchFeature() throws -> SealFeature {
         try SealFeature(
             id: featureID,
@@ -352,6 +434,70 @@ struct CodexPillProofEmitter {
             ]
         )
     }
+
+    private static func remoteHostRefreshFailureFeature() throws -> SealFeature {
+        try SealFeature(
+            id: addHostFeatureID,
+            scenarios: [
+                try SealScenario(
+                    id: remoteHostRefreshFailureScenarioID,
+                    scenarioType: .failurePath,
+                    supportedExecutionModes: [.integration],
+                    expectations: [
+                        try SealExpectation(
+                            text: "Remote host refresh failure preserves fallback state while marking the host disconnected",
+                            invariants: [
+                                SealInvariantRef(
+                                    id: remoteHostRefreshFailureInvariantID,
+                                    requiredEvidence: [
+                                        EvidenceRequirement(id: EvidenceID("events"), kind: .eventStream),
+                                        EvidenceRequirement(id: EvidenceID("host_before_refresh"), kind: .snapshot),
+                                        EvidenceRequirement(id: EvidenceID("host_after_refresh"), kind: .snapshot)
+                                    ],
+                                    rule: .all([
+                                        .eventSequence([
+                                            EventExpectation("remote_host_refresh_started", payload: [
+                                                "hostName": .string("buildbox"),
+                                                "fallbackAccountName": .string("Business 2")
+                                            ]),
+                                            EventExpectation("remote_host_refresh_failed", payload: [
+                                                "hostName": .string("buildbox")
+                                            ]),
+                                            EventExpectation("remote_host_marked_disconnected", payload: [
+                                                "hostName": .string("buildbox"),
+                                                "fallbackAccountName": .string("Business 2")
+                                            ])
+                                        ]),
+                                        .snapshotEquals(
+                                            SnapshotEqualsRule(
+                                                evidence: EvidenceID("host_after_refresh"),
+                                                path: "connectionState",
+                                                value: .string("disconnected")
+                                            )
+                                        ),
+                                        .snapshotEquals(
+                                            SnapshotEqualsRule(
+                                                evidence: EvidenceID("host_after_refresh"),
+                                                path: "activeAccountPresented",
+                                                value: .bool(false)
+                                            )
+                                        ),
+                                        .snapshotEquals(
+                                            SnapshotEqualsRule(
+                                                evidence: EvidenceID("host_after_refresh"),
+                                                path: "remoteActiveCardVisible",
+                                                value: .bool(false)
+                                            )
+                                        )
+                                    ])
+                                )
+                            ]
+                        )
+                    ]
+                )
+            ]
+        )
+    }
 }
 
 private struct EmitterCommand {
@@ -362,11 +508,12 @@ private struct EmitterCommand {
 private enum EmitterCommandName: String {
     case accountSwitch = "emit-account-switch-proof"
     case addHostValidationFailure = "emit-add-host-validation-failure-proof"
+    case remoteHostRefreshFailure = "emit-remote-host-refresh-failure-proof"
 }
 
 private struct UsageError: LocalizedError, CustomStringConvertible {
     var description: String {
-        "Usage: CodexPillProofEmitter <emit-account-switch-proof|emit-add-host-validation-failure-proof> --output-dir <proof-output-dir>"
+        "Usage: CodexPillProofEmitter <emit-account-switch-proof|emit-add-host-validation-failure-proof|emit-remote-host-refresh-failure-proof> --output-dir <proof-output-dir>"
     }
 }
 

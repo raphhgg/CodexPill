@@ -34,26 +34,51 @@ enum HostSealScenarioCatalog {
             )
         }
 
-        guard let remoteHostSwitchID = scenario.remoteHostSwitchID,
-              let remoteHostSwitchExpectation = scenario.remoteHostSwitchExpectation
+        if let remoteHostSwitchID = scenario.remoteHostSwitchID,
+           let remoteHostSwitchExpectation = scenario.remoteHostSwitchExpectation {
+            return try SealScenario(
+                id: scenario.id,
+                scenarioType: .happyPath,
+                supportedExecutionModes: [.liveUI],
+                expectations: [
+                    try SealExpectation(
+                        text: remoteHostSwitchExpectation,
+                        invariants: [
+                            SealInvariantRef(
+                                id: remoteHostSwitchID,
+                                requiredEvidence: [
+                                    EvidenceRequirement(id: EvidenceID("events"), kind: .eventStream)
+                                ],
+                                rule: scenario.remoteHostSwitchRule
+                            )
+                        ]
+                    )
+                ]
+            )
+        }
+
+        guard let remoteHostRefreshFailureID = scenario.remoteHostRefreshFailureID,
+              let remoteHostRefreshFailureExpectation = scenario.remoteHostRefreshFailureExpectation
         else {
             throw HostSealScenarioCatalogError.unsupportedScenario(String(describing: scenario.id))
         }
 
         return try SealScenario(
             id: scenario.id,
-            scenarioType: .happyPath,
+            scenarioType: .failurePath,
             supportedExecutionModes: [.liveUI],
             expectations: [
                 try SealExpectation(
-                    text: remoteHostSwitchExpectation,
+                    text: remoteHostRefreshFailureExpectation,
                     invariants: [
                         SealInvariantRef(
-                            id: remoteHostSwitchID,
+                            id: remoteHostRefreshFailureID,
                             requiredEvidence: [
-                                EvidenceRequirement(id: EvidenceID("events"), kind: .eventStream)
+                                EvidenceRequirement(id: EvidenceID("events"), kind: .eventStream),
+                                EvidenceRequirement(id: EvidenceID("host_before_refresh"), kind: .snapshot),
+                                EvidenceRequirement(id: EvidenceID("host_after_refresh"), kind: .snapshot)
                             ],
-                            rule: scenario.remoteHostSwitchRule
+                            rule: scenario.remoteHostRefreshFailureRule
                         )
                     ]
                 )
@@ -65,12 +90,16 @@ enum HostSealScenarioCatalog {
 struct HostSealScenario {
     private static let addHostValidationDestination = "codexpill-validation.invalid"
     private static let remoteHostSwitchHostName = "buildbox"
+    private static let remoteHostRefreshFailureHostName = "buildbox"
+    private static let remoteHostRefreshFailureFallbackAccountName = "Business 2"
 
     let id: ScenarioID
     let hostValidationID: InvariantID?
     let hostExpectation: String?
     let remoteHostSwitchID: InvariantID?
     let remoteHostSwitchExpectation: String?
+    let remoteHostRefreshFailureID: InvariantID?
+    let remoteHostRefreshFailureExpectation: String?
 
     var hostInvariantIDs: [InvariantID] {
         hostValidationID.map { [$0] } ?? []
@@ -78,6 +107,10 @@ struct HostSealScenario {
 
     var remoteHostSwitchInvariantIDs: [InvariantID] {
         remoteHostSwitchID.map { [$0] } ?? []
+    }
+
+    var remoteHostRefreshFailureInvariantIDs: [InvariantID] {
+        remoteHostRefreshFailureID.map { [$0] } ?? []
     }
 
     var hostValidationRule: SealRule {
@@ -119,18 +152,61 @@ struct HostSealScenario {
         ])
     }
 
+    var remoteHostRefreshFailureRule: SealRule {
+        .all([
+            .eventSequence([
+                EventExpectation("remote_host_refresh_started", payload: [
+                    "hostName": .string(Self.remoteHostRefreshFailureHostName),
+                    "fallbackAccountName": .string(Self.remoteHostRefreshFailureFallbackAccountName)
+                ]),
+                EventExpectation("remote_host_refresh_failed", payload: [
+                    "hostName": .string(Self.remoteHostRefreshFailureHostName)
+                ]),
+                EventExpectation("remote_host_marked_disconnected", payload: [
+                    "hostName": .string(Self.remoteHostRefreshFailureHostName),
+                    "fallbackAccountName": .string(Self.remoteHostRefreshFailureFallbackAccountName)
+                ])
+            ]),
+            .snapshotEquals(
+                SnapshotEqualsRule(
+                    evidence: EvidenceID("host_after_refresh"),
+                    path: "connectionState",
+                    value: .string("disconnected")
+                )
+            ),
+            .snapshotEquals(
+                SnapshotEqualsRule(
+                    evidence: EvidenceID("host_after_refresh"),
+                    path: "activeAccountPresented",
+                    value: .bool(false)
+                )
+            ),
+            .snapshotEquals(
+                SnapshotEqualsRule(
+                    evidence: EvidenceID("host_after_refresh"),
+                    path: "remoteActiveCardVisible",
+                    value: .bool(false)
+                )
+            )
+        ])
+    }
+
     private init(
         id: ScenarioID,
         hostValidationID: InvariantID? = nil,
         hostExpectation: String? = nil,
         remoteHostSwitchID: InvariantID? = nil,
-        remoteHostSwitchExpectation: String? = nil
+        remoteHostSwitchExpectation: String? = nil,
+        remoteHostRefreshFailureID: InvariantID? = nil,
+        remoteHostRefreshFailureExpectation: String? = nil
     ) {
         self.id = id
         self.hostValidationID = hostValidationID
         self.hostExpectation = hostExpectation
         self.remoteHostSwitchID = remoteHostSwitchID
         self.remoteHostSwitchExpectation = remoteHostSwitchExpectation
+        self.remoteHostRefreshFailureID = remoteHostRefreshFailureID
+        self.remoteHostRefreshFailureExpectation = remoteHostRefreshFailureExpectation
     }
 
     init?(legacyScenario: String) {
@@ -139,6 +215,8 @@ struct HostSealScenario {
             self = .addHostDestinationValidationFailed
         case "live-remote-host-switch":
             self = .switchAccountOnHostChangesRemoteActiveAccount
+        case "persisted_host_refresh_failure", "live-remote-host-refresh-failure":
+            self = .remoteHostRefreshFailurePreservesFallbackState
         default:
             return nil
         }
@@ -154,6 +232,12 @@ struct HostSealScenario {
         id: ScenarioID("switch-account-on-host-changes-remote-active-account"),
         remoteHostSwitchID: InvariantID("hosts.switch_account_on_host.changes_remote_active_account"),
         remoteHostSwitchExpectation: "Switching account through a host submenu changes that host's active remote account"
+    )
+
+    static let remoteHostRefreshFailurePreservesFallbackState = HostSealScenario(
+        id: ScenarioID("remote-host-refresh-failure-preserves-fallback-state"),
+        remoteHostRefreshFailureID: InvariantID("hosts.remote_host_refresh_failure.preserves_fallback_state"),
+        remoteHostRefreshFailureExpectation: "A remote host refresh failure preserves fallback state while marking the host disconnected"
     )
 }
 

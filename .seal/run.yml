@@ -4,3 +4,5 @@ scenarios:
     adapter: scripts/seal_run_adapter.sh
   add-host-destination-validation-failed:
     adapter: scripts/seal_run_adapter.sh
+  remote-host-refresh-failure-preserves-fallback-state:
+    adapter: scripts/seal_run_adapter.sh

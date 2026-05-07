@@ -9,4 +9,7 @@ protocol HostValidationRecorder {
     func recordRemoteHostSwitchMenuAction(targetName: String, hostName: String)
     func recordRemoteHostSwitchStarted(targetName: String, hostName: String)
     func recordRemoteHostActiveAccountChanged(targetName: String, hostName: String)
+    func recordRemoteHostRefreshStarted(hostName: String, fallbackAccountName: String)
+    func recordRemoteHostRefreshFailed(hostName: String, message: String)
+    func recordRemoteHostMarkedDisconnected(hostName: String, fallbackAccountName: String)
 }
