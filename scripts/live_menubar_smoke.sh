@@ -25,6 +25,7 @@ VALIDATION_APP_SUPPORT_DIR="${ARTIFACT_ROOT}/validation-app-support"
 VALIDATION_SETTINGS_FIXTURE_PATH="${ARTIFACT_ROOT}/validation-settings.json"
 VALIDATION_DEFAULTS_SUITE="CodexPill.validation.${AGENT_NAME}.${SCENARIO//[^[:alnum:]]/_}"
 PROOF_LAYER="live_ui"
+BASELINE_MENU_OPEN_SEAL_ONLY="${CODEXPILL_BASELINE_MENU_OPEN_SEAL_ONLY:-0}"
 SEAL_BACKED_SCENARIOS=(
   live-account-switch
   live-remote-host-switch
@@ -58,6 +59,13 @@ esac
 
 mkdir -p "${ARTIFACT_ROOT}/screenshots" "${ARTIFACT_ROOT}/logs"
 rm -f "${VALIDATION_EVENTS_PATH}"
+
+absolute_path() {
+  case "$1" in
+    /*) printf '%s\n' "$1" ;;
+    *) printf '%s/%s\n' "${PWD}" "$1" ;;
+  esac
+}
 
 is_seal_backed_scenario() {
   local candidate="$1"
@@ -206,6 +214,9 @@ exit(
 )
 RUBY
 then
+  if [[ "${BASELINE_MENU_OPEN_SEAL_ONLY}" == "1" && "${SCENARIO}" == "live-menu-open" ]]; then
+    :
+  else
   cat > "${SUMMARY_PATH}" <<EOF
 {
   "artifacts": [
@@ -224,6 +235,7 @@ EOF
   rm -f "${APP_SERVER_STDOUT}" "${APP_SERVER_STDERR}"
   echo "Live smoke failed: app-server probe did not return complete account data." >&2
   exit 9
+  fi
 fi
 rm -f "${APP_SERVER_STDOUT}" "${APP_SERVER_STDERR}"
 
@@ -472,14 +484,14 @@ RUBY
 fi
 
 RUN_MENUBAR_ENV=(
-  "CODEXPILL_VALIDATION_OUTPUT=${PWD}/${LIVE_SNAPSHOT_PATH}"
-  "CODEXPILL_VALIDATION_EVENTS_OUTPUT=${PWD}/${VALIDATION_EVENTS_PATH}"
+  "CODEXPILL_VALIDATION_OUTPUT=$(absolute_path "${LIVE_SNAPSHOT_PATH}")"
+  "CODEXPILL_VALIDATION_EVENTS_OUTPUT=$(absolute_path "${VALIDATION_EVENTS_PATH}")"
   "CODEXPILL_VALIDATION_SCENARIO=${SCENARIO}"
 )
 
 if [[ "${SCENARIO}" == "live-account-switch" || "${SCENARIO}" == "live-remote-host-switch" || "${SCENARIO}" == "live-add-account-name-dialog-cancelled" || "${SCENARIO}" == "live-add-account-prompt" || "${SCENARIO}" == "live-add-host-destination-validation-failed" || "${SCENARIO}" == "live-add-host-prompt" || "${SCENARIO}" == "live-scheduled-refresh" ]]; then
   RUN_MENUBAR_ENV+=(
-    "CODEXPILL_SEAL_PROOF_OUTPUT=${PWD}/${SEAL_PROOF_OUTPUT_PATH}"
+    "CODEXPILL_SEAL_PROOF_OUTPUT=$(absolute_path "${SEAL_PROOF_OUTPUT_PATH}")"
   )
 fi
 
@@ -503,16 +515,16 @@ fi
 
 if [[ "${SCENARIO}" == "live-remote-host-switch" ]]; then
   RUN_MENUBAR_ENV+=(
-    "CODEXPILL_VALIDATION_APP_SUPPORT_DIR=${PWD}/${VALIDATION_APP_SUPPORT_DIR}"
+    "CODEXPILL_VALIDATION_APP_SUPPORT_DIR=$(absolute_path "${VALIDATION_APP_SUPPORT_DIR}")"
     "CODEXPILL_VALIDATION_USER_DEFAULTS_SUITE=${VALIDATION_DEFAULTS_SUITE}"
-    "CODEXPILL_VALIDATION_SETTINGS_FIXTURE=${PWD}/${VALIDATION_SETTINGS_FIXTURE_PATH}"
+    "CODEXPILL_VALIDATION_SETTINGS_FIXTURE=$(absolute_path "${VALIDATION_SETTINGS_FIXTURE_PATH}")"
     "CODEXPILL_VALIDATION_REMOTE_HOST_CLIENT=memory"
   )
 fi
 
 if [[ "${SCENARIO}" == "live-account-switch" ]]; then
   RUN_MENUBAR_ENV+=(
-    "CODEXPILL_VALIDATION_APP_SUPPORT_DIR=${PWD}/${VALIDATION_APP_SUPPORT_DIR}"
+    "CODEXPILL_VALIDATION_APP_SUPPORT_DIR=$(absolute_path "${VALIDATION_APP_SUPPORT_DIR}")"
     "CODEXPILL_VALIDATION_USER_DEFAULTS_SUITE=${VALIDATION_DEFAULTS_SUITE}"
     "CODEXPILL_VALIDATION_CODEX_PROCESS_CLIENT=memory"
   )
@@ -588,8 +600,13 @@ app_server_status = JSON.parse(File.read(app_server_status_path))
 live_auth_status = JSON.parse(File.read(live_auth_status_path))
 menu_items = snapshot.fetch("menuItems", [])
 current_account = snapshot["currentAccount"] || {}
-uses_isolated_account_switch_fixture = scenario == "live-account-switch" &&
-  !ENV["CODEXPILL_VALIDATION_APP_SUPPORT_DIR"].to_s.strip.empty?
+uses_isolated_account_switch_fixture = (
+  scenario == "live-account-switch" &&
+    !ENV["CODEXPILL_VALIDATION_APP_SUPPORT_DIR"].to_s.strip.empty?
+) || (
+  scenario == "live-menu-open" &&
+    ENV["CODEXPILL_BASELINE_MENU_OPEN_SEAL_ONLY"].to_s == "1"
+)
 
 def meaningful_value(value)
   text = value.to_s.strip

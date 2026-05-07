@@ -88,6 +88,12 @@ private struct BaselineMenuOpenSnapshot: Encodable {
     let legacyLiveArtifactsUsedForVerdict: Bool
 }
 
+private struct EmitterCommand {
+    let name: EmitterCommandName
+    let outputDirectory: URL
+    let liveArtifactRoot: URL?
+}
+
 @main
 struct CodexPillProofEmitter {
     static func main() {
@@ -103,7 +109,7 @@ struct CodexPillProofEmitter {
             case .remoteHostRefreshFailure:
                 try emitRemoteHostRefreshFailureProof(to: outputDirectory)
             case .baselineMenuOpen:
-                try emitBaselineMenuOpenProof(to: outputDirectory)
+                try emitBaselineMenuOpenProof(to: outputDirectory, liveArtifactRoot: command.liveArtifactRoot)
             }
             print(outputDirectory.path)
         } catch {
@@ -114,7 +120,7 @@ struct CodexPillProofEmitter {
 
     private static func parseCommand() throws -> EmitterCommand {
         let arguments = Array(CommandLine.arguments.dropFirst())
-        guard arguments.count == 3,
+        guard arguments.count == 3 || arguments.count == 5,
               let commandName = EmitterCommandName(rawValue: arguments[0]),
               arguments[1] == "--output-dir",
               !arguments[2].trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -124,8 +130,19 @@ struct CodexPillProofEmitter {
 
         return EmitterCommand(
             name: commandName,
-            outputDirectory: URL(fileURLWithPath: arguments[2]).standardizedFileURL
+            outputDirectory: URL(fileURLWithPath: arguments[2]).standardizedFileURL,
+            liveArtifactRoot: try parseLiveArtifactRoot(from: arguments)
         )
+    }
+
+    private static func parseLiveArtifactRoot(from arguments: [String]) throws -> URL? {
+        guard arguments.count == 5 else { return nil }
+        guard arguments[3] == "--live-artifact-root",
+              !arguments[4].trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else {
+            throw UsageError()
+        }
+        return URL(fileURLWithPath: arguments[4]).standardizedFileURL
     }
 
     private static func guardFixtureOwnedOutputDirectory(_ outputDirectory: URL) throws {
@@ -353,50 +370,8 @@ struct CodexPillProofEmitter {
         try run.finish()
     }
 
-    private static func emitBaselineMenuOpenProof(to outputDirectory: URL) throws {
-        let snapshot = BaselineMenuOpenSnapshot(
-            appLaunched: true,
-            menuOpened: true,
-            menuItemCount: 18,
-            renderedSections: [
-                "Active Account(s)",
-                "Accounts",
-                "App Controls",
-                "Status",
-                "Quit"
-            ],
-            appControls: [
-                "Add Account...",
-                "Hosts",
-                "Notifications",
-                "Refresh Interval",
-                "Preferences",
-                "About",
-                "Quit"
-            ],
-            hasRequiredAppControls: true,
-            inactiveAccountName: "Validation Business",
-            inactiveAccountActionSelector: "switchAccount:",
-            inactiveAccountActionEnabled: true,
-            customRows: [
-                .init(
-                    title: "Validation Personal active row",
-                    menuWidth: 360,
-                    rowWidth: 360,
-                    difference: 0,
-                    tolerance: 8
-                ),
-                .init(
-                    title: "Validation Business account row",
-                    menuWidth: 360,
-                    rowWidth: 360,
-                    difference: 0,
-                    tolerance: 8
-                )
-            ],
-            customRowsFlushWithMenuWidth: true,
-            legacyLiveArtifactsUsedForVerdict: false
-        )
+    private static func emitBaselineMenuOpenProof(to outputDirectory: URL, liveArtifactRoot: URL?) throws {
+        let snapshot = try makeBaselineMenuOpenSnapshot(from: liveArtifactRoot)
 
         try SealRecorder.register(features: [try baselineMenuOpenFeature()])
         let run = try SealRecorder.startRun(
@@ -412,7 +387,7 @@ struct CodexPillProofEmitter {
             "app_launched",
             step: "app_launch",
             invariantIds: [baselineMenuOpenInvariantID],
-            payload: ["bundleId": .string("com.raphhgg.codexpill.validation")]
+            payload: ["source": .string("live-menu-open")]
         )
         try run.recordEvent(
             "menu_opened",
@@ -426,6 +401,87 @@ struct CodexPillProofEmitter {
             value: snapshot
         )
         try run.finish()
+    }
+
+    private static func makeBaselineMenuOpenSnapshot(from liveArtifactRoot: URL?) throws -> BaselineMenuOpenSnapshot {
+        guard let liveArtifactRoot else {
+            throw MissingLiveArtifactRootError()
+        }
+
+        let summary = try readJSONObject(liveArtifactRoot.appendingPathComponent("summary.json"))
+        guard summary["status"] as? String == "passed" else {
+            throw FailedLiveMenuOpenProofError(summary: summary)
+        }
+
+        let uiTree = try readJSONObject(liveArtifactRoot.appendingPathComponent("ui-tree.json"))
+        let runtimeSnapshot = try readJSONObject(liveArtifactRoot.appendingPathComponent("live-menu-snapshot.json"))
+        _ = try readJSONObject(liveArtifactRoot.appendingPathComponent("runtime-assertions.json"))
+
+        let menuItemCount = uiTree["menuItemCount"] as? Int ?? 0
+        let renderedSections = (runtimeSnapshot["sections"] as? [[String: Any]] ?? [])
+            .compactMap { $0["title"] as? String }
+        let menuItems = runtimeSnapshot["menuItems"] as? [[String: Any]] ?? []
+        let appControls = collectAppControls(from: menuItems)
+        let requiredAppControls = ["Add Account…", "Hosts", "Notifications", "Preferences", "About", "Quit"]
+        let hasRefreshControl = appControls.contains { $0.hasPrefix("Refresh ") }
+        let inactiveSwitchTarget = findMenuItem(withActionSelector: "switchAccount:", in: menuItems)
+        let menuWidth = (uiTree["menuFrame"] as? [String: Any])?["width"] as? Double
+        let customRows = menuItems.compactMap { item -> BaselineMenuOpenSnapshot.CustomRowWidth? in
+            guard let width = item["viewFrameWidth"] as? Double,
+                  let menuWidth
+            else { return nil }
+            let difference = abs(menuWidth - width)
+            return .init(
+                title: item["title"] as? String ?? "Untitled custom row",
+                menuWidth: menuWidth,
+                rowWidth: width,
+                difference: difference,
+                tolerance: 8
+            )
+        }
+
+        return BaselineMenuOpenSnapshot(
+            appLaunched: true,
+            menuOpened: menuItemCount > 0,
+            menuItemCount: menuItemCount,
+            renderedSections: renderedSections,
+            appControls: appControls,
+            hasRequiredAppControls: requiredAppControls.allSatisfy(appControls.contains) && hasRefreshControl,
+            inactiveAccountName: inactiveSwitchTarget?["title"] as? String ?? "",
+            inactiveAccountActionSelector: inactiveSwitchTarget?["actionSelector"] as? String ?? "",
+            inactiveAccountActionEnabled: inactiveSwitchTarget?["isEnabled"] as? Bool ?? false,
+            customRows: customRows,
+            customRowsFlushWithMenuWidth: !customRows.isEmpty && customRows.allSatisfy { $0.difference <= $0.tolerance },
+            legacyLiveArtifactsUsedForVerdict: false
+        )
+    }
+
+    private static func readJSONObject(_ url: URL) throws -> [String: Any] {
+        let data = try Data(contentsOf: url)
+        guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw InvalidLiveArtifactError(path: url.path)
+        }
+        return object
+    }
+
+    private static func collectAppControls(from menuItems: [[String: Any]]) -> [String] {
+        let controlTitles: Set<String> = ["Add Account…", "Hosts", "Notifications", "Preferences", "About", "Quit"]
+        return flattenMenuItems(menuItems)
+            .compactMap { $0["title"] as? String }
+            .filter { controlTitles.contains($0) || $0.hasPrefix("Refresh ") }
+    }
+
+    private static func findMenuItem(withActionSelector selector: String, in menuItems: [[String: Any]]) -> [String: Any]? {
+        flattenMenuItems(menuItems).first { item in
+            item["actionSelector"] as? String == selector && item["isEnabled"] as? Bool == true
+        }
+    }
+
+    private static func flattenMenuItems(_ menuItems: [[String: Any]]) -> [[String: Any]] {
+        menuItems.flatMap { item -> [[String: Any]] in
+            let children = item["children"] as? [[String: Any]] ?? []
+            return [item] + flattenMenuItems(children)
+        }
     }
 
     private static func accountSwitchFeature() throws -> SealFeature {
@@ -685,11 +741,6 @@ struct CodexPillProofEmitter {
     }
 }
 
-private struct EmitterCommand {
-    let name: EmitterCommandName
-    let outputDirectory: URL
-}
-
 private enum EmitterCommandName: String {
     case accountSwitch = "emit-account-switch-proof"
     case addHostValidationFailure = "emit-add-host-validation-failure-proof"
@@ -699,7 +750,31 @@ private enum EmitterCommandName: String {
 
 private struct UsageError: LocalizedError, CustomStringConvertible {
     var description: String {
-        "Usage: CodexPillProofEmitter <emit-account-switch-proof|emit-add-host-validation-failure-proof|emit-remote-host-refresh-failure-proof|emit-baseline-menu-open-proof> --output-dir <proof-output-dir>"
+        "Usage: CodexPillProofEmitter <emit-account-switch-proof|emit-add-host-validation-failure-proof|emit-remote-host-refresh-failure-proof|emit-baseline-menu-open-proof> --output-dir <proof-output-dir> [--live-artifact-root <live-menu-open-artifacts>]"
+    }
+}
+
+private struct MissingLiveArtifactRootError: LocalizedError, CustomStringConvertible {
+    var description: String {
+        "emit-baseline-menu-open-proof requires --live-artifact-root so Seal evidence is derived from live-menu-open runtime artifacts."
+    }
+}
+
+private struct InvalidLiveArtifactError: LocalizedError, CustomStringConvertible {
+    let path: String
+
+    var description: String {
+        "Invalid live menu-open artifact: \(path)"
+    }
+}
+
+private struct FailedLiveMenuOpenProofError: LocalizedError, CustomStringConvertible {
+    let summary: [String: Any]
+
+    var description: String {
+        let status = summary["status"] as? String ?? "unknown"
+        let gaps = (summary["gaps"] as? [String] ?? []).joined(separator: "; ")
+        return "live-menu-open proof did not pass before Seal evidence emission. status=\(status) gaps=\(gaps)"
     }
 }
 

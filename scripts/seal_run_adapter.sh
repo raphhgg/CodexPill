@@ -82,7 +82,7 @@ case "${SCENARIO}" in
     CODEXPILL_ENTRYPOINT="make emit-remote-host-refresh-failure-proof"
     ;;
   baseline-menu-open-runtime-ready)
-    CODEXPILL_ENTRYPOINT="make emit-baseline-menu-open-proof"
+    CODEXPILL_ENTRYPOINT="make emit-baseline-menu-open-proof-from-live"
     ;;
   *)
     log "unsupported scenario: ${SCENARIO}"
@@ -115,7 +115,11 @@ log "artifact_root=${ARTIFACT_ROOT}"
 
 (
   cd "${REPO_ROOT}"
-  OUTPUT_DIR="${PROOF_OUTPUT}" ${CODEXPILL_ENTRYPOINT}
+  if [[ "${SCENARIO}" == "baseline-menu-open-runtime-ready" ]]; then
+    LIVE_ARTIFACT_ROOT="${ARTIFACT_ROOT}/live-menu-open" OUTPUT_DIR="${PROOF_OUTPUT}" ${CODEXPILL_ENTRYPOINT}
+  else
+    OUTPUT_DIR="${PROOF_OUTPUT}" ${CODEXPILL_ENTRYPOINT}
+  fi
 )
 
 cat >"${SCENARIO_METADATA_PATH}" <<JSON

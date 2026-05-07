@@ -9,7 +9,7 @@ PROOF_EMITTER_BINARY := $(DERIVED_DATA)/Build/Products/Debug/CodexPillProofEmitt
 DEV_BUNDLE_ID ?= com.raphhgg.codexpill.dev
 STAGING_BUNDLE_ID ?= com.raphhgg.codexpill.staging
 
-.PHONY: diagnose generate prepare-result-bundle build test mutation build-proof-emitter emit-account-switch-proof emit-add-host-validation-failure-proof emit-remote-host-refresh-failure-proof emit-baseline-menu-open-proof verify-account-switch-seal verify-add-host-validation-failure-seal verify-remote-host-refresh-failure-seal verify-baseline-menu-open-seal run verify-ui verify-ui-live clean
+.PHONY: diagnose generate prepare-result-bundle build test mutation build-proof-emitter emit-account-switch-proof emit-add-host-validation-failure-proof emit-remote-host-refresh-failure-proof emit-baseline-menu-open-proof emit-baseline-menu-open-proof-from-live verify-account-switch-seal verify-add-host-validation-failure-seal verify-remote-host-refresh-failure-seal verify-baseline-menu-open-seal run verify-ui verify-ui-live clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -72,6 +72,18 @@ emit-baseline-menu-open-proof: build-proof-emitter
 		exit 64; \
 	fi
 	"$(PROOF_EMITTER_BINARY)" emit-baseline-menu-open-proof --output-dir "$${OUTPUT_DIR}"
+
+emit-baseline-menu-open-proof-from-live: build-proof-emitter
+	@if [ -z "$${OUTPUT_DIR:-}" ]; then \
+		echo "Set OUTPUT_DIR to the proof output directory."; \
+		exit 64; \
+	fi
+	@if [ -z "$${LIVE_ARTIFACT_ROOT:-}" ]; then \
+		echo "Set LIVE_ARTIFACT_ROOT to the live menu-open artifact directory."; \
+		exit 64; \
+	fi
+	AGENT_NAME="$(AGENT_NAME)" SCENARIO=live-menu-open ARTIFACT_ROOT="$${LIVE_ARTIFACT_ROOT}" CODEXPILL_BASELINE_MENU_OPEN_SEAL_ONLY=1 ./scripts/live_menubar_smoke.sh
+	"$(PROOF_EMITTER_BINARY)" emit-baseline-menu-open-proof --output-dir "$${OUTPUT_DIR}" --live-artifact-root "$${LIVE_ARTIFACT_ROOT}"
 
 verify-account-switch-seal:
 	./scripts/verify_account_switch_seal.sh
