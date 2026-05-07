@@ -200,8 +200,8 @@ that future rewrites must preserve their isolation.
 2. Promote `live-status-item-hover` to a Seal scenario if hover remains a
    release-readiness gate.
 3. Promote active local/remote account grouping to a Seal scenario.
-4. Promote active-account removal sign-out flow to a Seal scenario, with
-   lower-layer tests retaining sign-out failure ordering.
+4. Preserve lower-layer active-account removal sign-out failure ordering tests
+   now that the happy-path removal flow is Seal-backed.
 5. Extend switch-account Seal coverage for Codex relaunch and post-switch
    refresh evidence.
 6. Add Seal coverage for Add Account success routing into local switch.
