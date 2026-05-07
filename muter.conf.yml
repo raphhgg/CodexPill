@@ -1,5 +1,5 @@
 arguments:
-  - test
+  - scripts/muter_xcodebuild.sh
   - -project
   - CodexPill.xcodeproj
   - -scheme
@@ -11,7 +11,8 @@ arguments:
   - -derivedDataPath
   - build/DerivedData/mutation
   - PRODUCT_BUNDLE_IDENTIFIER=com.raphhgg.codexpill.staging
-executable: /usr/bin/xcodebuild
+  - test
+executable: /bin/bash
 exclude:
   - .build
   - build
