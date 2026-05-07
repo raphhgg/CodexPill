@@ -330,7 +330,8 @@ struct CodexPillSealOnlyRuntimeValidationScriptTests {
         #expect(config.contains("add-host-destination-validation-failed:"))
         #expect(config.contains("remote-host-refresh-failure-preserves-fallback-state:"))
         #expect(config.contains("baseline-menu-open-runtime-ready:"))
-        #expect(config.components(separatedBy: "adapter: scripts/seal_run_adapter.sh").count == 5)
+        #expect(config.contains("active-account-grouping-runtime-ready:"))
+        #expect(config.components(separatedBy: "adapter: scripts/seal_run_adapter.sh").count == 6)
     }
 
     private static func repoRoot() -> URL {

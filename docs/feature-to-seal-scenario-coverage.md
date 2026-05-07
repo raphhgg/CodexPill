@@ -44,6 +44,7 @@ summaries and legacy live artifacts are diagnostic pointers only.
 | Switching an account through a remote-host submenu updates that host's active account. | `live-remote-host-switch` | `switch-account-on-host-changes-remote-active-account` | Seal runtime/live scenario exists |
 | Scheduled refresh requests and completes without changing saved account identity or showing a blocking alert. | `live-scheduled-refresh` | `scheduled-refresh-preserves-account-catalog` | Seal runtime/live scenario exists |
 | Persisted remote host refresh failure preserves fallback state, marks the host disconnected, and hides disconnected hosts from active account facts. | `persisted_host_refresh_failure` | `remote-host-refresh-failure-preserves-fallback-state` | Seal runtime/live scenario exists |
+| Active local and connected remote account cards group same-account targets and multiple remote hosts without real SSH credentials. | Multiple-host active-card live validation | `active-account-grouping-runtime-ready` | Seal runtime/live scenario exists |
 | Baseline app starts, the menu opens, required App Controls render, inactive account switch wiring is present, and custom rows fit the rendered width. | `live-menu-open` | `baseline-menu-open-runtime-ready` | Seal runtime/live scenario exists |
 
 ## Coverage Map
@@ -53,7 +54,7 @@ summaries and legacy live artifacts are diagnostic pointers only.
 | Claim | Category | Current proof or rationale |
 | --- | --- | --- |
 | Menu section order is `Active Account(s)`, `Accounts`, `More Accounts...`, App Controls, status, `Quit`. | Lower-layer test owns this better | Deterministic UI validation owns static menu shape and ordering better than Seal because no live event sequence is required. |
-| Active local and verified remote accounts render in one unified active section, including collapsed same-account cards. | Seal scenario needed | Runtime/live menu state is user-visible and cross-cuts local and remote target state. Current validation has deterministic scenarios and live tests, but no Seal scenario for the grouped active-account card contract. |
+| Active local and verified remote accounts render in one unified active section, including collapsed same-account cards. | Seal runtime/live scenario exists | Covered by `active-account-grouping-runtime-ready`, with CodexPill-owned evidence and generic Seal event/snapshot rules. Deterministic projection tests remain lower-layer coverage. |
 | Saved account rows render compactly, use submenus, and overflow to `More Accounts...`. | Lower-layer test owns this better | Deterministic UI snapshots prove row placement, overflow, labels, and submenu shape without needing live mutation. |
 | App Controls contains `Add Account...`, `Hosts`, `Notifications`, `Refresh Interval`, `Preferences`, `About`, and `Quit`. | Lower-layer test owns this better | Static composition and labels are deterministic menu projection claims. |
 | Busy work disables or routes conflicting actions through existing confirmation flow. | Seal scenario needed | Busy-state action gating is runtime menu behavior and should get a focused Seal scenario once the highest-risk account flows are covered. |
@@ -78,8 +79,8 @@ summaries and legacy live artifacts are diagnostic pointers only.
 | --- | --- | --- |
 | Active local account shows matched saved account metadata, plan, usage, reset timing, and optional pacing markers. | Lower-layer test owns this better | Menu-state projection and formatting tests own the data-selection rules. |
 | Unmatched live auth shows a clear empty/unmatched state instead of stale saved-account data. | Seal scenario needed | This is runtime/live account-observation behavior and should get a Seal scenario after switch and refresh flows are stable. |
-| Remote active cards use verified remote target values and hide pending, failed, disconnected, or unverified hosts as active facts. | Seal scenario needed | Runtime remote state and live menu presentation are product-critical; current deterministic and live tests should be lifted into Seal coverage. |
-| Duplicate local and remote active accounts collapse into one card with location context. | Seal scenario needed | The cross-target grouping claim is visible runtime state; a Seal scenario can prevent regressions in adoption readiness. |
+| Remote active cards use verified remote target values and hide pending, failed, disconnected, or unverified hosts as active facts. | Seal runtime/live scenario exists | `active-account-grouping-runtime-ready` proves grouped verified targets and excludes unverified or disconnected hosts from active-card evidence. Lower-layer tests continue to own projection details. |
+| Duplicate local and remote active accounts collapse into one card with location context. | Seal runtime/live scenario exists | Covered by `active-account-grouping-runtime-ready`. |
 | Catalog rows use saved metadata, latest known rate limits, availability ranking, overflow behavior, and compact submenu content. | Lower-layer test owns this better | Deterministic UI and unit ranking/projection tests are better owners for static row shape and ordering. |
 | Account submenu shows disabled email or `No email`, usage row, switch actions, rename, and remove. | Lower-layer test owns this better | Deterministic UI snapshots prove submenu content and action wiring metadata. |
 | Inactive account live rows expose enabled `switchAccount:` action targets. | Seal runtime/live scenario exists | Folded into `baseline-menu-open-runtime-ready` for the baseline menu-open gate. |
@@ -171,18 +172,16 @@ These legacy flows are still useful but are not currently Seal-backed:
 | --- | --- | --- |
 | `live-status-item-hover` | Text-on-hover remains visible while pointer stays inside resized status-item bounds. | Promote to a status-bar Seal scenario if live hover remains a release-readiness gate. |
 | Remove-account live validation in `MenuBarLiveValidationTests` | Active local and remote targets are signed out before saved account deletion. | Promote to destructive account-flow Seal scenario before relying on Seal for removal readiness. |
-| Multiple-host active-card live validation in `MenuBarLiveValidationTests` | Connected verified remote hosts render grouped active account cards without mutating local catalog. | Promote to active-account grouping Seal scenario. |
 
 ## Prioritized Migration Backlog
 
 1. **Status item hover Seal scenario**: migrate `live-status-item-hover` if hover behavior remains a live release gate.
-2. **Active account grouping Seal scenario**: cover local plus remote same-account collapse and multiple connected remote host grouping.
-3. **Remove active account Seal scenario**: cover local and connected remote sign-out before saved snapshot deletion, with no deletion on sign-out failure deferred to lower-layer tests.
-4. **Switch-account post-refresh Seal scenario**: extend or add Seal coverage for Codex relaunch/post-switch refresh evidence beyond visible active-account change.
-5. **Add Account success-to-switch Seal scenario**: cover `Use on This Mac` routing through the existing switch path without a second confirmation.
-6. **Remote verification failure Seal scenario**: prove runtime failure surfacing after a remote switch verification mismatch.
-7. **Busy-state gating Seal scenario**: cover disabled or confirmation-routed actions during active account operations.
-8. **Notification action dispatch Seal scenario**: cover notification actions routing into local or remote switch paths when macOS notification delivery can be controlled without flakiness.
+2. **Remove active account Seal scenario**: cover local and connected remote sign-out before saved snapshot deletion, with no deletion on sign-out failure deferred to lower-layer tests.
+3. **Switch-account post-refresh Seal scenario**: extend or add Seal coverage for Codex relaunch/post-switch refresh evidence beyond visible active-account change.
+4. **Add Account success-to-switch Seal scenario**: cover `Use on This Mac` routing through the existing switch path without a second confirmation.
+5. **Remote verification failure Seal scenario**: prove runtime failure surfacing after a remote switch verification mismatch.
+6. **Busy-state gating Seal scenario**: cover disabled or confirmation-routed actions during active account operations.
+7. **Notification action dispatch Seal scenario**: cover notification actions routing into local or remote switch paths when macOS notification delivery can be controlled without flakiness.
 
 ## Not Recommended For Seal
 

@@ -14,6 +14,7 @@ Supported scenarios:
   add-host-destination-validation-failed
   remote-host-refresh-failure-preserves-fallback-state
   baseline-menu-open-runtime-ready
+  active-account-grouping-runtime-ready
 USAGE
 }
 
@@ -84,13 +85,16 @@ case "${SCENARIO}" in
   baseline-menu-open-runtime-ready)
     CODEXPILL_ENTRYPOINT="make emit-baseline-menu-open-proof-from-live"
     ;;
+  active-account-grouping-runtime-ready)
+    CODEXPILL_ENTRYPOINT="make emit-active-account-grouping-proof"
+    ;;
   *)
     log "unsupported scenario: ${SCENARIO}"
     cat >"${SCENARIO_METADATA_PATH}" <<JSON
 {
   "scenario": "$(printf '%s' "${SCENARIO}" | json_escape)",
   "status": "unsupported",
-  "supportedScenarios": ["switch-account-changes-active-account", "add-host-destination-validation-failed", "remote-host-refresh-failure-preserves-fallback-state", "baseline-menu-open-runtime-ready"]
+  "supportedScenarios": ["switch-account-changes-active-account", "add-host-destination-validation-failed", "remote-host-refresh-failure-preserves-fallback-state", "baseline-menu-open-runtime-ready", "active-account-grouping-runtime-ready"]
 }
 JSON
     echo "Unsupported CodexPill Seal runner scenario: ${SCENARIO}" >&2

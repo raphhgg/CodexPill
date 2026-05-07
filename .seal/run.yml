@@ -8,3 +8,5 @@ scenarios:
     adapter: scripts/seal_run_adapter.sh
   baseline-menu-open-runtime-ready:
     adapter: scripts/seal_run_adapter.sh
+  active-account-grouping-runtime-ready:
+    adapter: scripts/seal_run_adapter.sh

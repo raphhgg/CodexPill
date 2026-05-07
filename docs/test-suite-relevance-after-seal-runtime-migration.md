@@ -140,7 +140,6 @@ only by legacy live tests or deterministic approximations:
 | --- | --- | --- |
 | Baseline menu-open Seal scenario | `make verify-ui-live` / `live-menu-open` plus deterministic UI | Runtime launch, menu opening, custom row width, and action wiring are live readiness claims. |
 | Status-item hover Seal scenario | `StatusItemRuntimeTests` plus `live-status-item-hover` | Unit tests cover policy/events, but real hover bounds are runtime UI behavior. |
-| Active account grouping Seal scenario | deterministic UI plus `MenuBarLiveValidationTests` | Grouping across local and remote targets is a visible runtime contract. |
 | Remove active account Seal scenario | `DeleteSavedAccountUseCaseTests`, host client tests, `MenuBarLiveValidationTests` | Live destructive flow deserves Seal readiness proof, while failure ordering stays lower-layer. |
 | Switch-account post-refresh Seal scenario | `SwitchAccountWorkflowTests` plus current switch Seal scenario | Existing Seal coverage proves visible active-account change, not relaunch/post-switch refresh as distinct invariants. |
 | Add Account success-to-switch Seal scenario | `AccountActionFlowTests`, `AddAccountWorkflowTests`, alert tests | Runtime coordinator wiring after success is not currently Seal-backed. |
@@ -151,6 +150,10 @@ only by legacy live tests or deterministic approximations:
 Rationale: these are runtime/live claims from the coverage map. They should be
 promoted to Seal before CodexPill treats Seal as complete live-readiness
 coverage.
+
+Active account grouping is now covered by `active-account-grouping-runtime-ready`;
+keep deterministic projection tests because they still own lower-level grouping
+rules and fixture safety.
 
 ## Delete Or Devalue
 

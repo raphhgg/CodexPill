@@ -404,16 +404,17 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 - `feature`: `accounts`
 - `rule`: If the same saved account is active locally and on one or more connected verified remote hosts, CodexPill renders one `Active Account` card with compact location context such as `This Mac + debian-vm`; it must not render a duplicate remote active card for the same saved account.
 - `owner_layer`: `unit`
-- `proofs_required`: `["unit", "deterministic_ui"]`
-- `scenarios`: `["hosted_menu_local_and_remote_same_account", "hosted_menu_with_host", "hosted_menu_disconnected_host"]`
+- `proofs_required`: `["unit", "deterministic_ui", "seal"]`
+- `scenarios`: `["hosted_menu_local_and_remote_same_account", "hosted_menu_with_host", "hosted_menu_disconnected_host", "active-account-grouping-runtime-ready"]`
+- `seal_only_runtime_validation`: Prefer `swift run --package-path ../Seal seal run --scenario active-account-grouping-runtime-ready`, which resolves CodexPill-owned grouping evidence from `.seal/run.yml`. Seal verifies generic event and snapshot rules while CodexPill owns the active-card and remote-host semantics in the evidence payload.
 
 ### `accounts.active_cards.render_verified_active_targets_only`
 
 - `feature`: `accounts`
 - `rule`: The top active-account section renders local and connected verified remote active accounts as one collection. Different active accounts render as separate cards under `Active Accounts`; the same remote account used on multiple hosts is grouped into one card with joined host context. Unreachable, unverified, verifying, failed, or missing-active-account hosts stay persisted but do not render active account cards.
 - `owner_layer`: `live_ui`
-- `proofs_required`: `["deterministic_ui", "live_ui"]`
-- `scenarios`: `["hosted_menu_multiple_hosts", "hosted_menu_with_host", "mixed_persisted_host_restore"]`
+- `proofs_required`: `["deterministic_ui", "seal"]`
+- `scenarios`: `["hosted_menu_multiple_hosts", "hosted_menu_with_host", "mixed_persisted_host_restore", "active-account-grouping-runtime-ready"]`
 
 ### `hosts.disconnected_hosts.remain_targetable_without_active_card`
 

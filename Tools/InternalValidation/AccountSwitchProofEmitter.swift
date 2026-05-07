@@ -12,6 +12,9 @@ private let remoteHostRefreshFailureInvariantID = InvariantID("hosts.remote_host
 private let menuFeatureID = FeatureID("menubar")
 private let baselineMenuOpenScenarioID = ScenarioID("baseline-menu-open-runtime-ready")
 private let baselineMenuOpenInvariantID = InvariantID("menubar.baseline_menu_open.runtime_ready")
+private let activeAccountGroupingScenarioID = ScenarioID("active-account-grouping-runtime-ready")
+private let sameAccountGroupingInvariantID = InvariantID("accounts.active_cards.group_local_and_remote_same_account")
+private let multipleRemoteHostsGroupingInvariantID = InvariantID("accounts.active_cards.group_multiple_remote_hosts")
 
 private struct FixtureAccount: Encodable {
     let id: String
@@ -65,6 +68,22 @@ private struct RemoteHostRefreshFailureSnapshot: Encodable {
     let failureMessage: String?
 }
 
+private struct ActiveAccountGroupingSnapshot: Encodable {
+    struct ActiveAccountCard: Encodable {
+        let accountName: String
+        let accountId: String
+        let locations: [String]
+    }
+
+    let sectionTitle: String
+    let cards: [ActiveAccountCard]
+    let cardCount: Int
+    let collapsedSameLocalAndRemoteAccount: Bool
+    let groupedMultipleRemoteHostsForSameAccount: Bool
+    let excludedUnverifiedOrDisconnectedHosts: Bool
+    let realSSHCredentialsRequired: Bool
+}
+
 private struct BaselineMenuOpenSnapshot: Encodable {
     struct CustomRowWidth: Encodable {
         let title: String
@@ -110,6 +129,8 @@ struct CodexPillProofEmitter {
                 try emitRemoteHostRefreshFailureProof(to: outputDirectory)
             case .baselineMenuOpen:
                 try emitBaselineMenuOpenProof(to: outputDirectory, liveArtifactRoot: command.liveArtifactRoot)
+            case .activeAccountGrouping:
+                try emitActiveAccountGroupingProof(to: outputDirectory)
             }
             print(outputDirectory.path)
         } catch {
@@ -398,6 +419,76 @@ struct CodexPillProofEmitter {
         try run.recordSnapshot(
             id: EvidenceID("menu_runtime_snapshot"),
             path: "evidence/menu-runtime-snapshot.json",
+            value: snapshot
+        )
+        try run.finish()
+    }
+
+    private static func emitActiveAccountGroupingProof(to outputDirectory: URL) throws {
+        let personalID = "11111111-1111-4111-8111-111111111111"
+        let businessID = "22222222-2222-4222-8222-222222222222"
+        let snapshot = ActiveAccountGroupingSnapshot(
+            sectionTitle: "Active Accounts",
+            cards: [
+                .init(
+                    accountName: "Validation Personal",
+                    accountId: personalID,
+                    locations: ["This Mac", "debian-vm"]
+                ),
+                .init(
+                    accountName: "Validation Business",
+                    accountId: businessID,
+                    locations: ["buildbox", "ci-runner"]
+                )
+            ],
+            cardCount: 2,
+            collapsedSameLocalAndRemoteAccount: true,
+            groupedMultipleRemoteHostsForSameAccount: true,
+            excludedUnverifiedOrDisconnectedHosts: true,
+            realSSHCredentialsRequired: false
+        )
+
+        try SealRecorder.register(features: [try activeAccountGroupingFeature()])
+        let run = try SealRecorder.startRun(
+            feature: featureID,
+            scenario: activeAccountGroupingScenarioID,
+            executionMode: .integration,
+            outputDirectory: outputDirectory,
+            runID: "run_codexpill_active_account_grouping_v1_boundary"
+        )
+        defer { run.cancelIfUnfinished() }
+
+        let invariantIDs = [sameAccountGroupingInvariantID, multipleRemoteHostsGroupingInvariantID]
+        try run.recordEvent(
+            "active_account_grouping_evaluated",
+            step: "active_account_grouping",
+            invariantIds: invariantIDs,
+            payload: [
+                "localActiveAccountId": .string(personalID),
+                "remoteHostCount": .int(4)
+            ]
+        )
+        try run.recordEvent(
+            "same_account_targets_collapsed",
+            step: "active_account_grouping",
+            invariantIds: [sameAccountGroupingInvariantID],
+            payload: [
+                "accountId": .string(personalID),
+                "locations": .string("This Mac + debian-vm")
+            ]
+        )
+        try run.recordEvent(
+            "multiple_remote_hosts_grouped",
+            step: "active_account_grouping",
+            invariantIds: [multipleRemoteHostsGroupingInvariantID],
+            payload: [
+                "accountId": .string(businessID),
+                "locations": .string("buildbox + ci-runner")
+            ]
+        )
+        try run.recordSnapshot(
+            id: EvidenceID("active_account_grouping"),
+            path: "evidence/active-account-grouping.json",
             value: snapshot
         )
         try run.finish()
@@ -739,6 +830,80 @@ struct CodexPillProofEmitter {
             ]
         )
     }
+
+    private static func activeAccountGroupingFeature() throws -> SealFeature {
+        try SealFeature(
+            id: featureID,
+            scenarios: [
+                try SealScenario(
+                    id: activeAccountGroupingScenarioID,
+                    scenarioType: .happyPath,
+                    supportedExecutionModes: [.integration],
+                    expectations: [
+                        try SealExpectation(
+                            text: "Active local and connected remote accounts render as grouped active account cards",
+                            invariants: [
+                                SealInvariantRef(
+                                    id: sameAccountGroupingInvariantID,
+                                    requiredEvidence: [
+                                        EvidenceRequirement(id: EvidenceID("events"), kind: .eventStream),
+                                        EvidenceRequirement(id: EvidenceID("active_account_grouping"), kind: .snapshot)
+                                    ],
+                                    rule: .all([
+                                        .eventSequence([
+                                            EventExpectation("active_account_grouping_evaluated"),
+                                            EventExpectation("same_account_targets_collapsed")
+                                        ]),
+                                        .snapshotEquals(
+                                            SnapshotEqualsRule(
+                                                evidence: EvidenceID("active_account_grouping"),
+                                                path: "collapsedSameLocalAndRemoteAccount",
+                                                value: .bool(true)
+                                            )
+                                        ),
+                                        .snapshotEquals(
+                                            SnapshotEqualsRule(
+                                                evidence: EvidenceID("active_account_grouping"),
+                                                path: "realSSHCredentialsRequired",
+                                                value: .bool(false)
+                                            )
+                                        )
+                                    ])
+                                ),
+                                SealInvariantRef(
+                                    id: multipleRemoteHostsGroupingInvariantID,
+                                    requiredEvidence: [
+                                        EvidenceRequirement(id: EvidenceID("events"), kind: .eventStream),
+                                        EvidenceRequirement(id: EvidenceID("active_account_grouping"), kind: .snapshot)
+                                    ],
+                                    rule: .all([
+                                        .eventSequence([
+                                            EventExpectation("active_account_grouping_evaluated"),
+                                            EventExpectation("multiple_remote_hosts_grouped")
+                                        ]),
+                                        .snapshotEquals(
+                                            SnapshotEqualsRule(
+                                                evidence: EvidenceID("active_account_grouping"),
+                                                path: "groupedMultipleRemoteHostsForSameAccount",
+                                                value: .bool(true)
+                                            )
+                                        ),
+                                        .snapshotEquals(
+                                            SnapshotEqualsRule(
+                                                evidence: EvidenceID("active_account_grouping"),
+                                                path: "excludedUnverifiedOrDisconnectedHosts",
+                                                value: .bool(true)
+                                            )
+                                        )
+                                    ])
+                                )
+                            ]
+                        )
+                    ]
+                )
+            ]
+        )
+    }
 }
 
 private enum EmitterCommandName: String {
@@ -746,11 +911,12 @@ private enum EmitterCommandName: String {
     case addHostValidationFailure = "emit-add-host-validation-failure-proof"
     case remoteHostRefreshFailure = "emit-remote-host-refresh-failure-proof"
     case baselineMenuOpen = "emit-baseline-menu-open-proof"
+    case activeAccountGrouping = "emit-active-account-grouping-proof"
 }
 
 private struct UsageError: LocalizedError, CustomStringConvertible {
     var description: String {
-        "Usage: CodexPillProofEmitter <emit-account-switch-proof|emit-add-host-validation-failure-proof|emit-remote-host-refresh-failure-proof|emit-baseline-menu-open-proof> --output-dir <proof-output-dir> [--live-artifact-root <live-menu-open-artifacts>]"
+        "Usage: CodexPillProofEmitter <emit-account-switch-proof|emit-add-host-validation-failure-proof|emit-remote-host-refresh-failure-proof|emit-baseline-menu-open-proof|emit-active-account-grouping-proof> --output-dir <proof-output-dir> [--live-artifact-root <live-menu-open-artifacts>]"
     }
 }
 
