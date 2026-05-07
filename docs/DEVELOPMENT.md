@@ -59,6 +59,12 @@ Seal-only account-switch runtime validation:
 make verify-account-switch-seal
 ```
 
+Seal-only Add Host validation-failure runtime validation:
+
+```bash
+make verify-add-host-validation-failure-seal
+```
+
 ## Validation Artifacts
 
 `make verify-ui` renders deterministic menu states from fixtures and writes screenshot plus JSON artifacts under `build/verification/<agent>/<scenario>/`.

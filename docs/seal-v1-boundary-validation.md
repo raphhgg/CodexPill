@@ -149,3 +149,31 @@ Decision after RGR-253: use `make verify-account-switch-seal` as the selected
 account-switch runtime validation gate. Do not migrate all CodexPill validation
 to `seal run` yet, and do not add CodexPill adapter discovery to Seal in this
 slice.
+
+## Add Host Validation Failure Seal Runner Boundary
+
+RGR-254 extends the same compatibility-pointer pattern to
+`add-host-destination-validation-failed`.
+
+```bash
+AGENT_NAME=symphony-RGR-254 make verify-add-host-validation-failure-seal
+```
+
+The CodexPill-owned adapter accepts the Seal runner contract explicitly and
+routes the scenario to `make emit-add-host-validation-failure-proof`. The proof
+is deterministic rather than live UI driven: it records validation start,
+handled validation failure, before/after host catalog snapshots, and sanitized
+domain feedback. Raw SSH output and sensitive host-specific material are not
+included in proof diagnostics.
+
+The wrapper keeps `codexpill-summary.json` as a compatibility pointer only.
+Seal's `proof/`, `reports/result.json`, `reports/report.md`, and `adapter/`
+artifacts are the authoritative runtime validation output. As with RGR-253, the
+wrapper removes stale legacy runtime artifacts before invoking `seal run`, so
+old CodexPill summaries or event logs cannot make the selected flow pass.
+
+Pattern check after RGR-254: the RGR-253 compatibility-pointer approach scales
+to this second flow without adding CodexPill business semantics to Seal. The
+friction remains the explicit adapter ceremony and per-scenario wrapper naming;
+that should feed a later Seal adapter-UX decision rather than be solved with
+CodexPill-specific runner behavior.

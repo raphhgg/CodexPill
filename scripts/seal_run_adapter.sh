@@ -11,6 +11,7 @@ Usage: seal_run_adapter.sh --scenario <scenario-id> --proof-output <path> --arti
 
 Supported scenarios:
   switch-account-changes-active-account
+  add-host-destination-validation-failed
 USAGE
 }
 
@@ -70,6 +71,10 @@ json_escape() {
 
 case "${SCENARIO}" in
   switch-account-changes-active-account)
+    CODEXPILL_ENTRYPOINT="make emit-account-switch-proof"
+    ;;
+  add-host-destination-validation-failed)
+    CODEXPILL_ENTRYPOINT="make emit-add-host-validation-failure-proof"
     ;;
   *)
     log "unsupported scenario: ${SCENARIO}"
@@ -77,7 +82,7 @@ case "${SCENARIO}" in
 {
   "scenario": "$(printf '%s' "${SCENARIO}" | json_escape)",
   "status": "unsupported",
-  "supportedScenarios": ["switch-account-changes-active-account"]
+  "supportedScenarios": ["switch-account-changes-active-account", "add-host-destination-validation-failed"]
 }
 JSON
     echo "Unsupported CodexPill Seal runner scenario: ${SCENARIO}" >&2
@@ -91,7 +96,7 @@ cat >"${SCENARIO_METADATA_PATH}" <<JSON
   "status": "started",
   "proofOutput": "$(printf '%s' "${PROOF_OUTPUT}" | json_escape)",
   "artifactRoot": "$(printf '%s' "${ARTIFACT_ROOT}" | json_escape)",
-  "codexPillEntrypoint": "make emit-account-switch-proof"
+  "codexPillEntrypoint": "$(printf '%s' "${CODEXPILL_ENTRYPOINT}" | json_escape)"
 }
 JSON
 
@@ -102,7 +107,7 @@ log "artifact_root=${ARTIFACT_ROOT}"
 
 (
   cd "${REPO_ROOT}"
-  OUTPUT_DIR="${PROOF_OUTPUT}" make emit-account-switch-proof
+  OUTPUT_DIR="${PROOF_OUTPUT}" ${CODEXPILL_ENTRYPOINT}
 )
 
 cat >"${SCENARIO_METADATA_PATH}" <<JSON
@@ -111,7 +116,7 @@ cat >"${SCENARIO_METADATA_PATH}" <<JSON
   "status": "completed",
   "proofOutput": "$(printf '%s' "${PROOF_OUTPUT}" | json_escape)",
   "artifactRoot": "$(printf '%s' "${ARTIFACT_ROOT}" | json_escape)",
-  "codexPillEntrypoint": "make emit-account-switch-proof"
+  "codexPillEntrypoint": "$(printf '%s' "${CODEXPILL_ENTRYPOINT}" | json_escape)"
 }
 JSON
 

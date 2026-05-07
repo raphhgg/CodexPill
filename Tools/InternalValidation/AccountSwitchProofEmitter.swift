@@ -4,6 +4,9 @@ import SealRecorder
 private let featureID = FeatureID("accounts")
 private let scenarioID = ScenarioID("switch-account-changes-active-account")
 private let switchInvariantID = InvariantID("accounts.switch_account.menu_action_changes_active_account")
+private let addHostFeatureID = FeatureID("hosts")
+private let addHostScenarioID = ScenarioID("add-host-destination-validation-failed")
+private let addHostInvariantID = InvariantID("hosts.add_host.destination_validation_failed")
 
 private struct FixtureAccount: Encodable {
     let id: String
@@ -30,13 +33,37 @@ private struct AccountStateSnapshot: Encodable {
     }
 }
 
+private struct HostCatalogSnapshot: Encodable {
+    let hosts: [String]
+    let hostCount: Int
+
+    init(hosts: [String]) {
+        self.hosts = hosts
+        hostCount = hosts.count
+    }
+}
+
+private struct HostValidationFailureSnapshot: Encodable {
+    let destination: String
+    let validationResult: String
+    let feedback: String
+    let diagnosticsPolicy: String
+    let rawSSHOutputIncluded: Bool
+}
+
 @main
 struct CodexPillProofEmitter {
     static func main() {
         do {
-            let outputDirectory = try parseOutputDirectory()
+            let command = try parseCommand()
+            let outputDirectory = command.outputDirectory
             try guardFixtureOwnedOutputDirectory(outputDirectory)
-            try emitAccountSwitchProof(to: outputDirectory)
+            switch command.name {
+            case .accountSwitch:
+                try emitAccountSwitchProof(to: outputDirectory)
+            case .addHostValidationFailure:
+                try emitAddHostValidationFailureProof(to: outputDirectory)
+            }
             print(outputDirectory.path)
         } catch {
             FileHandle.standardError.write(Data("\(error)\n".utf8))
@@ -44,17 +71,20 @@ struct CodexPillProofEmitter {
         }
     }
 
-    private static func parseOutputDirectory() throws -> URL {
+    private static func parseCommand() throws -> EmitterCommand {
         let arguments = Array(CommandLine.arguments.dropFirst())
         guard arguments.count == 3,
-              arguments[0] == "emit-account-switch-proof",
+              let commandName = EmitterCommandName(rawValue: arguments[0]),
               arguments[1] == "--output-dir",
               !arguments[2].trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else {
             throw UsageError()
         }
 
-        return URL(fileURLWithPath: arguments[2]).standardizedFileURL
+        return EmitterCommand(
+            name: commandName,
+            outputDirectory: URL(fileURLWithPath: arguments[2]).standardizedFileURL
+        )
     }
 
     private static func guardFixtureOwnedOutputDirectory(_ outputDirectory: URL) throws {
@@ -147,6 +177,72 @@ struct CodexPillProofEmitter {
         try run.finish()
     }
 
+    private static func emitAddHostValidationFailureProof(to outputDirectory: URL) throws {
+        let invalidDestination = "codexpill-validation.invalid"
+        let existingHosts = ["buildbox"]
+        let sanitizedFeedback = "Host not found. Check the hostname or SSH config alias."
+
+        try SealRecorder.register(features: [try addHostValidationFeature()])
+        let run = try SealRecorder.startRun(
+            feature: addHostFeatureID,
+            scenario: addHostScenarioID,
+            executionMode: .integration,
+            outputDirectory: outputDirectory,
+            runID: "run_codexpill_add_host_validation_failure_v1_boundary"
+        )
+        defer { run.cancelIfUnfinished() }
+
+        try run.recordSnapshot(
+            id: EvidenceID("host_catalog_before"),
+            path: "evidence/host-catalog-before.json",
+            value: HostCatalogSnapshot(hosts: existingHosts)
+        )
+        try run.recordEvent(
+            "menu_action_dispatched",
+            step: "menu_action_dispatch",
+            invariantIds: [addHostInvariantID],
+            payload: ["action": .string("addHost")]
+        )
+        try run.recordEvent(
+            "add_host_setup_presented",
+            step: "add_host_setup",
+            invariantIds: [addHostInvariantID],
+            payload: [:]
+        )
+        try run.recordEvent(
+            "add_host_validation_started",
+            step: "destination_validation",
+            invariantIds: [addHostInvariantID],
+            payload: ["hostName": .string(invalidDestination)]
+        )
+        try run.recordEvent(
+            "add_host_validation_failed",
+            step: "destination_validation",
+            invariantIds: [addHostInvariantID],
+            payload: [
+                "hostName": .string(invalidDestination),
+                "feedback": .string(sanitizedFeedback)
+            ]
+        )
+        try run.recordSnapshot(
+            id: EvidenceID("host_validation_snapshot"),
+            path: "evidence/host-validation-snapshot.json",
+            value: HostValidationFailureSnapshot(
+                destination: invalidDestination,
+                validationResult: "failed",
+                feedback: sanitizedFeedback,
+                diagnosticsPolicy: "sanitized_domain_feedback_only",
+                rawSSHOutputIncluded: false
+            )
+        )
+        try run.recordSnapshot(
+            id: EvidenceID("host_catalog_after"),
+            path: "evidence/host-catalog-after.json",
+            value: HostCatalogSnapshot(hosts: existingHosts)
+        )
+        try run.finish()
+    }
+
     private static func accountSwitchFeature() throws -> SealFeature {
         try SealFeature(
             id: featureID,
@@ -192,11 +288,85 @@ struct CodexPillProofEmitter {
             ]
         )
     }
+
+    private static func addHostValidationFeature() throws -> SealFeature {
+        try SealFeature(
+            id: addHostFeatureID,
+            scenarios: [
+                try SealScenario(
+                    id: addHostScenarioID,
+                    scenarioType: .failurePath,
+                    supportedExecutionModes: [.integration],
+                    expectations: [
+                        try SealExpectation(
+                            text: "Invalid Add Host destination validation fails without adding a host",
+                            invariants: [
+                                SealInvariantRef(
+                                    id: addHostInvariantID,
+                                    requiredEvidence: [
+                                        EvidenceRequirement(id: EvidenceID("events"), kind: .eventStream),
+                                        EvidenceRequirement(id: EvidenceID("host_validation_snapshot"), kind: .snapshot),
+                                        EvidenceRequirement(id: EvidenceID("host_catalog_before"), kind: .snapshot),
+                                        EvidenceRequirement(id: EvidenceID("host_catalog_after"), kind: .snapshot)
+                                    ],
+                                    rule: .all([
+                                        .eventSequence([
+                                            EventExpectation("menu_action_dispatched", payload: [
+                                                "action": .string("addHost")
+                                            ]),
+                                            EventExpectation("add_host_setup_presented"),
+                                            EventExpectation("add_host_validation_started", payload: [
+                                                "hostName": .string("codexpill-validation.invalid")
+                                            ]),
+                                            EventExpectation("add_host_validation_failed", payload: [
+                                                "hostName": .string("codexpill-validation.invalid")
+                                            ])
+                                        ]),
+                                        .snapshotEquals(
+                                            SnapshotEqualsRule(
+                                                evidence: EvidenceID("host_validation_snapshot"),
+                                                path: "validationResult",
+                                                value: .string("failed")
+                                            )
+                                        ),
+                                        .snapshotEquals(
+                                            SnapshotEqualsRule(
+                                                evidence: EvidenceID("host_validation_snapshot"),
+                                                path: "rawSSHOutputIncluded",
+                                                value: .bool(false)
+                                            )
+                                        ),
+                                        .snapshotsEqual(
+                                            SnapshotsEqualRule(
+                                                before: EvidenceID("host_catalog_before"),
+                                                after: EvidenceID("host_catalog_after"),
+                                                paths: ["hosts", "hostCount"]
+                                            )
+                                        )
+                                    ])
+                                )
+                            ]
+                        )
+                    ]
+                )
+            ]
+        )
+    }
+}
+
+private struct EmitterCommand {
+    let name: EmitterCommandName
+    let outputDirectory: URL
+}
+
+private enum EmitterCommandName: String {
+    case accountSwitch = "emit-account-switch-proof"
+    case addHostValidationFailure = "emit-add-host-validation-failure-proof"
 }
 
 private struct UsageError: LocalizedError, CustomStringConvertible {
     var description: String {
-        "Usage: CodexPillProofEmitter emit-account-switch-proof --output-dir <proof-output-dir>"
+        "Usage: CodexPillProofEmitter <emit-account-switch-proof|emit-add-host-validation-failure-proof> --output-dir <proof-output-dir>"
     }
 }
 

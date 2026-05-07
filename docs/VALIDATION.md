@@ -355,11 +355,12 @@ Keep human QA only for behaviors the current automation cannot prove end to end,
 ### `hosts.add_host.destination_validation_failed`
 
 - `feature`: `hosts`
-- `rule`: Triggering `Add Host…` from the running menubar presents the host setup dialog, accepts a destination entry, and emits validation feedback for an invalid host before allowing the workflow to continue.
-- `owner_layer`: `live_ui`
-- `proofs_required`: `["live_ui"]`
+- `rule`: The selected Add Host validation-failure runtime flow records that destination validation started, failed in a handled way, and left the host catalog unchanged.
+- `owner_layer`: `seal_runtime`
+- `proofs_required`: `["seal_runtime"]`
 - `scenarios`: `["live-add-host-destination-validation-failed", "add-host-destination-validation-failed"]`
 - `event_evidence`: `["menu_action_dispatched", "add_host_setup_presented", "add_host_validation_started", "add_host_validation_failed"]`
+- `seal_only_runtime_validation`: `make verify-add-host-validation-failure-seal` runs the CodexPill-owned explicit adapter through `seal run`. Seal outputs under `proof/`, `reports/`, and `adapter/` are authoritative; CodexPill's `codexpill-summary.json` is compatibility-only. The deterministic proof records before/after host catalog snapshots, handled validation failure, and sanitized domain feedback without raw SSH output.
 
 ### `hosts.switch_workflow.installs_missing_accounts_before_switch`
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env zsh
 set -euo pipefail
 
-SCENARIO="switch-account-changes-active-account"
+SCENARIO="${SCENARIO:-switch-account-changes-active-account}"
 AGENT_NAME="${AGENT_NAME:-local}"
 ARTIFACT_ROOT="${ARTIFACT_ROOT:-build/verification/${AGENT_NAME}/${SCENARIO}}"
 PROOF_OUTPUT="${ARTIFACT_ROOT}/proof"

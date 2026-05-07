@@ -74,7 +74,7 @@ struct CodexPillSealOnlyRuntimeValidationScriptTests {
         let scriptURL = repoRoot.appendingPathComponent("scripts/verify_account_switch_seal.sh")
         let artifactRoot = repoRoot
             .appendingPathComponent("build/verification/CodexPillSealOnlyRuntimeValidationScriptTests-\(UUID().uuidString)", isDirectory: true)
-            .appendingPathComponent("switch-account-changes-active-account", isDirectory: true)
+            .appendingPathComponent("add-host-destination-validation-failed", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: artifactRoot.deletingLastPathComponent()) }
 
         let fakeSeal = try Self.writeFakeSeal(
@@ -106,7 +106,8 @@ struct CodexPillSealOnlyRuntimeValidationScriptTests {
             environment: [
                 "AGENT_NAME": "CodexPillSealOnlyRuntimeValidationScriptTests",
                 "ARTIFACT_ROOT": artifactRoot.path,
-                "CODEXPILL_SEAL_COMMAND": fakeSeal.path
+                "CODEXPILL_SEAL_COMMAND": fakeSeal.path,
+                "SCENARIO": "add-host-destination-validation-failed",
             ]
         )
 
@@ -114,9 +115,69 @@ struct CodexPillSealOnlyRuntimeValidationScriptTests {
 
         let summaryData = try Data(contentsOf: artifactRoot.appendingPathComponent("codexpill-summary.json"))
         let summary = try #require(JSONSerialization.jsonObject(with: summaryData) as? [String: Any])
+        #expect(summary["scenario"] as? String == "add-host-destination-validation-failed")
         #expect(summary["authoritativeRuntimeValidation"] as? String == "seal")
         #expect(summary["sealRunnerExitCode"] as? Int == 2)
         #expect((summary["sealArtifactGap"] as? String)?.contains("reports/result.json") == true)
+    }
+
+    @Test
+    func wrapperSupportsAddHostValidationFailureSealScenario() throws {
+        let repoRoot = Self.repoRoot()
+        let scriptURL = repoRoot.appendingPathComponent("scripts/verify_account_switch_seal.sh")
+        let artifactRoot = repoRoot
+            .appendingPathComponent("build/verification/CodexPillSealOnlyRuntimeValidationScriptTests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("add-host-destination-validation-failed", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: artifactRoot.deletingLastPathComponent()) }
+
+        let fakeSeal = try Self.writeFakeSeal(
+            repoRoot: repoRoot,
+            name: "fake-seal-add-host-passed.sh",
+            body: """
+            #!/usr/bin/env bash
+            set -euo pipefail
+            output=""
+            scenario=""
+            while [[ $# -gt 0 ]]; do
+              case "$1" in
+                --output)
+                  output="$2"
+                  shift 2
+                  ;;
+                --scenario)
+                  scenario="$2"
+                  shift 2
+                  ;;
+                *)
+                  shift
+                  ;;
+              esac
+            done
+            mkdir -p "${output}/proof" "${output}/reports" "${output}/adapter"
+            printf '{"scenario":"%s"}\\n' "${scenario}" > "${output}/proof/manifest.json"
+            printf '{"status":"passed"}\\n' > "${output}/reports/result.json"
+            printf '# Seal Runner Report\\n' > "${output}/reports/report.md"
+            printf '{"exitCode":0}\\n' > "${output}/adapter/exit.json"
+            """
+        )
+
+        let result = try run(
+            scriptURL,
+            environment: [
+                "AGENT_NAME": "CodexPillSealOnlyRuntimeValidationScriptTests",
+                "ARTIFACT_ROOT": artifactRoot.path,
+                "CODEXPILL_SEAL_COMMAND": fakeSeal.path,
+                "SCENARIO": "add-host-destination-validation-failed",
+            ]
+        )
+
+        #expect(result.exitStatus == 0)
+
+        let summaryData = try Data(contentsOf: artifactRoot.appendingPathComponent("codexpill-summary.json"))
+        let summary = try #require(JSONSerialization.jsonObject(with: summaryData) as? [String: Any])
+        #expect(summary["scenario"] as? String == "add-host-destination-validation-failed")
+        #expect(summary["authoritativeRuntimeValidation"] as? String == "seal")
+        #expect(summary["doesNotDefineIndependentVerdict"] as? Bool == true)
     }
 
     private static func repoRoot() -> URL {
