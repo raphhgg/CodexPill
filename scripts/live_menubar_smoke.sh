@@ -1092,45 +1092,66 @@ probe_account_submenu() {
   local target_submenu_index="$3"
 
   osascript - "$target_location" "$target_root_index" "$target_submenu_index" <<'EOF'
+on openCodexPillMenu()
+    tell application "System Events"
+        tell process "CodexPill"
+            repeat with menuBarIndex in {2, 1}
+                try
+                    tell menu bar menuBarIndex
+                        click menu bar item 1
+                        delay 0.5
+                        if exists menu 1 of menu bar item 1 then
+                            set candidateMenu to menu 1 of menu bar item 1
+                            set candidateTitles to name of every menu item of candidateMenu
+                            if candidateTitles contains "Add Account…" and candidateTitles contains "Quit" then
+                                return candidateMenu
+                            end if
+                            click menu bar item 1
+                            delay 0.2
+                        end if
+                    end tell
+                end try
+            end repeat
+        end tell
+    end tell
+    error "CodexPill status item menu could not be opened"
+end openCodexPillMenu
+
 on run argv
     set targetLocation to item 1 of argv
     set targetRootIndex to item 2 of argv as integer
     set targetSubmenuIndex to item 3 of argv
     tell application "System Events"
         tell process "CodexPill"
-            tell menu bar 2
-                click menu bar item 1
-                delay 0.5
-                if targetLocation is equal to "overflow" then
-                    set submenuIndex to targetSubmenuIndex as integer
-                    tell menu item targetRootIndex of menu 1 of menu bar item 1
-                        tell menu 1
-                            tell menu item submenuIndex
-                                click
-                                delay 0.3
-                                if exists menu 1 then
-                                    set titles to name of every menu item of menu 1
-                                else
-                                    set titles to {}
-                                end if
-                            end tell
+            set menuRef to my openCodexPillMenu()
+            if targetLocation is equal to "overflow" then
+                set submenuIndex to targetSubmenuIndex as integer
+                tell menu item targetRootIndex of menuRef
+                    tell menu 1
+                        tell menu item submenuIndex
+                            click
+                            delay 0.3
+                            if exists menu 1 then
+                                set titles to name of every menu item of menu 1
+                            else
+                                set titles to {}
+                            end if
                         end tell
                     end tell
-                else
-                    tell menu item targetRootIndex of menu 1 of menu bar item 1
-                        click
-                        delay 0.3
-                        if exists menu 1 then
-                            set titles to name of every menu item of menu 1
-                        else
-                            set titles to {}
-                        end if
-                    end tell
-                end if
-
-                set AppleScript's text item delimiters to linefeed
-                return titles as text
-            end tell
+                end tell
+            else
+                tell menu item targetRootIndex of menuRef
+                    click
+                    delay 0.3
+                    if exists menu 1 then
+                        set titles to name of every menu item of menu 1
+                    else
+                        set titles to {}
+                    end if
+                end tell
+            end if
+            set AppleScript's text item delimiters to linefeed
+            return titles as text
         end tell
     end tell
 end run
@@ -1141,8 +1162,17 @@ close_status_item_menu() {
   osascript <<'EOF' >/dev/null 2>&1 || true
 tell application "System Events"
     tell process "CodexPill"
-        tell menu bar 2
-            click menu bar item 1
+        repeat with menuBarIndex from 1 to count of menu bars
+            tell menu bar menuBarIndex
+                repeat with itemIndex from 1 to count of menu bar items
+                    try
+                        if exists menu 1 of menu bar item itemIndex then
+                            click menu bar item itemIndex
+                            return
+                        end if
+                    end try
+                end repeat
+            end tell
         end tell
     end tell
 end tell
@@ -2194,20 +2224,41 @@ EOF
 fi
 
 MENU_PROBE_OUTPUT="$(osascript <<'EOF'
+on openCodexPillMenu()
+    tell application "System Events"
+        tell process "CodexPill"
+            repeat with menuBarIndex in {2, 1}
+                try
+                    tell menu bar menuBarIndex
+                        click menu bar item 1
+                        delay 1
+                        if exists menu 1 of menu bar item 1 then
+                            set candidateMenu to menu 1 of menu bar item 1
+                            set candidateTitles to name of every menu item of candidateMenu
+                            if candidateTitles contains "Add Account…" and candidateTitles contains "Quit" then
+                                return candidateMenu
+                            end if
+                            click menu bar item 1
+                            delay 0.2
+                        end if
+                    end tell
+                end try
+            end repeat
+        end tell
+    end tell
+    error "CodexPill status item menu could not be opened"
+end openCodexPillMenu
+
 tell application "System Events"
     tell process "CodexPill"
-        tell menu bar 2
-            click menu bar item 1
-            delay 1
-            set menuRef to menu 1 of menu bar item 1
-            set itemCount to count of menu items of menuRef
-            set titles to name of every menu item of menuRef
-            set AppleScript's text item delimiters to linefeed
-            set joined to titles as text
-            set {menuX, menuY} to position of menuRef
-            set {menuW, menuH} to size of menuRef
-            return (itemCount as text) & linefeed & joined & linefeed & "__MENU_FRAME__" & linefeed & (menuX as text) & "," & (menuY as text) & "," & (menuW as text) & "," & (menuH as text)
-        end tell
+        set menuRef to my openCodexPillMenu()
+        set itemCount to count of menu items of menuRef
+        set titles to name of every menu item of menuRef
+        set AppleScript's text item delimiters to linefeed
+        set joined to titles as text
+        set {menuX, menuY} to position of menuRef
+        set {menuW, menuH} to size of menuRef
+        return (itemCount as text) & linefeed & joined & linefeed & "__MENU_FRAME__" & linefeed & (menuX as text) & "," & (menuY as text) & "," & (menuW as text) & "," & (menuH as text)
     end tell
 end tell
 EOF
@@ -2218,8 +2269,17 @@ screencapture -x "${SCREENSHOT_PATH}"
 osascript <<'EOF' >/dev/null 2>&1 || true
 tell application "System Events"
     tell process "CodexPill"
-        tell menu bar 2
-            click menu bar item 1
+        repeat with menuBarIndex from 1 to count of menu bars
+            tell menu bar menuBarIndex
+                repeat with itemIndex from 1 to count of menu bar items
+                    try
+                        if exists menu 1 of menu bar item itemIndex then
+                            click menu bar item itemIndex
+                            return
+                        end if
+                    end try
+                end repeat
+            end tell
         end tell
     end tell
 end tell
@@ -3497,7 +3557,7 @@ if [[ "${MENU_ITEM_COUNT}" == "0" ]]; then
     "The runtime snapshot proved the enabled and action state for Status Item > Content",
     "The runtime snapshot current account summary matches live auth and app-server identity",
     "Accessibility probe reached the menubar process",
-    "The status item on menu bar 2 was targeted"
+    "The CodexPill status item menu was targeted"
   ],
   "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
   "gaps": [
@@ -3551,7 +3611,7 @@ end
     "The runtime snapshot proved the enabled and action state for Status Item > Content",
     "The runtime snapshot current account summary matches live auth and app-server identity",
     "Accessibility probe reached the menubar process",
-    "The status item on menu bar 2 opened and returned menu item titles"
+    "The CodexPill status item menu opened and returned menu item titles"
   ],
   "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
   "gaps": [
@@ -3589,7 +3649,7 @@ if [[ "${SCENARIO}" == "live-menu-open" && "${ACCOUNT_SUBMENU_PROOF_PASSED}" != 
     "The runtime snapshot proved the enabled and action state for Status Item > Content",
     "The runtime snapshot current account summary matches live auth and app-server identity",
     "Accessibility probe reached the menubar process",
-    "The status item on menu bar 2 opened and returned menu item titles",
+    "The CodexPill status item menu opened and returned menu item titles",
     "The custom menu rows stayed flush with the rendered live menu width"
   ],
   "command": "AGENT_NAME=${AGENT_NAME} SCENARIO=${SCENARIO} ./scripts/live_menubar_smoke.sh",
@@ -3627,7 +3687,7 @@ cat > "${SUMMARY_PATH}" <<EOF
     "The runtime snapshot proved the enabled and action state for Status Item > Content",
     "The runtime snapshot current account summary matches live auth and app-server identity",
     "Accessibility probe reached the menubar process",
-    "The status item on menu bar 2 opened and returned menu item titles",
+    "The CodexPill status item menu opened and returned menu item titles",
     "The custom menu rows stayed flush with the rendered live menu width",
     "Accessibility opened a saved-account submenu and revealed switch targets"
   ],
