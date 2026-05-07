@@ -14,23 +14,28 @@ The end goal is:
 
 ## Boundary Decision
 
-For the V1 candidate, CodexPill still owns proof-producing entrypoints. Seal owns proof verification and reporting after a proof directory exists.
+For the Phase 14 stable-candidate boundary, CodexPill still owns
+proof-producing entrypoints and product scenario semantics. Seal owns runner
+orchestration, proof verification, reporting, and the authoritative pass/fail
+verdict once a scenario adapter is resolved from `.seal/run.yml`.
 
-Accepted V1 shape:
-
-```text
-CodexPill emits proof through SealRecorder.
-seal-verifier consumes the proof and produces result JSON.
-seal-verifier can later produce Markdown report output for human review.
-```
-
-Deferred product direction:
+Accepted shape for selected Seal-backed flows:
 
 ```text
-seal-run <scenario> --output <artifact-root>
+seal run --scenario <scenario>
+Seal resolves the CodexPill adapter from .seal/run.yml.
+CodexPill emits proof through SealRecorder into the runner artifact root.
+Seal verifies the proof and writes reports/result.json plus reports/report.md.
 ```
 
-A future Seal-owned runner may prepare artifacts, invoke CodexPill scenario adapters, wait for proof, verify, render reports, and return one exit code. That is intentionally out of scope for the current V1 validation work because Seal cannot infer CodexPill fixture setup or business actions from declarations alone.
+The direct proof-emitter and `seal-verifier` path remains internal development
+support for proof shape work. It is not the runtime validation authority for
+selected Seal-backed flows.
+
+The compatibility Make wrappers may still write `codexpill-summary.json`, but
+that file is only a pointer derived from Seal artifacts. It must not define an
+independent verdict, and legacy CodexPill artifacts such as `summary.json` and
+`validation-events.jsonl` are diagnostic-only for selected Seal-backed flows.
 
 ## Issue Contracts
 
@@ -54,10 +59,12 @@ Acceptance:
 - Seal-backed scenarios fail when `seal-verifier` rejects the proof.
 - Seal-backed scenarios cannot pass solely from `validation-events.jsonl` or legacy proof-sequence checks.
 - `validation-events.jsonl` may still be emitted, but is diagnostic-only.
-- Top-level `summary.status` may remain temporarily, but must be derived from Seal for Seal-backed flows.
-- Summary includes explicit `verdict_source: "seal"`.
-- Summary includes Seal result fields such as result JSON path and verifier run verdict.
-- Docs state `summary.status` is a temporary compatibility envelope, not the long-term Seal-native report API.
+- `codexpill-summary.json` may remain temporarily for Makefile wrappers, but
+  must be derived from Seal artifacts and must not define an independent verdict.
+- Compatibility summary includes explicit Seal authority fields and points to
+  `proof/`, `reports/result.json`, `reports/report.md`, and `adapter/`.
+- Docs state compatibility summaries are temporary pointers, not the
+  Seal-native report API.
 - Fresh artifact handling prevents stale Seal or stale legacy artifacts from influencing verdicts.
 - Non-Seal-backed flows are not silently converted or broken.
 
@@ -73,7 +80,7 @@ Out of scope:
 
 User story:
 
-As a Seal/CodexPill maintainer, I want CodexPill to emit a deterministic Seal proof for account switching with minimal extra harness code, so we can validate the current V1 boundary against a real business rule without committing to the future `seal-run` product shape.
+As a Seal/CodexPill maintainer, I want CodexPill to emit a deterministic Seal proof for account switching with minimal extra harness code, so the stable-candidate `seal run` boundary validates a real business rule while CodexPill keeps its product semantics.
 
 Business rule:
 
@@ -90,12 +97,15 @@ Acceptance:
 - The proof passes with `seal-verifier`.
 - The scenario uses a non-live execution mode.
 - Docs explicitly say this is a V1 boundary validation slice.
-- Docs explicitly defer the Seal-owned one-command runner to a future prototype phase.
-- Any friction found while implementing the client-owned proof emitter is recorded as input for the future runner/orchestrator phase.
+- Docs explicitly describe direct proof-emitter commands as internal development
+  paths, not runtime validation authority.
+- Any friction found while implementing the client-owned proof emitter is
+  recorded as input for future runner/orchestrator improvements.
 
 Out of scope:
 
-- `seal-run`.
+- Replacing `seal run --scenario ...` as the normal selected-flow reviewer
+  command.
 - CI-only workflow optimization.
 - Live UI CI.
 - Markdown report generation.
@@ -226,4 +236,6 @@ Output:
 
 ## Open Follow-Up
 
-After this migration program, decide whether Seal should prioritize a new runner/orchestrator prototype phase for a stable `seal-run` command and client scenario-adapter contract.
+After this migration program, decide whether Seal should prioritize additional
+runner/orchestrator improvements around the stable-candidate `seal run` command
+and client scenario-adapter contract.

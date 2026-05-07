@@ -48,8 +48,29 @@ struct CodexPillSealRunAdapterScriptTests {
         #expect(try String(contentsOf: metadataURL).contains(#""status": "unsupported""#))
     }
 
+    @Test
+    func compatibilityWrapperQuarantinesLegacyArtifactsAndDelegatesVerdictToSeal() throws {
+        let script = try Self.compatibilityWrapperContents()
+
+        #expect(script.contains("%w[proof reports adapter seal-proof validation-events.jsonl summary.json codexpill-summary.json]"))
+        #expect(script.contains(#""summaryType" => "compatibility_pointer""#))
+        #expect(script.contains(#""authoritativeRuntimeValidation" => "seal""#))
+        #expect(script.contains(#""doesNotDefineIndependentVerdict" => true"#))
+        #expect(script.contains(#""sealRunnerExitCode" => seal_exit.to_i"#))
+        #expect(script.contains(#""resultJson" => "reports/result.json""#))
+        #expect(script.contains(#""reportMarkdown" => "reports/report.md""#))
+        #expect(script.contains(#""adapterDirectory" => "adapter/""#))
+        #expect(script.contains(#""authoritative" => false"#))
+        #expect(script.contains(#""compatibilityOnly" => true"#))
+        #expect(script.contains("exit \"${seal_exit}\""))
+    }
+
     private static func adapterScriptContents() throws -> String {
         try String(contentsOf: repoRoot().appendingPathComponent("scripts/seal_run_adapter.sh"))
+    }
+
+    private static func compatibilityWrapperContents() throws -> String {
+        try String(contentsOf: repoRoot().appendingPathComponent("scripts/verify_account_switch_seal.sh"))
     }
 
     private static func repoRoot() -> URL {

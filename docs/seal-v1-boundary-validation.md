@@ -38,9 +38,9 @@ The emitter refuses to write under default Codex production data directories:
 
 ## Seal-Only Runtime Validation
 
-CodexPill has a client-owned adapter for Seal's provisional `seal run` command.
-Run the selected account-switch runtime validation through the config-backed
-runner path:
+CodexPill has a client-owned adapter for Seal's Phase 14 stable-candidate
+explicit-adapter `seal run` contract. Run the selected account-switch runtime
+validation through the config-backed runner path:
 
 ```bash
 swift run --package-path ../Seal seal run --scenario switch-account-changes-active-account
@@ -69,9 +69,10 @@ The authoritative artifacts for this selected flow are:
 `codexpill-summary.json` is compatibility-only when using the Makefile wrappers.
 It points report consumers to Seal artifacts, records the Seal runner exit code,
 and marks legacy CodexPill runtime outputs such as `summary.json` and
-`validation-events.jsonl` as non-authoritative. The wrappers remove stale legacy
-output for the selected scenario before invoking `seal run`, so old CodexPill
-runtime artifacts cannot make the selected flow pass.
+`validation-events.jsonl` as diagnostic-only and non-authoritative. It does not
+define an independent pass/fail verdict. The wrappers remove stale legacy output
+for the selected scenario before invoking `seal run`, so old CodexPill runtime
+artifacts cannot make the selected flow pass.
 
 The direct proof-emitter development path remains:
 
@@ -92,11 +93,13 @@ failure, and runner/setup error. The remaining friction is adapter ceremony and
 build cost, not missing report authority.
 
 RGR-257 adoption note: `.seal/run.yml` removes the repeated adapter flag for the
-two selected flows and Seal's defaults remove repeated proof-output setup. The
-Makefile wrappers still pass an explicit output root for compatibility with
-agent workflows, but the preferred reviewer command is now the shorter
-`seal run --scenario ...` form above. The remaining ceremony is the SwiftPM
-package-path prefix while Seal is consumed from a sibling checkout.
+two selected flows and Seal's defaults remove repeated proof-output setup.
+RGR-265 confirms the preferred reviewer command is the shorter
+`seal run --scenario ...` form above. The Makefile wrappers remain compatibility
+entry points for workflows that need a stable
+`build/verification/<agent>/<scenario>/` artifact root; they are not a separate
+runtime validation authority. The remaining ceremony is the SwiftPM package-path
+prefix while Seal is consumed from a sibling checkout.
 
 The first failure path exercised by this prototype is adapter-side scenario
 resolution: unsupported scenarios exit non-zero and write diagnostics under
@@ -109,7 +112,7 @@ would add test-only behavior to the product adapter.
 ## End-to-End Adapter Proof
 
 RGR-222 proved the deterministic account-switch scenario through Seal's full
-provisional runner path on 2026-05-05 using local Seal checkout `f789a3d`:
+runner path on 2026-05-05 using local Seal checkout `f789a3d`:
 
 ```bash
 AGENT_NAME=symphony-RGR-222 OUTPUT_DIR=build/RGR-222/direct/proof make emit-account-switch-proof
@@ -160,10 +163,13 @@ Current friction:
   build work. That is acceptable for this deterministic boundary proof, but it
   is real orchestration cost rather than a lightweight contract check.
 
-Decision after RGR-253: use `make verify-account-switch-seal` as the selected
-account-switch runtime validation gate. Do not migrate all CodexPill validation
-to `seal run` yet, and do not add CodexPill adapter discovery to Seal in this
-slice.
+Decision after RGR-265: use config-backed
+`seal run --scenario switch-account-changes-active-account` as the selected
+account-switch runtime validation gate. `make verify-account-switch-seal`
+remains a compatibility wrapper that delegates to the same Seal runner and emits
+a `codexpill-summary.json` pointer derived from Seal artifacts. Do not migrate
+all CodexPill validation to `seal run` yet, and do not add CodexPill adapter
+discovery or CodexPill business semantics to Seal in this slice.
 
 ## Add Host Validation Failure Seal Runner Boundary
 
@@ -171,7 +177,7 @@ RGR-254 extends the same compatibility-pointer pattern to
 `add-host-destination-validation-failed`.
 
 ```bash
-AGENT_NAME=symphony-RGR-254 make verify-add-host-validation-failure-seal
+swift run --package-path ../Seal seal run --scenario add-host-destination-validation-failed
 ```
 
 The CodexPill-owned adapter accepts the Seal runner contract explicitly and

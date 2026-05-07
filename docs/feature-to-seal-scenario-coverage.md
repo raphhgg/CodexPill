@@ -31,8 +31,10 @@ these product semantics as Seal product truth.
 Current Seal-backed scenarios are implemented by feature-owned validation
 catalogs in `Sources/Features/Accounts/Validation/` and
 `Sources/Features/Hosts/Validation/`, with shared proof composition/runtime in
-`Sources/Features/Validation/`. They are accepted in
-`docs/seal-validation-migration-acceptance-RGR-188.md`.
+`Sources/Features/Validation/`. The selected Seal-only flows run through
+config-backed `seal run --scenario ...`; Seal artifacts under `proof/`,
+`reports/`, and `adapter/` are authoritative, while CodexPill compatibility
+summaries and legacy live artifacts are diagnostic pointers only.
 
 | Feature claim | Legacy live scenario | Seal scenario | Category |
 | --- | --- | --- | --- |
