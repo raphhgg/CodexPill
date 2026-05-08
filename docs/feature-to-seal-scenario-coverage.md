@@ -104,7 +104,7 @@ summaries and legacy live artifacts are diagnostic pointers only.
 | Claim | Category | Current proof or rationale |
 | --- | --- | --- |
 | `Switch on This Mac` asks for confirmation before activating the selected snapshot. | Seal runtime/live scenario exists | Covered as part of `live-account-switch` / `switch-account-changes-active-account`. |
-| Local switch activates the saved snapshot, persists catalog state, relaunches Codex, and refreshes account data. | Seal scenario needed | The existing Seal scenario proves visible active-account change, but not Codex relaunch and post-switch refresh as separate checked invariants. |
+| Local switch activates the saved snapshot, persists catalog state, relaunches Codex, and refreshes account data. | Seal runtime/live scenario exists | Covered by `switch-account-changes-active-account`; the Seal proof requires active-account snapshot change, `codex_relaunch_requested`, `post_switch_refresh_completed`, and `post_switch_refresh` evidence. Lower-layer switch workflow tests continue to own activation, persistence, matcher failure ordering, and injected process boundaries. |
 | Add Account success routes through the existing local switch path without a second confirmation. | Seal scenario needed | This is runtime coordinator wiring across two feature flows and is not currently Seal-backed. |
 | Remote switch installs a missing snapshot before switching, switches directly when already installed, refreshes remote app-server state, and verifies the expected account. | Lower-layer test owns this better | Injected integration tests own SSH/client command ordering and failure mapping more safely than a live Seal scenario against a real host. |
 | Remote-host submenu dispatch changes the host's active account card. | Seal runtime/live scenario exists | Covered by `live-remote-host-switch` / `switch-account-on-host-changes-remote-active-account`. |
@@ -177,11 +177,10 @@ These legacy flows are still useful but are not currently Seal-backed:
 ## Prioritized Migration Backlog
 
 1. **Status item hover Seal scenario**: migrate `live-status-item-hover` if hover behavior remains a live release gate.
-2. **Switch-account post-refresh Seal scenario**: extend or add Seal coverage for Codex relaunch/post-switch refresh evidence beyond visible active-account change.
-3. **Add Account success-to-switch Seal scenario**: cover `Use on This Mac` routing through the existing switch path without a second confirmation.
-4. **Remote verification failure Seal scenario**: prove runtime failure surfacing after a remote switch verification mismatch.
-5. **Busy-state gating Seal scenario**: cover disabled or confirmation-routed actions during active account operations.
-6. **Notification action dispatch Seal scenario**: cover notification actions routing into local or remote switch paths when macOS notification delivery can be controlled without flakiness.
+2. **Add Account success-to-switch Seal scenario**: cover `Use on This Mac` routing through the existing switch path without a second confirmation.
+3. **Remote verification failure Seal scenario**: prove runtime failure surfacing after a remote switch verification mismatch.
+4. **Busy-state gating Seal scenario**: cover disabled or confirmation-routed actions during active account operations.
+5. **Notification action dispatch Seal scenario**: cover notification actions routing into local or remote switch paths when macOS notification delivery can be controlled without flakiness.
 
 ## Not Recommended For Seal
 
