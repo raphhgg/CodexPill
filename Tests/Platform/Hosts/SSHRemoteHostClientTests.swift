@@ -11,6 +11,7 @@ struct SSHRemoteHostClientTests {
         let snapshotURL = URL(fileURLWithPath: "/tmp/\(account.snapshotFileName)")
         let runner = CommandRunnerProbe(results: [
             .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data())),
+            .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data())),
             .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data()))
         ])
         let client = SSHRemoteHostClient(
@@ -22,14 +23,14 @@ struct SSHRemoteHostClientTests {
 
         try await client.installAccount(account, on: RemoteHost(destination: "user@buildbox"))
 
-        #expect(runner.calls.count == 2)
+        #expect(runner.calls.count == 3)
         #expect(runner.calls[0].arguments == [
             "-T",
             "-o", "BatchMode=yes",
             "-o", "ConnectTimeout=5",
             "-o", "ConnectionAttempts=1",
             "user@buildbox",
-            "mkdir -p .codexpill/snapshots .codex"
+            "mkdir -m 700 -p .codexpill .codexpill/snapshots .codex && chmod 700 .codexpill .codexpill/snapshots .codex"
         ])
         #expect(runner.calls[1].arguments == [
             "-T",
@@ -38,6 +39,14 @@ struct SSHRemoteHostClientTests {
             "-o", "ConnectionAttempts=1",
             snapshotURL.path,
             "user@buildbox:.codexpill/snapshots/\(account.snapshotFileName)"
+        ])
+        #expect(runner.calls[2].arguments == [
+            "-T",
+            "-o", "BatchMode=yes",
+            "-o", "ConnectTimeout=5",
+            "-o", "ConnectionAttempts=1",
+            "user@buildbox",
+            "chmod 600 '.codexpill/snapshots/\(account.snapshotFileName)'"
         ])
     }
 
@@ -64,7 +73,7 @@ struct SSHRemoteHostClientTests {
             "-o", "ConnectTimeout=5",
             "-o", "ConnectionAttempts=1",
             "user@buildbox",
-            "cp '.codexpill/snapshots/\(account.snapshotFileName)' '.codex/auth.json'"
+            "cp '.codexpill/snapshots/\(account.snapshotFileName)' '.codex/auth.json' && chmod 600 '.codex/auth.json'"
         ])
     }
 
@@ -180,7 +189,7 @@ struct SSHRemoteHostClientTests {
             "-o", "ConnectTimeout=5",
             "-o", "ConnectionAttempts=1",
             "user@buildbox",
-            "command -v codex >/dev/null 2>&1 && codex app-server --help >/dev/null 2>&1 && mkdir -p .codexpill/snapshots .codex"
+            "command -v codex >/dev/null 2>&1 && codex app-server --help >/dev/null 2>&1 && mkdir -m 700 -p .codexpill .codexpill/snapshots .codex && chmod 700 .codexpill .codexpill/snapshots .codex"
         ])
     }
 
@@ -205,7 +214,7 @@ struct SSHRemoteHostClientTests {
             "-o", "ConnectTimeout=5",
             "-o", "ConnectionAttempts=1",
             "deploy@buildbox.example.com",
-            "command -v codex >/dev/null 2>&1 && codex app-server --help >/dev/null 2>&1 && mkdir -p .codexpill/snapshots .codex"
+            "command -v codex >/dev/null 2>&1 && codex app-server --help >/dev/null 2>&1 && mkdir -m 700 -p .codexpill .codexpill/snapshots .codex && chmod 700 .codexpill .codexpill/snapshots .codex"
         ])
     }
 

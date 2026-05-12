@@ -57,6 +57,7 @@ struct CodexAuthSnapshotService {
         authSnapshotLogger.log("Activating snapshot for account name: \(account.name, privacy: .public)")
         let snapshot = try repository.readSnapshot(for: account)
         try snapshot.write(to: repository.paths.codexAuthFile, options: .atomic)
+        try FilePermissionHardening.repairPrivateFile(at: repository.paths.codexAuthFile)
     }
 
     func signOut() throws {
@@ -68,6 +69,7 @@ struct CodexAuthSnapshotService {
 
     func restoreCurrentAuthData(_ data: Data) throws {
         try data.write(to: repository.paths.codexAuthFile, options: .atomic)
+        try FilePermissionHardening.repairPrivateFile(at: repository.paths.codexAuthFile)
     }
 
     func currentAuthFingerprint() -> String? {

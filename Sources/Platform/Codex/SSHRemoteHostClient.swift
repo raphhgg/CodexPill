@@ -79,7 +79,7 @@ struct SSHRemoteHostClient: RemoteHostSwitchWorkflowOperations, RemoteHostAccoun
             executableURL: sshExecutableURL,
             arguments: sshArguments(
                 host: host,
-                command: "command -v codex >/dev/null 2>&1 && codex app-server --help >/dev/null 2>&1 && mkdir -p .codexpill/snapshots .codex"
+                command: "command -v codex >/dev/null 2>&1 && codex app-server --help >/dev/null 2>&1 && \(Self.ensureRemoteDirectoriesCommand)"
             )
         )
 
@@ -127,6 +127,11 @@ struct SSHRemoteHostClient: RemoteHostSwitchWorkflowOperations, RemoteHostAccoun
         guard result.terminationStatus == 0 else {
             throw remoteCommandFailure(result)
         }
+
+        try await repairRemoteFilePermissions(
+            path: ".codexpill/snapshots/\(account.snapshotFileName)",
+            on: host
+        )
     }
 
     func switchToAccount(_ account: CodexAccount, on host: RemoteHost) async throws {
@@ -136,7 +141,7 @@ struct SSHRemoteHostClient: RemoteHostSwitchWorkflowOperations, RemoteHostAccoun
             executableURL: sshExecutableURL,
             arguments: sshArguments(
                 host: host,
-                command: "cp \(quoted(".codexpill/snapshots/\(account.snapshotFileName)")) \(quoted(".codex/auth.json"))"
+                command: "cp \(quoted(".codexpill/snapshots/\(account.snapshotFileName)")) \(quoted(".codex/auth.json")) && chmod 600 \(quoted(".codex/auth.json"))"
             )
         )
 
@@ -247,7 +252,21 @@ struct SSHRemoteHostClient: RemoteHostSwitchWorkflowOperations, RemoteHostAccoun
             executableURL: sshExecutableURL,
             arguments: sshArguments(
                 host: host,
-                command: "mkdir -p .codexpill/snapshots .codex"
+                command: Self.ensureRemoteDirectoriesCommand
+            )
+        )
+
+        guard result.terminationStatus == 0 else {
+            throw remoteCommandFailure(result)
+        }
+    }
+
+    private func repairRemoteFilePermissions(path: String, on host: RemoteHost) async throws {
+        let result = try await commandRunner.run(
+            executableURL: sshExecutableURL,
+            arguments: sshArguments(
+                host: host,
+                command: "chmod 600 \(quoted(path))"
             )
         )
 
@@ -273,6 +292,9 @@ struct SSHRemoteHostClient: RemoteHostSwitchWorkflowOperations, RemoteHostAccoun
             "-o", "ConnectionAttempts=1"
         ]
     }
+
+    private static let ensureRemoteDirectoriesCommand =
+        "mkdir -m 700 -p .codexpill .codexpill/snapshots .codex && chmod 700 .codexpill .codexpill/snapshots .codex"
 
     private func terminateAppServerProcesses(_ pids: [String], on host: RemoteHost) async throws {
         let killResult = try await commandRunner.run(
