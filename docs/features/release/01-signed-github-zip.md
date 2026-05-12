@@ -120,5 +120,7 @@ the signed/notarized GitHub zip path.
 
 ## Related Release Workflows
 
+- [First Signed Beta Release Checklist](03-first-beta-release-checklist.md):
+  maintainer release gate and evidence template for the first signed beta.
 - [Screenshot Demo Data](02-screenshot-demo-data.md): sanitized fixture and
   validation workflow for public screenshots.
