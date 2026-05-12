@@ -4,7 +4,7 @@
   <br>
   <strong>CodexPill</strong>
   <br>
-  <i>A native macOS menubar companion for Codex accounts, limits, and remote hosts.</i>
+  <i>A native macOS menubar companion for Codex accounts, limits and remote hosts.</i>
 </p>
 
 ---
@@ -34,10 +34,10 @@ Signed beta downloads are not available yet. Build from source for now.
 
 When the first public beta is published, download the latest signed beta zip
 from GitHub Releases. The release zip will contain `CodexPill.app`; unzip it,
-move the app to `Applications`, and launch it.
+move the app to `Applications` and launch it.
 
 CodexPill does not currently provide a Homebrew cask, Sparkle updates, Mac App
-Store distribution, or unsigned public beta builds.
+Store distribution or unsigned public beta builds.
 
 ## Build From Source
 
@@ -69,7 +69,7 @@ for maintainer packaging details.
 
 Codex must already be installed. CodexPill reads the active local Codex auth
 state from `~/.codex/auth.json`, stores saved account snapshots locally under
-`~/Library/Application Support/CodexPill`, and switches accounts by updating
+`~/Library/Application Support/CodexPill` and switches accounts by updating
 local Codex auth state.
 
 Saved snapshots contain authentication material and should be treated like
@@ -77,7 +77,7 @@ credentials. CodexPill copies selected snapshots only to remote hosts that you
 configure.
 
 CodexPill does not require browser cookies, hidden browser windows, Full Disk
-Access, Screen Recording, or Accessibility permissions for normal use.
+Access, Screen Recording or Accessibility permissions for normal use.
 
 ## Product Docs
 
