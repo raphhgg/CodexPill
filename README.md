@@ -10,13 +10,12 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/macOS-14%2B-blue" alt="macOS 14+">
-  <img src="https://img.shields.io/badge/Built%20with-Codex-101010?logo=openai&logoColor=white" alt="Built with Codex">
+  <img src="https://img.shields.io/badge/Built%20with-%20Codex-8B5CF6?logo=openai&logoColor=white" alt="Built with Codex">
   <img src="https://img.shields.io/badge/Status-Beta-purple" alt="Beta">
   <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT license">
 </p>
 
 <p align="center">
-  <img src="docs/assets/codexpill-menu.png" width="360" alt="CodexPill menu showing active accounts, usage bars, saved accounts, and app controls">
   <img src="docs/assets/codexpill-menu.png" width="360" alt="CodexPill menu showing active accounts, usage bars, saved accounts, and app controls">
 </p>
 
