@@ -117,3 +117,8 @@ The README should include a short first-run note:
 Use `create-issues` after approving this contract. The first implementation
 slice should produce a repeatable local packaging command and documentation for
 the signed/notarized GitHub zip path.
+
+## Related Release Workflows
+
+- [Screenshot Demo Data](02-screenshot-demo-data.md): sanitized fixture and
+  validation workflow for public screenshots.

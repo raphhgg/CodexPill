@@ -7,7 +7,12 @@ RESULT_BUNDLE := $(BUILD_ROOT)/results/$(AGENT_NAME)/$(APP_NAME).xcresult
 DEV_BUNDLE_ID ?= com.raphhgg.codexpill.dev
 STAGING_BUNDLE_ID ?= com.raphhgg.codexpill.staging
 
-.PHONY: diagnose generate prepare-result-bundle build test package-release run clean
+SCENARIO ?= release-demo-screenshot
+VERIFICATION_DIR := $(BUILD_ROOT)/verification
+VERIFICATION_REQUEST := $(VERIFICATION_DIR)/request.json
+VERIFICATION_ARTIFACTS := $(BUILD_ROOT)/verification/$(SCENARIO)
+
+.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-ui-live run clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -44,6 +49,20 @@ test: generate prepare-result-bundle
 
 package-release:
 	AGENT_NAME="$(AGENT_NAME)" ./scripts/package_release.sh
+
+verify-ui: generate prepare-result-bundle
+	mkdir -p "$(VERIFICATION_DIR)"
+	printf '{\n  "artifactDirectory": "%s",\n  "scenario": "%s"\n}\n' "$(abspath $(VERIFICATION_ARTIFACTS))" "$(SCENARIO)" > "$(VERIFICATION_REQUEST)"
+	xcodebuild test \
+		-project $(PROJECT_PATH) \
+		-scheme $(APP_NAME) \
+		-configuration Debug \
+		-destination "platform=macOS" \
+		-derivedDataPath "$(DERIVED_DATA)" \
+		-resultBundlePath "$(RESULT_BUNDLE)" \
+		PRODUCT_BUNDLE_IDENTIFIER="$(STAGING_BUNDLE_ID)"
+
+verify-ui-live: verify-ui
 
 run:
 	./scripts/run_menubar.sh

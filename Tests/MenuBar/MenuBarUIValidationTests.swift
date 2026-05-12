@@ -447,6 +447,18 @@ struct MenuBarUIValidationTests {
 
     private func assertScenarioSnapshot(_ snapshot: MenuBarValidationSnapshot, scenario: String) throws {
         switch scenario {
+        case "release-demo-screenshot":
+            #expect(snapshot.sections.map(\.title) == [
+                "Active Accounts",
+                "Accounts",
+                "More Accounts…",
+                "Manage Accounts",
+                "Preferences"
+            ])
+            #expect(snapshot.sections[0].items.contains(where: { $0.contains("Atlas Local") && $0.contains("This Mac") }))
+            #expect(snapshot.sections[0].items.contains(where: { $0.contains("Orion Remote") && $0.contains("demo-buildbox") }))
+            #expect(snapshot.remoteHosts.map(\.name) == ["demo-buildbox"])
+
         case "hosted-menu-default":
             #expect(snapshot.sections.map(\.title) == [
                 "Active Account",
@@ -564,6 +576,12 @@ struct MenuBarUIValidationTests {
 
     private func scenarioAssertions(for scenario: String) -> [String] {
         switch scenario {
+        case "release-demo-screenshot":
+            return [
+                "Synthetic local account renders as the active This Mac account",
+                "Synthetic remote-host account renders as a connected remote active account",
+                "All screenshot account identifiers use example.com addresses and demo host names"
+            ]
         case "hosted-menu-default":
             return [
                 "Active Account section includes the active account summary",
@@ -642,6 +660,70 @@ struct MenuBarUIValidationTests {
 
     private func makeHostedValidationState(for scenario: String, now: Date) -> MenuBarMenuState {
         switch scenario {
+        case "release-demo-screenshot":
+            let active = makeAccount(
+                name: "Atlas Local",
+                email: "atlas.local@example.com",
+                planType: "pro",
+                sessionUsedPercent: 24,
+                weeklyUsedPercent: 41,
+                now: now
+            )
+
+            let research = makeAccount(
+                name: "Nova Research",
+                email: "nova.research@example.com",
+                planType: "team",
+                sessionUsedPercent: 12,
+                weeklyUsedPercent: 33,
+                now: now
+            )
+            let sandbox = makeAccount(
+                name: "Echo Sandbox",
+                email: "echo.sandbox@example.com",
+                planType: "plus",
+                sessionUsedPercent: 58,
+                weeklyUsedPercent: 64,
+                now: now
+            )
+            let overflow = makeAccount(
+                name: "Backup Demo",
+                email: "backup.demo@example.com",
+                planType: "plus",
+                sessionUsedPercent: 83,
+                weeklyUsedPercent: 76,
+                now: now
+            )
+            let remoteActive = makeAccount(
+                name: "Orion Remote",
+                email: "orion.remote@example.com",
+                planType: "team",
+                sessionUsedPercent: 18,
+                weeklyUsedPercent: 52,
+                now: now
+            )
+
+            return MenuBarMenuState(
+                activeAccount: active,
+                inactiveAccounts: [research, sandbox, overflow],
+                remoteHosts: [RemoteHostMenuState(
+                    name: "demo-buildbox",
+                    destination: "demo-user@demo-buildbox",
+                    connectionState: .connected,
+                    activeAccount: remoteActive,
+                    deployedAccountIDs: [research.id, sandbox.id]
+                )],
+                visibleInactiveAccountCount: 2,
+                visibleInactiveAccountCountOptions: [2, 3, 5, 0],
+                refreshIntervalMinutes: 5,
+                refreshIntervalOptions: [1, 2, 5, 10, 15, 30],
+                statusBarMonochrome: false,
+                statusBarIndicatorStyle: .dualArcBadge,
+                statusBarDisplayMode: .textOnHover,
+                isBusy: false,
+                statusMessage: "Ready"
+            )
+
         case "hosted-menu-default":
             let active = makeAccount(
                 name: "Primary",
