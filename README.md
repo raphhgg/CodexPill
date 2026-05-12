@@ -1,13 +1,18 @@
 <p align="center">
   <img src="Resources/AppIcon.png" width="128" alt="CodexPill app icon">
-  <br>
-  <br>
-  <strong>CodexPill</strong>
-  <br>
+</p>
+
+<h1 align="center">CodexPill</h1>
+
+<p align="center">
   <i>A native macOS menubar companion for Codex accounts, limits and remote hosts.</i>
 </p>
 
----
+<p align="center">
+  <img src="https://img.shields.io/badge/macOS-14%2B-blue" alt="macOS 14+">
+  <img src="https://img.shields.io/badge/Swift-5-orange" alt="Swift 5">
+  <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT license">
+</p>
 
 CodexPill keeps your Codex account state visible without pulling you out of
 flow. It shows your current session and weekly limits, lets you switch saved
