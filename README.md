@@ -63,3 +63,8 @@ Access, Screen Recording, or Accessibility permissions for normal use.
 - [Product overview](docs/PRODUCT.md)
 - [Feature contracts](docs/features/README.md)
 - [Privacy and data handling](docs/PRIVACY.md)
+
+## Project Policies
+
+- [MIT license](LICENSE)
+- [Security policy](SECURITY.md)
