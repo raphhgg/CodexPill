@@ -1,15 +1,24 @@
-<img src="Resources/AppIcon.png" width="96" alt="CodexPill app icon">
+<p align="center">
+  <img src="Resources/AppIcon.png" width="128" alt="CodexPill app icon">
+</p>
 
-# CodexPill
+<h1 align="center">CodexPill</h1>
 
-_A native macOS menubar companion for Codex accounts, limits and remote hosts._
+<p align="center">
+  <i>A native macOS menubar companion for Codex accounts, limits and remote hosts.</i>
+</p>
 
-<img src="https://img.shields.io/badge/macOS-14%2B-blue" alt="macOS 14+">
-<img src="https://img.shields.io/badge/Built%20with-Codex-101010?logo=openai&logoColor=white" alt="Built with Codex">
-<img src="https://img.shields.io/badge/Status-Beta-purple" alt="Beta">
-<img src="https://img.shields.io/badge/License-MIT-green" alt="MIT license">
+<p align="center">
+  <img src="https://img.shields.io/badge/macOS-14%2B-blue" alt="macOS 14+">
+  <img src="https://img.shields.io/badge/Built%20with-Codex-101010?logo=openai&logoColor=white" alt="Built with Codex">
+  <img src="https://img.shields.io/badge/Status-Beta-purple" alt="Beta">
+  <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT license">
+</p>
 
-<img src="docs/assets/codexpill-menu.png" width="420" alt="CodexPill menu showing active accounts, usage bars, saved accounts, and app controls">
+<p align="center">
+  <img src="docs/assets/codexpill-menu.png" width="360" alt="CodexPill menu showing active accounts, usage bars, saved accounts, and app controls">
+  <img src="docs/assets/codexpill-menu.png" width="360" alt="CodexPill menu showing active accounts, usage bars, saved accounts, and app controls">
+</p>
 
 ## What It Does
 
