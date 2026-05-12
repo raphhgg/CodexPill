@@ -76,4 +76,7 @@ make test
 - Logs and validation artifacts must redact private paths, raw auth material,
   token-like values, and account identifiers unless the value is already a
   synthetic fixture.
+- Diagnostic exports must require explicit user confirmation before a support
+  artifact is built or written; cancelling the disclosure must leave no exported
+  report behind.
 - Demo and screenshot data must use synthetic accounts, hosts, and emails.

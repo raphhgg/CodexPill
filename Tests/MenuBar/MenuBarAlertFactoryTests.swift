@@ -204,6 +204,22 @@ struct MenuBarAlertFactoryTests {
     }
 
     @Test
+    func diagnosticsExportRequestExplainsRedactedSupportFile() {
+        let request = factory.makeDiagnosticsExportRequest()
+
+        #expect(request.messageText == "Export Diagnostics?")
+        #expect(request.informativeText.contains("redacted support file"))
+        #expect(request.informativeText.contains("account aliases"))
+        #expect(request.informativeText.contains("host aliases"))
+        #expect(request.informativeText.contains("auth tokens"))
+        #expect(request.informativeText.contains("emails"))
+        #expect(request.informativeText.contains("hostnames"))
+        #expect(request.informativeText.contains("raw logs"))
+        #expect(request.confirmTitle == "Export")
+        #expect(request.cancelTitle == "Cancel")
+    }
+
+    @Test
     func notificationActionRequestExplainsSubstitutionWhenPresent() {
         let request = factory.makeNotificationActionRequest(
             accountName: "Business 2",

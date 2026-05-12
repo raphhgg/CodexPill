@@ -66,7 +66,7 @@ final class DiagnosticReportPresenterProbe: DiagnosticReportPresenting {
 
     func export(report: DiagnosticReport) throws -> URL? {
         reports.append(report)
-        return URL(fileURLWithPath: "/tmp/CodexPill-Diagnostic.json")
+        return URL(fileURLWithPath: "/tmp/CodexPill-Diagnostics.json")
     }
 }
 
@@ -214,7 +214,7 @@ struct MenuBarMenuBuilderTests {
             target: coordinator
         )
 
-        let exportIndex = try #require(menu.items.firstIndex(where: { $0.title == "Export Diagnostic Report…" }))
+        let exportIndex = try #require(menu.items.firstIndex(where: { $0.title == "Diagnostics…" }))
         let aboutIndex = try #require(menu.items.firstIndex(where: { $0.title == "About" }))
         let export = menu.items[exportIndex]
 
@@ -225,16 +225,41 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func exportDiagnosticReportActionPresentsRedactedReport() throws {
+    func exportDiagnosticReportActionShowsDisclosureBeforePresentingRedactedReport() throws {
+        let alertPresenter = AlertPresenterProbe()
+        alertPresenter.confirmationResponse = true
         let presenter = DiagnosticReportPresenterProbe()
-        let (coordinator, _) = try makeCoordinatorWithStatusItem(diagnosticReportPresenter: presenter)
+        let (coordinator, _) = try makeCoordinatorWithStatusItem(
+            alertPresenter: alertPresenter,
+            diagnosticReportPresenter: presenter
+        )
 
         coordinator.exportDiagnosticReport()
 
+        let disclosure = try #require(alertPresenter.confirmationRequests.first)
+        #expect(disclosure.messageText == "Export Diagnostics?")
+        #expect(disclosure.confirmTitle == "Export")
+        #expect(disclosure.cancelTitle == "Cancel")
         let report = try #require(presenter.reports.first)
         #expect(report.schemaVersion == 1)
         #expect(report.redactionManifest.aliasScope == "per-export")
         #expect(report.events.contains(where: { $0.name == "menu_action" }))
+    }
+
+    @Test
+    func exportDiagnosticReportActionCancelsBeforeSavePanelWhenDisclosureIsRejected() throws {
+        let alertPresenter = AlertPresenterProbe()
+        alertPresenter.confirmationResponse = false
+        let presenter = DiagnosticReportPresenterProbe()
+        let (coordinator, _) = try makeCoordinatorWithStatusItem(
+            alertPresenter: alertPresenter,
+            diagnosticReportPresenter: presenter
+        )
+
+        coordinator.exportDiagnosticReport()
+
+        #expect(alertPresenter.confirmationRequests.map(\.messageText) == ["Export Diagnostics?"])
+        #expect(presenter.reports.isEmpty)
     }
 
     @Test
@@ -1575,6 +1600,7 @@ struct MenuBarMenuBuilderTests {
     }
 
     private func makeCoordinatorWithStatusItem(
+        alertPresenter: AlertPresenterProbe? = nil,
         diagnosticReportPresenter: DiagnosticReportPresenting? = nil
     ) throws -> (MenuBarCoordinator, NSStatusItem) {
         let repository = try makeIsolatedRepository()
@@ -1594,7 +1620,7 @@ struct MenuBarMenuBuilderTests {
             statusItemRuntime: statusItemRuntime,
             store: store,
             settings: settings,
-            alertPresenter: AlertPresenterProbe(),
+            alertPresenter: alertPresenter ?? AlertPresenterProbe(),
             panelPresenter: PanelPresenterProbe(),
             diagnosticReportPresenter: diagnosticReportPresenter ?? DiagnosticReportPresenterProbe()
         )

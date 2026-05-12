@@ -80,7 +80,7 @@ struct MenuBarMenuBuilder {
         if state.showsPacingPrototypeMenu {
             menu.addItem(pacingPrototypeMenuItem(state: state))
         }
-        menu.addItem(actionItem(title: "Export Diagnostic Report…", systemImage: "doc.badge.gearshape", action: #selector(MenuBarCoordinator.exportDiagnosticReport), state: state, target: target))
+        menu.addItem(actionItem(title: "Diagnostics…", systemImage: "doc.badge.gearshape", action: #selector(MenuBarCoordinator.exportDiagnosticReport), state: state, target: target))
         menu.addItem(actionItem(title: "About", systemImage: "info.circle", action: #selector(MenuBarCoordinator.showAbout), state: state, target: target))
 
         if state.shouldShowStatusMessage {

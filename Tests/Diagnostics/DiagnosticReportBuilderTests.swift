@@ -5,6 +5,16 @@ import Testing
 
 struct DiagnosticReportBuilderTests {
     @Test
+    func exportCopyUsesDiagnosticsProductLanguage() {
+        let copy = DiagnosticReportExportCopy()
+        let date = Date(timeIntervalSince1970: 1_800_000_000)
+
+        #expect(copy.panelTitle == "Export Diagnostics")
+        #expect(copy.panelPrompt == "Export")
+        #expect(copy.defaultFilename(for: date) == "CodexPill-Diagnostics-20270115-080000.json")
+    }
+
+    @Test
     func reportAliasesSensitiveAccountAndHostTopologyWithoutRawIdentifiers() throws {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let active = makeAccount(

@@ -8,6 +8,8 @@
   <i>A native macOS menubar companion for Codex accounts, limits, and remote hosts.</i>
 </p>
 
+---
+
 CodexPill keeps your Codex account state visible without pulling you out of
 flow. It shows your current session and weekly limits, lets you switch saved
 local accounts, and can use selected accounts on remote hosts you configure.

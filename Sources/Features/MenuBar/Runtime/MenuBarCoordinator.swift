@@ -478,6 +478,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     @objc
     func exportDiagnosticReport() {
+        guard alertPresenter.presentConfirmation(alertFactory.makeDiagnosticsExportRequest()) else {
+            return
+        }
+
         recordMenuAction("exportDiagnosticReport")
         let report = DiagnosticReportBuilder(
             appMetadata: .current(),
