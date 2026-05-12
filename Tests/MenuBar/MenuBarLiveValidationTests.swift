@@ -540,7 +540,7 @@ struct MenuBarLiveValidationTests {
     @Test
     func validationPayloadSanitizerRedactsSecretsAndUserPaths() {
         let payload = sanitizedValidationPayload([
-            "error": "Authorization: Bearer sk-secret failed for /Users/raphh/.codex/auth.json",
+            "error": "Authorization: Bearer sk-demo failed for /Users/demo/.codex/auth.json",
             "query": "access_token=abc123&refresh_token=def456",
             "safe": "failed to fetch codex rate limits"
         ])
@@ -2035,7 +2035,7 @@ struct MenuBarLiveValidationTests {
             snapshotFileName: "business-2.json",
             createdAt: .distantPast,
             updatedAt: .distantPast,
-            email: "raphaelgrau@gmail.com",
+            email: "user@example.com",
             planType: "team",
             rateLimits: CodexRateLimitSnapshot(
                 limitID: nil,
@@ -2064,7 +2064,7 @@ struct MenuBarLiveValidationTests {
                     workspaceLabel: "Personal"
                 ),
                 snapshotFingerprint: UUID().uuidString,
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@gmail.com")
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "user@example.com")
             )
         )
         try repository.bootstrapStorage()
@@ -2125,7 +2125,7 @@ struct MenuBarLiveValidationTests {
             settings: settings,
             remoteHostMenuOperations: RemoteHostStatusProbe(
                 status: CodexAccountStatus(
-                    email: "raphaelgrau@gmail.com",
+                    email: "user@example.com",
                     planType: "team",
                     rateLimits: CodexRateLimitSnapshot(
                         limitID: nil,
@@ -2172,7 +2172,7 @@ struct MenuBarLiveValidationTests {
             snapshotFileName: "business-2.json",
             createdAt: now,
             updatedAt: now,
-            email: "raphaelgrau@gmail.com",
+            email: "user@example.com",
             planType: "team",
             rateLimits: CodexRateLimitSnapshot(
                 limitID: nil,
@@ -2201,7 +2201,7 @@ struct MenuBarLiveValidationTests {
                     workspaceLabel: "Personal"
                 ),
                 snapshotFingerprint: UUID().uuidString,
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@gmail.com")
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "user@example.com")
             )
         )
         try repository.bootstrapStorage()
@@ -2224,7 +2224,7 @@ struct MenuBarLiveValidationTests {
             snapshotFileName: "stale-business-2.json",
             createdAt: now.addingTimeInterval(-3600),
             updatedAt: now.addingTimeInterval(-3600),
-            email: "raphaelgrau@gmail.com",
+            email: "user@example.com",
             planType: "team",
             rateLimits: CodexRateLimitSnapshot(
                 limitID: nil,
@@ -2253,7 +2253,7 @@ struct MenuBarLiveValidationTests {
                     workspaceLabel: "Personal"
                 ),
                 snapshotFingerprint: UUID().uuidString,
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@gmail.com")
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "user@example.com")
             )
         )
         settings.remoteHostStates = [
@@ -2276,7 +2276,7 @@ struct MenuBarLiveValidationTests {
             settings: settings,
             remoteHostMenuOperations: RemoteHostStatusProbe(
                 status: CodexAccountStatus(
-                    email: "raphaelgrau@gmail.com",
+                    email: "user@example.com",
                     planType: "team",
                     rateLimits: nil
                 )
@@ -2319,7 +2319,7 @@ struct MenuBarLiveValidationTests {
             snapshotFileName: "business-4.json",
             createdAt: now,
             updatedAt: now,
-            email: "raphaelgrau@icloud.com",
+            email: "team@example.com",
             planType: "team",
             rateLimits: CodexRateLimitSnapshot(
                 limitID: "codex",
@@ -2348,7 +2348,7 @@ struct MenuBarLiveValidationTests {
                     workspaceLabel: "Team"
                 ),
                 snapshotFingerprint: UUID().uuidString,
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@icloud.com")
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "team@example.com")
             )
         )
         try repository.bootstrapStorage()
@@ -2382,7 +2382,7 @@ struct MenuBarLiveValidationTests {
         let remoteHostClient = RemoteHostSequenceProbe(statusesByDestination: [
             "user@debian-vm": [
                 CodexAccountStatus(
-                    email: "raphaelgrau@icloud.com",
+                    email: "team@example.com",
                     planType: "team",
                     rateLimits: CodexRateLimitSnapshot(
                         limitID: "codex",
@@ -2406,7 +2406,7 @@ struct MenuBarLiveValidationTests {
                     snapshotFingerprint: account.identity.snapshotFingerprint
                 ),
                 CodexAccountStatus(
-                    email: "raphaelgrau@icloud.com",
+                    email: "team@example.com",
                     planType: "team",
                     rateLimits: CodexRateLimitSnapshot(
                         limitID: "codex",

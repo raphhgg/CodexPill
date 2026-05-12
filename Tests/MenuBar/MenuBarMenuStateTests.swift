@@ -249,7 +249,7 @@ struct MenuBarMenuStateTests {
             snapshotFileName: "business-2.json",
             createdAt: now,
             updatedAt: now,
-            email: "raphaelgrau@gmail.com",
+            email: "user@example.com",
             planType: "team",
             rateLimits: CodexRateLimitSnapshot(
                 limitID: nil,
@@ -278,7 +278,7 @@ struct MenuBarMenuStateTests {
                     workspaceLabel: "Personal"
                 ),
                 snapshotFingerprint: UUID().uuidString,
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@gmail.com")
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "user@example.com")
             )
         )
         let staleRemoteAccount = CodexAccount(
@@ -287,7 +287,7 @@ struct MenuBarMenuStateTests {
             snapshotFileName: "stale-business-2.json",
             createdAt: now.addingTimeInterval(-3600),
             updatedAt: now.addingTimeInterval(-3600),
-            email: "raphaelgrau@gmail.com",
+            email: "user@example.com",
             planType: "team",
             rateLimits: CodexRateLimitSnapshot(
                 limitID: nil,
@@ -316,7 +316,7 @@ struct MenuBarMenuStateTests {
                     workspaceLabel: "Personal"
                 ),
                 snapshotFingerprint: UUID().uuidString,
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@gmail.com")
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "user@example.com")
             )
         )
 

@@ -1,7 +1,5 @@
 # Pacing Prototype Notes
 
-Issue: RGR-147
-
 Status: selected direction is Marker Only.
 
 ## Prototype Data

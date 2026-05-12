@@ -118,13 +118,13 @@ struct LoadAccountsUseCaseTests {
             snapshotFileName: "\(businessOneID.uuidString).json",
             createdAt: .distantPast,
             updatedAt: .distantPast,
-            email: "admin@raphh.me",
+            email: "admin@example.com",
             planType: "team",
             rateLimits: nil,
             identity: CodexAccountIdentity(
                 stableAccountID: nil,
                 snapshotFingerprint: "business-one-fingerprint",
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "admin@raphh.me")
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "admin@example.com")
             )
         )
         let savedBusinessTwo = CodexAccount(
@@ -133,13 +133,13 @@ struct LoadAccountsUseCaseTests {
             snapshotFileName: "\(businessTwoID.uuidString).json",
             createdAt: .distantPast,
             updatedAt: .distantPast,
-            email: "raphaelgrau@gmail.com",
+            email: "user@example.com",
             planType: "team",
             rateLimits: nil,
             identity: CodexAccountIdentity(
                 stableAccountID: nil,
                 snapshotFingerprint: "business-two-fingerprint",
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@gmail.com")
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "user@example.com")
             )
         )
 
@@ -149,7 +149,7 @@ struct LoadAccountsUseCaseTests {
             snapshotFileName: "\(businessOneID.uuidString).json",
             createdAt: .distantPast,
             updatedAt: .distantPast,
-            email: "admin@raphh.me",
+            email: "admin@example.com",
             planType: "team",
             rateLimits: nil,
             identity: CodexAccountIdentity(
@@ -163,7 +163,7 @@ struct LoadAccountsUseCaseTests {
                     workspaceLabel: "Personal"
                 ),
                 snapshotFingerprint: "business-one-fingerprint",
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "admin@raphh.me")
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "admin@example.com")
             )
         )
         let reconciledBusinessTwo = CodexAccount(
@@ -172,7 +172,7 @@ struct LoadAccountsUseCaseTests {
             snapshotFileName: "\(businessTwoID.uuidString).json",
             createdAt: .distantPast,
             updatedAt: .distantPast,
-            email: "raphaelgrau@gmail.com",
+            email: "user@example.com",
             planType: "team",
             rateLimits: nil,
             identity: CodexAccountIdentity(
@@ -186,7 +186,7 @@ struct LoadAccountsUseCaseTests {
                     workspaceLabel: "Personal"
                 ),
                 snapshotFingerprint: "business-two-fingerprint",
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@gmail.com")
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "user@example.com")
             )
         )
 
@@ -224,7 +224,7 @@ struct LoadAccountsUseCaseTests {
             snapshotFileName: "\(personalID.uuidString).json",
             createdAt: .distantPast,
             updatedAt: .distantPast,
-            email: "admin@raphh.me",
+            email: "admin@example.com",
             planType: "plus",
             rateLimits: nil,
             identity: CodexAccountIdentity(
@@ -232,7 +232,7 @@ struct LoadAccountsUseCaseTests {
                 authPrincipalIdentity: CodexAuthPrincipalIdentity(subject: "auth0|personal", chatGPTUserID: "user-personal"),
                 workspaceIdentity: CodexWorkspaceIdentity(workspaceAccountID: "org-personal", workspaceLabel: "Personal"),
                 snapshotFingerprint: "personal-fingerprint",
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "admin@raphh.me")
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "admin@example.com")
             )
         )
         let business = CodexAccount(
@@ -241,7 +241,7 @@ struct LoadAccountsUseCaseTests {
             snapshotFileName: "\(businessID.uuidString).json",
             createdAt: .distantPast,
             updatedAt: .distantPast,
-            email: "raphaelgrau@gmail.com",
+            email: "user@example.com",
             planType: "team",
             rateLimits: nil,
             identity: CodexAccountIdentity(
@@ -249,7 +249,7 @@ struct LoadAccountsUseCaseTests {
                 authPrincipalIdentity: CodexAuthPrincipalIdentity(subject: "auth0|business", chatGPTUserID: "user-business"),
                 workspaceIdentity: CodexWorkspaceIdentity(workspaceAccountID: "org-business", workspaceLabel: "Business"),
                 snapshotFingerprint: "business-fingerprint",
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@gmail.com")
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "user@example.com")
             )
         )
 
@@ -261,7 +261,7 @@ struct LoadAccountsUseCaseTests {
                 stableAccountID: "acct-shared",
                 authPrincipalIdentity: CodexAuthPrincipalIdentity(subject: "auth0|missing", chatGPTUserID: "user-missing"),
                 workspaceIdentity: CodexWorkspaceIdentity(workspaceAccountID: "org-missing", workspaceLabel: "Missing"),
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@gmail.com")
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "user@example.com")
             ),
             storedAccountReconciler: auth
         )

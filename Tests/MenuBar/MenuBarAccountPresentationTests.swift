@@ -135,7 +135,7 @@ struct MenuBarAccountPresentationTests {
             snapshotFileName: "business-2.json",
             createdAt: now,
             updatedAt: now,
-            email: "raphaelgrau@gmail.com",
+            email: "user@example.com",
             planType: "team",
             rateLimits: CodexRateLimitSnapshot(
                 limitID: "codex",
@@ -157,7 +157,7 @@ struct MenuBarAccountPresentationTests {
 
         let tooltip = try! #require(statusItemTooltipText(for: account, now: now))
         #expect(tooltip.contains("Business 2"))
-        #expect(tooltip.contains("raphaelgrau@gmail.com"))
+        #expect(tooltip.contains("user@example.com"))
         #expect(tooltip.contains("Team"))
         #expect(tooltip.contains("Session resets"))
         #expect(tooltip.contains("Weekly resets"))
@@ -202,7 +202,7 @@ struct MenuBarAccountPresentationTests {
             snapshotFileName: "business-2.json",
             createdAt: now,
             updatedAt: now,
-            email: "raphaelgrau@gmail.com",
+            email: "user@example.com",
             planType: "team",
             rateLimits: CodexRateLimitSnapshot(
                 limitID: "codex",
@@ -239,7 +239,7 @@ struct MenuBarAccountPresentationTests {
             snapshotFileName: "personal.json",
             createdAt: now,
             updatedAt: now,
-            email: "raphaelgrau@gmail.com",
+            email: "user@example.com",
             planType: "plus",
             rateLimits: CodexRateLimitSnapshot(
                 limitID: "codex",
@@ -271,7 +271,7 @@ struct MenuBarAccountPresentationTests {
             snapshotFileName: "business-1.json",
             createdAt: now,
             updatedAt: now,
-            email: "admin@raphh.me",
+            email: "admin@example.com",
             planType: "team",
             rateLimits: CodexRateLimitSnapshot(
                 limitID: "codex",
@@ -303,7 +303,7 @@ struct MenuBarAccountPresentationTests {
             snapshotFileName: "business-2.json",
             createdAt: now,
             updatedAt: now,
-            email: "raphaelgrau@gmail.com",
+            email: "user@example.com",
             planType: "team",
             rateLimits: CodexRateLimitSnapshot(
                 limitID: "codex",
@@ -335,7 +335,7 @@ struct MenuBarAccountPresentationTests {
             snapshotFileName: "business-2.json",
             createdAt: now,
             updatedAt: now,
-            email: "raphaelgrau@gmail.com",
+            email: "user@example.com",
             planType: "team",
             rateLimits: CodexRateLimitSnapshot(
                 limitID: "codex",
@@ -377,7 +377,7 @@ struct MenuBarAccountPresentationTests {
             snapshotFileName: "business-2.json",
             createdAt: now,
             updatedAt: now,
-            email: "raphaelgrau@gmail.com",
+            email: "user@example.com",
             planType: "team",
             rateLimits: CodexRateLimitSnapshot(
                 limitID: "codex",

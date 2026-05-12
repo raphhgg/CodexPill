@@ -143,7 +143,7 @@ struct CodexAccountMatcherTests {
     @Test
     func scopedStableAccountIDMatchWinsWhenAuthPrincipalDiffers() {
         let businessOne = makeAccount(
-            email: "admin@raphh.me",
+            email: "admin@example.com",
             snapshotFingerprint: "business-one",
             stableAccountID: "acct-team",
             authPrincipalIdentity: CodexAuthPrincipalIdentity(
@@ -152,7 +152,7 @@ struct CodexAccountMatcherTests {
             )
         )
         let businessTwo = makeAccount(
-            email: "raphaelgrau@gmail.com",
+            email: "user@example.com",
             snapshotFingerprint: "business-two",
             stableAccountID: "acct-team",
             authPrincipalIdentity: CodexAuthPrincipalIdentity(
@@ -169,7 +169,7 @@ struct CodexAccountMatcherTests {
             ),
             liveWorkspaceIdentity: nil,
             liveAuthFingerprint: "different-fingerprint",
-            liveRemoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@gmail.com"),
+            liveRemoteIdentity: CodexRemoteAccountIdentity(emailAddress: "user@example.com"),
             accounts: [businessOne, businessTwo]
         )
 
@@ -179,7 +179,7 @@ struct CodexAccountMatcherTests {
     @Test
     func stableAccountIDDoesNotFallbackWhenScopedPrincipalDoesNotMatch() {
         let businessOne = makeAccount(
-            email: "admin@raphh.me",
+            email: "admin@example.com",
             snapshotFingerprint: "business-one",
             stableAccountID: "acct-team",
             authPrincipalIdentity: CodexAuthPrincipalIdentity(
@@ -196,7 +196,7 @@ struct CodexAccountMatcherTests {
             ),
             liveWorkspaceIdentity: nil,
             liveAuthFingerprint: "different-fingerprint",
-            liveRemoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@gmail.com"),
+            liveRemoteIdentity: CodexRemoteAccountIdentity(emailAddress: "user@example.com"),
             accounts: [businessOne]
         )
 
@@ -206,7 +206,7 @@ struct CodexAccountMatcherTests {
     @Test
     func scopedStableMismatchDoesNotFallBackToRemoteIdentity() {
         let personal = makeAccount(
-            email: "admin@raphh.me",
+            email: "admin@example.com",
             snapshotFingerprint: "personal-fingerprint",
             stableAccountID: "acct-team",
             authPrincipalIdentity: CodexAuthPrincipalIdentity(
@@ -215,7 +215,7 @@ struct CodexAccountMatcherTests {
             )
         )
         let business = makeAccount(
-            email: "raphaelgrau@gmail.com",
+            email: "user@example.com",
             snapshotFingerprint: "business-fingerprint",
             stableAccountID: "acct-team",
             authPrincipalIdentity: CodexAuthPrincipalIdentity(
@@ -232,7 +232,7 @@ struct CodexAccountMatcherTests {
             ),
             liveWorkspaceIdentity: nil,
             liveAuthFingerprint: "different-fingerprint",
-            liveRemoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@gmail.com"),
+            liveRemoteIdentity: CodexRemoteAccountIdentity(emailAddress: "user@example.com"),
             accounts: [personal, business]
         )
 

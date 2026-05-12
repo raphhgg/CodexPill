@@ -7,7 +7,7 @@ struct RemoteRateLimitResolutionTests {
     @Test
     func usesMatchingSavedAccountLimitsWhenRemoteAndPersistedRemoteAreBothZeroed() {
         let baseAccount = makeAccount(
-            email: "raphaelgrau@gmail.com",
+            email: "user@example.com",
             stableAccountID: "acct-team",
             sessionUsedPercent: 0,
             sessionResetsAt: nil,
@@ -15,7 +15,7 @@ struct RemoteRateLimitResolutionTests {
             weeklyResetsAt: nil
         )
         let savedMatchingAccount = makeAccount(
-            email: "raphaelgrau@gmail.com",
+            email: "user@example.com",
             stableAccountID: "acct-team",
             sessionUsedPercent: 97,
             sessionResetsAt: Date().addingTimeInterval(3600),
@@ -44,7 +44,7 @@ struct RemoteRateLimitResolutionTests {
             fallback: baseAccount.rateLimits,
             candidateAccounts: [savedMatchingAccount],
             baseAccount: baseAccount,
-            remoteEmail: "raphaelgrau@gmail.com"
+            remoteEmail: "user@example.com"
         )
 
         #expect(result?.primary?.usedPercent == 97)
@@ -56,7 +56,7 @@ struct RemoteRateLimitResolutionTests {
     @Test
     func keepsRemoteRateLimitsWhenRemotePayloadIsMeaningful() {
         let baseAccount = makeAccount(
-            email: "raphaelgrau@gmail.com",
+            email: "user@example.com",
             stableAccountID: "acct-team",
             sessionUsedPercent: 0,
             sessionResetsAt: nil,
@@ -64,7 +64,7 @@ struct RemoteRateLimitResolutionTests {
             weeklyResetsAt: nil
         )
         let savedMatchingAccount = makeAccount(
-            email: "raphaelgrau@gmail.com",
+            email: "user@example.com",
             stableAccountID: "acct-team",
             sessionUsedPercent: 97,
             sessionResetsAt: Date().addingTimeInterval(3600),
@@ -89,7 +89,7 @@ struct RemoteRateLimitResolutionTests {
             fallback: baseAccount.rateLimits,
             candidateAccounts: [savedMatchingAccount],
             baseAccount: baseAccount,
-            remoteEmail: "raphaelgrau@gmail.com"
+            remoteEmail: "user@example.com"
         )
 
         #expect(result?.primary?.usedPercent == 12)
@@ -100,7 +100,7 @@ struct RemoteRateLimitResolutionTests {
     func preservesFallbackResetTimeWhenRemoteWindowOmitsIt() {
         let fallbackReset = Date().addingTimeInterval(37 * 60)
         let baseAccount = makeAccount(
-            email: "raphaelgrau@gmail.com",
+            email: "user@example.com",
             stableAccountID: "acct-team",
             sessionUsedPercent: 0,
             sessionResetsAt: nil,
@@ -108,7 +108,7 @@ struct RemoteRateLimitResolutionTests {
             weeklyResetsAt: nil
         )
         let savedMatchingAccount = makeAccount(
-            email: "raphaelgrau@gmail.com",
+            email: "user@example.com",
             stableAccountID: "acct-team",
             sessionUsedPercent: 81,
             sessionResetsAt: fallbackReset,
@@ -133,7 +133,7 @@ struct RemoteRateLimitResolutionTests {
             fallback: baseAccount.rateLimits,
             candidateAccounts: [savedMatchingAccount],
             baseAccount: baseAccount,
-            remoteEmail: "raphaelgrau@gmail.com"
+            remoteEmail: "user@example.com"
         )
 
         #expect(result?.primary?.usedPercent == 92)
@@ -143,7 +143,7 @@ struct RemoteRateLimitResolutionTests {
     @Test
     func usesScopedStableIdentityToChooseMatchingSavedAccountWhenRemoteEmailIsAmbiguous() {
         let baseAccount = makeAccount(
-            email: "raphaelgrau@gmail.com",
+            email: "user@example.com",
             stableAccountID: "team-stable",
             sessionUsedPercent: 0,
             sessionResetsAt: nil,
@@ -159,7 +159,7 @@ struct RemoteRateLimitResolutionTests {
             )
         )
         let businessTwo = makeAccount(
-            email: "raphaelgrau@gmail.com",
+            email: "user@example.com",
             stableAccountID: "team-stable",
             sessionUsedPercent: 100,
             sessionResetsAt: Date().addingTimeInterval(3600),
@@ -175,7 +175,7 @@ struct RemoteRateLimitResolutionTests {
             )
         )
         let personal = makeAccount(
-            email: "raphaelgrau@gmail.com",
+            email: "user@example.com",
             stableAccountID: "personal-stable",
             sessionUsedPercent: 44,
             sessionResetsAt: Date().addingTimeInterval(7200),
@@ -212,7 +212,7 @@ struct RemoteRateLimitResolutionTests {
             fallback: baseAccount.rateLimits,
             candidateAccounts: [businessTwo, personal],
             baseAccount: baseAccount,
-            remoteEmail: "raphaelgrau@gmail.com"
+            remoteEmail: "user@example.com"
         )
 
         #expect(result?.primary?.usedPercent == 100)
@@ -222,7 +222,7 @@ struct RemoteRateLimitResolutionTests {
     @Test
     func mergesPerWindowWhenRemoteOnlyHasWeeklyData() {
         let baseAccount = makeAccount(
-            email: "raphaelgrau@gmail.com",
+            email: "user@example.com",
             stableAccountID: "acct-team",
             sessionUsedPercent: 0,
             sessionResetsAt: nil,
@@ -230,7 +230,7 @@ struct RemoteRateLimitResolutionTests {
             weeklyResetsAt: nil
         )
         let savedMatchingAccount = makeAccount(
-            email: "raphaelgrau@gmail.com",
+            email: "user@example.com",
             stableAccountID: "acct-team",
             sessionUsedPercent: 100,
             sessionResetsAt: Date().addingTimeInterval(59 * 60),
@@ -255,7 +255,7 @@ struct RemoteRateLimitResolutionTests {
             fallback: baseAccount.rateLimits,
             candidateAccounts: [savedMatchingAccount],
             baseAccount: baseAccount,
-            remoteEmail: "raphaelgrau@gmail.com"
+            remoteEmail: "user@example.com"
         )
 
         #expect(result?.primary?.usedPercent == 100)
@@ -269,7 +269,7 @@ struct RemoteRateLimitResolutionTests {
         let now = Date()
         let fallbackReset = now.addingTimeInterval(21 * 60)
         let baseAccount = makeAccount(
-            email: "raphaelgrau@gmail.com",
+            email: "user@example.com",
             stableAccountID: "acct-team",
             sessionUsedPercent: 100,
             sessionResetsAt: fallbackReset,
@@ -298,7 +298,7 @@ struct RemoteRateLimitResolutionTests {
             fallback: baseAccount.rateLimits,
             candidateAccounts: [baseAccount],
             baseAccount: baseAccount,
-            remoteEmail: "raphaelgrau@gmail.com"
+            remoteEmail: "user@example.com"
         )
 
         #expect(result?.primary?.displayedUsedPercent(at: now) == 100)

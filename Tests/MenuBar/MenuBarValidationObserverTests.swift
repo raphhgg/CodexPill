@@ -10,15 +10,14 @@ struct MenuBarValidationObserverTests {
         let sink = ValidationSinkProbe()
         let observer = MenuBarValidationObserver(
             sink: sink,
-            scenario: "observer-tests",
-            sealProofRecorder: nil
+            scenario: "observer-tests"
         )
 
         observer.recordMenuAction(
             "switchAccount",
             payload: [
                 "targetName": "Business",
-                "message": "/Users/raphh/.codex/auth.json"
+                "message": "/Users/demo/.codex/auth.json"
             ],
             state: makeMenuState(),
             menu: nil,
@@ -43,8 +42,7 @@ struct MenuBarValidationObserverTests {
         let sink = ValidationSinkProbe()
         let observer = MenuBarValidationObserver(
             sink: sink,
-            scenario: "observer-tests",
-            sealProofRecorder: nil
+            scenario: "observer-tests"
         )
         let previous = makeAccount(name: "Personal", email: "personal@example.com")
         let target = makeAccount(name: "Business", email: "business@example.com")
@@ -87,8 +85,7 @@ struct MenuBarValidationObserverTests {
         let sink = ValidationSinkProbe()
         let observer = MenuBarValidationObserver(
             sink: sink,
-            scenario: "observer-tests",
-            sealProofRecorder: nil
+            scenario: "observer-tests"
         )
         let account = makeAccount(name: "Business", email: "business@example.com")
         let host = RemoteHost(destination: "user@buildbox", displayName: "Buildbox")

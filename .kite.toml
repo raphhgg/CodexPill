@@ -1,7 +1,0 @@
-includePaths = ["Sources/**", "Tests/**", "Tools/**"]
-excludePaths = ["Derived/**"]
-
-sourcePaths = ["Sources/**", "Tools/**"]
-testPaths = ["Tests/**"]
-
-terminalReportLimit = 10

@@ -24,7 +24,6 @@ final class MenuBarValidationObserver {
 
     private let sink: MenuBarValidationSink?
     private let scenario: String?
-    private let sealProofRecorder: CodexPillSealProofRecorder?
 
     private var lastMenuAction: String?
     private var lastSwitchTargetName: String?
@@ -39,16 +38,13 @@ final class MenuBarValidationObserver {
 
     init(
         sink: MenuBarValidationSink? = nil,
-        scenario: String? = MenuBarValidationConfiguration.scenario(),
-        sealProofRecorder: CodexPillSealProofRecorder? = nil
+        scenario: String? = MenuBarValidationConfiguration.scenario()
     ) {
         self.sink = sink
         self.scenario = scenario
-        self.sealProofRecorder = sealProofRecorder ?? CodexPillSealProofRecorderFactory.makeRecorder()
     }
 
     func cancelIfUnfinished() {
-        sealProofRecorder?.cancelIfUnfinished()
     }
 
     func recordSnapshot(
@@ -102,7 +98,6 @@ final class MenuBarValidationObserver {
     }
 
     func recordAddAccountMenuAction(activeAccount: CodexAccount?, savedAccounts: [CodexAccount]) {
-        sealProofRecorder?.account?.recordAddAccountMenuAction(activeAccount: activeAccount, savedAccounts: savedAccounts)
     }
 
     func recordAddAccountPromptPresented(runningCLISessions: Int) {
@@ -111,7 +106,6 @@ final class MenuBarValidationObserver {
             step: "add_account_prompt",
             invariantIds: Self.addAccountNameDialogInvariantIDs
         )
-        sealProofRecorder?.account?.recordAddAccountNameDialogPresented(runningCLISessions: runningCLISessions)
     }
 
     func recordAddAccountPromptCancelled(activeAccount: CodexAccount?, savedAccounts: [CodexAccount]) {
@@ -120,7 +114,6 @@ final class MenuBarValidationObserver {
             step: "add_account_prompt",
             invariantIds: Self.addAccountNameDialogInvariantIDs
         )
-        sealProofRecorder?.account?.recordAddAccountNameDialogCancelled(activeAccount: activeAccount, savedAccounts: savedAccounts)
     }
 
     func recordAddAccountPromptConfirmed(enteredName: String) {
@@ -137,11 +130,6 @@ final class MenuBarValidationObserver {
         activeAccount: CodexAccount?,
         savedAccounts: [CodexAccount]
     ) {
-        sealProofRecorder?.account?.recordSwitchAccountMenuAction(
-            targetAccount: targetAccount,
-            activeAccount: activeAccount,
-            savedAccounts: savedAccounts
-        )
         lastSwitchTargetName = targetAccount.name
     }
 
@@ -152,7 +140,6 @@ final class MenuBarValidationObserver {
             step: "switch_confirmation",
             payload: ["targetName": targetAccount.name]
         )
-        sealProofRecorder?.account?.recordSwitchConfirmationPresented(targetAccount: targetAccount)
     }
 
     func recordSwitchConfirmationResult(accepted: Bool, targetAccount: CodexAccount) {
@@ -162,9 +149,6 @@ final class MenuBarValidationObserver {
             step: "switch_confirmation",
             payload: ["targetName": targetAccount.name]
         )
-        if accepted {
-            sealProofRecorder?.account?.recordSwitchConfirmationAccepted(targetAccount: targetAccount)
-        }
     }
 
     func recordSwitchWorkflowStarted(targetAccount: CodexAccount) {
@@ -176,7 +160,6 @@ final class MenuBarValidationObserver {
             invariantIds: Self.switchInvariantIDs,
             payload: ["targetName": targetAccount.name]
         )
-        sealProofRecorder?.account?.recordSwitchWorkflowStarted(targetAccount: targetAccount)
     }
 
     func recordCodexRelaunchRequested(targetAccount: CodexAccount) {
@@ -186,7 +169,6 @@ final class MenuBarValidationObserver {
             invariantIds: Self.switchInvariantIDs,
             payload: ["targetName": targetAccount.name]
         )
-        sealProofRecorder?.account?.recordCodexRelaunchRequested(targetAccount: targetAccount)
     }
 
     func recordPostSwitchRefreshCompleted(
@@ -202,11 +184,6 @@ final class MenuBarValidationObserver {
                 "targetName": targetAccount.name,
                 "activeAccountId": activeAccount?.id.uuidString ?? ""
             ]
-        )
-        sealProofRecorder?.account?.recordPostSwitchRefreshCompleted(
-            targetAccount: targetAccount,
-            activeAccount: activeAccount,
-            savedAccounts: savedAccounts
         )
     }
 
@@ -237,12 +214,6 @@ final class MenuBarValidationObserver {
                 "toName": toName
             ]
         )
-        sealProofRecorder?.account?.recordActiveAccountChanged(
-            fromName: previousName,
-            toName: toName,
-            activeAccount: activeAccount,
-            savedAccounts: savedAccounts
-        )
         pendingSwitchTargetID = nil
         pendingSwitchTargetName = nil
         return true
@@ -258,11 +229,6 @@ final class MenuBarValidationObserver {
             step: "scheduled_refresh_request",
             invariantIds: Self.scheduledRefreshInvariantIDs,
             payload: ["accountName": accountName]
-        )
-        sealProofRecorder?.account?.recordScheduledRefreshRequested(
-            accountName: accountName,
-            activeAccount: activeAccount,
-            savedAccounts: savedAccounts
         )
     }
 
@@ -291,19 +257,6 @@ final class MenuBarValidationObserver {
                 payload: ["accountName": accountName]
             )
         }
-        let snapshotWithActionTrace = menuSnapshotWithActionTrace(menuSnapshot)
-        sealProofRecorder?.account?.recordScheduledRefreshResult(
-            accountName: accountName,
-            error: error,
-            activeAccount: activeAccount,
-            savedAccounts: savedAccounts,
-            uiEvidence: AccountSealScheduledRefreshUIEvidence(
-                statusMessage: snapshotWithActionTrace.statusMessage,
-                menuItemCount: snapshotWithActionTrace.menuItems.count,
-                lastMenuAction: snapshotWithActionTrace.actionTrace?.lastMenuAction,
-                lastConfirmationRequest: snapshotWithActionTrace.actionTrace?.lastConfirmationRequest
-            )
-        )
     }
 
     private func menuSnapshotWithActionTrace(_ snapshot: MenuBarValidationSnapshot) -> MenuBarValidationSnapshot {
@@ -350,7 +303,6 @@ final class MenuBarValidationObserver {
     }
 
     func recordRemoteHostSwitchMenuAction(targetName: String, hostName: String) {
-        sealProofRecorder?.host?.recordRemoteHostSwitchMenuAction(targetName: targetName, hostName: hostName)
         recordEvent(
             "remote_host_switch_started",
             step: "remote_host_switch_start",
@@ -360,12 +312,10 @@ final class MenuBarValidationObserver {
                 "hostName": hostName
             ]
         )
-        sealProofRecorder?.host?.recordRemoteHostSwitchStarted(targetName: targetName, hostName: hostName)
         lastSwitchTargetName = targetName
     }
 
     func recordAddHostMenuAction() {
-        sealProofRecorder?.host?.recordAddHostMenuAction()
     }
 
     func recordAddHostSetupPresented() {
@@ -374,7 +324,6 @@ final class MenuBarValidationObserver {
             step: "add_host_setup",
             invariantIds: Self.addHostPromptInvariantIDs
         )
-        sealProofRecorder?.host?.recordAddHostSetupPresented()
     }
 
     func recordAddHostSetupCancelled() {
@@ -392,7 +341,6 @@ final class MenuBarValidationObserver {
             invariantIds: Self.addHostPromptInvariantIDs,
             payload: ["hostName": host.destination]
         )
-        sealProofRecorder?.host?.recordAddHostValidationStarted(hostName: host.destination)
     }
 
     func recordAddHostValidationFinished(host: RemoteHost, result: Result<Void, Error>) {
@@ -413,10 +361,6 @@ final class MenuBarValidationObserver {
                     "hostName": host.destination,
                     "message": error.localizedDescription
                 ]
-            )
-            sealProofRecorder?.host?.recordAddHostValidationFailed(
-                hostName: host.destination,
-                message: error.localizedDescription
             )
         }
     }
@@ -478,10 +422,6 @@ final class MenuBarValidationObserver {
                     "targetName": account.name,
                     "hostName": host.displayName
                 ]
-            )
-            sealProofRecorder?.host?.recordRemoteHostActiveAccountChanged(
-                targetName: account.name,
-                hostName: host.displayName
             )
         case .notVerified(let message, _):
             recordEvent(

@@ -200,8 +200,7 @@ private final class MenuBarHostActionCoordinatorHarness {
             alertFactory: MenuBarAlertFactory(),
             validationObserver: MenuBarValidationObserver(
                 sink: validationSink,
-                scenario: "host-action-coordinator-tests",
-                sealProofRecorder: nil
+                scenario: "host-action-coordinator-tests"
             ),
             recordMenuAction: { [weak self] name, payload in
                 self?.menuActions.append(MenuActionRecord(name: name, payload: payload))

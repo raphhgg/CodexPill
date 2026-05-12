@@ -38,7 +38,7 @@ struct SavedAccountIdentityResolverTests {
         let businessOne = makeAccount(
             name: "Business 1",
             fingerprint: "business-one-fingerprint",
-            email: "admin@raphh.me",
+            email: "admin@example.com",
             stableAccountID: "acct-team",
             authPrincipalIdentity: CodexAuthPrincipalIdentity(
                 subject: "auth0|business-1",
@@ -52,7 +52,7 @@ struct SavedAccountIdentityResolverTests {
         let businessFour = makeAccount(
             name: "Business 4",
             fingerprint: "business-four-fingerprint",
-            email: "raphaelgrau@icloud.com",
+            email: "team@example.com",
             stableAccountID: "acct-team",
             authPrincipalIdentity: CodexAuthPrincipalIdentity(
                 subject: "auth0|business-4",
@@ -85,7 +85,7 @@ struct SavedAccountIdentityResolverTests {
         let businessOne = makeAccount(
             name: "Business 1",
             fingerprint: "business-one-fingerprint",
-            email: "admin@raphh.me",
+            email: "admin@example.com",
             stableAccountID: "acct-team",
             authPrincipalIdentity: CodexAuthPrincipalIdentity(
                 subject: "auth0|business-1",
@@ -99,7 +99,7 @@ struct SavedAccountIdentityResolverTests {
         let businessFour = makeAccount(
             name: "Business 4",
             fingerprint: "business-four-fingerprint",
-            email: "raphaelgrau@icloud.com",
+            email: "team@example.com",
             stableAccountID: "acct-team",
             authPrincipalIdentity: CodexAuthPrincipalIdentity(
                 subject: "auth0|business-4",
@@ -124,7 +124,7 @@ struct SavedAccountIdentityResolverTests {
 
         let result = resolver.resolve(
             accounts: [businessOne, businessFour],
-            liveRemoteIdentity: CodexRemoteAccountIdentity(emailAddress: "admin@raphh.me")
+            liveRemoteIdentity: CodexRemoteAccountIdentity(emailAddress: "admin@example.com")
         )
 
         #expect(result == .noMatch)

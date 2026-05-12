@@ -41,48 +41,10 @@ Stop:
 ./scripts/stop_menubar.sh
 ```
 
-Deterministic UI validation:
+## Validation
 
-```bash
-make verify-ui
-```
-
-Live menubar validation:
-
-```bash
-make verify-ui-live
-```
-
-Seal-only account-switch runtime validation:
-
-```bash
-swift run --package-path ../Seal seal run --scenario switch-account-changes-active-account
-```
-
-Seal-only Add Host validation-failure runtime validation:
-
-```bash
-swift run --package-path ../Seal seal run --scenario add-host-destination-validation-failed
-```
-
-Seal-only remove active account runtime validation:
-
-```bash
-swift run --package-path ../Seal seal run --scenario remove-active-account-signs-out-before-deletion
-```
-
-Those shorter commands resolve the CodexPill adapter from `.seal/run.yml` and
-use Seal's default artifact layout under `build/seal-runs/<scenario>/...`. The
-Make targets remain as compatibility entry points for agents that need a stable
-`build/verification/<agent>/<scenario>/` artifact root.
-
-## Validation Artifacts
-
-`make verify-ui` renders deterministic menu states from fixtures and writes screenshot plus JSON artifacts under `build/verification/<agent>/<scenario>/`.
-
-`make verify-ui-live` launches the real menubar app in validation mode, waits for the app to emit `live-menu-snapshot.json` during menu rebuild, asserts menu-item metadata such as enabled state and action wiring from that runtime snapshot, then adds an Accessibility probe plus screenshot as supporting proof.
-
-Behavior and invariant requirements live in [VALIDATION.md](VALIDATION.md).
+Behavior and invariant requirements live in [VALIDATION.md](VALIDATION.md). Run
+`make test` before opening a pull request.
 
 ## Local Assumptions
 
