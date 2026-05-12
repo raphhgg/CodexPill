@@ -23,7 +23,10 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
         let processClient: CodexAppProcessClient = AppRuntimeEnvironment.shouldUseValidationCodexProcessClient(environment: environment)
             ? ValidationCodexAppProcessClient()
             : SystemCodexAppProcessClient()
-        let accountStatusClient = CodexAppServerClient()
+        let accountStatusClient: CodexAccountStatusClient & SavedCodexAccountStatusClient =
+            AppRuntimeEnvironment.shouldUseValidationAccountStatusClient(environment: environment)
+                ? ValidationAccountStatusClient(repository: repository, authService: authService)
+                : CodexAppServerClient()
         let remoteHostClient: RemoteHostSwitchWorkflowOperations
             & RemoteHostAccountSigningOut
         if AppRuntimeEnvironment.shouldUseValidationRemoteHostClient(environment: environment) {

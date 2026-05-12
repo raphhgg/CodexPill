@@ -6,6 +6,7 @@ enum AppRuntimeEnvironment {
     static let validationAppSupportDirectoryEnvironmentKey = "CODEXPILL_VALIDATION_APP_SUPPORT_DIR"
     static let validationUserDefaultsSuiteEnvironmentKey = "CODEXPILL_VALIDATION_USER_DEFAULTS_SUITE"
     static let validationSettingsFixtureEnvironmentKey = "CODEXPILL_VALIDATION_SETTINGS_FIXTURE"
+    static let validationAccountStatusClientEnvironmentKey = "CODEXPILL_VALIDATION_ACCOUNT_STATUS_CLIENT"
     static let validationRemoteHostClientEnvironmentKey = "CODEXPILL_VALIDATION_REMOTE_HOST_CLIENT"
     static let validationCodexProcessClientEnvironmentKey = "CODEXPILL_VALIDATION_CODEX_PROCESS_CLIENT"
     static let validationAllowInteractiveAlertsEnvironmentKey = "CODEXPILL_VALIDATION_ALLOW_INTERACTIVE_ALERTS"
@@ -61,6 +62,12 @@ enum AppRuntimeEnvironment {
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) -> Bool {
         validationModeIsEnabled(environment[validationRemoteHostClientEnvironmentKey])
+    }
+
+    static func shouldUseValidationAccountStatusClient(
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> Bool {
+        validationModeIsEnabled(environment[validationAccountStatusClientEnvironmentKey])
     }
 
     static func shouldUseValidationCodexProcessClient(

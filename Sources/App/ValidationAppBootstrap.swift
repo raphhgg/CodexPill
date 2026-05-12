@@ -14,8 +14,10 @@ enum ValidationAppBootstrap {
             return
         }
 
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
         guard let data = try? Data(contentsOf: fixtureURL),
-              let fixture = try? JSONDecoder().decode(ValidationAppBootstrapFixture.self, from: data) else {
+              let fixture = try? decoder.decode(ValidationAppBootstrapFixture.self, from: data) else {
             return
         }
 

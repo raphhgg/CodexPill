@@ -4,6 +4,71 @@ import Testing
 @testable import CodexPill
 
 struct AppRuntimeEnvironmentTests {
+    @MainActor
+    @Test
+    func validationAppBootstrapLoadsRemoteHostFixturesWithVerifiedAccounts() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ValidationAppBootstrapTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let fixtureURL = directory.appendingPathComponent("settings.json")
+        let accountID = UUID()
+        let payload = """
+        {
+          "remoteHostStates": [
+            {
+              "host": {
+                "destination": "demo@buildbox.example",
+                "displayName": "buildbox"
+              },
+              "installedAccountIDs": ["\(accountID.uuidString)"],
+              "desiredAccountID": "\(accountID.uuidString)",
+              "verifiedAccount": {
+                "id": "\(accountID.uuidString)",
+                "name": "Build Farm",
+                "snapshotFileName": "build-farm.json",
+                "createdAt": "2026-05-11T09:00:00Z",
+                "updatedAt": "2026-05-11T09:01:00Z",
+                "email": "buildfarm@example.com",
+                "planType": "team",
+                "rateLimits": null,
+                "identity": {
+                  "stableAccountID": "demo-build-farm",
+                  "authPrincipalIdentity": null,
+                  "workspaceIdentity": null,
+                  "snapshotFingerprint": "demo-fingerprint",
+                  "remoteIdentity": {
+                    "normalizedEmailAddress": "buildfarm@example.com"
+                  }
+                }
+              },
+              "detectedAccountID": null,
+              "verificationStatus": "verified",
+              "lastVerificationError": null
+            }
+          ]
+        }
+        """
+        try payload.write(to: fixtureURL, atomically: true, encoding: .utf8)
+
+        let suiteName = "ValidationAppBootstrapTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defaults.removePersistentDomain(forName: suiteName)
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
+        ValidationAppBootstrap.applyFixtureIfPresent(
+            to: settings,
+            environment: [AppRuntimeEnvironment.validationSettingsFixtureEnvironmentKey: fixtureURL.path]
+        )
+
+        #expect(settings.remoteHostStates.count == 1)
+        #expect(settings.remoteHostStates.first?.host.displayName == "buildbox")
+        #expect(settings.remoteHostStates.first?.verifiedAccount?.name == "Build Farm")
+        #expect(settings.remoteHostStates.first?.verificationStatus == .verified)
+    }
+
     @Test
     func validationAutoRefreshIntervalSecondsParsesPositiveValues() {
         let environment = [
@@ -56,6 +121,25 @@ struct AppRuntimeEnvironmentTests {
         #expect(
             !AppRuntimeEnvironment.shouldUseValidationRemoteHostClient(
                 environment: [AppRuntimeEnvironment.validationRemoteHostClientEnvironmentKey: "0"]
+            )
+        )
+    }
+
+    @Test
+    func validationAccountStatusClientModeAcceptsExplicitTruthValues() {
+        #expect(
+            AppRuntimeEnvironment.shouldUseValidationAccountStatusClient(
+                environment: [AppRuntimeEnvironment.validationAccountStatusClientEnvironmentKey: "memory"]
+            )
+        )
+        #expect(
+            AppRuntimeEnvironment.shouldUseValidationAccountStatusClient(
+                environment: [AppRuntimeEnvironment.validationAccountStatusClientEnvironmentKey: "true"]
+            )
+        )
+        #expect(
+            !AppRuntimeEnvironment.shouldUseValidationAccountStatusClient(
+                environment: [AppRuntimeEnvironment.validationAccountStatusClientEnvironmentKey: "0"]
             )
         )
     }
