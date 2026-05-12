@@ -10,28 +10,22 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/macOS-14%2B-blue" alt="macOS 14+">
-  <img src="https://img.shields.io/badge/Swift-5-orange" alt="Swift 5">
+  <img src="https://img.shields.io/badge/Built%20with-Codex-101010?logo=openai&logoColor=white" alt="Built with Codex">
+  <img src="https://img.shields.io/badge/Status-Beta-purple" alt="Beta">
   <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT license">
 </p>
-
-CodexPill keeps your Codex account state visible without pulling you out of
-flow. It shows your current session and weekly limits, lets you switch saved
-local accounts, and can use selected accounts on remote hosts you configure.
-
-It is local-first: CodexPill works with Codex state on your Mac and with remote
-hosts that you explicitly configure. It is not a cloud sync service.
 
 <p align="center">
   <img src="docs/assets/codexpill-menu.png" width="420" alt="CodexPill menu showing active accounts, usage bars, saved accounts, and app controls">
 </p>
 
-## What It Does
+## At A Glance
 
-- Shows Codex session and weekly usage from the macOS menu bar.
-- Saves local Codex accounts so you can switch between them.
-- Adds accounts through an isolated sign-in flow without switching immediately.
-- Uses saved accounts on configured SSH hosts.
-- Keeps account snapshots local unless you explicitly copy one to a host.
+- Keep Codex session and weekly limits visible from the menu bar.
+- Switch between saved local accounts without digging through auth files.
+- Add accounts through an isolated sign-in flow that does not switch immediately.
+- Use selected saved accounts on SSH hosts you configure.
+- Stay local-first: no cloud sync, no hidden browser automation, no account data upload.
 
 ## Install
 
