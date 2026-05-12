@@ -38,6 +38,22 @@ struct AccountRepositoryTests {
     }
 
     @Test
+    func bootstrapStorageRepairsExistingSavedSnapshotFiles() throws {
+        let root = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let snapshots = root.appendingPathComponent("snapshots", isDirectory: true)
+        let snapshot = snapshots.appendingPathComponent("research.json")
+        try FileManager.default.createDirectory(at: snapshots, withIntermediateDirectories: true)
+        try Data("existing fixture auth".utf8).write(to: snapshot)
+        try setPosixPermissions(0o644, at: snapshot)
+        let repository = try makeRepository(root: root)
+
+        try repository.bootstrapStorage()
+
+        #expect(try posixPermissions(at: snapshot) == 0o600)
+    }
+
+    @Test
     func writeSnapshotCreatesPrivateFile() throws {
         let root = temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -63,6 +79,23 @@ struct AccountRepositoryTests {
         try setPosixPermissions(0o644, at: snapshotURL)
         try repository.writeSnapshot(data: Data("new fixture auth".utf8), for: account)
 
+        #expect(try posixPermissions(at: snapshotURL) == 0o600)
+    }
+
+    @Test
+    func readSnapshotRepairsPermissiveExistingFile() throws {
+        let root = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repository = try makeRepository(root: root)
+        let account = makeAccount()
+
+        try repository.bootstrapStorage()
+        let snapshotURL = repository.snapshotURL(for: account)
+        try Data("fixture auth".utf8).write(to: snapshotURL)
+        try setPosixPermissions(0o644, at: snapshotURL)
+        let data = try repository.readSnapshot(for: account)
+
+        #expect(data == Data("fixture auth".utf8))
         #expect(try posixPermissions(at: snapshotURL) == 0o600)
     }
 

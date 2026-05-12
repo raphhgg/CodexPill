@@ -105,7 +105,9 @@ struct SSHRemoteHostClient: RemoteHostSwitchWorkflowOperations, RemoteHostAccoun
             guard !remoteHash.isEmpty else { return .missing }
 
             let localSnapshot = try Data(contentsOf: snapshotLocator.snapshotURL(for: account))
-            return remoteHash == snapshotFingerprint(for: localSnapshot) ? .installed : .missing
+            guard remoteHash == snapshotFingerprint(for: localSnapshot) else { return .missing }
+            try await repairRemoteFilePermissions(path: remoteSnapshotPath, on: host)
+            return .installed
         case 1:
             return .missing
         default:

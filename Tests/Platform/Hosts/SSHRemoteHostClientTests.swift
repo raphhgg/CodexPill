@@ -130,7 +130,8 @@ struct SSHRemoteHostClientTests {
                 terminationStatus: 0,
                 standardOutput: Data("\(makeFingerprint(for: Data("fresh-auth".utf8)))\n".utf8),
                 standardError: Data()
-            ))
+            )),
+            .success(.init(terminationStatus: 0, standardOutput: Data(), standardError: Data()))
         ])
         let client = SSHRemoteHostClient(
             snapshotLocator: SnapshotLocatorFixture(snapshotURL: snapshotURL),
@@ -142,6 +143,15 @@ struct SSHRemoteHostClientTests {
         let state = try await client.installationState(for: account, on: RemoteHost(destination: "user@buildbox"))
 
         #expect(state == .installed)
+        #expect(runner.calls.count == 2)
+        #expect(runner.calls[1].arguments == [
+            "-T",
+            "-o", "BatchMode=yes",
+            "-o", "ConnectTimeout=5",
+            "-o", "ConnectionAttempts=1",
+            "user@buildbox",
+            "chmod 600 '.codexpill/snapshots/\(account.snapshotFileName)'"
+        ])
     }
 
     @Test
