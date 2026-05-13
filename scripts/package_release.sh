@@ -100,9 +100,21 @@ prepare_package_app() {
 
 sign_notarize_and_verify() {
   info "Signing app with Developer ID and hardened runtime..."
-  codesign --force --deep --timestamp --options runtime \
-    --sign "${DEVELOPER_ID_APPLICATION}" \
-    "${SIGNED_APP}"
+  local sign_attempt
+  for sign_attempt in 1 2 3; do
+    if codesign --force --deep --timestamp --options runtime \
+      --sign "${DEVELOPER_ID_APPLICATION}" \
+      "${SIGNED_APP}"; then
+      break
+    fi
+
+    if [[ "${sign_attempt}" == "3" ]]; then
+      fail "Developer ID signing failed after ${sign_attempt} attempts."
+    fi
+
+    info "Signing failed, retrying in 5 seconds..."
+    sleep 5
+  done
 
   info "Verifying code signature..."
   codesign --verify --deep --strict --verbose=2 "${SIGNED_APP}"
