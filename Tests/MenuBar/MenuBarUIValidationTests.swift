@@ -273,7 +273,7 @@ struct MenuBarUIValidationTests {
             snapshotFileName: "\(UUID().uuidString).json",
             createdAt: now,
             updatedAt: now,
-            email: "raphaelgrau@icloud.com",
+            email: "team@example.com",
             planType: "team",
             rateLimits: nil,
             identity: CodexAccountIdentity(
@@ -287,7 +287,7 @@ struct MenuBarUIValidationTests {
                     workspaceLabel: "Personal"
                 ),
                 snapshotFingerprint: "business-four-fingerprint",
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "raphaelgrau@icloud.com")
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "team@example.com")
             )
         )
         let state = MenuBarMenuState(
@@ -308,7 +308,7 @@ struct MenuBarUIValidationTests {
         let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, now: now)
 
         #expect(snapshot.currentAccount?.name == "Business 4")
-        #expect(snapshot.currentAccount?.email == "raphaelgrau@icloud.com")
+        #expect(snapshot.currentAccount?.email == "team@example.com")
         #expect(snapshot.currentAccount?.identityDigest?.isEmpty == false)
     }
 

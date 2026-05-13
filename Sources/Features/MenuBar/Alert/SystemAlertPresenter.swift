@@ -97,11 +97,19 @@ final class SystemAlertPresenter {
             stack.addArrangedSubview(statusLabel)
         }
 
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: 320, height: max(56, stack.fittingSize.height)))
+        let horizontalInset: CGFloat = 4
+        let fieldWidth: CGFloat = 340
+        let container = NSView(
+            frame: NSRect(
+                x: 0,
+                y: 0,
+                width: fieldWidth + horizontalInset * 2,
+                height: max(56, stack.fittingSize.height)
+            )
+        )
         container.addSubview(stack)
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            stack.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: horizontalInset),
             stack.topAnchor.constraint(equalTo: container.topAnchor),
             stack.bottomAnchor.constraint(equalTo: container.bottomAnchor)
         ])
@@ -115,7 +123,7 @@ final class SystemAlertPresenter {
     private func configureAlertTextField(_ field: NSTextField) {
         field.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            field.widthAnchor.constraint(equalToConstant: 320),
+            field.widthAnchor.constraint(equalToConstant: 340),
             field.heightAnchor.constraint(equalToConstant: 26)
         ])
     }

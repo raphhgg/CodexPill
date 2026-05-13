@@ -247,6 +247,24 @@ struct MenuBarAlertFactory {
         )
     }
 
+    func makeDiagnosticsExportRequest() -> MenuBarConfirmationAlertRequest {
+        MenuBarConfirmationAlertRequest(
+            messageText: "Export Diagnostics?",
+            informativeText: "CodexPill will create a redacted support file with app version, settings, account aliases, host aliases, limit freshness, and recent workflow events. It does not include auth tokens, emails, hostnames, local paths, or raw logs.",
+            confirmTitle: "Export",
+            cancelTitle: "Cancel"
+        )
+    }
+
+    func makeEnableLaunchAtLoginRequest() -> MenuBarConfirmationAlertRequest {
+        MenuBarConfirmationAlertRequest(
+            messageText: "Launch CodexPill at Login?",
+            informativeText: "CodexPill will ask macOS to open it automatically when you log in. You can turn this off here or in System Settings.",
+            confirmTitle: "Enable",
+            cancelTitle: "Cancel"
+        )
+    }
+
     func makeErrorRequest(message: String) -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
             messageText: "CodexPill Error",

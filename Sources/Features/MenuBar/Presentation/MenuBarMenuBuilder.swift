@@ -80,6 +80,7 @@ struct MenuBarMenuBuilder {
         if state.showsPacingPrototypeMenu {
             menu.addItem(pacingPrototypeMenuItem(state: state))
         }
+        menu.addItem(actionItem(title: "Diagnostics…", systemImage: "doc.badge.gearshape", action: #selector(MenuBarCoordinator.exportDiagnosticReport), state: state, target: target))
         menu.addItem(actionItem(title: "About", systemImage: "info.circle", action: #selector(MenuBarCoordinator.showAbout), state: state, target: target))
 
         if state.shouldShowStatusMessage {
@@ -518,9 +519,32 @@ struct MenuBarMenuBuilder {
         submenu.addItem(statusBarDisplayMenuItem(state: state, target: target))
         submenu.addItem(statusBarStyleMenuItem(state: state, target: target))
         submenu.addItem(usageBarsPreferencesMenuItem(state: state, target: target))
+        submenu.addItem(.separator())
+        submenu.addItem(launchAtLoginMenuItem(state: state, target: target))
 
         item.submenu = submenu
         return item
+    }
+
+    private func launchAtLoginMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(
+            title: state.loginItemState.menuTitle,
+            action: launchAtLoginAction(for: state.loginItemState),
+            keyEquivalent: ""
+        )
+        item.target = target
+        item.state = state.loginItemState.isChecked ? .on : .off
+        item.isEnabled = !state.isBusy
+        return item
+    }
+
+    private func launchAtLoginAction(for state: LoginItemState) -> Selector? {
+        switch state {
+        case .enabled, .disabled:
+            return #selector(MenuBarCoordinator.toggleLaunchAtLogin(_:))
+        case .requiresApproval, .unavailable:
+            return #selector(MenuBarCoordinator.openLoginItemsSettings(_:))
+        }
     }
 
     private func usageBarsPreferencesMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {

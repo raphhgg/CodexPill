@@ -45,6 +45,19 @@ struct AccountActionFlowTests {
     }
 
     @Test
+    func cancelledSignInCompletionDoesNotShowGenericError() {
+        let step = AccountActionFlow().resolveAddAccountCompletion(
+            .failed(CancellationError()),
+            retryName: "Business 2"
+        )
+
+        guard case .none = step else {
+            Issue.record("Expected cancellation to end the Add Account flow silently")
+            return
+        }
+    }
+
+    @Test
     func expiredSignInCodeOffersRetryWithOriginalName() {
         let step = AccountActionFlow().resolveAddAccountStartFailure(
             IsolatedCodexLoginError.authCaptureTimedOut,

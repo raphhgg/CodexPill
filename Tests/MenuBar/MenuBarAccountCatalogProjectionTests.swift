@@ -9,14 +9,14 @@ struct MenuBarAccountCatalogProjectionTests {
         let now = Date(timeIntervalSince1970: 1_745_241_200)
         let saved = makeAccount(
             name: "Business 2",
-            email: "raphaelgrau@gmail.com",
+            email: "user@example.com",
             stableAccountID: "acct-team",
             sessionUsedPercent: 100,
             sessionResetsAt: now.addingTimeInterval(25 * 60)
         )
         let staleRemote = makeAccount(
             name: "Business 2",
-            email: "raphaelgrau@gmail.com",
+            email: "user@example.com",
             stableAccountID: "stale-team",
             sessionUsedPercent: 100,
             sessionResetsAt: now.addingTimeInterval(-45 * 60),

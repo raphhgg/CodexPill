@@ -43,6 +43,9 @@ struct AccountActionFlow {
         case .completed(let account):
             return .offerLocalSwitch(account)
         case .failed(let error):
+            if error is CancellationError {
+                return .none
+            }
             return .handleFailure(resolveAddAccountFailure(error, retryName: retryName))
         case .cancelled:
             return .none

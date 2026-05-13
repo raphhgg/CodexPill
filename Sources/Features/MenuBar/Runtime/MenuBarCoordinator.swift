@@ -34,6 +34,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let notificationDelivery: AccountAvailabilityNotifier
     private let applicationActivator: ApplicationActivator
     private let notificationSettingsLauncher: NotificationSettingsLauncher
+    private let loginItemController: LoginItemControlling
+    private let loginItemsSettingsLauncher: LoginItemsSettingsLaunching
+    private let diagnosticReportPresenter: DiagnosticReportPresenting
+    private let diagnosticEventRecorder: DiagnosticEventRecorder
     private let validationObserver: MenuBarValidationObserver
     private let allowsEmptyStatePrompt: Bool
     private let remoteHostRuntime: RemoteHostRuntime
@@ -112,9 +116,12 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         notificationDelivery: AccountAvailabilityNotifier = AccountAvailabilityNotificationCenter(),
         applicationActivator: ApplicationActivator = NSApplicationActivator(),
         notificationSettingsLauncher: NotificationSettingsLauncher = SystemNotificationSettingsLauncher(),
+        loginItemController: LoginItemControlling = SystemLoginItemController(),
+        loginItemsSettingsLauncher: LoginItemsSettingsLaunching = SystemLoginItemsSettingsLauncher(),
+        diagnosticReportPresenter: DiagnosticReportPresenting? = nil,
+        diagnosticEventRecorder: DiagnosticEventRecorder? = nil,
         validationSink: MenuBarValidationSink? = nil,
         validationScenario: String? = MenuBarValidationConfiguration.scenario(),
-        sealProofRecorder: CodexPillSealProofRecorder? = nil,
         validationObserver: MenuBarValidationObserver? = nil,
         allowsEmptyStatePrompt: Bool = true
     ) {
@@ -140,10 +147,13 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.notificationDelivery = notificationDelivery
         self.applicationActivator = applicationActivator
         self.notificationSettingsLauncher = notificationSettingsLauncher
+        self.loginItemController = loginItemController
+        self.loginItemsSettingsLauncher = loginItemsSettingsLauncher
+        self.diagnosticReportPresenter = diagnosticReportPresenter ?? SystemDiagnosticReportPresenter()
+        self.diagnosticEventRecorder = diagnosticEventRecorder ?? DiagnosticEventRecorder()
         self.validationObserver = validationObserver ?? MenuBarValidationObserver(
             sink: validationSink,
-            scenario: validationScenario,
-            sealProofRecorder: sealProofRecorder
+            scenario: validationScenario
         )
         self.allowsEmptyStatePrompt = allowsEmptyStatePrompt
         self.remoteHostRuntime = RemoteHostRuntime(
@@ -403,6 +413,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         }
 
         recordMenuAction("switchAccount", payload: ["targetName": account.name])
+        diagnosticEventRecorder.recordSwitchAccount(targetAccountID: account.id)
         validationObserver.recordSwitchAccountMenuAction(
             targetAccount: account,
             activeAccount: store.activeAccount,
@@ -414,6 +425,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     @objc
     func switchAccountOnHost(_ sender: NSMenuItem) {
         guard let payload = sender.representedObject as? HostAccountMenuItemPayload else { return }
+        diagnosticEventRecorder.recordRemoteHostSwitch(
+            targetAccountID: payload.accountID,
+            hostDestination: payload.hostDestination
+        )
         hostActionCoordinator.switchAccountOnHost(
             accountID: payload.accountID,
             hostDestination: payload.hostDestination
@@ -422,17 +437,20 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     @objc
     func addHost(_ sender: NSMenuItem) {
+        recordMenuAction("addHost")
         hostActionCoordinator.addHost()
     }
 
     @objc
     func removeHost(_ sender: NSMenuItem) {
+        recordMenuAction("removeHost")
         guard let payload = sender.representedObject as? HostSelectionMenuItemPayload else { return }
         hostActionCoordinator.removeHost(hostDestination: payload.hostDestination)
     }
 
     @objc
     func reverifyHost(_ sender: NSMenuItem) {
+        recordMenuAction("reverifyHost")
         guard let payload = sender.representedObject as? HostSelectionMenuItemPayload else { return }
         hostActionCoordinator.reverifyHost(hostDestination: payload.hostDestination)
     }
@@ -443,6 +461,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     @objc
     func adoptDetectedRemoteAccount(_ sender: NSMenuItem) {
+        recordMenuAction("adoptDetectedRemoteAccount")
         guard let payload = sender.representedObject as? HostAccountMenuItemPayload else { return }
         hostActionCoordinator.adoptDetectedRemoteAccount(
             hostDestination: payload.hostDestination,
@@ -461,6 +480,58 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     func showAbout() {
         recordMenuAction("showAbout")
         alertPresenter.presentInfo(alertFactory.makeAboutRequest())
+    }
+
+    @objc
+    func exportDiagnosticReport() {
+        guard alertPresenter.presentConfirmation(alertFactory.makeDiagnosticsExportRequest()) else {
+            return
+        }
+
+        recordMenuAction("exportDiagnosticReport")
+        let report = DiagnosticReportBuilder(
+            appMetadata: .current(),
+            systemMetadata: .current()
+        ).makeReport(
+            state: menuState(),
+            events: diagnosticEventRecorder.events
+        )
+
+        do {
+            _ = try diagnosticReportPresenter.export(report: report)
+        } catch {
+            alertPresenter.presentInfo(
+                alertFactory.makeErrorRequest(message: "Diagnostic report export failed.")
+            )
+        }
+    }
+
+    @objc
+    func toggleLaunchAtLogin(_ sender: NSMenuItem) {
+        recordMenuAction("toggleLaunchAtLogin")
+        switch loginItemController.state() {
+        case .enabled:
+            setLaunchAtLoginEnabled(false)
+        case .disabled:
+            guard alertPresenter.presentConfirmation(alertFactory.makeEnableLaunchAtLoginRequest()) else {
+                return
+            }
+            setLaunchAtLoginEnabled(true)
+        case .requiresApproval:
+            openLoginItemsSettings(sender)
+        case .unavailable:
+            openLoginItemsSettings(sender)
+        }
+    }
+
+    @objc
+    func openLoginItemsSettings(_ sender: NSMenuItem) {
+        recordMenuAction("openLoginItemsSettings")
+        if !loginItemsSettingsLauncher.openLoginItemsSettings() {
+            alertPresenter.presentInfo(
+                alertFactory.makeErrorRequest(message: "Could not open System Settings.")
+            )
+        }
     }
 
     @objc
@@ -534,8 +605,22 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             notificationsWhenBlockedEnabled: notificationWorkflow.whenBlockedEnabled,
             notificationsWhenOutEnabled: notificationWorkflow.whenOutEnabled,
             notificationAuthorizationState: notificationWorkflow.authorizationState,
+            loginItemState: loginItemController.state(),
             showsPacingPrototypeMenu: validationObserver.showsPacingPrototypeMenu
         )
+    }
+
+    private func setLaunchAtLoginEnabled(_ isEnabled: Bool) {
+        do {
+            try loginItemController.setEnabled(isEnabled)
+        } catch {
+            alertPresenter.presentInfo(
+                alertFactory.makeErrorRequest(
+                    message: "Could not update Launch at Login. Open System Settings and try again."
+                )
+            )
+        }
+        rebuildMenu()
     }
 
     private func registerRevealShortcutFromSettings() {
@@ -702,6 +787,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     private func recordMenuAction(_ name: String, payload: [String: String] = [:]) {
+        diagnosticEventRecorder.recordMenuAction(name)
         validationObserver.recordMenuAction(
             name,
             payload: payload,
@@ -735,8 +821,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
                 switch outcome {
                 case .refreshed:
                     error = nil
+                    self.diagnosticEventRecorder.recordRefresh(resultCategory: "refreshed")
                 case .failed(let message):
                     error = message
+                    self.diagnosticEventRecorder.recordRefresh(resultCategory: "failed")
                 }
                 self.validationObserver.recordScheduledRefreshResult(
                     accountName: activeAccount.name,

@@ -150,7 +150,7 @@ private struct PacingPrototypeCard: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
-                Text(verbatim: "raphaelgrau@gmail.com")
+                Text(verbatim: "user@example.com")
                     .font(.caption)
                     .foregroundColor(Color(nsColor: .secondaryLabelColor))
                     .multilineTextAlignment(.trailing)

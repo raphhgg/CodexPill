@@ -76,7 +76,11 @@ final class CodexSignInPanelController: NSObject, NSWindowDelegate {
             case .success(let account):
                 self.finish(with: .completed(account))
             case .failure(let error):
-                self.finish(with: .failed(error))
+                if error is CancellationError {
+                    self.finish(with: .cancelled)
+                } else {
+                    self.finish(with: .failed(error))
+                }
             }
         }
     }
@@ -95,8 +99,8 @@ final class CodexSignInPanelController: NSObject, NSWindowDelegate {
     }
 
     private func cancel() {
-        onCancel()
         finish(with: .cancelled)
+        onCancel()
     }
 
     private func finish(with result: MenuBarAddAccountSignInPanelResult) {

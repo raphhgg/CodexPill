@@ -94,6 +94,7 @@ struct MenuBarMenuState {
     let notificationsWhenBlockedEnabled: Bool
     let notificationsWhenOutEnabled: Bool
     let notificationAuthorizationState: NotificationAuthorizationState
+    let loginItemState: LoginItemState
     let showsPacingPrototypeMenu: Bool
 
     init(
@@ -116,6 +117,7 @@ struct MenuBarMenuState {
         notificationsWhenBlockedEnabled: Bool = false,
         notificationsWhenOutEnabled: Bool = false,
         notificationAuthorizationState: NotificationAuthorizationState = .unknown,
+        loginItemState: LoginItemState = .unavailable,
         showsPacingPrototypeMenu: Bool = false
     ) {
         self.activeAccount = activeAccount
@@ -137,6 +139,7 @@ struct MenuBarMenuState {
         self.notificationsWhenBlockedEnabled = notificationsWhenBlockedEnabled
         self.notificationsWhenOutEnabled = notificationsWhenOutEnabled
         self.notificationAuthorizationState = notificationAuthorizationState
+        self.loginItemState = loginItemState
         self.showsPacingPrototypeMenu = showsPacingPrototypeMenu
     }
 

@@ -20,11 +20,21 @@ struct AccountRepository {
     }
 
     func bootstrapStorage() throws {
-        try fileManager.createDirectory(at: paths.appSupportDirectory, withIntermediateDirectories: true)
-        try fileManager.createDirectory(at: paths.snapshotsDirectory, withIntermediateDirectories: true)
+        try FilePermissionHardening.createPrivateDirectory(
+            at: paths.appSupportDirectory,
+            fileManager: fileManager
+        )
+        try FilePermissionHardening.createPrivateDirectory(
+            at: paths.snapshotsDirectory,
+            fileManager: fileManager
+        )
 
-        guard !fileManager.fileExists(atPath: paths.accountsFile.path) else { return }
-        try saveAccounts([])
+        if fileManager.fileExists(atPath: paths.accountsFile.path) {
+            try FilePermissionHardening.repairPrivateFile(at: paths.accountsFile, fileManager: fileManager)
+        } else {
+            try saveAccounts([])
+        }
+        try repairSavedSnapshotFiles()
     }
 
     func loadAccounts() throws -> [CodexAccount] {
@@ -36,6 +46,7 @@ struct AccountRepository {
     func saveAccounts(_ accounts: [CodexAccount]) throws {
         let data = try encoder.encode(accounts)
         try data.write(to: paths.accountsFile, options: .atomic)
+        try FilePermissionHardening.repairPrivateFile(at: paths.accountsFile, fileManager: fileManager)
     }
 
     func snapshotURL(for account: CodexAccount) -> URL {
@@ -43,16 +54,33 @@ struct AccountRepository {
     }
 
     func writeSnapshot(data: Data, for account: CodexAccount) throws {
-        try data.write(to: snapshotURL(for: account), options: .atomic)
+        let url = snapshotURL(for: account)
+        try data.write(to: url, options: .atomic)
+        try FilePermissionHardening.repairPrivateFile(at: url, fileManager: fileManager)
     }
 
     func readSnapshot(for account: CodexAccount) throws -> Data {
-        try Data(contentsOf: snapshotURL(for: account))
+        let url = snapshotURL(for: account)
+        try FilePermissionHardening.repairPrivateFile(at: url, fileManager: fileManager)
+        return try Data(contentsOf: url)
     }
 
     func deleteSnapshot(for account: CodexAccount) throws {
         let url = snapshotURL(for: account)
         guard fileManager.fileExists(atPath: url.path) else { return }
         try fileManager.removeItem(at: url)
+    }
+
+    private func repairSavedSnapshotFiles() throws {
+        guard fileManager.fileExists(atPath: paths.snapshotsDirectory.path) else { return }
+        let entries = try fileManager.contentsOfDirectory(
+            at: paths.snapshotsDirectory,
+            includingPropertiesForKeys: [.isRegularFileKey]
+        )
+        for entry in entries {
+            let values = try entry.resourceValues(forKeys: [.isRegularFileKey])
+            guard values.isRegularFile == true else { continue }
+            try FilePermissionHardening.repairPrivateFile(at: entry, fileManager: fileManager)
+        }
     }
 }

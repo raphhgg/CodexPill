@@ -4,8 +4,6 @@
 
 Status: `accepted for inactive local catalog refresh`
 
-Issue: `RGR-140`
-
 Date: 2026-04-30
 
 ### Decision
