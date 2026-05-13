@@ -15,11 +15,11 @@ Record these values before packaging:
 
 | Field | Evidence |
 | --- | --- |
-| Release version | `Project.swift` `CFBundleShortVersionString`: `1.0` |
+| Release version | `Project.swift` `CFBundleShortVersionString`: `0.1.0` |
 | Build number | `Project.swift` `CURRENT_PROJECT_VERSION`: `1` |
 | Source branch | `main` |
 | Source commit | |
-| GitHub Release tag | |
+| GitHub Release tag | `v0.1.0-beta.1` |
 | Zip artifact name | |
 | GitHub Release URL | |
 
@@ -41,7 +41,7 @@ Run the signed packaging command with local signing and notarization configured
 outside the repo:
 
 ```bash
-AGENT_NAME=release make package-release
+AGENT_NAME=release RELEASE_VERSION=v0.1.0-beta.1 make package-release
 ```
 
 The command must build `CodexPill.app`, sign it with Developer ID Application,

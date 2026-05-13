@@ -19,6 +19,7 @@ NOTARY_DIR="${ARCHIVE_ROOT}/notary"
 DEVELOPER_ID_APPLICATION="${DEVELOPER_ID_APPLICATION:-}"
 APPLE_TEAM_ID="${APPLE_TEAM_ID:-}"
 NOTARY_PROFILE="${NOTARY_PROFILE:-}"
+RELEASE_VERSION="${RELEASE_VERSION:-}"
 PACKAGE_RELEASE_ALLOW_UNSIGNED="${PACKAGE_RELEASE_ALLOW_UNSIGNED:-0}"
 PACKAGE_RELEASE_ALLOW_DIRTY="${PACKAGE_RELEASE_ALLOW_DIRTY:-0}"
 
@@ -140,7 +141,8 @@ create_zip() {
     unsigned_suffix="-UNSIGNED-LOCAL"
   fi
 
-  local zip_path="${ARTIFACTS_DIR}/${APP_NAME}-${git_sha}${dirty_suffix}${unsigned_suffix}.zip"
+  local artifact_version="${RELEASE_VERSION:-${git_sha}}"
+  local zip_path="${ARTIFACTS_DIR}/${APP_NAME}-${artifact_version}${dirty_suffix}${unsigned_suffix}.zip"
 
   info "Creating zip artifact..."
   (cd "${PACKAGE_DIR}" && COPYFILE_DISABLE=1 zip -qry --symlinks "../artifacts/$(basename "${zip_path}")" "${APP_NAME}.app")

@@ -20,7 +20,7 @@ let project = Project(
                 "CFBundleInfoDictionaryVersion": "6.0",
                 "CFBundleName": "$(PRODUCT_NAME)",
                 "CFBundlePackageType": "APPL",
-                "CFBundleShortVersionString": "1.0",
+                "CFBundleShortVersionString": "0.1.0",
                 "CFBundleVersion": "$(CURRENT_PROJECT_VERSION)",
                 "LSMinimumSystemVersion": "$(MACOSX_DEPLOYMENT_TARGET)",
                 "LSUIElement": true,
