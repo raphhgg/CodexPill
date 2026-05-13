@@ -60,6 +60,40 @@ final class PanelPresenterProbe: PanelPresenter {
     }
 }
 
+final class LoginItemControllerProbe: LoginItemControlling {
+    var currentState: LoginItemState
+    var setEnabledCalls: [Bool] = []
+    var errorToThrow: Error?
+
+    init(currentState: LoginItemState = .disabled) {
+        self.currentState = currentState
+    }
+
+    func state() -> LoginItemState {
+        currentState
+    }
+
+    func setEnabled(_ isEnabled: Bool) throws {
+        if let errorToThrow {
+            throw errorToThrow
+        }
+        setEnabledCalls.append(isEnabled)
+        currentState = isEnabled ? .enabled : .disabled
+    }
+}
+
+final class LoginItemsSettingsLauncherProbe: LoginItemsSettingsLaunching {
+    var opens = 0
+    var result = true
+
+    func openLoginItemsSettings() -> Bool {
+        opens += 1
+        return result
+    }
+}
+
+private struct LoginItemProbeError: Error {}
+
 @MainActor
 final class DiagnosticReportPresenterProbe: DiagnosticReportPresenting {
     private(set) var reports: [DiagnosticReport] = []
@@ -1477,13 +1511,183 @@ struct MenuBarMenuBuilderTests {
         let usageBarTitles = usageBarsMenu.items.map(\.title)
         let showMarkers = try #require(usageBarsMenu.items.first(where: { $0.title == "Show Pace Markers" }))
 
-        #expect(preferencesMenu.items.map(\.title) == ["Menu Bar Label", "Icon Style", "Usage Bars"])
+        #expect(preferencesMenu.items.map(\.title) == ["Menu Bar Label", "Icon Style", "Usage Bars", "", "Launch at Login"])
+        #expect(preferencesMenu.items[3].isSeparatorItem)
         #expect(usageBarTitles == ["Show Pace Markers", "Accent Color…", "Use Default"])
         #expect(preferencesMenu.items.first(where: { $0.title == "Menu Bar Label" })?.image == nil)
         #expect(preferencesMenu.items.first(where: { $0.title == "Icon Style" })?.image == nil)
         #expect(usageBarsMenu.items.first(where: { $0.title == "Accent Color…" })?.image == nil)
         #expect(showMarkers.action == #selector(MenuBarCoordinator.togglePacingMarkers(_:)))
         #expect(showMarkers.state == .on)
+    }
+
+    @Test
+    func launchAtLoginPreferenceReflectsEnabledState() throws {
+        let menu = MenuBarMenuBuilder().makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                loginItemState: .enabled
+            ),
+            target: try makeCoordinator()
+        )
+
+        let item = try launchAtLoginItem(in: menu)
+
+        #expect(item.title == "Launch at Login")
+        #expect(item.action == #selector(MenuBarCoordinator.toggleLaunchAtLogin(_:)))
+        #expect(item.state == .on)
+        #expect(item.isEnabled)
+    }
+
+    @Test
+    func launchAtLoginPreferenceReflectsDisabledState() throws {
+        let menu = MenuBarMenuBuilder().makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                loginItemState: .disabled
+            ),
+            target: try makeCoordinator()
+        )
+
+        let item = try launchAtLoginItem(in: menu)
+
+        #expect(item.title == "Launch at Login")
+        #expect(item.action == #selector(MenuBarCoordinator.toggleLaunchAtLogin(_:)))
+        #expect(item.state == .off)
+        #expect(item.isEnabled)
+    }
+
+    @Test
+    func launchAtLoginPreferenceOpensSettingsWhenApprovalIsRequired() throws {
+        let menu = MenuBarMenuBuilder().makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                loginItemState: .requiresApproval
+            ),
+            target: try makeCoordinator()
+        )
+
+        let item = try launchAtLoginItem(in: menu)
+
+        #expect(item.title == "Launch at Login…")
+        #expect(item.action == #selector(MenuBarCoordinator.openLoginItemsSettings(_:)))
+        #expect(item.state == .off)
+        #expect(item.isEnabled)
+    }
+
+    @Test
+    func launchAtLoginPreferenceOpensSettingsWhenUnavailable() throws {
+        let menu = MenuBarMenuBuilder().makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                loginItemState: .unavailable
+            ),
+            target: try makeCoordinator()
+        )
+
+        let item = try launchAtLoginItem(in: menu)
+
+        #expect(item.title == "Launch at Login…")
+        #expect(item.action == #selector(MenuBarCoordinator.openLoginItemsSettings(_:)))
+        #expect(item.state == .off)
+        #expect(item.isEnabled)
+    }
+
+    @Test
+    func coordinatorTogglesLaunchAtLoginFromDisabledToEnabled() throws {
+        let loginItemController = LoginItemControllerProbe(currentState: .disabled)
+        let alertPresenter = AlertPresenterProbe()
+        alertPresenter.confirmationResponse = true
+        let coordinator = try makeCoordinatorWithStatusItem(
+            alertPresenter: alertPresenter,
+            loginItemController: loginItemController
+        ).0
+
+        coordinator.toggleLaunchAtLogin(NSMenuItem())
+
+        #expect(alertPresenter.confirmationRequests.last?.messageText == "Launch CodexPill at Login?")
+        #expect(loginItemController.setEnabledCalls == [true])
+    }
+
+    @Test
+    func coordinatorLeavesLaunchAtLoginDisabledWhenEnableIsCancelled() throws {
+        let loginItemController = LoginItemControllerProbe(currentState: .disabled)
+        let alertPresenter = AlertPresenterProbe()
+        alertPresenter.confirmationResponse = false
+        let coordinator = try makeCoordinatorWithStatusItem(
+            alertPresenter: alertPresenter,
+            loginItemController: loginItemController
+        ).0
+
+        coordinator.toggleLaunchAtLogin(NSMenuItem())
+
+        #expect(alertPresenter.confirmationRequests.last?.messageText == "Launch CodexPill at Login?")
+        #expect(loginItemController.setEnabledCalls.isEmpty)
+        #expect(loginItemController.currentState == .disabled)
+    }
+
+    @Test
+    func coordinatorTogglesLaunchAtLoginFromEnabledToDisabled() throws {
+        let loginItemController = LoginItemControllerProbe(currentState: .enabled)
+        let alertPresenter = AlertPresenterProbe()
+        let coordinator = try makeCoordinatorWithStatusItem(
+            alertPresenter: alertPresenter,
+            loginItemController: loginItemController
+        ).0
+
+        coordinator.toggleLaunchAtLogin(NSMenuItem())
+
+        #expect(alertPresenter.confirmationRequests.isEmpty)
+        #expect(loginItemController.setEnabledCalls == [false])
+    }
+
+    @Test
+    func coordinatorOpensLoginItemsSettingsWhenApprovalIsRequired() throws {
+        let loginItemController = LoginItemControllerProbe(currentState: .requiresApproval)
+        let settingsLauncher = LoginItemsSettingsLauncherProbe()
+        let coordinator = try makeCoordinatorWithStatusItem(
+            loginItemController: loginItemController,
+            loginItemsSettingsLauncher: settingsLauncher
+        ).0
+
+        coordinator.toggleLaunchAtLogin(NSMenuItem())
+
+        #expect(loginItemController.setEnabledCalls.isEmpty)
+        #expect(settingsLauncher.opens == 1)
+    }
+
+    @Test
+    func coordinatorOpensLoginItemsSettingsWhenLoginItemIsUnavailable() throws {
+        let loginItemController = LoginItemControllerProbe(currentState: .unavailable)
+        let settingsLauncher = LoginItemsSettingsLauncherProbe()
+        let coordinator = try makeCoordinatorWithStatusItem(
+            loginItemController: loginItemController,
+            loginItemsSettingsLauncher: settingsLauncher
+        ).0
+
+        coordinator.toggleLaunchAtLogin(NSMenuItem())
+
+        #expect(loginItemController.setEnabledCalls.isEmpty)
+        #expect(settingsLauncher.opens == 1)
+    }
+
+    @Test
+    func coordinatorReportsLaunchAtLoginToggleFailureWithoutChangingProbeState() throws {
+        let loginItemController = LoginItemControllerProbe(currentState: .disabled)
+        loginItemController.errorToThrow = LoginItemProbeError()
+        let alertPresenter = AlertPresenterProbe()
+        alertPresenter.confirmationResponse = true
+        let coordinator = try makeCoordinatorWithStatusItem(
+            alertPresenter: alertPresenter,
+            loginItemController: loginItemController
+        ).0
+
+        coordinator.toggleLaunchAtLogin(NSMenuItem())
+
+        #expect(loginItemController.setEnabledCalls.isEmpty)
+        #expect(alertPresenter.confirmationRequests.last?.messageText == "Launch CodexPill at Login?")
+        #expect(loginItemController.currentState == .disabled)
+        #expect(alertPresenter.infoRequests.last?.informativeText == "Could not update Launch at Login. Open System Settings and try again.")
     }
 
     @Test
@@ -1595,12 +1799,19 @@ struct MenuBarMenuBuilderTests {
         return try #require(item.submenu)
     }
 
+    private func launchAtLoginItem(in menu: NSMenu) throws -> NSMenuItem {
+        let preferencesMenu = try #require(menu.items.first(where: { $0.title == "Preferences" })?.submenu)
+        return try #require(preferencesMenu.items.first(where: { $0.title.hasPrefix("Launch at Login") }))
+    }
+
     private func makeCoordinator() throws -> MenuBarCoordinator {
         try makeCoordinatorWithStatusItem().0
     }
 
     private func makeCoordinatorWithStatusItem(
         alertPresenter: AlertPresenterProbe? = nil,
+        loginItemController: LoginItemControlling = LoginItemControllerProbe(),
+        loginItemsSettingsLauncher: LoginItemsSettingsLaunching = LoginItemsSettingsLauncherProbe(),
         diagnosticReportPresenter: DiagnosticReportPresenting? = nil
     ) throws -> (MenuBarCoordinator, NSStatusItem) {
         let repository = try makeIsolatedRepository()
@@ -1622,6 +1833,8 @@ struct MenuBarMenuBuilderTests {
             settings: settings,
             alertPresenter: alertPresenter ?? AlertPresenterProbe(),
             panelPresenter: PanelPresenterProbe(),
+            loginItemController: loginItemController,
+            loginItemsSettingsLauncher: loginItemsSettingsLauncher,
             diagnosticReportPresenter: diagnosticReportPresenter ?? DiagnosticReportPresenterProbe()
         )
         return (coordinator, statusItem)
@@ -1644,6 +1857,7 @@ struct MenuBarMenuBuilderTests {
         notificationsWhenBlockedEnabled: Bool = false,
         notificationsWhenOutEnabled: Bool = false,
         notificationAuthorizationState: NotificationAuthorizationState = .unknown,
+        loginItemState: LoginItemState = .disabled,
         showsPacingPrototypeMenu: Bool = false,
         revealStatusItemTitleShortcut: CodexPill.KeyboardShortcut? = .defaultRevealStatusItemTitle
     ) -> MenuBarMenuState {
@@ -1666,6 +1880,7 @@ struct MenuBarMenuBuilderTests {
             notificationsWhenBlockedEnabled: notificationsWhenBlockedEnabled,
             notificationsWhenOutEnabled: notificationsWhenOutEnabled,
             notificationAuthorizationState: notificationAuthorizationState,
+            loginItemState: loginItemState,
             showsPacingPrototypeMenu: showsPacingPrototypeMenu
         )
     }

@@ -104,6 +104,7 @@ enum MenuBarValidationSupport {
                 state.pacingMarkersEnabled ? "Show Pace Markers: On" : "Show Pace Markers: Off",
                 "Accent Color: \(colorHexString(for: state.progressAccentColor))",
                 state.statusBarMonochrome ? "Monochrome: On" : "Monochrome: Off",
+                "Launch at Login: \(launchAtLoginSummary(for: state.loginItemState))",
                 state.canShowAbout ? "About" : "About (disabled)"
             ]
         ))
@@ -264,6 +265,19 @@ enum MenuBarValidationSupport {
         let green = Int(round(normalized.greenComponent * 255))
         let blue = Int(round(normalized.blueComponent * 255))
         return String(format: "#%02X%02X%02X", red, green, blue)
+    }
+
+    private static func launchAtLoginSummary(for state: LoginItemState) -> String {
+        switch state {
+        case .enabled:
+            return "On"
+        case .disabled:
+            return "Off"
+        case .requiresApproval:
+            return "Needs Approval"
+        case .unavailable:
+            return "Unavailable"
+        }
     }
 
     private static func accountIdentity(for account: CodexAccount) -> MenuBarValidationSnapshot.AccountIdentity {

@@ -519,9 +519,32 @@ struct MenuBarMenuBuilder {
         submenu.addItem(statusBarDisplayMenuItem(state: state, target: target))
         submenu.addItem(statusBarStyleMenuItem(state: state, target: target))
         submenu.addItem(usageBarsPreferencesMenuItem(state: state, target: target))
+        submenu.addItem(.separator())
+        submenu.addItem(launchAtLoginMenuItem(state: state, target: target))
 
         item.submenu = submenu
         return item
+    }
+
+    private func launchAtLoginMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(
+            title: state.loginItemState.menuTitle,
+            action: launchAtLoginAction(for: state.loginItemState),
+            keyEquivalent: ""
+        )
+        item.target = target
+        item.state = state.loginItemState.isChecked ? .on : .off
+        item.isEnabled = !state.isBusy
+        return item
+    }
+
+    private func launchAtLoginAction(for state: LoginItemState) -> Selector? {
+        switch state {
+        case .enabled, .disabled:
+            return #selector(MenuBarCoordinator.toggleLaunchAtLogin(_:))
+        case .requiresApproval, .unavailable:
+            return #selector(MenuBarCoordinator.openLoginItemsSettings(_:))
+        }
     }
 
     private func usageBarsPreferencesMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {

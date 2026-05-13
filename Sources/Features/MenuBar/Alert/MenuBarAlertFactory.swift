@@ -256,6 +256,15 @@ struct MenuBarAlertFactory {
         )
     }
 
+    func makeEnableLaunchAtLoginRequest() -> MenuBarConfirmationAlertRequest {
+        MenuBarConfirmationAlertRequest(
+            messageText: "Launch CodexPill at Login?",
+            informativeText: "CodexPill will ask macOS to open it automatically when you log in. You can turn this off here or in System Settings.",
+            confirmTitle: "Enable",
+            cancelTitle: "Cancel"
+        )
+    }
+
     func makeErrorRequest(message: String) -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
             messageText: "CodexPill Error",

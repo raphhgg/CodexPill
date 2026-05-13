@@ -220,6 +220,17 @@ struct MenuBarAlertFactoryTests {
     }
 
     @Test
+    func launchAtLoginRequestExplainsSystemLoginItemChange() {
+        let request = factory.makeEnableLaunchAtLoginRequest()
+
+        #expect(request.messageText == "Launch CodexPill at Login?")
+        #expect(request.informativeText.contains("open it automatically when you log in"))
+        #expect(request.informativeText.contains("turn this off here or in System Settings"))
+        #expect(request.confirmTitle == "Enable")
+        #expect(request.cancelTitle == "Cancel")
+    }
+
+    @Test
     func notificationActionRequestExplainsSubstitutionWhenPresent() {
         let request = factory.makeNotificationActionRequest(
             accountName: "Business 2",

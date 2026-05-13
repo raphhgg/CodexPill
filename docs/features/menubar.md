@@ -52,7 +52,7 @@ Entries:
 - `Hosts`: entry point owned by [Remote Hosts](remote-hosts.md).
 - `Notifications`: entry point owned by [Notifications](notifications.md).
 - `Refresh Interval`: setting that controls scheduled refresh cadence.
-- `Preferences`: status icon, label, pacing marker, and accent settings owned by [Status Bar](status-bar.md).
+- `Preferences`: visual settings owned by [Status Bar](status-bar.md), plus app-level controls such as [Launch at Login](app-controls/01-launch-at-login.md).
 - `Diagnostics…`: user-initiated support artifact export. CodexPill first explains what the export contains, then writes a redacted JSON file only if the user confirms. The report is built from allowlisted diagnostic fields, per-export account/host aliases, summarized freshness/result states, and recent CodexPill-owned workflow events. It must not include raw logs, auth JSON, saved snapshots, raw UserDefaults, raw SSH output, emails, hostnames, local paths, tokens, stable account IDs, prompt/session content, or raw stderr.
 - `About`: app-level informational alert.
 - `Quit`: app-level quit command, separated from status and controls.

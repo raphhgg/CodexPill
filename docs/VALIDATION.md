@@ -71,6 +71,17 @@ make test
 - If macOS authorization is denied, Enable Notifications opens System Settings
   rather than pretending to grant permission itself.
 
+### App Controls
+
+- Launch at Login reflects the native macOS login-item state; CodexPill must not
+  show it as enabled after a failed registration attempt.
+- Enabling Launch at Login must require an explicit confirmation before
+  CodexPill asks macOS to register the app as a login item.
+- When macOS requires approval for the login item, the menu opens System Settings
+  instead of pretending CodexPill can approve the permission itself.
+- When the login item state is unavailable, the menu keeps the item unchecked
+  and opens System Settings instead of leaving the user at a dead end.
+
 ### Privacy
 
 - Logs and validation artifacts must redact private paths, raw auth material,
