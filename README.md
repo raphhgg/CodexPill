@@ -80,13 +80,13 @@ Access, Screen Recording or Accessibility permissions for normal use.
 
 ## Screenshots
 
-| Account Actions | Preferences |
-| --- | --- |
-| <img src="docs/assets/codexpill-account-actions.png" width="420" alt="CodexPill account actions submenu"> | <img src="docs/assets/codexpill-preferences.png" width="420" alt="CodexPill preferences submenu"> |
-
 | Add Account | Add Remote Host |
 | --- | --- |
 | <img src="docs/assets/codexpill-add-account.png" width="420" alt="CodexPill Add Account dialog"> | <img src="docs/assets/codexpill-add-host.png" width="420" alt="CodexPill Add Remote Host dialog"> |
+
+| Account Actions | Preferences |
+| --- | --- |
+| <img src="docs/assets/codexpill-account-actions.png" width="420" alt="CodexPill account actions submenu"> | <img src="docs/assets/codexpill-preferences.png" width="420" alt="CodexPill preferences submenu"> |
 
 ## Product Docs
 
