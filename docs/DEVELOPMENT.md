@@ -54,6 +54,11 @@ beta release artifacts. Dirty working trees are refused by default. For local
 validation only, `PACKAGE_RELEASE_ALLOW_DIRTY=1` allows the command to continue
 and marks the artifact name with `DIRTY`.
 
+The first public beta was published as
+[`v0.1.0-beta.1`](https://github.com/raphhgg/CodexPill/releases/tag/v0.1.0-beta.1).
+Future public beta releases should use the same signed/notarized artifact path
+until release automation replaces the manual GitHub Release flow.
+
 Test:
 
 ```bash

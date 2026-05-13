@@ -29,11 +29,16 @@
 
 ## Install
 
-Signed beta downloads are not available yet. Build from source for now.
+Download the latest signed beta zip from
+[GitHub Releases](https://github.com/raphhgg/CodexPill/releases).
 
-When the first public beta is published, download the latest signed beta zip
-from GitHub Releases. The release zip will contain `CodexPill.app`; unzip it,
-move the app to `Applications` and launch it.
+The release zip contains `CodexPill.app`; unzip it, move the app to
+`Applications` and launch it.
+
+Current beta:
+
+- [CodexPill v0.1.0-beta.1](https://github.com/raphhgg/CodexPill/releases/tag/v0.1.0-beta.1)
+- SHA-256: `6c88ccd91a4b9d9929246301eb940e647f1d8573e240b05559e47f7e8f401a41`
 
 CodexPill does not currently provide a Homebrew cask, Sparkle updates, Mac App
 Store distribution or unsigned public beta builds.
@@ -96,5 +101,6 @@ Access, Screen Recording or Accessibility permissions for normal use.
 
 ## Project Policies
 
+- [Changelog](CHANGELOG.md)
 - [MIT license](LICENSE)
 - [Security policy](SECURITY.md)

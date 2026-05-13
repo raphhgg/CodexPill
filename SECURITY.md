@@ -2,12 +2,8 @@
 
 ## Supported Versions
 
-CodexPill is preparing for its first public beta. Until a signed beta release
-is published, security support applies to the current `main` branch and any
-release candidate explicitly shared by the maintainer.
-
-After public beta releases begin, security fixes target the latest signed beta
-release only. Older beta builds may be closed as unsupported unless the
+Security support applies to the latest signed beta release and the current
+`main` branch. Older beta builds may be closed as unsupported unless the
 maintainer states otherwise in the release notes.
 
 ## Reporting a Vulnerability
@@ -21,10 +17,6 @@ with a minimal reproduction and clearly mark it as security-related.
 
 For vulnerabilities that require private details, use the repository's GitHub
 private vulnerability reporting or Security Advisory flow when it is available.
-
-Maintainer checkpoint before public beta: confirm GitHub private vulnerability
-reporting is enabled for `raphhgg/CodexPill`, or replace this paragraph with an
-approved public security contact before making the repository public.
 
 ## Scope
 
