@@ -1,6 +1,12 @@
 import AppKit
 
 struct MenuBarAlertFactory {
+    private let appVersionText: String
+
+    init(appVersionText: String = MenuBarAppVersionText.current()) {
+        self.appVersionText = appVersionText
+    }
+
     func makeAddAccountRequest(runningCLISessions: Int) -> MenuBarTextInputAlertRequest {
         MenuBarTextInputAlertRequest(
             messageText: "Add account",
@@ -236,7 +242,7 @@ struct MenuBarAlertFactory {
             messageText: "About CodexPill",
             informativeText: """
             CodexPill
-            Version 0.1
+            Version \(appVersionText)
 
             A macOS menubar utility to switch Codex accounts and monitor active account limits.
 
@@ -343,6 +349,57 @@ struct MenuBarAlertFactory {
             let leadingTargets = targets.dropLast().joined(separator: ", ")
             return "\(leadingTargets), and \(targets[targets.count - 1])"
         }
+    }
+}
+
+enum MenuBarAppVersionText {
+    static func current(bundle: Bundle = .main) -> String {
+        #if DEBUG
+        "Dev"
+        #else
+        release(bundle: bundle)
+        #endif
+    }
+
+    static func release(bundle: Bundle) -> String {
+        let releaseVersion = bundle.object(forInfoDictionaryKey: "CodexPillReleaseVersion") as? String
+        let marketingVersion = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        let buildNumber = bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String
+
+        return release(releaseVersion: releaseVersion, marketingVersion: marketingVersion, buildNumber: buildNumber)
+    }
+
+    static func release(
+        releaseVersion: String?,
+        marketingVersion: String?,
+        buildNumber: String?
+    ) -> String {
+        if let normalizedReleaseVersion = normalized(releaseVersion) {
+            return normalizedReleaseVersion
+        }
+
+        guard let normalizedMarketingVersion = normalized(marketingVersion) else {
+            return "Unknown"
+        }
+
+        guard let normalizedBuildNumber = normalized(buildNumber) else {
+            return normalizedMarketingVersion
+        }
+
+        return "\(normalizedMarketingVersion) (\(normalizedBuildNumber))"
+    }
+
+    private static func normalized(_ value: String?) -> String? {
+        guard let value else {
+            return nil
+        }
+
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return nil
+        }
+
+        return trimmed.hasPrefix("v") ? String(trimmed.dropFirst()) : trimmed
     }
 }
 

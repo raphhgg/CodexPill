@@ -8,6 +8,44 @@ struct MenuBarAlertFactoryTests {
     private let factory = MenuBarAlertFactory()
 
     @Test
+    func aboutRequestShowsCurrentAppVersion() {
+        let factory = MenuBarAlertFactory(appVersionText: "0.1.0-beta.1")
+
+        let request = factory.makeAboutRequest()
+
+        #expect(request.messageText == "About CodexPill")
+        #expect(request.informativeText.contains("Version 0.1.0-beta.1"))
+        #expect(!request.informativeText.contains("Version 0.1\n"))
+    }
+
+    @Test
+    func debugAppVersionTextShowsDev() {
+        #expect(MenuBarAppVersionText.current() == "Dev")
+    }
+
+    @Test
+    func releaseAppVersionPrefersInjectedReleaseVersion() {
+        let version = MenuBarAppVersionText.release(
+            releaseVersion: "v0.1.0-beta.1",
+            marketingVersion: "0.1.0",
+            buildNumber: "1"
+        )
+
+        #expect(version == "0.1.0-beta.1")
+    }
+
+    @Test
+    func releaseAppVersionFallsBackToMarketingVersionAndBuildNumber() {
+        let version = MenuBarAppVersionText.release(
+            releaseVersion: nil,
+            marketingVersion: "0.1.0",
+            buildNumber: "1"
+        )
+
+        #expect(version == "0.1.0 (1)")
+    }
+
+    @Test
     func switchAccountWarningMentionsRunningCliSessions() {
         let request = factory.makeSwitchAccountRequest(accountName: "Work", runningCLISessions: 2)
 

@@ -24,14 +24,17 @@ cask exists and has been exercised.
 
 1. Maintainer bumps the app version/build number from the repo-owned source of
    truth.
-2. Maintainer runs `make package-release` from a clean `main` checkout.
+2. Maintainer runs `make package-release` from a clean `main` checkout with
+   `RELEASE_VERSION` set to the public tag, for example `v0.1.0-beta.1`.
 3. Packaging builds `CodexPill.app` in release configuration.
 4. Packaging signs the app with Developer ID and hardened runtime.
 5. Packaging submits the app for notarization.
 6. Packaging staples the notarization ticket.
-7. Packaging creates a `.zip` containing `CodexPill.app`.
-8. Maintainer creates a GitHub Release and attaches the zip.
-9. A user downloads, unzips, and launches CodexPill without manual Gatekeeper
+7. Packaging injects the release version into the copied app bundle so `About`
+   displays the public release version.
+8. Packaging creates a `.zip` containing `CodexPill.app`.
+9. Maintainer creates a GitHub Release and attaches the zip.
+10. A user downloads, unzips, and launches CodexPill without manual Gatekeeper
    bypass instructions.
 
 ## UI / Copy / States

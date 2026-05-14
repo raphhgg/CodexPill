@@ -34,6 +34,9 @@ default, requires local Developer ID signing and notarization configuration
 before it creates a public release artifact. Configure these environment
 variables locally:
 
+- `RELEASE_VERSION`: public release tag, for example `v0.1.0-beta.1`. Packaging
+  uses this for the artifact name and injects it into the app so `About` shows
+  the released version instead of `Dev`.
 - `DEVELOPER_ID_APPLICATION`: Developer ID Application signing identity name or
   SHA-1 hash.
 - `APPLE_TEAM_ID`: Apple Developer team ID.

@@ -96,6 +96,13 @@ prepare_package_app() {
   mkdir -p "${PACKAGE_DIR}" "${ARTIFACTS_DIR}" "${NOTARY_DIR}"
   cp -R "${BUILT_APP}" "${SIGNED_APP}"
   find "${SIGNED_APP}" -name '._*' -delete
+
+  if [[ -n "${RELEASE_VERSION}" ]]; then
+    local display_version="${RELEASE_VERSION#v}"
+    local info_plist="${SIGNED_APP}/Contents/Info.plist"
+    /usr/libexec/PlistBuddy -c "Delete :CodexPillReleaseVersion" "${info_plist}" >/dev/null 2>&1 || true
+    /usr/libexec/PlistBuddy -c "Add :CodexPillReleaseVersion string ${display_version}" "${info_plist}"
+  fi
 }
 
 sign_notarize_and_verify() {

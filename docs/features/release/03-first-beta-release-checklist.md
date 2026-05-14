@@ -45,9 +45,9 @@ AGENT_NAME=release RELEASE_VERSION=v0.1.0-beta.1 make package-release
 ```
 
 The command must build `CodexPill.app`, sign it with Developer ID Application,
-enable hardened runtime, submit for notarization, staple the ticket, validate
-the staple, run Gatekeeper assessment, and create the release zip under
-`build/release/artifacts/`.
+enable hardened runtime, inject `RELEASE_VERSION` for the app's About display,
+submit for notarization, staple the ticket, validate the staple, run Gatekeeper
+assessment, and create the release zip under `build/release/artifacts/`.
 
 Record summarized evidence only:
 
