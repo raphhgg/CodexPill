@@ -55,23 +55,25 @@ struct MenuBarAlertFactoryTests {
     }
 
     @Test
-    func addAccountWarningOmitsCliNoticeWhenNoSessionsRunning() {
+    func addAccountNamePromptExplainsDisplayName() {
         let request = factory.makeAddAccountRequest(runningCLISessions: 0)
 
         #expect(request.messageText == "Add account")
         #expect(request.fieldTitle == "Account Name")
+        #expect(request.placeholder == "Work")
         #expect(request.confirmTitle == "Continue")
-        #expect(request.informativeText.contains("save the account"))
-        #expect(request.informativeText.contains("without changing This Mac"))
+        #expect(request.requiresNonEmptyValue)
+        #expect(request.informativeText == "Choose a name for this saved account. You can change it later.")
+        #expect(!request.informativeText.contains("browser"))
         #expect(!request.informativeText.contains("Codex terminal is running"))
     }
 
     @Test
-    func addAccountWarningMentionsTerminalNoticeWhenCliSessionsExist() {
+    func addAccountNamePromptStaysFocusedOnNamingWhenCliSessionsExist() {
         let request = factory.makeAddAccountRequest(runningCLISessions: 1)
 
-        #expect(request.informativeText.contains("1 Codex terminal is running"))
-        #expect(request.informativeText.contains("It will keep using the current account."))
+        #expect(request.informativeText == "Choose a name for this saved account. You can change it later.")
+        #expect(!request.informativeText.contains("Codex terminal is running"))
     }
 
     @Test

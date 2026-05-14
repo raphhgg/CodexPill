@@ -743,6 +743,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             }
         case .showError(let message):
             alertPresenter.presentInfo(alertFactory.makeErrorRequest(message: message))
+        case .showEmptyNameAndRetry(let message):
+            alertPresenter.presentInfo(alertFactory.makeErrorRequest(message: message))
+            addAccount()
         case .offerDuplicateNameRecovery:
             let request = alertFactory.makeAddAccountDuplicateNameRequest()
             guard alertPresenter.presentConfirmation(request) else { return }

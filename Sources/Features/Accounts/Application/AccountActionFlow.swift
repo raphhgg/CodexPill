@@ -24,6 +24,7 @@ struct AccountActionFlow {
         case showSignInFailure(AddAccountSignInFailureOutcome)
         case offerSignInRetry(outcome: AddAccountSignInFailureOutcome, retryName: String)
         case showError(message: String)
+        case showEmptyNameAndRetry(message: String)
         case offerDuplicateNameRecovery
         case showUnsafeAuthChange
         case showSaveFailure
@@ -79,7 +80,7 @@ struct AccountActionFlow {
             case .duplicateAccountName:
                 return .offerDuplicateNameRecovery
             case .emptyAccountName:
-                return .showError(message: displayNameError.localizedDescription)
+                return .showEmptyNameAndRetry(message: displayNameError.localizedDescription)
             }
         }
 

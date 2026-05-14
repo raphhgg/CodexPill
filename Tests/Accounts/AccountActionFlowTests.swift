@@ -108,6 +108,16 @@ struct AccountActionFlowTests {
     }
 
     @Test
+    func emptyDisplayNameShowsErrorAndReopensNamePrompt() {
+        let step = AccountActionFlow().resolveAddAccountStartFailure(
+            AccountDisplayNameError.emptyAccountName,
+            retryName: "Business 2"
+        )
+
+        #expect(step == .showEmptyNameAndRetry(message: "Account name is required."))
+    }
+
+    @Test
     func liveAuthMutationRoutesToUnsafeAuthChangeStep() {
         let step = AccountActionFlow().resolveAddAccountStartFailure(
             AddAccountWorkflowError.liveAuthChanged,

@@ -28,6 +28,11 @@ Permission recovery:
 
 - Body pattern: `<Fallback Account> is available again`
 
+`Account Available` is for a fallback becoming useful again. It must not fire
+when the first saved account appears, when the only saved account is available,
+or when the available account is already the active local or verified remote
+account.
+
 ## Actions
 
 Notification actions should offer direct use targets when the platform supports it:

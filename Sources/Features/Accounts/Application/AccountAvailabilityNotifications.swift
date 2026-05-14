@@ -180,13 +180,19 @@ struct AccountAvailabilityNotificationPolicy {
             ).map(\.snapshot.account.id)
         )
 
+        let activeAccountIDs = Set(activeAccounts.map(\.accountID))
+        let inactiveCurrentCandidates = currentCandidates.filter { candidate in
+            !activeAccountIDs.contains(candidate.snapshot.account.id)
+        }
+
         if settings.whenBlockedEnabled,
+           !previousSnapshots.isEmpty,
            hadNoNotificationWorthyAccounts(
                in: previousSnapshots,
                minimumRemainingPercent: Self.minimumUsableRemainingPercent,
                now: now
            ),
-           let bestCurrent = bestCandidate(from: currentCandidates, now: now) {
+           let bestCurrent = bestCandidate(from: inactiveCurrentCandidates, now: now) {
             let actions = suggestedActions(
                 for: bestCurrent.snapshot,
                 activeAccounts: activeAccounts,

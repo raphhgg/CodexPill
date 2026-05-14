@@ -44,6 +44,7 @@ struct MenuBarTextInputAlertRequest {
     let placeholder: String
     let confirmTitle: String
     let cancelTitle: String
+    let requiresNonEmptyValue: Bool
 }
 
 struct MenuBarConfirmationAlertRequest {

@@ -20,6 +20,7 @@ final class SystemAlertPresenter {
 
         let field = NSTextField(string: "")
         field.placeholderString = request.placeholder
+        let validator = TextInputAlertValidator(field: field, requiresNonEmptyValue: request.requiresNonEmptyValue)
 
         let alert = NSAlert()
         configure(alert: alert)
@@ -34,6 +35,8 @@ final class SystemAlertPresenter {
         )
         alert.addButton(withTitle: request.confirmTitle)
         alert.addButton(withTitle: request.cancelTitle)
+        validator.confirmButton = alert.buttons.first
+        validator.apply()
 
         guard alert.runModal() == .alertFirstButtonReturn else { return nil }
         return field.stringValue
@@ -130,3 +133,31 @@ final class SystemAlertPresenter {
 }
 
 extension SystemAlertPresenter: AlertPresenter {}
+
+@MainActor
+private final class TextInputAlertValidator: NSObject, NSTextFieldDelegate {
+    private let field: NSTextField
+    private let requiresNonEmptyValue: Bool
+    weak var confirmButton: NSButton?
+
+    init(field: NSTextField, requiresNonEmptyValue: Bool) {
+        self.field = field
+        self.requiresNonEmptyValue = requiresNonEmptyValue
+        super.init()
+        field.delegate = self
+    }
+
+    func controlTextDidChange(_ notification: Notification) {
+        apply()
+    }
+
+    func apply() {
+        guard requiresNonEmptyValue else {
+            confirmButton?.isEnabled = true
+            return
+        }
+
+        let value = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        confirmButton?.isEnabled = !value.isEmpty
+    }
+}

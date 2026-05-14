@@ -314,6 +314,58 @@ struct AccountAvailabilityNotificationPolicyTests {
     }
 
     @Test
+    func notificationPolicyDoesNotAnnounceFirstSavedAccountAsAvailableAgain() {
+        let service = AccountAvailabilityService()
+        let policy = AccountAvailabilityNotificationPolicy()
+        let now = Date()
+        let personal = makeAccount(name: "Personal", sessionUsedPercent: 0, weeklyUsedPercent: 20)
+
+        let decision = policy.decision(
+            previousSnapshots: [],
+            currentSnapshots: [
+                service.snapshot(for: personal, now: now)
+            ],
+            activeAccounts: [],
+            settings: AccountAvailabilityNotificationSettings(whenBlockedEnabled: true),
+            now: now
+        )
+
+        #expect(decision == nil)
+    }
+
+    @Test
+    func notificationPolicyDoesNotAnnounceCurrentAccountAsFallback() {
+        let service = AccountAvailabilityService()
+        let policy = AccountAvailabilityNotificationPolicy()
+        let now = Date()
+        let active = makeAccount(name: "Personal", sessionUsedPercent: 0, weeklyUsedPercent: 20)
+        let previous = [
+            service.snapshot(
+                for: makeAccount(
+                    id: active.id,
+                    name: "Personal",
+                    sessionUsedPercent: 100,
+                    sessionResetAt: now.addingTimeInterval(1800),
+                    weeklyUsedPercent: 20
+                ),
+                now: now
+            )
+        ]
+
+        let decision = policy.decision(
+            previousSnapshots: previous,
+            currentSnapshots: [
+                service.snapshot(for: active, now: now)
+            ],
+            activeAccounts: [ActiveAccountAvailabilityContext(target: .local, accountID: active.id)],
+            settings: AccountAvailabilityNotificationSettings(whenBlockedEnabled: true),
+            now: now
+        )
+
+        #expect(decision == nil)
+    }
+
+    @Test
     func notificationPolicyIgnoresBarelyUsableAccountsWhenBlockedModeIsEnabled() {
         let service = AccountAvailabilityService()
         let policy = AccountAvailabilityNotificationPolicy()

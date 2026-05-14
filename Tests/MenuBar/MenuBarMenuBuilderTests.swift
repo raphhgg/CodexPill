@@ -180,7 +180,8 @@ struct MenuBarMenuBuilderTests {
                 fieldTitle: "Name",
                 placeholder: "Business",
                 confirmTitle: "Save",
-                cancelTitle: "Cancel"
+                cancelTitle: "Cancel",
+                requiresNonEmptyValue: false
             )
         )
         let confirmation = alertPresenter.presentConfirmation(

@@ -30,6 +30,25 @@ As a CodexPill user, I want to add another Codex account without changing This M
 11. CodexPill confirms that This Mac was not changed.
 12. CodexPill shows a success alert with `Done` and `Use on This Mac`.
 
+## Name Prompt
+
+Title: `Add account`
+
+Body:
+
+```text
+Choose a name for this saved account. You can change it later.
+```
+
+Field:
+
+- Label: `Account Name`
+- Placeholder: `Work`
+- `Continue` is disabled until the user enters a non-empty name.
+
+If a defensive validation error still occurs, CodexPill should keep the user in
+the Add Account name flow instead of ending on a separate generic error alert.
+
 ## Sign-In Alert
 
 Title: `Sign in to Codex`

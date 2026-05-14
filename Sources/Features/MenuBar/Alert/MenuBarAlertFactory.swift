@@ -12,9 +12,10 @@ struct MenuBarAlertFactory {
             messageText: "Add account",
             informativeText: addAccountInformativeText(runningCLISessions: runningCLISessions),
             fieldTitle: "Account Name",
-            placeholder: "Business 2",
+            placeholder: "Work",
             confirmTitle: "Continue",
-            cancelTitle: "Cancel"
+            cancelTitle: "Cancel",
+            requiresNonEmptyValue: true
         )
     }
 
@@ -200,7 +201,8 @@ struct MenuBarAlertFactory {
             fieldTitle: "Account Name",
             placeholder: accountName,
             confirmTitle: "Rename",
-            cancelTitle: "Cancel"
+            cancelTitle: "Cancel",
+            requiresNonEmptyValue: true
         )
     }
 
@@ -323,18 +325,8 @@ struct MenuBarAlertFactory {
         return lines.joined(separator: " ")
     }
 
-    private func addAccountInformativeText(runningCLISessions: Int) -> String {
-        var lines = [
-            "Use your browser to sign in. CodexPill will save the account without changing This Mac."
-        ]
-
-        if runningCLISessions > 0 {
-            let sessionText = runningCLISessions == 1 ? "1 Codex terminal is" : "\(runningCLISessions) Codex terminals are"
-            let pronoun = runningCLISessions == 1 ? "It" : "They"
-            lines.append("\(sessionText) running. \(pronoun) will keep using the current account.")
-        }
-
-        return lines.joined(separator: " ")
+    private func addAccountInformativeText(runningCLISessions _: Int) -> String {
+        "Choose a name for this saved account. You can change it later."
     }
 
     private func formattedTargetList(_ targets: [String]) -> String {
