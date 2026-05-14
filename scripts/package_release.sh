@@ -134,7 +134,7 @@ sign_notarize_and_verify() {
 
   local notary_zip="${NOTARY_DIR}/${APP_NAME}-notary.zip"
   info "Creating notarization upload..."
-  (cd "${PACKAGE_DIR}" && COPYFILE_DISABLE=1 zip -qry --symlinks "../notary/$(basename "${notary_zip}")" "${APP_NAME}.app")
+  (cd "${PACKAGE_DIR}" && ditto -c -k --keepParent "${APP_NAME}.app" "../notary/$(basename "${notary_zip}")")
 
   info "Submitting app zip for notarization..."
   xcrun notarytool submit "${notary_zip}" \
@@ -145,6 +145,9 @@ sign_notarize_and_verify() {
   info "Stapling notarization ticket..."
   xcrun stapler staple "${SIGNED_APP}"
   xcrun stapler validate "${SIGNED_APP}"
+
+  info "Verifying stapled code signature..."
+  codesign --verify --deep --strict --verbose=2 "${SIGNED_APP}"
 
   info "Assessing app with Gatekeeper..."
   spctl --assess --type execute --verbose=4 "${SIGNED_APP}"
@@ -168,7 +171,7 @@ create_zip() {
   local zip_path="${ARTIFACTS_DIR}/${APP_NAME}-${artifact_version}${dirty_suffix}${unsigned_suffix}.zip"
 
   info "Creating zip artifact..."
-  (cd "${PACKAGE_DIR}" && COPYFILE_DISABLE=1 zip -qry --symlinks "../artifacts/$(basename "${zip_path}")" "${APP_NAME}.app")
+  (cd "${PACKAGE_DIR}" && ditto -c -k --keepParent "${APP_NAME}.app" "../artifacts/$(basename "${zip_path}")")
 
   info "Created ${zip_path}"
 }
@@ -177,7 +180,7 @@ main() {
   require_command git
   require_command tuist
   require_command xcodebuild
-  require_command zip
+  require_command ditto
   require_command codesign
   require_command xcrun
   require_command spctl
