@@ -15,6 +15,7 @@ PACKAGE_DIR="${ARCHIVE_ROOT}/package"
 SIGNED_APP="${PACKAGE_DIR}/${APP_NAME}.app"
 ARTIFACTS_DIR="${ARCHIVE_ROOT}/artifacts"
 NOTARY_DIR="${ARCHIVE_ROOT}/notary"
+RELEASE_ZIP_PATH=""
 
 DEVELOPER_ID_APPLICATION="${DEVELOPER_ID_APPLICATION:-}"
 APPLE_TEAM_ID="${APPLE_TEAM_ID:-}"
@@ -149,8 +150,6 @@ sign_notarize_and_verify() {
   info "Verifying stapled code signature..."
   codesign --verify --deep --strict --verbose=2 "${SIGNED_APP}"
 
-  info "Assessing app with Gatekeeper..."
-  spctl --assess --type execute --verbose=4 "${SIGNED_APP}"
 }
 
 create_zip() {
@@ -169,11 +168,32 @@ create_zip() {
 
   local artifact_version="${RELEASE_VERSION:-${git_sha}}"
   local zip_path="${ARTIFACTS_DIR}/${APP_NAME}-${artifact_version}${dirty_suffix}${unsigned_suffix}.zip"
+  RELEASE_ZIP_PATH="${zip_path}"
 
   info "Creating zip artifact..."
   (cd "${PACKAGE_DIR}" && ditto -c -k --keepParent "${APP_NAME}.app" "../artifacts/$(basename "${zip_path}")")
 
   info "Created ${zip_path}"
+}
+
+validate_zip_artifact() {
+  local validation_dir="${ARCHIVE_ROOT}/validation"
+  local validation_app="${validation_dir}/${APP_NAME}.app"
+
+  [[ -f "${RELEASE_ZIP_PATH}" ]] || fail "Release zip was not found at ${RELEASE_ZIP_PATH}."
+
+  rm -rf "${validation_dir}"
+  mkdir -p "${validation_dir}"
+  ditto -x -k "${RELEASE_ZIP_PATH}" "${validation_dir}"
+
+  info "Verifying extracted release artifact signature..."
+  codesign --verify --deep --strict --verbose=2 "${validation_app}"
+
+  info "Validating extracted release artifact notarization ticket..."
+  xcrun stapler validate "${validation_app}"
+
+  info "Assessing extracted release artifact with Gatekeeper..."
+  spctl --assess --type execute --verbose=4 "${validation_app}"
 }
 
 main() {
@@ -202,6 +222,10 @@ main() {
   fi
 
   create_zip
+
+  if [[ "${PACKAGE_RELEASE_ALLOW_UNSIGNED}" != "1" ]]; then
+    validate_zip_artifact
+  fi
 }
 
 main "$@"
