@@ -35,12 +35,8 @@ Install with Homebrew:
 brew install --cask raphhgg/tap/codexpill
 ```
 
-Or download the latest signed beta zip from
+Or download the latest zip from
 [GitHub Releases](https://github.com/raphhgg/CodexPill/releases).
-
-Current beta:
-
-- [CodexPill v0.1.0-beta.1](https://github.com/raphhgg/CodexPill/releases/tag/v0.1.0-beta.1)
 
 ## Build From Source
 
