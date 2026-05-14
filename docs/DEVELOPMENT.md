@@ -80,6 +80,19 @@ Stop:
 ./scripts/stop_menubar.sh
 ```
 
+Reset local state before testing the signed release install:
+
+```bash
+./scripts/reset_release_test_state.sh
+./scripts/reset_release_test_state.sh --apply --install
+```
+
+The reset script is dry-run by default. It removes CodexPill app state,
+preferences, local build artifacts, isolated temporary login homes, and optional
+remote `~/.codexpill` cache when called with `--remote <host>`. Use
+`--remote-sign-out` only when you intentionally want to remove the remote
+host's active Codex login.
+
 ## Validation
 
 Behavior and invariant requirements live in [VALIDATION.md](VALIDATION.md). Run
