@@ -139,14 +139,14 @@ struct InactiveAccountBarsMenuContent: View {
                     InactiveLimitBarRow(
                         title: "Session",
                         window: account.rateLimits?.sessionWindow,
-                        tintColor: tintColor,
+                        tintColor: tintColor.opacity(0.5),
                         usageBarDisplayMode: usageBarDisplayMode,
                         now: timeline.date
                     )
                     InactiveLimitBarRow(
                         title: "Weekly",
                         window: account.rateLimits?.weeklyWindow,
-                        tintColor: tintColor,
+                        tintColor: tintColor.opacity(0.5),
                         usageBarDisplayMode: usageBarDisplayMode,
                         now: timeline.date
                     )
