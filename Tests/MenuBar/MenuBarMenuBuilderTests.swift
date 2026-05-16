@@ -684,6 +684,35 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
+    func visibleAccountsCanDisplayUsageBarsWhileKeepingSubmenus() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let business3 = makeAccount(name: "Business 3", withRateLimits: true)
+        let menu = builder.makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                inactiveAccounts: [business3],
+                otherAccountsDisplayMode: .bars
+            ),
+            target: coordinator
+        )
+
+        let visibleRow = try #require(
+            menu.items.first(where: { $0.submenu?.title == business3.name })
+        )
+        let hostedView = try #require(visibleRow.view as? NSHostingView<InactiveAccountBarsMenuContent>)
+        let localAction = try #require(
+            visibleRow.submenu?.items.first(where: { $0.title == "Switch on This Mac" })
+        )
+
+        #expect(hostedView.rootView.displayName == business3.name)
+        #expect(hostedView.rootView.account.id == business3.id)
+        #expect(visibleRow.representedObject as? String == business3.id.uuidString)
+        #expect(localAction.action == #selector(MenuBarCoordinator.switchAccount(_:)))
+        #expect(localAction.target === coordinator)
+    }
+
+    @Test
     func moreAccountsRowUsesTextOnlyDisclosureLabel() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
@@ -1133,7 +1162,10 @@ struct MenuBarMenuBuilderTests {
                 account: makeAccount(name: "Business 2", withRateLimits: true),
                 locations: [],
                 showsUpdatedTime: true,
-                progressAccentColor: .blue,
+                sessionProgressAccentColor: .green,
+                weeklyProgressAccentColor: .blue,
+                usageBarDisplayMode: .used,
+                usageBarLayout: .classic,
                 showsPacingMarkers: true
             )
         )
@@ -1514,11 +1546,14 @@ struct MenuBarMenuBuilderTests {
 
         let preferencesMenu = try #require(menu.items.first(where: { $0.title == "Preferences" })?.submenu)
         let usageBarsMenu = try #require(preferencesMenu.items.first(where: { $0.title == "Usage Bars" })?.submenu)
-        let accent = try #require(usageBarsMenu.items.first(where: { $0.title == "Accent Color…" }))
+        let sessionAccent = try #require(usageBarsMenu.items.first(where: { $0.title == "Accent Color Session…" }))
+        let weeklyAccent = try #require(usageBarsMenu.items.first(where: { $0.title == "Accent Color Weekly…" }))
         let reset = try #require(usageBarsMenu.items.first(where: { $0.title == "Use Default" }))
 
-        #expect(accent.action == #selector(MenuBarCoordinator.chooseProgressAccentColor(_:)))
-        #expect(accent.image == nil)
+        #expect(sessionAccent.action == #selector(MenuBarCoordinator.chooseSessionProgressAccentColor(_:)))
+        #expect(weeklyAccent.action == #selector(MenuBarCoordinator.chooseWeeklyProgressAccentColor(_:)))
+        #expect(sessionAccent.image == nil)
+        #expect(weeklyAccent.image == nil)
         #expect(reset.action == #selector(MenuBarCoordinator.resetProgressAccentColor(_:)))
         #expect(!reset.isEnabled)
     }
@@ -1536,15 +1571,59 @@ struct MenuBarMenuBuilderTests {
         let usageBarsMenu = try #require(preferencesMenu.items.first(where: { $0.title == "Usage Bars" })?.submenu)
         let usageBarTitles = usageBarsMenu.items.map(\.title)
         let showMarkers = try #require(usageBarsMenu.items.first(where: { $0.title == "Show Pace Markers" }))
+        let showUsed = try #require(usageBarsMenu.items.first(where: { $0.title == "Show % Used" }))
+        let showLeft = try #require(usageBarsMenu.items.first(where: { $0.title == "Show % Left" }))
+        let classic = try #require(usageBarsMenu.items.first(where: { $0.title == "Classic" }))
+        let compact = try #require(usageBarsMenu.items.first(where: { $0.title == "Compact" }))
 
-        #expect(preferencesMenu.items.map(\.title) == ["Menu Bar Label", "Icon Style", "Usage Bars", "", "Launch at Login"])
-        #expect(preferencesMenu.items[3].isSeparatorItem)
-        #expect(usageBarTitles == ["Show Pace Markers", "Accent Color…", "Use Default"])
+        #expect(preferencesMenu.items.map(\.title) == [
+            "Menu Bar Label",
+            "Icon Style",
+            "Usage Bars",
+            "Other Accounts Display",
+            "",
+            "Launch at Login"
+        ])
+        #expect(preferencesMenu.items[4].isSeparatorItem)
+        #expect(usageBarTitles == [
+            "Show % Used",
+            "Show % Left",
+            "",
+            "Classic",
+            "Compact",
+            "",
+            "Show Pace Markers",
+            "Accent Color Session…",
+            "Accent Color Weekly…",
+            "Use Default"
+        ])
+        #expect(usageBarsMenu.items[2].isSeparatorItem)
+        #expect(usageBarsMenu.items[5].isSeparatorItem)
         #expect(preferencesMenu.items.first(where: { $0.title == "Menu Bar Label" })?.image == nil)
         #expect(preferencesMenu.items.first(where: { $0.title == "Icon Style" })?.image == nil)
-        #expect(usageBarsMenu.items.first(where: { $0.title == "Accent Color…" })?.image == nil)
+        #expect(usageBarsMenu.items.first(where: { $0.title == "Accent Color Session…" })?.image == nil)
+        #expect(usageBarsMenu.items.first(where: { $0.title == "Accent Color Weekly…" })?.image == nil)
+        #expect(showUsed.action == #selector(MenuBarCoordinator.selectUsageBarDisplayMode(_:)))
+        #expect(showUsed.state == .on)
+        #expect(showLeft.action == #selector(MenuBarCoordinator.selectUsageBarDisplayMode(_:)))
+        #expect(showLeft.state == .off)
+        #expect(classic.action == #selector(MenuBarCoordinator.selectUsageBarLayout(_:)))
+        #expect(classic.state == .on)
+        #expect(compact.action == #selector(MenuBarCoordinator.selectUsageBarLayout(_:)))
+        #expect(compact.state == .off)
         #expect(showMarkers.action == #selector(MenuBarCoordinator.togglePacingMarkers(_:)))
         #expect(showMarkers.state == .on)
+
+        let otherAccountsDisplay = try #require(
+            preferencesMenu.items.first(where: { $0.title == "Other Accounts Display" })?.submenu
+        )
+        let showAsText = try #require(otherAccountsDisplay.items.first(where: { $0.title == "Show as Text" }))
+        let showAsBars = try #require(otherAccountsDisplay.items.first(where: { $0.title == "Show as Bars" }))
+        #expect(otherAccountsDisplay.items.map(\.title) == ["Show as Text", "Show as Bars"])
+        #expect(showAsText.action == #selector(MenuBarCoordinator.selectOtherAccountsDisplayMode(_:)))
+        #expect(showAsText.state == .on)
+        #expect(showAsBars.action == #selector(MenuBarCoordinator.selectOtherAccountsDisplayMode(_:)))
+        #expect(showAsBars.state == .off)
     }
 
     @Test
@@ -1878,6 +1957,7 @@ struct MenuBarMenuBuilderTests {
         activeAccount: CodexAccount?,
         inactiveAccounts: [CodexAccount] = [],
         remoteHosts: [RemoteHostMenuState] = [],
+        sessionProgressAccentColor: NSColor = .systemGreen,
         progressAccentColor: NSColor = .controlAccentColor,
         hasCustomProgressAccentColor: Bool = false,
         notificationsWhenBlockedEnabled: Bool = false,
@@ -1885,7 +1965,8 @@ struct MenuBarMenuBuilderTests {
         notificationAuthorizationState: NotificationAuthorizationState = .unknown,
         loginItemState: LoginItemState = .disabled,
         showsPacingPrototypeMenu: Bool = false,
-        revealStatusItemTitleShortcut: CodexPill.KeyboardShortcut? = .defaultRevealStatusItemTitle
+        revealStatusItemTitleShortcut: CodexPill.KeyboardShortcut? = .defaultRevealStatusItemTitle,
+        otherAccountsDisplayMode: OtherAccountsDisplayMode = .text
     ) -> MenuBarMenuState {
         MenuBarMenuState(
             activeAccount: activeAccount,
@@ -1899,7 +1980,9 @@ struct MenuBarMenuBuilderTests {
             statusBarIndicatorStyle: .dualArcBadge,
             statusBarDisplayMode: .textOnHover,
             revealStatusItemTitleShortcut: revealStatusItemTitleShortcut,
+            sessionProgressAccentColor: sessionProgressAccentColor,
             progressAccentColor: progressAccentColor,
+            otherAccountsDisplayMode: otherAccountsDisplayMode,
             hasCustomProgressAccentColor: hasCustomProgressAccentColor,
             isBusy: false,
             statusMessage: "Ready",

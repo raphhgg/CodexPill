@@ -4,7 +4,10 @@ struct ActiveAccountMenuContent: View {
     let account: CodexAccount
     let locations: [String]
     let showsUpdatedTime: Bool
-    let progressAccentColor: Color
+    let sessionProgressAccentColor: Color
+    let weeklyProgressAccentColor: Color
+    let usageBarDisplayMode: UsageBarDisplayMode
+    let usageBarLayout: UsageBarLayout
     let showsPacingMarkers: Bool
 
     var body: some View {
@@ -14,7 +17,7 @@ struct ActiveAccountMenuContent: View {
     }
 
     private func content(now: Date) -> some View {
-        VStack(alignment: .leading, spacing: 9) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline) {
                 Text(account.name)
                     .font(.system(size: 15, weight: .semibold))
@@ -30,14 +33,18 @@ struct ActiveAccountMenuContent: View {
             ActiveLimitRow(
                 title: "Session",
                 window: account.rateLimits?.sessionWindow,
-                tintColor: progressAccentColor,
+                tintColor: sessionProgressAccentColor,
+                usageBarDisplayMode: usageBarDisplayMode,
+                usageBarLayout: usageBarLayout,
                 showsPacingMarkers: showsPacingMarkers,
                 now: now
             )
             ActiveLimitRow(
                 title: "Weekly",
                 window: account.rateLimits?.weeklyWindow,
-                tintColor: progressAccentColor,
+                tintColor: weeklyProgressAccentColor,
+                usageBarDisplayMode: usageBarDisplayMode,
+                usageBarLayout: usageBarLayout,
                 showsPacingMarkers: showsPacingMarkers,
                 now: now
             )
@@ -115,6 +122,101 @@ struct InactiveAccountMenuContent: View {
     }
 }
 
+struct InactiveAccountBarsMenuContent: View {
+    let account: CodexAccount
+    let displayName: String
+    let sessionTintColor: Color
+    let weeklyTintColor: Color
+    let usageBarDisplayMode: UsageBarDisplayMode
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 30)) { timeline in
+            VStack(alignment: .leading, spacing: 5) {
+                Text(displayName)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    InactiveLimitBarRow(
+                        title: "Session",
+                        window: account.rateLimits?.sessionWindow,
+                        tintColor: sessionTintColor.opacity(0.5),
+                        usageBarDisplayMode: usageBarDisplayMode,
+                        now: timeline.date
+                    )
+                    InactiveLimitBarRow(
+                        title: "Weekly",
+                        window: account.rateLimits?.weeklyWindow,
+                        tintColor: weeklyTintColor.opacity(0.5),
+                        usageBarDisplayMode: usageBarDisplayMode,
+                        now: timeline.date
+                    )
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+private struct InactiveLimitBarRow: View {
+    let title: String
+    let window: CodexRateLimitWindow?
+    let tintColor: Color
+    let usageBarDisplayMode: UsageBarDisplayMode
+    let now: Date
+
+    var body: some View {
+        let displayedPercent = usageBarPercent(
+            forUsedPercent: window?.displayedUsedPercent(at: now) ?? 0,
+            mode: usageBarDisplayMode
+        )
+        let percentText = usageBarPercentText(
+            for: window,
+            mode: usageBarDisplayMode,
+            now: now
+        )
+        let resetText = window.flatMap { resetStatusText(for: $0, now: now) }
+
+        HStack(alignment: .center, spacing: 7) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 44, alignment: .leading)
+
+            ActiveLimitProgressBar(
+                percent: displayedPercent,
+                expectedPercent: nil,
+                tintColor: tintColor
+            )
+            .frame(height: 5)
+
+            Text(percentText)
+                .font(.caption)
+                .monospacedDigit()
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+
+            if let resetText {
+                Text(resetText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+            } else if window == nil {
+                Text("Unavailable")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+        }
+    }
+}
+
 struct ActiveAccountCardDivider: View {
     var body: some View {
         VStack(spacing: 0) {
@@ -131,24 +233,54 @@ struct ActiveLimitRow: View {
     let title: String
     let window: CodexRateLimitWindow?
     let tintColor: Color
+    let usageBarDisplayMode: UsageBarDisplayMode
+    let usageBarLayout: UsageBarLayout
     let showsPacingMarkers: Bool
     let now: Date
 
     var body: some View {
-        let displayedUsedPercent = window?.displayedUsedPercent(at: now) ?? 0
-        let usageText = window.map { "\($0.displayedUsedPercent(at: now))% used" } ?? "--"
+        let displayedPercent = usageBarPercent(
+            forUsedPercent: window?.displayedUsedPercent(at: now) ?? 0,
+            mode: usageBarDisplayMode
+        )
+        let usageText = usageBarPercentText(for: window, mode: usageBarDisplayMode, now: now)
         let expectedPercent = expectedPaceMarkerPercent(
             for: window,
             showsPacingMarkers: showsPacingMarkers,
             now: now
-        )
+        ).map { usageBarPercent(forUsedPercent: $0, mode: usageBarDisplayMode) }
+        let resetText = window.flatMap { resetStatusText(for: $0, now: now) }
 
+        switch usageBarLayout {
+        case .classic:
+            classicContent(
+                displayedPercent: displayedPercent,
+                usageText: usageText,
+                resetText: resetText,
+                expectedPercent: expectedPercent
+            )
+        case .compact:
+            compactContent(
+                displayedPercent: displayedPercent,
+                usageText: usageText,
+                resetText: resetText,
+                expectedPercent: expectedPercent
+            )
+        }
+    }
+
+    private func classicContent(
+        displayedPercent: Int,
+        usageText: String,
+        resetText: String?,
+        expectedPercent: Int?
+    ) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.primary)
             ActiveLimitProgressBar(
-                usedPercent: displayedUsedPercent,
+                percent: displayedPercent,
                 expectedPercent: expectedPercent,
                 tintColor: tintColor
             )
@@ -158,8 +290,8 @@ struct ActiveLimitRow: View {
                     .monospacedDigit()
                     .foregroundStyle(.primary)
                 Spacer()
-                if let window, let resetStatus = resetStatusText(for: window, now: now) {
-                    Text(resetStatus)
+                if let resetText {
+                    Text(resetText)
                         .foregroundStyle(.secondary)
                 } else if window == nil {
                     Text("Unavailable")
@@ -169,17 +301,60 @@ struct ActiveLimitRow: View {
             .font(.caption)
         }
     }
+
+    private func compactContent(
+        displayedPercent: Int,
+        usageText: String,
+        resetText: String?,
+        expectedPercent: Int?
+    ) -> some View {
+        HStack(alignment: .center, spacing: 8) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.primary)
+                .frame(width: 48, alignment: .leading)
+
+            ActiveLimitProgressBar(
+                percent: displayedPercent,
+                expectedPercent: expectedPercent,
+                tintColor: tintColor
+            )
+            .frame(height: 5)
+            .frame(minWidth: 72, maxWidth: .infinity)
+
+            Text(usageText)
+                .font(.caption)
+                .monospacedDigit()
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+
+            if let resetText {
+                Text(resetText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+            } else if window == nil {
+                Text("Unavailable")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+        }
+    }
 }
 
 private struct ActiveLimitProgressBar: View {
-    let usedPercent: Int
+    let percent: Int
     let expectedPercent: Int?
     let tintColor: Color
 
     var body: some View {
         GeometryReader { geometry in
             let width = geometry.size.width
-            let progressWidth = width * clampedFraction(usedPercent)
+            let progressWidth = width * clampedFraction(percent)
             let markerX = expectedPercent.map { width * clampedFraction($0) }
 
             ZStack(alignment: .leading) {

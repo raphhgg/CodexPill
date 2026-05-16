@@ -102,7 +102,10 @@ struct MenuBarMenuBuilder {
                 account: card.account,
                 locations: card.locations,
                 showsUpdatedTime: card.showsUpdatedTime,
-                progressAccentColor: Color(nsColor: state.progressAccentColor),
+                sessionProgressAccentColor: Color(nsColor: state.sessionProgressAccentColor),
+                weeklyProgressAccentColor: Color(nsColor: state.progressAccentColor),
+                usageBarDisplayMode: state.usageBarDisplayMode,
+                usageBarLayout: state.usageBarLayout,
                 showsPacingMarkers: state.pacingMarkersEnabled
             )
         )
@@ -136,13 +139,18 @@ struct MenuBarMenuBuilder {
     }
 
     private func contentWidth(for state: MenuBarMenuState) -> CGFloat {
+        guard state.otherAccountsDisplayMode == .text else {
+            return minimumMenuContentWidth
+        }
+
         let widestNativeAccountRow = (state.visibleDisplayAccountEntries + state.overflowDisplayAccountEntries)
             .map {
                 inactiveAccountTitleWidth(
                     for: $0.displayAccount,
                     displayName: compactMenuRowDisplayName(for: $0.account.name),
                     placement: nil,
-                    menuContentWidth: minimumMenuContentWidth
+                    menuContentWidth: minimumMenuContentWidth,
+                    usageBarDisplayMode: state.usageBarDisplayMode
                 ) + nativeMenuItemPaddingAllowance
             }
             .max() ?? 0
@@ -159,12 +167,27 @@ struct MenuBarMenuBuilder {
     private func inactiveAccountItem(for entry: MenuBarAccountCatalogEntry, state: MenuBarMenuState, target: MenuBarCoordinator, width: CGFloat) -> NSMenuItem {
         let item = NSMenuItem(title: entry.account.name, action: nil, keyEquivalent: "")
         item.representedObject = entry.account.id.uuidString
-        item.attributedTitle = inactiveAccountTitle(
-            for: entry.displayAccount,
-            displayName: compactMenuRowDisplayName(for: entry.account.name),
-            placement: nil,
-            menuContentWidth: width
-        )
+        switch state.otherAccountsDisplayMode {
+        case .text:
+            item.attributedTitle = inactiveAccountTitle(
+                for: entry.displayAccount,
+                displayName: compactMenuRowDisplayName(for: entry.account.name),
+                placement: nil,
+                menuContentWidth: width,
+                usageBarDisplayMode: state.usageBarDisplayMode
+            )
+        case .bars:
+            let view = NSHostingView(
+                rootView: InactiveAccountBarsMenuContent(
+                    account: entry.displayAccount,
+                    displayName: compactMenuRowDisplayName(for: entry.account.name),
+                    sessionTintColor: Color(nsColor: state.sessionProgressAccentColor),
+                    weeklyTintColor: Color(nsColor: state.progressAccentColor),
+                    usageBarDisplayMode: state.usageBarDisplayMode
+                )
+            )
+            item.view = configuredHostedMenuView(view, width: width)
+        }
         item.submenu = inactiveAccountTargetMenu(for: entry, state: state, target: target)
         return item
     }
@@ -508,6 +531,7 @@ struct MenuBarMenuBuilder {
         submenu.addItem(statusBarDisplayMenuItem(state: state, target: target))
         submenu.addItem(statusBarStyleMenuItem(state: state, target: target))
         submenu.addItem(usageBarsPreferencesMenuItem(state: state, target: target))
+        submenu.addItem(otherAccountsDisplayMenuItem(state: state, target: target))
         submenu.addItem(.separator())
         submenu.addItem(launchAtLoginMenuItem(state: state, target: target))
 
@@ -539,10 +563,51 @@ struct MenuBarMenuBuilder {
     private func usageBarsPreferencesMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
         let item = NSMenuItem(title: "Usage Bars", action: nil, keyEquivalent: "")
         let submenu = configuredMenu(title: "Usage Bars")
+        for mode in UsageBarDisplayMode.allCases {
+            submenu.addItem(usageBarDisplayModeMenuItem(mode: mode, state: state, target: target))
+        }
+        submenu.addItem(.separator())
+        for layout in UsageBarLayout.allCases {
+            submenu.addItem(usageBarLayoutMenuItem(layout: layout, state: state, target: target))
+        }
+        submenu.addItem(.separator())
         submenu.addItem(pacingMarkersMenuItem(state: state, target: target))
-        submenu.addItem(progressAccentColorItem(state: state, target: target))
+        submenu.addItem(sessionProgressAccentColorItem(state: state, target: target))
+        submenu.addItem(weeklyProgressAccentColorItem(state: state, target: target))
         submenu.addItem(resetProgressAccentColorItem(state: state, target: target))
         item.submenu = submenu
+        return item
+    }
+
+    private func usageBarDisplayModeMenuItem(
+        mode: UsageBarDisplayMode,
+        state: MenuBarMenuState,
+        target: MenuBarCoordinator
+    ) -> NSMenuItem {
+        let item = NSMenuItem(
+            title: mode.menuTitle,
+            action: #selector(MenuBarCoordinator.selectUsageBarDisplayMode(_:)),
+            keyEquivalent: ""
+        )
+        item.target = target
+        item.representedObject = mode.rawValue
+        item.state = state.usageBarDisplayMode == mode ? .on : .off
+        return item
+    }
+
+    private func usageBarLayoutMenuItem(
+        layout: UsageBarLayout,
+        state: MenuBarMenuState,
+        target: MenuBarCoordinator
+    ) -> NSMenuItem {
+        let item = NSMenuItem(
+            title: layout.menuTitle,
+            action: #selector(MenuBarCoordinator.selectUsageBarLayout(_:)),
+            keyEquivalent: ""
+        )
+        item.target = target
+        item.representedObject = layout.rawValue
+        item.state = state.usageBarLayout == layout ? .on : .off
         return item
     }
 
@@ -567,8 +632,14 @@ struct MenuBarMenuBuilder {
         return item
     }
 
-    private func progressAccentColorItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Accent Color…", action: #selector(MenuBarCoordinator.chooseProgressAccentColor(_:)), keyEquivalent: "")
+    private func sessionProgressAccentColorItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Accent Color Session…", action: #selector(MenuBarCoordinator.chooseSessionProgressAccentColor(_:)), keyEquivalent: "")
+        item.target = target
+        return item
+    }
+
+    private func weeklyProgressAccentColorItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Accent Color Weekly…", action: #selector(MenuBarCoordinator.chooseWeeklyProgressAccentColor(_:)), keyEquivalent: "")
         item.target = target
         return item
     }
@@ -584,6 +655,24 @@ struct MenuBarMenuBuilder {
         let item = NSMenuItem(title: "Use Default", action: #selector(MenuBarCoordinator.resetProgressAccentColor(_:)), keyEquivalent: "")
         item.target = target
         item.isEnabled = state.hasCustomProgressAccentColor
+        return item
+    }
+
+    private func otherAccountsDisplayMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Other Accounts Display", action: nil, keyEquivalent: "")
+        let submenu = configuredMenu(title: "Other Accounts Display")
+        for mode in OtherAccountsDisplayMode.allCases {
+            let option = NSMenuItem(
+                title: mode.menuTitle,
+                action: #selector(MenuBarCoordinator.selectOtherAccountsDisplayMode(_:)),
+                keyEquivalent: ""
+            )
+            option.target = target
+            option.representedObject = mode.rawValue
+            option.state = state.otherAccountsDisplayMode == mode ? .on : .off
+            submenu.addItem(option)
+        }
+        item.submenu = submenu
         return item
     }
 

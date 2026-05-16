@@ -50,8 +50,12 @@ struct StatusItemSettingsStoreTests {
         #expect(store.statusBarIndicatorStyle == .twinPills)
         #expect(store.statusBarMonochrome)
         #expect(store.statusBarDisplayMode == .textOnHover)
+        #expect(store.usageBarDisplayMode == .used)
+        #expect(store.usageBarLayout == .classic)
+        #expect(store.otherAccountsDisplayMode == .text)
         #expect(store.pacingMarkersEnabled)
         #expect(store.revealStatusItemTitleShortcut == .defaultRevealStatusItemTitle)
+        #expect(store.sessionProgressAccentColor == nil)
         #expect(store.progressAccentColor == nil)
     }
 
@@ -74,17 +78,26 @@ struct StatusItemSettingsStoreTests {
         let accent = StatusItemAccentColor(red: 0.14, green: 0.55, blue: 0.31, alpha: 1)
 
         let first = StatusItemSettingsStore(userDefaults: defaults)
+        first.sessionProgressAccentColor = accent
         first.progressAccentColor = accent
+        first.usageBarDisplayMode = .left
+        first.usageBarLayout = .compact
+        first.otherAccountsDisplayMode = .bars
         first.pacingMarkersEnabled = false
 
         let second = StatusItemSettingsStore(userDefaults: defaults)
+        #expect(second.sessionProgressAccentColor == accent)
         #expect(second.progressAccentColor == accent)
         #expect(second.hasCustomProgressAccentColor)
+        #expect(second.usageBarDisplayMode == .left)
+        #expect(second.usageBarLayout == .compact)
+        #expect(second.otherAccountsDisplayMode == .bars)
         #expect(!second.pacingMarkersEnabled)
 
         second.resetProgressAccentColor()
 
         let reset = StatusItemSettingsStore(userDefaults: defaults)
+        #expect(reset.sessionProgressAccentColor == nil)
         #expect(reset.progressAccentColor == nil)
         #expect(!reset.hasCustomProgressAccentColor)
     }

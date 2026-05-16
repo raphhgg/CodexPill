@@ -5,20 +5,26 @@ struct StatusItemRuntimePresentation {
     let indicatorStyle: StatusBarIndicatorStyle
     let monochrome: Bool
     let displayMode: StatusBarDisplayMode
-    let progressAccentColor: NSColor
+    let usageBarDisplayMode: UsageBarDisplayMode
+    let sessionProgressAccentColor: NSColor
+    let weeklyProgressAccentColor: NSColor
 
     init(
         activeAccount: CodexAccount?,
         indicatorStyle: StatusBarIndicatorStyle,
         monochrome: Bool,
         displayMode: StatusBarDisplayMode,
-        progressAccentColor: NSColor = StatusBarProgressColorDefaults.accent
+        usageBarDisplayMode: UsageBarDisplayMode = .used,
+        sessionProgressAccentColor: NSColor = StatusBarProgressColorDefaults.sessionAccent,
+        weeklyProgressAccentColor: NSColor = StatusBarProgressColorDefaults.weeklyAccent
     ) {
         self.activeAccount = activeAccount
         self.indicatorStyle = indicatorStyle
         self.monochrome = monochrome
         self.displayMode = displayMode
-        self.progressAccentColor = progressAccentColor
+        self.usageBarDisplayMode = usageBarDisplayMode
+        self.sessionProgressAccentColor = sessionProgressAccentColor
+        self.weeklyProgressAccentColor = weeklyProgressAccentColor
     }
 }
 
@@ -183,21 +189,36 @@ final class StatusItemRuntime {
 
     private func updateAppearance() {
         guard let button = statusItem.button else { return }
-        let primary = presentation.activeAccount?.rateLimits?.sessionWindow?.displayedUsedPercent()
-        let secondary = presentation.activeAccount?.rateLimits?.weeklyWindow?.displayedUsedPercent()
+        let primary = presentation.activeAccount?.rateLimits?.sessionWindow
+            .map {
+                usageBarPercent(
+                    forUsedPercent: $0.displayedUsedPercent(),
+                    mode: presentation.usageBarDisplayMode
+                )
+            }
+        let secondary = presentation.activeAccount?.rateLimits?.weeklyWindow
+            .map {
+                usageBarPercent(
+                    forUsedPercent: $0.displayedUsedPercent(),
+                    mode: presentation.usageBarDisplayMode
+                )
+            }
 
         button.image = iconRenderer.makeImage(
             style: presentation.indicatorStyle,
             primaryPercent: primary,
             secondaryPercent: secondary,
             monochrome: presentation.monochrome,
-            primaryColor: presentation.progressAccentColor,
-            secondaryColor: presentation.progressAccentColor
+            primaryColor: presentation.sessionProgressAccentColor,
+            secondaryColor: presentation.weeklyProgressAccentColor
         )
         button.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .medium)
 
         if shouldShowStatusTitle {
-            let title = statusItemHoverTitle(for: presentation.activeAccount)
+            let title = statusItemHoverTitle(
+                for: presentation.activeAccount,
+                usageBarDisplayMode: presentation.usageBarDisplayMode
+            )
             button.imagePosition = .imageLeading
             button.title = title
             button.attributedTitle = NSAttributedString(

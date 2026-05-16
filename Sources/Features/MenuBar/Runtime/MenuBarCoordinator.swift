@@ -4,6 +4,11 @@ import OSLog
 
 private let menuBarCoordinatorLogger = Logger(subsystem: "com.raphhgg.codexpill", category: "MenuBarCoordinator")
 
+private enum ProgressAccentColorTarget {
+    case session
+    case weekly
+}
+
 protocol ApplicationActivator {
     func activate()
 }
@@ -51,6 +56,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private var isObservingStore = false
     private var lastObservedActiveAccountID: UUID?
     private var lastObservedActiveAccountName: String?
+    private var progressAccentColorTarget: ProgressAccentColorTarget = .weekly
     private var activeIsolatedAddAccountSession: IsolatedAddAccountSignInSession?
     private lazy var notificationWorkflow = MenuBarNotificationWorkflow(
         stateStore: notificationStateStore,
@@ -338,16 +344,58 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     @objc
-    func chooseProgressAccentColor(_ sender: NSMenuItem) {
-        recordMenuAction("chooseProgressAccentColor")
-        presentProgressColorPanel()
+    func chooseSessionProgressAccentColor(_ sender: NSMenuItem) {
+        recordMenuAction("chooseSessionProgressAccentColor")
+        presentProgressColorPanel(target: .session)
+    }
+
+    @objc
+    func chooseWeeklyProgressAccentColor(_ sender: NSMenuItem) {
+        recordMenuAction("chooseWeeklyProgressAccentColor")
+        presentProgressColorPanel(target: .weekly)
     }
 
     @objc
     func resetProgressAccentColor(_ sender: NSMenuItem) {
         recordMenuAction("resetProgressAccentColor")
         settings.resetProgressAccentColor()
-        NSColorPanel.shared.color = statusItemSettings.progressAccentColor.resolvedStatusItemAccentColor
+        NSColorPanel.shared.color = resolvedProgressAccentColor(for: progressAccentColorTarget)
+    }
+
+    @objc
+    func selectUsageBarDisplayMode(_ sender: NSMenuItem) {
+        recordMenuAction("selectUsageBarDisplayMode")
+        guard
+            let rawValue = sender.representedObject as? String,
+            let mode = UsageBarDisplayMode(rawValue: rawValue)
+        else {
+            return
+        }
+        statusItemSettings.usageBarDisplayMode = mode
+    }
+
+    @objc
+    func selectUsageBarLayout(_ sender: NSMenuItem) {
+        recordMenuAction("selectUsageBarLayout")
+        guard
+            let rawValue = sender.representedObject as? String,
+            let layout = UsageBarLayout(rawValue: rawValue)
+        else {
+            return
+        }
+        statusItemSettings.usageBarLayout = layout
+    }
+
+    @objc
+    func selectOtherAccountsDisplayMode(_ sender: NSMenuItem) {
+        recordMenuAction("selectOtherAccountsDisplayMode")
+        guard
+            let rawValue = sender.representedObject as? String,
+            let mode = OtherAccountsDisplayMode(rawValue: rawValue)
+        else {
+            return
+        }
+        statusItemSettings.otherAccountsDisplayMode = mode
     }
 
     @objc
@@ -597,7 +645,13 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             statusBarIndicatorStyle: statusItemSettings.statusBarIndicatorStyle,
             statusBarDisplayMode: statusItemSettings.statusBarDisplayMode,
             revealStatusItemTitleShortcut: statusItemSettings.revealStatusItemTitleShortcut,
-            progressAccentColor: statusItemSettings.progressAccentColor.resolvedStatusItemAccentColor,
+            sessionProgressAccentColor: statusItemSettings.sessionProgressAccentColor
+                .resolvedStatusItemAccentColor(default: StatusBarProgressColorDefaults.sessionAccent),
+            progressAccentColor: statusItemSettings.progressAccentColor
+                .resolvedStatusItemAccentColor(default: StatusBarProgressColorDefaults.weeklyAccent),
+            usageBarDisplayMode: statusItemSettings.usageBarDisplayMode,
+            usageBarLayout: statusItemSettings.usageBarLayout,
+            otherAccountsDisplayMode: statusItemSettings.otherAccountsDisplayMode,
             pacingMarkersEnabled: statusItemSettings.pacingMarkersEnabled,
             hasCustomProgressAccentColor: settings.hasCustomProgressAccentColor,
             isBusy: store.isBusy,
@@ -917,7 +971,11 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             _ = statusItemSettings.statusBarMonochrome
             _ = statusItemSettings.statusBarDisplayMode
             _ = menuDisplaySettings.visibleInactiveAccountCount
+            _ = statusItemSettings.sessionProgressAccentColor
             _ = statusItemSettings.progressAccentColor
+            _ = statusItemSettings.usageBarDisplayMode
+            _ = statusItemSettings.usageBarLayout
+            _ = statusItemSettings.otherAccountsDisplayMode
             _ = statusItemSettings.pacingMarkersEnabled
             _ = settings.remoteHostStates
             _ = settings.notificationsWhenBlockedEnabled
@@ -1073,19 +1131,23 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             indicatorStyle: statusItemSettings.statusBarIndicatorStyle,
             monochrome: statusItemSettings.statusBarMonochrome,
             displayMode: state.effectiveStatusBarDisplayMode,
-            progressAccentColor: statusItemSettings.progressAccentColor.resolvedStatusItemAccentColor
+            usageBarDisplayMode: statusItemSettings.usageBarDisplayMode,
+            sessionProgressAccentColor: statusItemSettings.sessionProgressAccentColor
+                .resolvedStatusItemAccentColor(default: StatusBarProgressColorDefaults.sessionAccent),
+            weeklyProgressAccentColor: statusItemSettings.progressAccentColor
+                .resolvedStatusItemAccentColor(default: StatusBarProgressColorDefaults.weeklyAccent)
         )
     }
 
-    private func presentProgressColorPanel() {
-        recordMenuAction("chooseProgressAccentColor")
+    private func presentProgressColorPanel(target: ProgressAccentColorTarget) {
+        progressAccentColorTarget = target
         let panel = NSColorPanel.shared
-        panel.title = "Accent Color"
+        panel.title = target == .session ? "Accent Color Session" : "Accent Color Weekly"
         panel.showsAlpha = false
         panel.isContinuous = true
         panel.setTarget(self)
         panel.setAction(#selector(handleProgressColorPanelChanged(_:)))
-        panel.color = statusItemSettings.progressAccentColor.resolvedStatusItemAccentColor
+        panel.color = resolvedProgressAccentColor(for: target)
         NSApp.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
     }
@@ -1093,9 +1155,27 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     @objc
     private func handleProgressColorPanelChanged(_ sender: NSColorPanel) {
         let color = sender.color.withAlphaComponent(1)
-        statusItemSettings.progressAccentColor = color.isEqualToStatusItemAccentColor(StatusBarProgressColorDefaults.accent)
-            ? nil
-            : StatusItemAccentColor(nsColor: color)
+        switch progressAccentColorTarget {
+        case .session:
+            statusItemSettings.sessionProgressAccentColor = color.isEqualToStatusItemAccentColor(StatusBarProgressColorDefaults.sessionAccent)
+                ? nil
+                : StatusItemAccentColor(nsColor: color)
+        case .weekly:
+            statusItemSettings.progressAccentColor = color.isEqualToStatusItemAccentColor(StatusBarProgressColorDefaults.weeklyAccent)
+                ? nil
+                : StatusItemAccentColor(nsColor: color)
+        }
+    }
+
+    private func resolvedProgressAccentColor(for target: ProgressAccentColorTarget) -> NSColor {
+        switch target {
+        case .session:
+            return statusItemSettings.sessionProgressAccentColor
+                .resolvedStatusItemAccentColor(default: StatusBarProgressColorDefaults.sessionAccent)
+        case .weekly:
+            return statusItemSettings.progressAccentColor
+                .resolvedStatusItemAccentColor(default: StatusBarProgressColorDefaults.weeklyAccent)
+        }
     }
 
     private func handleStatusItemRuntimeEvent(_ event: StatusItemRuntime.Event) {
