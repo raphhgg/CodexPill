@@ -5,6 +5,7 @@ struct ActiveAccountMenuContent: View {
     let locations: [String]
     let showsUpdatedTime: Bool
     let progressAccentColor: Color
+    let usageBarDisplayMode: UsageBarDisplayMode
     let showsPacingMarkers: Bool
 
     var body: some View {
@@ -31,6 +32,7 @@ struct ActiveAccountMenuContent: View {
                 title: "Session",
                 window: account.rateLimits?.sessionWindow,
                 tintColor: progressAccentColor,
+                usageBarDisplayMode: usageBarDisplayMode,
                 showsPacingMarkers: showsPacingMarkers,
                 now: now
             )
@@ -38,6 +40,7 @@ struct ActiveAccountMenuContent: View {
                 title: "Weekly",
                 window: account.rateLimits?.weeklyWindow,
                 tintColor: progressAccentColor,
+                usageBarDisplayMode: usageBarDisplayMode,
                 showsPacingMarkers: showsPacingMarkers,
                 now: now
             )
@@ -131,24 +134,28 @@ struct ActiveLimitRow: View {
     let title: String
     let window: CodexRateLimitWindow?
     let tintColor: Color
+    let usageBarDisplayMode: UsageBarDisplayMode
     let showsPacingMarkers: Bool
     let now: Date
 
     var body: some View {
-        let displayedUsedPercent = window?.displayedUsedPercent(at: now) ?? 0
-        let usageText = window.map { "\($0.displayedUsedPercent(at: now))% used" } ?? "--"
+        let displayedPercent = usageBarPercent(
+            forUsedPercent: window?.displayedUsedPercent(at: now) ?? 0,
+            mode: usageBarDisplayMode
+        )
+        let usageText = usageBarPercentText(for: window, mode: usageBarDisplayMode, now: now)
         let expectedPercent = expectedPaceMarkerPercent(
             for: window,
             showsPacingMarkers: showsPacingMarkers,
             now: now
-        )
+        ).map { usageBarPercent(forUsedPercent: $0, mode: usageBarDisplayMode) }
 
         VStack(alignment: .leading, spacing: 5) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.primary)
             ActiveLimitProgressBar(
-                usedPercent: displayedUsedPercent,
+                percent: displayedPercent,
                 expectedPercent: expectedPercent,
                 tintColor: tintColor
             )
@@ -172,14 +179,14 @@ struct ActiveLimitRow: View {
 }
 
 private struct ActiveLimitProgressBar: View {
-    let usedPercent: Int
+    let percent: Int
     let expectedPercent: Int?
     let tintColor: Color
 
     var body: some View {
         GeometryReader { geometry in
             let width = geometry.size.width
-            let progressWidth = width * clampedFraction(usedPercent)
+            let progressWidth = width * clampedFraction(percent)
             let markerX = expectedPercent.map { width * clampedFraction($0) }
 
             ZStack(alignment: .leading) {

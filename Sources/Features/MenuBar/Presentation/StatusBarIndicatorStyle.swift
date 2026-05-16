@@ -37,3 +37,19 @@ enum StatusBarIndicatorStyle: String, CaseIterable, Identifiable {
         }
     }
 }
+
+enum UsageBarDisplayMode: String, CaseIterable, Identifiable {
+    case used
+    case left
+
+    var id: String { rawValue }
+
+    var menuTitle: String {
+        switch self {
+        case .used:
+            "Show % Used"
+        case .left:
+            "Show % Left"
+        }
+    }
+}

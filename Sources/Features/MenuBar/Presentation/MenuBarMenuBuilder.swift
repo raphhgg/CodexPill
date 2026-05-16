@@ -103,6 +103,7 @@ struct MenuBarMenuBuilder {
                 locations: card.locations,
                 showsUpdatedTime: card.showsUpdatedTime,
                 progressAccentColor: Color(nsColor: state.progressAccentColor),
+                usageBarDisplayMode: state.usageBarDisplayMode,
                 showsPacingMarkers: state.pacingMarkersEnabled
             )
         )
@@ -142,7 +143,8 @@ struct MenuBarMenuBuilder {
                     for: $0.displayAccount,
                     displayName: compactMenuRowDisplayName(for: $0.account.name),
                     placement: nil,
-                    menuContentWidth: minimumMenuContentWidth
+                    menuContentWidth: minimumMenuContentWidth,
+                    usageBarDisplayMode: state.usageBarDisplayMode
                 ) + nativeMenuItemPaddingAllowance
             }
             .max() ?? 0
@@ -163,7 +165,8 @@ struct MenuBarMenuBuilder {
             for: entry.displayAccount,
             displayName: compactMenuRowDisplayName(for: entry.account.name),
             placement: nil,
-            menuContentWidth: width
+            menuContentWidth: width,
+            usageBarDisplayMode: state.usageBarDisplayMode
         )
         item.submenu = inactiveAccountTargetMenu(for: entry, state: state, target: target)
         return item
@@ -539,10 +542,30 @@ struct MenuBarMenuBuilder {
     private func usageBarsPreferencesMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
         let item = NSMenuItem(title: "Usage Bars", action: nil, keyEquivalent: "")
         let submenu = configuredMenu(title: "Usage Bars")
+        for mode in UsageBarDisplayMode.allCases {
+            submenu.addItem(usageBarDisplayModeMenuItem(mode: mode, state: state, target: target))
+        }
+        submenu.addItem(.separator())
         submenu.addItem(pacingMarkersMenuItem(state: state, target: target))
         submenu.addItem(progressAccentColorItem(state: state, target: target))
         submenu.addItem(resetProgressAccentColorItem(state: state, target: target))
         item.submenu = submenu
+        return item
+    }
+
+    private func usageBarDisplayModeMenuItem(
+        mode: UsageBarDisplayMode,
+        state: MenuBarMenuState,
+        target: MenuBarCoordinator
+    ) -> NSMenuItem {
+        let item = NSMenuItem(
+            title: mode.menuTitle,
+            action: #selector(MenuBarCoordinator.selectUsageBarDisplayMode(_:)),
+            keyEquivalent: ""
+        )
+        item.target = target
+        item.representedObject = mode.rawValue
+        item.state = state.usageBarDisplayMode == mode ? .on : .off
         return item
     }
 

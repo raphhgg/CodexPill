@@ -101,6 +101,7 @@ enum MenuBarValidationSupport {
                 "Menu Bar Label: \(state.effectiveStatusBarDisplayMode.menuTitle)",
                 "Reveal Shortcut: \(state.revealStatusItemTitleShortcut.map { KeyboardShortcutPresentation(shortcut: $0).displayTitle } ?? "None")",
                 "Icon Style: \(state.statusBarIndicatorStyle.menuTitle)",
+                "Usage Bar Display: \(state.usageBarDisplayMode.menuTitle)",
                 state.pacingMarkersEnabled ? "Show Pace Markers: On" : "Show Pace Markers: Off",
                 "Accent Color: \(colorHexString(for: state.progressAccentColor))",
                 state.statusBarMonochrome ? "Monochrome: On" : "Monochrome: Off",
@@ -141,6 +142,7 @@ enum MenuBarValidationSupport {
                     accountSummary(
                         for: card.account,
                         location: activeAccountLocationLine(for: card, now: now),
+                        usageBarDisplayMode: state.usageBarDisplayMode,
                         now: now
                     )
                 }
@@ -152,14 +154,18 @@ enum MenuBarValidationSupport {
         if !state.visibleDisplayAccountEntries.isEmpty {
             sections.append(.init(
                 title: state.accountListSectionTitle,
-                items: state.visibleDisplayAccountEntries.map { inactiveAccountSummary(for: $0, now: now) }
+                items: state.visibleDisplayAccountEntries.map {
+                    inactiveAccountSummary(for: $0, usageBarDisplayMode: state.usageBarDisplayMode, now: now)
+                }
             ))
         }
 
         if !state.overflowDisplayAccountEntries.isEmpty {
             sections.append(.init(
                 title: "More Accounts…",
-                items: state.overflowDisplayAccountEntries.map { inactiveAccountSummary(for: $0, now: now) }
+                items: state.overflowDisplayAccountEntries.map {
+                    inactiveAccountSummary(for: $0, usageBarDisplayMode: state.usageBarDisplayMode, now: now)
+                }
             ))
         }
 
@@ -217,16 +223,35 @@ enum MenuBarValidationSupport {
     private static func accountSummary(
         for account: CodexAccount,
         location: String? = nil,
+        usageBarDisplayMode: UsageBarDisplayMode,
         now: Date
     ) -> String {
         let plan = menuPlanDisplayName(account.effectivePlanType)
-        let session = usageLine(title: "Session", window: account.rateLimits?.sessionWindow, now: now)
-        let weekly = usageLine(title: "Weekly", window: account.rateLimits?.weeklyWindow, now: now)
+        let session = usageLine(
+            title: "Session",
+            window: account.rateLimits?.sessionWindow,
+            usageBarDisplayMode: usageBarDisplayMode,
+            now: now
+        )
+        let weekly = usageLine(
+            title: "Weekly",
+            window: account.rateLimits?.weeklyWindow,
+            usageBarDisplayMode: usageBarDisplayMode,
+            now: now
+        )
         return ([account.name, plan, location, session, weekly].compactMap { $0 }).joined(separator: " • ")
     }
 
-    private static func inactiveAccountSummary(for entry: MenuBarAccountCatalogEntry, now: Date) -> String {
-        let detail = compactMenuRowUsageSummary(for: entry.account, now: now)
+    private static func inactiveAccountSummary(
+        for entry: MenuBarAccountCatalogEntry,
+        usageBarDisplayMode: UsageBarDisplayMode,
+        now: Date
+    ) -> String {
+        let detail = compactMenuRowUsageSummary(
+            for: entry.account,
+            usageBarDisplayMode: usageBarDisplayMode,
+            now: now
+        )
         guard let placement = entry.placement else {
             return "\(entry.account.name) • \(detail)"
         }
@@ -243,8 +268,13 @@ enum MenuBarValidationSupport {
         return "This Mac"
     }
 
-    private static func usageLine(title: String, window: CodexRateLimitWindow?, now: Date) -> String {
-        let percentText = window.map { "\($0.displayedUsedPercent(at: now))% used" } ?? "--"
+    private static func usageLine(
+        title: String,
+        window: CodexRateLimitWindow?,
+        usageBarDisplayMode: UsageBarDisplayMode,
+        now: Date
+    ) -> String {
+        let percentText = usageBarPercentText(for: window, mode: usageBarDisplayMode, now: now)
         guard let window, let resetStatus = resetStatusText(for: window, now: now) else {
             return "\(title): \(percentText)"
         }

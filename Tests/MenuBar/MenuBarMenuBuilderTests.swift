@@ -1134,6 +1134,7 @@ struct MenuBarMenuBuilderTests {
                 locations: [],
                 showsUpdatedTime: true,
                 progressAccentColor: .blue,
+                usageBarDisplayMode: .used,
                 showsPacingMarkers: true
             )
         )
@@ -1536,13 +1537,20 @@ struct MenuBarMenuBuilderTests {
         let usageBarsMenu = try #require(preferencesMenu.items.first(where: { $0.title == "Usage Bars" })?.submenu)
         let usageBarTitles = usageBarsMenu.items.map(\.title)
         let showMarkers = try #require(usageBarsMenu.items.first(where: { $0.title == "Show Pace Markers" }))
+        let showUsed = try #require(usageBarsMenu.items.first(where: { $0.title == "Show % Used" }))
+        let showLeft = try #require(usageBarsMenu.items.first(where: { $0.title == "Show % Left" }))
 
         #expect(preferencesMenu.items.map(\.title) == ["Menu Bar Label", "Icon Style", "Usage Bars", "", "Launch at Login"])
         #expect(preferencesMenu.items[3].isSeparatorItem)
-        #expect(usageBarTitles == ["Show Pace Markers", "Accent Color…", "Use Default"])
+        #expect(usageBarTitles == ["Show % Used", "Show % Left", "", "Show Pace Markers", "Accent Color…", "Use Default"])
+        #expect(usageBarsMenu.items[2].isSeparatorItem)
         #expect(preferencesMenu.items.first(where: { $0.title == "Menu Bar Label" })?.image == nil)
         #expect(preferencesMenu.items.first(where: { $0.title == "Icon Style" })?.image == nil)
         #expect(usageBarsMenu.items.first(where: { $0.title == "Accent Color…" })?.image == nil)
+        #expect(showUsed.action == #selector(MenuBarCoordinator.selectUsageBarDisplayMode(_:)))
+        #expect(showUsed.state == .on)
+        #expect(showLeft.action == #selector(MenuBarCoordinator.selectUsageBarDisplayMode(_:)))
+        #expect(showLeft.state == .off)
         #expect(showMarkers.action == #selector(MenuBarCoordinator.togglePacingMarkers(_:)))
         #expect(showMarkers.state == .on)
     }

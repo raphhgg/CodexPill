@@ -5,6 +5,7 @@ struct StatusItemRuntimePresentation {
     let indicatorStyle: StatusBarIndicatorStyle
     let monochrome: Bool
     let displayMode: StatusBarDisplayMode
+    let usageBarDisplayMode: UsageBarDisplayMode
     let progressAccentColor: NSColor
 
     init(
@@ -12,12 +13,14 @@ struct StatusItemRuntimePresentation {
         indicatorStyle: StatusBarIndicatorStyle,
         monochrome: Bool,
         displayMode: StatusBarDisplayMode,
+        usageBarDisplayMode: UsageBarDisplayMode = .used,
         progressAccentColor: NSColor = StatusBarProgressColorDefaults.accent
     ) {
         self.activeAccount = activeAccount
         self.indicatorStyle = indicatorStyle
         self.monochrome = monochrome
         self.displayMode = displayMode
+        self.usageBarDisplayMode = usageBarDisplayMode
         self.progressAccentColor = progressAccentColor
     }
 }
@@ -183,8 +186,20 @@ final class StatusItemRuntime {
 
     private func updateAppearance() {
         guard let button = statusItem.button else { return }
-        let primary = presentation.activeAccount?.rateLimits?.sessionWindow?.displayedUsedPercent()
-        let secondary = presentation.activeAccount?.rateLimits?.weeklyWindow?.displayedUsedPercent()
+        let primary = presentation.activeAccount?.rateLimits?.sessionWindow
+            .map {
+                usageBarPercent(
+                    forUsedPercent: $0.displayedUsedPercent(),
+                    mode: presentation.usageBarDisplayMode
+                )
+            }
+        let secondary = presentation.activeAccount?.rateLimits?.weeklyWindow
+            .map {
+                usageBarPercent(
+                    forUsedPercent: $0.displayedUsedPercent(),
+                    mode: presentation.usageBarDisplayMode
+                )
+            }
 
         button.image = iconRenderer.makeImage(
             style: presentation.indicatorStyle,
@@ -197,7 +212,10 @@ final class StatusItemRuntime {
         button.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .medium)
 
         if shouldShowStatusTitle {
-            let title = statusItemHoverTitle(for: presentation.activeAccount)
+            let title = statusItemHoverTitle(
+                for: presentation.activeAccount,
+                usageBarDisplayMode: presentation.usageBarDisplayMode
+            )
             button.imagePosition = .imageLeading
             button.title = title
             button.attributedTitle = NSAttributedString(

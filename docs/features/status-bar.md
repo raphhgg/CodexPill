@@ -12,8 +12,21 @@ The status bar gives the user a lightweight answer before opening the menu: whic
 - Optional label text.
 - Hover-expanded and shortcut-revealed text behavior.
 - Compact session/weekly indicators.
-- The `Preferences` submenu exposes `Menu Bar Label`, `Icon Style`, and `Usage Bars` controls for label mode, the reveal shortcut, icon style, pacing marker visibility, and accent color. App-level controls in the same submenu are owned by their own feature docs.
+- The `Preferences` submenu exposes `Menu Bar Label`, `Icon Style`, and `Usage Bars` controls for label mode, the reveal shortcut, icon style, usage bar percent mode, pacing marker visibility, and accent color. App-level controls in the same submenu are owned by their own feature docs.
 - Tooltip text.
+
+## Usage Bars
+
+Users can choose whether usage bars display consumed usage or remaining usage:
+
+```text
+Preferences
+  Usage Bars
+    Show % Used
+    Show % Left
+```
+
+`Show % Used` is the default. `Show % Left` inverts the visible percent and bar fill while leaving the underlying Codex rate-limit data unchanged.
 
 ## Menu Bar Label Reveal Shortcut
 
