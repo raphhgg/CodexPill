@@ -53,3 +53,19 @@ enum UsageBarDisplayMode: String, CaseIterable, Identifiable {
         }
     }
 }
+
+enum UsageBarLayout: String, CaseIterable, Identifiable {
+    case classic
+    case compact
+
+    var id: String { rawValue }
+
+    var menuTitle: String {
+        switch self {
+        case .classic:
+            "Classic"
+        case .compact:
+            "Compact"
+        }
+    }
+}

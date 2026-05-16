@@ -102,6 +102,7 @@ enum MenuBarValidationSupport {
                 "Reveal Shortcut: \(state.revealStatusItemTitleShortcut.map { KeyboardShortcutPresentation(shortcut: $0).displayTitle } ?? "None")",
                 "Icon Style: \(state.statusBarIndicatorStyle.menuTitle)",
                 "Usage Bar Display: \(state.usageBarDisplayMode.menuTitle)",
+                "Usage Bar Layout: \(state.usageBarLayout.menuTitle)",
                 state.pacingMarkersEnabled ? "Show Pace Markers: On" : "Show Pace Markers: Off",
                 "Accent Color: \(colorHexString(for: state.progressAccentColor))",
                 state.statusBarMonochrome ? "Monochrome: On" : "Monochrome: Off",

@@ -1135,6 +1135,7 @@ struct MenuBarMenuBuilderTests {
                 showsUpdatedTime: true,
                 progressAccentColor: .blue,
                 usageBarDisplayMode: .used,
+                usageBarLayout: .classic,
                 showsPacingMarkers: true
             )
         )
@@ -1539,11 +1540,24 @@ struct MenuBarMenuBuilderTests {
         let showMarkers = try #require(usageBarsMenu.items.first(where: { $0.title == "Show Pace Markers" }))
         let showUsed = try #require(usageBarsMenu.items.first(where: { $0.title == "Show % Used" }))
         let showLeft = try #require(usageBarsMenu.items.first(where: { $0.title == "Show % Left" }))
+        let classic = try #require(usageBarsMenu.items.first(where: { $0.title == "Classic" }))
+        let compact = try #require(usageBarsMenu.items.first(where: { $0.title == "Compact" }))
 
         #expect(preferencesMenu.items.map(\.title) == ["Menu Bar Label", "Icon Style", "Usage Bars", "", "Launch at Login"])
         #expect(preferencesMenu.items[3].isSeparatorItem)
-        #expect(usageBarTitles == ["Show % Used", "Show % Left", "", "Show Pace Markers", "Accent Color…", "Use Default"])
+        #expect(usageBarTitles == [
+            "Show % Used",
+            "Show % Left",
+            "",
+            "Classic",
+            "Compact",
+            "",
+            "Show Pace Markers",
+            "Accent Color…",
+            "Use Default"
+        ])
         #expect(usageBarsMenu.items[2].isSeparatorItem)
+        #expect(usageBarsMenu.items[5].isSeparatorItem)
         #expect(preferencesMenu.items.first(where: { $0.title == "Menu Bar Label" })?.image == nil)
         #expect(preferencesMenu.items.first(where: { $0.title == "Icon Style" })?.image == nil)
         #expect(usageBarsMenu.items.first(where: { $0.title == "Accent Color…" })?.image == nil)
@@ -1551,6 +1565,10 @@ struct MenuBarMenuBuilderTests {
         #expect(showUsed.state == .on)
         #expect(showLeft.action == #selector(MenuBarCoordinator.selectUsageBarDisplayMode(_:)))
         #expect(showLeft.state == .off)
+        #expect(classic.action == #selector(MenuBarCoordinator.selectUsageBarLayout(_:)))
+        #expect(classic.state == .on)
+        #expect(compact.action == #selector(MenuBarCoordinator.selectUsageBarLayout(_:)))
+        #expect(compact.state == .off)
         #expect(showMarkers.action == #selector(MenuBarCoordinator.togglePacingMarkers(_:)))
         #expect(showMarkers.state == .on)
     }

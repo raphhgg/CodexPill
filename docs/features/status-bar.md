@@ -12,21 +12,27 @@ The status bar gives the user a lightweight answer before opening the menu: whic
 - Optional label text.
 - Hover-expanded and shortcut-revealed text behavior.
 - Compact session/weekly indicators.
-- The `Preferences` submenu exposes `Menu Bar Label`, `Icon Style`, and `Usage Bars` controls for label mode, the reveal shortcut, icon style, usage bar percent mode, pacing marker visibility, and accent color. App-level controls in the same submenu are owned by their own feature docs.
+- The `Preferences` submenu exposes `Menu Bar Label`, `Icon Style`, and `Usage Bars` controls for label mode, the reveal shortcut, icon style, usage bar percent mode, usage bar layout, pacing marker visibility, and accent color. App-level controls in the same submenu are owned by their own feature docs.
 - Tooltip text.
 
 ## Usage Bars
 
-Users can choose whether usage bars display consumed usage or remaining usage:
+Users can choose whether usage bars display consumed usage or remaining usage,
+and whether the active account card uses the classic three-line rows or compact
+single-line rows:
 
 ```text
 Preferences
   Usage Bars
     Show % Used
     Show % Left
+    Classic
+    Compact
 ```
 
 `Show % Used` is the default. `Show % Left` inverts the visible percent and bar fill while leaving the underlying Codex rate-limit data unchanged.
+`Classic` is the default layout. `Compact` presents each session and weekly
+limit as one row: title, bar, percent text, and reset text.
 
 ## Menu Bar Label Reveal Shortcut
 

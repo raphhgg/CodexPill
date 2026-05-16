@@ -13,6 +13,7 @@ struct CodexPillSettingsStoreTests {
         #expect(settings.statusBarIndicatorStyle == .twinPills)
         #expect(settings.statusBarMonochrome)
         #expect(settings.usageBarDisplayMode == .used)
+        #expect(settings.usageBarLayout == .classic)
         #expect(settings.pacingMarkersEnabled)
     }
 
@@ -36,6 +37,17 @@ struct CodexPillSettingsStoreTests {
         let second = CodexPillSettingsStore(userDefaults: defaults)
 
         #expect(second.usageBarDisplayMode == .left)
+    }
+
+    @Test
+    func usageBarLayoutPersistsAcrossInstances() {
+        let defaults = makeDefaults()
+        let first = CodexPillSettingsStore(userDefaults: defaults)
+        first.usageBarLayout = .compact
+
+        let second = CodexPillSettingsStore(userDefaults: defaults)
+
+        #expect(second.usageBarLayout == .compact)
     }
 
     @Test

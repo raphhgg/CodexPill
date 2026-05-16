@@ -53,6 +53,11 @@ final class CodexPillSettingsStore {
         set { statusItemSettings.usageBarDisplayMode = newValue }
     }
 
+    var usageBarLayout: UsageBarLayout {
+        get { statusItemSettings.usageBarLayout }
+        set { statusItemSettings.usageBarLayout = newValue }
+    }
+
     var pacingMarkersEnabled: Bool {
         get { statusItemSettings.pacingMarkersEnabled }
         set { statusItemSettings.pacingMarkersEnabled = newValue }

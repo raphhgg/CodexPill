@@ -41,6 +41,12 @@ final class StatusItemSettingsStore {
         }
     }
 
+    var usageBarLayout: UsageBarLayout {
+        didSet {
+            userDefaults.set(usageBarLayout.rawValue, forKey: Self.usageBarLayoutKey)
+        }
+    }
+
     var pacingMarkersEnabled: Bool {
         didSet {
             userDefaults.set(pacingMarkersEnabled, forKey: Self.pacingMarkersEnabledKey)
@@ -60,6 +66,7 @@ final class StatusItemSettingsStore {
     private static let statusBarDisplayModeKey = "statusBarDisplayMode"
     private static let progressAccentColorKey = "progressAccentColor"
     private static let usageBarDisplayModeKey = "usageBarDisplayMode"
+    private static let usageBarLayoutKey = "usageBarLayout"
     private static let pacingMarkersEnabledKey = "pacingMarkersEnabled"
     private static let revealStatusItemTitleShortcutKey = "revealStatusItemTitleShortcut"
     private static let revealStatusItemTitleShortcutEnabledKey = "revealStatusItemTitleShortcutEnabled"
@@ -82,6 +89,8 @@ final class StatusItemSettingsStore {
         progressAccentColor = Self.loadColor(from: userDefaults, key: Self.progressAccentColorKey)
         usageBarDisplayMode = userDefaults.string(forKey: Self.usageBarDisplayModeKey)
             .flatMap(UsageBarDisplayMode.init(rawValue:)) ?? .used
+        usageBarLayout = userDefaults.string(forKey: Self.usageBarLayoutKey)
+            .flatMap(UsageBarLayout.init(rawValue:)) ?? .classic
         pacingMarkersEnabled = userDefaults.object(forKey: Self.pacingMarkersEnabledKey) as? Bool ?? true
         revealStatusItemTitleShortcut = Self.loadRevealShortcut(from: userDefaults)
     }
