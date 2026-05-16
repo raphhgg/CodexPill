@@ -1162,7 +1162,8 @@ struct MenuBarMenuBuilderTests {
                 account: makeAccount(name: "Business 2", withRateLimits: true),
                 locations: [],
                 showsUpdatedTime: true,
-                progressAccentColor: .blue,
+                sessionProgressAccentColor: .green,
+                weeklyProgressAccentColor: .blue,
                 usageBarDisplayMode: .used,
                 usageBarLayout: .classic,
                 showsPacingMarkers: true
@@ -1545,11 +1546,14 @@ struct MenuBarMenuBuilderTests {
 
         let preferencesMenu = try #require(menu.items.first(where: { $0.title == "Preferences" })?.submenu)
         let usageBarsMenu = try #require(preferencesMenu.items.first(where: { $0.title == "Usage Bars" })?.submenu)
-        let accent = try #require(usageBarsMenu.items.first(where: { $0.title == "Accent Color…" }))
+        let sessionAccent = try #require(usageBarsMenu.items.first(where: { $0.title == "Accent Color Session…" }))
+        let weeklyAccent = try #require(usageBarsMenu.items.first(where: { $0.title == "Accent Color Weekly…" }))
         let reset = try #require(usageBarsMenu.items.first(where: { $0.title == "Use Default" }))
 
-        #expect(accent.action == #selector(MenuBarCoordinator.chooseProgressAccentColor(_:)))
-        #expect(accent.image == nil)
+        #expect(sessionAccent.action == #selector(MenuBarCoordinator.chooseSessionProgressAccentColor(_:)))
+        #expect(weeklyAccent.action == #selector(MenuBarCoordinator.chooseWeeklyProgressAccentColor(_:)))
+        #expect(sessionAccent.image == nil)
+        #expect(weeklyAccent.image == nil)
         #expect(reset.action == #selector(MenuBarCoordinator.resetProgressAccentColor(_:)))
         #expect(!reset.isEnabled)
     }
@@ -1589,14 +1593,16 @@ struct MenuBarMenuBuilderTests {
             "Compact",
             "",
             "Show Pace Markers",
-            "Accent Color…",
+            "Accent Color Session…",
+            "Accent Color Weekly…",
             "Use Default"
         ])
         #expect(usageBarsMenu.items[2].isSeparatorItem)
         #expect(usageBarsMenu.items[5].isSeparatorItem)
         #expect(preferencesMenu.items.first(where: { $0.title == "Menu Bar Label" })?.image == nil)
         #expect(preferencesMenu.items.first(where: { $0.title == "Icon Style" })?.image == nil)
-        #expect(usageBarsMenu.items.first(where: { $0.title == "Accent Color…" })?.image == nil)
+        #expect(usageBarsMenu.items.first(where: { $0.title == "Accent Color Session…" })?.image == nil)
+        #expect(usageBarsMenu.items.first(where: { $0.title == "Accent Color Weekly…" })?.image == nil)
         #expect(showUsed.action == #selector(MenuBarCoordinator.selectUsageBarDisplayMode(_:)))
         #expect(showUsed.state == .on)
         #expect(showLeft.action == #selector(MenuBarCoordinator.selectUsageBarDisplayMode(_:)))
@@ -1951,6 +1957,7 @@ struct MenuBarMenuBuilderTests {
         activeAccount: CodexAccount?,
         inactiveAccounts: [CodexAccount] = [],
         remoteHosts: [RemoteHostMenuState] = [],
+        sessionProgressAccentColor: NSColor = .systemGreen,
         progressAccentColor: NSColor = .controlAccentColor,
         hasCustomProgressAccentColor: Bool = false,
         notificationsWhenBlockedEnabled: Bool = false,
@@ -1973,6 +1980,7 @@ struct MenuBarMenuBuilderTests {
             statusBarIndicatorStyle: .dualArcBadge,
             statusBarDisplayMode: .textOnHover,
             revealStatusItemTitleShortcut: revealStatusItemTitleShortcut,
+            sessionProgressAccentColor: sessionProgressAccentColor,
             progressAccentColor: progressAccentColor,
             otherAccountsDisplayMode: otherAccountsDisplayMode,
             hasCustomProgressAccentColor: hasCustomProgressAccentColor,

@@ -102,7 +102,8 @@ struct MenuBarMenuBuilder {
                 account: card.account,
                 locations: card.locations,
                 showsUpdatedTime: card.showsUpdatedTime,
-                progressAccentColor: Color(nsColor: state.progressAccentColor),
+                sessionProgressAccentColor: Color(nsColor: state.sessionProgressAccentColor),
+                weeklyProgressAccentColor: Color(nsColor: state.progressAccentColor),
                 usageBarDisplayMode: state.usageBarDisplayMode,
                 usageBarLayout: state.usageBarLayout,
                 showsPacingMarkers: state.pacingMarkersEnabled
@@ -180,7 +181,8 @@ struct MenuBarMenuBuilder {
                 rootView: InactiveAccountBarsMenuContent(
                     account: entry.displayAccount,
                     displayName: compactMenuRowDisplayName(for: entry.account.name),
-                    tintColor: Color(nsColor: state.progressAccentColor),
+                    sessionTintColor: Color(nsColor: state.sessionProgressAccentColor),
+                    weeklyTintColor: Color(nsColor: state.progressAccentColor),
                     usageBarDisplayMode: state.usageBarDisplayMode
                 )
             )
@@ -570,7 +572,8 @@ struct MenuBarMenuBuilder {
         }
         submenu.addItem(.separator())
         submenu.addItem(pacingMarkersMenuItem(state: state, target: target))
-        submenu.addItem(progressAccentColorItem(state: state, target: target))
+        submenu.addItem(sessionProgressAccentColorItem(state: state, target: target))
+        submenu.addItem(weeklyProgressAccentColorItem(state: state, target: target))
         submenu.addItem(resetProgressAccentColorItem(state: state, target: target))
         item.submenu = submenu
         return item
@@ -629,8 +632,14 @@ struct MenuBarMenuBuilder {
         return item
     }
 
-    private func progressAccentColorItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Accent Color…", action: #selector(MenuBarCoordinator.chooseProgressAccentColor(_:)), keyEquivalent: "")
+    private func sessionProgressAccentColorItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Accent Color Session…", action: #selector(MenuBarCoordinator.chooseSessionProgressAccentColor(_:)), keyEquivalent: "")
+        item.target = target
+        return item
+    }
+
+    private func weeklyProgressAccentColorItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Accent Color Weekly…", action: #selector(MenuBarCoordinator.chooseWeeklyProgressAccentColor(_:)), keyEquivalent: "")
         item.target = target
         return item
     }

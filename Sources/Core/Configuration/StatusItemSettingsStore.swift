@@ -29,6 +29,12 @@ final class StatusItemSettingsStore {
         }
     }
 
+    var sessionProgressAccentColor: StatusItemAccentColor? {
+        didSet {
+            persistColor(sessionProgressAccentColor, key: Self.sessionProgressAccentColorKey)
+        }
+    }
+
     var progressAccentColor: StatusItemAccentColor? {
         didSet {
             persistColor(progressAccentColor, key: Self.progressAccentColorKey)
@@ -70,6 +76,7 @@ final class StatusItemSettingsStore {
     private static let statusBarIndicatorStyleKey = "statusBarIndicatorStyle"
     private static let statusBarMonochromeKey = "statusBarMonochrome"
     private static let statusBarDisplayModeKey = "statusBarDisplayMode"
+    private static let sessionProgressAccentColorKey = "sessionProgressAccentColor"
     private static let progressAccentColorKey = "progressAccentColor"
     private static let usageBarDisplayModeKey = "usageBarDisplayMode"
     private static let usageBarLayoutKey = "usageBarLayout"
@@ -93,6 +100,7 @@ final class StatusItemSettingsStore {
         statusBarMonochrome = userDefaults.object(forKey: Self.statusBarMonochromeKey) as? Bool ?? true
         statusBarDisplayMode = userDefaults.string(forKey: Self.statusBarDisplayModeKey)
             .flatMap(StatusBarDisplayMode.init(rawValue:)) ?? .textOnHover
+        sessionProgressAccentColor = Self.loadColor(from: userDefaults, key: Self.sessionProgressAccentColorKey)
         progressAccentColor = Self.loadColor(from: userDefaults, key: Self.progressAccentColorKey)
         usageBarDisplayMode = userDefaults.string(forKey: Self.usageBarDisplayModeKey)
             .flatMap(UsageBarDisplayMode.init(rawValue:)) ?? .used
@@ -105,10 +113,11 @@ final class StatusItemSettingsStore {
     }
 
     var hasCustomProgressAccentColor: Bool {
-        progressAccentColor != nil
+        sessionProgressAccentColor != nil || progressAccentColor != nil
     }
 
     func resetProgressAccentColor() {
+        sessionProgressAccentColor = nil
         progressAccentColor = nil
     }
 

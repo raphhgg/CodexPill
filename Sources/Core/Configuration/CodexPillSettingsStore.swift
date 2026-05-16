@@ -48,6 +48,11 @@ final class CodexPillSettingsStore {
         set { statusItemSettings.progressAccentColor = newValue }
     }
 
+    var sessionProgressAccentColor: StatusItemAccentColor? {
+        get { statusItemSettings.sessionProgressAccentColor }
+        set { statusItemSettings.sessionProgressAccentColor = newValue }
+    }
+
     var usageBarDisplayMode: UsageBarDisplayMode {
         get { statusItemSettings.usageBarDisplayMode }
         set { statusItemSettings.usageBarDisplayMode = newValue }

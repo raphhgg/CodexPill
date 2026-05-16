@@ -68,14 +68,17 @@ struct CodexPillSettingsStoreTests {
         let settings = CodexPillSettingsStore(userDefaults: defaults)
 
         #expect(settings.progressAccentColor == nil)
+        #expect(settings.sessionProgressAccentColor == nil)
         #expect(settings.hasCustomProgressAccentColor == false)
 
+        settings.sessionProgressAccentColor = StatusItemAccentColor(red: 0.22, green: 0.62, blue: 0.28, alpha: 1)
         settings.progressAccentColor = StatusItemAccentColor(red: 0.12, green: 0.45, blue: 0.78, alpha: 1)
         #expect(settings.hasCustomProgressAccentColor)
 
         settings.resetProgressAccentColor()
 
         #expect(settings.progressAccentColor == nil)
+        #expect(settings.sessionProgressAccentColor == nil)
         #expect(settings.hasCustomProgressAccentColor == false)
     }
 
@@ -85,10 +88,12 @@ struct CodexPillSettingsStoreTests {
         let accent = StatusItemAccentColor(red: 0.14, green: 0.55, blue: 0.31, alpha: 1)
 
         let first = CodexPillSettingsStore(userDefaults: defaults)
+        first.sessionProgressAccentColor = accent
         first.progressAccentColor = accent
 
         let second = CodexPillSettingsStore(userDefaults: defaults)
 
+        #expect(second.sessionProgressAccentColor == accent)
         #expect(second.progressAccentColor == accent)
         #expect(second.hasCustomProgressAccentColor)
     }

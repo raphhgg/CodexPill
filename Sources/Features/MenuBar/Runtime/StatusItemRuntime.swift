@@ -6,7 +6,8 @@ struct StatusItemRuntimePresentation {
     let monochrome: Bool
     let displayMode: StatusBarDisplayMode
     let usageBarDisplayMode: UsageBarDisplayMode
-    let progressAccentColor: NSColor
+    let sessionProgressAccentColor: NSColor
+    let weeklyProgressAccentColor: NSColor
 
     init(
         activeAccount: CodexAccount?,
@@ -14,14 +15,16 @@ struct StatusItemRuntimePresentation {
         monochrome: Bool,
         displayMode: StatusBarDisplayMode,
         usageBarDisplayMode: UsageBarDisplayMode = .used,
-        progressAccentColor: NSColor = StatusBarProgressColorDefaults.accent
+        sessionProgressAccentColor: NSColor = StatusBarProgressColorDefaults.sessionAccent,
+        weeklyProgressAccentColor: NSColor = StatusBarProgressColorDefaults.weeklyAccent
     ) {
         self.activeAccount = activeAccount
         self.indicatorStyle = indicatorStyle
         self.monochrome = monochrome
         self.displayMode = displayMode
         self.usageBarDisplayMode = usageBarDisplayMode
-        self.progressAccentColor = progressAccentColor
+        self.sessionProgressAccentColor = sessionProgressAccentColor
+        self.weeklyProgressAccentColor = weeklyProgressAccentColor
     }
 }
 
@@ -206,8 +209,8 @@ final class StatusItemRuntime {
             primaryPercent: primary,
             secondaryPercent: secondary,
             monochrome: presentation.monochrome,
-            primaryColor: presentation.progressAccentColor,
-            secondaryColor: presentation.progressAccentColor
+            primaryColor: presentation.sessionProgressAccentColor,
+            secondaryColor: presentation.weeklyProgressAccentColor
         )
         button.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .medium)
 

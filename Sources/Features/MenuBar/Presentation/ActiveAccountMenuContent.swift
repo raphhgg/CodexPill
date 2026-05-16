@@ -4,7 +4,8 @@ struct ActiveAccountMenuContent: View {
     let account: CodexAccount
     let locations: [String]
     let showsUpdatedTime: Bool
-    let progressAccentColor: Color
+    let sessionProgressAccentColor: Color
+    let weeklyProgressAccentColor: Color
     let usageBarDisplayMode: UsageBarDisplayMode
     let usageBarLayout: UsageBarLayout
     let showsPacingMarkers: Bool
@@ -32,7 +33,7 @@ struct ActiveAccountMenuContent: View {
             ActiveLimitRow(
                 title: "Session",
                 window: account.rateLimits?.sessionWindow,
-                tintColor: progressAccentColor,
+                tintColor: sessionProgressAccentColor,
                 usageBarDisplayMode: usageBarDisplayMode,
                 usageBarLayout: usageBarLayout,
                 showsPacingMarkers: showsPacingMarkers,
@@ -41,7 +42,7 @@ struct ActiveAccountMenuContent: View {
             ActiveLimitRow(
                 title: "Weekly",
                 window: account.rateLimits?.weeklyWindow,
-                tintColor: progressAccentColor,
+                tintColor: weeklyProgressAccentColor,
                 usageBarDisplayMode: usageBarDisplayMode,
                 usageBarLayout: usageBarLayout,
                 showsPacingMarkers: showsPacingMarkers,
@@ -124,7 +125,8 @@ struct InactiveAccountMenuContent: View {
 struct InactiveAccountBarsMenuContent: View {
     let account: CodexAccount
     let displayName: String
-    let tintColor: Color
+    let sessionTintColor: Color
+    let weeklyTintColor: Color
     let usageBarDisplayMode: UsageBarDisplayMode
 
     var body: some View {
@@ -139,14 +141,14 @@ struct InactiveAccountBarsMenuContent: View {
                     InactiveLimitBarRow(
                         title: "Session",
                         window: account.rateLimits?.sessionWindow,
-                        tintColor: tintColor.opacity(0.5),
+                        tintColor: sessionTintColor.opacity(0.5),
                         usageBarDisplayMode: usageBarDisplayMode,
                         now: timeline.date
                     )
                     InactiveLimitBarRow(
                         title: "Weekly",
                         window: account.rateLimits?.weeklyWindow,
-                        tintColor: tintColor.opacity(0.5),
+                        tintColor: weeklyTintColor.opacity(0.5),
                         usageBarDisplayMode: usageBarDisplayMode,
                         now: timeline.date
                     )

@@ -86,6 +86,7 @@ struct MenuBarMenuState {
     let statusBarIndicatorStyle: StatusBarIndicatorStyle
     let statusBarDisplayMode: StatusBarDisplayMode
     let revealStatusItemTitleShortcut: KeyboardShortcut?
+    let sessionProgressAccentColor: NSColor
     let progressAccentColor: NSColor
     let usageBarDisplayMode: UsageBarDisplayMode
     let usageBarLayout: UsageBarLayout
@@ -112,6 +113,7 @@ struct MenuBarMenuState {
         statusBarIndicatorStyle: StatusBarIndicatorStyle,
         statusBarDisplayMode: StatusBarDisplayMode,
         revealStatusItemTitleShortcut: KeyboardShortcut? = .defaultRevealStatusItemTitle,
+        sessionProgressAccentColor: NSColor = StatusBarProgressColorDefaults.sessionAccent,
         progressAccentColor: NSColor = StatusBarProgressColorDefaults.accent,
         usageBarDisplayMode: UsageBarDisplayMode = .used,
         usageBarLayout: UsageBarLayout = .classic,
@@ -137,6 +139,7 @@ struct MenuBarMenuState {
         self.statusBarIndicatorStyle = statusBarIndicatorStyle
         self.statusBarDisplayMode = statusBarDisplayMode
         self.revealStatusItemTitleShortcut = revealStatusItemTitleShortcut
+        self.sessionProgressAccentColor = sessionProgressAccentColor
         self.progressAccentColor = progressAccentColor
         self.usageBarDisplayMode = usageBarDisplayMode
         self.usageBarLayout = usageBarLayout

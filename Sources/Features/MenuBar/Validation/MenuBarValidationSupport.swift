@@ -105,7 +105,8 @@ enum MenuBarValidationSupport {
                 "Usage Bar Layout: \(state.usageBarLayout.menuTitle)",
                 "Other Accounts Display: \(state.otherAccountsDisplayMode.menuTitle)",
                 state.pacingMarkersEnabled ? "Show Pace Markers: On" : "Show Pace Markers: Off",
-                "Accent Color: \(colorHexString(for: state.progressAccentColor))",
+                "Accent Color Session: \(colorHexString(for: state.sessionProgressAccentColor))",
+                "Accent Color Weekly: \(colorHexString(for: state.progressAccentColor))",
                 state.statusBarMonochrome ? "Monochrome: On" : "Monochrome: Off",
                 "Launch at Login: \(launchAtLoginSummary(for: state.loginItemState))",
                 state.canShowAbout ? "About" : "About (disabled)"

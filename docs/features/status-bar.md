@@ -28,11 +28,15 @@ Preferences
     Show % Left
     Classic
     Compact
+    Accent Color Session…
+    Accent Color Weekly…
 ```
 
 `Show % Used` is the default. `Show % Left` inverts the visible percent and bar fill while leaving the underlying Codex rate-limit data unchanged.
 `Classic` is the default layout. `Compact` presents each session and weekly
 limit as one row: title, bar, percent text, and reset text.
+Session usage uses a green default accent. Weekly usage uses the macOS accent
+color default.
 
 ## Other Accounts Display
 
