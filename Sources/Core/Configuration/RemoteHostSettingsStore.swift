@@ -19,8 +19,14 @@ final class RemoteHostSettingsStore {
 
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
-        remoteHostStates = Self.loadCodable(from: userDefaults, key: Self.remoteHostsKey)
-            ?? Self.loadLegacyRemoteHostStates(from: userDefaults)
+        if userDefaults.object(forKey: Self.remoteHostsKey) != nil {
+            remoteHostStates = Self.loadCodable(from: userDefaults, key: Self.remoteHostsKey) ?? []
+            Self.removeLegacyRemoteHostKeys(from: userDefaults)
+        } else {
+            remoteHostStates = Self.loadLegacyRemoteHostStates(from: userDefaults)
+            persistCodable(remoteHostStates, key: Self.remoteHostsKey)
+            Self.removeLegacyRemoteHostKeys(from: userDefaults)
+        }
     }
 
     var configuredRemoteHost: RemoteHost? {
@@ -76,6 +82,7 @@ final class RemoteHostSettingsStore {
 
     func removeRemoteHost(destination: String) {
         remoteHostStates.removeAll { $0.host.destination == destination }
+        Self.removeLegacyRemoteHostKeys(from: userDefaults)
     }
 
     func remoteHostState(for destination: String) -> PersistedRemoteHostState? {
@@ -132,5 +139,11 @@ final class RemoteHostSettingsStore {
                 verificationStatus: .unverified
             )
         ]
+    }
+
+    private static func removeLegacyRemoteHostKeys(from userDefaults: UserDefaults) {
+        userDefaults.removeObject(forKey: Self.remoteHostKey)
+        userDefaults.removeObject(forKey: Self.remoteHostInstalledAccountIDsKey)
+        userDefaults.removeObject(forKey: Self.remoteHostActiveAccountKey)
     }
 }

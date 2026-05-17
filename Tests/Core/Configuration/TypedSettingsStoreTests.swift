@@ -165,6 +165,27 @@ struct RemoteHostSettingsStoreTests {
                 verificationStatus: .unverified
             )
         ])
+        #expect(defaults.object(forKey: "remoteHost") == nil)
+        #expect(defaults.object(forKey: "remoteHostInstalledAccountIDs") == nil)
+        #expect(defaults.object(forKey: "remoteHostActiveAccount") == nil)
+    }
+
+    @Test
+    func canonicalRemoteHostsIgnoreAndClearLegacyRemoteHostKeys() throws {
+        let defaults = makeDefaults()
+        let legacyHost = RemoteHost(destination: "user@debian-vm", displayName: "Debian VM")
+        let legacyAccount = makeAccount()
+        defaults.set(try JSONEncoder().encode([PersistedRemoteHostState]()), forKey: "remoteHosts")
+        defaults.set(try JSONEncoder().encode(legacyHost), forKey: "remoteHost")
+        defaults.set(try JSONEncoder().encode([legacyAccount.id]), forKey: "remoteHostInstalledAccountIDs")
+        defaults.set(try JSONEncoder().encode(legacyAccount), forKey: "remoteHostActiveAccount")
+
+        let store = RemoteHostSettingsStore(userDefaults: defaults)
+
+        #expect(store.remoteHostStates.isEmpty)
+        #expect(defaults.object(forKey: "remoteHost") == nil)
+        #expect(defaults.object(forKey: "remoteHostInstalledAccountIDs") == nil)
+        #expect(defaults.object(forKey: "remoteHostActiveAccount") == nil)
     }
 }
 
