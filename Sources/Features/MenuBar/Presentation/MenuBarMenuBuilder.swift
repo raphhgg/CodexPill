@@ -97,13 +97,15 @@ struct MenuBarMenuBuilder {
 
     private func activeAccountItem(for card: ActiveAccountCard, state: MenuBarMenuState, width: CGFloat) -> NSMenuItem {
         let item = NSMenuItem()
+        let now = Date()
         let view = NSHostingView(
             rootView: ActiveAccountMenuContent(
                 account: card.account,
                 locations: card.locations,
                 showsUpdatedTime: card.showsUpdatedTime,
                 progressAccentColor: Color(nsColor: state.progressAccentColor),
-                showsPacingMarkers: state.pacingMarkersEnabled
+                showsPacingMarkers: state.pacingMarkersEnabled,
+                now: now
             )
         )
         item.view = configuredHostedMenuView(view, width: width)

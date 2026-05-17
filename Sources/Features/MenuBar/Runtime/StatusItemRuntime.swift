@@ -40,6 +40,7 @@ struct StatusItemRuntimeSnapshot: Equatable {
     let isTitleVisible: Bool
     let displayedTitle: String?
     let imagePosition: String
+    let isHoverPollingActive: Bool
     let buttonFrame: Rect?
     let pointerLocation: Point?
 }
@@ -87,7 +88,7 @@ final class StatusItemRuntime {
         iconRenderer: StatusBarIconRenderer = StatusBarIconRenderer(),
         hoverActivationDelay: TimeInterval = 0.18,
         hoverExitDelay: TimeInterval = 0.05,
-        hoverPollingInterval: TimeInterval = 0.05
+        hoverPollingInterval: TimeInterval = 0.15
     ) {
         self.statusItem = statusItem
         self.iconRenderer = iconRenderer
@@ -108,7 +109,7 @@ final class StatusItemRuntime {
     func start(presentation: StatusItemRuntimePresentation) {
         self.presentation = presentation
         configureStatusItemButton()
-        startHoverPolling()
+        syncHoverPolling()
         update(presentation: presentation)
     }
 
@@ -122,6 +123,7 @@ final class StatusItemRuntime {
 
     func update(presentation: StatusItemRuntimePresentation) {
         self.presentation = presentation
+        syncHoverPolling()
         updateAppearance()
     }
 
@@ -150,6 +152,7 @@ final class StatusItemRuntime {
             isTitleVisible: shouldShowStatusTitle && !title.isEmpty,
             displayedTitle: title.isEmpty ? nil : title,
             imagePosition: imagePositionName(button.imagePosition),
+            isHoverPollingActive: hoverPollingTimer != nil,
             buttonFrame: buttonFrame,
             pointerLocation: .init(x: pointerLocation.x, y: pointerLocation.y)
         )
@@ -230,6 +233,10 @@ final class StatusItemRuntime {
         ).shouldShowTitle
     }
 
+    private var shouldPollHoverState: Bool {
+        presentation.displayMode == .textOnHover
+    }
+
     private func endShortcutReveal() {
         shortcutRevealTimer?.invalidate()
         shortcutRevealTimer = nil
@@ -258,11 +265,33 @@ final class StatusItemRuntime {
     }
 
     private func startHoverPolling() {
-        hoverPollingTimer?.invalidate()
+        guard hoverPollingTimer == nil else { return }
         hoverPollingTimer = Timer.scheduledTimer(withTimeInterval: hoverPollingInterval, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.syncPointerState()
             }
+        }
+    }
+
+    private func stopHoverPolling() {
+        hoverPollingTimer?.invalidate()
+        hoverPollingTimer = nil
+        isPointerInsideStatusItem = false
+        if isStatusItemHovered {
+            isStatusItemHovered = false
+            updateAppearance()
+        }
+        hoverActivationTimer?.invalidate()
+        hoverActivationTimer = nil
+        hoverExitValidationTimer?.invalidate()
+        hoverExitValidationTimer = nil
+    }
+
+    private func syncHoverPolling() {
+        if shouldPollHoverState {
+            startHoverPolling()
+        } else {
+            stopHoverPolling()
         }
     }
 

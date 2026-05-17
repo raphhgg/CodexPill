@@ -34,6 +34,59 @@ struct StatusItemRuntimeTests {
     }
 
     @Test
+    func hoverPollingRunsOnlyForTextOnHoverMode() {
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer { NSStatusBar.system.removeStatusItem(statusItem) }
+
+        let runtime = StatusItemRuntime(
+            statusItem: statusItem,
+            hoverActivationDelay: 0,
+            hoverExitDelay: 0,
+            hoverPollingInterval: 60
+        )
+        runtime.start(
+            presentation: .init(
+                activeAccount: makeAccount(),
+                indicatorStyle: .dualArcBadge,
+                monochrome: false,
+                displayMode: .iconOnly
+            )
+        )
+
+        #expect(try! #require(runtime.snapshotState()).isHoverPollingActive == false)
+
+        runtime.update(
+            presentation: .init(
+                activeAccount: makeAccount(),
+                indicatorStyle: .dualArcBadge,
+                monochrome: false,
+                displayMode: .iconAndText
+            )
+        )
+        #expect(try! #require(runtime.snapshotState()).isHoverPollingActive == false)
+
+        runtime.update(
+            presentation: .init(
+                activeAccount: makeAccount(),
+                indicatorStyle: .dualArcBadge,
+                monochrome: false,
+                displayMode: .textOnHover
+            )
+        )
+        #expect(try! #require(runtime.snapshotState()).isHoverPollingActive)
+
+        runtime.update(
+            presentation: .init(
+                activeAccount: makeAccount(),
+                indicatorStyle: .dualArcBadge,
+                monochrome: false,
+                displayMode: .iconOnly
+            )
+        )
+        #expect(try! #require(runtime.snapshotState()).isHoverPollingActive == false)
+    }
+
+    @Test
     func textOnHoverEmitsLifecycleEventsFromRuntimeBoundary() {
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         defer { NSStatusBar.system.removeStatusItem(statusItem) }

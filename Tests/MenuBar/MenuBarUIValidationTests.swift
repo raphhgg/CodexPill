@@ -321,6 +321,7 @@ struct MenuBarUIValidationTests {
             isTitleVisible: true,
             displayedTitle: "S 42% W 68%",
             imagePosition: "imageLeading",
+            isHoverPollingActive: true,
             buttonFrame: .init(x: 10, y: 20, width: 54, height: 22),
             pointerLocation: .init(x: 32, y: 28)
         )

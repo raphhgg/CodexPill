@@ -6,11 +6,26 @@ struct ActiveAccountMenuContent: View {
     let showsUpdatedTime: Bool
     let progressAccentColor: Color
     let showsPacingMarkers: Bool
+    let now: Date
+
+    init(
+        account: CodexAccount,
+        locations: [String],
+        showsUpdatedTime: Bool,
+        progressAccentColor: Color,
+        showsPacingMarkers: Bool,
+        now: Date = .now
+    ) {
+        self.account = account
+        self.locations = locations
+        self.showsUpdatedTime = showsUpdatedTime
+        self.progressAccentColor = progressAccentColor
+        self.showsPacingMarkers = showsPacingMarkers
+        self.now = now
+    }
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 30)) { timeline in
-            content(now: timeline.date)
-        }
+        content(now: now)
     }
 
     private func content(now: Date) -> some View {
