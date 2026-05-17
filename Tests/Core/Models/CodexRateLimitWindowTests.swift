@@ -55,6 +55,29 @@ struct CodexRateLimitWindowTests {
     }
 
     @Test
+    func rateLimitSnapshotClassifiesNearWeeklyWindowAfterRecentReset() {
+        let recentlyResetWeekly = CodexRateLimitSnapshot(
+            limitID: "codex",
+            limitName: nil,
+            planType: "prolite",
+            primary: CodexRateLimitWindow(
+                usedPercent: 7,
+                resetsAt: Date(timeIntervalSince1970: 2_000),
+                windowDurationMinutes: 299
+            ),
+            secondary: CodexRateLimitWindow(
+                usedPercent: 1,
+                resetsAt: Date(timeIntervalSince1970: 604_740),
+                windowDurationMinutes: 10_079
+            ),
+            fetchedAt: Date(timeIntervalSince1970: 1_000)
+        )
+
+        #expect(recentlyResetWeekly.sessionWindow?.usedPercent == 7)
+        #expect(recentlyResetWeekly.weeklyWindow?.usedPercent == 1)
+    }
+
+    @Test
     func rateLimitSnapshotKeepsLegacyPositionalFallbackWhenDurationsAreMissing() {
         let legacy = CodexRateLimitSnapshot(
             limitID: "codex",

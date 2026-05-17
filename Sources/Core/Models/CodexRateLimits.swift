@@ -109,6 +109,7 @@ private func knownCodexPlanType(_ planType: String?) -> String? {
 
 struct CodexRateLimitWindow: Codable, Hashable {
     static let weeklyDurationMinutes = 10_080
+    static let weeklyDurationToleranceMinutes = 60
 
     var usedPercent: Int
     var resetsAt: Date?
@@ -121,11 +122,11 @@ struct CodexRateLimitWindow: Codable, Hashable {
 
     fileprivate var isSessionDuration: Bool {
         guard let windowDurationMinutes else { return false }
-        return windowDurationMinutes < Self.weeklyDurationMinutes
+        return windowDurationMinutes < Self.weeklyDurationMinutes - Self.weeklyDurationToleranceMinutes
     }
 
     fileprivate var isWeeklyDuration: Bool {
         guard let windowDurationMinutes else { return false }
-        return windowDurationMinutes >= Self.weeklyDurationMinutes
+        return windowDurationMinutes >= Self.weeklyDurationMinutes - Self.weeklyDurationToleranceMinutes
     }
 }
