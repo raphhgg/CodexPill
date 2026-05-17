@@ -124,9 +124,10 @@ struct StatusBarIconRenderer {
         trackColor.setFill()
         track.fill()
 
-        let fillHeight = max(rect.width, rect.height * progress)
+        let fillHeight = progress > 0 ? rect.height * (0.12 + 0.88 * progress) : 0
         let fillRect = NSRect(x: rect.minX, y: rect.minY, width: rect.width, height: min(rect.height, fillHeight))
-        let fill = NSBezierPath(roundedRect: fillRect, xRadius: rect.width / 2, yRadius: rect.width / 2)
+        let fillRadius = min(fillRect.width, fillRect.height) / 2
+        let fill = NSBezierPath(roundedRect: fillRect, xRadius: fillRadius, yRadius: fillRadius)
         fillColor.setFill()
         fill.fill()
     }
