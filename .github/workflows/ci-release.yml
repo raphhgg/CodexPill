@@ -1,0 +1,37 @@
+name: CI Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  package:
+    name: Package Validation
+    runs-on: macos-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Tuist
+        run: |
+          curl -Ls https://install.tuist.io | bash
+          echo "$HOME/.tuist/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.tuist/bin:$HOME/.local/bin:$PATH"
+          tuist version
+
+      - name: Check whitespace
+        run: git diff --check
+
+      - name: Test
+        run: make test
+
+      - name: Validate unsigned package
+        env:
+          PACKAGE_RELEASE_ALLOW_UNSIGNED: "1"
+          RELEASE_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || format('ci-{0}', github.sha) }}
+        run: make package-release
