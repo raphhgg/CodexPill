@@ -91,6 +91,7 @@ struct MenuBarMenuBuilder {
         menu.addItem(.separator())
 
         let quit = NSMenuItem(title: "Quit", action: #selector(MenuBarCoordinator.quitApp), keyEquivalent: "q")
+        quit.image = menuIconSpacerImage()
         quit.target = target
         menu.addItem(quit)
     }
@@ -276,6 +277,13 @@ struct MenuBarMenuBuilder {
         item.image = NSImage(systemSymbolName: systemImage, accessibilityDescription: title)
         item.isEnabled = !state.isBusy
         return item
+    }
+
+    private func menuIconSpacerImage() -> NSImage {
+        // Keep text-only rows aligned with icon-bearing native menu items.
+        let image = NSImage(size: NSSize(width: 16, height: 16))
+        image.isTemplate = true
+        return image
     }
 
     private func addAccountMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {

@@ -547,8 +547,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
+        // AppKit may call this while opening/tracking the menu. Rebuilding here
+        // causes native item layout to settle after the first paint.
         store.refreshActiveAccount()
-        rebuildMenu()
     }
 
     func menuDidClose(_ menu: NSMenu) {

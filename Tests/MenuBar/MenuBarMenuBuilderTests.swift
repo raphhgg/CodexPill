@@ -260,6 +260,22 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
+    func quitItemReservesIconColumnForStableTextAlignment() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let menu = builder.makeMenu(
+            state: makeState(activeAccount: makeAccount(name: "Active", withRateLimits: true)),
+            target: coordinator
+        )
+
+        let quit = try #require(menu.items.first(where: { $0.title == "Quit" }))
+
+        #expect(quit.action == #selector(MenuBarCoordinator.quitApp))
+        #expect(quit.keyEquivalent == "q")
+        #expect(quit.image?.size == NSSize(width: 16, height: 16))
+    }
+
+    @Test
     func exportDiagnosticReportActionShowsDisclosureBeforePresentingRedactedReport() throws {
         let alertPresenter = AlertPresenterProbe()
         alertPresenter.confirmationResponse = true
@@ -1790,7 +1806,7 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func menuNeedsUpdateRepopulatesExistingMenuInstance() throws {
+    func menuNeedsUpdateDoesNotRepopulateMenuItemsDuringOpen() throws {
         let builder = MenuBarMenuBuilder()
         let (coordinator, statusItem) = try makeCoordinatorWithStatusItem()
         let menu = builder.makeMenu(
@@ -1802,13 +1818,16 @@ struct MenuBarMenuBuilderTests {
         )
 
         statusItem.menu = menu
+        let itemsBeforeUpdate = menu.items
 
         coordinator.menuNeedsUpdate(menu)
 
         #expect(statusItem.menu === menu)
         #expect(menu.delegate === coordinator)
-        #expect(!menu.items.isEmpty)
-        #expect(menu.items.contains(where: { $0.title == "Add Account…" }))
+        #expect(menu.items.count == itemsBeforeUpdate.count)
+        for (itemAfterUpdate, itemBeforeUpdate) in zip(menu.items, itemsBeforeUpdate) {
+            #expect(itemAfterUpdate === itemBeforeUpdate)
+        }
     }
 
     private func statusItemContentMenu(in menu: NSMenu) -> NSMenu? {
