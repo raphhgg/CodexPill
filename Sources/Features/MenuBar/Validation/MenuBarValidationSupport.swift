@@ -109,15 +109,6 @@ enum MenuBarValidationSupport {
             ]
         ))
 
-        if state.showsPacingPrototypeMenu {
-            sections.append(.init(
-                title: "Pacing Prototypes",
-                items: PacingPrototypeVariant.allCases.map { variant in
-                    pacingPrototypeSummary(for: variant)
-                }
-            ))
-        }
-
         return MenuBarValidationSnapshot(
             sections: sections,
             statusMessage: state.shouldShowStatusMessage ? state.statusMessage : nil,
@@ -169,48 +160,33 @@ enum MenuBarValidationSupport {
     static func makeHostedValidationView(state: MenuBarMenuState, now: Date = .now) -> some View {
         let snapshot = makeSnapshot(state: state, now: now)
 
-        return Group {
-            if state.showsPacingPrototypeMenu {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Pacing Active Account Card Prototypes")
-                        .font(.system(size: 16, weight: .semibold))
-                    ForEach(PacingPrototypeVariant.allCases) { variant in
-                        PacingPrototypeMenuContent(
-                            variant: variant,
-                            accentColor: Color(nsColor: state.progressAccentColor)
-                        )
+        return VStack(alignment: .leading, spacing: 16) {
+            ForEach(snapshot.sections, id: \.title) { section in
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(section.title)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.secondary)
+
+                    ForEach(Array(section.items.enumerated()), id: \.offset) { _, item in
+                        Text(item)
+                            .font(.system(size: 13))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 3)
                     }
                 }
-            } else {
-                VStack(alignment: .leading, spacing: 16) {
-                    ForEach(snapshot.sections, id: \.title) { section in
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(section.title)
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(.secondary)
+            }
 
-                            ForEach(Array(section.items.enumerated()), id: \.offset) { _, item in
-                                Text(item)
-                                    .font(.system(size: 13))
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.vertical, 3)
-                            }
-                        }
-                    }
-
-                    if let statusMessage = snapshot.statusMessage {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Divider()
-                            Text(statusMessage)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+            if let statusMessage = snapshot.statusMessage {
+                VStack(alignment: .leading, spacing: 6) {
+                    Divider()
+                    Text(statusMessage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
         }
         .padding(18)
-        .frame(width: state.showsPacingPrototypeMenu ? 720 : 360, alignment: .leading)
+        .frame(width: 360, alignment: .leading)
         .background(Color(nsColor: .windowBackgroundColor))
     }
 
@@ -249,10 +225,6 @@ enum MenuBarValidationSupport {
             return "\(title): \(percentText)"
         }
         return "\(title): \(percentText), \(resetStatus)"
-    }
-
-    private static func pacingPrototypeSummary(for variant: PacingPrototypeVariant) -> String {
-        "\(variant.title): Session and Weekly current-card prototype"
     }
 
     private static func managementSectionItems(for state: MenuBarMenuState) -> [String] {

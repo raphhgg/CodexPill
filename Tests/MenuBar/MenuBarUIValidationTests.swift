@@ -517,19 +517,6 @@ struct MenuBarUIValidationTests {
             #expect(snapshot.sections.contains(where: { $0.title == "Remote Accounts" }) == false)
             #expect(snapshot.remoteHosts.isEmpty)
 
-        case "hosted-pacing-prototypes":
-            #expect(snapshot.sections.map(\.title) == [
-                "Active Account",
-                "Accounts",
-                "More Accounts…",
-                "Manage Accounts",
-                "Preferences",
-                "Pacing Prototypes"
-            ])
-            let section = try #require(snapshot.sections.last)
-            #expect(section.items.count == 6)
-            #expect(section.items.allSatisfy { $0.contains("Session") && $0.contains("Weekly") })
-
         case "hosted-menu-busy":
             #expect(snapshot.sections.map(\.title) == [
                 "Active Account",
@@ -598,12 +585,6 @@ struct MenuBarUIValidationTests {
             return [
                 "Disconnected hosts stay out of the primary Active Account section",
                 "Configured hosts remain available under Hosts and per-account switch targets"
-            ]
-        case "hosted-pacing-prototypes":
-            return [
-                "Debug pacing prototype menu is visible only in the prototype scenario",
-                "Baseline plus five materially different variants render with the current account card layout",
-                "Prototype variants compare text placement and progress bar treatments without changing production cards"
             ]
         case "hosted-menu-busy":
             return [
@@ -892,30 +873,6 @@ struct MenuBarUIValidationTests {
                 isBusy: false,
                 statusMessage: "Ready"
             )
-
-        case "hosted-pacing-prototypes":
-            var state = makeHostedValidationState(for: "hosted-menu-default", now: now)
-            state = MenuBarMenuState(
-                activeAccount: state.activeAccount,
-                inactiveAccounts: state.inactiveAccounts,
-                remoteHosts: state.remoteHosts,
-                visibleInactiveAccountCount: state.visibleInactiveAccountCount,
-                visibleInactiveAccountCountOptions: state.visibleInactiveAccountCountOptions,
-                refreshIntervalMinutes: state.refreshIntervalMinutes,
-                refreshIntervalOptions: state.refreshIntervalOptions,
-                statusBarMonochrome: state.statusBarMonochrome,
-                statusBarIndicatorStyle: state.statusBarIndicatorStyle,
-                statusBarDisplayMode: state.statusBarDisplayMode,
-                progressAccentColor: state.progressAccentColor,
-                hasCustomProgressAccentColor: state.hasCustomProgressAccentColor,
-                isBusy: state.isBusy,
-                statusMessage: state.statusMessage,
-                notificationsWhenBlockedEnabled: state.notificationsWhenBlockedEnabled,
-                notificationsWhenOutEnabled: state.notificationsWhenOutEnabled,
-                notificationAuthorizationState: state.notificationAuthorizationState,
-                showsPacingPrototypeMenu: true
-            )
-            return state
 
         case "hosted-menu-busy":
             let active = makeAccount(

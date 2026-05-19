@@ -32,10 +32,6 @@ final class MenuBarValidationObserver {
     private var pendingSwitchTargetID: UUID?
     private var pendingSwitchTargetName: String?
 
-    var showsPacingPrototypeMenu: Bool {
-        scenario == "live-pacing-prototypes"
-    }
-
     init(
         sink: MenuBarValidationSink? = nil,
         scenario: String? = MenuBarValidationConfiguration.scenario()

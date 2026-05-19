@@ -606,8 +606,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             notificationsWhenBlockedEnabled: notificationWorkflow.whenBlockedEnabled,
             notificationsWhenOutEnabled: notificationWorkflow.whenOutEnabled,
             notificationAuthorizationState: notificationWorkflow.authorizationState,
-            loginItemState: loginItemController.state(),
-            showsPacingPrototypeMenu: validationObserver.showsPacingPrototypeMenu
+            loginItemState: loginItemController.state()
         )
     }
 

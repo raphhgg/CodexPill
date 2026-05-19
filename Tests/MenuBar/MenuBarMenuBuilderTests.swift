@@ -1112,37 +1112,6 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func pacingPrototypeMenuIsHiddenByDefault() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", withRateLimits: true)),
-            target: coordinator
-        )
-
-        #expect(menu.items.contains(where: { $0.title == "Pacing Prototypes" }) == false)
-    }
-
-    @Test
-    func pacingPrototypeMenuShowsAllDebugVariantsWhenEnabled() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                showsPacingPrototypeMenu: true
-            ),
-            target: coordinator
-        )
-
-        let prototypes = try #require(menu.items.first(where: { $0.title == "Pacing Prototypes" }))
-        let submenu = try #require(prototypes.submenu)
-
-        #expect(submenu.items.map(\.title) == PacingPrototypeVariant.allCases.map(\.title))
-        #expect(submenu.items.allSatisfy { $0.view != nil })
-    }
-
-    @Test
     func activeAccountHostedViewFitsWithinConfiguredMenuWidth() {
         let view = NSHostingView(
             rootView: ActiveAccountMenuContent(
@@ -1903,7 +1872,6 @@ struct MenuBarMenuBuilderTests {
         notificationsWhenOutEnabled: Bool = false,
         notificationAuthorizationState: NotificationAuthorizationState = .unknown,
         loginItemState: LoginItemState = .disabled,
-        showsPacingPrototypeMenu: Bool = false,
         revealStatusItemTitleShortcut: CodexPill.KeyboardShortcut? = .defaultRevealStatusItemTitle
     ) -> MenuBarMenuState {
         MenuBarMenuState(
@@ -1925,8 +1893,7 @@ struct MenuBarMenuBuilderTests {
             notificationsWhenBlockedEnabled: notificationsWhenBlockedEnabled,
             notificationsWhenOutEnabled: notificationsWhenOutEnabled,
             notificationAuthorizationState: notificationAuthorizationState,
-            loginItemState: loginItemState,
-            showsPacingPrototypeMenu: showsPacingPrototypeMenu
+            loginItemState: loginItemState
         )
     }
 

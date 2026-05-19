@@ -22,7 +22,6 @@ final class HostAccountMenuItemPayload: NSObject {
 @MainActor
 struct MenuBarMenuBuilder {
     private let minimumMenuContentWidth: CGFloat = 372
-    private let pacingPrototypeMenuContentWidth: CGFloat = 690
     private let nativeMenuItemPaddingAllowance: CGFloat = 52
 
     func makeMenu(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenu {
@@ -77,9 +76,6 @@ struct MenuBarMenuBuilder {
         menu.addItem(notificationsMenuItem(state: state, target: target))
         menu.addItem(refreshIntervalMenuItem(state: state, target: target))
         menu.addItem(statusBarMenuItem(state: state, target: target))
-        if state.showsPacingPrototypeMenu {
-            menu.addItem(pacingPrototypeMenuItem(state: state))
-        }
         menu.addItem(actionItem(title: "Diagnostics…", systemImage: "doc.badge.gearshape", action: #selector(MenuBarCoordinator.exportDiagnosticReport), state: state, target: target))
         menu.addItem(actionItem(title: "About", systemImage: "info.circle", action: #selector(MenuBarCoordinator.showAbout), state: state, target: target))
 
@@ -552,27 +548,6 @@ struct MenuBarMenuBuilder {
         submenu.addItem(pacingMarkersMenuItem(state: state, target: target))
         submenu.addItem(progressAccentColorItem(state: state, target: target))
         submenu.addItem(resetProgressAccentColorItem(state: state, target: target))
-        item.submenu = submenu
-        return item
-    }
-
-    private func pacingPrototypeMenuItem(state: MenuBarMenuState) -> NSMenuItem {
-        let item = NSMenuItem(title: "Pacing Prototypes", action: nil, keyEquivalent: "")
-        item.image = NSImage(systemSymbolName: "gauge.with.dots.needle.33percent", accessibilityDescription: "Pacing Prototypes")
-
-        let submenu = configuredMenu(title: "Pacing Prototypes")
-        for variant in PacingPrototypeVariant.allCases {
-            let variantItem = NSMenuItem(title: variant.title, action: nil, keyEquivalent: "")
-            let view = NSHostingView(
-                rootView: PacingPrototypeMenuContent(
-                    variant: variant,
-                    accentColor: Color(nsColor: state.progressAccentColor)
-                )
-            )
-            variantItem.view = configuredHostedMenuView(view, width: pacingPrototypeMenuContentWidth)
-            submenu.addItem(variantItem)
-        }
-
         item.submenu = submenu
         return item
     }
