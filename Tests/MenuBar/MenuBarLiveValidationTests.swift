@@ -322,7 +322,9 @@ struct MenuBarLiveValidationTests {
                 "remoteHostDestination": "user@debian-vm"
             ]
         )
-        try await Task.sleep(for: .milliseconds(120))
+        try await waitUntil {
+            foregrounder.activateCallCount == 1 && !alertPresenter.infoRequests.isEmpty
+        }
 
         #expect(foregrounder.activateCallCount == 1)
         let infoRequest = try #require(alertPresenter.infoRequests.last)
@@ -1838,7 +1840,9 @@ struct MenuBarLiveValidationTests {
             hostDestination: "user@buildbox"
         )
         coordinator.switchAccountOnHost(item)
-        try? await Task.sleep(for: .milliseconds(50))
+        try await waitUntil {
+            settings.remoteHostState(for: "user@buildbox")?.verifiedAccount?.id == nextAccount.id
+        }
 
         let persistedAccounts = try repository.loadAccounts()
         let persistedPrevious = try #require(persistedAccounts.first(where: { $0.id == previousSaved.id }))
@@ -2460,6 +2464,19 @@ struct MenuBarLiveValidationTests {
         return try AccountRepository(
             environment: [AppRuntimeEnvironment.validationAppSupportDirectoryEnvironmentKey: appSupportDirectory.path]
         )
+    }
+
+    private func waitUntil(
+        timeoutMilliseconds: Int = 1_000,
+        condition: () throws -> Bool
+    ) async throws {
+        let attempts = max(timeoutMilliseconds / 20, 1)
+        for _ in 0..<attempts {
+            if try condition() {
+                return
+            }
+            try await Task.sleep(for: .milliseconds(20))
+        }
     }
 
     private func makeActiveAccount(
