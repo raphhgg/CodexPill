@@ -6,154 +6,143 @@ Date: 2026-05-19
 
 ## Question
 
-Can CodexPill safely fetch recent historical token usage for the currently
-active Codex account, bucketed by day, using existing Codex auth?
+Can CodexPill fetch recent historical token usage for the active account,
+bucketed by day, safely enough to support a future opt-in Usage History feature?
 
 ## Recommendation
 
-Defer the Usage History feature until Codex exposes an official/local history
-surface or a documented backend contract. Do not build production Usage History
-on the currently visible backend endpoints.
+Use a local-session-history prototype path and defer any production Usage
+History UI until account scoping and privacy policy are refined.
 
-The local Codex app-server is the right integration boundary for CodexPill, but
-the installed app-server surface does not expose account-level historical token
-usage. The only backend usage endpoint found that answers with current active
-auth returns current quota/rate-limit state, not daily token totals. A second
-backend usage path is present in the installed Codex binary but did not accept
-the active ChatGPT bearer auth in this probe.
+The useful source found for daily token totals is local Codex session JSONL, not
+private backend usage endpoints. Codex session files include token-count event
+rows that can be aggregated into local daily buckets without reading auth
+payloads or calling backend APIs. This is enough to support a future local-only,
+opt-in token history experiment, but it does not yet prove active-account or
+saved-account separation.
 
-## Probe Scope
+Do not build production menu UI, persistence, or graphs from this issue. Do not
+use backend `/usage` endpoints for this feature.
 
-The probe intentionally stayed inside Platform/Codex integration assumptions:
+## Prototype Artifact
 
-- inspected the existing Codex app-server JSON-RPC surface already used by
-  CodexPill;
-- inspected the installed Codex CLI binary for candidate usage endpoint names;
-- made a redacted live probe against candidate backend paths using active Codex
-  auth;
-- summarized only HTTP status, JSON key names, method names, and field classes.
+The prototype adds an isolated Platform/Codex scanner:
 
-No raw auth payloads, tokens, cookies, emails, account IDs, hostnames, local
-paths, or response samples were recorded in this document.
+- `Sources/Platform/Codex/CodexSessionTokenUsageScanner.swift`
+- `Tests/Platform/Codex/CodexSessionTokenUsageScannerTests.swift`
+- `docs/features/token-usage.md`
 
-## Candidate Sources
+The scanner reads only local session JSONL files passed to it by caller-owned
+configuration. It does not know Codex auth files, saved snapshots, account
+catalogs, SwiftUI, menus, backend APIs, or persistence policy.
 
-### Local Codex app-server
+## Candidate Source
 
-Status: not sufficient for account-level historical token usage.
+### Local Codex session JSONL
 
-The local app-server advertised account and current rate-limit reads, including
-the existing `account/read` and `account/rateLimits/read` methods CodexPill
-already consumes. Candidate history method probes such as account usage and
-token-usage reads returned JSON-RPC "unknown variant" errors. The advertised
-method set included thread/session methods, but no account-level daily usage
-history method.
+Status: viable prototype source for local daily token buckets.
 
-Useful fields available through the existing app-server rate-limit path:
+Codex session files are organized by date and contain JSONL event rows. Rows
+with `payload.type == "token_count"` can include:
 
-- active account metadata field classes;
-- current rate-limit snapshots;
-- named limit buckets, including a Codex-specific limit bucket when present;
-- primary and secondary rate-limit windows;
-- reset timing and window duration fields;
-- credit/quota-like current-state fields through the backend payload that the
-  app-server maps from.
+- `payload.info.last_token_usage`;
+- `payload.info.total_token_usage`.
 
-Fields not available:
+The prototype prefers `last_token_usage` because it is already a per-turn delta.
+When only cumulative `total_token_usage` exists, it derives positive deltas
+inside one session file and ignores non-positive cumulative movement.
 
-- daily token totals;
-- historical buckets for roughly the last 30 days;
-- per-day model split;
-- per-day cost-like values;
-- workspace/org-scoped historical totals.
+Useful field classes available from token-count rows:
 
-The app-server does emit or reference thread token usage notifications for live
-threads, but that is not the same as account-level history. It would at best
-support local session/thread aggregation, which is incomplete, local-machine
-scoped, vulnerable to missing history, and ambiguous across account switches.
+- total tokens;
+- input tokens;
+- cached input tokens;
+- output tokens;
+- reasoning output tokens;
+- day bucket from session file date;
+- model context when nearby session metadata includes a model value.
 
-### Backend `/wham/usage`
+Fields not proven:
 
-Status: reachable but not sufficient for historical token usage.
+- stable active-account identifier;
+- saved-account identifier;
+- workspace/org identifier;
+- remote-host attribution;
+- cost-like values;
+- complete model split for every token-count row.
 
-With active Codex auth, this endpoint returned current usage and quota shape.
-Adding date or bucket query parameters did not change the response shape in this
-probe.
+Scope appears local Codex session specific. It is not proven to be active-account
+specific, ChatGPT/account-wide, workspace/org-scoped, or remote-inclusive.
 
-Useful field classes observed:
+### Backend usage endpoints
 
-- user/account metadata classes;
-- plan class;
-- current rate-limit fields;
-- additional named rate-limit fields;
-- credit/balance-like fields;
-- spend-control fields;
-- reset-credit availability fields.
+Status: out of scope for this feature direction.
 
-Fields not observed:
+The earlier backend probe showed accessible backend usage surfaces either map to
+current quota/rate-limit state or reject active bearer auth. A follow-up product
+review clarified that those endpoints should not drive this spike. Public Codex
+source indicates the relevant `/usage` surface backs rate-limit status rather
+than historical daily token usage.
 
-- daily buckets;
-- token totals;
-- model split;
-- timestamped usage rows;
-- cost-like historical rows.
-
-Scope appears Codex-specific for current limits because the payload includes
-Codex limit buckets, but it is not a historical token source. Account/workspace
-scope remains ambiguous without documented semantics.
-
-### Backend `/api/codex/usage`
-
-Status: candidate but not usable from CodexPill today.
-
-The path is present in the installed Codex binary near backend-client usage
-strings, making it the most plausible historical-usage candidate. In the live
-probe, it returned HTTP 403 with active ChatGPT bearer auth across default,
-day-count, date-range, and bucket query shapes.
-
-Because the endpoint was not accessible, the probe could not prove:
-
-- whether daily token totals are available;
-- whether buckets cover roughly the last 30 days;
-- whether rows are Codex-specific, ChatGPT/account-wide, workspace/org-scoped,
-  or something else;
-- whether model split, timestamps, token classes, or cost-like values exist.
-
-Using this path would require a human product/security checkpoint. It is an
-undocumented private backend assumption, may require additional Codex agent
-identity auth instead of the normal ChatGPT bearer token, and may change without
-notice.
+Backend usage endpoints should stay out of scope unless a future explicit-risk
+issue asks for a documented API or a human-approved private API investigation.
 
 ## Active Account And Saved Accounts
 
-The probe only checked the active account. Querying non-active saved accounts is
-not supported by the current app-server history surface because no such surface
-exists.
+This prototype cannot safely answer per-account history yet. Local session
+history proves local daily token buckets, not account ownership. If the user
+switches accounts during the date range, local session rows may include usage
+from multiple accounts unless Codex exposes a reliable account marker in session
+metadata or a local app-server method supplies account-scoped history.
 
-If a future official/local usage-history read appears, non-active saved-account
-queries should not directly expose snapshot mechanics to features. The likely
-options are:
+Querying non-active saved accounts is not supported by this prototype. Future
+options would require a separate human-reviewed design:
 
-- isolated auth, mirroring the existing saved-account status read pattern;
-- temporarily switching auth snapshots only with explicit user intent and strong
-  lifecycle control;
-- not supporting non-active history if the upstream surface is active-account
-  only.
+- isolated auth with an official local history API;
+- explicit user-approved temporary switching;
+- no saved-account history when the source is local-session scoped only.
 
-Until an official surface exists, multi-account history import should remain out
-of scope.
+Until account scoping is proven, the product should label any follow-up as local
+Codex usage history, not active-account history.
+
+## Privacy Notes
+
+Session JSONL rows can contain prompts, responses, file paths, command text, and
+other private content. The prototype parser reads only event type, token-count
+objects, session date, and model context. It ignores message/content rows and
+does not emit raw session rows.
+
+No raw auth data, tokens, cookies, emails, stable account IDs, backend account
+IDs, local paths, hostnames, prompts, responses, command text, or private
+session samples are included in this document or tests. Tests use synthetic
+JSONL fixtures only.
+
+## Verification
+
+The synthetic parser coverage proves:
+
+- `last_token_usage` rows aggregate into day buckets;
+- cumulative `total_token_usage` rows produce positive deltas;
+- malformed rows are ignored;
+- non-usage rows, including private message content, are ignored;
+- model context is captured only as an optional model value;
+- date filtering keeps the requested range.
+
+Redacted local validation on this development machine found recent session files
+with token-count rows over 31 day buckets. The rows exposed both
+`last_token_usage` and `total_token_usage`, and the numeric field names included
+`input_tokens`, `cached_input_tokens`, `output_tokens`,
+`reasoning_output_tokens`, and `total_tokens`. The validation reported only
+aggregate counts and field names, with no raw rows, file paths, prompts, account
+identifiers, or session samples printed.
 
 ## Product Implication
 
-No production menu UI, settings UI, graph, persistence, or background collector
-should be added from this spike. The honest product answer is:
+Refine Usage History around an opt-in local-session scanner only after deciding
+how to describe its scope honestly. The likely recommendation is:
 
-- use app-server only for current account and rate-limit visibility;
-- stop/defer daily token Usage History for now;
-- revisit when Codex exposes documented app-server or backend support for
-  historical token buckets.
-
-If the team chooses to pursue the private backend candidate anyway, do that as a
-separate explicit-risk issue after human review. That follow-up should define
-auth requirements, privacy handling, account/workspace scope, stability risk,
-and an opt-in storage policy before any user-facing UI work begins.
+- use local session JSONL behind Platform/Codex for local daily token buckets;
+- do not claim active-account accuracy yet;
+- defer saved-account split and account/workspace attribution;
+- keep backend usage endpoints out of scope;
+- require human review before adding UI, storage, or account-scoped claims.
