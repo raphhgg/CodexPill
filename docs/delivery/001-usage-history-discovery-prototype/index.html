@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Usage History discovery/prototype Closeout</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #111216;
+      --panel: #181b22;
+      --ink: #f4f5f8;
+      --muted: #a9b0bf;
+      --quiet: #7f8796;
+      --line: #353b48;
+      --blue: #63a6ff;
+      --green: #6ee7a8;
+      --amber: #f2c86b;
+      --red: #ff817d;
+      --violet: #b9a2ff;
+      --cyan: #65d9e8;
+    }
+    [data-theme="light"] {
+      color-scheme: light;
+      --bg: #f5f6f8;
+      --panel: #ffffff;
+      --ink: #171a21;
+      --muted: #596273;
+      --quiet: #778092;
+      --line: #d8dde7;
+      --blue: #1f6feb;
+      --green: #147d4f;
+      --amber: #9a6700;
+      --red: #cf222e;
+      --violet: #6f42c1;
+      --cyan: #0969da;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 15px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+    a { color: var(--blue); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+    .page { max-width: 1480px; margin: 0 auto; padding: 22px 22px 58px; }
+    .layout { display: grid; grid-template-columns: 218px minmax(0, 1190px); gap: 28px; align-items: start; transition: grid-template-columns .18s ease; }
+    .sidebar { position: sticky; top: 22px; min-height: calc(100vh - 44px); border-right: 1px solid var(--line); padding: 4px 14px 0 0; }
+    .sidebar-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .side-kicker { color: var(--quiet); font-size: 12px; font-weight: 760; text-transform: uppercase; letter-spacing: .08em; }
+    .side-title { color: var(--ink); font-weight: 780; font-size: 17px; text-decoration: none; }
+    .side-title:hover { color: var(--blue); }
+    .icon-button, .theme-toggle { border: 1px solid var(--line); background: rgba(255,255,255,.025); color: var(--muted); border-radius: 999px; cursor: pointer; }
+    .icon-button { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; font-size: 15px; }
+    .icon-button:hover, .theme-toggle:hover { color: var(--ink); border-color: var(--blue); }
+    .side-list { display: grid; gap: 7px; margin-top: 18px; }
+    .side-item { display: grid; gap: 2px; padding: 10px 11px; border-radius: 8px; color: var(--muted); text-decoration: none; border: 1px solid transparent; }
+    .side-item:hover { color: var(--ink); background: rgba(255,255,255,.035); }
+    .side-item.active { color: var(--ink); border-color: var(--line); background: rgba(99,166,255,.08); }
+    .side-code { color: var(--blue); font-size: 12px; font-weight: 780; }
+    .side-label { font-size: 13px; line-height: 1.35; }
+    .side-sections { display: grid; gap: 5px; margin: 4px 0 8px 16px; padding-left: 12px; border-left: 1px solid var(--line); }
+    .side-section { color: var(--quiet); font-size: 12px; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .side-section:hover { color: var(--blue); }
+    .sidebar-collapsed .layout { grid-template-columns: 58px minmax(0, 1190px); gap: 22px; }
+    .sidebar-collapsed .sidebar { padding-right: 10px; }
+    .sidebar-collapsed .side-kicker, .sidebar-collapsed .side-title, .sidebar-collapsed .side-label, .sidebar-collapsed .side-sections { display: none; }
+    .sidebar-collapsed .sidebar-head { justify-content: center; }
+    .sidebar-collapsed .side-item { justify-items: center; padding: 10px 4px; }
+    .content { min-width: 0; width: 100%; max-width: 1190px; }
+    .theme-toggle { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; font: inherit; font-size: 14px; }
+    .theme-toggle .moon { display: none; }
+    [data-theme="light"] .theme-toggle .sun { display: none; }
+    [data-theme="light"] .theme-toggle .moon { display: inline; }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--line);
+    }
+    .brand-block { display: grid; gap: 5px; min-width: 0; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+    .phase-about { color: var(--muted); font-size: 13px; padding-left: 22px; }
+    .mark { width: 12px; height: 12px; border-radius: 3px; background: var(--blue); box-shadow: 0 0 0 4px rgba(99,166,255,.13); }
+    .meta { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    .pill { border: 1px solid var(--line); border-radius: 999px; padding: 5px 10px; color: var(--muted); background: rgba(255,255,255,.025); white-space: nowrap; font-size: 13px; }
+    .pill.good { color: var(--green); border-color: rgba(110,231,168,.35); background: rgba(110,231,168,.08); }
+    .pill.warn { color: var(--amber); border-color: rgba(242,200,107,.38); background: rgba(242,200,107,.08); }
+    .plus { color: var(--green); font-weight: 720; }
+    .minus { color: var(--red); font-weight: 720; }
+    .metric { color: var(--muted); }
+    .metric .plus { color: var(--green); }
+    .metric .minus { color: var(--red); }
+
+    .hero { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 32px; padding: 34px 0 30px; border-bottom: 1px solid var(--line); align-items: end; }
+    .eyebrow { color: var(--cyan); font-size: 12px; font-weight: 760; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 12px; }
+    h1 { margin: 0; font-size: clamp(30px, 4.2vw, 52px); line-height: 1.02; letter-spacing: 0; max-width: 790px; }
+    .lede { max-width: 760px; margin: 18px 0 0; color: var(--muted); font-size: 17px; }
+    .verdict { border-left: 3px solid var(--green); padding-left: 18px; color: var(--muted); }
+    .verdict b { color: var(--ink); display: block; margin-bottom: 6px; font-size: 16px; }
+
+    section { margin-top: 44px; }
+    details { border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.018); overflow: hidden; }
+    summary { cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 15px 18px; border-bottom: 1px solid var(--line); }
+    summary::-webkit-details-marker { display: none; }
+    summary span { color: var(--ink); font-weight: 760; font-size: 18px; }
+    summary small { color: var(--quiet); font-size: 13px; }
+    details > .main-change, details > .diagram-shell, details > .embedded-map, details > table, details > .trust, details > .exhibit, details > .follow-up, details > .file-tree { margin: 18px; width: calc(100% - 36px); }
+
+    .diagram-shell { border: 0; border-radius: 0; background: transparent; overflow: visible; }
+    .product-path-diagram { border: 0; border-radius: 0; background: transparent; }
+    .diagram-title { display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+    .diagram-title b { color: var(--ink); font-size: 14px; }
+    svg { display: block; width: 100%; height: auto; }
+    .diagram-image { display: block; width: 100%; height: auto; }
+    .diagram-frame { display: block; padding: 0; background: transparent; }
+    .diagram-frame img { display: block; width: 100%; height: auto; border-radius: 0; border: 0; background: transparent; box-shadow: none; }
+    .box { fill: #202530; stroke: #485164; stroke-width: 1.2; rx: 8; }
+    .box.blue { stroke: #63a6ff; fill: rgba(99,166,255,.09); }
+    .box.green { stroke: #6ee7a8; fill: rgba(110,231,168,.08); }
+    .box.violet { stroke: #b9a2ff; fill: rgba(185,162,255,.08); }
+    .box.amber { stroke: #f2c86b; fill: rgba(242,200,107,.08); }
+    .label { fill: #f4f5f8; font: 700 13px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .sub { fill: #a9b0bf; font: 12px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .tiny { fill: #7f8796; font: 11px -apple-system, BlinkMacSystemFont, sans-serif; }
+    .arrow { stroke: #7f8796; stroke-width: 1.6; fill: none; marker-end: url(#arrow); }
+
+    .main-change { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 28px; align-items: start; }
+    .summary-rail { position: sticky; top: 18px; border-top: 3px solid var(--blue); padding-top: 14px; color: var(--muted); }
+    .summary-rail strong { color: var(--ink); }
+    .summary-rail .small { display: block; margin-top: 14px; color: var(--quiet); font-size: 13px; }
+    .changes { display: grid; gap: 14px; }
+    .change-item { display: grid; grid-template-columns: 170px minmax(0, 1fr) 150px; gap: 18px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+    .change-item:first-child { border-top: 1px solid var(--line); }
+    .change-item .area { color: var(--cyan); font-weight: 730; }
+    .change-item .body { color: var(--muted); }
+    .change-item .body b { color: var(--ink); }
+    .change-item .proof { color: var(--quiet); font-size: 13px; }
+    .change-item .proof a { font-weight: 720; }
+    .refs { display: block; margin-top: 8px; font-size: 13px; }
+    .refs a + a { margin-left: 8px; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 13px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { color: var(--quiet); text-transform: uppercase; letter-spacing: .08em; font-size: 12px; }
+    td.muted { color: var(--muted); }
+    .grade { font-weight: 780; white-space: nowrap; }
+    .grade.good { color: var(--green); }
+    .grade.warn { color: var(--amber); }
+    .grade.bad { color: var(--red); }
+
+    .file-tree { font-size: 13.5px; font-variant-numeric: tabular-nums; }
+    .file-tree ul { margin: 0; padding: 0; list-style: none; }
+    .tree-root { display: grid; gap: 12px; }
+    .tree-node { position: relative; }
+    .tree-node ul { margin-left: 16px; padding-left: 18px; border-left: 1px solid var(--line); }
+    .tree-line { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: baseline; min-height: 26px; padding: 3px 0; }
+    .tree-node ul .tree-line::before { content: ""; position: absolute; left: -18px; top: 17px; width: 12px; border-top: 1px solid var(--line); }
+    .tree-label { min-width: 0; color: var(--muted); }
+    .file-tree details { border: 0; border-radius: 0; background: transparent; overflow: visible; }
+    .file-tree summary { display: block; padding: 0; border: 0; cursor: pointer; list-style: none; }
+    .file-tree summary::-webkit-details-marker { display: none; }
+    .file-tree summary span { font-size: inherit; }
+    .tree-folder > details > summary .tree-label { color: var(--muted); font-weight: 520; letter-spacing: 0; }
+    .tree-root > .tree-folder > details > summary .tree-label { color: var(--ink); font-weight: 560; }
+    .tree-folder > details > summary .tree-label::before { content: "▸ "; color: var(--quiet); font-weight: 500; }
+    .tree-folder > details[open] > summary .tree-label::before { content: "▾ "; }
+    .tree-file .tree-label::before { content: "• "; color: var(--quiet); }
+    .tree-label a { color: var(--ink); text-decoration: none; font-weight: 450; }
+    .tree-label a:hover { color: var(--blue); text-decoration: underline; }
+    .tree-diff { white-space: nowrap; color: var(--quiet); font-size: inherit; font-weight: 520; }
+    .tree-diff .plus, .tree-diff .minus { font-size: inherit; font-weight: 620; }
+
+    .exhibit { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; align-items: start; }
+    .screenshot { border: 1px solid var(--line); border-radius: 12px; background: #0b0c10; overflow: hidden; }
+    .screenshot img { display: block; width: 100%; }
+    .warning { border-top: 3px solid var(--amber); padding-top: 14px; color: var(--muted); }
+    .warning b { color: var(--amber); display: block; margin-bottom: 8px; }
+
+    .trust { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--panel); }
+    .trust-col { padding: 20px; }
+    .trust-col + .trust-col { border-left: 1px solid var(--line); background: rgba(255,255,255,.018); }
+    .trust h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; font-size: 16px; }
+    .dot { width: 9px; height: 9px; border-radius: 999px; background: var(--green); }
+    .dot.warn { background: var(--amber); }
+    .trust ul { margin: 0; padding: 0; list-style: none; }
+    .trust li { padding: 12px 0; border-top: 1px solid var(--line); color: var(--muted); }
+    .trust b { color: var(--ink); }
+    .follow-up { border: 1px solid rgba(242,200,107,.38); border-radius: 12px; background: rgba(242,200,107,.065); padding: 18px; color: var(--muted); }
+    .follow-up b { color: var(--amber); }
+    footer { margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--quiet); font-size: 13px; }
+
+    @media (max-width: 900px) {
+      .layout, .hero, .main-change, .exhibit, .trust { grid-template-columns: 1fr; }
+      .sidebar { position: static; min-height: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 0 0 18px; width: 100%; }
+      .side-list { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+      .side-sections { display: none; }
+      .sidebar-collapsed .layout { grid-template-columns: 1fr; }
+      .sidebar-collapsed .side-kicker, .sidebar-collapsed .side-title, .sidebar-collapsed .side-label { display: initial; }
+      .change-item { grid-template-columns: 1fr; gap: 6px; }
+      .summary-rail { position: static; }
+      .topbar { align-items: flex-start; flex-direction: column; }
+      .meta { justify-content: flex-start; }
+      .trust-col + .trust-col { border-left: 0; border-top: 1px solid var(--line); }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="layout">
+      <aside class="sidebar" aria-label="Delivery reports">
+        <div class="side-kicker">CodexPill</div>
+        <div class="sidebar-head">
+          <a class="side-title" href="../index.html">Delivery Reports</a>
+          <button class="icon-button" type="button" data-sidebar-toggle aria-label="Collapse sidebar" title="Collapse sidebar">‹</button>
+        </div>
+        <nav class="side-list">
+          <a class="side-item active" href="#">
+            <span class="side-code">001</span>
+            <span class="side-label">Usage History discovery/prototype</span>
+          </a>
+          <div class="side-sections"><a class="side-section" href="#product-data-path">Product Data Path</a>
+            <a class="side-section" href="#what-changed">What Changed</a>
+            <a class="side-section" href="#evidence">Evidence</a>
+            <a class="side-section" href="#trust-boundary">Trust Boundary</a>
+            <a class="side-section" href="#follow-up">Follow-Up</a>
+            <a class="side-section" href="#file-level-diff">File-Level Diff</a>
+            <a class="side-section" href="#appendix">Appendix</a></div>
+        </nav>
+      </aside>
+
+      <div class="content">
+    <header class="topbar">
+      <div class="brand-block">
+        <div class="brand"><span class="mark"></span>CodexPill · 001 Closeout</div>
+        <div class="phase-about">Prove the first safe data-source path for future opt-in token usage history.</div>
+      </div>
+      <div class="meta">
+        <span class="pill good">complete</span>
+        <span class="pill">1 PRs · 5 files · <span class="plus">+586</span> / <span class="minus">-0</span></span>
+        <!-- Optional warning pill, for example: <span class="pill warn">Visual proof follow-up</span> -->
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch theme" title="Switch theme"><span class="sun">☀</span><span class="moon">◐</span></button>
+      </div>
+    </header>
+
+    <section class="hero">
+      <div>
+        <div class="eyebrow">Usage History discovery/prototype</div>
+        <h1>CodexPill now has an evidence-backed prototype path for reading recent token usage buckets from local Codex session history.</h1>
+        <p class="lede">Proved local Codex session history as the safe prototype source for recent active-account daily token buckets, while deferring production UI, persistence, and account/workspace scoping claims.</p>
+      </div>
+      <aside class="verdict">
+        <b>Closeout decision</b>
+        Phase complete; refine the future opt-in Usage History feature before building UI.
+      </aside>
+    </section>
+
+    <section id="product-data-path">
+      <details open>
+        <summary><span>Product Data Path</span><small>high-level phase shape</small></summary>
+        <figure class="diagram-shell product-path-diagram">
+          <!-- Render a titleless report-local generated image created from the phase-closeout Product/Data Path prompt contract. Standard reports use <a class="diagram-frame"><img class="diagram-image" ...></a>. Inline SVG is exceptional and must be explicitly allowed in the payload. -->
+          <a class="diagram-frame" href="assets/product-data-path.png" aria-label="Open Product data path diagram">
+            <img class="diagram-image" src="assets/product-data-path.png" alt="Product data path diagram for the Usage History discovery prototype">
+          </a>
+        </figure>
+      </details>
+    </section>
+
+    <section id="what-changed">
+      <details open>
+        <summary><span>What Changed</span><small>capabilities and resulting code shape</small></summary>
+        <div class="main-change">
+          <aside class="summary-rail">
+            <p><strong>This is the core of the closeout:</strong> what capability now exists, where it lives, and what proof backs it.</p>
+            <span class="small">Each row includes owning files/classes, a PR link, and local diff weight.</span>
+          </aside>
+          <div class="changes">
+            <div class="change-item">
+              <div class="area">Data source</div>
+              <div class="body"><b>Local session history became the prototype source.</b> The spike redirected away from backend usage endpoints and proved local Codex session JSONL token_count rows as the useful historical token source for this phase. <span class="refs"><a href="https://github.com/raphhgg/CodexPill/blob/main/docs/usage-history-token-source-spike.md">Spike findings</a></span></div>
+              <div class="proof"><a href="https://github.com/raphhgg/CodexPill/pull/126">RGR-352 · PR #126</a><br/><span class="metric">2 docs · <span class="plus">+195</span></span><br/>Findings and feature contract document source choice, useful fields, limits, and non-goals.</div>
+            </div>
+<div class="change-item">
+              <div class="area">Platform/Codex</div>
+              <div class="body"><b>A scanner boundary keeps Codex session parsing out of features.</b> The prototype reader lives under Platform/Codex and converts session rows into day buckets without adding UI or persistent Usage History storage. <span class="refs"><a href="https://github.com/raphhgg/CodexPill/blob/main/Sources/Platform/Codex/CodexSessionTokenUsageScanner.swift">Scanner</a></span></div>
+              <div class="proof"><a href="https://github.com/raphhgg/CodexPill/pull/126">RGR-352 · PR #126</a><br/><span class="metric">1 source file · <span class="plus">+267</span></span><br/>The scanner is isolated from SwiftUI/MenuBar code and follows the existing Codex adapter boundary.</div>
+            </div>
+<div class="change-item">
+              <div class="area">Test proof</div>
+              <div class="body"><b>Synthetic parser coverage protects the privacy boundary.</b> Tests use synthetic JSONL shapes rather than committed live session samples, covering totals, malformed rows, and day-window behavior. <span class="refs"><a href="https://github.com/raphhgg/CodexPill/blob/main/Tests/Platform/Codex/CodexSessionTokenUsageScannerTests.swift">Tests</a></span></div>
+              <div class="proof"><a href="https://github.com/raphhgg/CodexPill/pull/126">RGR-352 · PR #126</a><br/><span class="metric">1 test file · <span class="plus">+123</span></span><br/>Landing verification ran the full test suite successfully.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Optional but recommended when it clarifies the resulting code shape. -->
+        <figure class="diagram-shell embedded-map">
+          <figcaption class="diagram-title"><b>Code/object map</b><span>real modules and responsibilities introduced by the phase</span></figcaption>
+          <!-- Render a titleless report-local generated image created from the phase-closeout Code/Object Map prompt contract. Standard reports use <a class="diagram-frame"><img class="diagram-image" ...></a>. Inline SVG is exceptional and must be explicitly allowed in the payload. -->
+          <a class="diagram-frame" href="assets/code-object-map.png" aria-label="Open Code object map diagram">
+            <img class="diagram-image" src="assets/code-object-map.png" alt="Code object map diagram for the Codex session token usage scanner">
+          </a>
+        </figure>
+      </details>
+    </section>
+
+    <section id="evidence">
+      <details open>
+        <summary><span>Evidence</span><small>claims and proof strength</small></summary>
+        <table>
+          <thead><tr><th>Claim</th><th>Evidence</th><th>Strength</th><th>Closeout note</th></tr></thead>
+          <tbody><tr><td>The reviewed implementation landed exactly at the merge-ready head.</td><td>Review result and PR metadata both name 075774e79f089bfe2134a443b5b106e463a187e0; main was fast-forwarded to that SHA.</td><td class="grade good">strong</td><td class="muted">PR #126 is merged with merge commit equal to the reviewed head.</td></tr>
+<tr><td>Automated verification passed.</td><td>GitHub CI Test passed before landing; local landing gate make test passed with 534 tests in 63 suites.</td><td class="grade good">strong</td><td class="muted">No UI/live verification was required for this prototype.</td></tr>
+<tr><td>The phase stayed inside privacy and prototype boundaries.</td><td>Synthetic fixtures were used for tests, findings avoid raw session samples, and no production graph, menu UI, background collection, or persistent storage was added.</td><td class="grade good">strong</td><td class="muted">Raw auth and private response material remain out of committed artifacts.</td></tr>
+<tr><td>Future product direction still needs a scoping decision.</td><td>The report documents account/workspace scoping as ambiguous and saved-account querying as unsupported without future design.</td><td class="grade warn">partial</td><td class="muted">This is intentional phase learning, not a shipping blocker.</td></tr></tbody>
+        </table>
+      </details>
+    </section>
+
+    <section id="trust-boundary">
+      <details open>
+        <summary><span>Trust Boundary</span><small>what can and cannot be claimed</small></summary>
+        <div class="trust">
+          <div class="trust-col">
+            <h3><span class="dot"></span>Safe to say</h3>
+            <ul><li><b>Prototype source:</b> Local Codex session JSONL token-count rows can support recent daily token bucket prototypes when those rows exist.</li>
+<li><b>Boundary:</b> Codex session parsing is isolated under Platform/Codex, with features consuming only shaped token bucket output later.</li>
+<li><b>Safety:</b> The landed artifacts use synthetic fixtures and aggregate findings, not committed raw auth, raw sessions, prompts, responses, account IDs, hostnames, or private paths.</li></ul>
+          </div>
+          <div class="trust-col">
+            <h3><span class="dot warn"></span>Do not overclaim</h3>
+            <ul><li><b>Account scope:</b> The phase does not prove whether history is Codex-specific, account-wide, workspace-scoped, or org-scoped in every environment.</li>
+<li><b>Saved accounts:</b> The phase does not support querying non-active saved accounts without a future isolated-auth or switching design.</li>
+<li><b>Product UI:</b> No production graph, menu cell, preferences entry, background collection, cost dashboard, or persistent Usage History store shipped.</li></ul>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <section id="follow-up">
+      <details open>
+        <summary><span>Follow-Up</span><small>next planning boundary</small></summary>
+        <div class="follow-up"><b>Refine opt-in Usage History before UI work.</b> Define storage policy, active-account copy, empty/error states, local history retention caveats, and whether the account/workspace scoping ambiguity is acceptable for a future user-facing feature.</div>
+      </details>
+    </section>
+
+    <section id="file-level-diff">
+      <details>
+        <summary><span>File-Level Diff</span><small>collapsed by default</small></summary>
+        <nav class="file-tree" aria-label="File-level diff tree">
+          <ul class="tree-root"><li class="tree-node tree-folder"><details open><summary><div class="tree-line"><span class="tree-label">Sources</span><span class="tree-diff"><span class="plus">+267</span></span></div></summary><ul><li class="tree-node tree-folder"><details open><summary><div class="tree-line"><span class="tree-label">Platform</span><span class="tree-diff"><span class="plus">+267</span></span></div></summary><ul><li class="tree-node tree-folder"><details open><summary><div class="tree-line"><span class="tree-label">Codex</span><span class="tree-diff"><span class="plus">+267</span></span></div></summary><ul><li class="tree-node tree-file"><div class="tree-line"><span class="tree-label"><a href="zed://file/Users/raphh/Projects/symphony/codexpill/workspaces/landing/RGR-352/Sources/Platform/Codex/CodexSessionTokenUsageScanner.swift">CodexSessionTokenUsageScanner.swift</a> <span class="metric">local session scanner</span></span><span class="tree-diff"><span class="plus">+267</span></span></div></li></ul></details></li></ul></details></li></ul></details></li>
+<li class="tree-node tree-folder"><details open><summary><div class="tree-line"><span class="tree-label">docs</span><span class="tree-diff"><span class="plus">+196</span></span></div></summary><ul><li class="tree-node tree-file"><div class="tree-line"><span class="tree-label"><a href="zed://file/Users/raphh/Projects/symphony/codexpill/workspaces/landing/RGR-352/docs/usage-history-token-source-spike.md">usage-history-token-source-spike.md</a> <span class="metric">spike findings</span></span><span class="tree-diff"><span class="plus">+148</span></span></div></li>
+<li class="tree-node tree-folder"><details open><summary><div class="tree-line"><span class="tree-label">features</span><span class="tree-diff"><span class="plus">+48</span></span></div></summary><ul><li class="tree-node tree-file"><div class="tree-line"><span class="tree-label"><a href="zed://file/Users/raphh/Projects/symphony/codexpill/workspaces/landing/RGR-352/docs/features/token-usage.md">token-usage.md</a> <span class="metric">feature contract</span></span><span class="tree-diff"><span class="plus">+47</span></span></div></li>
+<li class="tree-node tree-file"><div class="tree-line"><span class="tree-label"><a href="zed://file/Users/raphh/Projects/symphony/codexpill/workspaces/landing/RGR-352/docs/features/README.md">README.md</a> <span class="metric">feature index</span></span><span class="tree-diff"><span class="plus">+1</span></span></div></li></ul></details></li></ul></details></li>
+<li class="tree-node tree-folder"><details open><summary><div class="tree-line"><span class="tree-label">Tests</span><span class="tree-diff"><span class="plus">+123</span></span></div></summary><ul><li class="tree-node tree-folder"><details open><summary><div class="tree-line"><span class="tree-label">Platform</span><span class="tree-diff"><span class="plus">+123</span></span></div></summary><ul><li class="tree-node tree-folder"><details open><summary><div class="tree-line"><span class="tree-label">Codex</span><span class="tree-diff"><span class="plus">+123</span></span></div></summary><ul><li class="tree-node tree-file"><div class="tree-line"><span class="tree-label"><a href="zed://file/Users/raphh/Projects/symphony/codexpill/workspaces/landing/RGR-352/Tests/Platform/Codex/CodexSessionTokenUsageScannerTests.swift">CodexSessionTokenUsageScannerTests.swift</a> <span class="metric">synthetic parser tests</span></span><span class="tree-diff"><span class="plus">+123</span></span></div></li></ul></details></li></ul></details></li></ul></details></li></ul>
+        </nav>
+      </details>
+    </section>
+
+    <section id="appendix">
+      <details>
+        <summary><span>Appendix</span><small>slice and commit trace</small></summary>
+        <table>
+          <thead><tr><th>Slice</th><th>Commit</th><th>Change weight</th><th>Source</th></tr></thead>
+          <tbody><tr><td>Prototype source proof</td><td><code>075774e79f089bfe2134a443b5b106e463a187e0</code></td><td>+586 / -0</td><td><a href="https://linear.app/raphh/issue/RGR-352">RGR-352</a></td></tr>
+<tr><td>Pull request</td><td><code><a href="https://github.com/raphhgg/CodexPill/pull/126">PR #126</a></code></td><td>1 merged PR</td><td><a href="https://linear.app/raphh/issue/RGR-352">RGR-352</a></td></tr>
+<tr><td>Verification</td><td><code>make test</code></td><td>534 tests / 63 suites</td><td>GitHub CI and local landing gate</td></tr></tbody>
+        </table>
+      </details>
+    </section>
+
+    <footer>Generated as a CodexPill 001 closeout artifact.</footer>
+      </div>
+    </div>
+  </main>
+  <script>
+  const root = document.documentElement;
+  const savedTheme = localStorage.getItem("delivery-report-theme");
+  if (savedTheme === "light" || savedTheme === "dark") root.dataset.theme = savedTheme;
+  const themeButton = document.querySelector("[data-theme-toggle]");
+  const syncThemeButton = () => {
+    const isLight = root.dataset.theme === "light";
+    if (themeButton) {
+      themeButton.setAttribute("aria-label", isLight ? "Switch to dark theme" : "Switch to light theme");
+      themeButton.setAttribute("title", isLight ? "Switch to dark theme" : "Switch to light theme");
+    }
+  };
+  syncThemeButton();
+  themeButton?.addEventListener("click", () => {
+    root.dataset.theme = root.dataset.theme === "light" ? "dark" : "light";
+    localStorage.setItem("delivery-report-theme", root.dataset.theme);
+    syncThemeButton();
+  });
+
+  const savedSidebar = localStorage.getItem("delivery-report-sidebar");
+  if (savedSidebar === "collapsed") document.body.classList.add("sidebar-collapsed");
+  const sidebarButton = document.querySelector("[data-sidebar-toggle]");
+  const syncSidebarButton = () => {
+    const collapsed = document.body.classList.contains("sidebar-collapsed");
+    if (sidebarButton) {
+      sidebarButton.textContent = collapsed ? "›" : "‹";
+      sidebarButton.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Collapse sidebar");
+      sidebarButton.setAttribute("title", collapsed ? "Expand sidebar" : "Collapse sidebar");
+    }
+  };
+  syncSidebarButton();
+  sidebarButton?.addEventListener("click", () => {
+    document.body.classList.toggle("sidebar-collapsed");
+    localStorage.setItem("delivery-report-sidebar", document.body.classList.contains("sidebar-collapsed") ? "collapsed" : "expanded");
+    syncSidebarButton();
+  });
+  </script>
+</body>
+</html>

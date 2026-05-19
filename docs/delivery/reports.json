@@ -1,0 +1,17 @@
+[
+  {
+    "phaseCode": "001",
+    "title": "Usage History discovery/prototype",
+    "slug": "001-usage-history-discovery-prototype",
+    "status": "complete",
+    "date": "2026-05-19",
+    "summary": "Proved local Codex session history as the safe prototype source for recent active-account daily token buckets, while deferring production UI, persistence, and account/workspace scoping claims.",
+    "proofGrade": "strong",
+    "prCount": 1,
+    "fileCount": 5,
+    "insertions": 586,
+    "deletions": 0,
+    "linearUrl": "https://linear.app/raphh/issue/RGR-352/prototype-token-usage-history-api-for-active-account",
+    "prsUrl": "https://github.com/raphhgg/CodexPill/pull/126"
+  }
+]

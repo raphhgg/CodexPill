@@ -1,0 +1,271 @@
+{
+  "productName": "CodexPill",
+  "phaseCode": "001",
+  "title": "Usage History discovery/prototype",
+  "slug": "001-usage-history-discovery-prototype",
+  "status": "complete",
+  "date": "2026-05-19",
+  "summary": "Proved local Codex session history as the safe prototype source for recent active-account daily token buckets, while deferring production UI, persistence, and account/workspace scoping claims.",
+  "proofGrade": "strong",
+  "phaseAboutShort": "Prove the first safe data-source path for future opt-in token usage history.",
+  "oneSentenceProductChange": "CodexPill now has an evidence-backed prototype path for reading recent token usage buckets from local Codex session history.",
+  "closeoutDecisionLabel": "Closeout decision",
+  "closeoutDecision": "Phase complete; refine the future opt-in Usage History feature before building UI.",
+  "prCount": 1,
+  "fileCount": 5,
+  "insertions": 586,
+  "deletions": 0,
+  "linearUrl": "https://linear.app/raphh/issue/RGR-352/prototype-token-usage-history-api-for-active-account",
+  "prsUrl": "https://github.com/raphhgg/CodexPill/pull/126",
+  "productDataPathImage": {
+    "src": "assets/product-data-path.png",
+    "alt": "Product data path diagram for the Usage History discovery prototype"
+  },
+  "codeObjectMapImage": {
+    "src": "assets/code-object-map.png",
+    "alt": "Code object map diagram for the Codex session token usage scanner"
+  },
+  "changes": [
+    {
+      "area": "Data source",
+      "title": "Local session history became the prototype source.",
+      "explanation": "The spike redirected away from backend usage endpoints and proved local Codex session JSONL token_count rows as the useful historical token source for this phase.",
+      "issue": "RGR-352",
+      "prNumber": 126,
+      "prUrl": "https://github.com/raphhgg/CodexPill/pull/126",
+      "files": "2 docs",
+      "insertions": 195,
+      "deletions": 0,
+      "proof": "Findings and feature contract document source choice, useful fields, limits, and non-goals.",
+      "links": [
+        {
+          "label": "Spike findings",
+          "href": "https://github.com/raphhgg/CodexPill/blob/main/docs/usage-history-token-source-spike.md"
+        }
+      ]
+    },
+    {
+      "area": "Platform/Codex",
+      "title": "A scanner boundary keeps Codex session parsing out of features.",
+      "explanation": "The prototype reader lives under Platform/Codex and converts session rows into day buckets without adding UI or persistent Usage History storage.",
+      "issue": "RGR-352",
+      "prNumber": 126,
+      "prUrl": "https://github.com/raphhgg/CodexPill/pull/126",
+      "files": "1 source file",
+      "insertions": 267,
+      "deletions": 0,
+      "proof": "The scanner is isolated from SwiftUI/MenuBar code and follows the existing Codex adapter boundary.",
+      "links": [
+        {
+          "label": "Scanner",
+          "href": "https://github.com/raphhgg/CodexPill/blob/main/Sources/Platform/Codex/CodexSessionTokenUsageScanner.swift"
+        }
+      ]
+    },
+    {
+      "area": "Test proof",
+      "title": "Synthetic parser coverage protects the privacy boundary.",
+      "explanation": "Tests use synthetic JSONL shapes rather than committed live session samples, covering totals, malformed rows, and day-window behavior.",
+      "issue": "RGR-352",
+      "prNumber": 126,
+      "prUrl": "https://github.com/raphhgg/CodexPill/pull/126",
+      "files": "1 test file",
+      "insertions": 123,
+      "deletions": 0,
+      "proof": "Landing verification ran the full test suite successfully.",
+      "links": [
+        {
+          "label": "Tests",
+          "href": "https://github.com/raphhgg/CodexPill/blob/main/Tests/Platform/Codex/CodexSessionTokenUsageScannerTests.swift"
+        }
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "claim": "The reviewed implementation landed exactly at the merge-ready head.",
+      "evidence": "Review result and PR metadata both name 075774e79f089bfe2134a443b5b106e463a187e0; main was fast-forwarded to that SHA.",
+      "strength": "strong",
+      "strengthClass": "good",
+      "note": "PR #126 is merged with merge commit equal to the reviewed head."
+    },
+    {
+      "claim": "Automated verification passed.",
+      "evidence": "GitHub CI Test passed before landing; local landing gate make test passed with 534 tests in 63 suites.",
+      "strength": "strong",
+      "strengthClass": "good",
+      "note": "No UI/live verification was required for this prototype."
+    },
+    {
+      "claim": "The phase stayed inside privacy and prototype boundaries.",
+      "evidence": "Synthetic fixtures were used for tests, findings avoid raw session samples, and no production graph, menu UI, background collection, or persistent storage was added.",
+      "strength": "strong",
+      "strengthClass": "good",
+      "note": "Raw auth and private response material remain out of committed artifacts."
+    },
+    {
+      "claim": "Future product direction still needs a scoping decision.",
+      "evidence": "The report documents account/workspace scoping as ambiguous and saved-account querying as unsupported without future design.",
+      "strength": "partial",
+      "strengthClass": "warn",
+      "note": "This is intentional phase learning, not a shipping blocker."
+    }
+  ],
+  "visualProof": {
+    "skip": true
+  },
+  "safeToClaim": [
+    {
+      "title": "Prototype source",
+      "body": "Local Codex session JSONL token-count rows can support recent daily token bucket prototypes when those rows exist."
+    },
+    {
+      "title": "Boundary",
+      "body": "Codex session parsing is isolated under Platform/Codex, with features consuming only shaped token bucket output later."
+    },
+    {
+      "title": "Safety",
+      "body": "The landed artifacts use synthetic fixtures and aggregate findings, not committed raw auth, raw sessions, prompts, responses, account IDs, hostnames, or private paths."
+    }
+  ],
+  "doNotOverclaim": [
+    {
+      "title": "Account scope",
+      "body": "The phase does not prove whether history is Codex-specific, account-wide, workspace-scoped, or org-scoped in every environment."
+    },
+    {
+      "title": "Saved accounts",
+      "body": "The phase does not support querying non-active saved accounts without a future isolated-auth or switching design."
+    },
+    {
+      "title": "Product UI",
+      "body": "No production graph, menu cell, preferences entry, background collection, cost dashboard, or persistent Usage History store shipped."
+    }
+  ],
+  "followUp": {
+    "kind": "next planning boundary",
+    "title": "Refine opt-in Usage History before UI work.",
+    "body": "Define storage policy, active-account copy, empty/error states, local history retention caveats, and whether the account/workspace scoping ambiguity is acceptable for a future user-facing feature."
+  },
+  "fileDiffTree": [
+    {
+      "path": "Sources",
+      "kind": "folder",
+      "additions": 267,
+      "deletions": 0,
+      "children": [
+        {
+          "path": "Platform",
+          "kind": "folder",
+          "additions": 267,
+          "deletions": 0,
+          "children": [
+            {
+              "path": "Codex",
+              "kind": "folder",
+              "additions": 267,
+              "deletions": 0,
+              "children": [
+                {
+                  "path": "CodexSessionTokenUsageScanner.swift",
+                  "summary": "local session scanner",
+                  "additions": 267,
+                  "deletions": 0,
+                  "href": "zed://file/Users/raphh/Projects/symphony/codexpill/workspaces/landing/RGR-352/Sources/Platform/Codex/CodexSessionTokenUsageScanner.swift"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs",
+      "kind": "folder",
+      "additions": 196,
+      "deletions": 0,
+      "children": [
+        {
+          "path": "usage-history-token-source-spike.md",
+          "summary": "spike findings",
+          "additions": 148,
+          "deletions": 0,
+          "href": "zed://file/Users/raphh/Projects/symphony/codexpill/workspaces/landing/RGR-352/docs/usage-history-token-source-spike.md"
+        },
+        {
+          "path": "features",
+          "kind": "folder",
+          "additions": 48,
+          "deletions": 0,
+          "children": [
+            {
+              "path": "token-usage.md",
+              "summary": "feature contract",
+              "additions": 47,
+              "deletions": 0,
+              "href": "zed://file/Users/raphh/Projects/symphony/codexpill/workspaces/landing/RGR-352/docs/features/token-usage.md"
+            },
+            {
+              "path": "README.md",
+              "summary": "feature index",
+              "additions": 1,
+              "deletions": 0,
+              "href": "zed://file/Users/raphh/Projects/symphony/codexpill/workspaces/landing/RGR-352/docs/features/README.md"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "Tests",
+      "kind": "folder",
+      "additions": 123,
+      "deletions": 0,
+      "children": [
+        {
+          "path": "Platform",
+          "kind": "folder",
+          "additions": 123,
+          "deletions": 0,
+          "children": [
+            {
+              "path": "Codex",
+              "kind": "folder",
+              "additions": 123,
+              "deletions": 0,
+              "children": [
+                {
+                  "path": "CodexSessionTokenUsageScannerTests.swift",
+                  "summary": "synthetic parser tests",
+                  "additions": 123,
+                  "deletions": 0,
+                  "href": "zed://file/Users/raphh/Projects/symphony/codexpill/workspaces/landing/RGR-352/Tests/Platform/Codex/CodexSessionTokenUsageScannerTests.swift"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "appendix": [
+    {
+      "slice": "Prototype source proof",
+      "commit": "075774e79f089bfe2134a443b5b106e463a187e0",
+      "changeWeight": "+586 / -0",
+      "source": "RGR-352"
+    },
+    {
+      "slice": "Pull request",
+      "commit": "PR #126",
+      "changeWeight": "1 merged PR",
+      "source": "RGR-352"
+    },
+    {
+      "slice": "Verification",
+      "commit": "make test",
+      "changeWeight": "534 tests / 63 suites",
+      "source": "GitHub CI and local landing gate"
+    }
+  ]
+}
