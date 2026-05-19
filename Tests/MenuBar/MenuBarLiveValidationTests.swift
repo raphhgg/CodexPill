@@ -1498,7 +1498,10 @@ struct MenuBarLiveValidationTests {
             hostDestination: "user@buildbox"
         )
         coordinator.adoptDetectedRemoteAccount(item)
-        try? await Task.sleep(for: .milliseconds(50))
+        try await waitUntil {
+            settings.remoteHostState(for: "user@buildbox")?.verificationStatus == .verified
+                && sink.snapshots.last?.remoteHosts.first?.activeAccount?.name == "Business 1"
+        }
 
         let refreshedState = try #require(settings.remoteHostState(for: "user@buildbox"))
         #expect(refreshedState.desiredAccountID == detectedAccount.id)
