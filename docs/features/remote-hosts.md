@@ -42,7 +42,7 @@ Copy:
 
 ## SSH Destination Contract
 
-CodexPill accepts the same destination strings OpenSSH accepts for a normal host target, including SSH config aliases such as `buildbox` and explicit destinations such as `user@host`.
+CodexPill accepts the same destination strings OpenSSH accepts for a normal host target, including SSH config aliases such as `workstation` and explicit destinations such as `user@host`.
 
 The destination is valid only when it already works from the user's environment with non-interactive SSH. CodexPill runs SSH with `BatchMode=yes` and does not collect, store, or prompt for SSH passwords, key passphrases, host-key trust prompts, 2FA, or SSH configuration.
 

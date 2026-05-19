@@ -110,21 +110,20 @@ The README should include a short first-run note:
 - Unsigned beta artifacts.
 - Automated CI release publishing unless manual packaging proves stable first.
 
-## Open Questions
+## Settled Release Decisions
 
-- Which Apple Developer team ID and signing identity will be used?
-- Where will notarization credentials live locally or in CI?
-- What exact version/build-number source of truth should packaging use?
-- Should the first beta release be manual-only, or should we immediately add a
-  repeatable `make package-release` command?
-- What screenshot/demo-data workflow must be completed before the first release
-  page is public?
+- The first public beta uses the maintainer's Developer ID Application
+  certificate and a local `notarytool` keychain profile.
+- `make package-release` is the repeatable local packaging command.
+- The release version is provided through `RELEASE_VERSION` and injected into
+  the copied app bundle so `About` shows the public release version.
+- GitHub Release and Homebrew cask publishing are currently manual maintainer
+  steps after the signed/notarized zip is produced and verified.
 
 ## Recommended Next Checkpoint
 
-Use `create-issues` after approving this contract. The first implementation
-slice should produce a repeatable local packaging command and documentation for
-the signed/notarized GitHub zip path.
+Automate GitHub Release and Homebrew cask publishing once the manual signed zip
+flow has stayed stable across beta releases.
 
 ## Related Release Workflows
 

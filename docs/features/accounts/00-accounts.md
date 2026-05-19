@@ -63,7 +63,7 @@ The card should show:
 
 - Display name.
 - Plan as a compact pill.
-- Location or freshness metadata, such as `This Mac`, `debian-vm`, `This Mac + debian-vm`, or `Updated 1min ago`.
+- Location or freshness metadata, such as `This Mac`, `workstation`, `This Mac + workstation`, or `Updated 1min ago`.
 - Session usage and reset timing when Codex returns a shorter session-like quota window.
 - Weekly usage and reset timing when Codex returns a weekly quota window.
 - A neutral expected-pace marker inside each usage bar when reset-window duration is available and `Preferences > Usage Bars > Show Pace Markers` is enabled. This marker is visual only; it must not add pacing text to the card.
@@ -86,11 +86,11 @@ Remote cards must prefer remote target values over local catalog values when the
 
 ### Duplicate Local And Remote Accounts
 
-If the same saved account is active locally and on a connected verified remote host, CodexPill renders one active account card and shows compact location context in the metadata line, such as `This Mac + debian-vm`. The card continues to show local current-account limits; remote host management and troubleshooting remain under `Hosts`.
+If the same saved account is active locally and on a connected verified remote host, CodexPill renders one active account card and shows compact location context in the metadata line, such as `This Mac + workstation`. The card continues to show local current-account limits; remote host management and troubleshooting remain under `Hosts`.
 
 If only the local account is active, the metadata line shows freshness, such as `Updated 1min ago`. If local and remote accounts are different and therefore render as separate cards, the local card shows `This Mac` and each remote card shows its host context.
 
-If the same saved account is active on multiple connected verified remote hosts and not active locally, CodexPill renders one active account card with the host names joined in the metadata line, such as `buildbox + debian-vm`.
+If the same saved account is active on multiple connected verified remote hosts and not active locally, CodexPill renders one active account card with the host names joined in the metadata line, such as `workstation + linux-box`.
 
 The user must be able to answer:
 
@@ -159,7 +159,7 @@ The submenu currently contains:
 
 - A disabled email identity row such as `name@example.com` or `No email`.
 - A disabled usage row such as `In use on: This Mac`.
-- Switch actions for available targets, such as `Switch on This Mac` and `Switch on debian-vm`.
+- Switch actions for available targets, such as `Switch on This Mac` and `Switch on workstation`.
 - Management actions: `Rename…` and `Remove…`.
 
 ### Identity

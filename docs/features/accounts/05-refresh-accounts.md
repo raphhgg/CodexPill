@@ -20,7 +20,7 @@ Sanitized manual probe:
 
 - Codex executable: `/Applications/Codex.app/Contents/Resources/codex`
 - Codex version: `codex-cli 0.126.0-alpha.8`
-- Isolated environment: temporary `CODEX_HOME` directory named with the `CodexPill-CODEX_HOME-spike-<random>` prefix, seeded only with a saved snapshot copied to `auth.json`, with a `tmp` subdirectory and `TMPDIR` scoped to that isolated root.
+- Isolated environment: temporary `CODEX_HOME` directory named with a `CodexPill-CODEX_HOME-<random>` prefix, seeded only with a saved snapshot copied to `auth.json`, with a `tmp` subdirectory and `TMPDIR` scoped to that isolated root.
 - Saved catalog shape observed: 10 saved accounts and 10 saved snapshots.
 - Status source: `codex app-server` over stdio with `initialize`, `initialized`, `account/read`, and `account/rateLimits/read` requests.
 - Account identity read: yes.
