@@ -38,6 +38,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let loginItemsSettingsLauncher: LoginItemsSettingsLaunching
     private let diagnosticReportPresenter: DiagnosticReportPresenting
     private let diagnosticEventRecorder: DiagnosticEventRecorder
+    private let tokenUsageProvider: TokenUsageMenuProviding
     private let validationObserver: MenuBarValidationObserver
     private let allowsEmptyStatePrompt: Bool
     private let remoteHostRuntime: RemoteHostRuntime
@@ -46,6 +47,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private var autoRefreshTimer: Timer?
     private var wakeRefreshTask: Task<Void, Never>?
     private var notificationWaitTask: Task<Void, Never>?
+    private var tokenUsageTask: Task<Void, Never>?
+    private var tokenUsageLoadState: TokenUsageMenuLoadState = .loading
     private var hasPromptedForEmptyState = false
     private var isObservingSettings = false
     private var isObservingStore = false
@@ -120,6 +123,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         loginItemsSettingsLauncher: LoginItemsSettingsLaunching = SystemLoginItemsSettingsLauncher(),
         diagnosticReportPresenter: DiagnosticReportPresenting? = nil,
         diagnosticEventRecorder: DiagnosticEventRecorder? = nil,
+        tokenUsageProvider: TokenUsageMenuProviding = LocalCodexSessionTokenUsageMenuProvider(),
         validationSink: MenuBarValidationSink? = nil,
         validationScenario: String? = MenuBarValidationConfiguration.scenario(),
         validationObserver: MenuBarValidationObserver? = nil,
@@ -151,6 +155,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.loginItemsSettingsLauncher = loginItemsSettingsLauncher
         self.diagnosticReportPresenter = diagnosticReportPresenter ?? SystemDiagnosticReportPresenter()
         self.diagnosticEventRecorder = diagnosticEventRecorder ?? DiagnosticEventRecorder()
+        self.tokenUsageProvider = tokenUsageProvider
         self.validationObserver = validationObserver ?? MenuBarValidationObserver(
             sink: validationSink,
             scenario: validationScenario
@@ -186,12 +191,14 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         syncBackgroundState()
         refreshRemoteHostStateIfNeeded()
         registerRevealShortcutFromSettings()
+        refreshTokenUsageIfNeeded()
     }
 
     func invalidate() {
         autoRefreshTimer?.invalidate()
         wakeRefreshTask?.cancel()
         notificationWaitTask?.cancel()
+        tokenUsageTask?.cancel()
         cancelActiveIsolatedAddAccountSession()
         validationObserver.cancelIfUnfinished()
         shortcutRuntime.invalidate()
@@ -335,6 +342,43 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             return
         }
         statusItemSettings.statusBarDisplayMode = mode
+    }
+
+    @objc
+    func toggleTokenUsage(_ sender: NSMenuItem) {
+        recordMenuAction("toggleTokenUsage")
+        settings.tokenUsageEnabled.toggle()
+        tokenUsageLoadState = .loading
+        rebuildMenu()
+        refreshTokenUsageIfNeeded()
+    }
+
+    @objc
+    func selectTokenUsagePeriod(_ sender: NSMenuItem) {
+        recordMenuAction("selectTokenUsagePeriod")
+        guard
+            let rawValue = sender.representedObject as? Int,
+            let period = CodexTokenUsagePeriod(rawValue: rawValue)
+        else {
+            return
+        }
+        settings.tokenUsagePeriod = period
+        tokenUsageLoadState = .loading
+        rebuildMenu()
+        refreshTokenUsageIfNeeded()
+    }
+
+    @objc
+    func selectTokenUsageChartStyle(_ sender: NSMenuItem) {
+        recordMenuAction("selectTokenUsageChartStyle")
+        guard
+            let rawValue = sender.representedObject as? String,
+            let style = TokenUsageChartStyle(rawValue: rawValue)
+        else {
+            return
+        }
+        settings.tokenUsageChartStyle = style
+        rebuildMenu()
     }
 
     @objc
@@ -543,6 +587,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     func menuWillOpen(_ menu: NSMenu) {
         statusItemRuntime.handleMenuWillOpen()
         validationObserver.recordMenuOpened(menuItemCount: statusItemRuntime.menuItemCount)
+        refreshTokenUsageIfNeeded()
         recordValidationSnapshot(for: menuState())
     }
 
@@ -606,8 +651,38 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             notificationsWhenBlockedEnabled: notificationWorkflow.whenBlockedEnabled,
             notificationsWhenOutEnabled: notificationWorkflow.whenOutEnabled,
             notificationAuthorizationState: notificationWorkflow.authorizationState,
-            loginItemState: loginItemController.state()
+            loginItemState: loginItemController.state(),
+            tokenUsageEnabled: settings.tokenUsageEnabled,
+            tokenUsagePeriod: settings.tokenUsagePeriod,
+            tokenUsageChartStyle: settings.tokenUsageChartStyle,
+            tokenUsageCard: makeTokenUsageCard()
         )
+    }
+
+    private func makeTokenUsageCard() -> TokenUsageMenuCard? {
+        guard settings.tokenUsageEnabled else { return nil }
+        return TokenUsageMenuCard.make(
+            style: settings.tokenUsageChartStyle,
+            period: settings.tokenUsagePeriod,
+            loadState: tokenUsageLoadState
+        )
+    }
+
+    private func refreshTokenUsageIfNeeded() {
+        guard settings.tokenUsageEnabled else {
+            tokenUsageTask?.cancel()
+            return
+        }
+
+        tokenUsageTask?.cancel()
+        let period = settings.tokenUsagePeriod
+        tokenUsageTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            let loadState = await tokenUsageProvider.load(period: period)
+            guard !Task.isCancelled, settings.tokenUsagePeriod == period else { return }
+            tokenUsageLoadState = loadState
+            rebuildMenu()
+        }
     }
 
     private func setLaunchAtLoginEnabled(_ isEnabled: Bool) {

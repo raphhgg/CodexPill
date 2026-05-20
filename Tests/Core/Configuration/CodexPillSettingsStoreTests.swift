@@ -27,6 +27,32 @@ struct CodexPillSettingsStoreTests {
     }
 
     @Test
+    func tokenUsagePreferencesDefaultOffWithThirtyDayPeriodAndDailyBars() {
+        let defaults = makeDefaults()
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
+
+        #expect(settings.tokenUsageEnabled == false)
+        #expect(settings.tokenUsagePeriod == .last30Days)
+        #expect(settings.tokenUsageChartStyle == .dailyBars)
+    }
+
+    @Test
+    func tokenUsagePreferencesPersistAcrossInstances() {
+        let defaults = makeDefaults()
+
+        let first = CodexPillSettingsStore(userDefaults: defaults)
+        first.tokenUsageEnabled = true
+        first.tokenUsagePeriod = .last90Days
+        first.tokenUsageChartStyle = .sparkline
+
+        let second = CodexPillSettingsStore(userDefaults: defaults)
+
+        #expect(second.tokenUsageEnabled)
+        #expect(second.tokenUsagePeriod == .last90Days)
+        #expect(second.tokenUsageChartStyle == .sparkline)
+    }
+
+    @Test
     func progressAccentColorDefaultAndReset() {
         let defaults = makeDefaults()
         let settings = CodexPillSettingsStore(userDefaults: defaults)

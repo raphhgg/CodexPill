@@ -65,6 +65,91 @@ struct TokenUsagePrototypeCard: Equatable, Identifiable {
     }
 }
 
+struct TokenUsageMenuCard: Equatable, Identifiable {
+    let style: TokenUsageChartStyle
+    let period: CodexTokenUsagePeriod
+    let buckets: [TokenUsageDayBucket]
+    let loadState: TokenUsageMenuLoadState
+
+    var id: TokenUsageChartStyle { style }
+
+    var periodTitle: String {
+        period.summaryTitle
+    }
+
+    var todayTokenCount: Int {
+        buckets.last?.tokenCount ?? 0
+    }
+
+    var periodTotalTokenCount: Int {
+        buckets.reduce(0) { $0 + $1.tokenCount }
+    }
+
+    var hasData: Bool {
+        periodTotalTokenCount > 0
+    }
+
+    var accessibilitySummary: String {
+        var parts = [
+            "Token Usage",
+            "This Mac"
+        ]
+
+        switch loadState {
+        case .loading:
+            parts.append("Scanning local sessions...")
+        case .unavailable:
+            parts.append("Token usage unavailable")
+        case .loaded:
+            if hasData {
+                parts.append("Today: \(formattedTokenCount(todayTokenCount)) tokens")
+                parts.append("\(periodTitle): \(formattedTokenCount(periodTotalTokenCount)) tokens")
+                parts.append(style.menuTitle)
+            } else {
+                parts.append("No token usage found yet")
+            }
+        }
+
+        return parts.joined(separator: " • ")
+    }
+
+    static func make(
+        style: TokenUsageChartStyle,
+        period: CodexTokenUsagePeriod,
+        loadState: TokenUsageMenuLoadState,
+        calendar: Calendar = .current
+    ) -> TokenUsageMenuCard {
+        let buckets: [TokenUsageDayBucket]
+        switch loadState {
+        case .loaded(let dailyUsage):
+            buckets = dailyUsage.enumerated().map { index, usage in
+                TokenUsageDayBucket(
+                    id: index,
+                    shortLabel: Self.shortLabel(for: usage.day, calendar: calendar),
+                    tokenCount: usage.usage.totalTokens
+                )
+            }
+        case .loading, .unavailable:
+            buckets = []
+        }
+
+        return TokenUsageMenuCard(
+            style: style,
+            period: period,
+            buckets: buckets,
+            loadState: loadState
+        )
+    }
+
+    private static func shortLabel(for date: Date, calendar: Calendar) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = calendar
+        formatter.setLocalizedDateFormatFromTemplate("MMM d")
+        return formatter.string(from: date)
+    }
+}
+
 enum TokenUsagePrototype {
     static let periodTitle = "Last 30 days"
 

@@ -262,6 +262,88 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
+    func tokenUsageCardHiddenWhenDisabled() {
+        let state = makeState(
+            activeAccount: makeAccount(name: "Active", withRateLimits: true),
+            inactiveAccounts: [makeAccount(name: "Other", withRateLimits: true)]
+        )
+
+        let snapshot = MenuBarValidationSupport.makeSnapshot(state: state)
+
+        #expect(snapshot.sections[0].items.count == 1)
+        #expect(!snapshot.sections[0].items.joined().contains("Token Usage"))
+    }
+
+    @Test
+    func tokenUsageCardVisibleWhenEnabledWithSelectedPeriodCopy() {
+        let state = makeState(
+            activeAccount: makeAccount(name: "Active", withRateLimits: true),
+            inactiveAccounts: [makeAccount(name: "Other", withRateLimits: true)],
+            tokenUsageEnabled: true,
+            tokenUsagePeriod: .last7Days,
+            tokenUsageChartStyle: .heatStrip,
+            tokenUsageCard: makeTokenUsageCard(
+                period: .last7Days,
+                style: .heatStrip,
+                loadState: .loaded([
+                    dailyUsage(daysAgo: 1, totalTokens: 1_200),
+                    dailyUsage(daysAgo: 0, totalTokens: 3_400)
+                ])
+            )
+        )
+
+        let snapshot = MenuBarValidationSupport.makeSnapshot(state: state)
+        let tokenUsage = snapshot.sections[0].items[1]
+
+        #expect(tokenUsage.contains("Token Usage"))
+        #expect(tokenUsage.contains("This Mac"))
+        #expect(tokenUsage.contains("Today: 3,400 tokens"))
+        #expect(tokenUsage.contains("Last 7 days: 4,600 tokens"))
+        #expect(tokenUsage.contains("Heat Strip"))
+    }
+
+    @Test
+    func tokenUsageCardShowsLoadingNoDataAndErrorStates() {
+        let loading = makeTokenUsageCard(loadState: .loading)
+        let noData = makeTokenUsageCard(loadState: .loaded([
+            dailyUsage(daysAgo: 1, totalTokens: 0),
+            dailyUsage(daysAgo: 0, totalTokens: 0)
+        ]))
+        let unavailable = makeTokenUsageCard(loadState: .unavailable)
+
+        #expect(loading.accessibilitySummary.contains("Scanning local sessions..."))
+        #expect(noData.accessibilitySummary.contains("No token usage found yet"))
+        #expect(unavailable.accessibilitySummary.contains("Token usage unavailable"))
+    }
+
+    @Test
+    func preferencesMenuIncludesTokenUsageControls() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let menu = builder.makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                tokenUsageEnabled: true,
+                tokenUsagePeriod: .last90Days,
+                tokenUsageChartStyle: .sparkline
+            ),
+            target: coordinator
+        )
+
+        let preferencesMenu = try #require(menu.items.first(where: { $0.title == "Preferences" })?.submenu)
+        let tokenUsageMenu = try #require(preferencesMenu.items.first(where: { $0.title == "Token Usage" })?.submenu)
+        let show = try #require(tokenUsageMenu.items.first(where: { $0.title == "Show Token Usage" }))
+        let period = try #require(tokenUsageMenu.items.first(where: { $0.title == "Period" })?.submenu)
+        let chartStyle = try #require(tokenUsageMenu.items.first(where: { $0.title == "Chart Style" })?.submenu)
+
+        #expect(show.state == .on)
+        #expect(period.items.map(\.title) == ["Last 7 Days", "Last 30 Days", "Last 90 Days"])
+        #expect(period.items.first(where: { $0.title == "Last 90 Days" })?.state == .on)
+        #expect(chartStyle.items.map(\.title) == ["Daily Bars", "Heat Strip", "Sparkline"])
+        #expect(chartStyle.items.first(where: { $0.title == "Sparkline" })?.state == .on)
+    }
+
+    @Test
     func statusItemContentOptionsAreDisabledWhenNoStatusDataExists() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
@@ -1567,8 +1649,8 @@ struct MenuBarMenuBuilderTests {
         let usageBarTitles = usageBarsMenu.items.map(\.title)
         let showMarkers = try #require(usageBarsMenu.items.first(where: { $0.title == "Show Pace Markers" }))
 
-        #expect(preferencesMenu.items.map(\.title) == ["Menu Bar Label", "Icon Style", "Usage Bars", "", "Launch at Login"])
-        #expect(preferencesMenu.items[3].isSeparatorItem)
+        #expect(preferencesMenu.items.map(\.title) == ["Menu Bar Label", "Icon Style", "Usage Bars", "Token Usage", "", "Launch at Login"])
+        #expect(preferencesMenu.items[4].isSeparatorItem)
         #expect(usageBarTitles == ["Show Pace Markers", "Accent Color…", "Use Default"])
         #expect(preferencesMenu.items.first(where: { $0.title == "Menu Bar Label" })?.image == nil)
         #expect(preferencesMenu.items.first(where: { $0.title == "Icon Style" })?.image == nil)
@@ -1918,6 +2000,10 @@ struct MenuBarMenuBuilderTests {
         notificationAuthorizationState: NotificationAuthorizationState = .unknown,
         loginItemState: LoginItemState = .disabled,
         revealStatusItemTitleShortcut: CodexPill.KeyboardShortcut? = .defaultRevealStatusItemTitle,
+        tokenUsageEnabled: Bool = false,
+        tokenUsagePeriod: CodexTokenUsagePeriod = .last30Days,
+        tokenUsageChartStyle: TokenUsageChartStyle = .dailyBars,
+        tokenUsageCard: TokenUsageMenuCard? = nil,
         tokenUsagePrototypeCards: [TokenUsagePrototypeCard] = []
     ) -> MenuBarMenuState {
         MenuBarMenuState(
@@ -1940,7 +2026,39 @@ struct MenuBarMenuBuilderTests {
             notificationsWhenOutEnabled: notificationsWhenOutEnabled,
             notificationAuthorizationState: notificationAuthorizationState,
             loginItemState: loginItemState,
+            tokenUsageEnabled: tokenUsageEnabled,
+            tokenUsagePeriod: tokenUsagePeriod,
+            tokenUsageChartStyle: tokenUsageChartStyle,
+            tokenUsageCard: tokenUsageCard,
             tokenUsagePrototypeCards: tokenUsagePrototypeCards
+        )
+    }
+
+    private func makeTokenUsageCard(
+        period: CodexTokenUsagePeriod = .last30Days,
+        style: TokenUsageChartStyle = .dailyBars,
+        loadState: TokenUsageMenuLoadState
+    ) -> TokenUsageMenuCard {
+        TokenUsageMenuCard.make(
+            style: style,
+            period: period,
+            loadState: loadState,
+            calendar: Calendar(identifier: .gregorian)
+        )
+    }
+
+    private func dailyUsage(daysAgo: Int, totalTokens: Int) -> CodexDailyTokenUsage {
+        let calendar = Calendar(identifier: .gregorian)
+        let base = calendar.date(from: DateComponents(year: 2026, month: 5, day: 20)) ?? .now
+        return CodexDailyTokenUsage(
+            day: calendar.date(byAdding: .day, value: -daysAgo, to: base) ?? base,
+            usage: CodexTokenUsageTotals(
+                inputTokens: 0,
+                cachedInputTokens: 0,
+                outputTokens: 0,
+                reasoningOutputTokens: 0,
+                totalTokens: totalTokens
+            )
         )
     }
 

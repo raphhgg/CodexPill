@@ -6,6 +6,7 @@ struct ActiveAccountMenuContent: View {
     let showsUpdatedTime: Bool
     let progressAccentColor: Color
     let showsPacingMarkers: Bool
+    let tokenUsageCard: TokenUsageMenuCard?
     let tokenUsagePrototypeCards: [TokenUsagePrototypeCard]
     let now: Date
 
@@ -15,6 +16,7 @@ struct ActiveAccountMenuContent: View {
         showsUpdatedTime: Bool,
         progressAccentColor: Color,
         showsPacingMarkers: Bool,
+        tokenUsageCard: TokenUsageMenuCard? = nil,
         tokenUsagePrototypeCards: [TokenUsagePrototypeCard] = [],
         now: Date = .now
     ) {
@@ -23,6 +25,7 @@ struct ActiveAccountMenuContent: View {
         self.showsUpdatedTime = showsUpdatedTime
         self.progressAccentColor = progressAccentColor
         self.showsPacingMarkers = showsPacingMarkers
+        self.tokenUsageCard = tokenUsageCard
         self.tokenUsagePrototypeCards = tokenUsagePrototypeCards
         self.now = now
     }
@@ -59,6 +62,14 @@ struct ActiveAccountMenuContent: View {
                 showsPacingMarkers: showsPacingMarkers,
                 now: now
             )
+
+            if let tokenUsageCard {
+                ActiveAccountCardDivider()
+                    .padding(.horizontal, -14)
+                TokenUsageMenuContent(card: tokenUsageCard)
+                    .padding(.horizontal, -14)
+                    .padding(.bottom, -2)
+            }
 
             ForEach(Array(tokenUsagePrototypeCards.enumerated()), id: \.element.id) { index, card in
                 ActiveAccountCardDivider()

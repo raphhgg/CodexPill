@@ -71,6 +71,95 @@ struct TokenUsagePrototypeMenuContent: View {
     }
 }
 
+struct TokenUsageMenuContent: View {
+    let card: TokenUsageMenuCard
+
+    private var maximumTokenCount: Int {
+        max(card.buckets.map(\.tokenCount).max() ?? 1, 1)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            header
+            content
+        }
+        .padding(.horizontal, 14)
+        .padding(.top, 8)
+        .padding(.bottom, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(card.accessibilitySummary)
+    }
+
+    private var header: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Token Usage")
+                    .font(.system(size: 14, weight: .semibold))
+                Text("This Mac")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            if case .loaded = card.loadState, card.hasData {
+                Text(card.style.menuTitle)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch card.loadState {
+        case .loading:
+            stateText("Scanning local sessions...")
+        case .unavailable:
+            stateText("Token usage unavailable")
+        case .loaded:
+            if card.hasData {
+                chart
+                    .frame(height: 44)
+                summary
+            } else {
+                stateText("No token usage found yet")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var chart: some View {
+        switch card.style {
+        case .dailyBars:
+            MinimalDailyBarsChart(buckets: card.buckets, maximumTokenCount: maximumTokenCount)
+        case .heatStrip:
+            HeatStripChart(buckets: card.buckets, maximumTokenCount: maximumTokenCount)
+        case .sparkline:
+            SparklineAreaChart(buckets: card.buckets, maximumTokenCount: maximumTokenCount)
+        }
+    }
+
+    private var summary: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text("Today: \(formattedTokenCount(card.todayTokenCount)) tokens")
+                .foregroundStyle(.primary)
+            Spacer(minLength: 10)
+            Text("\(card.periodTitle): \(formattedTokenCount(card.periodTotalTokenCount)) tokens")
+                .foregroundStyle(.secondary)
+        }
+        .font(.caption)
+        .monospacedDigit()
+    }
+
+    private func stateText(_ text: String) -> some View {
+        Text(text)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .frame(height: 44, alignment: .center)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 private struct MinimalDailyBarsChart: View {
     let buckets: [TokenUsageDayBucket]
     let maximumTokenCount: Int

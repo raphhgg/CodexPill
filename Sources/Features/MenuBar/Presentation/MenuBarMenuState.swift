@@ -95,6 +95,10 @@ struct MenuBarMenuState {
     let notificationsWhenOutEnabled: Bool
     let notificationAuthorizationState: NotificationAuthorizationState
     let loginItemState: LoginItemState
+    let tokenUsageEnabled: Bool
+    let tokenUsagePeriod: CodexTokenUsagePeriod
+    let tokenUsageChartStyle: TokenUsageChartStyle
+    let tokenUsageCard: TokenUsageMenuCard?
     let tokenUsagePrototypeCards: [TokenUsagePrototypeCard]
 
     init(
@@ -118,6 +122,10 @@ struct MenuBarMenuState {
         notificationsWhenOutEnabled: Bool = false,
         notificationAuthorizationState: NotificationAuthorizationState = .unknown,
         loginItemState: LoginItemState = .unavailable,
+        tokenUsageEnabled: Bool = false,
+        tokenUsagePeriod: CodexTokenUsagePeriod = .last30Days,
+        tokenUsageChartStyle: TokenUsageChartStyle = .dailyBars,
+        tokenUsageCard: TokenUsageMenuCard? = nil,
         tokenUsagePrototypeCards: [TokenUsagePrototypeCard] = []
     ) {
         self.activeAccount = activeAccount
@@ -140,6 +148,10 @@ struct MenuBarMenuState {
         self.notificationsWhenOutEnabled = notificationsWhenOutEnabled
         self.notificationAuthorizationState = notificationAuthorizationState
         self.loginItemState = loginItemState
+        self.tokenUsageEnabled = tokenUsageEnabled
+        self.tokenUsagePeriod = tokenUsagePeriod
+        self.tokenUsageChartStyle = tokenUsageChartStyle
+        self.tokenUsageCard = tokenUsageCard
         self.tokenUsagePrototypeCards = tokenUsagePrototypeCards
     }
 

@@ -8,6 +8,28 @@ enum CodexTokenUsagePeriod: Int, CaseIterable, Codable, Hashable {
     var dayCount: Int {
         rawValue
     }
+
+    var menuTitle: String {
+        switch self {
+        case .last7Days:
+            return "Last 7 Days"
+        case .last30Days:
+            return "Last 30 Days"
+        case .last90Days:
+            return "Last 90 Days"
+        }
+    }
+
+    var summaryTitle: String {
+        switch self {
+        case .last7Days:
+            return "Last 7 days"
+        case .last30Days:
+            return "Last 30 days"
+        case .last90Days:
+            return "Last 90 days"
+        }
+    }
 }
 
 struct CodexDailyTokenUsage: Equatable {
