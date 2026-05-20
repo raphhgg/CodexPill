@@ -36,7 +36,7 @@ Token Usage treats daily buckets as local-session scoped. It does not promise a 
 1. User enables Token Usage from Preferences.
 2. CodexPill scans recent local Codex session JSONL files for token-count events.
 3. CodexPill aggregates safe token totals by day.
-4. The main menu shows a compact Token Usage card below the active account area.
+4. The main menu shows a compact Token Usage card inside the active account area, directly below the Session and Weekly limit rows.
 5. User can choose the display period from Preferences.
 
 ## UI / Copy / States
@@ -61,7 +61,7 @@ Default:
 
 Menu card:
 
-- Position: below the active account card and above account/action sections.
+- Position: inside the active account area, directly below the Session and Weekly limit rows and before the divider/account-action sections.
 - Title: `Token Usage`
 - Scope label: `This Mac`
 - Chart: compact chart for the selected period.
@@ -100,7 +100,7 @@ States:
 
 - Token Usage can be enabled and disabled from Preferences.
 - When disabled, the main menu does not show the Token Usage card.
-- When enabled, the main menu shows a compact Token Usage card below the active account area.
+- When enabled, the main menu shows a compact Token Usage card inside the active account area, directly below the Session and Weekly limit rows.
 - The card displays the selected chart style for the selected period.
 - The card displays today’s token total and the selected-period token total.
 - The card is clearly scoped to `This Mac`.
@@ -121,7 +121,7 @@ Validate the three supported chart styles for the Token Usage card before final 
 Contract:
 
 - Use synthetic or fixture token data.
-- Show the card in the intended menu position below the active account area.
+- Show the card in the intended menu position inside the active account area, directly below the Session and Weekly limit rows.
 - Show the settings/menu path that lets the user choose chart style.
 - Do not depend on the production scanner.
 - Do not implement final persistence, preferences, backend access, account split, or remote host usage.
