@@ -115,11 +115,6 @@ struct TokenUsageMenuContent: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Text("Daily values")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .opacity(card.hasData ? 1 : 0)
-                .accessibilityHidden(true)
         }
     }
 
@@ -416,7 +411,7 @@ private struct TokenUsageTooltipOverlay: NSViewRepresentable {
         nsView.buckets = buckets
         nsView.tooltipLayout = layout
         nsView.onBucketHover = onBucketHover
-        nsView.refreshToolTip()
+        nsView.clearToolTip()
     }
 }
 
@@ -425,7 +420,6 @@ private final class TokenUsageTooltipView: NSView {
     var tooltipLayout: TokenUsageTooltipLayout = .linear
     var onBucketHover: (TokenUsageDayBucket?) -> Void = { _ in }
 
-    private var tooltipTag: NSView.ToolTipTag?
     private var trackingArea: NSTrackingArea?
 
     override init(frame frameRect: NSRect) {
@@ -440,13 +434,12 @@ private final class TokenUsageTooltipView: NSView {
 
     override func layout() {
         super.layout()
-        refreshToolTip()
+        clearToolTip()
     }
 
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         refreshTrackingArea()
-        refreshToolTip()
     }
 
     override func mouseEntered(with event: NSEvent) {
@@ -458,17 +451,12 @@ private final class TokenUsageTooltipView: NSView {
     }
 
     override func mouseExited(with event: NSEvent) {
+        toolTip = nil
         onBucketHover(nil)
     }
 
-    func refreshToolTip() {
-        if let tooltipTag {
-            removeToolTip(tooltipTag)
-            self.tooltipTag = nil
-        }
-
-        guard !buckets.isEmpty, !bounds.isEmpty else { return }
-        tooltipTag = addToolTip(bounds, owner: self, userData: nil)
+    func clearToolTip() {
+        toolTip = nil
     }
 
     private func refreshTrackingArea() {
@@ -486,16 +474,6 @@ private final class TokenUsageTooltipView: NSView {
         )
         addTrackingArea(trackingArea)
         self.trackingArea = trackingArea
-    }
-
-    func view(
-        _ view: NSView,
-        stringForToolTip tag: NSView.ToolTipTag,
-        point: NSPoint,
-        userData data: UnsafeMutableRawPointer?
-    ) -> String {
-        guard let bucket = bucket(at: point) else { return "" }
-        return "\(bucket.shortLabel): \(formattedTokenCount(bucket.tokenCount)) tokens"
     }
 
     private func bucket(at point: NSPoint) -> TokenUsageDayBucket? {
@@ -519,7 +497,9 @@ private final class TokenUsageTooltipView: NSView {
 
     private func updateHoveredBucket(for event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
-        onBucketHover(bucket(at: point))
+        let bucket = bucket(at: point)
+        toolTip = bucket.map { "\($0.shortLabel): \(formattedTokenCount($0.tokenCount)) tokens" }
+        onBucketHover(bucket)
     }
 
     private func clampedIndex(for value: CGFloat, width: CGFloat, count: Int) -> Int {
