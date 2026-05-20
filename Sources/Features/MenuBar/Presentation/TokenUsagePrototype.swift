@@ -198,9 +198,27 @@ enum TokenUsagePrototype {
 }
 
 func formattedTokenCount(_ tokenCount: Int) -> String {
+    if tokenCount >= 1_000_000_000 {
+        return formattedCompactTokenCount(tokenCount, divisor: 1_000_000_000, suffix: "B")
+    }
+
+    if tokenCount >= 1_000_000 {
+        return formattedCompactTokenCount(tokenCount, divisor: 1_000_000, suffix: "M")
+    }
+
     let formatter = NumberFormatter()
     formatter.locale = Locale(identifier: "en_US_POSIX")
     formatter.numberStyle = .decimal
     formatter.usesGroupingSeparator = true
     return formatter.string(from: NSNumber(value: tokenCount)) ?? "\(tokenCount)"
+}
+
+private func formattedCompactTokenCount(_ tokenCount: Int, divisor: Double, suffix: String) -> String {
+    let value = Double(tokenCount) / divisor
+    let formatter = NumberFormatter()
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.numberStyle = .decimal
+    formatter.minimumFractionDigits = 0
+    formatter.maximumFractionDigits = 1
+    return "\(formatter.string(from: NSNumber(value: value)) ?? "\(value)")\(suffix)"
 }

@@ -303,6 +303,20 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
+    func tokenUsageCardUsesCompactTokenFormattingForLargeTotals() {
+        let card = makeTokenUsageCard(
+            period: .last30Days,
+            loadState: .loaded([
+                dailyUsage(daysAgo: 1, totalTokens: 7_433_881_744),
+                dailyUsage(daysAgo: 0, totalTokens: 108_637_804)
+            ])
+        )
+
+        #expect(card.accessibilitySummary.contains("Today: 108.6M tokens"))
+        #expect(card.accessibilitySummary.contains("Last 30 days: 7.5B tokens"))
+    }
+
+    @Test
     func tokenUsageCardShowsLoadingNoDataAndErrorStates() {
         let loading = makeTokenUsageCard(loadState: .loading)
         let noData = makeTokenUsageCard(loadState: .loaded([

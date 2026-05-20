@@ -79,13 +79,13 @@ struct TokenUsageMenuContent: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 9) {
+        VStack(alignment: .leading, spacing: 12) {
             header
             content
         }
         .padding(.horizontal, 14)
-        .padding(.top, 8)
-        .padding(.bottom, 10)
+        .padding(.top, 10)
+        .padding(.bottom, 14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(card.accessibilitySummary)
@@ -120,6 +120,8 @@ struct TokenUsageMenuContent: View {
             if card.hasData {
                 chart
                     .frame(height: 44)
+                    .padding(.top, 2)
+                    .padding(.bottom, 3)
                 summary
             } else {
                 stateText("No token usage found yet")
