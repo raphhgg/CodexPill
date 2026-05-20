@@ -51,17 +51,20 @@ struct TokenUsagePrototypeMenuContent: View {
         case .minimalDailyBars:
             MinimalDailyBarsChart(
                 buckets: card.buckets,
-                maximumTokenCount: maximumTokenCount
+                maximumTokenCount: maximumTokenCount,
+                hoveredBucket: .constant(nil)
             )
         case .sparklineArea:
             SparklineAreaChart(
                 buckets: card.buckets,
-                maximumTokenCount: maximumTokenCount
+                maximumTokenCount: maximumTokenCount,
+                hoveredBucket: .constant(nil)
             )
         case .heatStrip:
             HeatStripChart(
                 buckets: card.buckets,
-                maximumTokenCount: maximumTokenCount
+                maximumTokenCount: maximumTokenCount,
+                hoveredBucket: .constant(nil)
             )
         case .nativeCompact:
             NativeCompactUsageChart(card: card, maximumTokenCount: maximumTokenCount)
@@ -83,6 +86,7 @@ struct TokenUsagePrototypeMenuContent: View {
 
 struct TokenUsageMenuContent: View {
     let card: TokenUsageMenuCard
+    @State private var hoveredBucket: TokenUsageDayBucket?
 
     private var maximumTokenCount: Int {
         max(card.buckets.map(\.tokenCount).max() ?? 1, 1)
@@ -94,8 +98,8 @@ struct TokenUsageMenuContent: View {
             content
         }
         .padding(.horizontal, 14)
-        .padding(.top, 2)
-        .padding(.bottom, 6)
+        .padding(.top, 0)
+        .padding(.bottom, 4)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(card.accessibilitySummary)
@@ -143,17 +147,20 @@ struct TokenUsageMenuContent: View {
         case .dailyBars:
             MinimalDailyBarsChart(
                 buckets: card.buckets,
-                maximumTokenCount: maximumTokenCount
+                maximumTokenCount: maximumTokenCount,
+                hoveredBucket: $hoveredBucket
             )
         case .heatStrip:
             HeatStripChart(
                 buckets: card.buckets,
-                maximumTokenCount: maximumTokenCount
+                maximumTokenCount: maximumTokenCount,
+                hoveredBucket: $hoveredBucket
             )
         case .sparkline:
             SparklineAreaChart(
                 buckets: card.buckets,
-                maximumTokenCount: maximumTokenCount
+                maximumTokenCount: maximumTokenCount,
+                hoveredBucket: $hoveredBucket
             )
         }
     }
@@ -168,6 +175,7 @@ struct TokenUsageMenuContent: View {
         }
         .font(.caption)
         .monospacedDigit()
+        .padding(.top, 4)
     }
 
     private func stateText(_ text: String) -> some View {
@@ -182,32 +190,56 @@ struct TokenUsageMenuContent: View {
 private struct MinimalDailyBarsChart: View {
     let buckets: [TokenUsageDayBucket]
     let maximumTokenCount: Int
+    @Binding var hoveredBucket: TokenUsageDayBucket?
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 2) {
-            ForEach(buckets) { bucket in
-                Capsule()
-                    .fill(barColor(for: bucket))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: barHeight(for: bucket))
+        GeometryReader { geometry in
+            HStack(alignment: .bottom, spacing: 2) {
+                ForEach(buckets) { bucket in
+                    Capsule()
+                        .fill(barColor(for: bucket))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: barHeight(for: bucket, in: geometry.size.height))
+                        .overlay(alignment: .top) {
+                            if hoveredBucket?.id == bucket.id {
+                                Circle()
+                                    .fill(Color.accentColor)
+                                    .frame(width: 5, height: 5)
+                                    .overlay(
+                                        Circle()
+                                            .stroke(Color.primary.opacity(0.75), lineWidth: 1)
+                                    )
+                                    .offset(y: -3)
+                            }
+                        }
+                }
             }
+            .overlay(
+                TokenUsageTooltipOverlay(buckets: buckets, layout: .linear) { bucket in
+                    hoveredBucket = bucket
+                }
+            )
         }
-        .overlay(TokenUsageTooltipOverlay(buckets: buckets, layout: .linear))
         .accessibilityHidden(true)
     }
 
     private func barColor(for bucket: TokenUsageDayBucket) -> Color {
-        bucket.id == buckets.last?.id ? .accentColor : Color.accentColor.opacity(0.58)
+        if hoveredBucket?.id == bucket.id {
+            return .accentColor
+        }
+        return bucket.id == buckets.last?.id ? .accentColor : Color.accentColor.opacity(0.58)
     }
 
-    private func barHeight(for bucket: TokenUsageDayBucket) -> CGFloat {
-        max(5, 38 * CGFloat(bucket.tokenCount) / CGFloat(maximumTokenCount))
+    private func barHeight(for bucket: TokenUsageDayBucket, in height: CGFloat) -> CGFloat {
+        max(5, height * CGFloat(bucket.tokenCount) / CGFloat(maximumTokenCount))
     }
+
 }
 
 private struct SparklineAreaChart: View {
     let buckets: [TokenUsageDayBucket]
     let maximumTokenCount: Int
+    @Binding var hoveredBucket: TokenUsageDayBucket?
 
     var body: some View {
         GeometryReader { geometry in
@@ -231,12 +263,37 @@ private struct SparklineAreaChart: View {
                         .fill(Color.accentColor)
                         .frame(width: 5, height: 5)
                         .position(last)
-                    }
+                }
+
+                if let hoveredPoint = hoveredPoint(from: points) {
+                    Circle()
+                        .fill(Color.accentColor)
+                        .frame(width: 7, height: 7)
+                        .overlay(
+                            Circle()
+                                .stroke(Color.primary.opacity(0.75), lineWidth: 1)
+                        )
+                        .position(hoveredPoint)
+                }
             }
             .contentShape(Rectangle())
+            .overlay(
+                TokenUsageTooltipOverlay(buckets: buckets, layout: .linear) { bucket in
+                    hoveredBucket = bucket
+                }
+            )
         }
-        .overlay(TokenUsageTooltipOverlay(buckets: buckets, layout: .linear))
         .accessibilityHidden(true)
+    }
+
+    private func hoveredPoint(from points: [CGPoint]) -> CGPoint? {
+        guard let hoveredBucket,
+              let index = buckets.firstIndex(where: { $0.id == hoveredBucket.id }),
+              points.indices.contains(index) else {
+            return nil
+        }
+
+        return points[index]
     }
 
     private func chartPoints(in size: CGSize) -> [CGPoint] {
@@ -278,25 +335,37 @@ private struct SparklineAreaChart: View {
 private struct HeatStripChart: View {
     let buckets: [TokenUsageDayBucket]
     let maximumTokenCount: Int
+    @Binding var hoveredBucket: TokenUsageDayBucket?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            ForEach(0..<3, id: \.self) { row in
-                HStack(spacing: 3) {
-                    ForEach(rowBuckets(row)) { bucket in
-                        RoundedRectangle(cornerRadius: 3, style: .continuous)
-                            .fill(Color.accentColor.opacity(opacity(for: bucket)))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                    .stroke(Color.secondary.opacity(0.12), lineWidth: 0.5)
-                            )
-                            .frame(maxWidth: .infinity, minHeight: 10, maxHeight: 10)
+        GeometryReader { geometry in
+            VStack(alignment: .leading, spacing: 5) {
+                ForEach(0..<3, id: \.self) { row in
+                    HStack(spacing: 3) {
+                        ForEach(rowBuckets(row)) { bucket in
+                            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                .fill(Color.accentColor.opacity(opacity(for: bucket)))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                        .stroke(
+                                            hoveredBucket?.id == bucket.id
+                                            ? Color.primary.opacity(0.75)
+                                            : Color.secondary.opacity(0.12),
+                                            lineWidth: hoveredBucket?.id == bucket.id ? 1 : 0.5
+                                        )
+                                )
+                                .frame(maxWidth: .infinity, minHeight: 10, maxHeight: 10)
+                        }
                     }
                 }
             }
+            .padding(.vertical, 3)
+            .overlay(
+                TokenUsageTooltipOverlay(buckets: buckets, layout: .heatStrip(rows: 3, columns: 10)) { bucket in
+                    hoveredBucket = bucket
+                }
+            )
         }
-        .padding(.vertical, 3)
-        .overlay(TokenUsageTooltipOverlay(buckets: buckets, layout: .heatStrip(rows: 3, columns: 10)))
         .accessibilityHidden(true)
     }
 
@@ -310,6 +379,7 @@ private struct HeatStripChart: View {
     private func opacity(for bucket: TokenUsageDayBucket) -> Double {
         0.14 + (0.76 * Double(bucket.tokenCount) / Double(maximumTokenCount))
     }
+
 }
 
 private enum TokenUsageTooltipLayout: Equatable {
@@ -317,20 +387,35 @@ private enum TokenUsageTooltipLayout: Equatable {
     case heatStrip(rows: Int, columns: Int)
 }
 
+private func tokenUsageLinearIndex(for value: CGFloat, width: CGFloat, count: Int) -> Int {
+    guard count > 1, width > 0 else { return 0 }
+    let fraction = min(max(value / width, 0), 0.999_999)
+    return min(max(Int(floor(fraction * CGFloat(count))), 0), count - 1)
+}
+
+private extension Collection {
+    subscript(safe index: Index) -> Element? {
+        indices.contains(index) ? self[index] : nil
+    }
+}
+
 private struct TokenUsageTooltipOverlay: NSViewRepresentable {
     let buckets: [TokenUsageDayBucket]
     let layout: TokenUsageTooltipLayout
+    var onBucketHover: (TokenUsageDayBucket?) -> Void = { _ in }
 
     func makeNSView(context: Context) -> TokenUsageTooltipView {
         let view = TokenUsageTooltipView()
         view.buckets = buckets
         view.tooltipLayout = layout
+        view.onBucketHover = onBucketHover
         return view
     }
 
     func updateNSView(_ nsView: TokenUsageTooltipView, context: Context) {
         nsView.buckets = buckets
         nsView.tooltipLayout = layout
+        nsView.onBucketHover = onBucketHover
         nsView.refreshToolTip()
     }
 }
@@ -338,8 +423,10 @@ private struct TokenUsageTooltipOverlay: NSViewRepresentable {
 private final class TokenUsageTooltipView: NSView {
     var buckets: [TokenUsageDayBucket] = []
     var tooltipLayout: TokenUsageTooltipLayout = .linear
+    var onBucketHover: (TokenUsageDayBucket?) -> Void = { _ in }
 
     private var tooltipTag: NSView.ToolTipTag?
+    private var trackingArea: NSTrackingArea?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -358,7 +445,20 @@ private final class TokenUsageTooltipView: NSView {
 
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
+        refreshTrackingArea()
         refreshToolTip()
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        updateHoveredBucket(for: event)
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        updateHoveredBucket(for: event)
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        onBucketHover(nil)
     }
 
     func refreshToolTip() {
@@ -369,6 +469,23 @@ private final class TokenUsageTooltipView: NSView {
 
         guard !buckets.isEmpty, !bounds.isEmpty else { return }
         tooltipTag = addToolTip(bounds, owner: self, userData: nil)
+    }
+
+    private func refreshTrackingArea() {
+        if let trackingArea {
+            removeTrackingArea(trackingArea)
+            self.trackingArea = nil
+        }
+
+        guard !bounds.isEmpty else { return }
+        let trackingArea = NSTrackingArea(
+            rect: bounds,
+            options: [.activeAlways, .mouseEnteredAndExited, .mouseMoved],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(trackingArea)
+        self.trackingArea = trackingArea
     }
 
     func view(
@@ -400,10 +517,13 @@ private final class TokenUsageTooltipView: NSView {
         }
     }
 
+    private func updateHoveredBucket(for event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        onBucketHover(bucket(at: point))
+    }
+
     private func clampedIndex(for value: CGFloat, width: CGFloat, count: Int) -> Int {
-        guard count > 1, width > 0 else { return 0 }
-        let fraction = min(max(value / width, 0), 0.999_999)
-        return min(max(Int(floor(fraction * CGFloat(count))), 0), count - 1)
+        tokenUsageLinearIndex(for: value, width: width, count: count)
     }
 }
 

@@ -66,9 +66,10 @@ struct ActiveAccountMenuContent: View {
             if let tokenUsageCard {
                 ActiveAccountCardDivider()
                     .padding(.horizontal, -14)
+                    .padding(.bottom, -6)
                 TokenUsageMenuContent(card: tokenUsageCard)
                     .padding(.horizontal, -14)
-                    .padding(.bottom, -2)
+                    .padding(.bottom, -6)
             }
 
             ForEach(Array(tokenUsagePrototypeCards.enumerated()), id: \.element.id) { index, card in
