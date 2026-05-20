@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct TokenUsagePrototypeMenuContent: View {
@@ -48,11 +49,20 @@ struct TokenUsagePrototypeMenuContent: View {
     private var chart: some View {
         switch card.variant {
         case .minimalDailyBars:
-            MinimalDailyBarsChart(buckets: card.buckets, maximumTokenCount: maximumTokenCount)
+            MinimalDailyBarsChart(
+                buckets: card.buckets,
+                maximumTokenCount: maximumTokenCount
+            )
         case .sparklineArea:
-            SparklineAreaChart(buckets: card.buckets, maximumTokenCount: maximumTokenCount)
+            SparklineAreaChart(
+                buckets: card.buckets,
+                maximumTokenCount: maximumTokenCount
+            )
         case .heatStrip:
-            HeatStripChart(buckets: card.buckets, maximumTokenCount: maximumTokenCount)
+            HeatStripChart(
+                buckets: card.buckets,
+                maximumTokenCount: maximumTokenCount
+            )
         case .nativeCompact:
             NativeCompactUsageChart(card: card, maximumTokenCount: maximumTokenCount)
         }
@@ -79,13 +89,13 @@ struct TokenUsageMenuContent: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
+        VStack(alignment: .leading, spacing: 4) {
             header
             content
         }
         .padding(.horizontal, 14)
-        .padding(.top, 8)
-        .padding(.bottom, 11)
+        .padding(.top, 2)
+        .padding(.bottom, 6)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(card.accessibilitySummary)
@@ -101,6 +111,11 @@ struct TokenUsageMenuContent: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
+            Text("Daily values")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .opacity(card.hasData ? 1 : 0)
+                .accessibilityHidden(true)
         }
     }
 
@@ -114,8 +129,7 @@ struct TokenUsageMenuContent: View {
         case .loaded:
             if card.hasData {
                 chart
-                    .frame(height: 44)
-                    .padding(.top, 1)
+                    .frame(height: 38)
                 summary
             } else {
                 stateText("No token usage found yet")
@@ -127,11 +141,20 @@ struct TokenUsageMenuContent: View {
     private var chart: some View {
         switch card.style {
         case .dailyBars:
-            MinimalDailyBarsChart(buckets: card.buckets, maximumTokenCount: maximumTokenCount)
+            MinimalDailyBarsChart(
+                buckets: card.buckets,
+                maximumTokenCount: maximumTokenCount
+            )
         case .heatStrip:
-            HeatStripChart(buckets: card.buckets, maximumTokenCount: maximumTokenCount)
+            HeatStripChart(
+                buckets: card.buckets,
+                maximumTokenCount: maximumTokenCount
+            )
         case .sparkline:
-            SparklineAreaChart(buckets: card.buckets, maximumTokenCount: maximumTokenCount)
+            SparklineAreaChart(
+                buckets: card.buckets,
+                maximumTokenCount: maximumTokenCount
+            )
         }
     }
 
@@ -165,12 +188,11 @@ private struct MinimalDailyBarsChart: View {
             ForEach(buckets) { bucket in
                 Capsule()
                     .fill(barColor(for: bucket))
-                    .frame(maxWidth: 8)
+                    .frame(maxWidth: .infinity)
                     .frame(height: barHeight(for: bucket))
-                    .help(helpText(for: bucket))
             }
         }
-        .padding(.top, 2)
+        .overlay(TokenUsageTooltipOverlay(buckets: buckets, layout: .linear))
         .accessibilityHidden(true)
     }
 
@@ -179,11 +201,7 @@ private struct MinimalDailyBarsChart: View {
     }
 
     private func barHeight(for bucket: TokenUsageDayBucket) -> CGFloat {
-        max(5, 42 * CGFloat(bucket.tokenCount) / CGFloat(maximumTokenCount))
-    }
-
-    private func helpText(for bucket: TokenUsageDayBucket) -> String {
-        "\(bucket.shortLabel): \(formattedTokenCount(bucket.tokenCount)) tokens"
+        max(5, 38 * CGFloat(bucket.tokenCount) / CGFloat(maximumTokenCount))
     }
 }
 
@@ -213,16 +231,12 @@ private struct SparklineAreaChart: View {
                         .fill(Color.accentColor)
                         .frame(width: 5, height: 5)
                         .position(last)
-                }
+                    }
             }
+            .contentShape(Rectangle())
         }
-        .help(helpText)
+        .overlay(TokenUsageTooltipOverlay(buckets: buckets, layout: .linear))
         .accessibilityHidden(true)
-    }
-
-    private var helpText: String {
-        buckets.map { "\($0.shortLabel): \(formattedTokenCount($0.tokenCount)) tokens" }
-            .joined(separator: "\n")
     }
 
     private func chartPoints(in size: CGSize) -> [CGPoint] {
@@ -277,12 +291,12 @@ private struct HeatStripChart: View {
                                     .stroke(Color.secondary.opacity(0.12), lineWidth: 0.5)
                             )
                             .frame(maxWidth: .infinity, minHeight: 10, maxHeight: 10)
-                            .help(helpText(for: bucket))
                     }
                 }
             }
         }
         .padding(.vertical, 3)
+        .overlay(TokenUsageTooltipOverlay(buckets: buckets, layout: .heatStrip(rows: 3, columns: 10)))
         .accessibilityHidden(true)
     }
 
@@ -296,9 +310,100 @@ private struct HeatStripChart: View {
     private func opacity(for bucket: TokenUsageDayBucket) -> Double {
         0.14 + (0.76 * Double(bucket.tokenCount) / Double(maximumTokenCount))
     }
+}
 
-    private func helpText(for bucket: TokenUsageDayBucket) -> String {
-        "\(bucket.shortLabel): \(formattedTokenCount(bucket.tokenCount)) tokens"
+private enum TokenUsageTooltipLayout: Equatable {
+    case linear
+    case heatStrip(rows: Int, columns: Int)
+}
+
+private struct TokenUsageTooltipOverlay: NSViewRepresentable {
+    let buckets: [TokenUsageDayBucket]
+    let layout: TokenUsageTooltipLayout
+
+    func makeNSView(context: Context) -> TokenUsageTooltipView {
+        let view = TokenUsageTooltipView()
+        view.buckets = buckets
+        view.tooltipLayout = layout
+        return view
+    }
+
+    func updateNSView(_ nsView: TokenUsageTooltipView, context: Context) {
+        nsView.buckets = buckets
+        nsView.tooltipLayout = layout
+        nsView.refreshToolTip()
+    }
+}
+
+private final class TokenUsageTooltipView: NSView {
+    var buckets: [TokenUsageDayBucket] = []
+    var tooltipLayout: TokenUsageTooltipLayout = .linear
+
+    private var tooltipTag: NSView.ToolTipTag?
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = false
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func layout() {
+        super.layout()
+        refreshToolTip()
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        refreshToolTip()
+    }
+
+    func refreshToolTip() {
+        if let tooltipTag {
+            removeToolTip(tooltipTag)
+            self.tooltipTag = nil
+        }
+
+        guard !buckets.isEmpty, !bounds.isEmpty else { return }
+        tooltipTag = addToolTip(bounds, owner: self, userData: nil)
+    }
+
+    func view(
+        _ view: NSView,
+        stringForToolTip tag: NSView.ToolTipTag,
+        point: NSPoint,
+        userData data: UnsafeMutableRawPointer?
+    ) -> String {
+        guard let bucket = bucket(at: point) else { return "" }
+        return "\(bucket.shortLabel): \(formattedTokenCount(bucket.tokenCount)) tokens"
+    }
+
+    private func bucket(at point: NSPoint) -> TokenUsageDayBucket? {
+        guard !buckets.isEmpty, bounds.width > 0, bounds.height > 0 else { return nil }
+
+        switch tooltipLayout {
+        case .linear:
+            let index = clampedIndex(for: point.x, width: bounds.width, count: buckets.count)
+            return buckets[index]
+
+        case .heatStrip(let rows, let columns):
+            guard rows > 0, columns > 0 else { return nil }
+            let column = clampedIndex(for: point.x, width: bounds.width, count: columns)
+            let bottomOriginRow = clampedIndex(for: point.y, width: bounds.height, count: rows)
+            let topOriginRow = (rows - 1) - bottomOriginRow
+            let index = topOriginRow * columns + column
+            guard buckets.indices.contains(index) else { return nil }
+            return buckets[index]
+        }
+    }
+
+    private func clampedIndex(for value: CGFloat, width: CGFloat, count: Int) -> Int {
+        guard count > 1, width > 0 else { return 0 }
+        let fraction = min(max(value / width, 0), 0.999_999)
+        return min(max(Int(floor(fraction * CGFloat(count))), 0), count - 1)
     }
 }
 
