@@ -156,7 +156,6 @@ Acceptance:
 
 - Click-through detail panel.
 - Inspecting an individual day.
-- Hover tooltips for per-day values.
 - Animated loading states.
 - Secondary metrics such as peak day or average per day.
 - Model breakdown.

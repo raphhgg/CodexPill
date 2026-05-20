@@ -92,7 +92,7 @@ struct TokenUsageMenuCard: Equatable, Identifiable {
     var accessibilitySummary: String {
         var parts = [
             "Token Usage",
-            "This Mac"
+            periodTitle
         ]
 
         switch loadState {
@@ -104,7 +104,6 @@ struct TokenUsageMenuCard: Equatable, Identifiable {
             if hasData {
                 parts.append("Today: \(formattedTokenCount(todayTokenCount)) tokens")
                 parts.append("\(periodTitle): \(formattedTokenCount(periodTotalTokenCount)) tokens")
-                parts.append(style.menuTitle)
             } else {
                 parts.append("No token usage found yet")
             }

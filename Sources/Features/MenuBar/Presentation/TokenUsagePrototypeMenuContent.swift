@@ -79,13 +79,13 @@ struct TokenUsageMenuContent: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 7) {
             header
             content
         }
         .padding(.horizontal, 14)
-        .padding(.top, 10)
-        .padding(.bottom, 14)
+        .padding(.top, 8)
+        .padding(.bottom, 11)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(card.accessibilitySummary)
@@ -96,16 +96,11 @@ struct TokenUsageMenuContent: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Token Usage")
                     .font(.system(size: 14, weight: .semibold))
-                Text("This Mac")
+                Text(card.periodTitle)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            if case .loaded = card.loadState, card.hasData {
-                Text(card.style.menuTitle)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.secondary)
-            }
         }
     }
 
@@ -120,8 +115,7 @@ struct TokenUsageMenuContent: View {
             if card.hasData {
                 chart
                     .frame(height: 44)
-                    .padding(.top, 2)
-                    .padding(.bottom, 3)
+                    .padding(.top, 1)
                 summary
             } else {
                 stateText("No token usage found yet")
@@ -171,8 +165,9 @@ private struct MinimalDailyBarsChart: View {
             ForEach(buckets) { bucket in
                 Capsule()
                     .fill(barColor(for: bucket))
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: 8)
                     .frame(height: barHeight(for: bucket))
+                    .help(helpText(for: bucket))
             }
         }
         .padding(.top, 2)
@@ -185,6 +180,10 @@ private struct MinimalDailyBarsChart: View {
 
     private func barHeight(for bucket: TokenUsageDayBucket) -> CGFloat {
         max(5, 42 * CGFloat(bucket.tokenCount) / CGFloat(maximumTokenCount))
+    }
+
+    private func helpText(for bucket: TokenUsageDayBucket) -> String {
+        "\(bucket.shortLabel): \(formattedTokenCount(bucket.tokenCount)) tokens"
     }
 }
 
@@ -217,7 +216,13 @@ private struct SparklineAreaChart: View {
                 }
             }
         }
+        .help(helpText)
         .accessibilityHidden(true)
+    }
+
+    private var helpText: String {
+        buckets.map { "\($0.shortLabel): \(formattedTokenCount($0.tokenCount)) tokens" }
+            .joined(separator: "\n")
     }
 
     private func chartPoints(in size: CGSize) -> [CGPoint] {
@@ -272,6 +277,7 @@ private struct HeatStripChart: View {
                                     .stroke(Color.secondary.opacity(0.12), lineWidth: 0.5)
                             )
                             .frame(maxWidth: .infinity, minHeight: 10, maxHeight: 10)
+                            .help(helpText(for: bucket))
                     }
                 }
             }
@@ -289,6 +295,10 @@ private struct HeatStripChart: View {
 
     private func opacity(for bucket: TokenUsageDayBucket) -> Double {
         0.14 + (0.76 * Double(bucket.tokenCount) / Double(maximumTokenCount))
+    }
+
+    private func helpText(for bucket: TokenUsageDayBucket) -> String {
+        "\(bucket.shortLabel): \(formattedTokenCount(bucket.tokenCount)) tokens"
     }
 }
 

@@ -296,10 +296,9 @@ struct MenuBarMenuBuilderTests {
         let tokenUsage = snapshot.sections[0].items[1]
 
         #expect(tokenUsage.contains("Token Usage"))
-        #expect(tokenUsage.contains("This Mac"))
+        #expect(tokenUsage.contains("Last 7 days"))
         #expect(tokenUsage.contains("Today: 3,400 tokens"))
         #expect(tokenUsage.contains("Last 7 days: 4,600 tokens"))
-        #expect(tokenUsage.contains("Heat Strip"))
     }
 
     @Test
