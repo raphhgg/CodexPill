@@ -94,9 +94,13 @@ private struct TokenUsagePrototypeMenuScreenshot: View {
             .padding(.horizontal, 14)
             .padding(.bottom, 0)
 
-            Divider()
-                .padding(.horizontal, 14)
-                .opacity(0.55)
+            VStack(spacing: 0) {
+                Spacer(minLength: 12)
+                Divider()
+                    .opacity(0.55)
+                Spacer(minLength: 9)
+            }
+            .padding(.horizontal, 14)
 
             TokenUsagePrototypeMenuContent(card: card)
 

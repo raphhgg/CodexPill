@@ -144,7 +144,7 @@ struct InactiveAccountMenuContent: View {
 struct ActiveAccountCardDivider: View {
     var body: some View {
         VStack(spacing: 0) {
-            Spacer(minLength: 7)
+            Spacer(minLength: 12)
             Divider()
                 .opacity(0.55)
             Spacer(minLength: 9)
