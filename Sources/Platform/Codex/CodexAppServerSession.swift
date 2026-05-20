@@ -152,12 +152,6 @@ struct CodexAppServerSessionRunner {
                 }
             }
 
-            errorPipe.fileHandleForReading.readabilityHandler = { handle in
-                let data = handle.availableData
-                guard !data.isEmpty else { return }
-                state.appendErrorOutput(data)
-            }
-
             process.executableURL = command.executableURL
             process.arguments = command.arguments
             process.environment = command.environment
