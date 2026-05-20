@@ -1,54 +1,8 @@
 import Foundation
 
 struct CodexSessionTokenUsageScanResult: Equatable {
-    var buckets: [CodexSessionTokenUsageBucket]
+    var buckets: [CodexDailyTokenUsage]
     var summary: CodexSessionTokenUsageScanSummary
-}
-
-struct CodexSessionTokenUsageBucket: Equatable {
-    var day: Date
-    var usage: CodexSessionTokenUsage
-    var models: [String]
-}
-
-struct CodexSessionTokenUsage: Equatable {
-    var inputTokens: Int
-    var cachedInputTokens: Int
-    var outputTokens: Int
-    var reasoningOutputTokens: Int
-    var totalTokens: Int
-
-    static let zero = CodexSessionTokenUsage(
-        inputTokens: 0,
-        cachedInputTokens: 0,
-        outputTokens: 0,
-        reasoningOutputTokens: 0,
-        totalTokens: 0
-    )
-
-    static func + (lhs: CodexSessionTokenUsage, rhs: CodexSessionTokenUsage) -> CodexSessionTokenUsage {
-        CodexSessionTokenUsage(
-            inputTokens: lhs.inputTokens + rhs.inputTokens,
-            cachedInputTokens: lhs.cachedInputTokens + rhs.cachedInputTokens,
-            outputTokens: lhs.outputTokens + rhs.outputTokens,
-            reasoningOutputTokens: lhs.reasoningOutputTokens + rhs.reasoningOutputTokens,
-            totalTokens: lhs.totalTokens + rhs.totalTokens
-        )
-    }
-
-    static func - (lhs: CodexSessionTokenUsage, rhs: CodexSessionTokenUsage) -> CodexSessionTokenUsage {
-        CodexSessionTokenUsage(
-            inputTokens: lhs.inputTokens - rhs.inputTokens,
-            cachedInputTokens: lhs.cachedInputTokens - rhs.cachedInputTokens,
-            outputTokens: lhs.outputTokens - rhs.outputTokens,
-            reasoningOutputTokens: lhs.reasoningOutputTokens - rhs.reasoningOutputTokens,
-            totalTokens: lhs.totalTokens - rhs.totalTokens
-        )
-    }
-
-    var hasPositiveTotal: Bool {
-        totalTokens > 0
-    }
 }
 
 struct CodexSessionTokenUsageScanSummary: Equatable {
@@ -69,6 +23,19 @@ struct CodexSessionTokenUsageScanner {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
         self.calendar = calendar
+    }
+
+    func scan(
+        sessionsDirectory: URL,
+        period: CodexTokenUsagePeriod,
+        now: Date = Date()
+    ) throws -> CodexSessionTokenUsageScanResult {
+        let interval = dayRange(for: period, now: now)
+        let result = try scan(sessionsDirectory: sessionsDirectory, dayRange: interval)
+        return CodexSessionTokenUsageScanResult(
+            buckets: fillMissingDays(in: interval, from: result.buckets),
+            summary: result.summary
+        )
     }
 
     func scan(sessionsDirectory: URL, dayRange: DateInterval) throws -> CodexSessionTokenUsageScanResult {
@@ -112,8 +79,7 @@ struct CodexSessionTokenUsageScanner {
 
         var summary = emptySummary
         var accumulator = BucketAccumulator()
-        var currentModel: String?
-        var previousTotalUsage: CodexSessionTokenUsage?
+        var highestTotalUsage: CodexTokenUsageTotals?
 
         for line in contents.split(separator: "\n", omittingEmptySubsequences: true) {
             guard
@@ -127,26 +93,22 @@ struct CodexSessionTokenUsageScanner {
 
             switch payload["type"] as? String {
             case "turn_context":
-                currentModel = payload["model"] as? String
                 summary.nonUsageRowsIgnored += 1
             case "token_count":
                 summary.tokenCountRowsRead += 1
                 if let usage = usagePayload(named: "last_token_usage", in: payload), usage.hasPositiveTotal {
-                    accumulator.add(usage, model: currentModel, day: day)
+                    accumulator.add(usage, day: day)
                 } else if let totalUsage = usagePayload(named: "total_token_usage", in: payload) {
-                    let delta = previousTotalUsage.map { totalUsage - $0 } ?? totalUsage
-                    previousTotalUsage = totalUsage
+                    let delta = highestTotalUsage.map { totalUsage - $0 } ?? totalUsage
                     if delta.hasPositiveTotal {
-                        accumulator.add(delta, model: currentModel, day: day)
+                        accumulator.add(safeCumulativeDelta(delta), day: day)
                         summary.cumulativeRowsUsed += 1
+                        highestTotalUsage = totalUsage
                     } else {
                         summary.cumulativeRowsIgnored += 1
                     }
                 }
             default:
-                if currentModel == nil, let model = payload["model"] as? String, !model.isEmpty {
-                    currentModel = model
-                }
                 summary.nonUsageRowsIgnored += 1
             }
         }
@@ -200,13 +162,13 @@ struct CodexSessionTokenUsageScanner {
         ))
     }
 
-    private func usagePayload(named name: String, in payload: [String: Any]) -> CodexSessionTokenUsage? {
+    private func usagePayload(named name: String, in payload: [String: Any]) -> CodexTokenUsageTotals? {
         let container = (payload["info"] as? [String: Any]) ?? payload
         guard let usage = container[name] as? [String: Any] else {
             return nil
         }
 
-        return CodexSessionTokenUsage(
+        return CodexTokenUsageTotals(
             inputTokens: intValue(for: "input_tokens", in: usage),
             cachedInputTokens: intValue(for: "cached_input_tokens", in: usage),
             outputTokens: intValue(for: "output_tokens", in: usage),
@@ -225,6 +187,32 @@ struct CodexSessionTokenUsageScanner {
         return 0
     }
 
+    private func dayRange(for period: CodexTokenUsagePeriod, now: Date) -> DateInterval {
+        let today = calendar.startOfDay(for: now)
+        let start = calendar.date(byAdding: .day, value: 1 - period.dayCount, to: today) ?? today
+        let end = calendar.date(byAdding: .day, value: 1, to: today) ?? today
+        return DateInterval(start: start, end: end)
+    }
+
+    private func fillMissingDays(
+        in dayRange: DateInterval,
+        from buckets: [CodexDailyTokenUsage]
+    ) -> [CodexDailyTokenUsage] {
+        var usageByDay = Dictionary(uniqueKeysWithValues: buckets.map { ($0.day, $0.usage) })
+        var days: [CodexDailyTokenUsage] = []
+        var day = dayRange.start
+
+        while day < dayRange.end {
+            days.append(CodexDailyTokenUsage(day: day, usage: usageByDay.removeValue(forKey: day) ?? .zero))
+            guard let nextDay = calendar.date(byAdding: .day, value: 1, to: day) else {
+                break
+            }
+            day = nextDay
+        }
+
+        return days
+    }
+
     private var emptySummary: CodexSessionTokenUsageScanSummary {
         CodexSessionTokenUsageScanSummary(
             filesRead: 0,
@@ -235,32 +223,33 @@ struct CodexSessionTokenUsageScanner {
             nonUsageRowsIgnored: 0
         )
     }
+
+    private func safeCumulativeDelta(_ delta: CodexTokenUsageTotals) -> CodexTokenUsageTotals {
+        guard !delta.hasNegativeComponent else {
+            return delta.preservingOnlyTotalTokens()
+        }
+        return delta
+    }
 }
 
 private struct BucketAccumulator {
-    private var usageByDay: [Date: CodexSessionTokenUsage] = [:]
-    private var modelsByDay: [Date: Set<String>] = [:]
+    private var usageByDay: [Date: CodexTokenUsageTotals] = [:]
 
-    mutating func add(_ usage: CodexSessionTokenUsage, model: String?, day: Date) {
+    mutating func add(_ usage: CodexTokenUsageTotals, day: Date) {
         usageByDay[day, default: .zero] = usageByDay[day, default: .zero] + usage
-        if let model, !model.isEmpty {
-            modelsByDay[day, default: []].insert(model)
-        }
     }
 
-    mutating func merge(_ buckets: [CodexSessionTokenUsageBucket]) {
+    mutating func merge(_ buckets: [CodexDailyTokenUsage]) {
         for bucket in buckets {
             usageByDay[bucket.day, default: .zero] = usageByDay[bucket.day, default: .zero] + bucket.usage
-            modelsByDay[bucket.day, default: []].formUnion(bucket.models)
         }
     }
 
-    func buckets() -> [CodexSessionTokenUsageBucket] {
+    func buckets() -> [CodexDailyTokenUsage] {
         usageByDay.keys.sorted().map { day in
-            CodexSessionTokenUsageBucket(
+            CodexDailyTokenUsage(
                 day: day,
-                usage: usageByDay[day, default: .zero],
-                models: Array(modelsByDay[day, default: []]).sorted()
+                usage: usageByDay[day, default: .zero]
             )
         }
     }
