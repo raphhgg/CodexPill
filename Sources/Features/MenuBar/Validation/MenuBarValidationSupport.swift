@@ -126,25 +126,22 @@ enum MenuBarValidationSupport {
         var sections: [MenuBarValidationSnapshot.Section] = []
 
         if !state.activeAccountCards.isEmpty {
+            var activeAccountItems = state.activeAccountCards.map { card in
+                accountSummary(
+                    for: card.account,
+                    location: activeAccountLocationLine(for: card, now: now),
+                    now: now
+                )
+            }
+            if !activeAccountItems.isEmpty {
+                activeAccountItems.insert(contentsOf: state.tokenUsagePrototypeCards.map(\.accessibilitySummary), at: 1)
+            }
             sections.append(.init(
                 title: state.activeAccountsSectionTitle,
-                items: state.activeAccountCards.map { card in
-                    accountSummary(
-                        for: card.account,
-                        location: activeAccountLocationLine(for: card, now: now),
-                        now: now
-                    )
-                }
+                items: activeAccountItems
             ))
         } else {
             sections.append(.init(title: "Active Account", items: ["No active saved account"]))
-        }
-
-        if !state.tokenUsagePrototypeCards.isEmpty {
-            sections.append(.init(
-                title: "Token Usage Prototypes",
-                items: state.tokenUsagePrototypeCards.map(\.accessibilitySummary)
-            ))
         }
 
         if !state.visibleDisplayAccountEntries.isEmpty {

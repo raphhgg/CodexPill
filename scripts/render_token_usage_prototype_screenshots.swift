@@ -50,7 +50,7 @@ private struct TokenUsagePrototypeMenuScreenshot: View {
                 .padding(.top, 8)
                 .padding(.bottom, 4)
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 9) {
                 HStack(alignment: .firstTextBaseline) {
                     Text("Personal")
                         .font(.system(size: 15, weight: .semibold))
@@ -65,9 +65,34 @@ private struct TokenUsagePrototypeMenuScreenshot: View {
                 Text("This Mac")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .padding(.top, -2)
+
+                ActiveLimitRow(
+                    title: "Session",
+                    window: .init(
+                        usedPercent: 38,
+                        resetsAt: Date(timeIntervalSinceReferenceDate: 802_000_000),
+                        windowDurationMinutes: 300
+                    ),
+                    tintColor: .accentColor,
+                    showsPacingMarkers: true,
+                    now: Date(timeIntervalSinceReferenceDate: 801_970_000)
+                )
+
+                ActiveLimitRow(
+                    title: "Weekly",
+                    window: .init(
+                        usedPercent: 61,
+                        resetsAt: Date(timeIntervalSinceReferenceDate: 802_360_000),
+                        windowDurationMinutes: 10_080
+                    ),
+                    tintColor: .accentColor,
+                    showsPacingMarkers: true,
+                    now: Date(timeIntervalSinceReferenceDate: 801_970_000)
+                )
             }
             .padding(.horizontal, 14)
-            .padding(.bottom, 9)
+            .padding(.bottom, 0)
 
             Divider()
                 .padding(.horizontal, 14)

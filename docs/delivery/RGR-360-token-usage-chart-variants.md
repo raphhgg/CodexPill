@@ -2,7 +2,7 @@
 
 This prototype uses synthetic fixture buckets only. It does not read local Codex session logs, auth files, account identifiers, prompts, local paths, remote hosts, backend APIs, persistence, or production scanner output.
 
-All variants use the same 30-day fixture data, the same `Token Usage` / `This Mac` header, `Today: 22,400 tokens`, and `Last 30 days: 680,200 tokens`. They are rendered at the same menu width and placed below the active account area and above the account/action sections.
+All variants use the same 30-day fixture data, the same `Token Usage` / `This Mac` header, `Today: 22,400 tokens`, and `Last 30 days: 680,200 tokens`. They are rendered at the same menu width inside the active account area, directly below the Session and Weekly rows and above the account/action sections.
 
 ## Variants
 

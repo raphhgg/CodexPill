@@ -217,7 +217,7 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func tokenUsagePrototypeProjectionUsesFixtureCardsBelowActiveAccount() {
+    func tokenUsagePrototypeProjectionUsesFixtureCardsInsideActiveAccount() {
         let state = makeState(
             activeAccount: makeAccount(name: "Active", withRateLimits: true),
             inactiveAccounts: [makeAccount(name: "Other", withRateLimits: true)],
@@ -228,11 +228,13 @@ struct MenuBarMenuBuilderTests {
 
         #expect(snapshot.sections.map(\.title).prefix(3) == [
             "Active Account",
-            "Token Usage Prototypes",
-            "Other Accounts"
+            "Other Accounts",
+            "Manage Accounts"
         ])
-        #expect(snapshot.sections[1].items.count == 4)
-        for item in snapshot.sections[1].items {
+        #expect(snapshot.sections[0].items.count == 5)
+        #expect(snapshot.sections[0].items[0].contains("Session"))
+        #expect(snapshot.sections[0].items[0].contains("Weekly"))
+        for item in snapshot.sections[0].items.dropFirst() {
             #expect(item.contains("Token Usage"))
             #expect(item.contains("This Mac"))
             #expect(item.contains("Today: 22,400 tokens"))
@@ -241,7 +243,7 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func tokenUsagePrototypeMenuAddsComparableHostedCardsBeforeAccountRows() throws {
+    func tokenUsagePrototypeMenuEmbedsComparableCardsInActiveAccountArea() throws {
         let state = makeState(
             activeAccount: makeAccount(name: "Active", withRateLimits: true),
             inactiveAccounts: [makeAccount(name: "Other", withRateLimits: true)],
@@ -250,15 +252,13 @@ struct MenuBarMenuBuilderTests {
         let coordinator = try makeCoordinator()
 
         let menu = MenuBarMenuBuilder().makeMenu(state: state, target: coordinator)
-        let hostedFrames = menu.items.compactMap { $0.view?.frame }
-        let prototypeFrames = Array(hostedFrames.dropFirst(2).prefix(7))
-        let cardFrames = prototypeFrames.enumerated().compactMap { index, frame in
-            index.isMultiple(of: 2) ? frame : nil
-        }
+        let activeAccountItem = menu.items[1]
+        let activeAccountFrame = try #require(activeAccountItem.view?.frame)
 
-        #expect(cardFrames.count == 4)
-        #expect(Set(cardFrames.map { Int($0.width.rounded()) }) == [372])
-        #expect(cardFrames.allSatisfy { abs($0.height - (cardFrames.first?.height ?? 0)) < 8 })
+        #expect(Int(activeAccountFrame.width.rounded()) == 372)
+        #expect(activeAccountFrame.height > 500)
+        #expect(menu.items.prefix(2).filter(\.isSeparatorItem).isEmpty)
+        #expect(menu.items[2].isSeparatorItem)
     }
 
     @Test

@@ -42,21 +42,17 @@ struct MenuBarMenuBuilder {
                 if index > 0 {
                     menu.addItem(activeAccountDividerItem(width: menuContentWidth))
                 }
-                menu.addItem(activeAccountItem(for: activeAccountCard, state: state, width: menuContentWidth))
+                let tokenUsagePrototypeCards = index == 0 ? state.tokenUsagePrototypeCards : []
+                menu.addItem(activeAccountItem(
+                    for: activeAccountCard,
+                    state: state,
+                    tokenUsagePrototypeCards: tokenUsagePrototypeCards,
+                    width: menuContentWidth
+                ))
             }
         } else {
             menu.addItem(sectionHeaderItem("Active Account", width: menuContentWidth, bottomPadding: 4))
             menu.addItem(disabledInfoItem("No active saved account"))
-        }
-
-        if !state.tokenUsagePrototypeCards.isEmpty {
-            menu.addItem(.separator())
-            for (index, card) in state.tokenUsagePrototypeCards.enumerated() {
-                if index > 0 {
-                    menu.addItem(activeAccountDividerItem(width: menuContentWidth))
-                }
-                menu.addItem(tokenUsagePrototypeItem(for: card, width: menuContentWidth))
-            }
         }
 
         if !state.visibleDisplayAccountEntries.isEmpty {
@@ -102,7 +98,12 @@ struct MenuBarMenuBuilder {
         menu.addItem(quit)
     }
 
-    private func activeAccountItem(for card: ActiveAccountCard, state: MenuBarMenuState, width: CGFloat) -> NSMenuItem {
+    private func activeAccountItem(
+        for card: ActiveAccountCard,
+        state: MenuBarMenuState,
+        tokenUsagePrototypeCards: [TokenUsagePrototypeCard],
+        width: CGFloat
+    ) -> NSMenuItem {
         let item = NSMenuItem()
         let now = Date()
         let view = NSHostingView(
@@ -112,16 +113,10 @@ struct MenuBarMenuBuilder {
                 showsUpdatedTime: card.showsUpdatedTime,
                 progressAccentColor: Color(nsColor: state.progressAccentColor),
                 showsPacingMarkers: state.pacingMarkersEnabled,
+                tokenUsagePrototypeCards: tokenUsagePrototypeCards,
                 now: now
             )
         )
-        item.view = configuredHostedMenuView(view, width: width)
-        return item
-    }
-
-    private func tokenUsagePrototypeItem(for card: TokenUsagePrototypeCard, width: CGFloat) -> NSMenuItem {
-        let item = NSMenuItem()
-        let view = NSHostingView(rootView: TokenUsagePrototypeMenuContent(card: card))
         item.view = configuredHostedMenuView(view, width: width)
         return item
     }
