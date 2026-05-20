@@ -49,6 +49,10 @@ Preferences:
 - `Last 7 Days`
 - `Last 30 Days`
 - `Last 90 Days`
+- `Chart Style`
+- `Daily Bars`
+- `Heat Strip`
+- `Sparkline`
 
 Default:
 
@@ -60,8 +64,9 @@ Menu card:
 - Position: below the active account card and above account/action sections.
 - Title: `Token Usage`
 - Scope label: `This Mac`
-- Chart: compact daily bar chart for the selected period.
-- Chart design must go through a human review checkpoint before final implementation. The issue should propose multiple visual variants with screenshots so the preferred direction can be selected deliberately.
+- Chart: compact chart for the selected period.
+- Chart styles: `Daily Bars`, `Heat Strip`, and `Sparkline`.
+- Chart design must go through a human review checkpoint before final implementation. RGR-360 should validate these three styles with screenshots and make sure the final Token Usage card lets the user choose between them.
 - Summary copy:
   - `Today: <tokens> tokens`
   - `Last 30 days: <tokens> tokens`
@@ -96,10 +101,11 @@ States:
 - Token Usage can be enabled and disabled from Preferences.
 - When disabled, the main menu does not show the Token Usage card.
 - When enabled, the main menu shows a compact Token Usage card below the active account area.
-- The card displays a daily bar chart for the selected period.
+- The card displays the selected chart style for the selected period.
 - The card displays today’s token total and the selected-period token total.
 - The card is clearly scoped to `This Mac`.
 - The selected period can be changed between last 7, 30, and 90 days.
+- The chart style can be changed between daily bars, heat strip, and sparkline.
 - Aggregation is derived from local Codex session token-count events, not backend `/api/codex/usage`.
 - The implementation emits only aggregate token totals and never raw prompt/session/auth content.
 - Synthetic fixture tests cover parsing, aggregation, malformed rows, and repeated cumulative totals.
@@ -110,30 +116,31 @@ States:
 
 Purpose:
 
-Explore compact chart treatments for the Token Usage card before committing to the final UI direction.
+Validate the three supported chart styles for the Token Usage card before final implementation.
 
 Contract:
 
 - Use synthetic or fixture token data.
 - Show the card in the intended menu position below the active account area.
+- Show the settings/menu path that lets the user choose chart style.
 - Do not depend on the production scanner.
 - Do not implement final persistence, preferences, backend access, account split, or remote host usage.
 - Produce screenshots for human review.
 
 Required variants:
 
-- Minimal daily bars.
-- Stock-style sparkline or area chart.
-- Calendar-inspired heat strip or density view.
-- Native compact card variant optimized for menu readability.
+- Daily bars.
+- Heat strip.
+- Sparkline.
 
 Acceptance:
 
-- Every variant uses the same data and comparable card dimensions.
-- Every variant shows realistic `Today` and selected-period totals.
-- Every variant includes `This Mac` scope copy.
+- Every style uses the same data and comparable card dimensions.
+- Every style shows realistic `Today` and selected-period totals.
+- Every style includes `This Mac` scope copy.
+- The prototype shows how the user chooses between `Daily Bars`, `Heat Strip`, and `Sparkline`.
 - The handoff includes screenshots and a short trade-off note for each variant.
-- The issue is marked for human review before any final Token Usage UI implementation begins.
+- The issue is marked for human review before the final Token Usage UI implementation begins.
 
 ## Validation Targets
 
