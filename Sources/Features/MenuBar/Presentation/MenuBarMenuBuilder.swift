@@ -49,6 +49,16 @@ struct MenuBarMenuBuilder {
             menu.addItem(disabledInfoItem("No active saved account"))
         }
 
+        if !state.tokenUsagePrototypeCards.isEmpty {
+            menu.addItem(.separator())
+            for (index, card) in state.tokenUsagePrototypeCards.enumerated() {
+                if index > 0 {
+                    menu.addItem(activeAccountDividerItem(width: menuContentWidth))
+                }
+                menu.addItem(tokenUsagePrototypeItem(for: card, width: menuContentWidth))
+            }
+        }
+
         if !state.visibleDisplayAccountEntries.isEmpty {
             menu.addItem(.separator())
             menu.addItem(sectionHeaderItem(state.accountListSectionTitle, width: menuContentWidth, bottomPadding: 4))
@@ -105,6 +115,13 @@ struct MenuBarMenuBuilder {
                 now: now
             )
         )
+        item.view = configuredHostedMenuView(view, width: width)
+        return item
+    }
+
+    private func tokenUsagePrototypeItem(for card: TokenUsagePrototypeCard, width: CGFloat) -> NSMenuItem {
+        let item = NSMenuItem()
+        let view = NSHostingView(rootView: TokenUsagePrototypeMenuContent(card: card))
         item.view = configuredHostedMenuView(view, width: width)
         return item
     }

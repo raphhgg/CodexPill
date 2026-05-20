@@ -95,6 +95,7 @@ struct MenuBarMenuState {
     let notificationsWhenOutEnabled: Bool
     let notificationAuthorizationState: NotificationAuthorizationState
     let loginItemState: LoginItemState
+    let tokenUsagePrototypeCards: [TokenUsagePrototypeCard]
 
     init(
         activeAccount: CodexAccount?,
@@ -116,7 +117,8 @@ struct MenuBarMenuState {
         notificationsWhenBlockedEnabled: Bool = false,
         notificationsWhenOutEnabled: Bool = false,
         notificationAuthorizationState: NotificationAuthorizationState = .unknown,
-        loginItemState: LoginItemState = .unavailable
+        loginItemState: LoginItemState = .unavailable,
+        tokenUsagePrototypeCards: [TokenUsagePrototypeCard] = []
     ) {
         self.activeAccount = activeAccount
         self.inactiveAccounts = inactiveAccounts
@@ -138,6 +140,7 @@ struct MenuBarMenuState {
         self.notificationsWhenOutEnabled = notificationsWhenOutEnabled
         self.notificationAuthorizationState = notificationAuthorizationState
         self.loginItemState = loginItemState
+        self.tokenUsagePrototypeCards = tokenUsagePrototypeCards
     }
 
     var canAddAccount: Bool {

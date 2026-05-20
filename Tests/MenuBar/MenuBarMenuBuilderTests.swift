@@ -217,6 +217,51 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
+    func tokenUsagePrototypeProjectionUsesFixtureCardsBelowActiveAccount() {
+        let state = makeState(
+            activeAccount: makeAccount(name: "Active", withRateLimits: true),
+            inactiveAccounts: [makeAccount(name: "Other", withRateLimits: true)],
+            tokenUsagePrototypeCards: TokenUsagePrototype.fixtureCards
+        )
+
+        let snapshot = MenuBarValidationSupport.makeSnapshot(state: state)
+
+        #expect(snapshot.sections.map(\.title).prefix(3) == [
+            "Active Account",
+            "Token Usage Prototypes",
+            "Other Accounts"
+        ])
+        #expect(snapshot.sections[1].items.count == 4)
+        for item in snapshot.sections[1].items {
+            #expect(item.contains("Token Usage"))
+            #expect(item.contains("This Mac"))
+            #expect(item.contains("Today: 22,400 tokens"))
+            #expect(item.contains("Last 30 days: 680,200 tokens"))
+        }
+    }
+
+    @Test
+    func tokenUsagePrototypeMenuAddsComparableHostedCardsBeforeAccountRows() throws {
+        let state = makeState(
+            activeAccount: makeAccount(name: "Active", withRateLimits: true),
+            inactiveAccounts: [makeAccount(name: "Other", withRateLimits: true)],
+            tokenUsagePrototypeCards: TokenUsagePrototype.fixtureCards
+        )
+        let coordinator = try makeCoordinator()
+
+        let menu = MenuBarMenuBuilder().makeMenu(state: state, target: coordinator)
+        let hostedFrames = menu.items.compactMap { $0.view?.frame }
+        let prototypeFrames = Array(hostedFrames.dropFirst(2).prefix(7))
+        let cardFrames = prototypeFrames.enumerated().compactMap { index, frame in
+            index.isMultiple(of: 2) ? frame : nil
+        }
+
+        #expect(cardFrames.count == 4)
+        #expect(Set(cardFrames.map { Int($0.width.rounded()) }) == [372])
+        #expect(cardFrames.allSatisfy { abs($0.height - (cardFrames.first?.height ?? 0)) < 8 })
+    }
+
+    @Test
     func statusItemContentOptionsAreDisabledWhenNoStatusDataExists() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
@@ -1872,7 +1917,8 @@ struct MenuBarMenuBuilderTests {
         notificationsWhenOutEnabled: Bool = false,
         notificationAuthorizationState: NotificationAuthorizationState = .unknown,
         loginItemState: LoginItemState = .disabled,
-        revealStatusItemTitleShortcut: CodexPill.KeyboardShortcut? = .defaultRevealStatusItemTitle
+        revealStatusItemTitleShortcut: CodexPill.KeyboardShortcut? = .defaultRevealStatusItemTitle,
+        tokenUsagePrototypeCards: [TokenUsagePrototypeCard] = []
     ) -> MenuBarMenuState {
         MenuBarMenuState(
             activeAccount: activeAccount,
@@ -1893,7 +1939,8 @@ struct MenuBarMenuBuilderTests {
             notificationsWhenBlockedEnabled: notificationsWhenBlockedEnabled,
             notificationsWhenOutEnabled: notificationsWhenOutEnabled,
             notificationAuthorizationState: notificationAuthorizationState,
-            loginItemState: loginItemState
+            loginItemState: loginItemState,
+            tokenUsagePrototypeCards: tokenUsagePrototypeCards
         )
     }
 

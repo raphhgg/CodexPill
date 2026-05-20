@@ -140,6 +140,13 @@ enum MenuBarValidationSupport {
             sections.append(.init(title: "Active Account", items: ["No active saved account"]))
         }
 
+        if !state.tokenUsagePrototypeCards.isEmpty {
+            sections.append(.init(
+                title: "Token Usage Prototypes",
+                items: state.tokenUsagePrototypeCards.map(\.accessibilitySummary)
+            ))
+        }
+
         if !state.visibleDisplayAccountEntries.isEmpty {
             sections.append(.init(
                 title: state.accountListSectionTitle,
