@@ -32,7 +32,33 @@ enum CodexTokenUsagePeriod: Int, CaseIterable, Codable, Hashable {
     }
 }
 
-struct CodexDailyTokenUsage: Equatable {
+enum TokenUsageLoadingAnimationStyle: String, CaseIterable, Equatable {
+    case waves
+    case random
+
+    var menuTitle: String {
+        switch self {
+        case .waves:
+            return "Waves"
+        case .random:
+            return "Random"
+        }
+    }
+}
+
+struct TokenUsageScanProgress: Equatable, Sendable {
+    var scannedFiles: Int
+    var totalFiles: Int
+
+    var message: String {
+        guard totalFiles > 0 else {
+            return "Scanning local sessions"
+        }
+        return "Scanning \(min(scannedFiles, totalFiles)) of \(totalFiles) sessions"
+    }
+}
+
+struct CodexDailyTokenUsage: Codable, Equatable {
     var day: Date
     var usage: CodexTokenUsageTotals
 }

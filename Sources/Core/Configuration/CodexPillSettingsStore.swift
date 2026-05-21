@@ -114,6 +114,11 @@ final class CodexPillSettingsStore {
         set { tokenUsagePreferences.chartStyle = newValue }
     }
 
+    var tokenUsageLoadingAnimationStyle: TokenUsageLoadingAnimationStyle {
+        get { tokenUsagePreferences.loadingAnimationStyle }
+        set { tokenUsagePreferences.loadingAnimationStyle = newValue }
+    }
+
     var accountNotificationStates: [PersistedAccountNotificationState] {
         get { notificationState.accountNotificationStates }
         set { notificationState.accountNotificationStates = newValue }

@@ -34,6 +34,7 @@ struct CodexPillSettingsStoreTests {
         #expect(settings.tokenUsageEnabled == false)
         #expect(settings.tokenUsagePeriod == .last30Days)
         #expect(settings.tokenUsageChartStyle == .dailyBars)
+        #expect(settings.tokenUsageLoadingAnimationStyle == .waves)
     }
 
     @Test
@@ -42,14 +43,26 @@ struct CodexPillSettingsStoreTests {
 
         let first = CodexPillSettingsStore(userDefaults: defaults)
         first.tokenUsageEnabled = true
-        first.tokenUsagePeriod = .last90Days
         first.tokenUsageChartStyle = .sparkline
+        first.tokenUsageLoadingAnimationStyle = .random
 
         let second = CodexPillSettingsStore(userDefaults: defaults)
 
         #expect(second.tokenUsageEnabled)
-        #expect(second.tokenUsagePeriod == .last90Days)
+        #expect(second.tokenUsagePeriod == .last30Days)
         #expect(second.tokenUsageChartStyle == .sparkline)
+        #expect(second.tokenUsageLoadingAnimationStyle == .random)
+    }
+
+    @Test
+    func tokenUsagePreferencesMigrateHiddenPeriodsToThirtyDays() {
+        let defaults = makeDefaults()
+        defaults.set(CodexTokenUsagePeriod.last7Days.rawValue, forKey: "tokenUsagePeriod")
+
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
+
+        #expect(settings.tokenUsagePeriod == .last30Days)
+        #expect(defaults.object(forKey: "tokenUsagePeriod") as? Int == CodexTokenUsagePeriod.last30Days.rawValue)
     }
 
     @Test

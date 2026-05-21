@@ -67,6 +67,7 @@ struct TokenUsagePrototypeCard: Equatable, Identifiable {
 
 struct TokenUsageMenuCard: Equatable, Identifiable {
     let style: TokenUsageChartStyle
+    let loadingAnimationStyle: TokenUsageLoadingAnimationStyle
     let period: CodexTokenUsagePeriod
     let buckets: [TokenUsageDayBucket]
     let loadState: TokenUsageMenuLoadState
@@ -85,6 +86,15 @@ struct TokenUsageMenuCard: Equatable, Identifiable {
         buckets.reduce(0) { $0 + $1.tokenCount }
     }
 
+    var peakDayBucket: TokenUsageDayBucket? {
+        buckets.max { $0.tokenCount < $1.tokenCount }
+    }
+
+    var peakDaySummary: String? {
+        guard let peakDayBucket, peakDayBucket.tokenCount > 0 else { return nil }
+        return "\(peakDayBucket.shortLabel): \(formattedTokenCount(peakDayBucket.tokenCount)) tokens"
+    }
+
     var hasData: Bool {
         periodTotalTokenCount > 0
     }
@@ -96,14 +106,17 @@ struct TokenUsageMenuCard: Equatable, Identifiable {
         ]
 
         switch loadState {
-        case .loading:
-            parts.append("Scanning local sessions...")
+        case .loading(let progress):
+            parts.append(progress?.message.appending("...") ?? "Scanning local sessions...")
         case .unavailable:
             parts.append("Token usage unavailable")
         case .loaded:
             if hasData {
                 parts.append("Today: \(formattedTokenCount(todayTokenCount)) tokens")
                 parts.append("\(periodTitle): \(formattedTokenCount(periodTotalTokenCount)) tokens")
+                if let peakDaySummary {
+                    parts.append("Peak day: \(peakDaySummary)")
+                }
             } else {
                 parts.append("No token usage found yet")
             }
@@ -114,6 +127,7 @@ struct TokenUsageMenuCard: Equatable, Identifiable {
 
     static func make(
         style: TokenUsageChartStyle,
+        loadingAnimationStyle: TokenUsageLoadingAnimationStyle = .waves,
         period: CodexTokenUsagePeriod,
         loadState: TokenUsageMenuLoadState,
         calendar: Calendar = .current
@@ -121,19 +135,21 @@ struct TokenUsageMenuCard: Equatable, Identifiable {
         let buckets: [TokenUsageDayBucket]
         switch loadState {
         case .loaded(let dailyUsage):
-            buckets = dailyUsage.enumerated().map { index, usage in
+            let visibleDailyUsage = dailyUsage.suffix(period.dayCount)
+            buckets = visibleDailyUsage.enumerated().map { index, usage in
                 TokenUsageDayBucket(
                     id: index,
                     shortLabel: Self.shortLabel(for: usage.day, calendar: calendar),
                     tokenCount: usage.usage.totalTokens
                 )
             }
-        case .loading, .unavailable:
+        case .loading(_), .unavailable:
             buckets = []
         }
 
         return TokenUsageMenuCard(
             style: style,
+            loadingAnimationStyle: loadingAnimationStyle,
             period: period,
             buckets: buckets,
             loadState: loadState
@@ -146,6 +162,36 @@ struct TokenUsageMenuCard: Equatable, Identifiable {
         formatter.calendar = calendar
         formatter.setLocalizedDateFormatFromTemplate("MMM d")
         return formatter.string(from: date)
+    }
+}
+
+struct TokenUsageLoadingFrame: Equatable {
+    let message: String
+    let highlightedIndex: Int
+    let phase: Double
+
+    static func make(
+        at date: Date,
+        itemCount: Int,
+        reduceMotion: Bool = false,
+        baseMessage: String = "Scanning local sessions"
+    ) -> TokenUsageLoadingFrame {
+        let safeItemCount = max(itemCount, 1)
+        guard !reduceMotion else {
+            return TokenUsageLoadingFrame(
+                message: baseMessage + "...",
+                highlightedIndex: 0,
+                phase: 0
+            )
+        }
+
+        let tick = max(Int((date.timeIntervalSince1970 * 2).rounded(.down)), 0)
+        let dotCount = (tick % 3) + 1
+        return TokenUsageLoadingFrame(
+            message: baseMessage + String(repeating: ".", count: dotCount),
+            highlightedIndex: tick % safeItemCount,
+            phase: date.timeIntervalSince1970
+        )
     }
 }
 

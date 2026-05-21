@@ -573,8 +573,8 @@ struct MenuBarMenuBuilder {
         let item = NSMenuItem(title: "Token Usage", action: nil, keyEquivalent: "")
         let submenu = configuredMenu(title: "Token Usage")
         submenu.addItem(showTokenUsageMenuItem(state: state, target: target))
-        submenu.addItem(tokenUsagePeriodMenuItem(state: state, target: target))
         submenu.addItem(tokenUsageChartStyleMenuItem(state: state, target: target))
+        submenu.addItem(tokenUsageLoadingAnimationStyleMenuItem(state: state, target: target))
         item.submenu = submenu
         return item
     }
@@ -586,20 +586,6 @@ struct MenuBarMenuBuilder {
         return item
     }
 
-    private func tokenUsagePeriodMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Period", action: nil, keyEquivalent: "")
-        let submenu = configuredMenu(title: "Period")
-        for period in CodexTokenUsagePeriod.allCases {
-            let option = NSMenuItem(title: period.menuTitle, action: #selector(MenuBarCoordinator.selectTokenUsagePeriod(_:)), keyEquivalent: "")
-            option.target = target
-            option.representedObject = period.rawValue
-            option.state = state.tokenUsagePeriod == period ? .on : .off
-            submenu.addItem(option)
-        }
-        item.submenu = submenu
-        return item
-    }
-
     private func tokenUsageChartStyleMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
         let item = NSMenuItem(title: "Chart Style", action: nil, keyEquivalent: "")
         let submenu = configuredMenu(title: "Chart Style")
@@ -608,6 +594,20 @@ struct MenuBarMenuBuilder {
             option.target = target
             option.representedObject = style.rawValue
             option.state = state.tokenUsageChartStyle == style ? .on : .off
+            submenu.addItem(option)
+        }
+        item.submenu = submenu
+        return item
+    }
+
+    private func tokenUsageLoadingAnimationStyleMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Loading Animation", action: nil, keyEquivalent: "")
+        let submenu = configuredMenu(title: "Loading Animation")
+        for style in TokenUsageLoadingAnimationStyle.allCases {
+            let option = NSMenuItem(title: style.menuTitle, action: #selector(MenuBarCoordinator.selectTokenUsageLoadingAnimationStyle(_:)), keyEquivalent: "")
+            option.target = target
+            option.representedObject = style.rawValue
+            option.state = state.tokenUsageLoadingAnimationStyle == style ? .on : .off
             submenu.addItem(option)
         }
         item.submenu = submenu

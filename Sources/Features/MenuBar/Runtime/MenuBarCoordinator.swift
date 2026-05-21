@@ -47,8 +47,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private var autoRefreshTimer: Timer?
     private var wakeRefreshTask: Task<Void, Never>?
     private var notificationWaitTask: Task<Void, Never>?
-    private var tokenUsageTask: Task<Void, Never>?
-    private var tokenUsageLoadState: TokenUsageMenuLoadState = .loading
+    private var pendingTokenUsageMenuRebuild = false
     private var hasPromptedForEmptyState = false
     private var isObservingSettings = false
     private var isObservingStore = false
@@ -74,6 +73,12 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         },
         rebuildMenu: { [weak self] in
             self?.rebuildMenu()
+        }
+    )
+    private lazy var tokenUsageRuntime = TokenUsageMenuRuntime(
+        provider: tokenUsageProvider,
+        onStateChange: { [weak self] _ in
+            self?.rebuildTokenUsageMenuWhenSafe()
         }
     )
     private lazy var hostActionCoordinator = MenuBarHostActionCoordinator(
@@ -198,7 +203,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         autoRefreshTimer?.invalidate()
         wakeRefreshTask?.cancel()
         notificationWaitTask?.cancel()
-        tokenUsageTask?.cancel()
+        tokenUsageRuntime.cancel()
         cancelActiveIsolatedAddAccountSession()
         validationObserver.cancelIfUnfinished()
         shortcutRuntime.invalidate()
@@ -348,9 +353,11 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     func toggleTokenUsage(_ sender: NSMenuItem) {
         recordMenuAction("toggleTokenUsage")
         settings.tokenUsageEnabled.toggle()
-        tokenUsageLoadState = .loading
+        tokenUsageRuntime.handleEnabledChange(
+            isEnabled: settings.tokenUsageEnabled,
+            period: settings.tokenUsagePeriod
+        )
         rebuildMenu()
-        refreshTokenUsageIfNeeded()
     }
 
     @objc
@@ -363,9 +370,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             return
         }
         settings.tokenUsagePeriod = period
-        tokenUsageLoadState = .loading
+        tokenUsageRuntime.handlePeriodChange(period: period)
         rebuildMenu()
-        refreshTokenUsageIfNeeded()
     }
 
     @objc
@@ -378,6 +384,19 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             return
         }
         settings.tokenUsageChartStyle = style
+        rebuildMenu()
+    }
+
+    @objc
+    func selectTokenUsageLoadingAnimationStyle(_ sender: NSMenuItem) {
+        recordMenuAction("selectTokenUsageLoadingAnimationStyle")
+        guard
+            let rawValue = sender.representedObject as? String,
+            let style = TokenUsageLoadingAnimationStyle(rawValue: rawValue)
+        else {
+            return
+        }
+        settings.tokenUsageLoadingAnimationStyle = style
         rebuildMenu()
     }
 
@@ -599,6 +618,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     func menuDidClose(_ menu: NSMenu) {
         statusItemRuntime.handleMenuDidClose()
+        if pendingTokenUsageMenuRebuild {
+            pendingTokenUsageMenuRebuild = false
+            rebuildMenu()
+        }
         recordValidationSnapshot(for: menuState())
     }
 
@@ -655,6 +678,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             tokenUsageEnabled: settings.tokenUsageEnabled,
             tokenUsagePeriod: settings.tokenUsagePeriod,
             tokenUsageChartStyle: settings.tokenUsageChartStyle,
+            tokenUsageLoadingAnimationStyle: settings.tokenUsageLoadingAnimationStyle,
             tokenUsageCard: makeTokenUsageCard()
         )
     }
@@ -663,26 +687,27 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         guard settings.tokenUsageEnabled else { return nil }
         return TokenUsageMenuCard.make(
             style: settings.tokenUsageChartStyle,
+            loadingAnimationStyle: settings.tokenUsageLoadingAnimationStyle,
             period: settings.tokenUsagePeriod,
-            loadState: tokenUsageLoadState
+            loadState: tokenUsageRuntime.loadState
         )
     }
 
     private func refreshTokenUsageIfNeeded() {
         guard settings.tokenUsageEnabled else {
-            tokenUsageTask?.cancel()
+            tokenUsageRuntime.cancel()
             return
         }
 
-        tokenUsageTask?.cancel()
-        let period = settings.tokenUsagePeriod
-        tokenUsageTask = Task { @MainActor [weak self] in
-            guard let self else { return }
-            let loadState = await tokenUsageProvider.load(period: period)
-            guard !Task.isCancelled, settings.tokenUsagePeriod == period else { return }
-            tokenUsageLoadState = loadState
-            rebuildMenu()
+        tokenUsageRuntime.refreshIfNeeded(period: settings.tokenUsagePeriod)
+    }
+
+    private func rebuildTokenUsageMenuWhenSafe() {
+        guard !statusItemRuntime.isMenuTrackingOpen else {
+            pendingTokenUsageMenuRebuild = true
+            return
         }
+        rebuildMenu()
     }
 
     private func setLaunchAtLoginEnabled(_ isEnabled: Bool) {

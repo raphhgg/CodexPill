@@ -8,6 +8,8 @@ As a CodexPill user, I want to see when my Codex token usage is light or heavy o
 
 Token Usage is an optional, local-first menu bar feature. When enabled, CodexPill scans local Codex session records on this Mac, aggregates token-count events into daily buckets, and shows a compact token usage summary in the main menu.
 
+The scan should be treated as a background data-loading job, not as work owned by the transient menu view. Opening or closing the menu must not restart the scan. Once enough local history has been scanned, changing period or chart style should derive a new presentation from cached aggregate data instead of visibly re-scanning local session files.
+
 The feature is about local Codex usage history, not saved-account usage history. V1 must not imply that the graph is split by saved account, workspace, organization, or remote host.
 
 CodexPill must not use undocumented backend usage endpoints, browser cookies, hidden WebViews, ChatGPT dashboard scraping, or manual prompt token counters for this feature.
@@ -34,10 +36,11 @@ Token Usage treats daily buckets as local-session scoped. It does not promise a 
 ## Happy Path
 
 1. User enables Token Usage from Preferences.
-2. CodexPill scans recent local Codex session JSONL files for token-count events.
-3. CodexPill aggregates safe token totals by day.
-4. The main menu shows a compact Token Usage card inside the active account area, directly below the Session and Weekly limit rows.
-5. User can choose the display period from Preferences.
+2. CodexPill starts scanning recent local Codex session JSONL files in the background.
+3. User can close the menu or continue working while the scan completes.
+4. CodexPill aggregates safe token totals by day and stores them in a derived cache.
+5. The main menu shows a compact Token Usage card inside the active account area, directly below the Session and Weekly limit rows.
+6. Chart-style changes update the visible card from cached aggregate data.
 
 ## UI / Copy / States
 
@@ -45,10 +48,6 @@ Preferences:
 
 - `Token Usage`
 - `Show Token Usage`
-- `Period`
-- `Last 7 Days`
-- `Last 30 Days`
-- `Last 90 Days`
 - `Chart Style`
 - `Daily Bars`
 - `Heat Strip`
@@ -70,19 +69,38 @@ Menu card:
 - Summary copy:
   - `Today: <tokens> tokens`
   - `Last 30 days: <tokens> tokens`
+  - `Peak day`
+  - `<date>: <tokens> tokens`
 
-When another period is selected, the second summary line should match the selected period:
-
-- `Last 7 days: <tokens> tokens`
-- `Last 30 days: <tokens> tokens`
-- `Last 90 days: <tokens> tokens`
+V1 always uses `Last 30 days`. Period selection is intentionally not exposed in the menu until the cache/incremental scanner is proven on larger histories.
 
 States:
 
 - Off: no Token Usage card is shown.
-- Loading: `Scanning local sessions...`
+- Loading: animated Token Usage placeholder with `Scanning local sessions...`; shown only while no cached aggregate result is available. See [Token Usage Loading Progress](token-usage-loading-progress.md).
+- Updating: keep the previous chart visible while a background refresh is running.
 - No data: `No token usage found yet`
 - Unavailable/error: `Token usage unavailable`
+
+## Cache / Refresh Contract
+
+Token Usage should reuse cached aggregate data first and avoid restarting scans when the menu opens repeatedly.
+
+Expected behavior:
+
+- Enabling Token Usage checks a derived cache before scanning local sessions.
+- The default and only visible period is `Last 30 Days`.
+- `Last 7 Days` and `Last 90 Days` are deferred until the cache/incremental scanner is proven on large local histories.
+- Opening or closing the menu does not cancel or restart the scan.
+- Changing chart style never triggers a scan.
+- Future period changes should be instant when the cached aggregate range covers the selected period.
+- Manual refresh or app-level refresh may start a new background scan, but should not clear the currently visible cached chart before the refresh completes.
+- Disabling Token Usage hides the card and stops any active scan, but keeps already-computed persisted aggregate data.
+- Re-enabling Token Usage should show cached data immediately when available.
+- The cache is persisted under the user cache directory because token usage aggregates are derived data.
+- Scanning must stream session files instead of loading them fully into memory. Large files should still be scanned because they often represent heavy usage days.
+- Scanning must be bounded by line size so corrupted session rows cannot grow memory unbounded. Rows beyond the guardrail may be skipped; Token Usage is an approximate local trend, not a billing-grade counter.
+- Scanning should throttle between chunks so a cold scan can run in the background without pinning CPU.
 
 ## Edge Cases
 
@@ -95,6 +113,11 @@ States:
 - Model metadata is missing or appears only in nearby `turn_context` rows.
 - Multiple Codex homes exist; V1 only scans the active local Codex home.
 - Remote hosts exist; V1 does not scan or display their token usage.
+- A future period selector changes period while a scan is already running.
+- The user disables Token Usage while a scan is already running.
+- The user disables Token Usage after a successful scan, then re-enables it during the same app run.
+- The user opens and closes the menu repeatedly while a scan is already running.
+- A future selected period requires more days than the currently cached scan result covers.
 
 ## Acceptance Criteria
 
@@ -103,9 +126,19 @@ States:
 - When enabled, the main menu shows a compact Token Usage card inside the active account area, directly below the Session and Weekly limit rows.
 - The card displays the selected chart style for the selected period.
 - The card displays today’s token total and the selected-period token total.
+- The card displays the highest-usage day in the selected period when usage data exists.
 - The card is clearly scoped to `This Mac`.
-- The selected period can be changed between last 7, 30, and 90 days.
+- The visible period is fixed to last 30 days for v1.
 - The chart style can be changed between daily bars, heat strip, and sparkline.
+- Enabling Token Usage starts a background scan that continues if the menu closes.
+- The menu does not start duplicate concurrent scans for repeated opens while the current scan is still running.
+- The scanner streams eligible session files instead of loading them fully into memory.
+- The scanner parses large files safely instead of skipping them.
+- The scanner skips oversized rows instead of trying to parse them into memory.
+- Changing chart style updates presentation without re-scanning local session files.
+- Future period changes use cached aggregate data when available.
+- Re-enabling Token Usage during the same app run uses cached aggregate data immediately when available.
+- Refreshing Token Usage keeps the previous chart visible until the new scan result is ready.
 - Aggregation is derived from local Codex session token-count events, not backend `/api/codex/usage`.
 - The implementation emits only aggregate token totals and never raw prompt/session/auth content.
 - Synthetic fixture tests cover parsing, aggregation, malformed rows, and repeated cumulative totals.
@@ -147,8 +180,11 @@ Acceptance:
 - Unit tests for token-count parsing from synthetic JSONL fixtures.
 - Unit tests for repeated cumulative totals and delta aggregation.
 - Unit tests for malformed or missing token-count rows.
+- Unit tests for scan lifecycle: enable starts one scan, repeated menu opens do not duplicate it, chart-style changes do not scan, and covered period changes derive from cache.
+- Unit tests or presentation tests for loading versus updating states.
 - Presentation tests for card visibility, selected-period copy, empty state, and error state.
-- Manual QA with Token Usage off, enabled with data, enabled with no data, and period changes.
+- Manual QA with Token Usage off, enabled with data, and enabled with no data.
+- Manual QA confirming the scan continues after closing the menu, chart-style changes do not flash back to full loading, and disable/re-enable reuses cached data during the same app run.
 - Human review of chart variants with screenshots before the final menu card design is locked.
 - Privacy review confirming no prompts, auth values, account IDs, emails, local paths, hostnames, or raw rows are emitted.
 
@@ -156,11 +192,11 @@ Acceptance:
 
 - Click-through detail panel.
 - Inspecting an individual day.
-- Animated loading states.
-- Secondary metrics such as peak day or average per day.
+- Secondary metrics such as average per day.
 - Model breakdown.
 - Saved-account attribution.
 - Remote-host usage history.
+- User-selectable periods.
 - Cost estimation.
 - Exporting usage data.
 - Browser dashboard scraping.
