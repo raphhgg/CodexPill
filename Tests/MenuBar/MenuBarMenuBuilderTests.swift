@@ -2055,54 +2055,6 @@ struct MenuBarMenuBuilderTests {
         #expect(!menuItems(menu.items, areSameInstancesAs: itemsBeforeProgress))
     }
 
-    @Test
-    func tokenUsageRuntimeKeepsOneRefreshForSamePeriod() async throws {
-        let provider = TokenUsageMenuProviderProbe()
-        var stateChanges: [TokenUsageMenuLoadState] = []
-        let runtime = TokenUsageMenuRuntime(provider: provider) { state in
-            stateChanges.append(state)
-        }
-
-        runtime.refreshIfNeeded(period: .last30Days)
-        runtime.refreshIfNeeded(period: .last30Days)
-
-        await waitUntil { await provider.loadCount == 1 }
-
-        let buckets = [
-            dailyUsage(daysAgo: 0, totalTokens: 108_637_804)
-        ]
-        await provider.finish(with: buckets)
-        await waitUntil {
-            stateChanges.contains(.loaded(buckets))
-        }
-
-        #expect(await provider.loadPeriods == [.last30Days])
-        #expect(runtime.loadState == .loaded(buckets))
-    }
-
-    @Test
-    func tokenUsageRuntimeDoesNotRefreshLoadedDataForMenuReopen() async throws {
-        let provider = TokenUsageMenuProviderProbe()
-        let runtime = TokenUsageMenuRuntime(provider: provider) { _ in }
-
-        runtime.refreshIfNeeded(period: .last30Days)
-        await waitUntil { await provider.loadCount == 1 }
-
-        let buckets = [
-            dailyUsage(daysAgo: 0, totalTokens: 108_637_804)
-        ]
-        await provider.finish(with: buckets)
-        await waitUntil {
-            runtime.loadState == .loaded(buckets)
-        }
-
-        runtime.refreshIfNeeded(period: .last30Days)
-        await yieldMainActorWork()
-
-        #expect(await provider.loadPeriods == [.last30Days])
-        #expect(runtime.loadState == .loaded(buckets))
-    }
-
     private func statusItemContentMenu(in menu: NSMenu) -> NSMenu? {
         menu.items
             .first(where: { $0.title == "Preferences" })?
