@@ -93,13 +93,13 @@ struct TokenUsageMenuContent: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 24) {
             header
             content
         }
         .padding(.horizontal, 14)
         .padding(.top, 0)
-        .padding(.bottom, 4)
+        .padding(.bottom, 0)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(card.accessibilitySummary)
@@ -187,7 +187,7 @@ struct TokenUsageMenuContent: View {
         }
         .font(.caption)
         .monospacedDigit()
-        .padding(.top, 4)
+        .padding(.top, 6)
     }
 
     private func stateText(_ text: String) -> some View {
@@ -230,7 +230,7 @@ private struct TokenUsageLoadingContent: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
-                    .padding(.top, 4)
+                    .padding(.top, 6)
             }
             .accessibilityLabel(frame.message)
         }

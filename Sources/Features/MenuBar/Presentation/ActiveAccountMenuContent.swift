@@ -69,7 +69,7 @@ struct ActiveAccountMenuContent: View {
                     .padding(.bottom, -6)
                 TokenUsageMenuContent(card: tokenUsageCard)
                     .padding(.horizontal, -14)
-                    .padding(.bottom, -6)
+                    .padding(.bottom, -2)
             }
 
             ForEach(Array(tokenUsagePrototypeCards.enumerated()), id: \.element.id) { index, card in
