@@ -15,6 +15,7 @@ Feature docs are organized by product feature area. Each area can contain behavi
 - [App Controls](app-controls/01-launch-at-login.md): app-level controls that do not belong to accounts, hosts, notifications, or status-bar presentation.
 - [Release](release/01-signed-github-zip.md): public beta distribution contract for the signed/notarized GitHub Release zip.
 - [First Signed Beta Release Checklist](release/03-first-beta-release-checklist.md): maintainer release gate and evidence template for the first signed beta.
+- [Swift 6 Language Mode Migration](release/04-swift-6-language-mode.md): engineering quality contract for compiling app and test targets in Swift 6 language mode.
 
 ## Ownership Rule
 
