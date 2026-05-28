@@ -9,6 +9,7 @@ final class CodexPillSettingsStore {
     let remoteHostSettings: RemoteHostSettingsStore
     let notificationPreferences: NotificationPreferencesStore
     let notificationState: NotificationStateStore
+    let tokenUsagePreferences: TokenUsagePreferencesStore
 
     init(userDefaults: UserDefaults = .standard) {
         menuDisplaySettings = MenuDisplaySettingsStore(userDefaults: userDefaults)
@@ -16,6 +17,7 @@ final class CodexPillSettingsStore {
         remoteHostSettings = RemoteHostSettingsStore(userDefaults: userDefaults)
         notificationPreferences = NotificationPreferencesStore(userDefaults: userDefaults)
         notificationState = NotificationStateStore(userDefaults: userDefaults)
+        tokenUsagePreferences = TokenUsagePreferencesStore(userDefaults: userDefaults)
     }
 
     var refreshIntervalMinutes: Int {
@@ -95,6 +97,31 @@ final class CodexPillSettingsStore {
     var notificationsWhenOutEnabled: Bool {
         get { notificationPreferences.notificationsWhenOutEnabled }
         set { notificationPreferences.notificationsWhenOutEnabled = newValue }
+    }
+
+    var tokenUsageEnabled: Bool {
+        get { tokenUsagePreferences.isEnabled }
+        set { tokenUsagePreferences.isEnabled = newValue }
+    }
+
+    var tokenUsagePeriod: CodexTokenUsagePeriod {
+        get { tokenUsagePreferences.period }
+        set { tokenUsagePreferences.period = newValue }
+    }
+
+    var tokenUsageChartStyle: TokenUsageChartStyle {
+        get { tokenUsagePreferences.chartStyle }
+        set { tokenUsagePreferences.chartStyle = newValue }
+    }
+
+    var tokenUsageLoadingAnimationStyle: TokenUsageLoadingAnimationStyle {
+        get { tokenUsagePreferences.loadingAnimationStyle }
+        set { tokenUsagePreferences.loadingAnimationStyle = newValue }
+    }
+
+    var tokenUsagePeakScope: TokenUsagePeakScope {
+        get { tokenUsagePreferences.peakScope }
+        set { tokenUsagePreferences.peakScope = newValue }
     }
 
     var accountNotificationStates: [PersistedAccountNotificationState] {

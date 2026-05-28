@@ -106,6 +106,10 @@ final class StatusItemRuntime {
         statusItem.menu?.items.count ?? 0
     }
 
+    var isMenuTrackingOpen: Bool {
+        isMenuOpen
+    }
+
     func start(presentation: StatusItemRuntimePresentation) {
         self.presentation = presentation
         configureStatusItemButton()

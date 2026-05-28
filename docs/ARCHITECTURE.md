@@ -12,6 +12,7 @@ The source tree is organized by responsibility:
 - `Sources/Features/Accounts/`
 - `Sources/Features/Hosts/`
 - `Sources/Features/MenuBar/`
+- `Sources/Features/TokenUsage/`
 - `Sources/Core/Configuration/`
 - `Sources/Core/Models/`
 - `Sources/Platform/Codex/`
@@ -66,6 +67,16 @@ Key boundaries:
 - `RemoteHostAccountVerifier`
 - `RemoteRateLimitResolution`
 - `SwitchAccountOnHostWorkflow`
+
+`Features/TokenUsage` owns local token-usage history lifecycle and cache policy.
+
+Key boundaries:
+
+- `TokenUsageMenuRuntime`
+- `TokenUsageMenuProviding`
+- local token-usage aggregate cache
+
+It coordinates cache-first loading, scan-task identity, duplicate-scan prevention, progress throttling, and cancellation when Token Usage is disabled. It depends on `Platform/Codex` scanner adapters for local Codex session records, but must not know AppKit menu construction or raw JSONL/session-path details.
 
 `Features/MenuBar` owns menubar runtime, menu-state projection, menu rendering, native alert/panel presentation, status-item behavior, notification delivery mechanics, and validation snapshots.
 
@@ -164,6 +175,8 @@ Settings persistence is split by feature boundary:
 
 `RemoteRateLimitResolution` owns remote rate-limit fallback semantics.
 
+`TokenUsageMenuRuntime` is the token-usage feature boundary used by MenuBar. It owns background scan lifecycle, cache-first load state, duplicate-scan prevention, progress throttling, and disable-time cancellation. `MenuBarCoordinator` should only mutate Token Usage preferences, ask the runtime for current load state, and decide whether AppKit menu rebuilds are safe while a menu is being tracked.
+
 `MenuBarAccountsStore` is a thin observable adapter for the menu layer. It forwards menu intents into `AccountsController` and should not grow business logic or production dependency assembly.
 
 `MenuBarAccountCatalogProjection` owns menu-facing account projection: relinking remote snapshots to saved accounts, resolving display metadata, building availability snapshots, and ordering catalog entries before rendering.
@@ -238,6 +251,7 @@ Tests should mirror stable source ownership boundaries once those boundaries exi
 - `Tests/Accounts/`
 - `Tests/Hosts/`
 - `Tests/MenuBar/`
+- `Tests/TokenUsage/`
 - `Tests/Platform/Codex/`
 - `Tests/Platform/Hosts/`
 - `Tests/Platform/Persistence/`
@@ -249,7 +263,7 @@ Do not add deeper `unit/integration/e2e` folders unless suite volume or tooling 
 
 ## Placement Rule
 
-If a change affects account workflows, host workflows, menu behavior, notification behavior, or settings state, it belongs in `Features`, with host feature tests owned by `Tests/Hosts/`.
+If a change affects account workflows, host workflows, token-usage lifecycle, menu behavior, notification behavior, or settings state, it belongs in `Features`, with host feature tests owned by `Tests/Hosts/` and token-usage lifecycle tests owned by `Tests/TokenUsage/`.
 
 If a change touches file paths, snapshot storage, Codex process control, app-server I/O, shell commands, SSH, or process inspection, it belongs in `Platform`.
 

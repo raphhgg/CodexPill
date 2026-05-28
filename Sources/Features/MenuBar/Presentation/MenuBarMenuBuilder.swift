@@ -42,10 +42,12 @@ struct MenuBarMenuBuilder {
                 if index > 0 {
                     menu.addItem(activeAccountDividerItem(width: menuContentWidth))
                 }
+                let tokenUsageCard = index == 0 ? state.tokenUsageCard : nil
                 let tokenUsagePrototypeCards = index == 0 ? state.tokenUsagePrototypeCards : []
                 menu.addItem(activeAccountItem(
                     for: activeAccountCard,
                     state: state,
+                    tokenUsageCard: tokenUsageCard,
                     tokenUsagePrototypeCards: tokenUsagePrototypeCards,
                     width: menuContentWidth
                 ))
@@ -101,6 +103,7 @@ struct MenuBarMenuBuilder {
     private func activeAccountItem(
         for card: ActiveAccountCard,
         state: MenuBarMenuState,
+        tokenUsageCard: TokenUsageMenuCard?,
         tokenUsagePrototypeCards: [TokenUsagePrototypeCard],
         width: CGFloat
     ) -> NSMenuItem {
@@ -113,6 +116,7 @@ struct MenuBarMenuBuilder {
                 showsUpdatedTime: card.showsUpdatedTime,
                 progressAccentColor: Color(nsColor: state.progressAccentColor),
                 showsPacingMarkers: state.pacingMarkersEnabled,
+                tokenUsageCard: tokenUsageCard,
                 tokenUsagePrototypeCards: tokenUsagePrototypeCards,
                 now: now
             )
@@ -526,6 +530,7 @@ struct MenuBarMenuBuilder {
         submenu.addItem(statusBarDisplayMenuItem(state: state, target: target))
         submenu.addItem(statusBarStyleMenuItem(state: state, target: target))
         submenu.addItem(usageBarsPreferencesMenuItem(state: state, target: target))
+        submenu.addItem(tokenUsagePreferencesMenuItem(state: state, target: target))
         submenu.addItem(.separator())
         submenu.addItem(launchAtLoginMenuItem(state: state, target: target))
 
@@ -560,6 +565,66 @@ struct MenuBarMenuBuilder {
         submenu.addItem(pacingMarkersMenuItem(state: state, target: target))
         submenu.addItem(progressAccentColorItem(state: state, target: target))
         submenu.addItem(resetProgressAccentColorItem(state: state, target: target))
+        item.submenu = submenu
+        return item
+    }
+
+    private func tokenUsagePreferencesMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Token Usage", action: nil, keyEquivalent: "")
+        let submenu = configuredMenu(title: "Token Usage")
+        submenu.addItem(showTokenUsageMenuItem(state: state, target: target))
+        submenu.addItem(tokenUsagePeakScopeMenuItem(state: state, target: target))
+        submenu.addItem(tokenUsageChartStyleMenuItem(state: state, target: target))
+        submenu.addItem(tokenUsageLoadingAnimationStyleMenuItem(state: state, target: target))
+        item.submenu = submenu
+        return item
+    }
+
+    private func showTokenUsageMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Show Token Usage", action: #selector(MenuBarCoordinator.toggleTokenUsage(_:)), keyEquivalent: "")
+        item.target = target
+        item.state = state.tokenUsageEnabled ? .on : .off
+        return item
+    }
+
+    private func tokenUsagePeakScopeMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Peak Day", action: nil, keyEquivalent: "")
+        let submenu = configuredMenu(title: "Peak Day")
+        for scope in TokenUsagePeakScope.allCases {
+            let option = NSMenuItem(title: scope.menuTitle, action: #selector(MenuBarCoordinator.selectTokenUsagePeakScope(_:)), keyEquivalent: "")
+            option.target = target
+            option.representedObject = scope.rawValue
+            option.state = state.tokenUsagePeakScope == scope ? .on : .off
+            submenu.addItem(option)
+        }
+        item.submenu = submenu
+        return item
+    }
+
+    private func tokenUsageChartStyleMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Chart Style", action: nil, keyEquivalent: "")
+        let submenu = configuredMenu(title: "Chart Style")
+        for style in TokenUsageChartStyle.allCases {
+            let option = NSMenuItem(title: style.menuTitle, action: #selector(MenuBarCoordinator.selectTokenUsageChartStyle(_:)), keyEquivalent: "")
+            option.target = target
+            option.representedObject = style.rawValue
+            option.state = state.tokenUsageChartStyle == style ? .on : .off
+            submenu.addItem(option)
+        }
+        item.submenu = submenu
+        return item
+    }
+
+    private func tokenUsageLoadingAnimationStyleMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Loading Animation", action: nil, keyEquivalent: "")
+        let submenu = configuredMenu(title: "Loading Animation")
+        for style in TokenUsageLoadingAnimationStyle.allCases {
+            let option = NSMenuItem(title: style.menuTitle, action: #selector(MenuBarCoordinator.selectTokenUsageLoadingAnimationStyle(_:)), keyEquivalent: "")
+            option.target = target
+            option.representedObject = style.rawValue
+            option.state = state.tokenUsageLoadingAnimationStyle == style ? .on : .off
+            submenu.addItem(option)
+        }
         item.submenu = submenu
         return item
     }

@@ -18,7 +18,7 @@ struct CodexSessionTokenUsageScannerTests {
             """
         ])
 
-        let result = try CodexSessionTokenUsageScanner().scan(
+        let result = try CodexSessionTokenUsageScanner(calendar: utcCalendar()).scan(
             sessionsDirectory: root,
             dayRange: DateInterval(
                 start: makeDate(2026, 4, 1),
@@ -50,7 +50,7 @@ struct CodexSessionTokenUsageScannerTests {
             """
         ])
 
-        let result = try CodexSessionTokenUsageScanner().scan(
+        let result = try CodexSessionTokenUsageScanner(calendar: utcCalendar()).scan(
             sessionsDirectory: root,
             dayRange: DateInterval(
                 start: makeDate(2026, 4, 1),
@@ -80,7 +80,7 @@ struct CodexSessionTokenUsageScannerTests {
             """
         ])
 
-        let result = try CodexSessionTokenUsageScanner().scan(
+        let result = try CodexSessionTokenUsageScanner(calendar: utcCalendar()).scan(
             sessionsDirectory: root,
             dayRange: DateInterval(
                 start: makeDate(2026, 4, 1),
@@ -103,7 +103,7 @@ struct CodexSessionTokenUsageScannerTests {
             """
         ])
 
-        let result = try CodexSessionTokenUsageScanner().scan(
+        let result = try CodexSessionTokenUsageScanner(calendar: utcCalendar()).scan(
             sessionsDirectory: root,
             dayRange: DateInterval(
                 start: makeDate(2026, 4, 1),
@@ -121,6 +121,46 @@ struct CodexSessionTokenUsageScannerTests {
     }
 
     @Test
+    func scanAcceptsTokenCountRowsWithWhitespaceAroundTypeColon() throws {
+        let root = try makeSessionRoot(files: [
+            "2026/04/20/session-a.jsonl": """
+            {"type" : "event_msg","payload":{"type" : "token_count","last_token_usage":{"total_tokens":321}}}
+            """
+        ])
+
+        let result = try CodexSessionTokenUsageScanner(calendar: utcCalendar()).scan(
+            sessionsDirectory: root,
+            dayRange: DateInterval(
+                start: makeDate(2026, 4, 1),
+                end: makeDate(2026, 5, 1)
+            )
+        )
+
+        #expect(result.buckets.map(\.usage.totalTokens) == [321])
+        #expect(result.summary.tokenCountRowsRead == 1)
+    }
+
+    @Test
+    func scanDoesNotLetLastUsageReadFollowingCumulativeUsageObject() throws {
+        let root = try makeSessionRoot(files: [
+            "2026/04/20/session-a.jsonl": """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{},"total_token_usage":{"total_tokens":321}}}
+            """
+        ])
+
+        let result = try CodexSessionTokenUsageScanner(calendar: utcCalendar()).scan(
+            sessionsDirectory: root,
+            dayRange: DateInterval(
+                start: makeDate(2026, 4, 1),
+                end: makeDate(2026, 5, 1)
+            )
+        )
+
+        #expect(result.buckets.map(\.usage.totalTokens) == [321])
+        #expect(result.summary.cumulativeRowsUsed == 1)
+    }
+
+    @Test
     func scanSkipsRowsOutsideRangeAndMalformedPrivateContent() throws {
         let root = try makeSessionRoot(files: [
             "2026/03/31/old.jsonl": """
@@ -133,7 +173,7 @@ struct CodexSessionTokenUsageScannerTests {
             """
         ])
 
-        let result = try CodexSessionTokenUsageScanner().scan(
+        let result = try CodexSessionTokenUsageScanner(calendar: utcCalendar()).scan(
             sessionsDirectory: root,
             dayRange: DateInterval(
                 start: makeDate(2026, 4, 1),
@@ -143,8 +183,8 @@ struct CodexSessionTokenUsageScannerTests {
 
         #expect(result.buckets.map(\.usage.totalTokens) == [10])
         #expect(result.summary.filesRead == 1)
-        #expect(result.summary.malformedRowsIgnored == 1)
-        #expect(result.summary.nonUsageRowsIgnored == 1)
+        #expect(result.summary.malformedRowsIgnored == 0)
+        #expect(result.summary.nonUsageRowsIgnored == 2)
     }
 
     @Test
@@ -161,7 +201,7 @@ struct CodexSessionTokenUsageScannerTests {
             """
         ])
 
-        let result = try CodexSessionTokenUsageScanner().scan(
+        let result = try CodexSessionTokenUsageScanner(calendar: utcCalendar()).scan(
             sessionsDirectory: root,
             period: .last7Days,
             now: makeDate(2026, 4, 20)
@@ -181,9 +221,65 @@ struct CodexSessionTokenUsageScannerTests {
     }
 
     @Test
+    func scanRecentPeriodUsesConfiguredLocalCalendarDayWindow() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 2 * 60 * 60) ?? .current
+        let root = try makeSessionRoot(files: [
+            "2026/04/19/session-a.jsonl": """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":10}}}
+            """,
+            "2026/04/20/session-b.jsonl": """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":20}}}
+            """
+        ])
+        let scanner = CodexSessionTokenUsageScanner(calendar: calendar)
+
+        let result = try scanner.scan(
+            sessionsDirectory: root,
+            period: .last7Days,
+            now: makeDate(2026, 4, 20, 23, 30, calendar: calendar)
+        )
+
+        #expect(result.buckets.first?.day == makeDate(2026, 4, 14, calendar: calendar))
+        #expect(result.buckets.last?.day == makeDate(2026, 4, 20, calendar: calendar))
+        #expect(result.buckets.last?.usage.totalTokens == 20)
+        #expect(result.summary.filesRead == 2)
+    }
+
+    @Test
+    func scanReportsFileProgressWithoutExposingSessionPaths() throws {
+        let root = try makeSessionRoot(files: [
+            "2026/04/20/session-a.jsonl": """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":10}}}
+            """,
+            "2026/04/21/session-b.jsonl": """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":20}}}
+            """
+        ])
+        var progressUpdates: [TokenUsageScanProgress] = []
+
+        _ = try CodexSessionTokenUsageScanner(calendar: utcCalendar()).scan(
+            sessionsDirectory: root,
+            dayRange: DateInterval(
+                start: makeDate(2026, 4, 1),
+                end: makeDate(2026, 5, 1)
+            ),
+            progress: { progressUpdates.append($0) }
+        )
+
+        #expect(progressUpdates == [
+            TokenUsageScanProgress(scannedFiles: 0, totalFiles: 2),
+            TokenUsageScanProgress(scannedFiles: 1, totalFiles: 2),
+            TokenUsageScanProgress(scannedFiles: 2, totalFiles: 2)
+        ])
+        #expect(progressUpdates.map(\.message).contains { $0.contains("session-a") } == false)
+        #expect(progressUpdates.map(\.message).contains { $0.contains(root.path) } == false)
+    }
+
+    @Test
     func scanRecentPeriodsSupportSevenThirtyAndNinetyDayWindows() throws {
         let root = try makeSessionRoot(files: [:])
-        let scanner = CodexSessionTokenUsageScanner()
+        let scanner = CodexSessionTokenUsageScanner(calendar: utcCalendar())
         let now = makeDate(2026, 4, 20)
 
         for period in CodexTokenUsagePeriod.allCases {
@@ -199,18 +295,130 @@ struct CodexSessionTokenUsageScannerTests {
         }
     }
 
+    @Test
+    func scanSkipsOversizedSessionFilesToKeepTokenUsageMenuResponsive() throws {
+        let oversizedMessage = String(repeating: "x", count: 256)
+        let root = try makeSessionRoot(files: [
+            "2026/04/20/oversized.jsonl": """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":999},"message":"\(oversizedMessage)"}}
+            """,
+            "2026/04/20/current.jsonl": """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":10}}}
+            """
+        ])
+        let scanner = CodexSessionTokenUsageScanner(maximumScannableFileByteCount: 200, calendar: utcCalendar())
+
+        let result = try scanner.scan(
+            sessionsDirectory: root,
+            dayRange: DateInterval(
+                start: makeDate(2026, 4, 1),
+                end: makeDate(2026, 5, 1)
+            )
+        )
+
+        #expect(result.buckets.map(\.usage.totalTokens) == [10])
+        #expect(result.summary.filesRead == 1)
+        #expect(result.summary.nonUsageRowsIgnored == 1)
+    }
+
+    @Test
+    func scanReadsLargeFilesWhenFileSizeCapIsDisabled() throws {
+        let oversizedMessage = String(repeating: "x", count: 256)
+        let root = try makeSessionRoot(files: [
+            "2026/04/20/large-session.jsonl": """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":999},"message":"\(oversizedMessage)"}}
+            """,
+            "2026/04/20/current.jsonl": """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":10}}}
+            """
+        ])
+        let scanner = CodexSessionTokenUsageScanner(maximumScannableFileByteCount: 0, calendar: utcCalendar())
+
+        let result = try scanner.scan(
+            sessionsDirectory: root,
+            dayRange: DateInterval(
+                start: makeDate(2026, 4, 1),
+                end: makeDate(2026, 5, 1)
+            )
+        )
+
+        #expect(result.buckets.map(\.usage.totalTokens) == [1009])
+        #expect(result.summary.filesRead == 2)
+    }
+
+    @Test
+    func scanDropsOversizedLinesWithoutKeepingThemInMemory() throws {
+        let oversizedMessage = String(repeating: "x", count: 256)
+        let root = try makeSessionRoot(files: [
+            "2026/04/20/session-a.jsonl": """
+            {"type":"event_msg","payload":{"type":"message","text":"\(oversizedMessage)"}}
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":10}}}
+            """
+        ])
+        let scanner = CodexSessionTokenUsageScanner(maximumLineByteCount: 128, calendar: utcCalendar())
+
+        let result = try scanner.scan(
+            sessionsDirectory: root,
+            dayRange: DateInterval(
+                start: makeDate(2026, 4, 1),
+                end: makeDate(2026, 5, 1)
+            )
+        )
+
+        #expect(result.buckets.map(\.usage.totalTokens) == [10])
+        #expect(result.summary.malformedRowsIgnored == 1)
+    }
+
+    @Test
+    func scanAppliesConfiguredByteBudgetPerDay() throws {
+        let root = try makeSessionRoot(files: [
+            "2026/04/20/older-day.jsonl": """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":100}}}
+            """,
+            "2026/04/21/newer-day-a.jsonl": """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":10}}}
+            """,
+            "2026/04/21/newer-day-b.jsonl": """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":20}}}
+            """
+        ])
+        let scanner = CodexSessionTokenUsageScanner(maximumDailyScanByteBudget: 128, calendar: utcCalendar())
+
+        let result = try scanner.scan(
+            sessionsDirectory: root,
+            dayRange: DateInterval(
+                start: makeDate(2026, 4, 1),
+                end: makeDate(2026, 5, 1)
+            )
+        )
+
+        #expect(result.buckets.map(\.day) == [
+            makeDate(2026, 4, 20),
+            makeDate(2026, 4, 21)
+        ])
+        #expect(result.buckets.map(\.usage.totalTokens) == [100, 20])
+        #expect(result.summary.filesRead == 2)
+        #expect(result.summary.nonUsageRowsIgnored == 1)
+    }
+
     private func makeSessionRoot(files: [String: String]) throws -> URL {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         for (path, contents) in files {
-            let url = root.appendingPathComponent(path)
-            try FileManager.default.createDirectory(
-                at: url.deletingLastPathComponent(),
-                withIntermediateDirectories: true
-            )
-            try contents.write(to: url, atomically: true, encoding: .utf8)
+            try writeSessionFile(at: path, under: root, contents: contents)
         }
         return root
+    }
+
+    @discardableResult
+    private func writeSessionFile(at path: String, under root: URL, contents: String) throws -> URL {
+        let url = root.appendingPathComponent(path)
+        try FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try contents.write(to: url, atomically: true, encoding: .utf8)
+        return url
     }
 
     private func makeDate(_ year: Int, _ month: Int, _ day: Int) -> Date {
@@ -221,5 +429,30 @@ struct CodexSessionTokenUsageScannerTests {
         components.month = month
         components.day = day
         return components.date!
+    }
+
+    private func utcCalendar() -> Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
+        return calendar
+    }
+
+    private func makeDate(
+        _ year: Int,
+        _ month: Int,
+        _ day: Int,
+        _ hour: Int = 0,
+        _ minute: Int = 0,
+        calendar: Calendar
+    ) -> Date {
+        DateComponents(
+            calendar: calendar,
+            timeZone: calendar.timeZone,
+            year: year,
+            month: month,
+            day: day,
+            hour: hour,
+            minute: minute
+        ).date!
     }
 }

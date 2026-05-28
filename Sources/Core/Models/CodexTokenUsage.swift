@@ -8,9 +8,80 @@ enum CodexTokenUsagePeriod: Int, CaseIterable, Codable, Hashable {
     var dayCount: Int {
         rawValue
     }
+
+    var menuTitle: String {
+        switch self {
+        case .last7Days:
+            return "Last 7 Days"
+        case .last30Days:
+            return "Last 30 Days"
+        case .last90Days:
+            return "Last 90 Days"
+        }
+    }
+
+    var summaryTitle: String {
+        switch self {
+        case .last7Days:
+            return "Last 7 days"
+        case .last30Days:
+            return "Last 30 days"
+        case .last90Days:
+            return "Last 90 days"
+        }
+    }
 }
 
-struct CodexDailyTokenUsage: Equatable {
+enum TokenUsageLoadingAnimationStyle: String, CaseIterable, Equatable {
+    case waves
+    case random
+
+    var menuTitle: String {
+        switch self {
+        case .waves:
+            return "Waves"
+        case .random:
+            return "Random"
+        }
+    }
+}
+
+enum TokenUsagePeakScope: String, CaseIterable, Equatable {
+    case currentPeriod
+    case allTime
+
+    var menuTitle: String {
+        switch self {
+        case .currentPeriod:
+            return "Last 30 Days"
+        case .allTime:
+            return "All Time"
+        }
+    }
+
+    var cardTitle: String {
+        switch self {
+        case .currentPeriod:
+            return "Peak day"
+        case .allTime:
+            return "All-time peak"
+        }
+    }
+}
+
+struct TokenUsageScanProgress: Equatable, Sendable {
+    var scannedFiles: Int
+    var totalFiles: Int
+
+    var message: String {
+        guard totalFiles > 0 else {
+            return "Scanning local sessions"
+        }
+        return "Scanning \(min(scannedFiles, totalFiles)) of \(totalFiles) sessions"
+    }
+}
+
+struct CodexDailyTokenUsage: Codable, Equatable {
     var day: Date
     var usage: CodexTokenUsageTotals
 }
