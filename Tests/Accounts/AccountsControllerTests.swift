@@ -602,7 +602,7 @@ private final class AccountStatusSuccessCase: CodexAccountStatusClient {
     }
 }
 
-private final class LoadingPersistingAccountCatalogProbe: AccountCatalogLoader, AccountSnapshotRemover {
+private final class LoadingPersistingAccountCatalogProbe: AccountCatalogLoader, AccountSnapshotRemover, @unchecked Sendable {
     let accountsToLoad: [CodexAccount]
     private(set) var savedAccounts: [CodexAccount]?
     private(set) var bootstrapCount = 0
@@ -677,7 +677,7 @@ private final class ActiveSnapshotRelinkerProbe: ActiveAuthSnapshotRelinking {
     }
 }
 
-private final class CurrentIdentityHarness: LiveCodexAccountIdentitySource {
+private final class CurrentIdentityHarness: LiveCodexAccountIdentitySource, @unchecked Sendable {
     var fingerprint: String?
 
     init(fingerprint: String?) {
@@ -700,7 +700,7 @@ private struct NullCodexAppProcessClient: CodexAppProcessClient {
     func relaunchCodex() async throws {}
 }
 
-private final class CodexAppProcessProbe: CodexAppProcessClient {
+private final class CodexAppProcessProbe: CodexAppProcessClient, @unchecked Sendable {
     private(set) var availabilityCheckCount = 0
     private(set) var relaunchCount = 0
 
@@ -766,7 +766,7 @@ private final class SignInAuthErrorCase: CodexAuthSessionStore, CodexSignInAuthS
     func deleteAuthSnapshot(for account: CodexAccount) throws {}
 }
 
-private final class IsolatedAddAccountAuthProbe: CodexAuthSessionStore, CodexSignInAuthStore {
+private final class IsolatedAddAccountAuthProbe: CodexAuthSessionStore, CodexSignInAuthStore, @unchecked Sendable {
     var currentFingerprint: String?
     let capturedFingerprint: String?
 
@@ -802,7 +802,7 @@ private final class IsolatedAddAccountAuthProbe: CodexAuthSessionStore, CodexSig
     func deleteAuthSnapshot(for account: CodexAccount) throws {}
 }
 
-private final class SavedAccountStatusFixture: SavedCodexAccountStatusClient {
+private final class SavedAccountStatusFixture: SavedCodexAccountStatusClient, @unchecked Sendable {
     let statusBySnapshot: [String: CodexAccountStatus]
     private(set) var readSnapshots: [Data] = []
 
@@ -828,7 +828,7 @@ private struct IsolatedAddAccountLoginClientProbe: IsolatedCodexLoginClient {
     }
 }
 
-private final class IsolatedAddAccountLoginSessionProbe: IsolatedCodexLoginSession {
+private final class IsolatedAddAccountLoginSessionProbe: IsolatedCodexLoginSession, @unchecked Sendable {
     let prompt = IsolatedCodexLoginPrompt(
         url: URL(string: "https://auth.openai.com/codex/device")!,
         userCode: "ABCD-EFGH"
@@ -861,7 +861,7 @@ private struct RemoteHostStatusFixture: RemoteHostSwitchWorkflowOperations {
     func readCurrentAccountStatus(on host: RemoteHost) async throws -> CodexAccountStatus { status }
 }
 
-private final class RemoteHostRecordingStatusFixture: RemoteHostSwitchWorkflowOperations {
+private final class RemoteHostRecordingStatusFixture: RemoteHostSwitchWorkflowOperations, @unchecked Sendable {
     let status: CodexAccountStatus
     private(set) var switchedAccount: CodexAccount?
 

@@ -986,7 +986,7 @@ private struct SnapshotLocatorFixture: AccountSnapshotLocator {
     }
 }
 
-private final class CommandRunnerProbe: CommandRunner {
+private final class CommandRunnerProbe: CommandRunner, @unchecked Sendable {
     struct Call: Equatable {
         let executableURL: URL
         let arguments: [String]

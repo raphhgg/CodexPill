@@ -96,7 +96,7 @@ final class NullGlobalShortcutClient: GlobalShortcutClient {
     func unregister() {}
 }
 
-final class CarbonGlobalShortcutClient: GlobalShortcutClient {
+final class CarbonGlobalShortcutClient: GlobalShortcutClient, @unchecked Sendable {
     var onShortcut: (() -> Void)?
 
     private var eventHotKey: EventHotKeyRef?

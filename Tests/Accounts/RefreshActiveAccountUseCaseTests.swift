@@ -206,7 +206,7 @@ private final class AccountStatusProbe: CodexAccountStatusClient {
     }
 }
 
-private final class PersistingAccountCatalogProbe: AccountCatalogStore {
+private final class PersistingAccountCatalogProbe: AccountCatalogStore, @unchecked Sendable {
     var savedAccounts: [CodexAccount]?
 
     func saveAccounts(_ accounts: [CodexAccount]) throws {
@@ -214,7 +214,7 @@ private final class PersistingAccountCatalogProbe: AccountCatalogStore {
     }
 }
 
-private final class ActiveAuthSnapshotRelinkerProbe: ActiveAuthSnapshotRelinking {
+private final class ActiveAuthSnapshotRelinkerProbe: ActiveAuthSnapshotRelinking, @unchecked Sendable {
     let currentFingerprint: String?
     let currentAuthData: Data
     let relinkedAccount: CodexAccount

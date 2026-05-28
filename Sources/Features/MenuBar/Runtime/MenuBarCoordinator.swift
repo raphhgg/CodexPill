@@ -4,6 +4,7 @@ import OSLog
 
 private let menuBarCoordinatorLogger = Logger(subsystem: "com.raphhgg.codexpill", category: "MenuBarCoordinator")
 
+@MainActor
 protocol ApplicationActivator {
     func activate()
 }
@@ -121,7 +122,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         panelPresenter: PanelPresenter? = nil,
         shortcutCapturePanelPresenter: ShortcutCapturePanelPresenter? = nil,
         alertFactory: MenuBarAlertFactory = MenuBarAlertFactory(),
-        notificationDelivery: AccountAvailabilityNotifier = AccountAvailabilityNotificationCenter(),
+        notificationDelivery: AccountAvailabilityNotifier? = nil,
         applicationActivator: ApplicationActivator = NSApplicationActivator(),
         notificationSettingsLauncher: NotificationSettingsLauncher = SystemNotificationSettingsLauncher(),
         loginItemController: LoginItemControlling = SystemLoginItemController(),
@@ -153,7 +154,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             preferences: settings.notificationPreferences,
             stateStore: settings.notificationState
         )
-        self.notificationDelivery = notificationDelivery
+        self.notificationDelivery = notificationDelivery ?? Self.makeDefaultNotificationDelivery()
         self.applicationActivator = applicationActivator
         self.notificationSettingsLauncher = notificationSettingsLauncher
         self.loginItemController = loginItemController
@@ -175,6 +176,14 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
                 notificationStateStore.markAccountActivated(accountID)
             }
         )
+    }
+
+    private static func makeDefaultNotificationDelivery() -> AccountAvailabilityNotifier {
+        if AppRuntimeEnvironment.isRunningAutomatedTests() {
+            return DisabledAccountAvailabilityNotifier()
+        }
+
+        return AccountAvailabilityNotificationCenter()
     }
 
     func start() {
@@ -898,10 +907,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         }
     }
 
-    func handleNotificationResponse(actionIdentifier: String?, userInfo: [AnyHashable: Any]) async {
+    func handleNotificationResponse(_ payload: AccountAvailabilityNotificationResponsePayload) async {
         notificationWorkflow.handleResponse(
-            actionIdentifier: actionIdentifier,
-            userInfo: userInfo,
+            payload: payload,
             state: menuState()
         )
     }

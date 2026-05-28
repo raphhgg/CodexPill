@@ -90,7 +90,7 @@ struct SwitchAccountWorkflowTests {
     }
 }
 
-private final class AuthSnapshotProbe: CodexAuthActivator, LiveCodexAccountIdentitySource {
+private final class AuthSnapshotProbe: CodexAuthActivator, LiveCodexAccountIdentitySource, @unchecked Sendable {
     var activatedAccountID: UUID?
     private let fingerprint: String?
     private let stableAccountID: String?
@@ -123,7 +123,7 @@ private final class AuthSnapshotProbe: CodexAuthActivator, LiveCodexAccountIdent
     }
 }
 
-private final class AccountCatalogProbe: AccountCatalogStore {
+private final class AccountCatalogProbe: AccountCatalogStore, @unchecked Sendable {
     var savedAccounts: [CodexAccount]?
 
     func saveAccounts(_ accounts: [CodexAccount]) throws {
@@ -131,7 +131,7 @@ private final class AccountCatalogProbe: AccountCatalogStore {
     }
 }
 
-private final class CodexAppProcessProbe: CodexAppProcessClient {
+private final class CodexAppProcessProbe: CodexAppProcessClient, @unchecked Sendable {
     var relaunchCount = 0
     var availabilityCheckCount = 0
     var availabilityError: Error?

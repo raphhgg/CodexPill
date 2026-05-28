@@ -108,6 +108,22 @@ struct AppRuntimeEnvironmentTests {
     }
 
     @Test
+    func appRuntimeDoesNotStartInsideAutomatedTests() {
+        #expect(
+            !AppRuntimeEnvironment.shouldStartAppRuntime(
+                environment: [AppRuntimeEnvironment.xctestConfigurationFilePathEnvironmentKey: "/tmp/test.xctestconfiguration"],
+                classLookup: { _ in nil }
+            )
+        )
+        #expect(
+            AppRuntimeEnvironment.shouldStartAppRuntime(
+                environment: [:],
+                classLookup: { _ in nil }
+            )
+        )
+    }
+
+    @Test
     func interactiveAlertsAreSuppressedDuringAutomatedTests() {
         let environment = [
             AppRuntimeEnvironment.xctestConfigurationFilePathEnvironmentKey: "/tmp/test.xctestconfiguration"

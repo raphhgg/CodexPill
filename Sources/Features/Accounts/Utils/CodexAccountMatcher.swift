@@ -30,7 +30,7 @@ enum CodexAccountMatchOutcome: Equatable {
     }
 }
 
-struct CodexAccountMatcher {
+struct CodexAccountMatcher: Sendable {
     func match(
         liveStableAccountID: String?,
         liveAuthPrincipalIdentity: CodexAuthPrincipalIdentity?,

@@ -15,7 +15,7 @@ struct HydrateSavedAccountsMetadataResult {
     let hydratedAccountIDs: [UUID]
 }
 
-struct HydrateSavedAccountsMetadataUseCase {
+struct HydrateSavedAccountsMetadataUseCase: Sendable {
     private let authService: CodexAuthSessionStore
     private let savedAccountStatusClient: SavedCodexAccountStatusClient
     private let identityResolver: SavedAccountIdentityResolver

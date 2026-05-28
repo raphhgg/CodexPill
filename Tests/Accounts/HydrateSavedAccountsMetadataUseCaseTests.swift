@@ -342,7 +342,7 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
     }
 }
 
-private final class HydrationAuthSnapshotProbe: CodexAuthSessionStore {
+private final class HydrationAuthSnapshotProbe: CodexAuthSessionStore, @unchecked Sendable {
     private var currentAuthData: Data
     private var accountsByID: [UUID: CodexAccount] = [:]
     private var snapshotReadIDs: [UUID] = []
@@ -410,7 +410,7 @@ private struct HydrationFailingSavedStatusProbe: SavedCodexAccountStatusClient {
     }
 }
 
-private final class HydrationCatalogProbe: AccountCatalogStore {
+private final class HydrationCatalogProbe: AccountCatalogStore, @unchecked Sendable {
     var savedAccounts: [CodexAccount]?
 
     func saveAccounts(_ accounts: [CodexAccount]) throws {

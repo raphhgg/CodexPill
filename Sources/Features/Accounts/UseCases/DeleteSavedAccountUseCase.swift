@@ -6,7 +6,7 @@ protocol AccountSnapshotRemover: AccountCatalogStore {
 
 extension AccountRepository: AccountSnapshotRemover {}
 
-protocol CodexAuthSignerOut {
+protocol CodexAuthSignerOut: Sendable {
     func signOut() async throws
 }
 
@@ -35,7 +35,7 @@ struct DeleteSavedAccountResult {
     let activeAccountID: UUID?
 }
 
-struct DeleteSavedAccountUseCase {
+struct DeleteSavedAccountUseCase: Sendable {
     private let repository: AccountSnapshotRemover
     private let identityResolver: SavedAccountIdentityResolver
     private let authSignerOut: CodexAuthSignerOut

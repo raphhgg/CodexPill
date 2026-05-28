@@ -151,7 +151,7 @@ private final class SilentRefreshStatusFixture: CodexAccountStatusClient {
     }
 }
 
-private final class SilentRefreshCatalogProbe: AccountCatalogStore {
+private final class SilentRefreshCatalogProbe: AccountCatalogStore, @unchecked Sendable {
     private(set) var savedAccounts: [CodexAccount]?
 
     func bootstrapStorage() throws {}

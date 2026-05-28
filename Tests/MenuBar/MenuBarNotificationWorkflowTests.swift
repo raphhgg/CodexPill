@@ -87,8 +87,10 @@ struct MenuBarNotificationWorkflowTests {
         harness.workflow.whenOutEnabled = true
 
         harness.workflow.handleResponse(
-            actionIdentifier: "use_local",
-            userInfo: ["accountID": stale.id.uuidString],
+            payload: AccountAvailabilityNotificationResponsePayload(
+                actionIdentifier: "use_local",
+                userInfo: ["accountID": stale.id.uuidString]
+            ),
             state: makeState(activeAccount: active, inactiveAccounts: [stale, currentBest]),
             now: now
         )
@@ -109,11 +111,13 @@ struct MenuBarNotificationWorkflowTests {
         harness.workflow.whenOutEnabled = true
 
         harness.workflow.handleResponse(
-            actionIdentifier: "use_remote",
-            userInfo: [
-                "accountID": stale.id.uuidString,
-                "remoteHostDestination": "user@buildbox"
-            ],
+            payload: AccountAvailabilityNotificationResponsePayload(
+                actionIdentifier: "use_remote",
+                userInfo: [
+                    "accountID": stale.id.uuidString,
+                    "remoteHostDestination": "user@buildbox"
+                ]
+            ),
             state: makeState(activeAccount: active, inactiveAccounts: [stale]),
             now: now
         )

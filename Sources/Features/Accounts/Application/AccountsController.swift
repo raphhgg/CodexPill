@@ -4,7 +4,7 @@ import OSLog
 
 private let accountsControllerLogger = Logger(subsystem: "com.raphhgg.codexpill", category: "AccountsController")
 
-struct PersistSavedAccountMetadataUseCase {
+struct PersistSavedAccountMetadataUseCase: Sendable {
     private let repository: AccountCatalogStore
 
     init(repository: AccountCatalogStore) {

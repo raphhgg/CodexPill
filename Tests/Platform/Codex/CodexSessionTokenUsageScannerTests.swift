@@ -256,7 +256,7 @@ struct CodexSessionTokenUsageScannerTests {
             {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":20}}}
             """
         ])
-        var progressUpdates: [TokenUsageScanProgress] = []
+        let progressUpdates = TokenUsageProgressRecorder()
 
         _ = try CodexSessionTokenUsageScanner(calendar: utcCalendar()).scan(
             sessionsDirectory: root,
@@ -267,13 +267,13 @@ struct CodexSessionTokenUsageScannerTests {
             progress: { progressUpdates.append($0) }
         )
 
-        #expect(progressUpdates == [
+        #expect(progressUpdates.updates == [
             TokenUsageScanProgress(scannedFiles: 0, totalFiles: 2),
             TokenUsageScanProgress(scannedFiles: 1, totalFiles: 2),
             TokenUsageScanProgress(scannedFiles: 2, totalFiles: 2)
         ])
-        #expect(progressUpdates.map(\.message).contains { $0.contains("session-a") } == false)
-        #expect(progressUpdates.map(\.message).contains { $0.contains(root.path) } == false)
+        #expect(progressUpdates.updates.map(\.message).contains { $0.contains("session-a") } == false)
+        #expect(progressUpdates.updates.map(\.message).contains { $0.contains(root.path) } == false)
     }
 
     @Test

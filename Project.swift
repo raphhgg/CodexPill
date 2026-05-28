@@ -36,6 +36,7 @@ let project = Project(
                 "CODE_SIGN_INJECT_BASE_ENTITLEMENTS": "NO",
                 "CURRENT_PROJECT_VERSION": "1",
                 "ENABLE_DEBUG_DYLIB": "NO",
+                "SWIFT_VERSION": "6.0",
             ])
         ),
         .target(
@@ -48,7 +49,10 @@ let project = Project(
             sources: ["Tests/**"],
             dependencies: [
                 .target(name: "CodexPill")
-            ]
+            ],
+            settings: .settings(base: [
+                "SWIFT_VERSION": "6.0",
+            ])
         )
     ]
 )

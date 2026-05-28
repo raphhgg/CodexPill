@@ -5,7 +5,7 @@ struct IsolatedCodexLoginPrompt: Equatable {
     let userCode: String
 }
 
-protocol IsolatedCodexLoginSession: AnyObject {
+protocol IsolatedCodexLoginSession: AnyObject, Sendable {
     var prompt: IsolatedCodexLoginPrompt { get }
     var codexHome: URL { get }
     func waitForAuthData() async throws -> Data
@@ -14,7 +14,7 @@ protocol IsolatedCodexLoginSession: AnyObject {
     func cleanup()
 }
 
-protocol IsolatedCodexLoginClient {
+protocol IsolatedCodexLoginClient: Sendable {
     func startLogin() async throws -> IsolatedCodexLoginSession
 }
 

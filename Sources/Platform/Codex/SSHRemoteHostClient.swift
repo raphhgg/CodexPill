@@ -7,7 +7,7 @@ struct CommandResult: Equatable {
     let standardError: Data
 }
 
-protocol CommandRunner {
+protocol CommandRunner: Sendable {
     func run(executableURL: URL, arguments: [String]) async throws -> CommandResult
 }
 
@@ -40,7 +40,7 @@ struct ProcessCommandRunner: CommandRunner {
     }
 }
 
-protocol AccountSnapshotLocator {
+protocol AccountSnapshotLocator: Sendable {
     func snapshotURL(for account: CodexAccount) -> URL
 }
 

@@ -1,6 +1,6 @@
 import Foundation
 
-struct SwitchAccountOnHostWorkflow {
+struct SwitchAccountOnHostWorkflow: Sendable {
     private let connectionChecker: RemoteHostConnectionChecking
     private let accountInstaller: RemoteHostAccountInstalling
     private let accountSwitcher: RemoteHostAccountSwitching
