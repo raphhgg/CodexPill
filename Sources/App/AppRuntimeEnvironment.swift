@@ -104,6 +104,13 @@ enum AppRuntimeEnvironment {
             .appendingPathComponent("CodexPillTests-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true)
     }
 
+    static func shouldStartAppRuntime(
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        classLookup: (String) -> AnyClass? = NSClassFromString
+    ) -> Bool {
+        !isRunningAutomatedTests(environment: environment, classLookup: classLookup)
+    }
+
     static func shouldSuppressInteractiveAlerts(
         environment: [String: String] = ProcessInfo.processInfo.environment,
         classLookup: (String) -> AnyClass? = NSClassFromString

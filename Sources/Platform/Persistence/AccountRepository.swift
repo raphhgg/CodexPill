@@ -1,9 +1,7 @@
 import Foundation
 
-struct AccountRepository {
+struct AccountRepository: @unchecked Sendable {
     private let fileManager: FileManager
-    private let encoder: JSONEncoder
-    private let decoder: JSONDecoder
     let paths: AppPaths
 
     init(
@@ -12,11 +10,6 @@ struct AccountRepository {
     ) throws {
         self.fileManager = fileManager
         self.paths = try AppPaths(fileManager: fileManager, environment: environment)
-        self.encoder = JSONEncoder()
-        self.decoder = JSONDecoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        encoder.dateEncodingStrategy = .iso8601
-        decoder.dateDecodingStrategy = .iso8601
     }
 
     func bootstrapStorage() throws {
@@ -40,11 +33,11 @@ struct AccountRepository {
     func loadAccounts() throws -> [CodexAccount] {
         guard fileManager.fileExists(atPath: paths.accountsFile.path) else { return [] }
         let data = try Data(contentsOf: paths.accountsFile)
-        return try decoder.decode([CodexAccount].self, from: data)
+        return try Self.makeDecoder().decode([CodexAccount].self, from: data)
     }
 
     func saveAccounts(_ accounts: [CodexAccount]) throws {
-        let data = try encoder.encode(accounts)
+        let data = try Self.makeEncoder().encode(accounts)
         try data.write(to: paths.accountsFile, options: .atomic)
         try FilePermissionHardening.repairPrivateFile(at: paths.accountsFile, fileManager: fileManager)
     }
@@ -82,5 +75,18 @@ struct AccountRepository {
             guard values.isRegularFile == true else { continue }
             try FilePermissionHardening.repairPrivateFile(at: entry, fileManager: fileManager)
         }
+    }
+
+    private static func makeEncoder() -> JSONEncoder {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.dateEncodingStrategy = .iso8601
+        return encoder
+    }
+
+    private static func makeDecoder() -> JSONDecoder {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return decoder
     }
 }

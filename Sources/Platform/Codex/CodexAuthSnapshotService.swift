@@ -4,7 +4,7 @@ import OSLog
 
 private let authSnapshotLogger = Logger(subsystem: "com.raphhgg.codexpill", category: "AuthSnapshot")
 
-struct CodexAuthSnapshotService {
+struct CodexAuthSnapshotService: Sendable {
     private let repository: AccountRepository
 
     init(repository: AccountRepository) {

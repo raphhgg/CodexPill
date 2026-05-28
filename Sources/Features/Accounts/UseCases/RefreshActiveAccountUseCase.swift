@@ -5,7 +5,7 @@ struct RefreshActiveAccountResult {
     let refreshedAccountID: UUID
 }
 
-protocol ActiveAuthSnapshotRelinking {
+protocol ActiveAuthSnapshotRelinking: Sendable {
     func currentAuthFingerprint() -> String?
     func readCurrentAuthData() throws -> Data
     func saveAuthSnapshot(_ authData: Data, named name: String, existing: CodexAccount?) throws -> CodexAccount
@@ -13,7 +13,7 @@ protocol ActiveAuthSnapshotRelinking {
 
 extension CodexAuthSnapshotService: ActiveAuthSnapshotRelinking {}
 
-struct RefreshActiveAccountUseCase {
+struct RefreshActiveAccountUseCase: Sendable {
     private let accountStatusClient: CodexAccountStatusClient
     private let identityResolver: SavedAccountIdentityResolver
     private let repository: AccountCatalogStore

@@ -261,7 +261,7 @@ private func makeAccount(id: UUID = UUID(), name: String, fingerprint: String) -
     )
 }
 
-private final class AddAccountAuthSnapshotProbe: CodexSignInAuthStore, LiveCodexAccountIdentitySource {
+private final class AddAccountAuthSnapshotProbe: CodexSignInAuthStore, LiveCodexAccountIdentitySource, @unchecked Sendable {
     let savedAccount: CodexAccount
     var currentAuthData: Data?
     var currentFingerprint: String?
@@ -318,7 +318,7 @@ private final class AddAccountAuthSnapshotProbe: CodexSignInAuthStore, LiveCodex
     }
 }
 
-private final class AddAccountCodexProcessProbe: CodexAppProcessClient {
+private final class AddAccountCodexProcessProbe: CodexAppProcessClient, @unchecked Sendable {
     private(set) var availabilityCheckCount = 0
     private(set) var relaunchCount = 0
 
@@ -339,7 +339,7 @@ private struct AddAccountStatusFixture: CodexAccountStatusClient {
     }
 }
 
-private final class AddAccountCatalogProbe: AccountCatalogStore {
+private final class AddAccountCatalogProbe: AccountCatalogStore, @unchecked Sendable {
     private(set) var savedAccounts: [CodexAccount]?
     var saveError: Error?
 
@@ -357,7 +357,7 @@ private struct AddAccountStoredIdentityAdapter: StoredAccountIdentityReconciler 
     }
 }
 
-private final class AddAccountIsolatedLoginClientProbe: IsolatedCodexLoginClient {
+private final class AddAccountIsolatedLoginClientProbe: IsolatedCodexLoginClient, @unchecked Sendable {
     private let session: AddAccountIsolatedLoginSessionProbe
     private(set) var startLoginCount = 0
 
@@ -371,7 +371,7 @@ private final class AddAccountIsolatedLoginClientProbe: IsolatedCodexLoginClient
     }
 }
 
-private final class AddAccountIsolatedLoginSessionProbe: IsolatedCodexLoginSession {
+private final class AddAccountIsolatedLoginSessionProbe: IsolatedCodexLoginSession, @unchecked Sendable {
     let prompt = IsolatedCodexLoginPrompt(
         url: URL(string: "https://auth.openai.com/codex/device")!,
         userCode: "ABCD-EFGH"

@@ -115,7 +115,7 @@ struct DeleteSavedAccountUseCaseTests {
     }
 }
 
-private final class SnapshotDeletingAccountCatalogProbe: AccountSnapshotRemover {
+private final class SnapshotDeletingAccountCatalogProbe: AccountSnapshotRemover, @unchecked Sendable {
     var deletedAccountIDs: [UUID] = []
     var savedAccounts: [CodexAccount]?
 
@@ -128,7 +128,7 @@ private final class SnapshotDeletingAccountCatalogProbe: AccountSnapshotRemover 
     }
 }
 
-private final class CodexAuthSignerOutProbe: CodexAuthSignerOut {
+private final class CodexAuthSignerOutProbe: CodexAuthSignerOut, @unchecked Sendable {
     private let error: Error?
     private(set) var signOutCallCount = 0
 
@@ -148,7 +148,7 @@ private enum SignOutFixtureError: Error {
     case failed
 }
 
-private final class CodexAppProcessProbe: CodexAppProcessClient {
+private final class CodexAppProcessProbe: CodexAppProcessClient, @unchecked Sendable {
     private(set) var availabilityCheckCount = 0
     private(set) var relaunchCount = 0
 

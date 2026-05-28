@@ -272,7 +272,7 @@ struct SwitchAccountOnHostWorkflowTests {
     }
 }
 
-private final class RemoteHostClientProbe: RemoteHostSwitchWorkflowOperations {
+private final class RemoteHostClientProbe: RemoteHostSwitchWorkflowOperations, @unchecked Sendable {
     enum Event: Equatable {
         case testConnection(String)
         case installationState(UUID, String)

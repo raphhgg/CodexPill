@@ -3,7 +3,7 @@ import OSLog
 
 private let silentPostActionRefreshLogger = Logger(subsystem: "com.raphhgg.codexpill", category: "SilentPostActionRefresh")
 
-struct SilentPostActionRefresh {
+struct SilentPostActionRefresh: Sendable {
     private let refreshActiveAccountUseCase: RefreshActiveAccountUseCase
 
     init(refreshActiveAccountUseCase: RefreshActiveAccountUseCase) {

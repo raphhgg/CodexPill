@@ -20,6 +20,18 @@ struct AccountAvailabilityNotificationPayload: Equatable {
     let actions: [AccountAvailabilityNotificationAction]
 }
 
+struct AccountAvailabilityNotificationResponsePayload: Sendable {
+    let actionIdentifier: String?
+    let accountIDString: String?
+    let remoteHostDestination: String?
+
+    init(actionIdentifier: String?, userInfo: [AnyHashable: Any]) {
+        self.actionIdentifier = actionIdentifier
+        self.accountIDString = userInfo["accountID"] as? String
+        self.remoteHostDestination = userInfo["remoteHostDestination"] as? String
+    }
+}
+
 struct AccountAvailabilityNotificationCopyRenderer {
     func render(
         decision: AccountAvailabilityNotificationDecision,
@@ -71,6 +83,7 @@ struct AccountAvailabilityNotificationCopyRenderer {
     }
 }
 
+@MainActor
 protocol AccountAvailabilityNotifier {
     func authorizationState() async -> NotificationAuthorizationState
     func requestAuthorizationIfNeeded() async
@@ -81,6 +94,7 @@ protocol NotificationSettingsLauncher {
     func openNotificationSettings()
 }
 
+@MainActor
 protocol UserNotificationCenterClient: AnyObject {
     func authorizationStatus() async -> UNAuthorizationStatus
     func requestAuthorization(options: UNAuthorizationOptions) async throws -> Bool
@@ -238,6 +252,18 @@ final class AccountAvailabilityNotificationCenter: AccountAvailabilityNotifier {
         }
 
         return userInfo
+    }
+}
+
+final class DisabledAccountAvailabilityNotifier: AccountAvailabilityNotifier {
+    func authorizationState() async -> NotificationAuthorizationState {
+        .unknown
+    }
+
+    func requestAuthorizationIfNeeded() async {}
+
+    func deliver(_ payload: AccountAvailabilityNotificationPayload) async -> Bool {
+        false
     }
 }
 

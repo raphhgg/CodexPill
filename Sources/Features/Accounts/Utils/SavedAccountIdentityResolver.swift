@@ -34,11 +34,11 @@ struct LiveCodexAccountIdentity: Equatable {
     static let empty = Self()
 }
 
-protocol LiveCodexAccountIdentitySource {
+protocol LiveCodexAccountIdentitySource: Sendable {
     func readCurrentLiveAccountIdentity() -> LiveCodexAccountIdentity
 }
 
-protocol StoredAccountIdentityReconciler {
+protocol StoredAccountIdentityReconciler: Sendable {
     func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount]
 }
 
@@ -56,7 +56,7 @@ extension CodexAuthSnapshotService: LiveCodexAccountIdentitySource {
 
 extension CodexAuthSnapshotService: StoredAccountIdentityReconciler {}
 
-struct SavedAccountIdentityResolver {
+struct SavedAccountIdentityResolver: Sendable {
     private let liveIdentitySource: LiveCodexAccountIdentitySource
     private let storedAccountReconciler: StoredAccountIdentityReconciler
     private let accountMatcher: CodexAccountMatcher

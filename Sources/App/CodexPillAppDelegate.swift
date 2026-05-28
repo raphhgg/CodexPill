@@ -3,9 +3,9 @@ import UserNotifications
 
 @MainActor
 final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
-    private var coordinator: MenuBarCoordinator!
+    private var coordinator: MenuBarCoordinator?
     private var settings: CodexPillSettingsStore!
-    private var statusItemRuntime: StatusItemRuntime!
+    private var statusItemRuntime: StatusItemRuntime?
     private var wakeObserver: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -17,6 +17,10 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
             ?? .standard
         settings = CodexPillSettingsStore(userDefaults: defaults)
         ValidationAppBootstrap.applyFixtureIfPresent(to: settings, environment: environment)
+
+        guard AppRuntimeEnvironment.shouldStartAppRuntime(environment: environment) else {
+            return
+        }
 
         let repository = try! AccountRepository()
         let authService = CodexAuthSnapshotService(repository: repository)
@@ -40,7 +44,8 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
         )
         let store = accountsFeatureFactory.makeMenuBarAccountsStore()
 
-        statusItemRuntime = StatusItemRuntime()
+        let statusItemRuntime = StatusItemRuntime()
+        self.statusItemRuntime = statusItemRuntime
         coordinator = MenuBarCoordinator(
             statusItemRuntime: statusItemRuntime,
             store: store,
@@ -62,12 +67,12 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                self?.coordinator.handleSystemDidWake()
+                self?.coordinator?.handleSystemDidWake()
             }
         }
 
         store.load()
-        coordinator.start()
+        coordinator?.start()
         Task { @MainActor in
             if let activeAccount = store.activeAccount {
                 _ = await store.refreshAccountData(for: activeAccount)
@@ -79,7 +84,7 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
         if let wakeObserver {
             NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver)
         }
-        coordinator.invalidate()
+        coordinator?.invalidate()
     }
 
     nonisolated func userNotificationCenter(
@@ -93,15 +98,11 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
-        await MainActor.run {
-            let responseTask = Task { @MainActor in
-                await self.coordinator.handleNotificationResponse(
-                    actionIdentifier: response.actionIdentifier,
-                    userInfo: response.notification.request.content.userInfo
-                )
-            }
-            _ = responseTask
-        }
+        let payload = AccountAvailabilityNotificationResponsePayload(
+            actionIdentifier: response.actionIdentifier,
+            userInfo: response.notification.request.content.userInfo
+        )
+        await coordinator?.handleNotificationResponse(payload)
     }
 
 }

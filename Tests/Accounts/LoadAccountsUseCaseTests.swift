@@ -298,7 +298,7 @@ struct LoadAccountsUseCaseTests {
     }
 }
 
-private final class LoadingAccountCatalogProbe: AccountCatalogLoader {
+private final class LoadingAccountCatalogProbe: AccountCatalogLoader, @unchecked Sendable {
     let accountsToLoad: [CodexAccount]
     var bootstrapCount = 0
     var loadCount = 0
@@ -322,7 +322,7 @@ private final class LoadingAccountCatalogProbe: AccountCatalogLoader {
     }
 }
 
-private final class IdentityReconcilerProbe: StoredAccountIdentityReconciler {
+private final class IdentityReconcilerProbe: StoredAccountIdentityReconciler, @unchecked Sendable {
     let reconciledAccounts: [CodexAccount]
     var inputAccounts: [CodexAccount]?
 

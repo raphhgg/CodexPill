@@ -14,7 +14,7 @@ struct CodexSessionTokenUsageScanSummary: Equatable {
     var nonUsageRowsIgnored: Int
 }
 
-struct CodexSessionTokenUsageScanner {
+struct CodexSessionTokenUsageScanner: Sendable {
     private static let defaultMaximumScannableFileByteCount = 0
     private static let defaultMaximumDailyScanByteBudget = 0
     private static let defaultMaximumLineByteCount = 1 * 1024 * 1024
@@ -160,11 +160,11 @@ private struct CodexSessionTokenUsageFileCandidate: Equatable {
     let day: Date
 }
 
-private protocol CodexSessionTokenUsageFileDiscovering {
+private protocol CodexSessionTokenUsageFileDiscovering: Sendable {
     func sessionFiles(in directory: URL) throws -> [CodexSessionTokenUsageFileCandidate]
 }
 
-private struct CodexSessionTokenUsageFileDiscoverer: CodexSessionTokenUsageFileDiscovering {
+private struct CodexSessionTokenUsageFileDiscoverer: CodexSessionTokenUsageFileDiscovering, @unchecked Sendable {
     private let fileManager: FileManager
     private let calendar: Calendar
 
@@ -223,7 +223,7 @@ private struct CodexSessionTokenUsageFileDiscoverer: CodexSessionTokenUsageFileD
     }
 }
 
-private protocol CodexSessionTokenUsageFileParsing {
+private protocol CodexSessionTokenUsageFileParsing: Sendable {
     func scanFile(_ url: URL, day: Date) throws -> CodexSessionTokenUsageScanResult
 }
 

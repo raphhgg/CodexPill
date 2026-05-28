@@ -3,7 +3,7 @@ import Foundation
 private let tokenUsageMenuDefaultFreshnessInterval: TimeInterval = 15 * 60
 
 @MainActor
-final class TokenUsageMenuRuntime {
+final class TokenUsageMenuRuntime: Sendable {
     private let provider: TokenUsageMenuProviding
     private let freshnessInterval: TimeInterval
     private let calendar: Calendar
@@ -69,19 +69,18 @@ final class TokenUsageMenuRuntime {
         loadedAt = nil
 
         let provider = provider
-        refreshTask = Task.detached { [weak self, provider, request] in
+        let relay = TokenUsageMenuRefreshRelay(runtime: self, request: request)
+        refreshTask = Task.detached { [provider, relay, request] in
             // Keep the filesystem scan independent from the transient menu view.
             let loadState = await provider.load(
                 period: request.period,
                 peakScope: request.peakScope,
                 forceRefresh: forceRefresh
             ) { progress in
-                Task { @MainActor [weak runtime = self] in
-                    runtime?.updateProgress(progress, request: request)
-                }
+                relay.update(progress)
             }
             guard !Task.isCancelled else { return }
-            await self?.finishRefresh(loadState, request: request)
+            await relay.finish(loadState)
         }
     }
 
@@ -94,7 +93,7 @@ final class TokenUsageMenuRuntime {
         lastProgressRenderDate = nil
     }
 
-    private func updateProgress(_ progress: TokenUsageScanProgress, request: TokenUsageMenuLoadRequest) {
+    fileprivate func updateProgress(_ progress: TokenUsageScanProgress, request: TokenUsageMenuLoadRequest) {
         guard refreshRequest == request else { return }
 
         if request.peakScope == .allTime,
@@ -116,7 +115,7 @@ final class TokenUsageMenuRuntime {
         onStateChange(loadState)
     }
 
-    private func finishRefresh(_ loadState: TokenUsageMenuLoadState, request: TokenUsageMenuLoadRequest) {
+    fileprivate func finishRefresh(_ loadState: TokenUsageMenuLoadState, request: TokenUsageMenuLoadRequest) {
         guard refreshRequest == request else { return }
         self.loadState = loadState
         lastProgressRenderDate = nil
@@ -135,6 +134,27 @@ final class TokenUsageMenuRuntime {
             return false
         }
         return referenceDate.timeIntervalSince(loadedAt) < freshnessInterval
+    }
+}
+
+private final class TokenUsageMenuRefreshRelay: @unchecked Sendable {
+    private weak var runtime: TokenUsageMenuRuntime?
+    private let request: TokenUsageMenuLoadRequest
+
+    init(runtime: TokenUsageMenuRuntime, request: TokenUsageMenuLoadRequest) {
+        self.runtime = runtime
+        self.request = request
+    }
+
+    func update(_ progress: TokenUsageScanProgress) {
+        Task { @MainActor [weak runtime, request] in
+            runtime?.updateProgress(progress, request: request)
+        }
+    }
+
+    @MainActor
+    func finish(_ loadState: TokenUsageMenuLoadState) {
+        runtime?.finishRefresh(loadState, request: request)
     }
 }
 
@@ -162,7 +182,7 @@ private struct TokenUsageMenuLoadRequest: Equatable {
     var peakScope: TokenUsagePeakScope
 }
 
-protocol TokenUsageMenuProviding {
+protocol TokenUsageMenuProviding: Sendable {
     func load(
         period: CodexTokenUsagePeriod,
         peakScope: TokenUsagePeakScope,
@@ -180,7 +200,7 @@ struct LocalCodexSessionTokenUsageMenuProvider: TokenUsageMenuProviding {
             .appendingPathComponent(".codex", isDirectory: true)
             .appendingPathComponent("sessions", isDirectory: true),
         cacheFile: URL = LocalCodexSessionTokenUsageDiskCache.defaultCacheFile(),
-        now: @escaping () -> Date = Date.init,
+        now: @escaping @Sendable () -> Date = Date.init,
         calendar: Calendar = .current
     ) {
         cache = LocalCodexSessionTokenUsageCache(
@@ -206,7 +226,7 @@ private actor LocalCodexSessionTokenUsageCache {
     private let scanner: CodexSessionTokenUsageScanner
     private let sessionsDirectory: URL
     private let diskCache: LocalCodexSessionTokenUsageDiskCaching
-    private let now: () -> Date
+    private let now: @Sendable () -> Date
     private let calendar: Calendar
     private var cachedEntriesByPeriod: [CodexTokenUsagePeriod: TokenUsageCacheEntry] = [:]
 
@@ -214,7 +234,7 @@ private actor LocalCodexSessionTokenUsageCache {
         scanner: CodexSessionTokenUsageScanner,
         sessionsDirectory: URL,
         diskCache: LocalCodexSessionTokenUsageDiskCaching,
-        now: @escaping () -> Date,
+        now: @escaping @Sendable () -> Date,
         calendar: Calendar
     ) {
         self.scanner = scanner
@@ -310,7 +330,7 @@ private actor LocalCodexSessionTokenUsageCache {
 
 }
 
-private protocol LocalCodexSessionTokenUsageDiskCaching {
+private protocol LocalCodexSessionTokenUsageDiskCaching: Sendable {
     func readEntry(
         covering period: CodexTokenUsagePeriod,
         peakScope: TokenUsagePeakScope,
@@ -353,7 +373,7 @@ private struct TokenUsageCacheEntry: Codable, Equatable {
     }
 }
 
-private struct LocalCodexSessionTokenUsageDiskCache: LocalCodexSessionTokenUsageDiskCaching {
+private struct LocalCodexSessionTokenUsageDiskCache: LocalCodexSessionTokenUsageDiskCaching, @unchecked Sendable {
     private static let schemaVersion = 1
 
     let cacheFile: URL

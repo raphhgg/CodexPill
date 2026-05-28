@@ -14,10 +14,10 @@ struct CodexAccountStatus: Equatable {
     }
 }
 
-protocol CodexAccountStatusClient {
+protocol CodexAccountStatusClient: Sendable {
     func readCurrentAccountStatus() async throws -> CodexAccountStatus
 }
 
-protocol SavedCodexAccountStatusClient {
+protocol SavedCodexAccountStatusClient: Sendable {
     func readSavedAccountStatus(authData: Data) async throws -> CodexAccountStatus
 }

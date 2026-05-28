@@ -24,28 +24,28 @@ enum RemoteHostAccountInstallationState: String, Codable, Equatable {
     case missing
 }
 
-protocol RemoteHostConnectionChecking {
+protocol RemoteHostConnectionChecking: Sendable {
     func testConnection(to host: RemoteHost) async throws
 }
 
-protocol RemoteHostAccountInstalling {
+protocol RemoteHostAccountInstalling: Sendable {
     func installationState(for account: CodexAccount, on host: RemoteHost) async throws -> RemoteHostAccountInstallationState
     func installAccount(_ account: CodexAccount, on host: RemoteHost) async throws
 }
 
-protocol RemoteHostAccountSwitching {
+protocol RemoteHostAccountSwitching: Sendable {
     func switchToAccount(_ account: CodexAccount, on host: RemoteHost) async throws
 }
 
-protocol RemoteHostAccountSigningOut {
+protocol RemoteHostAccountSigningOut: Sendable {
     func signOut(on host: RemoteHost) async throws
 }
 
-protocol RemoteHostCodexAppServerRefreshing {
+protocol RemoteHostCodexAppServerRefreshing: Sendable {
     func refreshCodexAppServer(on host: RemoteHost) async throws
 }
 
-protocol RemoteHostAccountStatusReading {
+protocol RemoteHostAccountStatusReading: Sendable {
     func readCurrentAccountStatus(on host: RemoteHost) async throws -> CodexAccountStatus
 }
 

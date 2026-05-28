@@ -1,6 +1,6 @@
 import Foundation
 
-protocol CodexSignInAuthStore {
+protocol CodexSignInAuthStore: Sendable {
     func saveAuthSnapshot(_ authData: Data, named name: String, existing: CodexAccount?) throws -> CodexAccount
     func deleteAuthSnapshot(for account: CodexAccount) throws
     func currentAuthFingerprint() -> String?
@@ -14,7 +14,7 @@ struct AddAccountResult {
     let activeAccountID: UUID?
 }
 
-final class IsolatedAddAccountSignInSession {
+final class IsolatedAddAccountSignInSession: @unchecked Sendable {
     let accountName: String
     let prompt: IsolatedCodexLoginPrompt
 
@@ -33,7 +33,7 @@ final class IsolatedAddAccountSignInSession {
     }
 }
 
-struct AddAccountWorkflow {
+struct AddAccountWorkflow: Sendable {
     private let authService: CodexSignInAuthStore
     private let repository: AccountCatalogStore
     private let identityResolver: SavedAccountIdentityResolver

@@ -1,18 +1,18 @@
 import Foundation
 
-protocol CodexAuthActivator {
+protocol CodexAuthActivator: Sendable {
     func activate(_ account: CodexAccount) throws
 }
 
 extension CodexAuthSnapshotService: CodexAuthActivator {}
 
-protocol AccountCatalogStore {
+protocol AccountCatalogStore: Sendable {
     func saveAccounts(_ accounts: [CodexAccount]) throws
 }
 
 extension AccountRepository: AccountCatalogStore {}
 
-struct SwitchAccountWorkflow {
+struct SwitchAccountWorkflow: Sendable {
     private let authService: CodexAuthActivator
     private let repository: AccountCatalogStore
     private let codexAppProcessClient: CodexAppProcessClient

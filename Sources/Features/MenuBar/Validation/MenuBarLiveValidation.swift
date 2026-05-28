@@ -18,7 +18,7 @@ struct MenuBarValidationEvent: Codable, Equatable {
         step: String,
         payload: [String: String] = [:]
     ) {
-        self.ts = Self.timestampFormatter.string(from: timestamp)
+        self.ts = Self.makeTimestampFormatter().string(from: timestamp)
         self.scenario = scenario
         self.proofLayer = proofLayer
         self.invariantIds = invariantIds
@@ -27,11 +27,11 @@ struct MenuBarValidationEvent: Codable, Equatable {
         self.payload = payload
     }
 
-    private static let timestampFormatter: ISO8601DateFormatter = {
+    private static func makeTimestampFormatter() -> ISO8601DateFormatter {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter
-    }()
+    }
 }
 
 func sanitizedValidationPayload(_ payload: [String: String]) -> [String: String] {

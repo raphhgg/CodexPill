@@ -3,7 +3,7 @@ import OSLog
 
 private let codexAppProcessLogger = Logger(subsystem: "com.raphhgg.codexpill", category: "SystemCodexAppProcessClient")
 
-protocol CodexAppProcessClient {
+protocol CodexAppProcessClient: Sendable {
     func assertCodexAvailable() throws
     func relaunchCodex() async throws
 }

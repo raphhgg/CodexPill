@@ -1,11 +1,11 @@
 import AppKit
 import Foundation
 
-protocol CodexExecutableResolving {
+protocol CodexExecutableResolving: Sendable {
     func resolveCodexExecutable() throws -> URL
 }
 
-struct NSWorkspaceCodexExecutableResolver: CodexExecutableResolving {
+struct NSWorkspaceCodexExecutableResolver: CodexExecutableResolving, @unchecked Sendable {
     let bundleIdentifier = "com.openai.codex"
     var fileManager: FileManager = .default
 

@@ -133,19 +133,18 @@ final class MenuBarNotificationWorkflow {
     }
 
     func handleResponse(
-        actionIdentifier: String?,
-        userInfo: [AnyHashable: Any],
+        payload: AccountAvailabilityNotificationResponsePayload,
         state: MenuBarMenuState,
         now: Date = .now
     ) {
-        let resolvedActionIdentifier = actionIdentifier ?? UNNotificationDefaultActionIdentifier
+        let resolvedActionIdentifier = payload.actionIdentifier ?? UNNotificationDefaultActionIdentifier
         guard resolvedActionIdentifier != UNNotificationDefaultActionIdentifier else {
             applicationActivator.activate()
             return
         }
 
         guard
-            let accountIDString = userInfo["accountID"] as? String,
+            let accountIDString = payload.accountIDString,
             let notifiedAccountID = UUID(uuidString: accountIDString)
         else {
             applicationActivator.activate()
@@ -156,7 +155,7 @@ final class MenuBarNotificationWorkflow {
             notifiedAccountID: notifiedAccountID,
             requestedTarget: requestedTarget(
                 actionIdentifier: resolvedActionIdentifier,
-                userInfo: userInfo
+                remoteHostDestination: payload.remoteHostDestination
             ),
             currentSnapshots: state.availabilitySnapshots,
             activeAccounts: activeContexts(from: state),
@@ -218,13 +217,13 @@ final class MenuBarNotificationWorkflow {
 
     private func requestedTarget(
         actionIdentifier: String,
-        userInfo: [AnyHashable: Any]
+        remoteHostDestination: String?
     ) -> AccountAvailabilityNotificationRequestedTarget {
         switch actionIdentifier {
         case "use_local":
             return .local
         case "use_remote":
-            return .remote(preferredHostDestination: userInfo["remoteHostDestination"] as? String)
+            return .remote(preferredHostDestination: remoteHostDestination)
         case "use_best_option":
             return .bestOption
         default:

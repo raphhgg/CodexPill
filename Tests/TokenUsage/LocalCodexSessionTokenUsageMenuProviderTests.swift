@@ -22,12 +22,12 @@ struct LocalCodexSessionTokenUsageMenuProviderTests {
             now: { now },
             calendar: utcCalendar()
         )
-        var progressUpdates: [TokenUsageScanProgress] = []
+        let progressUpdates = TokenUsageProgressRecorder()
 
         _ = await provider.load(period: .last7Days) { progressUpdates.append($0) }
 
-        #expect(progressUpdates.first == TokenUsageScanProgress(scannedFiles: 0, totalFiles: 2))
-        #expect(progressUpdates.last == TokenUsageScanProgress(scannedFiles: 2, totalFiles: 2))
+        #expect(progressUpdates.updates.first == TokenUsageScanProgress(scannedFiles: 0, totalFiles: 2))
+        #expect(progressUpdates.updates.last == TokenUsageScanProgress(scannedFiles: 2, totalFiles: 2))
     }
 
     @Test
@@ -56,7 +56,7 @@ struct LocalCodexSessionTokenUsageMenuProviderTests {
         }
         #expect(selectedPeriodData.buckets.count == CodexTokenUsagePeriod.last7Days.dayCount)
 
-        var secondProgressUpdates: [TokenUsageScanProgress] = []
+        let secondProgressUpdates = TokenUsageProgressRecorder()
 
         let secondLoad = await provider.load(period: .last7Days) { secondProgressUpdates.append($0) }
         guard case .loaded(let cachedData) = secondLoad else {
@@ -116,7 +116,7 @@ struct LocalCodexSessionTokenUsageMenuProviderTests {
             calendar: utcCalendar()
         )
         _ = await provider.load(period: .last7Days, peakScope: .currentPeriod) { _ in }
-        var progressUpdates: [TokenUsageScanProgress] = []
+        let progressUpdates = TokenUsageProgressRecorder()
 
         let load = await provider.load(period: .last7Days, peakScope: .allTime) { progressUpdates.append($0) }
 
@@ -148,7 +148,7 @@ struct LocalCodexSessionTokenUsageMenuProviderTests {
             calendar: utcCalendar()
         )
         _ = await provider.load(period: .last30Days) { _ in }
-        var progressUpdates: [TokenUsageScanProgress] = []
+        let progressUpdates = TokenUsageProgressRecorder()
 
         let shortPeriodLoad = await provider.load(period: .last7Days) { progressUpdates.append($0) }
 
@@ -230,7 +230,7 @@ struct LocalCodexSessionTokenUsageMenuProviderTests {
             {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":9000}}}
             """
         )
-        var progressUpdates: [TokenUsageScanProgress] = []
+        let progressUpdates = TokenUsageProgressRecorder()
 
         let refreshedLoad = await provider.load(
             period: .last7Days,
@@ -277,7 +277,7 @@ struct LocalCodexSessionTokenUsageMenuProviderTests {
             now: { makeDate(2026, 5, 28) },
             calendar: utcCalendar()
         )
-        var progressUpdates: [TokenUsageScanProgress] = []
+        let progressUpdates = TokenUsageProgressRecorder()
 
         let refreshedLoad = await secondProvider.load(period: .last30Days) { progressUpdates.append($0) }
 
@@ -331,7 +331,7 @@ struct LocalCodexSessionTokenUsageMenuProviderTests {
             now: { makeDate(2026, 5, 28) },
             calendar: utcCalendar()
         )
-        var progressUpdates: [TokenUsageScanProgress] = []
+        let progressUpdates = TokenUsageProgressRecorder()
 
         let cachedLoad = await secondProvider.load(period: .last30Days) { progressUpdates.append($0) }
 

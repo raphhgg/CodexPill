@@ -127,7 +127,7 @@ struct RenameSavedAccountUseCaseTests {
     }
 }
 
-private final class RenamingCatalogProbe: AccountCatalogStore {
+private final class RenamingCatalogProbe: AccountCatalogStore, @unchecked Sendable {
     var savedAccounts: [CodexAccount]?
 
     func saveAccounts(_ accounts: [CodexAccount]) throws {

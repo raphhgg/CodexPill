@@ -64,6 +64,7 @@ struct MenuBarLiveValidationTests {
             allowsEmptyStatePrompt: false
         )
 
+        defer { coordinator.invalidate() }
         coordinator.start()
         try await Task.sleep(for: .milliseconds(120))
         let item = NSMenuItem()
@@ -188,15 +189,16 @@ struct MenuBarLiveValidationTests {
             allowsEmptyStatePrompt: false
         )
 
+        defer { coordinator.invalidate() }
         coordinator.start()
         try await Task.sleep(for: .milliseconds(120))
-        await coordinator.handleNotificationResponse(
+        await coordinator.handleNotificationResponse(AccountAvailabilityNotificationResponsePayload(
             actionIdentifier: "use_remote",
             userInfo: [
                 "accountID": notifiedAccount.id.uuidString,
                 "remoteHostDestination": "user@debian-vm"
             ]
-        )
+        ))
         try await Task.sleep(for: .milliseconds(120))
 
         #expect(foregrounder.activateCallCount == 1)
@@ -313,15 +315,16 @@ struct MenuBarLiveValidationTests {
             allowsEmptyStatePrompt: false
         )
 
+        defer { coordinator.invalidate() }
         coordinator.start()
         try await Task.sleep(for: .milliseconds(120))
-        await coordinator.handleNotificationResponse(
+        await coordinator.handleNotificationResponse(AccountAvailabilityNotificationResponsePayload(
             actionIdentifier: "use_remote",
             userInfo: [
                 "accountID": notifiedAccount.id.uuidString,
                 "remoteHostDestination": "user@debian-vm"
             ]
-        )
+        ))
         try await waitUntil {
             foregrounder.activateCallCount == 1 && !alertPresenter.infoRequests.isEmpty
         }
@@ -396,13 +399,14 @@ struct MenuBarLiveValidationTests {
             allowsEmptyStatePrompt: false
         )
 
+        defer { coordinator.invalidate() }
         coordinator.start()
-        await coordinator.handleNotificationResponse(
+        await coordinator.handleNotificationResponse(AccountAvailabilityNotificationResponsePayload(
             actionIdentifier: "use_local",
             userInfo: [
                 "accountID": account.id.uuidString
             ]
-        )
+        ))
         try await Task.sleep(for: .milliseconds(120))
 
         #expect(foregrounder.activateCallCount == 1)
@@ -996,6 +1000,7 @@ struct MenuBarLiveValidationTests {
             allowsEmptyStatePrompt: false
         )
 
+        defer { coordinator.invalidate() }
         coordinator.start()
         let initialSnapshotCount = sink.snapshots.count
 
@@ -1067,6 +1072,7 @@ struct MenuBarLiveValidationTests {
             allowsEmptyStatePrompt: false
         )
 
+        defer { coordinator.invalidate() }
         coordinator.start()
         try? await Task.sleep(for: .milliseconds(50))
 
@@ -1124,6 +1130,7 @@ struct MenuBarLiveValidationTests {
             allowsEmptyStatePrompt: false
         )
 
+        defer { coordinator.invalidate() }
         coordinator.start()
         try? await Task.sleep(for: .milliseconds(50))
 
@@ -1174,6 +1181,7 @@ struct MenuBarLiveValidationTests {
             allowsEmptyStatePrompt: false
         )
 
+        defer { coordinator.invalidate() }
         coordinator.start()
         try? await Task.sleep(for: .milliseconds(50))
 
@@ -1249,6 +1257,7 @@ struct MenuBarLiveValidationTests {
             allowsEmptyStatePrompt: false
         )
 
+        defer { coordinator.invalidate() }
         coordinator.start()
         try? await Task.sleep(for: .milliseconds(50))
 
@@ -1326,6 +1335,7 @@ struct MenuBarLiveValidationTests {
             allowsEmptyStatePrompt: false
         )
 
+        defer { coordinator.invalidate() }
         coordinator.start()
         try? await Task.sleep(for: .milliseconds(50))
 
@@ -1393,6 +1403,7 @@ struct MenuBarLiveValidationTests {
             allowsEmptyStatePrompt: false
         )
 
+        defer { coordinator.invalidate() }
         coordinator.start()
         let item = NSMenuItem(title: "Re-verify Remote Account", action: nil, keyEquivalent: "")
         item.representedObject = HostSelectionMenuItemPayload(hostDestination: "user@buildbox")
@@ -1491,6 +1502,7 @@ struct MenuBarLiveValidationTests {
             allowsEmptyStatePrompt: false
         )
 
+        defer { coordinator.invalidate() }
         coordinator.start()
         let item = NSMenuItem(title: "Use Detected Account", action: nil, keyEquivalent: "")
         item.representedObject = HostAccountMenuItemPayload(
@@ -1565,6 +1577,7 @@ struct MenuBarLiveValidationTests {
             allowsEmptyStatePrompt: false
         )
 
+        defer { coordinator.invalidate() }
         coordinator.start()
         try? await Task.sleep(for: .milliseconds(50))
 
@@ -1634,6 +1647,7 @@ struct MenuBarLiveValidationTests {
             allowsEmptyStatePrompt: false
         )
 
+        defer { coordinator.invalidate() }
         coordinator.start()
         try? await Task.sleep(for: .milliseconds(50))
 
@@ -1704,6 +1718,7 @@ struct MenuBarLiveValidationTests {
             allowsEmptyStatePrompt: false
         )
 
+        defer { coordinator.invalidate() }
         coordinator.start()
         let item = NSMenuItem(title: "Switch on buildbox", action: nil, keyEquivalent: "")
         item.representedObject = HostAccountMenuItemPayload(
@@ -1836,6 +1851,7 @@ struct MenuBarLiveValidationTests {
             allowsEmptyStatePrompt: false
         )
 
+        defer { coordinator.invalidate() }
         coordinator.start()
         let item = NSMenuItem(title: "Switch on buildbox", action: nil, keyEquivalent: "")
         item.representedObject = HostAccountMenuItemPayload(
@@ -1929,6 +1945,7 @@ struct MenuBarLiveValidationTests {
             allowsEmptyStatePrompt: false
         )
 
+        defer { coordinator.invalidate() }
         coordinator.start()
         let item = NSMenuItem(title: "Switch on buildbox", action: nil, keyEquivalent: "")
         item.representedObject = HostAccountMenuItemPayload(
@@ -2022,6 +2039,7 @@ struct MenuBarLiveValidationTests {
             allowsEmptyStatePrompt: false
         )
 
+        defer { coordinator.invalidate() }
         coordinator.start()
         try? await Task.sleep(for: .milliseconds(50))
 
@@ -2158,6 +2176,7 @@ struct MenuBarLiveValidationTests {
             allowsEmptyStatePrompt: false
         )
 
+        defer { coordinator.invalidate() }
         coordinator.start()
         try? await Task.sleep(for: .milliseconds(50))
 
@@ -2294,6 +2313,7 @@ struct MenuBarLiveValidationTests {
             allowsEmptyStatePrompt: false
         )
 
+        defer { coordinator.invalidate() }
         coordinator.start()
         try? await Task.sleep(for: .milliseconds(50))
 
@@ -2450,6 +2470,7 @@ struct MenuBarLiveValidationTests {
             allowsEmptyStatePrompt: false
         )
 
+        defer { coordinator.invalidate() }
         coordinator.start()
         try? await Task.sleep(for: .milliseconds(220))
 
