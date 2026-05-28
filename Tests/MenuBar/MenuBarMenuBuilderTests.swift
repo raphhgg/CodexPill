@@ -88,6 +88,8 @@ actor TokenUsageMenuProviderProbe: TokenUsageMenuProviding {
 
     func load(
         period: CodexTokenUsagePeriod,
+        peakScope: TokenUsagePeakScope,
+        forceRefresh: Bool,
         progress: @escaping @Sendable (TokenUsageScanProgress) -> Void
     ) async -> TokenUsageMenuLoadState {
         loadPeriods.append(period)
@@ -99,7 +101,7 @@ actor TokenUsageMenuProviderProbe: TokenUsageMenuProviding {
     }
 
     func finish(with buckets: [CodexDailyTokenUsage]) {
-        loadContinuation?.resume(returning: .loaded(buckets))
+        loadContinuation?.resume(returning: .loaded(TokenUsageMenuLoadedData(buckets: buckets, allTimePeak: nil)))
         loadContinuation = nil
     }
 
@@ -311,7 +313,7 @@ struct MenuBarMenuBuilderTests {
             tokenUsageCard: makeTokenUsageCard(
                 period: .last30Days,
                 style: .heatStrip,
-                loadState: .loaded([
+                loadState: loadedTokenUsageData([
                     dailyUsage(daysAgo: 1, totalTokens: 1_200),
                     dailyUsage(daysAgo: 0, totalTokens: 3_400)
                 ])
@@ -333,7 +335,7 @@ struct MenuBarMenuBuilderTests {
     func tokenUsageCardUsesCompactTokenFormattingForLargeTotals() {
         let card = makeTokenUsageCard(
             period: .last30Days,
-            loadState: .loaded([
+            loadState: loadedTokenUsageData([
                 dailyUsage(daysAgo: 1, totalTokens: 7_433_881_744),
                 dailyUsage(daysAgo: 0, totalTokens: 108_637_804)
             ])
@@ -345,9 +347,27 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
+    func tokenUsageCardCanShowAllTimePeakWhenSelected() {
+        let card = makeTokenUsageCard(
+            period: .last30Days,
+            peakScope: .allTime,
+            loadState: loadedTokenUsageData(
+                [
+                    dailyUsage(daysAgo: 1, totalTokens: 7_433_881),
+                    dailyUsage(daysAgo: 0, totalTokens: 108_637)
+                ],
+                allTimePeak: dailyUsage(daysAgo: 120, totalTokens: 9_800_000_000)
+            )
+        )
+
+        #expect(card.peakDayTitle == "All-time peak")
+        #expect(card.accessibilitySummary.contains("All-time peak: Jan 20: 9.8B tokens"))
+    }
+
+    @Test
     func tokenUsageCardShowsLoadingNoDataAndErrorStates() {
         let loading = makeTokenUsageCard(loadState: .loading(nil))
-        let noData = makeTokenUsageCard(loadState: .loaded([
+        let noData = makeTokenUsageCard(loadState: loadedTokenUsageData([
             dailyUsage(daysAgo: 1, totalTokens: 0),
             dailyUsage(daysAgo: 0, totalTokens: 0)
         ]))
@@ -409,7 +429,8 @@ struct MenuBarMenuBuilderTests {
                 tokenUsageEnabled: true,
                 tokenUsagePeriod: .last30Days,
                 tokenUsageChartStyle: .sparkline,
-                tokenUsageLoadingAnimationStyle: .random
+                tokenUsageLoadingAnimationStyle: .random,
+                tokenUsagePeakScope: .allTime
             ),
             target: coordinator
         )
@@ -417,11 +438,14 @@ struct MenuBarMenuBuilderTests {
         let preferencesMenu = try #require(menu.items.first(where: { $0.title == "Preferences" })?.submenu)
         let tokenUsageMenu = try #require(preferencesMenu.items.first(where: { $0.title == "Token Usage" })?.submenu)
         let show = try #require(tokenUsageMenu.items.first(where: { $0.title == "Show Token Usage" }))
+        let peakDay = try #require(tokenUsageMenu.items.first(where: { $0.title == "Peak Day" })?.submenu)
         let chartStyle = try #require(tokenUsageMenu.items.first(where: { $0.title == "Chart Style" })?.submenu)
         let loadingAnimation = try #require(tokenUsageMenu.items.first(where: { $0.title == "Loading Animation" })?.submenu)
 
         #expect(show.state == .on)
         #expect(tokenUsageMenu.items.contains { $0.title == "Period" } == false)
+        #expect(peakDay.items.map(\.title) == ["Last 30 Days", "All Time"])
+        #expect(peakDay.items.first(where: { $0.title == "All Time" })?.state == .on)
         #expect(chartStyle.items.map(\.title) == ["Daily Bars", "Heat Strip", "Sparkline"])
         #expect(chartStyle.items.first(where: { $0.title == "Sparkline" })?.state == .on)
         #expect(loadingAnimation.items.map(\.title) == ["Waves", "Random"])
@@ -2163,6 +2187,7 @@ struct MenuBarMenuBuilderTests {
         tokenUsagePeriod: CodexTokenUsagePeriod = .last30Days,
         tokenUsageChartStyle: TokenUsageChartStyle = .dailyBars,
         tokenUsageLoadingAnimationStyle: TokenUsageLoadingAnimationStyle = .waves,
+        tokenUsagePeakScope: TokenUsagePeakScope = .currentPeriod,
         tokenUsageCard: TokenUsageMenuCard? = nil,
         tokenUsagePrototypeCards: [TokenUsagePrototypeCard] = []
     ) -> MenuBarMenuState {
@@ -2190,6 +2215,7 @@ struct MenuBarMenuBuilderTests {
             tokenUsagePeriod: tokenUsagePeriod,
             tokenUsageChartStyle: tokenUsageChartStyle,
             tokenUsageLoadingAnimationStyle: tokenUsageLoadingAnimationStyle,
+            tokenUsagePeakScope: tokenUsagePeakScope,
             tokenUsageCard: tokenUsageCard,
             tokenUsagePrototypeCards: tokenUsagePrototypeCards
         )
@@ -2198,14 +2224,23 @@ struct MenuBarMenuBuilderTests {
     private func makeTokenUsageCard(
         period: CodexTokenUsagePeriod = .last30Days,
         style: TokenUsageChartStyle = .dailyBars,
+        peakScope: TokenUsagePeakScope = .currentPeriod,
         loadState: TokenUsageMenuLoadState
     ) -> TokenUsageMenuCard {
         TokenUsageMenuCard.make(
             style: style,
+            peakScope: peakScope,
             period: period,
             loadState: loadState,
             calendar: Calendar(identifier: .gregorian)
         )
+    }
+
+    private func loadedTokenUsageData(
+        _ buckets: [CodexDailyTokenUsage],
+        allTimePeak: CodexDailyTokenUsage? = nil
+    ) -> TokenUsageMenuLoadState {
+        .loaded(TokenUsageMenuLoadedData(buckets: buckets, allTimePeak: allTimePeak))
     }
 
     private func dailyUsage(daysAgo: Int, totalTokens: Int) -> CodexDailyTokenUsage {

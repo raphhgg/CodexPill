@@ -355,7 +355,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         settings.tokenUsageEnabled.toggle()
         tokenUsageRuntime.handleEnabledChange(
             isEnabled: settings.tokenUsageEnabled,
-            period: settings.tokenUsagePeriod
+            period: settings.tokenUsagePeriod,
+            peakScope: settings.tokenUsagePeakScope
         )
         rebuildMenu()
     }
@@ -370,7 +371,21 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             return
         }
         settings.tokenUsagePeriod = period
-        tokenUsageRuntime.handlePeriodChange(period: period)
+        tokenUsageRuntime.handlePeriodChange(period: period, peakScope: settings.tokenUsagePeakScope)
+        rebuildMenu()
+    }
+
+    @objc
+    func selectTokenUsagePeakScope(_ sender: NSMenuItem) {
+        recordMenuAction("selectTokenUsagePeakScope")
+        guard
+            let rawValue = sender.representedObject as? String,
+            let peakScope = TokenUsagePeakScope(rawValue: rawValue)
+        else {
+            return
+        }
+        settings.tokenUsagePeakScope = peakScope
+        tokenUsageRuntime.handlePeriodChange(period: settings.tokenUsagePeriod, peakScope: peakScope)
         rebuildMenu()
     }
 
@@ -679,6 +694,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             tokenUsagePeriod: settings.tokenUsagePeriod,
             tokenUsageChartStyle: settings.tokenUsageChartStyle,
             tokenUsageLoadingAnimationStyle: settings.tokenUsageLoadingAnimationStyle,
+            tokenUsagePeakScope: settings.tokenUsagePeakScope,
             tokenUsageCard: makeTokenUsageCard()
         )
     }
@@ -688,6 +704,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         return TokenUsageMenuCard.make(
             style: settings.tokenUsageChartStyle,
             loadingAnimationStyle: settings.tokenUsageLoadingAnimationStyle,
+            peakScope: settings.tokenUsagePeakScope,
             period: settings.tokenUsagePeriod,
             loadState: tokenUsageRuntime.loadState
         )
@@ -699,7 +716,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             return
         }
 
-        tokenUsageRuntime.refreshIfNeeded(period: settings.tokenUsagePeriod)
+        tokenUsageRuntime.refreshIfNeeded(period: settings.tokenUsagePeriod, peakScope: settings.tokenUsagePeakScope)
     }
 
     private func rebuildTokenUsageMenuWhenSafe() {

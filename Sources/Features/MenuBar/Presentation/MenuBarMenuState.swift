@@ -99,6 +99,7 @@ struct MenuBarMenuState {
     let tokenUsagePeriod: CodexTokenUsagePeriod
     let tokenUsageChartStyle: TokenUsageChartStyle
     let tokenUsageLoadingAnimationStyle: TokenUsageLoadingAnimationStyle
+    let tokenUsagePeakScope: TokenUsagePeakScope
     let tokenUsageCard: TokenUsageMenuCard?
     let tokenUsagePrototypeCards: [TokenUsagePrototypeCard]
 
@@ -127,6 +128,7 @@ struct MenuBarMenuState {
         tokenUsagePeriod: CodexTokenUsagePeriod = .last30Days,
         tokenUsageChartStyle: TokenUsageChartStyle = .dailyBars,
         tokenUsageLoadingAnimationStyle: TokenUsageLoadingAnimationStyle = .waves,
+        tokenUsagePeakScope: TokenUsagePeakScope = .currentPeriod,
         tokenUsageCard: TokenUsageMenuCard? = nil,
         tokenUsagePrototypeCards: [TokenUsagePrototypeCard] = []
     ) {
@@ -154,6 +156,7 @@ struct MenuBarMenuState {
         self.tokenUsagePeriod = tokenUsagePeriod
         self.tokenUsageChartStyle = tokenUsageChartStyle
         self.tokenUsageLoadingAnimationStyle = tokenUsageLoadingAnimationStyle
+        self.tokenUsagePeakScope = tokenUsagePeakScope
         self.tokenUsageCard = tokenUsageCard
         self.tokenUsagePrototypeCards = tokenUsagePrototypeCards
     }

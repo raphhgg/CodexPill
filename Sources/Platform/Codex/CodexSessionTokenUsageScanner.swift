@@ -29,12 +29,11 @@ struct CodexSessionTokenUsageScanner {
         fileManager: FileManager = .default,
         maximumScannableFileByteCount: Int = Self.defaultMaximumScannableFileByteCount,
         maximumDailyScanByteBudget: Int = Self.defaultMaximumDailyScanByteBudget,
-        maximumLineByteCount: Int = Self.defaultMaximumLineByteCount
+        maximumLineByteCount: Int = Self.defaultMaximumLineByteCount,
+        calendar: Calendar = .current
     ) {
         self.maximumScannableFileByteCount = maximumScannableFileByteCount
         self.maximumDailyScanByteBudget = maximumDailyScanByteBudget
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
         self.calendar = calendar
         discoverer = CodexSessionTokenUsageFileDiscoverer(fileManager: fileManager, calendar: calendar)
         fileParser = CodexSessionTokenUsageFileParser(maximumLineByteCount: maximumLineByteCount)
@@ -54,9 +53,24 @@ struct CodexSessionTokenUsageScanner {
         )
     }
 
+    func scanAllHistory(
+        sessionsDirectory: URL,
+        progress: (@Sendable (TokenUsageScanProgress) -> Void)? = nil
+    ) throws -> CodexSessionTokenUsageScanResult {
+        try scan(sessionsDirectory: sessionsDirectory, dayRange: nil, progress: progress)
+    }
+
     func scan(
         sessionsDirectory: URL,
         dayRange: DateInterval,
+        progress: (@Sendable (TokenUsageScanProgress) -> Void)? = nil
+    ) throws -> CodexSessionTokenUsageScanResult {
+        try scan(sessionsDirectory: sessionsDirectory, dayRange: Optional(dayRange), progress: progress)
+    }
+
+    private func scan(
+        sessionsDirectory: URL,
+        dayRange: DateInterval?,
         progress: (@Sendable (TokenUsageScanProgress) -> Void)? = nil
     ) throws -> CodexSessionTokenUsageScanResult {
         var accumulator = BucketAccumulator()
@@ -70,7 +84,7 @@ struct CodexSessionTokenUsageScanner {
             defer {
                 progress?(TokenUsageScanProgress(scannedFiles: index + 1, totalFiles: files.count))
             }
-            guard dayRange.contains(file.day) else {
+            if let dayRange, !dayRange.contains(file.day) {
                 continue
             }
 

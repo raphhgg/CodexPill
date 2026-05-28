@@ -33,12 +33,19 @@ final class TokenUsagePreferencesStore {
         }
     }
 
+    var peakScope: TokenUsagePeakScope {
+        didSet {
+            userDefaults.set(peakScope.rawValue, forKey: Self.peakScopeKey)
+        }
+    }
+
     private let userDefaults: UserDefaults
 
     private static let isEnabledKey = "tokenUsageEnabled"
     private static let periodKey = "tokenUsagePeriod"
     private static let chartStyleKey = "tokenUsageChartStyle"
     private static let loadingAnimationStyleKey = "tokenUsageLoadingAnimationStyle"
+    private static let peakScopeKey = "tokenUsagePeakScope"
 
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
@@ -49,5 +56,7 @@ final class TokenUsagePreferencesStore {
             .flatMap(TokenUsageChartStyle.init(rawValue:)) ?? .dailyBars
         loadingAnimationStyle = userDefaults.string(forKey: Self.loadingAnimationStyleKey)
             .flatMap(TokenUsageLoadingAnimationStyle.init(rawValue:)) ?? .waves
+        peakScope = userDefaults.string(forKey: Self.peakScopeKey)
+            .flatMap(TokenUsagePeakScope.init(rawValue:)) ?? .currentPeriod
     }
 }

@@ -1,25 +1,37 @@
 import Foundation
 
+private let tokenUsageMenuDefaultFreshnessInterval: TimeInterval = 15 * 60
+
 @MainActor
 final class TokenUsageMenuRuntime {
     private let provider: TokenUsageMenuProviding
+    private let freshnessInterval: TimeInterval
+    private let calendar: Calendar
+    private let now: () -> Date
     private let onStateChange: (TokenUsageMenuLoadState) -> Void
     private var refreshTask: Task<Void, Never>?
-    private var refreshPeriod: CodexTokenUsagePeriod?
-    private var loadedPeriod: CodexTokenUsagePeriod?
+    private var refreshRequest: TokenUsageMenuLoadRequest?
+    private var loadedRequest: TokenUsageMenuLoadRequest?
+    private var loadedAt: Date?
     private var lastProgressRenderDate: Date?
 
     private(set) var loadState: TokenUsageMenuLoadState = .loading(nil)
 
     init(
         provider: TokenUsageMenuProviding,
+        freshnessInterval: TimeInterval = tokenUsageMenuDefaultFreshnessInterval,
+        calendar: Calendar = .current,
+        now: @escaping () -> Date = Date.init,
         onStateChange: @escaping (TokenUsageMenuLoadState) -> Void
     ) {
         self.provider = provider
+        self.freshnessInterval = freshnessInterval
+        self.calendar = calendar
+        self.now = now
         self.onStateChange = onStateChange
     }
 
-    func handleEnabledChange(isEnabled: Bool, period: CodexTokenUsagePeriod) {
+    func handleEnabledChange(isEnabled: Bool, period: CodexTokenUsagePeriod, peakScope: TokenUsagePeakScope) {
         guard isEnabled else {
             cancel()
             return
@@ -28,55 +40,71 @@ final class TokenUsageMenuRuntime {
         if !loadState.hasCachedData {
             loadState = .loading(nil)
         }
-        refreshIfNeeded(period: period)
+        refreshIfNeeded(period: period, peakScope: peakScope)
     }
 
-    func handlePeriodChange(period: CodexTokenUsagePeriod) {
-        guard loadedPeriod != period else { return }
+    func handlePeriodChange(period: CodexTokenUsagePeriod, peakScope: TokenUsagePeakScope) {
+        let request = TokenUsageMenuLoadRequest(period: period, peakScope: peakScope)
+        guard loadedRequest != request else { return }
         if !loadState.hasCachedData {
             loadState = .loading(nil)
         }
-        refreshIfNeeded(period: period)
+        refreshIfNeeded(period: period, peakScope: peakScope)
     }
 
-    func refreshIfNeeded(period: CodexTokenUsagePeriod) {
-        if refreshPeriod == period, refreshTask != nil {
+    func refreshIfNeeded(period: CodexTokenUsagePeriod, peakScope: TokenUsagePeakScope) {
+        let request = TokenUsageMenuLoadRequest(period: period, peakScope: peakScope)
+        if refreshRequest == request, refreshTask != nil {
             return
         }
-        if loadedPeriod == period, loadState.hasCachedData {
+        let forceRefresh = loadedRequest == request && loadState.hasCachedData
+        if forceRefresh, isLoadedDataFresh(at: now()) {
             return
         }
 
         refreshTask?.cancel()
         refreshTask = nil
-        refreshPeriod = period
-        loadedPeriod = nil
+        refreshRequest = request
+        loadedRequest = nil
+        loadedAt = nil
 
         let provider = provider
-        refreshTask = Task.detached { [weak self, provider] in
+        refreshTask = Task.detached { [weak self, provider, request] in
             // Keep the filesystem scan independent from the transient menu view.
-            let loadState = await provider.load(period: period) { progress in
-                Task { @MainActor [weak self] in
-                    self?.updateProgress(progress, period: period)
+            let loadState = await provider.load(
+                period: request.period,
+                peakScope: request.peakScope,
+                forceRefresh: forceRefresh
+            ) { progress in
+                Task { @MainActor [weak runtime = self] in
+                    runtime?.updateProgress(progress, request: request)
                 }
             }
             guard !Task.isCancelled else { return }
-            await self?.finishRefresh(loadState, period: period)
+            await self?.finishRefresh(loadState, request: request)
         }
     }
 
     func cancel() {
         refreshTask?.cancel()
         refreshTask = nil
-        refreshPeriod = nil
-        loadedPeriod = nil
+        refreshRequest = nil
+        loadedRequest = nil
+        loadedAt = nil
         lastProgressRenderDate = nil
     }
 
-    private func updateProgress(_ progress: TokenUsageScanProgress, period: CodexTokenUsagePeriod) {
-        guard refreshPeriod == period else { return }
+    private func updateProgress(_ progress: TokenUsageScanProgress, request: TokenUsageMenuLoadRequest) {
+        guard refreshRequest == request else { return }
 
-        loadState = .loading(progress)
+        if request.peakScope == .allTime,
+           case .loaded(var data) = loadState,
+           data.allTimePeak == nil {
+            data.allTimePeakProgress = progress
+            loadState = .loaded(data)
+        } else {
+            loadState = .loading(progress)
+        }
         let now = Date()
         let shouldRender = progress.scannedFiles == 0 ||
             progress.scannedFiles == progress.totalFiles ||
@@ -88,22 +116,31 @@ final class TokenUsageMenuRuntime {
         onStateChange(loadState)
     }
 
-    private func finishRefresh(_ loadState: TokenUsageMenuLoadState, period: CodexTokenUsagePeriod) {
-        guard refreshPeriod == period else { return }
+    private func finishRefresh(_ loadState: TokenUsageMenuLoadState, request: TokenUsageMenuLoadRequest) {
+        guard refreshRequest == request else { return }
         self.loadState = loadState
         lastProgressRenderDate = nil
         refreshTask = nil
-        refreshPeriod = nil
+        refreshRequest = nil
         if loadState.hasCachedData {
-            loadedPeriod = period
+            loadedRequest = request
+            loadedAt = now()
         }
         onStateChange(loadState)
+    }
+
+    private func isLoadedDataFresh(at referenceDate: Date) -> Bool {
+        guard let loadedAt else { return false }
+        guard calendar.startOfDay(for: loadedAt) == calendar.startOfDay(for: referenceDate) else {
+            return false
+        }
+        return referenceDate.timeIntervalSince(loadedAt) < freshnessInterval
     }
 }
 
 enum TokenUsageMenuLoadState: Equatable {
     case loading(TokenUsageScanProgress?)
-    case loaded([CodexDailyTokenUsage])
+    case loaded(TokenUsageMenuLoadedData)
     case unavailable
 
     var hasCachedData: Bool {
@@ -114,9 +151,22 @@ enum TokenUsageMenuLoadState: Equatable {
     }
 }
 
+struct TokenUsageMenuLoadedData: Equatable {
+    var buckets: [CodexDailyTokenUsage]
+    var allTimePeak: CodexDailyTokenUsage?
+    var allTimePeakProgress: TokenUsageScanProgress? = nil
+}
+
+private struct TokenUsageMenuLoadRequest: Equatable {
+    var period: CodexTokenUsagePeriod
+    var peakScope: TokenUsagePeakScope
+}
+
 protocol TokenUsageMenuProviding {
     func load(
         period: CodexTokenUsagePeriod,
+        peakScope: TokenUsagePeakScope,
+        forceRefresh: Bool,
         progress: @escaping @Sendable (TokenUsageScanProgress) -> Void
     ) async -> TokenUsageMenuLoadState
 }
@@ -130,21 +180,25 @@ struct LocalCodexSessionTokenUsageMenuProvider: TokenUsageMenuProviding {
             .appendingPathComponent(".codex", isDirectory: true)
             .appendingPathComponent("sessions", isDirectory: true),
         cacheFile: URL = LocalCodexSessionTokenUsageDiskCache.defaultCacheFile(),
-        now: @escaping () -> Date = Date.init
+        now: @escaping () -> Date = Date.init,
+        calendar: Calendar = .current
     ) {
         cache = LocalCodexSessionTokenUsageCache(
             scanner: scanner,
             sessionsDirectory: sessionsDirectory,
             diskCache: LocalCodexSessionTokenUsageDiskCache(cacheFile: cacheFile),
-            now: now
+            now: now,
+            calendar: calendar
         )
     }
 
     func load(
         period: CodexTokenUsagePeriod,
+        peakScope: TokenUsagePeakScope = .currentPeriod,
+        forceRefresh: Bool = false,
         progress: @escaping @Sendable (TokenUsageScanProgress) -> Void = { _ in }
     ) async -> TokenUsageMenuLoadState {
-        await cache.load(period: period, progress: progress)
+        await cache.load(period: period, peakScope: peakScope, forceRefresh: forceRefresh, progress: progress)
     }
 }
 
@@ -153,38 +207,49 @@ private actor LocalCodexSessionTokenUsageCache {
     private let sessionsDirectory: URL
     private let diskCache: LocalCodexSessionTokenUsageDiskCaching
     private let now: () -> Date
+    private let calendar: Calendar
     private var cachedEntriesByPeriod: [CodexTokenUsagePeriod: TokenUsageCacheEntry] = [:]
 
     init(
         scanner: CodexSessionTokenUsageScanner,
         sessionsDirectory: URL,
         diskCache: LocalCodexSessionTokenUsageDiskCaching,
-        now: @escaping () -> Date
+        now: @escaping () -> Date,
+        calendar: Calendar
     ) {
         self.scanner = scanner
         self.sessionsDirectory = sessionsDirectory
         self.diskCache = diskCache
         self.now = now
+        self.calendar = calendar
     }
 
     func load(
         period: CodexTokenUsagePeriod,
+        peakScope: TokenUsagePeakScope,
+        forceRefresh: Bool,
         progress: @escaping @Sendable (TokenUsageScanProgress) -> Void
     ) async -> TokenUsageMenuLoadState {
-        if let entry = cachedEntry(covering: period) {
-            return .loaded(buckets(from: entry, for: period))
+        let referenceDate = now()
+        if !forceRefresh, let entry = cachedEntry(covering: period, peakScope: peakScope, now: referenceDate) {
+            return .loaded(loadedData(from: entry, for: period))
         }
 
-        if let entry = diskCache.readEntry(covering: period) {
+        if !forceRefresh, let entry = diskCache.readEntry(
+            covering: period,
+            peakScope: peakScope,
+            isUsable: { $0.coversCurrentWindow(for: period, now: referenceDate, calendar: calendar) }
+        ) {
             cachedEntriesByPeriod[entry.period] = entry
-            return .loaded(buckets(from: entry, for: period))
+            return .loaded(loadedData(from: entry, for: period))
         }
 
-        return await refresh(period: period, progress: progress)
+        return await refresh(period: period, peakScope: peakScope, progress: progress)
     }
 
     private func refresh(
         period: CodexTokenUsagePeriod,
+        peakScope: TokenUsagePeakScope,
         progress: @escaping @Sendable (TokenUsageScanProgress) -> Void
     ) async -> TokenUsageMenuLoadState {
         do {
@@ -194,14 +259,27 @@ private actor LocalCodexSessionTokenUsageCache {
                 now: now(),
                 progress: progress
             )
+            let cachedPeak = cachedEntriesByPeriod.values
+                .filter(\.hasAllTimePeak)
+                .compactMap(\.allTimePeak)
+                .max { $0.usage.totalTokens < $1.usage.totalTokens }
+            let refreshedAllTimePeak = peakScope == .allTime
+                ? try scanner.scanAllHistory(sessionsDirectory: sessionsDirectory, progress: progress)
+                    .buckets.max { $0.usage.totalTokens < $1.usage.totalTokens }
+                : nil
+            let allTimePeak = [cachedPeak, refreshedAllTimePeak]
+                .compactMap { $0 }
+                .max { $0.usage.totalTokens < $1.usage.totalTokens }
             let entry = TokenUsageCacheEntry(
                 period: period,
                 generatedAt: Date(),
-                buckets: result.buckets
+                buckets: result.buckets,
+                allTimePeak: allTimePeak,
+                allTimePeakCoversAllHistory: allTimePeak != nil
             )
             cachedEntriesByPeriod[period] = entry
             diskCache.writeEntry(entry)
-            return .loaded(result.buckets)
+            return .loaded(loadedData(from: entry, for: period))
         } catch is CancellationError {
             return .loading(nil)
         } catch {
@@ -210,22 +288,34 @@ private actor LocalCodexSessionTokenUsageCache {
     }
 
     private func cachedEntry(
-        covering period: CodexTokenUsagePeriod
+        covering period: CodexTokenUsagePeriod,
+        peakScope: TokenUsagePeakScope,
+        now: Date
     ) -> TokenUsageCacheEntry? {
         cachedEntriesByPeriod.values
             .filter { $0.period.dayCount >= period.dayCount }
+            .filter { peakScope == .currentPeriod || $0.hasAllTimePeak }
+            .filter { $0.coversCurrentWindow(for: period, now: now, calendar: calendar) }
             .sorted { $0.period.dayCount < $1.period.dayCount }
             .first
     }
 
-    private func buckets(from entry: TokenUsageCacheEntry, for period: CodexTokenUsagePeriod) -> [CodexDailyTokenUsage] {
-        Array(entry.buckets.suffix(period.dayCount))
+    private func loadedData(from entry: TokenUsageCacheEntry, for period: CodexTokenUsagePeriod) -> TokenUsageMenuLoadedData {
+        TokenUsageMenuLoadedData(
+            buckets: Array(entry.buckets.suffix(period.dayCount)),
+            allTimePeak: entry.allTimePeak,
+            allTimePeakProgress: nil
+        )
     }
 
 }
 
 private protocol LocalCodexSessionTokenUsageDiskCaching {
-    func readEntry(covering period: CodexTokenUsagePeriod) -> TokenUsageCacheEntry?
+    func readEntry(
+        covering period: CodexTokenUsagePeriod,
+        peakScope: TokenUsagePeakScope,
+        isUsable: (TokenUsageCacheEntry) -> Bool
+    ) -> TokenUsageCacheEntry?
     func writeEntry(_ entry: TokenUsageCacheEntry)
 }
 
@@ -233,6 +323,34 @@ private struct TokenUsageCacheEntry: Codable, Equatable {
     var period: CodexTokenUsagePeriod
     var generatedAt: Date
     var buckets: [CodexDailyTokenUsage]
+    var allTimePeak: CodexDailyTokenUsage?
+    var allTimePeakCoversAllHistory: Bool?
+
+    var hasAllTimePeak: Bool {
+        allTimePeak != nil && allTimePeakCoversAllHistory == true
+    }
+
+    func coversCurrentWindow(
+        for period: CodexTokenUsagePeriod,
+        now: Date,
+        calendar: Calendar
+    ) -> Bool {
+        guard buckets.count >= period.dayCount,
+              let firstDay = buckets.first?.day,
+              let lastDay = buckets.last?.day
+        else {
+            return false
+        }
+
+        let today = calendar.startOfDay(for: now)
+        let firstRequiredDay = calendar.date(
+            byAdding: .day,
+            value: 1 - period.dayCount,
+            to: today
+        ) ?? today
+
+        return firstDay <= firstRequiredDay && lastDay == today
+    }
 }
 
 private struct LocalCodexSessionTokenUsageDiskCache: LocalCodexSessionTokenUsageDiskCaching {
@@ -258,9 +376,15 @@ private struct LocalCodexSessionTokenUsageDiskCache: LocalCodexSessionTokenUsage
             .appendingPathComponent("token-usage-cache.json")
     }
 
-    func readEntry(covering period: CodexTokenUsagePeriod) -> TokenUsageCacheEntry? {
+    func readEntry(
+        covering period: CodexTokenUsagePeriod,
+        peakScope: TokenUsagePeakScope,
+        isUsable: (TokenUsageCacheEntry) -> Bool
+    ) -> TokenUsageCacheEntry? {
         readPayload()?.entries.values
             .filter { $0.period.dayCount >= period.dayCount }
+            .filter { peakScope == .currentPeriod || $0.hasAllTimePeak }
+            .filter(isUsable)
             .sorted { $0.period.dayCount < $1.period.dayCount }
             .first
     }

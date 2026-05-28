@@ -119,6 +119,11 @@ final class CodexPillSettingsStore {
         set { tokenUsagePreferences.loadingAnimationStyle = newValue }
     }
 
+    var tokenUsagePeakScope: TokenUsagePeakScope {
+        get { tokenUsagePreferences.peakScope }
+        set { tokenUsagePreferences.peakScope = newValue }
+    }
+
     var accountNotificationStates: [PersistedAccountNotificationState] {
         get { notificationState.accountNotificationStates }
         set { notificationState.accountNotificationStates = newValue }

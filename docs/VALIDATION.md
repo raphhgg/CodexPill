@@ -96,3 +96,9 @@ make test
   artifact is built or written; cancelling the disclosure must leave no exported
   report behind.
 - Demo and screenshot data must use synthetic accounts, hosts, and emails.
+
+### Token Usage
+
+- Cached Token Usage buckets may be reused only when they cover the requested
+  current period; the bucket labeled as today must match today's local usage
+  window rather than the last day from a stale persisted cache.

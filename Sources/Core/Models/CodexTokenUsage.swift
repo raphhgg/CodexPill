@@ -46,6 +46,29 @@ enum TokenUsageLoadingAnimationStyle: String, CaseIterable, Equatable {
     }
 }
 
+enum TokenUsagePeakScope: String, CaseIterable, Equatable {
+    case currentPeriod
+    case allTime
+
+    var menuTitle: String {
+        switch self {
+        case .currentPeriod:
+            return "Last 30 Days"
+        case .allTime:
+            return "All Time"
+        }
+    }
+
+    var cardTitle: String {
+        switch self {
+        case .currentPeriod:
+            return "Peak day"
+        case .allTime:
+            return "All-time peak"
+        }
+    }
+}
+
 struct TokenUsageScanProgress: Equatable, Sendable {
     var scannedFiles: Int
     var totalFiles: Int

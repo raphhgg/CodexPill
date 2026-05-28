@@ -117,7 +117,7 @@ struct TokenUsageMenuContent: View {
             Spacer()
             if let peakDaySummary = card.peakDaySummary {
                 VStack(alignment: .trailing, spacing: 3) {
-                    Text("Peak day")
+                    Text(card.peakDayTitle)
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(.secondary)
                     Text(peakDaySummary)
@@ -665,9 +665,7 @@ private extension Collection {
 
 private extension TokenUsageDayBucket {
     var tooltipDateLabel: String {
-        let parts = shortLabel.split(separator: " ")
-        guard parts.count == 2 else { return shortLabel }
-        return "\(parts[1]) \(parts[0])"
+        shortLabel
     }
 
     var tooltipTokenCount: String {

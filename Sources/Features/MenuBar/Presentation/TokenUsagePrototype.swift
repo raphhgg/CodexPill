@@ -70,6 +70,9 @@ struct TokenUsageMenuCard: Equatable, Identifiable {
     let loadingAnimationStyle: TokenUsageLoadingAnimationStyle
     let period: CodexTokenUsagePeriod
     let buckets: [TokenUsageDayBucket]
+    let allTimePeakBucket: TokenUsageDayBucket?
+    let allTimePeakProgress: TokenUsageScanProgress?
+    let peakScope: TokenUsagePeakScope
     let loadState: TokenUsageMenuLoadState
 
     var id: TokenUsageChartStyle { style }
@@ -91,8 +94,25 @@ struct TokenUsageMenuCard: Equatable, Identifiable {
     }
 
     var peakDaySummary: String? {
-        guard let peakDayBucket, peakDayBucket.tokenCount > 0 else { return nil }
-        return "\(peakDayBucket.shortLabel): \(formattedTokenCount(peakDayBucket.tokenCount)) tokens"
+        let bucket = displayedPeakBucket
+        if let bucket, bucket.tokenCount > 0 {
+            return "\(bucket.shortLabel): \(formattedTokenCount(bucket.tokenCount)) tokens"
+        }
+        guard peakScope == .allTime, let allTimePeakProgress else { return nil }
+        return allTimePeakProgress.message
+    }
+
+    var peakDayTitle: String {
+        peakScope.cardTitle
+    }
+
+    private var displayedPeakBucket: TokenUsageDayBucket? {
+        switch peakScope {
+        case .currentPeriod:
+            return peakDayBucket
+        case .allTime:
+            return allTimePeakBucket
+        }
     }
 
     var hasData: Bool {
@@ -115,7 +135,7 @@ struct TokenUsageMenuCard: Equatable, Identifiable {
                 parts.append("Today: \(formattedTokenCount(todayTokenCount)) tokens")
                 parts.append("\(periodTitle): \(formattedTokenCount(periodTotalTokenCount)) tokens")
                 if let peakDaySummary {
-                    parts.append("Peak day: \(peakDaySummary)")
+                    parts.append("\(peakDayTitle): \(peakDaySummary)")
                 }
             } else {
                 parts.append("No token usage found yet")
@@ -128,13 +148,17 @@ struct TokenUsageMenuCard: Equatable, Identifiable {
     static func make(
         style: TokenUsageChartStyle,
         loadingAnimationStyle: TokenUsageLoadingAnimationStyle = .waves,
+        peakScope: TokenUsagePeakScope = .currentPeriod,
         period: CodexTokenUsagePeriod,
         loadState: TokenUsageMenuLoadState,
         calendar: Calendar = .current
     ) -> TokenUsageMenuCard {
         let buckets: [TokenUsageDayBucket]
+        let allTimePeakBucket: TokenUsageDayBucket?
+        let allTimePeakProgress: TokenUsageScanProgress?
         switch loadState {
-        case .loaded(let dailyUsage):
+        case .loaded(let data):
+            let dailyUsage = data.buckets
             let visibleDailyUsage = dailyUsage.suffix(period.dayCount)
             buckets = visibleDailyUsage.enumerated().map { index, usage in
                 TokenUsageDayBucket(
@@ -143,8 +167,20 @@ struct TokenUsageMenuCard: Equatable, Identifiable {
                     tokenCount: usage.usage.totalTokens
                 )
             }
+            if let allTimePeak = data.allTimePeak {
+                allTimePeakBucket = TokenUsageDayBucket(
+                    id: -1,
+                    shortLabel: Self.shortLabel(for: allTimePeak.day, calendar: calendar),
+                    tokenCount: allTimePeak.usage.totalTokens
+                )
+            } else {
+                allTimePeakBucket = nil
+            }
+            allTimePeakProgress = data.allTimePeakProgress
         case .loading(_), .unavailable:
             buckets = []
+            allTimePeakBucket = nil
+            allTimePeakProgress = nil
         }
 
         return TokenUsageMenuCard(
@@ -152,6 +188,9 @@ struct TokenUsageMenuCard: Equatable, Identifiable {
             loadingAnimationStyle: loadingAnimationStyle,
             period: period,
             buckets: buckets,
+            allTimePeakBucket: allTimePeakBucket,
+            allTimePeakProgress: allTimePeakProgress,
+            peakScope: peakScope,
             loadState: loadState
         )
     }

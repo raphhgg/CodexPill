@@ -573,6 +573,7 @@ struct MenuBarMenuBuilder {
         let item = NSMenuItem(title: "Token Usage", action: nil, keyEquivalent: "")
         let submenu = configuredMenu(title: "Token Usage")
         submenu.addItem(showTokenUsageMenuItem(state: state, target: target))
+        submenu.addItem(tokenUsagePeakScopeMenuItem(state: state, target: target))
         submenu.addItem(tokenUsageChartStyleMenuItem(state: state, target: target))
         submenu.addItem(tokenUsageLoadingAnimationStyleMenuItem(state: state, target: target))
         item.submenu = submenu
@@ -583,6 +584,20 @@ struct MenuBarMenuBuilder {
         let item = NSMenuItem(title: "Show Token Usage", action: #selector(MenuBarCoordinator.toggleTokenUsage(_:)), keyEquivalent: "")
         item.target = target
         item.state = state.tokenUsageEnabled ? .on : .off
+        return item
+    }
+
+    private func tokenUsagePeakScopeMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Peak Day", action: nil, keyEquivalent: "")
+        let submenu = configuredMenu(title: "Peak Day")
+        for scope in TokenUsagePeakScope.allCases {
+            let option = NSMenuItem(title: scope.menuTitle, action: #selector(MenuBarCoordinator.selectTokenUsagePeakScope(_:)), keyEquivalent: "")
+            option.target = target
+            option.representedObject = scope.rawValue
+            option.state = state.tokenUsagePeakScope == scope ? .on : .off
+            submenu.addItem(option)
+        }
+        item.submenu = submenu
         return item
     }
 

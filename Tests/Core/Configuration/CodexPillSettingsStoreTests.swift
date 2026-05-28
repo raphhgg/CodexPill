@@ -35,6 +35,7 @@ struct CodexPillSettingsStoreTests {
         #expect(settings.tokenUsagePeriod == .last30Days)
         #expect(settings.tokenUsageChartStyle == .dailyBars)
         #expect(settings.tokenUsageLoadingAnimationStyle == .waves)
+        #expect(settings.tokenUsagePeakScope == .currentPeriod)
     }
 
     @Test
@@ -45,6 +46,7 @@ struct CodexPillSettingsStoreTests {
         first.tokenUsageEnabled = true
         first.tokenUsageChartStyle = .sparkline
         first.tokenUsageLoadingAnimationStyle = .random
+        first.tokenUsagePeakScope = .allTime
 
         let second = CodexPillSettingsStore(userDefaults: defaults)
 
@@ -52,6 +54,7 @@ struct CodexPillSettingsStoreTests {
         #expect(second.tokenUsagePeriod == .last30Days)
         #expect(second.tokenUsageChartStyle == .sparkline)
         #expect(second.tokenUsageLoadingAnimationStyle == .random)
+        #expect(second.tokenUsagePeakScope == .allTime)
     }
 
     @Test

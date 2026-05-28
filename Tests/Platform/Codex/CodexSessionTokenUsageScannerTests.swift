@@ -18,7 +18,7 @@ struct CodexSessionTokenUsageScannerTests {
             """
         ])
 
-        let result = try CodexSessionTokenUsageScanner().scan(
+        let result = try CodexSessionTokenUsageScanner(calendar: utcCalendar()).scan(
             sessionsDirectory: root,
             dayRange: DateInterval(
                 start: makeDate(2026, 4, 1),
@@ -50,7 +50,7 @@ struct CodexSessionTokenUsageScannerTests {
             """
         ])
 
-        let result = try CodexSessionTokenUsageScanner().scan(
+        let result = try CodexSessionTokenUsageScanner(calendar: utcCalendar()).scan(
             sessionsDirectory: root,
             dayRange: DateInterval(
                 start: makeDate(2026, 4, 1),
@@ -80,7 +80,7 @@ struct CodexSessionTokenUsageScannerTests {
             """
         ])
 
-        let result = try CodexSessionTokenUsageScanner().scan(
+        let result = try CodexSessionTokenUsageScanner(calendar: utcCalendar()).scan(
             sessionsDirectory: root,
             dayRange: DateInterval(
                 start: makeDate(2026, 4, 1),
@@ -103,7 +103,7 @@ struct CodexSessionTokenUsageScannerTests {
             """
         ])
 
-        let result = try CodexSessionTokenUsageScanner().scan(
+        let result = try CodexSessionTokenUsageScanner(calendar: utcCalendar()).scan(
             sessionsDirectory: root,
             dayRange: DateInterval(
                 start: makeDate(2026, 4, 1),
@@ -128,7 +128,7 @@ struct CodexSessionTokenUsageScannerTests {
             """
         ])
 
-        let result = try CodexSessionTokenUsageScanner().scan(
+        let result = try CodexSessionTokenUsageScanner(calendar: utcCalendar()).scan(
             sessionsDirectory: root,
             dayRange: DateInterval(
                 start: makeDate(2026, 4, 1),
@@ -148,7 +148,7 @@ struct CodexSessionTokenUsageScannerTests {
             """
         ])
 
-        let result = try CodexSessionTokenUsageScanner().scan(
+        let result = try CodexSessionTokenUsageScanner(calendar: utcCalendar()).scan(
             sessionsDirectory: root,
             dayRange: DateInterval(
                 start: makeDate(2026, 4, 1),
@@ -173,7 +173,7 @@ struct CodexSessionTokenUsageScannerTests {
             """
         ])
 
-        let result = try CodexSessionTokenUsageScanner().scan(
+        let result = try CodexSessionTokenUsageScanner(calendar: utcCalendar()).scan(
             sessionsDirectory: root,
             dayRange: DateInterval(
                 start: makeDate(2026, 4, 1),
@@ -201,7 +201,7 @@ struct CodexSessionTokenUsageScannerTests {
             """
         ])
 
-        let result = try CodexSessionTokenUsageScanner().scan(
+        let result = try CodexSessionTokenUsageScanner(calendar: utcCalendar()).scan(
             sessionsDirectory: root,
             period: .last7Days,
             now: makeDate(2026, 4, 20)
@@ -221,6 +221,32 @@ struct CodexSessionTokenUsageScannerTests {
     }
 
     @Test
+    func scanRecentPeriodUsesConfiguredLocalCalendarDayWindow() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 2 * 60 * 60) ?? .current
+        let root = try makeSessionRoot(files: [
+            "2026/04/19/session-a.jsonl": """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":10}}}
+            """,
+            "2026/04/20/session-b.jsonl": """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":20}}}
+            """
+        ])
+        let scanner = CodexSessionTokenUsageScanner(calendar: calendar)
+
+        let result = try scanner.scan(
+            sessionsDirectory: root,
+            period: .last7Days,
+            now: makeDate(2026, 4, 20, 23, 30, calendar: calendar)
+        )
+
+        #expect(result.buckets.first?.day == makeDate(2026, 4, 14, calendar: calendar))
+        #expect(result.buckets.last?.day == makeDate(2026, 4, 20, calendar: calendar))
+        #expect(result.buckets.last?.usage.totalTokens == 20)
+        #expect(result.summary.filesRead == 2)
+    }
+
+    @Test
     func scanReportsFileProgressWithoutExposingSessionPaths() throws {
         let root = try makeSessionRoot(files: [
             "2026/04/20/session-a.jsonl": """
@@ -232,7 +258,7 @@ struct CodexSessionTokenUsageScannerTests {
         ])
         var progressUpdates: [TokenUsageScanProgress] = []
 
-        _ = try CodexSessionTokenUsageScanner().scan(
+        _ = try CodexSessionTokenUsageScanner(calendar: utcCalendar()).scan(
             sessionsDirectory: root,
             dayRange: DateInterval(
                 start: makeDate(2026, 4, 1),
@@ -253,7 +279,7 @@ struct CodexSessionTokenUsageScannerTests {
     @Test
     func scanRecentPeriodsSupportSevenThirtyAndNinetyDayWindows() throws {
         let root = try makeSessionRoot(files: [:])
-        let scanner = CodexSessionTokenUsageScanner()
+        let scanner = CodexSessionTokenUsageScanner(calendar: utcCalendar())
         let now = makeDate(2026, 4, 20)
 
         for period in CodexTokenUsagePeriod.allCases {
@@ -280,7 +306,7 @@ struct CodexSessionTokenUsageScannerTests {
             {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":10}}}
             """
         ])
-        let scanner = CodexSessionTokenUsageScanner(maximumScannableFileByteCount: 200)
+        let scanner = CodexSessionTokenUsageScanner(maximumScannableFileByteCount: 200, calendar: utcCalendar())
 
         let result = try scanner.scan(
             sessionsDirectory: root,
@@ -306,7 +332,7 @@ struct CodexSessionTokenUsageScannerTests {
             {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":10}}}
             """
         ])
-        let scanner = CodexSessionTokenUsageScanner(maximumScannableFileByteCount: 0)
+        let scanner = CodexSessionTokenUsageScanner(maximumScannableFileByteCount: 0, calendar: utcCalendar())
 
         let result = try scanner.scan(
             sessionsDirectory: root,
@@ -329,7 +355,7 @@ struct CodexSessionTokenUsageScannerTests {
             {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":10}}}
             """
         ])
-        let scanner = CodexSessionTokenUsageScanner(maximumLineByteCount: 128)
+        let scanner = CodexSessionTokenUsageScanner(maximumLineByteCount: 128, calendar: utcCalendar())
 
         let result = try scanner.scan(
             sessionsDirectory: root,
@@ -356,7 +382,7 @@ struct CodexSessionTokenUsageScannerTests {
             {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":20}}}
             """
         ])
-        let scanner = CodexSessionTokenUsageScanner(maximumDailyScanByteBudget: 128)
+        let scanner = CodexSessionTokenUsageScanner(maximumDailyScanByteBudget: 128, calendar: utcCalendar())
 
         let result = try scanner.scan(
             sessionsDirectory: root,
@@ -403,5 +429,30 @@ struct CodexSessionTokenUsageScannerTests {
         components.month = month
         components.day = day
         return components.date!
+    }
+
+    private func utcCalendar() -> Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
+        return calendar
+    }
+
+    private func makeDate(
+        _ year: Int,
+        _ month: Int,
+        _ day: Int,
+        _ hour: Int = 0,
+        _ minute: Int = 0,
+        calendar: Calendar
+    ) -> Date {
+        DateComponents(
+            calendar: calendar,
+            timeZone: calendar.timeZone,
+            year: year,
+            month: month,
+            day: day,
+            hour: hour,
+            minute: minute
+        ).date!
     }
 }
