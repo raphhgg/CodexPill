@@ -96,9 +96,7 @@ final class TokenUsageMenuRuntime: Sendable {
     fileprivate func updateProgress(_ progress: TokenUsageScanProgress, request: TokenUsageMenuLoadRequest) {
         guard refreshRequest == request else { return }
 
-        if request.peakScope == .allTime,
-           case .loaded(var data) = loadState,
-           data.allTimePeak == nil {
+        if case .loaded(var data) = loadState {
             data.allTimePeakProgress = progress
             loadState = .loaded(data)
         } else {
@@ -226,6 +224,7 @@ private actor LocalCodexSessionTokenUsageCache {
     private let scanner: CodexSessionTokenUsageScanner
     private let sessionsDirectory: URL
     private let diskCache: LocalCodexSessionTokenUsageDiskCaching
+    private let refreshPolicy: TokenUsageCacheBackedRefreshPolicy
     private let now: @Sendable () -> Date
     private let calendar: Calendar
     private var cachedEntriesByPeriod: [CodexTokenUsagePeriod: TokenUsageCacheEntry] = [:]
@@ -240,6 +239,7 @@ private actor LocalCodexSessionTokenUsageCache {
         self.scanner = scanner
         self.sessionsDirectory = sessionsDirectory
         self.diskCache = diskCache
+        refreshPolicy = TokenUsageCacheBackedRefreshPolicy(calendar: calendar)
         self.now = now
         self.calendar = calendar
     }
@@ -251,14 +251,19 @@ private actor LocalCodexSessionTokenUsageCache {
         progress: @escaping @Sendable (TokenUsageScanProgress) -> Void
     ) async -> TokenUsageMenuLoadState {
         let referenceDate = now()
-        if !forceRefresh, let entry = cachedEntry(covering: period, peakScope: peakScope, now: referenceDate) {
+        if !forceRefresh, let entry = refreshPolicy.displayEntry(
+            from: Array(cachedEntriesByPeriod.values),
+            covering: period,
+            peakScope: peakScope,
+            now: referenceDate
+        ) {
             return .loaded(loadedData(from: entry, for: period))
         }
 
         if !forceRefresh, let entry = diskCache.readEntry(
             covering: period,
             peakScope: peakScope,
-            isUsable: { $0.coversCurrentWindow(for: period, now: referenceDate, calendar: calendar) }
+            isUsable: { refreshPolicy.canDisplay($0, for: period, peakScope: peakScope, now: referenceDate) }
         ) {
             cachedEntriesByPeriod[entry.period] = entry
             return .loaded(loadedData(from: entry, for: period))
@@ -273,17 +278,16 @@ private actor LocalCodexSessionTokenUsageCache {
         progress: @escaping @Sendable (TokenUsageScanProgress) -> Void
     ) async -> TokenUsageMenuLoadState {
         do {
-            let result = try scanner.scan(
-                sessionsDirectory: sessionsDirectory,
+            let referenceDate = now()
+            let previousEntry = cachedRefreshEntry(covering: period, peakScope: peakScope, now: referenceDate)
+            let result = try scanSelectedPeriod(
                 period: period,
-                now: now(),
+                referenceDate: referenceDate,
+                previousEntry: previousEntry,
                 progress: progress
             )
-            let cachedPeak = cachedEntriesByPeriod.values
-                .filter(\.hasAllTimePeak)
-                .compactMap(\.allTimePeak)
-                .max { $0.usage.totalTokens < $1.usage.totalTokens }
-            let refreshedAllTimePeak = peakScope == .allTime
+            let cachedPeak = cachedAllTimePeak() ?? previousEntry?.allTimePeak ?? persistedAllTimePeak(for: period, now: referenceDate)
+            let refreshedAllTimePeak = peakScope == .allTime && cachedPeak == nil
                 ? try scanner.scanAllHistory(sessionsDirectory: sessionsDirectory, progress: progress)
                     .buckets.max { $0.usage.totalTokens < $1.usage.totalTokens }
                 : nil
@@ -294,6 +298,7 @@ private actor LocalCodexSessionTokenUsageCache {
                 period: period,
                 generatedAt: Date(),
                 buckets: result.buckets,
+                fileContributions: result.fileContributions,
                 allTimePeak: allTimePeak,
                 allTimePeakCoversAllHistory: allTimePeak != nil
             )
@@ -307,17 +312,73 @@ private actor LocalCodexSessionTokenUsageCache {
         }
     }
 
-    private func cachedEntry(
+    private func scanSelectedPeriod(
+        period: CodexTokenUsagePeriod,
+        referenceDate: Date,
+        previousEntry: TokenUsageCacheEntry?,
+        progress: @escaping @Sendable (TokenUsageScanProgress) -> Void
+    ) throws -> CodexSessionTokenUsageScanResult {
+        guard let previousEntry,
+              let fileContributions = previousEntry.fileContributions,
+              previousEntry.overlapsCurrentWindow(for: period, now: referenceDate, calendar: calendar)
+        else {
+            return try scanner.scan(
+                sessionsDirectory: sessionsDirectory,
+                period: period,
+                now: referenceDate,
+                progress: progress
+            )
+        }
+
+        return try scanner.scanIncremental(
+            sessionsDirectory: sessionsDirectory,
+            period: period,
+            now: referenceDate,
+            cachedFileContributions: fileContributions,
+            progress: progress
+        )
+    }
+
+    private func cachedAllTimePeak() -> CodexDailyTokenUsage? {
+        refreshPolicy.allTimePeak(from: Array(cachedEntriesByPeriod.values))
+    }
+
+    private func persistedAllTimePeak(for period: CodexTokenUsagePeriod, now: Date) -> CodexDailyTokenUsage? {
+        guard let entry = diskCache.readEntry(
+            covering: period,
+            peakScope: .allTime,
+            isUsable: { refreshPolicy.canDisplay($0, for: period, peakScope: .allTime, now: now) }
+        ) else {
+            return nil
+        }
+        cachedEntriesByPeriod[entry.period] = entry
+        return entry.allTimePeak
+    }
+
+    private func cachedRefreshEntry(
         covering period: CodexTokenUsagePeriod,
         peakScope: TokenUsagePeakScope,
         now: Date
     ) -> TokenUsageCacheEntry? {
-        cachedEntriesByPeriod.values
-            .filter { $0.period.dayCount >= period.dayCount }
-            .filter { peakScope == .currentPeriod || $0.hasAllTimePeak }
-            .filter { $0.coversCurrentWindow(for: period, now: now, calendar: calendar) }
-            .sorted { $0.period.dayCount < $1.period.dayCount }
-            .first
+        let cachedEntry = refreshPolicy.refreshSeedEntry(
+            from: Array(cachedEntriesByPeriod.values),
+            covering: period,
+            peakScope: peakScope,
+            now: now
+        )
+        if let entry = cachedEntry {
+            return entry
+        }
+
+        guard let entry = diskCache.readEntry(
+            covering: period,
+            peakScope: peakScope,
+            isUsable: { refreshPolicy.canSeedRefresh($0, for: period, peakScope: peakScope, now: now) }
+        ) else {
+            return nil
+        }
+        cachedEntriesByPeriod[entry.period] = entry
+        return entry
     }
 
     private func loadedData(from entry: TokenUsageCacheEntry, for period: CodexTokenUsagePeriod) -> TokenUsageMenuLoadedData {
@@ -337,40 +398,6 @@ private protocol LocalCodexSessionTokenUsageDiskCaching: Sendable {
         isUsable: (TokenUsageCacheEntry) -> Bool
     ) -> TokenUsageCacheEntry?
     func writeEntry(_ entry: TokenUsageCacheEntry)
-}
-
-private struct TokenUsageCacheEntry: Codable, Equatable {
-    var period: CodexTokenUsagePeriod
-    var generatedAt: Date
-    var buckets: [CodexDailyTokenUsage]
-    var allTimePeak: CodexDailyTokenUsage?
-    var allTimePeakCoversAllHistory: Bool?
-
-    var hasAllTimePeak: Bool {
-        allTimePeak != nil && allTimePeakCoversAllHistory == true
-    }
-
-    func coversCurrentWindow(
-        for period: CodexTokenUsagePeriod,
-        now: Date,
-        calendar: Calendar
-    ) -> Bool {
-        guard buckets.count >= period.dayCount,
-              let firstDay = buckets.first?.day,
-              let lastDay = buckets.last?.day
-        else {
-            return false
-        }
-
-        let today = calendar.startOfDay(for: now)
-        let firstRequiredDay = calendar.date(
-            byAdding: .day,
-            value: 1 - period.dayCount,
-            to: today
-        ) ?? today
-
-        return firstDay <= firstRequiredDay && lastDay == today
-    }
 }
 
 private struct LocalCodexSessionTokenUsageDiskCache: LocalCodexSessionTokenUsageDiskCaching, @unchecked Sendable {

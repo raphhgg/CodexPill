@@ -130,6 +130,108 @@ struct LocalCodexSessionTokenUsageMenuProviderTests {
     }
 
     @Test
+    func forceRefreshReusesCachedAllTimePeakInsteadOfRescanningAllHistory() async throws {
+        let now = makeDate(2026, 5, 20)
+        let root = try makeSessionRoot(files: [
+            "2026/05/20/session-a.jsonl": """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":100}}}
+            """,
+            "2026/01/10/session-b.jsonl": """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":9000}}}
+            """
+        ])
+        let provider = LocalCodexSessionTokenUsageMenuProvider(
+            scanner: CodexSessionTokenUsageScanner(calendar: utcCalendar()),
+            sessionsDirectory: root,
+            cacheFile: cacheFile(under: root),
+            now: { now },
+            calendar: utcCalendar()
+        )
+
+        let firstLoad = await provider.load(period: .last7Days, peakScope: .allTime) { _ in }
+        guard case .loaded(let firstData) = firstLoad else {
+            Issue.record("Expected all-time peak load to succeed")
+            return
+        }
+        #expect(firstData.allTimePeak?.usage.totalTokens == 9000)
+
+        try writeSessionFile(
+            at: "2025/12/31/session-c.jsonl",
+            under: root,
+            contents: """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":12000}}}
+            """
+        )
+        let progressUpdates = TokenUsageProgressRecorder()
+
+        let refreshedLoad = await provider.load(
+            period: .last7Days,
+            peakScope: .allTime,
+            forceRefresh: true
+        ) { progressUpdates.append($0) }
+
+        guard case .loaded(let refreshedData) = refreshedLoad else {
+            Issue.record("Expected forced token usage refresh to succeed")
+            return
+        }
+        #expect(progressUpdates.isEmpty == false)
+        #expect(refreshedData.buckets.map(\.usage.totalTokens).contains(12000) == false)
+        #expect(refreshedData.allTimePeak?.usage.totalTokens == 9000)
+    }
+
+    @Test
+    func forceRefreshReusesPersistedAllTimePeakAfterRelaunch() async throws {
+        let now = makeDate(2026, 5, 20)
+        let root = try makeSessionRoot(files: [
+            "2026/05/20/session-a.jsonl": """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":100}}}
+            """,
+            "2026/01/10/session-b.jsonl": """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":9000}}}
+            """
+        ])
+        let cacheFile = cacheFile(under: root)
+        let firstProvider = LocalCodexSessionTokenUsageMenuProvider(
+            scanner: CodexSessionTokenUsageScanner(calendar: utcCalendar()),
+            sessionsDirectory: root,
+            cacheFile: cacheFile,
+            now: { now },
+            calendar: utcCalendar()
+        )
+        _ = await firstProvider.load(period: .last7Days, peakScope: .allTime) { _ in }
+
+        try writeSessionFile(
+            at: "2025/12/31/session-c.jsonl",
+            under: root,
+            contents: """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":12000}}}
+            """
+        )
+        let relaunchedProvider = LocalCodexSessionTokenUsageMenuProvider(
+            scanner: CodexSessionTokenUsageScanner(calendar: utcCalendar()),
+            sessionsDirectory: root,
+            cacheFile: cacheFile,
+            now: { now },
+            calendar: utcCalendar()
+        )
+        let progressUpdates = TokenUsageProgressRecorder()
+
+        let refreshedLoad = await relaunchedProvider.load(
+            period: .last7Days,
+            peakScope: .allTime,
+            forceRefresh: true
+        ) { progressUpdates.append($0) }
+
+        guard case .loaded(let refreshedData) = refreshedLoad else {
+            Issue.record("Expected force-refreshed token usage load to succeed")
+            return
+        }
+        #expect(progressUpdates.updates.contains(TokenUsageScanProgress(scannedFiles: 0, totalFiles: 3)) == false)
+        #expect(refreshedData.buckets.map(\.usage.totalTokens).contains(12000) == false)
+        #expect(refreshedData.allTimePeak?.usage.totalTokens == 9000)
+    }
+
+    @Test
     func derivesShorterPeriodFromLongerCachedPeriod() async throws {
         let now = makeDate(2026, 5, 20)
         let root = try makeSessionRoot(files: [
@@ -207,7 +309,7 @@ struct LocalCodexSessionTokenUsageMenuProviderTests {
     }
 
     @Test
-    func forceRefreshRescansSameDayInsteadOfReusingCurrentWindowCache() async throws {
+    func forceRefreshScansOnlyNewSameDayFiles() async throws {
         let now = makeDate(2026, 5, 20)
         let root = try makeSessionRoot(files: [
             "2026/05/20/session-a.jsonl": """
@@ -242,8 +344,73 @@ struct LocalCodexSessionTokenUsageMenuProviderTests {
             return
         }
         #expect(progressUpdates.isEmpty == false)
+        #expect(progressUpdates.updates == [
+            TokenUsageScanProgress(scannedFiles: 0, totalFiles: 1),
+            TokenUsageScanProgress(scannedFiles: 1, totalFiles: 1)
+        ])
         #expect(refreshedData.buckets.last?.day == now)
         #expect(refreshedData.buckets.last?.usage.totalTokens == 9100)
+    }
+
+    @Test
+    func forceRefreshAfterDayRolloverReusesOverlappingFileContributions() async throws {
+        let root = try makeSessionRoot(files: [
+            "2026/05/01/expired-session.jsonl": """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":999}}}
+            """,
+            "2026/05/02/retained-session-a.jsonl": """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":100}}}
+            """,
+            "2026/05/30/retained-session-b.jsonl": """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":200}}}
+            """
+        ])
+        let cacheFile = cacheFile(under: root)
+        let firstProvider = LocalCodexSessionTokenUsageMenuProvider(
+            scanner: CodexSessionTokenUsageScanner(calendar: utcCalendar()),
+            sessionsDirectory: root,
+            cacheFile: cacheFile,
+            now: { makeDate(2026, 5, 30) },
+            calendar: utcCalendar()
+        )
+        _ = await firstProvider.load(period: .last30Days) { _ in }
+
+        try writeSessionFile(
+            at: "2026/05/31/new-session.jsonl",
+            under: root,
+            contents: """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":300}}}
+            """
+        )
+        let secondProvider = LocalCodexSessionTokenUsageMenuProvider(
+            scanner: CodexSessionTokenUsageScanner(calendar: utcCalendar()),
+            sessionsDirectory: root,
+            cacheFile: cacheFile,
+            now: { makeDate(2026, 5, 31) },
+            calendar: utcCalendar()
+        )
+        let progressUpdates = TokenUsageProgressRecorder()
+
+        let refreshedLoad = await secondProvider.load(
+            period: .last30Days,
+            forceRefresh: true
+        ) { progressUpdates.append($0) }
+
+        guard case .loaded(let refreshedData) = refreshedLoad else {
+            Issue.record("Expected day-rollover token usage refresh to succeed")
+            return
+        }
+        #expect(progressUpdates.updates == [
+            TokenUsageScanProgress(scannedFiles: 0, totalFiles: 1),
+            TokenUsageScanProgress(scannedFiles: 1, totalFiles: 1)
+        ])
+        #expect(refreshedData.buckets.count == CodexTokenUsagePeriod.last30Days.dayCount)
+        #expect(refreshedData.buckets.first?.day == makeDate(2026, 5, 2))
+        #expect(refreshedData.buckets.last?.day == makeDate(2026, 5, 31))
+        #expect(refreshedData.buckets.map(\.usage.totalTokens).contains(999) == false)
+        #expect(refreshedData.buckets.map(\.usage.totalTokens).contains(100))
+        #expect(refreshedData.buckets.map(\.usage.totalTokens).contains(200))
+        #expect(refreshedData.buckets.map(\.usage.totalTokens).contains(300))
     }
 
     @Test

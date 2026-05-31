@@ -89,6 +89,40 @@ struct TokenUsageMenuRuntimeTests {
     }
 
     @Test
+    func currentPeriodRefreshKeepsLoadedChartWhileProgressUpdates() async throws {
+        var now = Date(timeIntervalSince1970: 1_716_192_000)
+        let provider = TokenUsageRuntimeProviderProbe()
+        let runtime = TokenUsageMenuRuntime(
+            provider: provider,
+            freshnessInterval: 15 * 60,
+            now: { now }
+        ) { _ in }
+
+        runtime.refreshIfNeeded(period: .last30Days, peakScope: .currentPeriod)
+        await waitUntil { await provider.loadCount == 1 }
+
+        let buckets = [
+            dailyUsage(daysAgo: 0, totalTokens: 108_637_804)
+        ]
+        await provider.finish(with: buckets)
+        await waitUntil {
+            runtime.loadState == .loaded(TokenUsageMenuLoadedData(buckets: buckets, allTimePeak: nil))
+        }
+
+        now = now.addingTimeInterval(15 * 60)
+        runtime.refreshIfNeeded(period: .last30Days, peakScope: .currentPeriod)
+
+        await waitUntil { await provider.loadCount == 2 }
+        guard case .loaded(let refreshingData) = runtime.loadState else {
+            Issue.record("Expected current-period refresh progress to preserve the existing chart")
+            return
+        }
+        #expect(refreshingData.buckets == buckets)
+        #expect(refreshingData.allTimePeak == nil)
+        #expect(refreshingData.allTimePeakProgress?.scannedFiles == 1)
+    }
+
+    @Test
     func refreshesLoadedDataWhenLocalDayChangesEvenBeforeFreshnessInterval() async throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 2 * 60 * 60) ?? .current

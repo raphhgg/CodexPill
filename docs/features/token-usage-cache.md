@@ -80,6 +80,13 @@ contributions when:
 - a previously failed file should be retried;
 - the user manually refreshes.
 
+Automatic and manual refreshes should update in place. When a cached entry
+covers the selected window, unchanged per-file aggregate contributions should be
+reused and progress should count only new or changed eligible files, not every
+file in the selected period.
+This reuse should also apply across local day rollover when the previous cache
+overlaps the new selected window.
+
 Disabling Token Usage hides the card and cancels active scan work, but should keep the persisted cache. Re-enabling should reuse cached aggregates immediately, then refresh in the background.
 
 ## Runtime Boundary
@@ -127,9 +134,13 @@ Runtime behavior:
 - Only one scan job may be active at a time.
 - Opening the menu must not start duplicate scan jobs.
 - Closing the menu must not cancel the scan unless Token Usage is disabled.
+- Progress updates while the menu is closed should be coalesced and applied on
+  the next menu open, not used to rebuild the hidden menu repeatedly.
 - Changing chart style must not scan.
 - Changing period may reprioritize the background queue, but should not clear already visible data.
 - Scanner should publish aggregate progress after each file or day, not only at the end of the full scan.
+- Selected-period progress should count eligible files in that period, not all
+  historical session files.
 - CPU and memory should remain bounded during cold scans.
 
 ## Edge Cases
@@ -154,6 +165,12 @@ Runtime behavior:
 - Reopening the menu does not restart or duplicate Token Usage scanning.
 - Changing chart style does not trigger scanning.
 - Changing period uses cached data when available and otherwise reprioritizes background scanning without blanking the existing chart.
+- Automatic refresh reuses a cached all-time peak instead of replaying all
+  historical session files.
+- Refreshing `Last 30 Days` does not report or process every historical session
+  as selected-period scan progress.
+- Refreshing a cached selected period reparses only new or changed eligible
+  session files and combines them with cached per-file aggregate contributions.
 - Disabling Token Usage cancels active scan work but keeps the persisted cache.
 - Re-enabling Token Usage reuses persisted cache when available.
 - Large files are parsed slowly in the background, not skipped by default.

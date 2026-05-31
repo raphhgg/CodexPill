@@ -62,6 +62,7 @@ final class PanelPresenterProbe: PanelPresenter {
 
 final class LoginItemControllerProbe: LoginItemControlling {
     var currentState: LoginItemState
+    var stateCallCount = 0
     var setEnabledCalls: [Bool] = []
     var errorToThrow: Error?
 
@@ -70,7 +71,8 @@ final class LoginItemControllerProbe: LoginItemControlling {
     }
 
     func state() -> LoginItemState {
-        currentState
+        stateCallCount += 1
+        return currentState
     }
 
     func setEnabled(_ isEnabled: Bool) throws {
@@ -84,6 +86,7 @@ final class LoginItemControllerProbe: LoginItemControlling {
 
 actor TokenUsageMenuProviderProbe: TokenUsageMenuProviding {
     private(set) var loadPeriods: [CodexTokenUsagePeriod] = []
+    private var progressHandler: (@Sendable (TokenUsageScanProgress) -> Void)?
     private var loadContinuation: CheckedContinuation<TokenUsageMenuLoadState, Never>?
 
     func load(
@@ -93,6 +96,7 @@ actor TokenUsageMenuProviderProbe: TokenUsageMenuProviding {
         progress: @escaping @Sendable (TokenUsageScanProgress) -> Void
     ) async -> TokenUsageMenuLoadState {
         loadPeriods.append(period)
+        progressHandler = progress
         progress(TokenUsageScanProgress(scannedFiles: 0, totalFiles: 2))
         progress(TokenUsageScanProgress(scannedFiles: 1, totalFiles: 2))
         return await withCheckedContinuation { continuation in
@@ -100,9 +104,14 @@ actor TokenUsageMenuProviderProbe: TokenUsageMenuProviding {
         }
     }
 
+    func emitProgress(_ progress: TokenUsageScanProgress) {
+        progressHandler?(progress)
+    }
+
     func finish(with buckets: [CodexDailyTokenUsage]) {
         loadContinuation?.resume(returning: .loaded(TokenUsageMenuLoadedData(buckets: buckets, allTimePeak: nil)))
         loadContinuation = nil
+        progressHandler = nil
     }
 
     var loadCount: Int {
@@ -2077,6 +2086,54 @@ struct MenuBarMenuBuilderTests {
         await waitUntil { !menuItems(menu.items, areSameInstancesAs: itemsBeforeProgress) }
 
         #expect(!menuItems(menu.items, areSameInstancesAs: itemsBeforeProgress))
+    }
+
+    @Test
+    func tokenUsageProgressWhileMenuClosedDefersMenuRebuildUntilNextOpen() async throws {
+        let builder = MenuBarMenuBuilder()
+        let provider = TokenUsageMenuProviderProbe()
+        let loginItemController = LoginItemControllerProbe()
+        let (coordinator, statusItem) = try makeCoordinatorWithStatusItem(
+            loginItemController: loginItemController,
+            tokenUsageProvider: provider,
+            configureSettings: {
+                $0.tokenUsageEnabled = true
+                $0.tokenUsagePeriod = .last30Days
+            }
+        )
+        let menu = builder.makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                tokenUsageEnabled: true,
+                tokenUsagePeriod: .last30Days,
+                tokenUsageCard: makeTokenUsageCard(loadState: .loading(nil))
+            ),
+            target: coordinator
+        )
+
+        statusItem.menu = menu
+        coordinator.menuWillOpen(menu)
+        await waitUntil { await provider.loadCount == 1 }
+        await yieldMainActorWork()
+
+        let itemsBeforeClose = menu.items
+        coordinator.menuDidClose(menu)
+        await waitUntil { !menuItems(menu.items, areSameInstancesAs: itemsBeforeClose) }
+
+        let itemsBeforeClosedProgress = menu.items
+        let stateCallCountBeforeClosedProgress = loginItemController.stateCallCount
+
+        await provider.emitProgress(TokenUsageScanProgress(scannedFiles: 10, totalFiles: 10))
+        await yieldMainActorWork()
+
+        #expect(loginItemController.stateCallCount == stateCallCountBeforeClosedProgress)
+        #expect(menuItems(menu.items, areSameInstancesAs: itemsBeforeClosedProgress))
+
+        coordinator.menuWillOpen(menu)
+        await yieldMainActorWork()
+
+        #expect(loginItemController.stateCallCount > stateCallCountBeforeClosedProgress)
+        #expect(!menuItems(menu.items, areSameInstancesAs: itemsBeforeClosedProgress))
     }
 
     private func statusItemContentMenu(in menu: NSMenu) -> NSMenu? {

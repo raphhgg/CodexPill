@@ -3,15 +3,51 @@ import Foundation
 struct CodexSessionTokenUsageScanResult: Equatable {
     var buckets: [CodexDailyTokenUsage]
     var summary: CodexSessionTokenUsageScanSummary
+    var fileContributions: [CodexSessionTokenUsageFileContribution] = []
 }
 
-struct CodexSessionTokenUsageScanSummary: Equatable {
+struct CodexSessionTokenUsageScanSummary: Codable, Equatable, Sendable {
     var filesRead: Int
     var tokenCountRowsRead: Int
     var cumulativeRowsUsed: Int
     var cumulativeRowsIgnored: Int
     var malformedRowsIgnored: Int
     var nonUsageRowsIgnored: Int
+}
+
+struct CodexSessionTokenUsageFileContribution: Codable, Equatable, Sendable {
+    var cacheKey: String
+    var day: Date
+    var fileSize: Int
+    var modificationDate: Date?
+    var buckets: [CodexDailyTokenUsage]
+    var summary: CodexSessionTokenUsageScanSummary
+
+    func matches(_ metadata: CodexSessionTokenUsageFileMetadata) -> Bool {
+        cacheKey == metadata.cacheKey &&
+            fileSize == metadata.fileSize &&
+            modificationDate.matches(metadata.modificationDate)
+    }
+}
+
+private extension Optional where Wrapped == Date {
+    func matches(_ other: Date?) -> Bool {
+        switch (self, other) {
+        case (.none, .none):
+            return true
+        case (.some(let lhs), .some(let rhs)):
+            return abs(lhs.timeIntervalSince(rhs)) < 0.001
+        default:
+            return false
+        }
+    }
+}
+
+struct CodexSessionTokenUsageFileMetadata: Equatable, Sendable {
+    var cacheKey: String
+    var day: Date
+    var fileSize: Int
+    var modificationDate: Date?
 }
 
 struct CodexSessionTokenUsageScanner: Sendable {
@@ -49,7 +85,8 @@ struct CodexSessionTokenUsageScanner: Sendable {
         let result = try scan(sessionsDirectory: sessionsDirectory, dayRange: interval, progress: progress)
         return CodexSessionTokenUsageScanResult(
             buckets: fillMissingDays(in: interval, from: result.buckets),
-            summary: result.summary
+            summary: result.summary,
+            fileContributions: result.fileContributions
         )
     }
 
@@ -68,6 +105,27 @@ struct CodexSessionTokenUsageScanner: Sendable {
         try scan(sessionsDirectory: sessionsDirectory, dayRange: Optional(dayRange), progress: progress)
     }
 
+    func scanIncremental(
+        sessionsDirectory: URL,
+        period: CodexTokenUsagePeriod,
+        now: Date = Date(),
+        cachedFileContributions: [CodexSessionTokenUsageFileContribution],
+        progress: (@Sendable (TokenUsageScanProgress) -> Void)? = nil
+    ) throws -> CodexSessionTokenUsageScanResult {
+        let interval = dayRange(for: period, now: now)
+        let result = try scanIncremental(
+            sessionsDirectory: sessionsDirectory,
+            dayRange: interval,
+            cachedFileContributions: cachedFileContributions,
+            progress: progress
+        )
+        return CodexSessionTokenUsageScanResult(
+            buckets: fillMissingDays(in: interval, from: result.buckets),
+            summary: result.summary,
+            fileContributions: result.fileContributions
+        )
+    }
+
     private func scan(
         sessionsDirectory: URL,
         dayRange: DateInterval?,
@@ -76,7 +134,8 @@ struct CodexSessionTokenUsageScanner: Sendable {
         var accumulator = BucketAccumulator()
         var summary = CodexSessionTokenUsageScanSummary.empty
         var scannedByteCountByDay: [Date: Int] = [:]
-        let files = try discoverer.sessionFiles(in: sessionsDirectory)
+        let files = try discoverer.sessionFiles(in: sessionsDirectory, dayRange: dayRange)
+        var fileContributions: [CodexSessionTokenUsageFileContribution] = []
         progress?(TokenUsageScanProgress(scannedFiles: 0, totalFiles: files.count))
 
         for (index, file) in files.enumerated() {
@@ -105,11 +164,91 @@ struct CodexSessionTokenUsageScanner: Sendable {
             scannedByteCountByDay[file.day, default: 0] += fileByteCount
             summary.filesRead += 1
             summary.merge(scan.summary)
+            fileContributions.append(CodexSessionTokenUsageFileContribution(
+                cacheKey: file.cacheKey,
+                day: file.day,
+                fileSize: fileByteCount,
+                modificationDate: file.modificationDate,
+                buckets: scan.buckets,
+                summary: scan.summary
+            ))
         }
 
         return CodexSessionTokenUsageScanResult(
             buckets: accumulator.buckets(),
-            summary: summary
+            summary: summary,
+            fileContributions: fileContributions
+        )
+    }
+
+    private func scanIncremental(
+        sessionsDirectory: URL,
+        dayRange: DateInterval,
+        cachedFileContributions: [CodexSessionTokenUsageFileContribution],
+        progress: (@Sendable (TokenUsageScanProgress) -> Void)? = nil
+    ) throws -> CodexSessionTokenUsageScanResult {
+        let cachedByKey = Dictionary(grouping: cachedFileContributions, by: \.cacheKey)
+        let files = try discoverer.sessionFiles(in: sessionsDirectory, dayRange: dayRange)
+        var accumulator = BucketAccumulator()
+        var summary = CodexSessionTokenUsageScanSummary.empty
+        var scannedByteCountByDay: [Date: Int] = [:]
+        var retainedContributions: [CodexSessionTokenUsageFileContribution] = []
+        var filesNeedingScan: [CodexSessionTokenUsageFileCandidate] = []
+
+        for file in files {
+            if let cached = cachedByKey[file.cacheKey]?.first(where: { $0.matches(file.metadata) }) {
+                accumulator.merge(cached.buckets)
+                summary.merge(cached.summary)
+                scannedByteCountByDay[file.day, default: 0] += cached.fileSize
+                retainedContributions.append(cached)
+            } else {
+                filesNeedingScan.append(file)
+            }
+        }
+
+        progress?(TokenUsageScanProgress(scannedFiles: 0, totalFiles: filesNeedingScan.count))
+        for (index, file) in filesNeedingScan.enumerated() {
+            try Task.checkCancellation()
+            defer {
+                progress?(TokenUsageScanProgress(scannedFiles: index + 1, totalFiles: filesNeedingScan.count))
+            }
+
+            guard maximumScannableFileByteCount <= 0 || file.fileSize <= maximumScannableFileByteCount else {
+                summary.nonUsageRowsIgnored += 1
+                continue
+            }
+            let scannedByteCountForDay = scannedByteCountByDay[file.day, default: 0]
+            guard maximumDailyScanByteBudget <= 0
+                    || scannedByteCountForDay + file.fileSize <= maximumDailyScanByteBudget
+            else {
+                summary.nonUsageRowsIgnored += 1
+                continue
+            }
+
+            let scan = try fileParser.scanFile(file.url, day: file.day)
+            accumulator.merge(scan.buckets)
+            scannedByteCountByDay[file.day, default: 0] += file.fileSize
+            summary.filesRead += 1
+            summary.merge(scan.summary)
+            retainedContributions.append(CodexSessionTokenUsageFileContribution(
+                cacheKey: file.cacheKey,
+                day: file.day,
+                fileSize: file.fileSize,
+                modificationDate: file.modificationDate,
+                buckets: scan.buckets,
+                summary: scan.summary
+            ))
+        }
+
+        return CodexSessionTokenUsageScanResult(
+            buckets: accumulator.buckets(),
+            summary: summary,
+            fileContributions: retainedContributions.sorted { lhs, rhs in
+                if lhs.day != rhs.day {
+                    return lhs.day > rhs.day
+                }
+                return lhs.cacheKey > rhs.cacheKey
+            }
         )
     }
 
@@ -158,10 +297,22 @@ struct CodexSessionTokenUsageScanner: Sendable {
 private struct CodexSessionTokenUsageFileCandidate: Equatable {
     let url: URL
     let day: Date
+    let cacheKey: String
+    let fileSize: Int
+    let modificationDate: Date?
+
+    var metadata: CodexSessionTokenUsageFileMetadata {
+        CodexSessionTokenUsageFileMetadata(
+            cacheKey: cacheKey,
+            day: day,
+            fileSize: fileSize,
+            modificationDate: modificationDate
+        )
+    }
 }
 
 private protocol CodexSessionTokenUsageFileDiscovering: Sendable {
-    func sessionFiles(in directory: URL) throws -> [CodexSessionTokenUsageFileCandidate]
+    func sessionFiles(in directory: URL, dayRange: DateInterval?) throws -> [CodexSessionTokenUsageFileCandidate]
 }
 
 private struct CodexSessionTokenUsageFileDiscoverer: CodexSessionTokenUsageFileDiscovering, @unchecked Sendable {
@@ -173,7 +324,7 @@ private struct CodexSessionTokenUsageFileDiscoverer: CodexSessionTokenUsageFileD
         self.calendar = calendar
     }
 
-    func sessionFiles(in directory: URL) throws -> [CodexSessionTokenUsageFileCandidate] {
+    func sessionFiles(in directory: URL, dayRange: DateInterval?) throws -> [CodexSessionTokenUsageFileCandidate] {
         guard let enumerator = fileManager.enumerator(
             at: directory,
             includingPropertiesForKeys: [.isRegularFileKey],
@@ -182,16 +333,27 @@ private struct CodexSessionTokenUsageFileDiscoverer: CodexSessionTokenUsageFileD
             return []
         }
 
-        return try enumerator.compactMap { entry in
+        return enumerator.compactMap { entry in
             guard
                 let url = entry as? URL,
                 url.pathExtension == "jsonl",
-                try url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile == true,
+                let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey, .contentModificationDateKey]),
+                values.isRegularFile == true,
+                let fileSize = values.fileSize,
                 let day = sessionDay(for: url, under: directory)
             else {
                 return nil
             }
-            return CodexSessionTokenUsageFileCandidate(url: url, day: day)
+            if let dayRange, !dayRange.contains(day) {
+                return nil
+            }
+            return CodexSessionTokenUsageFileCandidate(
+                url: url,
+                day: day,
+                cacheKey: cacheKey(for: url, under: directory),
+                fileSize: fileSize,
+                modificationDate: values.contentModificationDate
+            )
         }
         .sorted { lhs, rhs in
             if lhs.day != rhs.day {
@@ -220,6 +382,12 @@ private struct CodexSessionTokenUsageFileDiscoverer: CodexSessionTokenUsageFileD
             month: month,
             day: day
         ))
+    }
+
+    private func cacheKey(for file: URL, under root: URL) -> String {
+        let rootParts = root.standardizedFileURL.pathComponents
+        let fileParts = file.standardizedFileURL.pathComponents
+        return Array(fileParts.dropFirst(rootParts.count)).joined(separator: "/")
     }
 }
 

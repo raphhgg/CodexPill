@@ -277,6 +277,167 @@ struct CodexSessionTokenUsageScannerTests {
     }
 
     @Test
+    func scanProgressCountsOnlyFilesInsideRequestedDayRange() throws {
+        let root = try makeSessionRoot(files: [
+            "2026/01/10/old-session.jsonl": """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":999}}}
+            """,
+            "2026/04/20/current-session.jsonl": """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":10}}}
+            """
+        ])
+        let progressUpdates = TokenUsageProgressRecorder()
+
+        _ = try CodexSessionTokenUsageScanner(calendar: utcCalendar()).scan(
+            sessionsDirectory: root,
+            dayRange: DateInterval(
+                start: makeDate(2026, 4, 1),
+                end: makeDate(2026, 5, 1)
+            ),
+            progress: { progressUpdates.append($0) }
+        )
+
+        #expect(progressUpdates.updates == [
+            TokenUsageScanProgress(scannedFiles: 0, totalFiles: 1),
+            TokenUsageScanProgress(scannedFiles: 1, totalFiles: 1)
+        ])
+    }
+
+    @Test
+    func scanResultIncludesPrivacySafeFileContributionsForIncrementalRefresh() throws {
+        let root = try makeSessionRoot(files: [
+            "2026/04/20/current-session.jsonl": """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":10}}}
+            """
+        ])
+
+        let result = try CodexSessionTokenUsageScanner(calendar: utcCalendar()).scan(
+            sessionsDirectory: root,
+            period: .last7Days,
+            now: makeDate(2026, 4, 20)
+        )
+
+        let contribution = try #require(result.fileContributions.first)
+        #expect(result.fileContributions.count == 1)
+        #expect(contribution.cacheKey == "2026/04/20/current-session.jsonl")
+        #expect(contribution.cacheKey.contains(root.path) == false)
+        #expect(contribution.buckets.map(\.usage.totalTokens) == [10])
+    }
+
+    @Test
+    func incrementalScanParsesOnlyNewOrChangedFiles() throws {
+        let root = try makeSessionRoot(files: [
+            "2026/04/20/session-a.jsonl": """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":10}}}
+            """
+        ])
+        let scanner = CodexSessionTokenUsageScanner(calendar: utcCalendar())
+        let firstResult = try scanner.scan(
+            sessionsDirectory: root,
+            period: .last7Days,
+            now: makeDate(2026, 4, 20)
+        )
+        try writeSessionFile(
+            at: "2026/04/20/session-b.jsonl",
+            under: root,
+            contents: """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":20}}}
+            """
+        )
+        let progressUpdates = TokenUsageProgressRecorder()
+
+        let refreshedResult = try scanner.scanIncremental(
+            sessionsDirectory: root,
+            period: .last7Days,
+            now: makeDate(2026, 4, 20),
+            cachedFileContributions: firstResult.fileContributions,
+            progress: { progressUpdates.append($0) }
+        )
+
+        #expect(progressUpdates.updates == [
+            TokenUsageScanProgress(scannedFiles: 0, totalFiles: 1),
+            TokenUsageScanProgress(scannedFiles: 1, totalFiles: 1)
+        ])
+        #expect(refreshedResult.buckets.last?.usage.totalTokens == 30)
+        #expect(refreshedResult.fileContributions.count == 2)
+    }
+
+    @Test
+    func incrementalScanToleratesDuplicateCachedContributions() throws {
+        let root = try makeSessionRoot(files: [
+            "2026/04/20/session-a.jsonl": """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":10}}}
+            """
+        ])
+        let scanner = CodexSessionTokenUsageScanner(calendar: utcCalendar())
+        let firstResult = try scanner.scan(
+            sessionsDirectory: root,
+            period: .last7Days,
+            now: makeDate(2026, 4, 20)
+        )
+        let duplicateContribution = try #require(firstResult.fileContributions.first)
+        let progressUpdates = TokenUsageProgressRecorder()
+
+        let refreshedResult = try scanner.scanIncremental(
+            sessionsDirectory: root,
+            period: .last7Days,
+            now: makeDate(2026, 4, 20),
+            cachedFileContributions: firstResult.fileContributions + [duplicateContribution],
+            progress: { progressUpdates.append($0) }
+        )
+
+        #expect(progressUpdates.updates == [
+            TokenUsageScanProgress(scannedFiles: 0, totalFiles: 0)
+        ])
+        #expect(refreshedResult.buckets.last?.usage.totalTokens == 10)
+        #expect(refreshedResult.fileContributions.count == 1)
+    }
+
+    @Test
+    func incrementalScanKeepsFileSizeAndDailyBudgetLimits() throws {
+        let oversizedMessage = String(repeating: "x", count: 256)
+        let root = try makeSessionRoot(files: [
+            "2026/04/20/session-a.jsonl": """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":10}}}
+            """
+        ])
+        let scanner = CodexSessionTokenUsageScanner(
+            maximumScannableFileByteCount: 200,
+            maximumDailyScanByteBudget: 256,
+            calendar: utcCalendar()
+        )
+        let firstResult = try scanner.scan(
+            sessionsDirectory: root,
+            period: .last7Days,
+            now: makeDate(2026, 4, 20)
+        )
+        try writeSessionFile(
+            at: "2026/04/20/oversized.jsonl",
+            under: root,
+            contents: """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":999},"message":"\(oversizedMessage)"}}
+            """
+        )
+        let progressUpdates = TokenUsageProgressRecorder()
+
+        let refreshedResult = try scanner.scanIncremental(
+            sessionsDirectory: root,
+            period: .last7Days,
+            now: makeDate(2026, 4, 20),
+            cachedFileContributions: firstResult.fileContributions,
+            progress: { progressUpdates.append($0) }
+        )
+
+        #expect(progressUpdates.updates == [
+            TokenUsageScanProgress(scannedFiles: 0, totalFiles: 1),
+            TokenUsageScanProgress(scannedFiles: 1, totalFiles: 1)
+        ])
+        #expect(refreshedResult.buckets.last?.usage.totalTokens == 10)
+        #expect(refreshedResult.summary.nonUsageRowsIgnored == 1)
+        #expect(refreshedResult.fileContributions.count == 1)
+    }
+
+    @Test
     func scanRecentPeriodsSupportSevenThirtyAndNinetyDayWindows() throws {
         let root = try makeSessionRoot(files: [:])
         let scanner = CodexSessionTokenUsageScanner(calendar: utcCalendar())

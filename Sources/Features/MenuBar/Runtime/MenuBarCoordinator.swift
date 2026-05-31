@@ -49,6 +49,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private var wakeRefreshTask: Task<Void, Never>?
     private var notificationWaitTask: Task<Void, Never>?
     private var pendingTokenUsageMenuRebuild = false
+    private var deferredTokenUsageMenuRebuild = false
     private var hasPromptedForEmptyState = false
     private var isObservingSettings = false
     private var isObservingStore = false
@@ -628,6 +629,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     func menuWillOpen(_ menu: NSMenu) {
+        rebuildDeferredTokenUsageMenuIfNeeded()
         statusItemRuntime.handleMenuWillOpen()
         validationObserver.recordMenuOpened(menuItemCount: statusItemRuntime.menuItemCount)
         refreshTokenUsageIfNeeded()
@@ -733,6 +735,12 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             pendingTokenUsageMenuRebuild = true
             return
         }
+        deferredTokenUsageMenuRebuild = true
+    }
+
+    private func rebuildDeferredTokenUsageMenuIfNeeded() {
+        guard deferredTokenUsageMenuRebuild else { return }
+        deferredTokenUsageMenuRebuild = false
         rebuildMenu()
     }
 
