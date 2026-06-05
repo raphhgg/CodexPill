@@ -1,7 +1,19 @@
 import AppKit
 
 enum StatusBarProgressColorDefaults {
-    static let accent = NSColor.controlAccentColor
+    static let sessionAccent = NSColor(
+        calibratedRed: 52 / 255,
+        green: 120 / 255,
+        blue: 246 / 255,
+        alpha: 1
+    )
+    static let weeklyAccent = NSColor(
+        calibratedRed: 0 / 255,
+        green: 178 / 255,
+        blue: 204 / 255,
+        alpha: 1
+    )
+    static let accent = weeklyAccent
 }
 
 extension StatusItemAccentColor {
@@ -26,8 +38,12 @@ extension StatusItemAccentColor {
 }
 
 extension Optional where Wrapped == StatusItemAccentColor {
+    func resolvedStatusItemAccentColor(default defaultColor: NSColor) -> NSColor {
+        self?.nsColor ?? defaultColor
+    }
+
     var resolvedStatusItemAccentColor: NSColor {
-        self?.nsColor ?? StatusBarProgressColorDefaults.accent
+        resolvedStatusItemAccentColor(default: StatusBarProgressColorDefaults.accent)
     }
 }
 

@@ -27,6 +27,7 @@ func inactiveAccountTitle(
     displayName: String? = nil,
     placement: MenuBarAccountPlacement? = nil,
     menuContentWidth: CGFloat = 340,
+    usageBarDisplayMode: UsageBarDisplayMode = .used,
     now: Date = .now
 ) -> NSAttributedString {
     let paragraphStyle = NSMutableParagraphStyle()
@@ -45,8 +46,13 @@ func inactiveAccountTitle(
         ]
     ))
 
+    let usageSummary = compactMenuRowUsageSummary(
+        for: account,
+        usageBarDisplayMode: usageBarDisplayMode,
+        now: now
+    )
     title.append(NSAttributedString(
-        string: "  \(compactMenuRowUsageSummary(for: account, now: now))",
+        string: "  \(usageSummary)",
         attributes: [
             .font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular),
             .foregroundColor: NSColor.secondaryLabelColor,
@@ -73,6 +79,7 @@ func inactiveAccountTitleWidth(
     displayName: String? = nil,
     placement: MenuBarAccountPlacement? = nil,
     menuContentWidth: CGFloat = 340,
+    usageBarDisplayMode: UsageBarDisplayMode = .used,
     now: Date = .now
 ) -> CGFloat {
     let title = inactiveAccountTitle(
@@ -80,6 +87,7 @@ func inactiveAccountTitleWidth(
         displayName: displayName,
         placement: placement,
         menuContentWidth: menuContentWidth,
+        usageBarDisplayMode: usageBarDisplayMode,
         now: now
     )
     let bounds = title.boundingRect(
@@ -98,15 +106,47 @@ func compactMenuRowDisplayName(for accountName: String, maxLength: Int = 20) -> 
     return "\(trimmed.prefix(maxLength - 1))…"
 }
 
-func compactAccountUsageSummary(for account: CodexAccount, now: Date = .now) -> String {
-    let session = compactLimitDetail(prefix: "S", window: account.rateLimits?.sessionWindow, now: now, hidesResetWhenUnused: false)
-    let weekly = compactLimitDetail(prefix: "W", window: account.rateLimits?.weeklyWindow, now: now, hidesResetWhenUnused: false)
+func compactAccountUsageSummary(
+    for account: CodexAccount,
+    usageBarDisplayMode: UsageBarDisplayMode = .used,
+    now: Date = .now
+) -> String {
+    let session = compactLimitDetail(
+        prefix: "S",
+        window: account.rateLimits?.sessionWindow,
+        usageBarDisplayMode: usageBarDisplayMode,
+        now: now,
+        hidesResetWhenUnused: false
+    )
+    let weekly = compactLimitDetail(
+        prefix: "W",
+        window: account.rateLimits?.weeklyWindow,
+        usageBarDisplayMode: usageBarDisplayMode,
+        now: now,
+        hidesResetWhenUnused: false
+    )
     return "\(session) • \(weekly)"
 }
 
-func compactMenuRowUsageSummary(for account: CodexAccount, now: Date = .now) -> String {
-    let session = compactLimitDetail(prefix: "S", window: account.rateLimits?.sessionWindow, now: now, hidesResetWhenUnused: true)
-    let weekly = compactLimitDetail(prefix: "W", window: account.rateLimits?.weeklyWindow, now: now, hidesResetWhenUnused: true)
+func compactMenuRowUsageSummary(
+    for account: CodexAccount,
+    usageBarDisplayMode: UsageBarDisplayMode = .used,
+    now: Date = .now
+) -> String {
+    let session = compactLimitDetail(
+        prefix: "S",
+        window: account.rateLimits?.sessionWindow,
+        usageBarDisplayMode: usageBarDisplayMode,
+        now: now,
+        hidesResetWhenUnused: true
+    )
+    let weekly = compactLimitDetail(
+        prefix: "W",
+        window: account.rateLimits?.weeklyWindow,
+        usageBarDisplayMode: usageBarDisplayMode,
+        now: now,
+        hidesResetWhenUnused: true
+    )
     return "\(session)  \(weekly)"
 }
 
@@ -132,17 +172,50 @@ func compactElapsedTime(since date: Date, now: Date = .now) -> String {
 private func compactLimitDetail(
     prefix: String,
     window: CodexRateLimitWindow?,
+    usageBarDisplayMode: UsageBarDisplayMode,
     now: Date,
     hidesResetWhenUnused: Bool
 ) -> String {
-    let usedText = window.map { "\($0.displayedUsedPercent(at: now))%" } ?? "--"
+    let percentText = usageBarPercentText(
+        for: window,
+        mode: usageBarDisplayMode,
+        now: now,
+        includesSuffix: false
+    )
     if hidesResetWhenUnused, window?.displayedUsedPercent(at: now) == 0 {
-        return "\(prefix) \(usedText)"
+        return "\(prefix) \(percentText)"
     }
     guard let window, let resetText = compactResetText(for: window, now: now) else {
-        return "\(prefix) \(usedText)"
+        return "\(prefix) \(percentText)"
     }
-    return "\(prefix) \(usedText) (\(resetText))"
+    return "\(prefix) \(percentText) (\(resetText))"
+}
+
+func usageBarPercent(forUsedPercent usedPercent: Int, mode: UsageBarDisplayMode) -> Int {
+    let clampedUsedPercent = min(max(usedPercent, 0), 100)
+    switch mode {
+    case .used:
+        return clampedUsedPercent
+    case .left:
+        return 100 - clampedUsedPercent
+    }
+}
+
+func usageBarPercentText(
+    for window: CodexRateLimitWindow?,
+    mode: UsageBarDisplayMode,
+    now: Date = .now,
+    includesSuffix: Bool = true
+) -> String {
+    guard let window else { return "--" }
+    let percent = usageBarPercent(forUsedPercent: window.displayedUsedPercent(at: now), mode: mode)
+    guard includesSuffix else { return "\(percent)%" }
+    switch mode {
+    case .used:
+        return "\(percent)% used"
+    case .left:
+        return "\(percent)% left"
+    }
 }
 
 func resetStatusText(for window: CodexRateLimitWindow) -> String? {
@@ -207,18 +280,42 @@ func statusItemTooltipText(for account: CodexAccount?, now: Date = .now) -> Stri
     return lines.joined(separator: "\n")
 }
 
-func statusItemHoverTitle(for account: CodexAccount?, now: Date = .now) -> String {
-    let session = hoverStatusSegment(prefix: "S", window: account?.rateLimits?.sessionWindow, now: now)
-    let weekly = hoverStatusSegment(prefix: "W", window: account?.rateLimits?.weeklyWindow, now: now)
+func statusItemHoverTitle(
+    for account: CodexAccount?,
+    usageBarDisplayMode: UsageBarDisplayMode = .used,
+    now: Date = .now
+) -> String {
+    let session = hoverStatusSegment(
+        prefix: "S",
+        window: account?.rateLimits?.sessionWindow,
+        usageBarDisplayMode: usageBarDisplayMode,
+        now: now
+    )
+    let weekly = hoverStatusSegment(
+        prefix: "W",
+        window: account?.rateLimits?.weeklyWindow,
+        usageBarDisplayMode: usageBarDisplayMode,
+        now: now
+    )
     return "\(session) \(weekly)"
 }
 
-private func hoverStatusSegment(prefix: String, window: CodexRateLimitWindow?, now: Date) -> String {
+private func hoverStatusSegment(
+    prefix: String,
+    window: CodexRateLimitWindow?,
+    usageBarDisplayMode: UsageBarDisplayMode,
+    now: Date
+) -> String {
     guard let window else { return "\(prefix) --" }
-    if window.displayedUsedPercent(at: now) >= 100, let resetsAt = window.resetsAt, resetsAt > now {
+    let displayedUsedPercent = window.displayedUsedPercent(at: now)
+    if usageBarDisplayMode == .used,
+       displayedUsedPercent >= 100,
+       let resetsAt = window.resetsAt,
+       resetsAt > now {
         return "\(prefix) \(relativeResetText(until: resetsAt, now: now))"
     }
-    return "\(prefix) \(window.displayedUsedPercent(at: now))%"
+    let percent = usageBarPercent(forUsedPercent: displayedUsedPercent, mode: usageBarDisplayMode)
+    return "\(prefix) \(percent)%"
 }
 
 private func compactHourMinuteText(until futureDate: Date, now: Date) -> String {

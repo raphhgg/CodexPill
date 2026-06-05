@@ -127,6 +127,20 @@ struct MenuBarAccountPresentationTests {
     }
 
     @Test
+    func usageBarPercentTextCanDisplayUsedOrLeft() {
+        let now = Date(timeIntervalSince1970: 1_744_195_200)
+        let window = CodexRateLimitWindow(
+            usedPercent: 42,
+            resetsAt: now.addingTimeInterval(2 * 60 * 60),
+            windowDurationMinutes: 300
+        )
+
+        #expect(usageBarPercentText(for: window, mode: .used, now: now) == "42% used")
+        #expect(usageBarPercentText(for: window, mode: .left, now: now) == "58% left")
+        #expect(usageBarPercent(forUsedPercent: 42, mode: .left) == 58)
+    }
+
+    @Test
     func statusItemTooltipShowsIdentityAndResetCountdownsForFullLimits() {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
         let account = CodexAccount(
@@ -292,6 +306,41 @@ struct MenuBarAccountPresentationTests {
         )
 
         #expect(statusItemHoverTitle(for: account, now: now) == "S 42% W 68%")
+    }
+
+    @Test
+    func statusItemHoverTitleCanDisplayPercentLeft() {
+        let now = Date(timeIntervalSince1970: 1_744_195_200)
+        let account = CodexAccount(
+            id: UUID(),
+            name: "Business 2",
+            snapshotFileName: "business-2.json",
+            createdAt: now,
+            updatedAt: now,
+            email: nil,
+            planType: "pro",
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: nil,
+                limitName: nil,
+                planType: "pro",
+                primary: CodexRateLimitWindow(
+                    usedPercent: 42,
+                    resetsAt: nil,
+                    windowDurationMinutes: 300
+                ),
+                secondary: CodexRateLimitWindow(
+                    usedPercent: 68,
+                    resetsAt: nil,
+                    windowDurationMinutes: 10_080
+                ),
+                fetchedAt: now
+            ),
+            identity: .empty
+        )
+
+        #expect(
+            statusItemHoverTitle(for: account, usageBarDisplayMode: .left, now: now) == "S 58% W 32%"
+        )
     }
 
     @Test

@@ -29,9 +29,33 @@ final class StatusItemSettingsStore {
         }
     }
 
+    var sessionProgressAccentColor: StatusItemAccentColor? {
+        didSet {
+            persistColor(sessionProgressAccentColor, key: Self.sessionProgressAccentColorKey)
+        }
+    }
+
     var progressAccentColor: StatusItemAccentColor? {
         didSet {
             persistColor(progressAccentColor, key: Self.progressAccentColorKey)
+        }
+    }
+
+    var usageBarDisplayMode: UsageBarDisplayMode {
+        didSet {
+            userDefaults.set(usageBarDisplayMode.rawValue, forKey: Self.usageBarDisplayModeKey)
+        }
+    }
+
+    var usageBarLayout: UsageBarLayout {
+        didSet {
+            userDefaults.set(usageBarLayout.rawValue, forKey: Self.usageBarLayoutKey)
+        }
+    }
+
+    var otherAccountsDisplayMode: OtherAccountsDisplayMode {
+        didSet {
+            userDefaults.set(otherAccountsDisplayMode.rawValue, forKey: Self.otherAccountsDisplayModeKey)
         }
     }
 
@@ -52,7 +76,11 @@ final class StatusItemSettingsStore {
     private static let statusBarIndicatorStyleKey = "statusBarIndicatorStyle"
     private static let statusBarMonochromeKey = "statusBarMonochrome"
     private static let statusBarDisplayModeKey = "statusBarDisplayMode"
+    private static let sessionProgressAccentColorKey = "sessionProgressAccentColor"
     private static let progressAccentColorKey = "progressAccentColor"
+    private static let usageBarDisplayModeKey = "usageBarDisplayMode"
+    private static let usageBarLayoutKey = "usageBarLayout"
+    private static let otherAccountsDisplayModeKey = "otherAccountsDisplayMode"
     private static let pacingMarkersEnabledKey = "pacingMarkersEnabled"
     private static let revealStatusItemTitleShortcutKey = "revealStatusItemTitleShortcut"
     private static let revealStatusItemTitleShortcutEnabledKey = "revealStatusItemTitleShortcutEnabled"
@@ -72,16 +100,24 @@ final class StatusItemSettingsStore {
         statusBarMonochrome = userDefaults.object(forKey: Self.statusBarMonochromeKey) as? Bool ?? true
         statusBarDisplayMode = userDefaults.string(forKey: Self.statusBarDisplayModeKey)
             .flatMap(StatusBarDisplayMode.init(rawValue:)) ?? .textOnHover
+        sessionProgressAccentColor = Self.loadColor(from: userDefaults, key: Self.sessionProgressAccentColorKey)
         progressAccentColor = Self.loadColor(from: userDefaults, key: Self.progressAccentColorKey)
+        usageBarDisplayMode = userDefaults.string(forKey: Self.usageBarDisplayModeKey)
+            .flatMap(UsageBarDisplayMode.init(rawValue:)) ?? .used
+        usageBarLayout = userDefaults.string(forKey: Self.usageBarLayoutKey)
+            .flatMap(UsageBarLayout.init(rawValue:)) ?? .classic
+        otherAccountsDisplayMode = userDefaults.string(forKey: Self.otherAccountsDisplayModeKey)
+            .flatMap(OtherAccountsDisplayMode.init(rawValue:)) ?? .text
         pacingMarkersEnabled = userDefaults.object(forKey: Self.pacingMarkersEnabledKey) as? Bool ?? true
         revealStatusItemTitleShortcut = Self.loadRevealShortcut(from: userDefaults)
     }
 
     var hasCustomProgressAccentColor: Bool {
-        progressAccentColor != nil
+        sessionProgressAccentColor != nil || progressAccentColor != nil
     }
 
     func resetProgressAccentColor() {
+        sessionProgressAccentColor = nil
         progressAccentColor = nil
     }
 

@@ -261,7 +261,7 @@ struct MenuBarUIValidationTests {
         let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, now: now)
         let preferences = try! #require(snapshot.sections.first(where: { $0.title == "Preferences" }))
 
-        #expect(preferences.items.contains("Accent Color: \(hexString(for: state.progressAccentColor))"))
+        #expect(preferences.items.contains("Accent Color Weekly: \(hexString(for: state.progressAccentColor))"))
     }
 
     @Test
