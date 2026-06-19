@@ -53,6 +53,7 @@ func mergeAppServerRateLimits(
         planType: current.planType ?? previous.planType,
         primary: mergeAppServerRateLimitWindow(previous: previous.primary, current: current.primary),
         secondary: mergeAppServerRateLimitWindow(previous: previous.secondary, current: current.secondary),
+        usageResetsAvailableCount: current.usageResetsAvailableCount ?? previous.usageResetsAvailableCount,
         fetchedAt: max(previous.fetchedAt, current.fetchedAt)
     )
 }

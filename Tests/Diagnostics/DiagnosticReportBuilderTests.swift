@@ -155,6 +155,26 @@ struct DiagnosticReportBuilderTests {
     }
 
     @Test
+    func usageResetAvailabilityDoesNotExposeRawAppServerFieldNamesInDiagnostics() throws {
+        let report = DiagnosticReportBuilder(
+            appMetadata: .fixture,
+            systemMetadata: .fixture()
+        ).makeReport(
+            state: makeMenuState(
+                activeAccount: makeAccount(usageResetsAvailableCount: 2),
+                inactiveAccounts: []
+            ),
+            events: []
+        )
+        let json = try encodedJSONString(report)
+
+        #expect(report.accounts.first?.hasRateLimitSnapshot == true)
+        #expect(!json.contains("rateLimitResetCredits"))
+        #expect(!json.contains("availableCount"))
+        #expect(!json.contains("usageResetsAvailableCount"))
+    }
+
+    @Test
     func aliasesAreStableWithinOneExportButDependOnlyOnExportLocalEncounterOrder() {
         let firstID = UUID(uuidString: "55555555-5555-5555-5555-555555555555")!
         let secondID = UUID(uuidString: "66666666-6666-6666-6666-666666666666")!
@@ -248,7 +268,8 @@ private func makeAccount(
     name: String = "Account",
     email: String? = nil,
     stableAccountID: String? = nil,
-    fetchedAt: Date = Date(timeIntervalSince1970: 1_800_000_000)
+    fetchedAt: Date = Date(timeIntervalSince1970: 1_800_000_000),
+    usageResetsAvailableCount: Int? = nil
 ) -> CodexAccount {
     CodexAccount(
         id: id,
@@ -264,6 +285,7 @@ private func makeAccount(
             planType: "plus",
             primary: CodexRateLimitWindow(usedPercent: 40, resetsAt: fetchedAt.addingTimeInterval(1800), windowDurationMinutes: 300),
             secondary: CodexRateLimitWindow(usedPercent: 70, resetsAt: fetchedAt.addingTimeInterval(86_400), windowDurationMinutes: 10_080),
+            usageResetsAvailableCount: usageResetsAvailableCount,
             fetchedAt: fetchedAt
         ),
         identity: CodexAccountIdentity(stableAccountID: stableAccountID)

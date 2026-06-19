@@ -15,7 +15,31 @@ struct CodexAppServerRateLimits: Equatable {
     var planType: String?
     var primary: CodexAppServerRateLimitWindow?
     var secondary: CodexAppServerRateLimitWindow?
+    var usageResetsAvailableCount: Int?
     var fetchedAt: Date
+
+    init(
+        limitID: String?,
+        limitName: String?,
+        planType: String?,
+        primary: CodexAppServerRateLimitWindow?,
+        secondary: CodexAppServerRateLimitWindow?,
+        usageResetsAvailableCount: Int? = nil,
+        fetchedAt: Date
+    ) {
+        self.limitID = limitID
+        self.limitName = limitName
+        self.planType = planType
+        self.primary = primary
+        self.secondary = secondary
+        self.usageResetsAvailableCount = Self.normalizedUsageResetsAvailableCount(usageResetsAvailableCount)
+        self.fetchedAt = fetchedAt
+    }
+
+    private static func normalizedUsageResetsAvailableCount(_ count: Int?) -> Int? {
+        guard let count, count > 0 else { return nil }
+        return count
+    }
 }
 
 struct CodexAppServerRateLimitWindow: Equatable {

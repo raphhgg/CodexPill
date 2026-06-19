@@ -72,6 +72,68 @@ struct CodexAppServerParserTests {
     }
 
     @Test
+    func rateLimitParserPreservesPositiveUsageResetAvailability() throws {
+        let response = try decodeRateLimitsResponse("""
+        {
+          "rateLimits": {
+            "limitId": "codex",
+            "planType": "team",
+            "primary": { "usedPercent": 100, "resetsAt": 2000000000, "windowDurationMins": 300 },
+            "secondary": { "usedPercent": 34, "resetsAt": 2000500000, "windowDurationMins": 10080 }
+          },
+          "rateLimitResetCredits": {
+            "availableCount": 2
+          }
+        }
+        """)
+
+        let rateLimits = try #require(CodexAppServerRateLimitParser().parse(response))
+
+        #expect(rateLimits.usageResetsAvailableCount == 2)
+    }
+
+    @Test(arguments: [
+        """
+        {
+          "rateLimits": {
+            "limitId": "codex",
+            "primary": { "usedPercent": 100 },
+            "secondary": { "usedPercent": 34 }
+          }
+        }
+        """,
+        """
+        {
+          "rateLimits": {
+            "limitId": "codex",
+            "primary": { "usedPercent": 100 },
+            "secondary": { "usedPercent": 34 }
+          },
+          "rateLimitResetCredits": null
+        }
+        """,
+        """
+        {
+          "rateLimits": {
+            "limitId": "codex",
+            "primary": { "usedPercent": 100 },
+            "secondary": { "usedPercent": 34 }
+          },
+          "rateLimitResetCredits": {
+            "availableCount": 0
+          }
+        }
+        """
+    ])
+    func rateLimitParserOmitsMissingNullAndZeroUsageResetAvailability(json: String) throws {
+        let response = try decodeRateLimitsResponse(json)
+
+        let rateLimits = try #require(CodexAppServerRateLimitParser().parse(response))
+
+        #expect(rateLimits.usageResetsAvailableCount == nil)
+    }
+
+    @Test
     func rateLimitParserUsesLegacyRateLimitsWhenCodexLimitIsMissing() throws {
         let response = try decodeRateLimitsResponse("""
         {
@@ -176,6 +238,7 @@ struct CodexAppServerParserTests {
                     resetsAt: Date(timeIntervalSince1970: 2_000_500_000),
                     windowDurationMinutes: 10_080
                 ),
+                usageResetsAvailableCount: 2,
                 fetchedAt: fetchedAt
             )
         ))
@@ -188,6 +251,7 @@ struct CodexAppServerParserTests {
         #expect(status.rateLimits?.limitName == "Codex")
         #expect(status.rateLimits?.primary?.usedPercent == 12)
         #expect(status.rateLimits?.secondary?.windowDurationMinutes == 10_080)
+        #expect(status.rateLimits?.usageResetsAvailableCount == 2)
         #expect(status.rateLimits?.fetchedAt == fetchedAt)
     }
 

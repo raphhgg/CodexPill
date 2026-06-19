@@ -16,20 +16,32 @@ struct CodexAppServerAccountParser {
 
 struct CodexAppServerRateLimitParser {
     func parse(_ response: AppServerRateLimitsResponse, fetchedAt: Date = Date()) -> CodexAppServerRateLimits? {
-        if let codex = response.rateLimitsByLimitId?["codex"].flatMap({ parseSnapshot($0, fetchedAt: fetchedAt) }),
+        let usageResetsAvailableCount = normalizedUsageResetsAvailableCount(
+            response.rateLimitResetCredits?.availableCount
+        )
+        if let codex = response.rateLimitsByLimitId?["codex"].flatMap({
+            parseSnapshot($0, usageResetsAvailableCount: usageResetsAvailableCount, fetchedAt: fetchedAt)
+        }),
            codex.isComplete {
             return codex
         }
-        return response.rateLimits.flatMap { parseSnapshot($0, fetchedAt: fetchedAt) }
+        return response.rateLimits.flatMap {
+            parseSnapshot($0, usageResetsAvailableCount: usageResetsAvailableCount, fetchedAt: fetchedAt)
+        }
     }
 
-    private func parseSnapshot(_ snapshot: RateLimitSnapshot, fetchedAt: Date) -> CodexAppServerRateLimits {
+    private func parseSnapshot(
+        _ snapshot: RateLimitSnapshot,
+        usageResetsAvailableCount: Int?,
+        fetchedAt: Date
+    ) -> CodexAppServerRateLimits {
         CodexAppServerRateLimits(
             limitID: snapshot.limitId,
             limitName: snapshot.limitName,
             planType: snapshot.planType,
             primary: snapshot.primary.flatMap(parseWindow),
             secondary: snapshot.secondary.flatMap(parseWindow),
+            usageResetsAvailableCount: usageResetsAvailableCount,
             fetchedAt: fetchedAt
         )
     }
@@ -41,6 +53,11 @@ struct CodexAppServerRateLimitParser {
             resetsAt: window.resetsAt.map { Date(timeIntervalSince1970: TimeInterval($0)) },
             windowDurationMinutes: window.windowDurationMins
         )
+    }
+
+    private func normalizedUsageResetsAvailableCount(_ count: Int?) -> Int? {
+        guard let count, count > 0 else { return nil }
+        return count
     }
 }
 
@@ -66,13 +83,16 @@ struct AppServerAccountResponse: Decodable {
 struct AppServerRateLimitsResponse: Decodable {
     let rateLimits: RateLimitSnapshot?
     let rateLimitsByLimitId: [String: RateLimitSnapshot]?
+    let rateLimitResetCredits: RateLimitResetCredits?
 
     init(
         rateLimits: RateLimitSnapshot?,
-        rateLimitsByLimitId: [String: RateLimitSnapshot]? = nil
+        rateLimitsByLimitId: [String: RateLimitSnapshot]? = nil,
+        rateLimitResetCredits: RateLimitResetCredits? = nil
     ) {
         self.rateLimits = rateLimits
         self.rateLimitsByLimitId = rateLimitsByLimitId
+        self.rateLimitResetCredits = rateLimitResetCredits
     }
 }
 
@@ -88,4 +108,8 @@ struct RateLimitWindow: Decodable {
     let usedPercent: Int?
     let resetsAt: Int?
     let windowDurationMins: Int?
+}
+
+struct RateLimitResetCredits: Decodable {
+    let availableCount: Int?
 }

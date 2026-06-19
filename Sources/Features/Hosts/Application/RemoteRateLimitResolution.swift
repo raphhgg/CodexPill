@@ -24,6 +24,7 @@ struct RemoteRateLimitResolution {
             planType: preferredMetadataValue(remote.planType, fallback: resolvedFallback.planType),
             primary: preferredWindow(remote.primary, fallback: resolvedFallback.primary),
             secondary: preferredWindow(remote.secondary, fallback: resolvedFallback.secondary),
+            usageResetsAvailableCount: remote.usageResetsAvailableCount,
             fetchedAt: max(remote.fetchedAt, resolvedFallback.fetchedAt)
         )
     }

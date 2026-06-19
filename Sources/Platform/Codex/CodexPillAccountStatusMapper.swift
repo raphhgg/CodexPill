@@ -20,6 +20,7 @@ struct CodexPillAccountStatusMapper {
             planType: appServerRateLimits.planType,
             primary: appServerRateLimits.primary.map(rateLimitWindow),
             secondary: appServerRateLimits.secondary.map(rateLimitWindow),
+            usageResetsAvailableCount: appServerRateLimits.usageResetsAvailableCount,
             fetchedAt: appServerRateLimits.fetchedAt
         )
     }

@@ -20,6 +20,7 @@ struct RefreshActiveAccountUseCaseTests {
                 resetsAt: .now.addingTimeInterval(86_400),
                 windowDurationMinutes: 10_080
             ),
+            usageResetsAvailableCount: 2,
             fetchedAt: .now
         )
         let existingRateLimits = CodexRateLimitSnapshot(
@@ -59,6 +60,7 @@ struct RefreshActiveAccountUseCaseTests {
         #expect(result.accounts.first?.email == "new@example.com")
         #expect(result.accounts.first?.planType == "prolite")
         #expect(result.accounts.first?.rateLimits == refreshedRateLimits)
+        #expect(result.accounts.first?.rateLimits?.usageResetsAvailableCount == 2)
         #expect(repository.savedAccounts == result.accounts)
         #expect(result.accounts.first?.updatedAt != .distantPast)
     }

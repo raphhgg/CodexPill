@@ -36,6 +36,12 @@ Refresh account metadata, plan, and rate-limit snapshots for the full account su
 
 See [Refresh Accounts](05-refresh-accounts.md).
 
+### 06. Usage Resets
+
+Display Codex usage reset availability and allow the active local account to reset usage through a deliberate, confirmed action.
+
+See [Usage Resets](06-usage-resets.md).
+
 ## Related Account Operations
 
 ### Remote Account Setup

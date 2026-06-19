@@ -431,6 +431,20 @@ struct CodexAppServerClientTests {
     }
 
     @Test
+    func consumeOutputDataPreservesUsageResetAvailabilityFromEnvelope() throws {
+        let decoder = JSONDecoder()
+        let state = AppServerSessionState()
+
+        let accountLine = #"{"id":2,"result":{"account":{"email":"user@example.com","planType":"team"}}}"#
+        let rateLimitsLine = #"{"id":3,"result":{"rateLimits":{"planType":"team","primary":{"usedPercent":100,"resetsAt":2000000000,"windowDurationMins":300},"secondary":{"usedPercent":38,"resetsAt":2000500000,"windowDurationMins":10080}},"rateLimitResetCredits":{"availableCount":2}}}"#
+
+        #expect(try consumeOutputData(Data((accountLine + "\n").utf8), decoder: decoder, state: state) == nil)
+        let status = try consumeOutputData(Data((rateLimitsLine + "\n").utf8), decoder: decoder, state: state)
+
+        #expect(status?.rateLimits?.usageResetsAvailableCount == 2)
+    }
+
+    @Test
     func consumeOutputDataPrefersCompleteCodexLimitByIDOverFallbackRateLimits() throws {
         let decoder = JSONDecoder()
         let state = AppServerSessionState()
@@ -552,6 +566,50 @@ struct CodexAppServerClientTests {
         )
 
         #expect(appServerStatusNeedsRetry(status))
+    }
+
+    @Test
+    func mergeAppServerStatusesPreservesUsageResetAvailabilityAcrossPartialRateLimitSnapshots() {
+        let previous = CodexAccountStatus(
+            email: "user@example.com",
+            planType: "team",
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: "codex",
+                limitName: nil,
+                planType: "team",
+                primary: CodexRateLimitWindow(
+                    usedPercent: 100,
+                    resetsAt: Date(timeIntervalSince1970: 2_000_000_000),
+                    windowDurationMinutes: 300
+                ),
+                secondary: nil,
+                usageResetsAvailableCount: 2,
+                fetchedAt: Date(timeIntervalSince1970: 2_000_000_000)
+            )
+        )
+        let current = CodexAccountStatus(
+            email: nil,
+            planType: nil,
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: nil,
+                limitName: "Codex",
+                planType: nil,
+                primary: nil,
+                secondary: CodexRateLimitWindow(
+                    usedPercent: 34,
+                    resetsAt: Date(timeIntervalSince1970: 2_000_500_000),
+                    windowDurationMinutes: 10_080
+                ),
+                fetchedAt: Date(timeIntervalSince1970: 2_000_000_100)
+            )
+        )
+
+        let merged = mergeAppServerStatuses(previous: previous, current: current)
+
+        #expect(merged.email == "user@example.com")
+        #expect(merged.rateLimits?.primary?.usedPercent == 100)
+        #expect(merged.rateLimits?.secondary?.usedPercent == 34)
+        #expect(merged.rateLimits?.usageResetsAvailableCount == 2)
     }
 
     @Test

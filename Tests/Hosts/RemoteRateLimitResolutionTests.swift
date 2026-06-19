@@ -81,6 +81,7 @@ struct RemoteRateLimitResolutionTests {
                 windowDurationMinutes: 300
             ),
             secondary: nil,
+            usageResetsAvailableCount: 2,
             fetchedAt: .now
         )
 
@@ -94,6 +95,48 @@ struct RemoteRateLimitResolutionTests {
 
         #expect(result?.primary?.usedPercent == 12)
         #expect(result?.primary?.resetsAt != nil)
+        #expect(result?.usageResetsAvailableCount == 2)
+    }
+
+    @Test
+    func freshRemoteSnapshotWithoutUsageResetsDoesNotInheritFallbackAvailability() {
+        let baseAccount = makeAccount(
+            email: "user@example.com",
+            stableAccountID: "acct-team",
+            sessionUsedPercent: 100,
+            sessionResetsAt: Date().addingTimeInterval(3600),
+            weeklyUsedPercent: 15,
+            weeklyResetsAt: Date().addingTimeInterval(6 * 24 * 60 * 60),
+            usageResetsAvailableCount: 4
+        )
+        let remote = CodexRateLimitSnapshot(
+            limitID: nil,
+            limitName: nil,
+            planType: "team",
+            primary: CodexRateLimitWindow(
+                usedPercent: 20,
+                resetsAt: Date().addingTimeInterval(1800),
+                windowDurationMinutes: 300
+            ),
+            secondary: CodexRateLimitWindow(
+                usedPercent: 8,
+                resetsAt: Date().addingTimeInterval(6 * 24 * 60 * 60),
+                windowDurationMinutes: 10_080
+            ),
+            fetchedAt: .now
+        )
+
+        let result = RemoteRateLimitResolution().preferredRateLimits(
+            remote: remote,
+            fallback: baseAccount.rateLimits,
+            candidateAccounts: [baseAccount],
+            baseAccount: baseAccount,
+            remoteEmail: "user@example.com"
+        )
+
+        #expect(result?.primary?.usedPercent == 20)
+        #expect(result?.secondary?.usedPercent == 8)
+        #expect(result?.usageResetsAvailableCount == nil)
     }
 
     @Test
@@ -314,7 +357,8 @@ struct RemoteRateLimitResolutionTests {
         weeklyUsedPercent: Int,
         weeklyResetsAt: Date?,
         authPrincipalIdentity: CodexAuthPrincipalIdentity? = nil,
-        workspaceIdentity: CodexWorkspaceIdentity? = nil
+        workspaceIdentity: CodexWorkspaceIdentity? = nil,
+        usageResetsAvailableCount: Int? = nil
     ) -> CodexAccount {
         CodexAccount(
             id: UUID(),
@@ -338,6 +382,7 @@ struct RemoteRateLimitResolutionTests {
                     resetsAt: weeklyResetsAt,
                     windowDurationMinutes: 10_080
                 ),
+                usageResetsAvailableCount: usageResetsAvailableCount,
                 fetchedAt: .now
             ),
             identity: CodexAccountIdentity(

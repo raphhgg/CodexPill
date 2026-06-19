@@ -17,14 +17,14 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
                 "missing": CodexAccountStatus(
                     email: "missing@example.com",
                     planType: "pro",
-                    rateLimits: makeRateLimitsSnapshot()
+                    rateLimits: makeRateLimitsSnapshot(usageResetsAvailableCount: 3)
                 )
             ], authService: auth),
             savedAccountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: [
                 "missing": CodexAccountStatus(
                     email: "missing@example.com",
                     planType: "pro",
-                    rateLimits: makeRateLimitsSnapshot()
+                    rateLimits: makeRateLimitsSnapshot(usageResetsAvailableCount: 3)
                 )
             ], authService: auth),
             identityResolver: SavedAccountIdentityResolver(
@@ -43,6 +43,7 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
         let preservedReady = try #require(result.accounts.first(where: { $0.id == inactiveReady.id }))
 
         #expect(hydratedMissing.rateLimits?.primary?.usedPercent == 46)
+        #expect(hydratedMissing.rateLimits?.usageResetsAvailableCount == 3)
         #expect(hydratedMissing.email == "missing@example.com")
         #expect(preservedReady.rateLimits != nil)
         #expect(auth.recordedSnapshotReads() == [inactiveMissing.id])
@@ -322,7 +323,7 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
         )
     }
 
-    private func makeRateLimitsSnapshot() -> CodexRateLimitSnapshot {
+    private func makeRateLimitsSnapshot(usageResetsAvailableCount: Int? = nil) -> CodexRateLimitSnapshot {
         CodexRateLimitSnapshot(
             limitID: "codex",
             limitName: nil,
@@ -337,6 +338,7 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
                 resetsAt: Date(timeIntervalSince1970: 1_776_842_938),
                 windowDurationMinutes: 10_080
             ),
+            usageResetsAvailableCount: usageResetsAvailableCount,
             fetchedAt: Date(timeIntervalSince1970: 1_776_200_000)
         )
     }
