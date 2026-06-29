@@ -17,6 +17,25 @@ unit and integration tests.
 - UI copy and menu composition changes should be covered by menu projection or
   presentation tests where possible.
 
+## Kite Scenario Manifest
+
+CodexPill exposes reusable product scenarios for Kite in `.kite/scenarios.json`.
+The manifest is product-owned: CodexPill owns scenario IDs, commands, fixture
+state, and product semantics; Kite owns manifest validation, artifact
+validation, receipts, and reports.
+
+The current clean-main manifest contains one deterministic hosted-menu scenario:
+
+```bash
+make verify-ui SCENARIO=hosted-menu-default
+```
+
+That command writes a hosted validation screenshot, `ui-tree.json`, and
+`scenario-summary.json` under `build/verification/hosted-menu-default/`. This is
+deterministic UI evidence, not SwiftUI preview proof and not live macOS menu-bar
+proof. Preview and live scenarios should be added only when their product-local
+commands and fixtures exist on the branch being validated.
+
 ## Main Local Gate
 
 Run the default test suite before shipping changes:

@@ -1,0 +1,66 @@
+{
+  "kind": "product_scenario_manifest",
+  "schemaVersion": "kite.validation.scenarios.v1",
+  "product": {
+    "id": "codexpill",
+    "name": "CodexPill",
+    "platforms": ["macos"]
+  },
+  "scenarios": [
+    {
+      "id": "hosted-menu-default",
+      "title": "Hosted menu default",
+      "targetSurface": "CodexPill hosted menu validation view",
+      "validationModes": ["unit_only"],
+      "suites": ["smoke", "deterministic"],
+      "proof": {
+        "layer": "deterministic-ui",
+        "artifactSource": "hosted-validation-view",
+        "nonClaims": [
+          "Does not prove SwiftUI preview rendering.",
+          "Does not prove the live macOS menu bar surface.",
+          "Does not prove live Codex account or app-server state."
+        ]
+      },
+      "command": {
+        "run": "make verify-ui SCENARIO=hosted-menu-default"
+      },
+      "expectedArtifacts": [
+        {
+          "id": "hosted-menu-default-screenshot",
+          "kind": "visual_snapshot",
+          "path": "build/verification/hosted-menu-default/screenshots/hosted-menu-default.png",
+          "claimScope": ["deterministic-hosted-view"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "hosted-menu-default-tree",
+          "kind": "semantic_snapshot",
+          "path": "build/verification/hosted-menu-default/ui-tree.json",
+          "claimScope": ["semantic-ui-tree"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "hosted-menu-default-summary",
+          "kind": "reconciliation_report",
+          "path": "build/verification/hosted-menu-default/scenario-summary.json",
+          "claimScope": ["deterministic-reconciled"],
+          "redactionStatus": "sanitized"
+        }
+      ],
+      "expectedMetadata": {
+        "scenario": "hosted-menu-default"
+      },
+      "privacy": {
+        "fixtureData": "synthetic",
+        "restrictedEvidence": [
+          "account_data",
+          "hostname",
+          "raw_local_path",
+          "private_product_data",
+          "token"
+        ]
+      }
+    }
+  ]
+}
