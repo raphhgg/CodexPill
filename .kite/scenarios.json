@@ -28,6 +28,24 @@
       ]
     },
     {
+      "id": "diagnostics-export",
+      "title": "Diagnostics export",
+      "acceptanceCriteria": [
+        {
+          "id": "diagnostics-export-confirms-before-report",
+          "statement": "Diagnostics export must present an explicit redacted-support disclosure before building or presenting an export report."
+        },
+        {
+          "id": "diagnostics-export-cancel-writes-no-report",
+          "statement": "Cancelling the diagnostics disclosure must stop before report export and must not write or present a support artifact."
+        },
+        {
+          "id": "diagnostics-export-redacted-artifact-only",
+          "statement": "Confirmed diagnostics export must build only an allowlisted per-export aliased support artifact and must reject or alias sensitive account, host, path, session, auth, and token-like evidence."
+        }
+      ]
+    },
+    {
       "id": "active-account-truth",
       "title": "Active account truth",
       "acceptanceCriteria": [
@@ -504,6 +522,93 @@
           "hostname",
           "raw_local_path",
           "private_product_data",
+          "token"
+        ]
+      }
+    },
+    {
+      "id": "diagnostics-export-confirmation",
+      "title": "Diagnostics export confirmation",
+      "featureId": "diagnostics-export",
+      "acceptanceCriteria": [
+        "diagnostics-export-confirms-before-report",
+        "diagnostics-export-cancel-writes-no-report",
+        "diagnostics-export-redacted-artifact-only"
+      ],
+      "targetSurface": "CodexPill Diagnostics menu action, confirmation flow, and diagnostic report builder",
+      "validationModes": ["unit_only"],
+      "suites": ["deterministic"],
+      "validationIntent": {
+        "featureRisk": ["privacy", "diagnostics", "user_confirmation"],
+        "primaryProof": "diagnostics-export",
+        "supportingProof": ["workflow-event-log", "privacy-redaction"],
+        "requiredEvidence": ["test-output", "workflow-receipt", "scenario-summary"],
+        "nonClaims": [
+          "Does not prove live NSSavePanel rendering or file writing.",
+          "Does not inspect real local logs, auth snapshots, SSH output, UserDefaults, or Codex session history.",
+          "Does not prove live macOS menu-bar interaction."
+        ],
+        "liveOptIn": {
+          "required": false
+        }
+      },
+      "nonRegression": {
+        "tier": "changed-feature",
+        "runWhen": [
+          "local-handoff",
+          "diagnostics-export-changed",
+          "menu-action-wiring-changed",
+          "alert-copy-changed",
+          "scenario-fixture-changed"
+        ],
+        "blocking": true
+      },
+      "proof": {
+        "layer": "diagnostics-export",
+        "artifactSource": "focused-test-suite",
+        "nonClaims": [
+          "Does not prove live NSSavePanel rendering or file writing.",
+          "Does not inspect real local logs, auth snapshots, SSH output, UserDefaults, or Codex session history.",
+          "Does not prove live macOS menu-bar interaction."
+        ]
+      },
+      "command": {
+        "run": "make verify-diagnostics-export-confirmation-scenario"
+      },
+      "expectedArtifacts": [
+        {
+          "id": "diagnostics-export-confirmation-result-bundle",
+          "kind": "test_output",
+          "path": "build/results/local/CodexPill.xcresult",
+          "claimScope": ["diagnostics-menu-alert-report-tests"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "diagnostics-export-confirmation-workflow-receipt",
+          "kind": "workflow_receipt",
+          "path": "build/verification/diagnostics-export-confirmation/workflow-receipt.json",
+          "claimScope": ["diagnostics-export-confirmation-events"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "diagnostics-export-confirmation-summary",
+          "kind": "reconciliation_report",
+          "path": "build/verification/diagnostics-export-confirmation/scenario-summary.json",
+          "claimScope": ["diagnostics-export-reconciled"],
+          "redactionStatus": "sanitized"
+        }
+      ],
+      "expectedMetadata": {
+        "scenario": "diagnostics-export-confirmation"
+      },
+      "privacy": {
+        "fixtureData": "synthetic",
+        "restrictedEvidence": [
+          "account_data",
+          "hostname",
+          "private_product_data",
+          "raw_local_path",
+          "raw_transcript",
           "token"
         ]
       }

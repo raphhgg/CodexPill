@@ -11,6 +11,8 @@ SCENARIO ?= hosted-menu-default
 VERIFICATION_DIR := $(BUILD_ROOT)/verification
 VERIFICATION_REQUEST := $(VERIFICATION_DIR)/request.json
 VERIFICATION_ARTIFACTS := $(BUILD_ROOT)/verification/$(SCENARIO)
+DIAGNOSTICS_EXPORT_SCENARIO := diagnostics-export-confirmation
+DIAGNOSTICS_EXPORT_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(DIAGNOSTICS_EXPORT_SCENARIO)
 RENAME_SCENARIO := rename-account-label-only
 RENAME_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(RENAME_SCENARIO)
 ADD_ACCOUNT_NAME_SCENARIO := add-account-name-validation
@@ -46,7 +48,7 @@ TOKEN_USAGE_CACHE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE
 TOKEN_USAGE_PRIVACY_SCENARIO := token-usage-privacy-no-raw-session
 TOKEN_USAGE_PRIVACY_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_PRIVACY_SCENARIO)
 
-.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-switch-account-remote-install-verify-scenario verify-remote-host-add-panel-validation-scenario verify-remote-host-install-switch-current-account-scenario verify-remote-host-verification-failure-scenario verify-remote-host-rate-limit-fallback-scenario verify-remove-account-active-targets-sign-out-scenario verify-remove-account-signout-failure-keeps-control-scenario verify-refresh-inactive-isolated-status-scenario verify-refresh-active-relinks-same-account-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
+.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-diagnostics-export-confirmation-scenario verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-switch-account-remote-install-verify-scenario verify-remote-host-add-panel-validation-scenario verify-remote-host-install-switch-current-account-scenario verify-remote-host-verification-failure-scenario verify-remote-host-rate-limit-fallback-scenario verify-remove-account-active-targets-sign-out-scenario verify-remove-account-signout-failure-keeps-control-scenario verify-refresh-inactive-isolated-status-scenario verify-refresh-active-relinks-same-account-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -95,6 +97,58 @@ verify-ui: generate prepare-result-bundle
 		-derivedDataPath "$(DERIVED_DATA)" \
 		-resultBundlePath "$(RESULT_BUNDLE)" \
 		PRODUCT_BUNDLE_IDENTIFIER="$(STAGING_BUNDLE_ID)"
+
+verify-diagnostics-export-confirmation-scenario: generate prepare-result-bundle
+	mkdir -p "$(DIAGNOSTICS_EXPORT_SCENARIO_ARTIFACTS)"
+	xcodebuild test \
+		-project $(PROJECT_PATH) \
+		-scheme $(APP_NAME) \
+		-configuration Debug \
+		-destination "platform=macOS" \
+		-derivedDataPath "$(DERIVED_DATA)" \
+		-resultBundlePath "$(RESULT_BUNDLE)" \
+		-only-testing:CodexPillTests/MenuBarMenuBuilderTests \
+		-only-testing:CodexPillTests/MenuBarAlertFactoryTests \
+		-only-testing:CodexPillTests/DiagnosticReportBuilderTests \
+		PRODUCT_BUNDLE_IDENTIFIER="$(STAGING_BUNDLE_ID)"
+	printf '%s\n' \
+		'{' \
+		'  "scenario": "$(DIAGNOSTICS_EXPORT_SCENARIO)",' \
+		'  "proofLayer": "diagnostics-export",' \
+		'  "events": [' \
+		'    "Diagnostics action is present in the menu near About and routes to exportDiagnosticReport",' \
+		'    "Diagnostics export presents the redacted-support disclosure before building a report",' \
+		'    "Cancelling the disclosure produces no exported report",' \
+		'    "Confirming the disclosure builds a per-export aliased diagnostic report",' \
+		'    "Diagnostics export copy names omitted auth tokens, emails, hostnames, and raw logs"' \
+		'  ],' \
+		'  "status": "passed"' \
+		'}' > "$(DIAGNOSTICS_EXPORT_SCENARIO_ARTIFACTS)/workflow-receipt.json"
+	printf '%s\n' \
+		'{' \
+		'  "assertions": [' \
+		'    "Diagnostics export requires explicit confirmation before report export",' \
+		'    "Cancellation stops before the save/export presenter receives a report",' \
+		'    "Confirmed export builds a schema-versioned report with per-export aliases",' \
+		'    "Report builder rejects or aliases raw account, host, session, and token-like evidence"' \
+		'  ],' \
+		'  "command": "make verify-diagnostics-export-confirmation-scenario",' \
+		'  "gaps": [' \
+		'    "Live NSSavePanel rendering and file writing are not exercised",' \
+		'    "Real local logs, auth snapshots, SSH output, UserDefaults, and Codex session history are not inspected",' \
+		'    "Live macOS menu-bar interaction is not proven"' \
+		'  ],' \
+		'  "invariantIds": [' \
+		'    "diagnostics.export.confirmation-before-write",' \
+		'    "diagnostics.export.cancel-writes-no-report",' \
+		'    "diagnostics.export.redacted-support-artifact-only"' \
+		'  ],' \
+		'  "proofLayer": "diagnostics-export",' \
+		'  "scenario": "$(DIAGNOSTICS_EXPORT_SCENARIO)",' \
+		'  "status": "passed",' \
+		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
+		'  "workflowReceipt": "$(DIAGNOSTICS_EXPORT_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
+		'}' > "$(DIAGNOSTICS_EXPORT_SCENARIO_ARTIFACTS)/scenario-summary.json"
 
 verify-rename-scenario: generate prepare-result-bundle
 	mkdir -p "$(RENAME_SCENARIO_ARTIFACTS)"

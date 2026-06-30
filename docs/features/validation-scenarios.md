@@ -73,7 +73,7 @@ must include or link to the refinement proof-contract shape:
 | --- | --- | --- | --- | --- | --- |
 | `hosted-menu-default` | Default saved-account menu shape does not claim live state. | `ui_visual`, `static_ui`, `privacy` | `deterministic-ui`; screenshot, UI tree, summary | `smoke`, blocking | `runnable` |
 | `menu-busy-status` | Busy workflows expose status and disable conflicting immediate actions; confirmation routing remains future workflow-event proof. | `workflow_state`, `ui_visual`, `privacy` | `deterministic-ui`; screenshot, UI tree, summary; workflow dispatch/event ordering is a non-claim | `changed-feature`, blocking for menu action changes | `runnable` |
-| `diagnostics-export-confirmation` | Diagnostics export requires confirmation and writes only a redacted support artifact. | `privacy`, `diagnostics`, `user_confirmation` | `diagnostics-export`; generated report plus negative leakage assertions | `changed-feature`, blocking for diagnostics changes | `target` |
+| `diagnostics-export-confirmation` | Diagnostics export requires confirmation and writes only a redacted support artifact. | `privacy`, `diagnostics`, `user_confirmation` | `diagnostics-export` plus workflow receipt; generated report plus negative leakage assertions | `changed-feature`, blocking for diagnostics changes | `runnable` |
 
 ## Accounts
 
