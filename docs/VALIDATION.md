@@ -38,11 +38,12 @@ that inventory into `.kite/scenarios.json` only when its owning feature doc has
 concrete acceptance criteria, proof rows, fixtures, command, artifacts, privacy
 rules, non-claims, and degraded-proof rules.
 
-The current clean-main manifest contains seven deterministic hosted-menu
+The current clean-main manifest contains eight deterministic hosted-menu
 scenarios:
 
 ```bash
 make verify-ui SCENARIO=hosted-menu-default
+make verify-ui SCENARIO=menu-busy-status
 make verify-ui SCENARIO=menu-unmatched-active-account
 make verify-ui SCENARIO=menu-empty-catalog
 make verify-ui SCENARIO=menu-account-overflow
@@ -68,6 +69,11 @@ Current deterministic scenarios:
 - `hosted-menu-default`: smoke non-regression for the default hosted menu
   projection. It should run before handoff when menubar UI, scenario fixtures,
   or the validation manifest changes.
+- `menu-busy-status`: changed-feature non-regression for Menubar busy-state
+  presentation. It proves that the hosted menu shows the busy status before
+  `Quit` and marks `Add Account…` disabled; it does not prove workflow action
+  dispatch, confirmation routing, event-log ordering, live Codex workflow state,
+  or live macOS menu-bar behavior.
 - `menu-unmatched-active-account`: smoke non-regression for Active Account
   truth. It proves that saved accounts remain catalog rows and are not presented
   as active when the active local auth state is unmatched.

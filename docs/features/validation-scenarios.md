@@ -72,7 +72,7 @@ must include or link to the refinement proof-contract shape:
 | Scenario | Acceptance Criteria | Validation Intent | Proof Layer | Non-Regression | Status |
 | --- | --- | --- | --- | --- | --- |
 | `hosted-menu-default` | Default saved-account menu shape does not claim live state. | `ui_visual`, `static_ui`, `privacy` | `deterministic-ui`; screenshot, UI tree, summary | `smoke`, blocking | `runnable` |
-| `menu-busy-status` | Busy workflows expose status and disable or route conflicting actions. | `workflow_state`, `ui_visual` | `deterministic-ui` plus `workflow-event-log` for action availability | `changed-feature`, blocking for menu action changes | `target` |
+| `menu-busy-status` | Busy workflows expose status and disable conflicting immediate actions; confirmation routing remains future workflow-event proof. | `workflow_state`, `ui_visual`, `privacy` | `deterministic-ui`; screenshot, UI tree, summary; workflow dispatch/event ordering is a non-claim | `changed-feature`, blocking for menu action changes | `runnable` |
 | `diagnostics-export-confirmation` | Diagnostics export requires confirmation and writes only a redacted support artifact. | `privacy`, `diagnostics`, `user_confirmation` | `diagnostics-export`; generated report plus negative leakage assertions | `changed-feature`, blocking for diagnostics changes | `target` |
 
 ## Accounts
@@ -161,18 +161,17 @@ target scenarios. A target scenario may move into `.kite/scenarios.json` only
 after the owning feature doc has concrete acceptance criteria, proof rows,
 artifact expectations, privacy rules, and degraded-proof rules.
 
-Recommended promotion order after the proof-contract backfill:
+Recommended promotion order after the current runnable deterministic menu
+scenarios:
 
-1. `menu-busy-status`: protects global menu action availability while keeping
-   workflow mutation proof in structured event receipts.
-2. `launch-at-login-menu-states` and `status-bar-icon-text-visible`: cover
+1. `launch-at-login-menu-states` and `status-bar-icon-text-visible`: cover
    simple deterministic presentation states before system mutation or temporal
    interaction proof.
-3. `rename-account-label-only` and `add-account-name-validation`: lower-risk
+2. `rename-account-label-only` and `add-account-name-validation`: lower-risk
    account model/presentation scenarios before auth mutation workflows.
-4. Token Usage parser, cache, and privacy scenarios when scanner, cache,
+3. Token Usage parser, cache, and privacy scenarios when scanner, cache,
    diagnostics, or artifact behavior changes.
-5. Local account mutation, remote host mutation, notification action routing,
+4. Local account mutation, remote host mutation, notification action routing,
    temporal status-bar interaction, and live/system-mutation gates only after
    fake-client workflow receipts or explicit live opt-in exist.
 

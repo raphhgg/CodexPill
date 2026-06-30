@@ -652,7 +652,7 @@ struct MenuBarUIValidationTests {
             #expect(snapshot.sections.contains(where: { $0.title == "Remote Accounts" }) == false)
             #expect(snapshot.remoteHosts.isEmpty)
 
-        case "hosted-menu-busy":
+        case "menu-busy-status", "hosted-menu-busy":
             #expect(snapshot.sections.map(\.title) == [
                 "Active Account",
                 "Manage Accounts",
@@ -660,6 +660,12 @@ struct MenuBarUIValidationTests {
             ])
             #expect(snapshot.statusMessage == "Refreshing account data...")
             #expect(snapshot.sections[1].items.contains("Add Account… (disabled)"))
+            let menuItems = snapshot.menuItems
+            let statusIndex = try #require(menuItems.firstIndex { $0.title == "Refreshing account data..." })
+            let quitIndex = try #require(menuItems.firstIndex { $0.title == "Quit" })
+            #expect(statusIndex < quitIndex)
+            let addAccountItem = try #require(flattenedMenuItems(in: menuItems).first { $0.title == "Add Account…" })
+            #expect(addAccountItem.isEnabled == false)
 
         case "menu-empty-catalog":
             #expect(snapshot.sections.map(\.title) == [
@@ -759,10 +765,10 @@ struct MenuBarUIValidationTests {
                 "Disconnected hosts stay out of the primary Active Account section",
                 "Configured hosts remain available under Hosts and per-account switch targets"
             ]
-        case "hosted-menu-busy":
+        case "menu-busy-status", "hosted-menu-busy":
             return [
                 "Busy state exposes only the current account plus shared account and preference controls",
-                "Busy status message is rendered into the artifact snapshot",
+                "Busy status message is rendered before Quit in the artifact snapshot",
                 "Add-account action is marked disabled in the snapshot"
             ]
         case "menu-empty-catalog":
@@ -1134,7 +1140,7 @@ struct MenuBarUIValidationTests {
                 statusMessage: "Ready"
             )
 
-        case "hosted-menu-busy":
+        case "menu-busy-status", "hosted-menu-busy":
             let active = makeAccount(
                 name: "Primary",
                 email: "primary@example.com",
