@@ -78,6 +78,24 @@
       ]
     },
     {
+      "id": "notifications-current-runs-out-action",
+      "title": "Notifications Current Runs Out action",
+      "acceptanceCriteria": [
+        {
+          "id": "current-runs-out-fires-for-active-local-or-remote-exhaustion",
+          "statement": "Current Runs Out notifications must fire when the active local or remote account becomes exhausted and a fallback account is usable."
+        },
+        {
+          "id": "current-runs-out-copy-and-actions-name-targets",
+          "statement": "Current Runs Out notification copy and direct actions must name the exhausted target and the fallback switch target."
+        },
+        {
+          "id": "current-runs-out-actions-recheck-stale-state-before-switch",
+          "statement": "Current Runs Out direct actions must re-check current state before switching, substitute safer current targets when possible, and drop stale requests that are no longer actionable."
+        }
+      ]
+    },
+    {
       "id": "active-account-truth",
       "title": "Active account truth",
       "acceptanceCriteria": [
@@ -804,6 +822,94 @@
       ],
       "expectedMetadata": {
         "scenario": "notifications-account-available-policy"
+      },
+      "privacy": {
+        "fixtureData": "synthetic",
+        "restrictedEvidence": [
+          "account_data",
+          "hostname",
+          "raw_local_path",
+          "private_product_data",
+          "token"
+        ]
+      }
+    },
+    {
+      "id": "notifications-current-runs-out-action",
+      "title": "Notifications Current Runs Out action",
+      "featureId": "notifications-current-runs-out-action",
+      "acceptanceCriteria": [
+        "current-runs-out-fires-for-active-local-or-remote-exhaustion",
+        "current-runs-out-copy-and-actions-name-targets",
+        "current-runs-out-actions-recheck-stale-state-before-switch"
+      ],
+      "targetSurface": "CodexPill Current Runs Out notification policy, payload rendering, and fake response workflow",
+      "validationModes": ["unit_only"],
+      "suites": ["deterministic"],
+      "validationIntent": {
+        "featureRisk": ["workflow_state", "privacy"],
+        "primaryProof": "workflow-event-log",
+        "supportingProof": ["unit", "privacy-redaction"],
+        "requiredEvidence": ["test-output", "workflow-receipt", "scenario-summary"],
+        "nonClaims": [
+          "Does not exercise live macOS notification delivery.",
+          "Does not prove native Notification Center rendering or real user clicks.",
+          "Does not touch real Codex account data, real remote hosts, or real switching."
+        ],
+        "liveOptIn": {
+          "required": false
+        }
+      },
+      "nonRegression": {
+        "tier": "changed-feature",
+        "runWhen": [
+          "local-handoff",
+          "notification-policy-changed",
+          "notification-workflow-changed",
+          "notification-runtime-changed",
+          "account-availability-ranking-changed",
+          "remote-switch-routing-changed",
+          "scenario-fixture-changed"
+        ],
+        "blocking": true
+      },
+      "proof": {
+        "layer": "workflow-event-log",
+        "artifactSource": "focused-test-suite",
+        "nonClaims": [
+          "Does not exercise live macOS notification delivery.",
+          "Does not prove native Notification Center rendering or real user clicks.",
+          "Does not touch real Codex account data, real remote hosts, or real switching."
+        ]
+      },
+      "command": {
+        "run": "make verify-notifications-current-runs-out-action-scenario"
+      },
+      "expectedArtifacts": [
+        {
+          "id": "notifications-current-runs-out-action-result-bundle",
+          "kind": "test_output",
+          "path": "build/results/local/CodexPill.xcresult",
+          "claimScope": ["notification-action-routing-tests"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "notifications-current-runs-out-action-workflow-receipt",
+          "kind": "workflow_receipt",
+          "path": "build/verification/notifications-current-runs-out-action/workflow-receipt.json",
+          "claimScope": ["current-runs-out-action-events"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "notifications-current-runs-out-action-summary",
+          "kind": "reconciliation_report",
+          "path": "build/verification/notifications-current-runs-out-action/scenario-summary.json",
+          "claimScope": ["current-runs-out-actions-reconciled"],
+          "redactionStatus": "sanitized"
+        }
+      ],
+      "expectedMetadata": {
+        "scenario": "notifications-current-runs-out-action"
       },
       "privacy": {
         "fixtureData": "synthetic",

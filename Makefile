@@ -17,6 +17,8 @@ NOTIFICATIONS_PERMISSION_DENIED_SCENARIO := notifications-permission-denied-menu
 NOTIFICATIONS_PERMISSION_DENIED_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(NOTIFICATIONS_PERMISSION_DENIED_SCENARIO)
 NOTIFICATIONS_ACCOUNT_AVAILABLE_SCENARIO := notifications-account-available-policy
 NOTIFICATIONS_ACCOUNT_AVAILABLE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(NOTIFICATIONS_ACCOUNT_AVAILABLE_SCENARIO)
+NOTIFICATIONS_CURRENT_RUNS_OUT_SCENARIO := notifications-current-runs-out-action
+NOTIFICATIONS_CURRENT_RUNS_OUT_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(NOTIFICATIONS_CURRENT_RUNS_OUT_SCENARIO)
 RENAME_SCENARIO := rename-account-label-only
 RENAME_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(RENAME_SCENARIO)
 ADD_ACCOUNT_NAME_SCENARIO := add-account-name-validation
@@ -52,7 +54,7 @@ TOKEN_USAGE_CACHE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE
 TOKEN_USAGE_PRIVACY_SCENARIO := token-usage-privacy-no-raw-session
 TOKEN_USAGE_PRIVACY_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_PRIVACY_SCENARIO)
 
-.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-diagnostics-export-confirmation-scenario verify-notifications-permission-denied-menu-state-scenario verify-notifications-account-available-policy-scenario verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-switch-account-remote-install-verify-scenario verify-remote-host-add-panel-validation-scenario verify-remote-host-install-switch-current-account-scenario verify-remote-host-verification-failure-scenario verify-remote-host-rate-limit-fallback-scenario verify-remove-account-active-targets-sign-out-scenario verify-remove-account-signout-failure-keeps-control-scenario verify-refresh-inactive-isolated-status-scenario verify-refresh-active-relinks-same-account-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
+.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-diagnostics-export-confirmation-scenario verify-notifications-permission-denied-menu-state-scenario verify-notifications-account-available-policy-scenario verify-notifications-current-runs-out-action-scenario verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-switch-account-remote-install-verify-scenario verify-remote-host-add-panel-validation-scenario verify-remote-host-install-switch-current-account-scenario verify-remote-host-verification-failure-scenario verify-remote-host-rate-limit-fallback-scenario verify-remove-account-active-targets-sign-out-scenario verify-remove-account-signout-failure-keeps-control-scenario verify-refresh-inactive-isolated-status-scenario verify-refresh-active-relinks-same-account-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -254,6 +256,61 @@ verify-notifications-account-available-policy-scenario: generate prepare-result-
 		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
 		'  "workflowReceipt": "$(NOTIFICATIONS_ACCOUNT_AVAILABLE_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
 		'}' > "$(NOTIFICATIONS_ACCOUNT_AVAILABLE_SCENARIO_ARTIFACTS)/scenario-summary.json"
+
+verify-notifications-current-runs-out-action-scenario: generate prepare-result-bundle
+	mkdir -p "$(NOTIFICATIONS_CURRENT_RUNS_OUT_SCENARIO_ARTIFACTS)"
+	xcodebuild test \
+		-project $(PROJECT_PATH) \
+		-scheme $(APP_NAME) \
+		-configuration Debug \
+		-destination "platform=macOS" \
+		-derivedDataPath "$(DERIVED_DATA)" \
+		-resultBundlePath "$(RESULT_BUNDLE)" \
+		-only-testing:CodexPillTests/InactiveAccountAvailabilityRankingTests \
+		-only-testing:CodexPillTests/AccountAvailabilityNotificationRuntimeTests \
+		-only-testing:CodexPillTests/MenuBarNotificationWorkflowTests \
+		-only-testing:CodexPillTests/MenuBarRuntimeValidationTests \
+		PRODUCT_BUNDLE_IDENTIFIER="$(STAGING_BUNDLE_ID)"
+	printf '%s\n' \
+		'{' \
+		'  "scenario": "$(NOTIFICATIONS_CURRENT_RUNS_OUT_SCENARIO)",' \
+		'  "proofLayer": "workflow-event-log",' \
+		'  "events": [' \
+		'    "Current Runs Out fires when a local or remote active account runs out and a fallback is usable",' \
+		'    "The notification payload names the exhausted active target, fallback account, and local or remote direct action",' \
+		'    "Notification responses re-check current state before switching",' \
+		'    "Stale local actions substitute the current best account with explanatory copy",' \
+		'    "Stale remote actions are dropped when the requested host is no longer actionable",' \
+		'    "Switch failures activate the app and surface the real error through the fake runtime"' \
+		'  ],' \
+		'  "status": "passed"' \
+		'}' > "$(NOTIFICATIONS_CURRENT_RUNS_OUT_SCENARIO_ARTIFACTS)/workflow-receipt.json"
+	printf '%s\n' \
+		'{' \
+		'  "assertions": [' \
+		'    "Current Runs Out policy covers local and remote active-account exhaustion",' \
+		'    "Rendered payload copy names the exhausted target and fallback account",' \
+		'    "Rendered payload actions expose local and remote switch targets",' \
+		'    "Action handling re-checks state, substitutes safer current targets, or drops stale remote requests",' \
+		'    "Runtime validation surfaces switch failure errors instead of silently switching"' \
+		'  ],' \
+		'  "command": "make verify-notifications-current-runs-out-action-scenario",' \
+		'  "gaps": [' \
+		'    "Live macOS notification delivery is not exercised",' \
+		'    "Native Notification Center rendering and user clicks are not proven",' \
+		'    "Real Codex account data, real remote hosts, and real switching are not touched"' \
+		'  ],' \
+		'  "invariantIds": [' \
+		'    "notifications.current-runs-out.local-and-remote-active-targets",' \
+		'    "notifications.current-runs-out.copy-and-actions-name-targets",' \
+		'    "notifications.current-runs-out.actions-recheck-stale-state"' \
+		'  ],' \
+		'  "proofLayer": "workflow-event-log",' \
+		'  "scenario": "$(NOTIFICATIONS_CURRENT_RUNS_OUT_SCENARIO)",' \
+		'  "status": "passed",' \
+		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
+		'  "workflowReceipt": "$(NOTIFICATIONS_CURRENT_RUNS_OUT_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
+		'}' > "$(NOTIFICATIONS_CURRENT_RUNS_OUT_SCENARIO_ARTIFACTS)/scenario-summary.json"
 
 verify-rename-scenario: generate prepare-result-bundle
 	mkdir -p "$(RENAME_SCENARIO_ARTIFACTS)"

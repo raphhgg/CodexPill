@@ -38,7 +38,7 @@ that inventory into `.kite/scenarios.json` only when its owning feature doc has
 concrete acceptance criteria, proof rows, fixtures, command, artifacts, privacy
 rules, non-claims, and degraded-proof rules.
 
-The current clean-main manifest contains thirty deterministic scenarios:
+The current clean-main manifest contains thirty-one deterministic scenarios:
 
 ```bash
 make verify-ui SCENARIO=hosted-menu-default
@@ -46,6 +46,7 @@ make verify-ui SCENARIO=menu-busy-status
 make verify-diagnostics-export-confirmation-scenario
 make verify-notifications-permission-denied-menu-state-scenario
 make verify-notifications-account-available-policy-scenario
+make verify-notifications-current-runs-out-action-scenario
 make verify-ui SCENARIO=menu-unmatched-active-account
 make verify-ui SCENARIO=menu-empty-catalog
 make verify-ui SCENARIO=menu-account-overflow
@@ -123,6 +124,16 @@ Current deterministic scenarios:
   delivery until activation resets state; it does not prove live macOS
   notification delivery, native notification UI, or Current Runs Out action
   routing.
+- `notifications-current-runs-out-action`: changed-feature non-regression for
+  Current Runs Out notification actions. It proves through focused policy,
+  payload rendering, workflow response, and runtime validation tests that local
+  and remote active-account exhaustion can trigger Current Runs Out, rendered
+  copy names the exhausted target and fallback account, local and remote direct
+  actions are exposed, stale responses re-check current state before switching,
+  safer current targets are substituted with explanatory copy, stale remote
+  requests are dropped, and switch failures surface through the app; it does not
+  prove live macOS notification delivery, native Notification Center rendering,
+  real user clicks, real account data, real remote hosts, or real switching.
 - `menu-unmatched-active-account`: smoke non-regression for Active Account
   truth. It proves that saved accounts remain catalog rows and are not presented
   as active when the active local auth state is unmatched.
@@ -331,6 +342,8 @@ The adapter currently includes:
   Notifications denied-permission menu and recovery proof;
 - `make verify-notifications-account-available-policy-scenario` for focused
   Account Available notification policy and delivery proof;
+- `make verify-notifications-current-runs-out-action-scenario` for focused
+  Current Runs Out notification action and stale-response proof;
 - `make verify-add-account-name-scenario` for focused Add Account name
   validation unit proof;
 - `make verify-add-account-isolated-success-scenario` for focused Add Account
