@@ -569,15 +569,6 @@ struct MenuBarUIValidationTests {
             #expect(snapshot.sections[1].items.allSatisfy { !$0.contains("This Mac") })
             #expect(snapshot.statusMessage == nil)
 
-        case "live-menu-open",
-             "live-account-switch",
-             "live-add-host-destination-validation-failed",
-             "live-add-host-prompt",
-             "live-add-account-name-dialog-cancelled",
-             "live-scheduled-refresh",
-             "live-status-item-hover":
-            #expect(!snapshot.sections.isEmpty)
-
         default:
             throw ValidationError.unknownScenario(scenario)
         }

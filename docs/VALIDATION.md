@@ -46,6 +46,11 @@ not live macOS menu-bar proof. Preview and live scenarios should be added only
 when their product-local commands and fixtures exist on the branch being
 validated.
 
+There is intentionally no `verify-ui-live` command. A live or preview scenario
+must first be declared in `.kite/scenarios.json` with explicit opt-in,
+privacy, cleanup, and non-claim rules before CodexPill exposes a runnable proof
+command for it.
+
 Current deterministic scenarios:
 
 - `hosted-menu-default`: smoke non-regression for the default hosted menu

@@ -12,7 +12,7 @@ VERIFICATION_DIR := $(BUILD_ROOT)/verification
 VERIFICATION_REQUEST := $(VERIFICATION_DIR)/request.json
 VERIFICATION_ARTIFACTS := $(BUILD_ROOT)/verification/$(SCENARIO)
 
-.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-ui-live run clean
+.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui run clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -61,8 +61,6 @@ verify-ui: generate prepare-result-bundle
 		-derivedDataPath "$(DERIVED_DATA)" \
 		-resultBundlePath "$(RESULT_BUNDLE)" \
 		PRODUCT_BUNDLE_IDENTIFIER="$(STAGING_BUNDLE_ID)"
-
-verify-ui-live: verify-ui
 
 run:
 	./scripts/run_menubar.sh
