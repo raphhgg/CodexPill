@@ -25,6 +25,8 @@ STATUS_BAR_HOVER_SCENARIO := status-bar-hover-label
 STATUS_BAR_HOVER_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(STATUS_BAR_HOVER_SCENARIO)
 STATUS_BAR_SHORTCUT_SCENARIO := status-bar-shortcut-reveal
 STATUS_BAR_SHORTCUT_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(STATUS_BAR_SHORTCUT_SCENARIO)
+STATUS_BAR_USAGE_PREFS_SCENARIO := status-bar-usage-bars-preferences
+STATUS_BAR_USAGE_PREFS_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(STATUS_BAR_USAGE_PREFS_SCENARIO)
 RENAME_SCENARIO := rename-account-label-only
 RENAME_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(RENAME_SCENARIO)
 ADD_ACCOUNT_NAME_SCENARIO := add-account-name-validation
@@ -60,7 +62,7 @@ TOKEN_USAGE_CACHE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE
 TOKEN_USAGE_PRIVACY_SCENARIO := token-usage-privacy-no-raw-session
 TOKEN_USAGE_PRIVACY_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_PRIVACY_SCENARIO)
 
-.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-diagnostics-export-confirmation-scenario verify-notifications-permission-denied-menu-state-scenario verify-notifications-account-available-policy-scenario verify-notifications-current-runs-out-action-scenario verify-notifications-dedupe-after-delivery-scenario verify-status-bar-hover-label-scenario verify-status-bar-shortcut-reveal-scenario verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-switch-account-remote-install-verify-scenario verify-remote-host-add-panel-validation-scenario verify-remote-host-install-switch-current-account-scenario verify-remote-host-verification-failure-scenario verify-remote-host-rate-limit-fallback-scenario verify-remove-account-active-targets-sign-out-scenario verify-remove-account-signout-failure-keeps-control-scenario verify-refresh-inactive-isolated-status-scenario verify-refresh-active-relinks-same-account-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
+.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-diagnostics-export-confirmation-scenario verify-notifications-permission-denied-menu-state-scenario verify-notifications-account-available-policy-scenario verify-notifications-current-runs-out-action-scenario verify-notifications-dedupe-after-delivery-scenario verify-status-bar-hover-label-scenario verify-status-bar-shortcut-reveal-scenario verify-status-bar-usage-bars-preferences-scenario verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-switch-account-remote-install-verify-scenario verify-remote-host-add-panel-validation-scenario verify-remote-host-install-switch-current-account-scenario verify-remote-host-verification-failure-scenario verify-remote-host-rate-limit-fallback-scenario verify-remove-account-active-targets-sign-out-scenario verify-remove-account-signout-failure-keeps-control-scenario verify-refresh-inactive-isolated-status-scenario verify-refresh-active-relinks-same-account-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -473,6 +475,63 @@ verify-status-bar-shortcut-reveal-scenario: generate prepare-result-bundle
 		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
 		'  "workflowReceipt": "$(STATUS_BAR_SHORTCUT_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
 		'}' > "$(STATUS_BAR_SHORTCUT_SCENARIO_ARTIFACTS)/scenario-summary.json"
+
+verify-status-bar-usage-bars-preferences-scenario: generate prepare-result-bundle
+	mkdir -p "$(STATUS_BAR_USAGE_PREFS_SCENARIO_ARTIFACTS)"
+	xcodebuild test \
+		-project $(PROJECT_PATH) \
+		-scheme $(APP_NAME) \
+		-configuration Debug \
+		-destination "platform=macOS" \
+		-derivedDataPath "$(DERIVED_DATA)" \
+		-resultBundlePath "$(RESULT_BUNDLE)" \
+		-only-testing:CodexPillTests/StatusItemSettingsStoreTests \
+		-only-testing:CodexPillTests/CodexPillSettingsStoreTests \
+		-only-testing:CodexPillTests/MenuBarMenuBuilderTests \
+		-only-testing:CodexPillTests/MenuBarUIValidationTests \
+		-only-testing:CodexPillTests/MenuBarRuntimeValidationTests \
+		PRODUCT_BUNDLE_IDENTIFIER="$(STAGING_BUNDLE_ID)"
+	printf '%s\n' \
+		'{' \
+		'  "scenario": "$(STATUS_BAR_USAGE_PREFS_SCENARIO)",' \
+		'  "proofLayer": "unit",' \
+		'  "events": [' \
+		'    "Label mode action stores Icon + Text when synthetic usage data is available",' \
+		'    "Icon style action stores Stacked Bars without touching account state",' \
+		'    "Monochrome, pacing marker, and accent reset actions update presentation preferences only",' \
+		'    "Menu builder exposes preference controls with stable selectors and selected states",' \
+		'    "Deterministic validation snapshot records preference rows and configured accent color",' \
+		'    "Account catalog, active account, and isolated auth file remain unchanged"' \
+		'  ],' \
+		'  "status": "passed"' \
+		'}' > "$(STATUS_BAR_USAGE_PREFS_SCENARIO_ARTIFACTS)/workflow-receipt.json"
+	printf '%s\n' \
+		'{' \
+		'  "assertions": [' \
+		'    "Status item settings persist label mode, icon style, pacing markers, custom accent color, and accent reset",' \
+		'    "Menu builder exposes Menu Bar Label, Icon Style, Show Pace Markers, Accent Color, and Use Default controls",' \
+		'    "UI validation snapshot records configured progress bar colors and preference rows",' \
+		'    "Coordinator preference actions preserve account catalog, active account, and auth-file bytes"' \
+		'  ],' \
+		'  "command": "make verify-status-bar-usage-bars-preferences-scenario",' \
+		'  "gaps": [' \
+		'    "Live NSColorPanel color choosing is not opened",' \
+		'    "Native menu-bar clicks, live screen capture, and native hittability are not proven",' \
+		'    "Real account/auth data is not used"' \
+		'  ],' \
+		'  "invariantIds": [' \
+		'    "status-bar.preferences.label-mode",' \
+		'    "status-bar.preferences.icon-style",' \
+		'    "status-bar.preferences.usage-markers",' \
+		'    "status-bar.preferences.accent-color",' \
+		'    "status-bar.preferences.account-state-unchanged"' \
+		'  ],' \
+		'  "proofLayer": "unit",' \
+		'  "scenario": "$(STATUS_BAR_USAGE_PREFS_SCENARIO)",' \
+		'  "status": "passed",' \
+		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
+		'  "workflowReceipt": "$(STATUS_BAR_USAGE_PREFS_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
+		'}' > "$(STATUS_BAR_USAGE_PREFS_SCENARIO_ARTIFACTS)/scenario-summary.json"
 
 verify-rename-scenario: generate prepare-result-bundle
 	mkdir -p "$(RENAME_SCENARIO_ARTIFACTS)"

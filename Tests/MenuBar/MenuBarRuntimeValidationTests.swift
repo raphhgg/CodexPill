@@ -1268,6 +1268,86 @@ struct MenuBarRuntimeValidationTests {
         #expect(sink.events.contains(where: { $0.event == "status_item_shortcut_reveal_ended" }))
     }
 
+    @Test
+    func statusBarPreferenceActionsDoNotChangeAccountState() throws {
+        let repository = try makeIsolatedRepository()
+        var activeAccount = try makeActiveAccount(
+            named: "Primary",
+            email: "primary@example.com",
+            in: repository
+        )
+        activeAccount.rateLimits = CodexRateLimitSnapshot(
+            limitID: nil,
+            limitName: nil,
+            planType: "team",
+            primary: CodexRateLimitWindow(
+                usedPercent: 42,
+                resetsAt: nil,
+                windowDurationMinutes: nil
+            ),
+            secondary: CodexRateLimitWindow(
+                usedPercent: 68,
+                resetsAt: nil,
+                windowDurationMinutes: nil
+            ),
+            fetchedAt: Date(timeIntervalSince1970: 1_744_195_200)
+        )
+        try repository.saveAccounts([activeAccount])
+        let store = MenuBarAccountsStore(
+            repository: repository,
+            authService: CodexAuthSnapshotService(repository: repository),
+            codexAppProcessClient: NullCodexAppProcessClient(),
+            accountStatusClient: DisabledAccountStatusClient()
+        )
+        store.load()
+
+        let originalActiveAccountID = store.activeAccountID
+        let originalAccountIDs = store.accounts.map(\.id)
+        let originalAuthData = try Data(contentsOf: repository.paths.codexAuthFile)
+
+        let suiteName = "MenuBarRuntimeValidationPreferences-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
+        settings.progressAccentColor = StatusItemAccentColor(red: 0.12, green: 0.45, blue: 0.78, alpha: 1)
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let coordinator = MenuBarCoordinator(
+            statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
+            store: store,
+            settings: settings,
+            alertPresenter: AlertPresenterProbe(),
+            allowsEmptyStatePrompt: false
+        )
+        defer { coordinator.invalidate() }
+
+        let displayModeItem = NSMenuItem()
+        displayModeItem.representedObject = StatusBarDisplayMode.iconAndText.rawValue
+        coordinator.selectStatusBarDisplayMode(displayModeItem)
+
+        let styleItem = NSMenuItem()
+        styleItem.representedObject = StatusBarIndicatorStyle.stackedBars.rawValue
+        coordinator.selectStatusBarStyle(styleItem)
+
+        coordinator.toggleStatusBarMonochrome(NSMenuItem())
+        coordinator.togglePacingMarkers(NSMenuItem())
+        coordinator.resetProgressAccentColor(NSMenuItem())
+
+        #expect(settings.statusBarDisplayMode == .iconAndText)
+        #expect(settings.statusBarIndicatorStyle == .stackedBars)
+        #expect(!settings.statusBarMonochrome)
+        #expect(!settings.pacingMarkersEnabled)
+        #expect(settings.progressAccentColor == nil)
+        #expect(store.activeAccountID == originalActiveAccountID)
+        #expect(store.activeAccountID == activeAccount.id)
+        #expect(store.accounts.map(\.id) == originalAccountIDs)
+        #expect(try Data(contentsOf: repository.paths.codexAuthFile) == originalAuthData)
+    }
+
 
     @Test
     func coordinatorRestoresPersistedRemoteHostAccountOnStart() async throws {

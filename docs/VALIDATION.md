@@ -38,7 +38,7 @@ that inventory into `.kite/scenarios.json` only when its owning feature doc has
 concrete acceptance criteria, proof rows, fixtures, command, artifacts, privacy
 rules, non-claims, and degraded-proof rules.
 
-The current clean-main manifest contains thirty-four deterministic scenarios:
+The current clean-main manifest contains thirty-five deterministic scenarios:
 
 ```bash
 make verify-ui SCENARIO=hosted-menu-default
@@ -69,6 +69,7 @@ make verify-ui SCENARIO=launch-at-login-menu-states
 make verify-ui SCENARIO=status-bar-icon-text-visible
 make verify-status-bar-hover-label-scenario
 make verify-status-bar-shortcut-reveal-scenario
+make verify-status-bar-usage-bars-preferences-scenario
 make verify-ui SCENARIO=token-usage-off-hidden
 make verify-ui SCENARIO=token-usage-ready-card
 make verify-token-usage-parser-scenario
@@ -316,6 +317,14 @@ Current deterministic scenarios:
   validation, and saved display mode is not mutated; it does not prove live
   Carbon/global hotkey registration, native keyboard input, system shortcut
   conflicts, live menubar capture, or native hittability.
+- `status-bar-usage-bars-preferences`: changed-feature non-regression for
+  Status Bar presentation preferences. It proves through settings, menu
+  builder, deterministic UI validation, and coordinator action tests that Menu
+  Bar Label, Icon Style, Show Pace Markers, Accent Color, and Use Default
+  controls update presentation settings/projections only while preserving the
+  account catalog, active account, and isolated auth-file bytes; it does not
+  prove live color-panel choice, native menu-bar clicks, live menubar capture,
+  or native hittability.
 - `token-usage-off-hidden`: changed-feature non-regression for Token Usage card
   disabled-state presentation. It proves that the hosted active-account area
   omits the Token Usage card and scanner-derived copy when Token Usage is off;
@@ -377,6 +386,9 @@ The adapter currently includes:
   runtime event and validation snapshot proof;
 - `make verify-status-bar-shortcut-reveal-scenario` for focused Status Bar
   shortcut callback and reveal/collapse proof;
+- `make verify-status-bar-usage-bars-preferences-scenario` for focused Status
+  Bar preference mapping, deterministic projection, and account-state
+  preservation proof;
 - `make verify-add-account-name-scenario` for focused Add Account name
   validation unit proof;
 - `make verify-add-account-isolated-success-scenario` for focused Add Account
