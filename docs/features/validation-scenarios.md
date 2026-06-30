@@ -109,7 +109,7 @@ must include or link to the refinement proof-contract shape:
 | `notifications-permission-denied-menu-state` | Denied macOS permission disables notification modes and routes to System Settings without deleting preferences. | `state_truth`, `ui_visual` | `unit` plus deterministic menu projection; fake settings-launch receipt | `changed-feature`, blocking for notification menu | `runnable` |
 | `notifications-account-available-policy` | Account Available fires only for inactive fallback accounts becoming useful again. | `pure_model`, `workflow_state` | `unit`; policy, workflow delivery, and dedupe receipt | `changed-feature`, blocking for notification policy | `runnable` |
 | `notifications-current-runs-out-action` | Current Runs Out copy explains the target and direct actions route through stale-checked local or remote switch flows. | `workflow_state`, `privacy` | `workflow-event-log`; fake policy, payload rendering, response routing, and runtime receipt | `changed-feature`, blocking for notification actions | `runnable` |
-| `notifications-dedupe-after-delivery` | A delivered account notification is suppressed until CodexPill observes that account become active. | `workflow_state`, `state_truth` | `unit`; notification state fixtures | `changed-feature`, blocking for notification dedupe | `target` |
+| `notifications-dedupe-after-delivery` | A delivered account notification is suppressed until CodexPill observes that account become active. | `workflow_state`, `state_truth` | `unit`; state, workflow delivery, settings persistence, and runtime activation receipt | `changed-feature`, blocking for notification dedupe | `runnable` |
 
 ## Status Bar
 

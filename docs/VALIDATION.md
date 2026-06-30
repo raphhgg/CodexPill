@@ -38,7 +38,7 @@ that inventory into `.kite/scenarios.json` only when its owning feature doc has
 concrete acceptance criteria, proof rows, fixtures, command, artifacts, privacy
 rules, non-claims, and degraded-proof rules.
 
-The current clean-main manifest contains thirty-one deterministic scenarios:
+The current clean-main manifest contains thirty-two deterministic scenarios:
 
 ```bash
 make verify-ui SCENARIO=hosted-menu-default
@@ -47,6 +47,7 @@ make verify-diagnostics-export-confirmation-scenario
 make verify-notifications-permission-denied-menu-state-scenario
 make verify-notifications-account-available-policy-scenario
 make verify-notifications-current-runs-out-action-scenario
+make verify-notifications-dedupe-after-delivery-scenario
 make verify-ui SCENARIO=menu-unmatched-active-account
 make verify-ui SCENARIO=menu-empty-catalog
 make verify-ui SCENARIO=menu-account-overflow
@@ -134,6 +135,14 @@ Current deterministic scenarios:
   requests are dropped, and switch failures surface through the app; it does not
   prove live macOS notification delivery, native Notification Center rendering,
   real user clicks, real account data, real remote hosts, or real switching.
+- `notifications-dedupe-after-delivery`: changed-feature non-regression for
+  delivered account notification dedupe. It proves through focused state,
+  workflow delivery, settings persistence, and runtime activation tests that a
+  delivered notification records reason/window state, disarms repeated delivery
+  across later windows, and re-arms only after CodexPill observes that account
+  become active locally or on a verified remote host; it does not prove live
+  macOS notification delivery, native Notification Center rendering, real user
+  clicks, real account data, real remote hosts, or real switching.
 - `menu-unmatched-active-account`: smoke non-regression for Active Account
   truth. It proves that saved accounts remain catalog rows and are not presented
   as active when the active local auth state is unmatched.
@@ -344,6 +353,8 @@ The adapter currently includes:
   Account Available notification policy and delivery proof;
 - `make verify-notifications-current-runs-out-action-scenario` for focused
   Current Runs Out notification action and stale-response proof;
+- `make verify-notifications-dedupe-after-delivery-scenario` for focused
+  delivered notification dedupe and activation re-arm proof;
 - `make verify-add-account-name-scenario` for focused Add Account name
   validation unit proof;
 - `make verify-add-account-isolated-success-scenario` for focused Add Account

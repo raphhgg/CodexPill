@@ -184,6 +184,18 @@ struct MenuBarRuntimeValidationTests {
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = CodexPillSettingsStore(userDefaults: defaults)
+        settings.notificationsWhenBlockedEnabled = true
+        settings.updateAccountNotificationState(for: targetAccount.id) { state in
+            state.isArmed = false
+            state.lastNotification = PersistedAccountNotificationRecord(
+                reason: .whenBlocked,
+                window: PersistedAccountNotificationWindow(
+                    sessionResetAt: Date().addingTimeInterval(1800),
+                    weeklyResetAt: Date().addingTimeInterval(86_400)
+                ),
+                notifiedAt: .now
+            )
+        }
         let alertPresenter = AlertPresenterProbe()
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         defer {
@@ -227,6 +239,9 @@ struct MenuBarRuntimeValidationTests {
         #expect(codexProcessClient.relaunchCount == 1)
         #expect(try Data(contentsOf: repository.paths.codexAuthFile) == targetAuthData)
         #expect(store.activeAccountID == targetAccount.id)
+        let persisted = try #require(settings.accountNotificationState(for: targetAccount.id))
+        #expect(persisted.isArmed)
+        #expect(persisted.lastNotification == nil)
     }
 
     @Test
