@@ -124,7 +124,7 @@ must include or link to the refinement proof-contract shape:
 
 | Scenario | Acceptance Criteria | Validation Intent | Proof Layer | Non-Regression | Status |
 | --- | --- | --- | --- | --- | --- |
-| `token-usage-off-hidden` | Token Usage off hides the card and does not start scanning. | `state_truth`, `privacy` | `unit` plus deterministic menu projection | `changed-feature`, blocking for Token Usage UI | `target` |
+| `token-usage-off-hidden` | Token Usage off hides the card in the hosted active-account area; scanner lifecycle remains lower-level/runtime proof. | `state_truth`, `ui_visual`, `privacy` | `deterministic-ui`; screenshot, UI tree, summary; runtime scan prevention is a non-claim | `changed-feature`, blocking for Token Usage UI | `runnable` |
 | `token-usage-ready-card` | Enabled Token Usage shows a local Last 30 Days aggregate card without implying account, workspace, organization, or remote-host attribution. | `ui_visual`, `state_truth`, `privacy` | `deterministic-ui`; screenshot, UI tree, summary | `changed-feature`, blocking for Token Usage card | `runnable` |
 | `token-usage-parser-aggregation` | Scanner parses token-count rows, handles malformed rows, repeated cumulative totals, and large files safely. | `parser`, `privacy`, `performance` | `contract-fixture`; synthetic JSONL fixtures | `changed-feature`, blocking for scanner changes | `target` |
 | `token-usage-cache-first` | Cache is reused before scanning and refreshes only changed or new eligible files for the selected period. | `state_truth`, `performance`, `privacy` | `unit` and integration cache fixtures | `changed-feature`, blocking for cache/runtime | `target` |
@@ -163,19 +163,16 @@ artifact expectations, privacy rules, and degraded-proof rules.
 
 Recommended promotion order after the proof-contract backfill:
 
-1. `token-usage-off-hidden`: closes the Token Usage menu-card state triangle
-   across off, loading, and ready states using the existing deterministic hosted
-   UI path.
-2. `menu-busy-status`: protects global menu action availability while keeping
+1. `menu-busy-status`: protects global menu action availability while keeping
    workflow mutation proof in structured event receipts.
-3. `launch-at-login-menu-states` and `status-bar-icon-text-visible`: cover
+2. `launch-at-login-menu-states` and `status-bar-icon-text-visible`: cover
    simple deterministic presentation states before system mutation or temporal
    interaction proof.
-4. `rename-account-label-only` and `add-account-name-validation`: lower-risk
+3. `rename-account-label-only` and `add-account-name-validation`: lower-risk
    account model/presentation scenarios before auth mutation workflows.
-5. Token Usage parser, cache, and privacy scenarios when scanner, cache,
+4. Token Usage parser, cache, and privacy scenarios when scanner, cache,
    diagnostics, or artifact behavior changes.
-6. Local account mutation, remote host mutation, notification action routing,
+5. Local account mutation, remote host mutation, notification action routing,
    temporal status-bar interaction, and live/system-mutation gates only after
    fake-client workflow receipts or explicit live opt-in exist.
 

@@ -555,6 +555,22 @@ struct MenuBarUIValidationTests {
             #expect(snapshot.remoteHosts.isEmpty)
             #expect(snapshot.statusMessage == nil)
 
+        case "token-usage-off-hidden":
+            #expect(snapshot.sections.map(\.title) == [
+                "Active Account",
+                "Other Accounts",
+                "More Accounts…",
+                "Manage Accounts",
+                "Preferences"
+            ])
+            let activeSection = try #require(snapshot.sections.first(where: { $0.title == "Active Account" }))
+            #expect(activeSection.items.count == 1)
+            #expect(activeSection.items.allSatisfy { !$0.contains("Token Usage") })
+            #expect(activeSection.items.allSatisfy { !$0.contains("Last 30 days") })
+            #expect(activeSection.items.allSatisfy { !$0.localizedCaseInsensitiveContains("scanning") })
+            #expect(snapshot.remoteHosts.isEmpty)
+            #expect(snapshot.statusMessage == nil)
+
         case "token-usage-loading-progress":
             #expect(snapshot.sections.map(\.title) == [
                 "Active Account",
@@ -703,6 +719,12 @@ struct MenuBarUIValidationTests {
                 "Synthetic aggregate data renders today, period total, and peak day",
                 "Token Usage card does not emit account, email, workspace, remote, or host attribution"
             ]
+        case "token-usage-off-hidden":
+            return [
+                "Token Usage disabled state omits the active-area card",
+                "Disabled state omits Token Usage period and loading copy from the active account area",
+                "Disabled state emits no Token Usage workspace, remote, host, path, or raw session detail"
+            ]
         case "token-usage-loading-progress":
             return [
                 "Token Usage loading card renders in the active account area",
@@ -781,7 +803,7 @@ struct MenuBarUIValidationTests {
 
     private func makeHostedValidationState(for scenario: String, now: Date) -> MenuBarMenuState {
         switch scenario {
-        case "hosted-menu-default", "menu-account-overflow":
+        case "hosted-menu-default", "menu-account-overflow", "token-usage-off-hidden":
             let active = makeAccount(
                 name: "Primary",
                 email: "primary@example.com",
