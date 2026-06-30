@@ -38,13 +38,14 @@ that inventory into `.kite/scenarios.json` only when its owning feature doc has
 concrete acceptance criteria, proof rows, fixtures, command, artifacts, privacy
 rules, non-claims, and degraded-proof rules.
 
-The current clean-main manifest contains twenty-nine deterministic scenarios:
+The current clean-main manifest contains thirty deterministic scenarios:
 
 ```bash
 make verify-ui SCENARIO=hosted-menu-default
 make verify-ui SCENARIO=menu-busy-status
 make verify-diagnostics-export-confirmation-scenario
 make verify-notifications-permission-denied-menu-state-scenario
+make verify-notifications-account-available-policy-scenario
 make verify-ui SCENARIO=menu-unmatched-active-account
 make verify-ui SCENARIO=menu-empty-catalog
 make verify-ui SCENARIO=menu-account-overflow
@@ -113,6 +114,15 @@ Current deterministic scenarios:
   CodexPill notification preferences, and does not request authorization again;
   it does not prove live System Settings, live notification permission dialogs,
   native click automation, or live macOS menu-bar behavior.
+- `notifications-account-available-policy`: changed-feature non-regression for
+  Account Available notifications. It proves through focused policy and
+  workflow tests that Account Available fires only for inactive fallback
+  accounts becoming useful again, skips first-saved, only-saved,
+  already-active, barely usable, and non-fallback accounts, renders the simple
+  available-again payload with no direct actions, and suppresses repeated
+  delivery until activation resets state; it does not prove live macOS
+  notification delivery, native notification UI, or Current Runs Out action
+  routing.
 - `menu-unmatched-active-account`: smoke non-regression for Active Account
   truth. It proves that saved accounts remain catalog rows and are not presented
   as active when the active local auth state is unmatched.
@@ -319,6 +329,8 @@ The adapter currently includes:
   Diagnostics export confirmation and redacted-support artifact proof;
 - `make verify-notifications-permission-denied-menu-state-scenario` for focused
   Notifications denied-permission menu and recovery proof;
+- `make verify-notifications-account-available-policy-scenario` for focused
+  Account Available notification policy and delivery proof;
 - `make verify-add-account-name-scenario` for focused Add Account name
   validation unit proof;
 - `make verify-add-account-isolated-success-scenario` for focused Add Account

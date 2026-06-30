@@ -15,6 +15,8 @@ DIAGNOSTICS_EXPORT_SCENARIO := diagnostics-export-confirmation
 DIAGNOSTICS_EXPORT_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(DIAGNOSTICS_EXPORT_SCENARIO)
 NOTIFICATIONS_PERMISSION_DENIED_SCENARIO := notifications-permission-denied-menu-state
 NOTIFICATIONS_PERMISSION_DENIED_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(NOTIFICATIONS_PERMISSION_DENIED_SCENARIO)
+NOTIFICATIONS_ACCOUNT_AVAILABLE_SCENARIO := notifications-account-available-policy
+NOTIFICATIONS_ACCOUNT_AVAILABLE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(NOTIFICATIONS_ACCOUNT_AVAILABLE_SCENARIO)
 RENAME_SCENARIO := rename-account-label-only
 RENAME_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(RENAME_SCENARIO)
 ADD_ACCOUNT_NAME_SCENARIO := add-account-name-validation
@@ -50,7 +52,7 @@ TOKEN_USAGE_CACHE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE
 TOKEN_USAGE_PRIVACY_SCENARIO := token-usage-privacy-no-raw-session
 TOKEN_USAGE_PRIVACY_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_PRIVACY_SCENARIO)
 
-.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-diagnostics-export-confirmation-scenario verify-notifications-permission-denied-menu-state-scenario verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-switch-account-remote-install-verify-scenario verify-remote-host-add-panel-validation-scenario verify-remote-host-install-switch-current-account-scenario verify-remote-host-verification-failure-scenario verify-remote-host-rate-limit-fallback-scenario verify-remove-account-active-targets-sign-out-scenario verify-remove-account-signout-failure-keeps-control-scenario verify-refresh-inactive-isolated-status-scenario verify-refresh-active-relinks-same-account-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
+.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-diagnostics-export-confirmation-scenario verify-notifications-permission-denied-menu-state-scenario verify-notifications-account-available-policy-scenario verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-switch-account-remote-install-verify-scenario verify-remote-host-add-panel-validation-scenario verify-remote-host-install-switch-current-account-scenario verify-remote-host-verification-failure-scenario verify-remote-host-rate-limit-fallback-scenario verify-remove-account-active-targets-sign-out-scenario verify-remove-account-signout-failure-keeps-control-scenario verify-refresh-inactive-isolated-status-scenario verify-refresh-active-relinks-same-account-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -202,6 +204,56 @@ verify-notifications-permission-denied-menu-state-scenario: generate prepare-res
 		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
 		'  "workflowReceipt": "$(NOTIFICATIONS_PERMISSION_DENIED_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
 		'}' > "$(NOTIFICATIONS_PERMISSION_DENIED_SCENARIO_ARTIFACTS)/scenario-summary.json"
+
+verify-notifications-account-available-policy-scenario: generate prepare-result-bundle
+	mkdir -p "$(NOTIFICATIONS_ACCOUNT_AVAILABLE_SCENARIO_ARTIFACTS)"
+	xcodebuild test \
+		-project $(PROJECT_PATH) \
+		-scheme $(APP_NAME) \
+		-configuration Debug \
+		-destination "platform=macOS" \
+		-derivedDataPath "$(DERIVED_DATA)" \
+		-resultBundlePath "$(RESULT_BUNDLE)" \
+		-only-testing:CodexPillTests/InactiveAccountAvailabilityRankingTests \
+		-only-testing:CodexPillTests/MenuBarNotificationWorkflowTests \
+		PRODUCT_BUNDLE_IDENTIFIER="$(STAGING_BUNDLE_ID)"
+	printf '%s\n' \
+		'{' \
+		'  "scenario": "$(NOTIFICATIONS_ACCOUNT_AVAILABLE_SCENARIO)",' \
+		'  "proofLayer": "unit",' \
+		'  "events": [' \
+		'    "Account Available fires for an inactive fallback account becoming useful again",' \
+		'    "First-saved, only-saved, active, barely usable, and non-fallback accounts are not announced as available again",' \
+		'    "The delivered Account Available payload uses the expected simple copy and no direct actions",' \
+		'    "Delivery arms suppression state for the notified fallback account"' \
+		'  ],' \
+		'  "status": "passed"' \
+		'}' > "$(NOTIFICATIONS_ACCOUNT_AVAILABLE_SCENARIO_ARTIFACTS)/workflow-receipt.json"
+	printf '%s\n' \
+		'{' \
+		'  "assertions": [' \
+		'    "Account Available is limited to inactive fallback accounts becoming useful again",' \
+		'    "Non-fallback and already-active accounts do not trigger Account Available",' \
+		'    "Delivered Account Available copy is simple and action-free",' \
+		'    "The notified account is suppressed until activation resets dedupe state"' \
+		'  ],' \
+		'  "command": "make verify-notifications-account-available-policy-scenario",' \
+		'  "gaps": [' \
+		'    "Live macOS notification delivery is not exercised",' \
+		'    "Native notification UI rendering and user clicks are not proven",' \
+		'    "Current Runs Out action routing is tracked by notifications-current-runs-out-action"' \
+		'  ],' \
+		'  "invariantIds": [' \
+		'    "notifications.account-available.inactive-fallback-only",' \
+		'    "notifications.account-available.no-first-or-active-account",' \
+		'    "notifications.account-available.delivery-suppresses-repeat"' \
+		'  ],' \
+		'  "proofLayer": "unit",' \
+		'  "scenario": "$(NOTIFICATIONS_ACCOUNT_AVAILABLE_SCENARIO)",' \
+		'  "status": "passed",' \
+		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
+		'  "workflowReceipt": "$(NOTIFICATIONS_ACCOUNT_AVAILABLE_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
+		'}' > "$(NOTIFICATIONS_ACCOUNT_AVAILABLE_SCENARIO_ARTIFACTS)/scenario-summary.json"
 
 verify-rename-scenario: generate prepare-result-bundle
 	mkdir -p "$(RENAME_SCENARIO_ARTIFACTS)"
