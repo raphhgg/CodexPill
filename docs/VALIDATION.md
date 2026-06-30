@@ -38,7 +38,7 @@ that inventory into `.kite/scenarios.json` only when its owning feature doc has
 concrete acceptance criteria, proof rows, fixtures, command, artifacts, privacy
 rules, non-claims, and degraded-proof rules.
 
-The current clean-main manifest contains twenty-six deterministic scenarios:
+The current clean-main manifest contains twenty-seven deterministic scenarios:
 
 ```bash
 make verify-ui SCENARIO=hosted-menu-default
@@ -54,6 +54,7 @@ make verify-switch-account-remote-install-verify-scenario
 make verify-remote-host-add-panel-validation-scenario
 make verify-remote-host-install-switch-current-account-scenario
 make verify-remote-host-verification-failure-scenario
+make verify-remote-host-rate-limit-fallback-scenario
 make verify-remove-account-active-targets-sign-out-scenario
 make verify-remove-account-signout-failure-keeps-control-scenario
 make verify-rename-scenario
@@ -182,6 +183,15 @@ Current deterministic scenarios:
   behavior, real remote auth mutation, real remote filesystem mutation, native
   click automation, live menu-bar interaction, remote rate-limit fallback, or
   live macOS menu-bar behavior.
+- `remote-host-rate-limit-fallback`: changed-feature non-regression for Remote
+  Hosts rate-limit display truth. It proves through focused rate-limit
+  resolution, account catalog projection, menu state, and runtime validation
+  tests that meaningful verified remote limits win, missing/zeroed/partial/
+  expired/suspicious remote windows fall back to meaningful saved-account
+  windows, and fallback matching is scoped by canonical saved identity; it does
+  not prove live SSH, live Codex app-server behavior, real remote auth
+  mutation, real remote filesystem mutation, native click automation, final
+  native menu pixels for fallback labels, or live macOS menu-bar behavior.
 - `remove-account-active-targets-sign-out`: changed-feature non-regression for
   Remove Account active-target success. It proves through runtime, delete
   use-case, and alert-copy tests that removing an account active on This Mac and
@@ -303,6 +313,8 @@ The adapter currently includes:
   Remote Hosts setup follow-up workflow-event proof;
 - `make verify-remote-host-verification-failure-scenario` for focused Remote
   Hosts verification failure unit/menu proof;
+- `make verify-remote-host-rate-limit-fallback-scenario` for focused Remote
+  Hosts rate-limit fallback contract-fixture proof;
 - `make verify-remove-account-active-targets-sign-out-scenario` for focused
   Remove Account active-target workflow-event proof;
 - `make verify-remove-account-signout-failure-keeps-control-scenario` for

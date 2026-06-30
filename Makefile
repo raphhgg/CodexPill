@@ -29,6 +29,8 @@ REMOTE_HOST_INSTALL_SWITCH_SCENARIO := remote-host-install-switch-current-accoun
 REMOTE_HOST_INSTALL_SWITCH_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(REMOTE_HOST_INSTALL_SWITCH_SCENARIO)
 REMOTE_HOST_VERIFICATION_FAILURE_SCENARIO := remote-host-verification-failure
 REMOTE_HOST_VERIFICATION_FAILURE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(REMOTE_HOST_VERIFICATION_FAILURE_SCENARIO)
+REMOTE_HOST_RATE_LIMIT_FALLBACK_SCENARIO := remote-host-rate-limit-fallback
+REMOTE_HOST_RATE_LIMIT_FALLBACK_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(REMOTE_HOST_RATE_LIMIT_FALLBACK_SCENARIO)
 REMOVE_ACCOUNT_ACTIVE_SCENARIO := remove-account-active-targets-sign-out
 REMOVE_ACCOUNT_ACTIVE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(REMOVE_ACCOUNT_ACTIVE_SCENARIO)
 REMOVE_ACCOUNT_FAILURE_SCENARIO := remove-account-signout-failure-keeps-control
@@ -44,7 +46,7 @@ TOKEN_USAGE_CACHE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE
 TOKEN_USAGE_PRIVACY_SCENARIO := token-usage-privacy-no-raw-session
 TOKEN_USAGE_PRIVACY_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_PRIVACY_SCENARIO)
 
-.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-switch-account-remote-install-verify-scenario verify-remote-host-add-panel-validation-scenario verify-remote-host-install-switch-current-account-scenario verify-remote-host-verification-failure-scenario verify-remove-account-active-targets-sign-out-scenario verify-remove-account-signout-failure-keeps-control-scenario verify-refresh-inactive-isolated-status-scenario verify-refresh-active-relinks-same-account-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
+.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-switch-account-remote-install-verify-scenario verify-remote-host-add-panel-validation-scenario verify-remote-host-install-switch-current-account-scenario verify-remote-host-verification-failure-scenario verify-remote-host-rate-limit-fallback-scenario verify-remove-account-active-targets-sign-out-scenario verify-remove-account-signout-failure-keeps-control-scenario verify-refresh-inactive-isolated-status-scenario verify-refresh-active-relinks-same-account-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -545,6 +547,59 @@ verify-remote-host-verification-failure-scenario: generate prepare-result-bundle
 		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
 		'  "workflowReceipt": "$(REMOTE_HOST_VERIFICATION_FAILURE_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
 		'}' > "$(REMOTE_HOST_VERIFICATION_FAILURE_SCENARIO_ARTIFACTS)/scenario-summary.json"
+
+verify-remote-host-rate-limit-fallback-scenario: generate prepare-result-bundle
+	mkdir -p "$(REMOTE_HOST_RATE_LIMIT_FALLBACK_SCENARIO_ARTIFACTS)"
+	xcodebuild test \
+		-project $(PROJECT_PATH) \
+		-scheme $(APP_NAME) \
+		-configuration Debug \
+		-destination "platform=macOS" \
+		-derivedDataPath "$(DERIVED_DATA)" \
+		-resultBundlePath "$(RESULT_BUNDLE)" \
+		-only-testing:CodexPillTests/RemoteRateLimitResolutionTests \
+		-only-testing:CodexPillTests/MenuBarAccountCatalogProjectionTests \
+		-only-testing:CodexPillTests/MenuBarMenuStateTests \
+		-only-testing:CodexPillTests/MenuBarRuntimeValidationTests \
+		PRODUCT_BUNDLE_IDENTIFIER="$(STAGING_BUNDLE_ID)"
+	printf '%s\n' \
+		'{' \
+		'  "scenario": "$(REMOTE_HOST_RATE_LIMIT_FALLBACK_SCENARIO)",' \
+		'  "proofLayer": "contract-fixture",' \
+		'  "events": [' \
+		'    "Remote rate-limit resolution keeps meaningful verified remote windows when present",' \
+		'    "Missing, zeroed, partial, or expired remote windows fall back to meaningful saved-account windows",' \
+		'    "Ambiguous remote emails use stable account identity before borrowing saved fallback limits",' \
+		'    "Menu projection relinks stale verified remote account metadata to the canonical saved account",' \
+		'    "Runtime refresh preserves saved fallback windows when remote status omits useful rate limits"' \
+		'  ],' \
+		'  "status": "passed"' \
+		'}' > "$(REMOTE_HOST_RATE_LIMIT_FALLBACK_SCENARIO_ARTIFACTS)/contract-receipt.json"
+	printf '%s\n' \
+		'{' \
+		'  "assertions": [' \
+		'    "Verified remote rate-limit values win when they contain meaningful data",' \
+		'    "Saved fallback windows are used only for missing, zeroed, partial, expired, or suspicious remote data",' \
+		'    "Fallback selection resolves against canonical saved account identity instead of email alone",' \
+		'    "Remote active cards and validation snapshots expose meaningful fallback limits without claiming live SSH proof"' \
+		'  ],' \
+		'  "command": "make verify-remote-host-rate-limit-fallback-scenario",' \
+		'  "gaps": [' \
+		'    "No live SSH host, live Codex app-server, real remote auth mutation, or real remote filesystem is exercised",' \
+		'    "Native click automation and live menu-bar interaction are not proven",' \
+		'    "Fallback labels in final native menu pixels are not separately proven"' \
+		'  ],' \
+		'  "invariantIds": [' \
+		'    "remote-host.rate-limit-fallback.remote-values-win-when-meaningful",' \
+		'    "remote-host.rate-limit-fallback.saved-values-used-only-for-unusable-remote-data",' \
+		'    "remote-host.rate-limit-fallback.identity-scoped-fallback"' \
+		'  ],' \
+		'  "proofLayer": "contract-fixture",' \
+		'  "scenario": "$(REMOTE_HOST_RATE_LIMIT_FALLBACK_SCENARIO)",' \
+		'  "status": "passed",' \
+		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
+		'  "contractReceipt": "$(REMOTE_HOST_RATE_LIMIT_FALLBACK_SCENARIO_ARTIFACTS)/contract-receipt.json"' \
+		'}' > "$(REMOTE_HOST_RATE_LIMIT_FALLBACK_SCENARIO_ARTIFACTS)/scenario-summary.json"
 
 verify-remove-account-active-targets-sign-out-scenario: generate prepare-result-bundle
 	mkdir -p "$(REMOVE_ACCOUNT_ACTIVE_SCENARIO_ARTIFACTS)"
