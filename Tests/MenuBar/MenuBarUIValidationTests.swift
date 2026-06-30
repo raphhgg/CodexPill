@@ -555,6 +555,31 @@ struct MenuBarUIValidationTests {
             #expect(snapshot.remoteHosts.isEmpty)
             #expect(snapshot.statusMessage == nil)
 
+        case "token-usage-loading-progress":
+            #expect(snapshot.sections.map(\.title) == [
+                "Active Account",
+                "Other Accounts",
+                "More Accounts…",
+                "Manage Accounts",
+                "Preferences"
+            ])
+            let activeSection = try #require(snapshot.sections.first(where: { $0.title == "Active Account" }))
+            let tokenUsage = try #require(activeSection.items.first(where: { $0.contains("Token Usage") }))
+            #expect(activeSection.items.count == 2)
+            #expect(tokenUsage.contains("Last 30 days"))
+            #expect(tokenUsage.contains("Scanning 42 of 310 sessions..."))
+            #expect(!tokenUsage.contains("%"))
+            #expect(!tokenUsage.contains("Primary"))
+            #expect(!tokenUsage.contains("Research"))
+            #expect(!tokenUsage.contains("@example.com"))
+            #expect(!tokenUsage.localizedCaseInsensitiveContains("workspace"))
+            #expect(!tokenUsage.localizedCaseInsensitiveContains("remote"))
+            #expect(!tokenUsage.localizedCaseInsensitiveContains("host"))
+            #expect(!tokenUsage.localizedCaseInsensitiveContains("jsonl"))
+            #expect(!tokenUsage.localizedCaseInsensitiveContains("path"))
+            #expect(snapshot.remoteHosts.isEmpty)
+            #expect(snapshot.statusMessage == nil)
+
         case "hosted-menu-with-host":
             #expect(snapshot.sections.map(\.title) == [
                 "Active Accounts",
@@ -677,6 +702,12 @@ struct MenuBarUIValidationTests {
                 "Token Usage ready card renders in the active account area",
                 "Synthetic aggregate data renders today, period total, and peak day",
                 "Token Usage card does not emit account, email, workspace, remote, or host attribution"
+            ]
+        case "token-usage-loading-progress":
+            return [
+                "Token Usage loading card renders in the active account area",
+                "Synthetic file-count progress renders without fake percentages",
+                "Loading card does not emit account, email, workspace, remote, host, path, or raw session detail"
             ]
         case "hosted-menu-with-host":
             return [
@@ -820,6 +851,45 @@ struct MenuBarUIValidationTests {
                         dailyTokenUsage(daysAgo: 1, totalTokens: 1_200),
                         dailyTokenUsage(daysAgo: 0, totalTokens: 3_400)
                     ])
+                )
+            )
+
+        case "token-usage-loading-progress":
+            let active = makeAccount(
+                name: "Primary",
+                email: "primary@example.com",
+                planType: "pro",
+                sessionUsedPercent: 42,
+                weeklyUsedPercent: 68,
+                now: now
+            )
+
+            let others = [
+                makeAccount(name: "Research", email: "research@example.com", planType: "pro", sessionUsedPercent: 8, weeklyUsedPercent: 35, now: now),
+                makeAccount(name: "Sandbox", email: "sandbox@example.com", planType: "plus", sessionUsedPercent: 19, weeklyUsedPercent: 50, now: now),
+                makeAccount(name: "Overflow", email: "overflow@example.com", planType: "plus", sessionUsedPercent: 74, weeklyUsedPercent: 88, now: now)
+            ]
+
+            return MenuBarMenuState(
+                activeAccount: active,
+                inactiveAccounts: others,
+                remoteHosts: [],
+                visibleInactiveAccountCount: 2,
+                visibleInactiveAccountCountOptions: [2, 3, 5, 0],
+                refreshIntervalMinutes: 5,
+                refreshIntervalOptions: [1, 2, 5, 10, 15, 30],
+                statusBarMonochrome: false,
+                statusBarIndicatorStyle: .dualArcBadge,
+                statusBarDisplayMode: .textOnHover,
+                isBusy: false,
+                statusMessage: "Ready",
+                tokenUsageEnabled: true,
+                tokenUsagePeriod: .last30Days,
+                tokenUsageChartStyle: .sparkline,
+                tokenUsageCard: makeTokenUsageCard(
+                    period: .last30Days,
+                    style: .sparkline,
+                    loadState: .loading(TokenUsageScanProgress(scannedFiles: 42, totalFiles: 310))
                 )
             )
 

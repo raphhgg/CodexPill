@@ -106,7 +106,7 @@ proof-contract shape:
 | `token-usage-ready-card` | Enabled Token Usage shows a local Last 30 Days aggregate card without implying account, workspace, organization, or remote-host attribution. | `ui_visual`, `state_truth`, `privacy` | `deterministic-ui`; screenshot, UI tree, summary | `changed-feature`, blocking for Token Usage card | `runnable` |
 | `token-usage-parser-aggregation` | Scanner parses token-count rows, handles malformed rows, repeated cumulative totals, and large files safely. | `parser`, `privacy`, `performance` | `contract-fixture`; synthetic JSONL fixtures | `changed-feature`, blocking for scanner changes | `target` |
 | `token-usage-cache-first` | Cache is reused before scanning and refreshes only changed or new eligible files for the selected period. | `state_truth`, `performance`, `privacy` | `unit` and integration cache fixtures | `changed-feature`, blocking for cache/runtime | `target` |
-| `token-usage-loading-progress` | First-load progress is animated or live-updating without fake percentages or raw file/session details. | `ui_visual`, `temporal`, `privacy` | `deterministic-ui`; future temporal proof if animation cadence is claimed | `changed-feature`, blocking for loading UI | `target` |
+| `token-usage-loading-progress` | First-load progress is animated or live-updating without fake percentages or raw file/session details. | `ui_visual`, `temporal`, `privacy` | `deterministic-ui`; screenshot, UI tree, summary; existing unit coverage owns frame animation mechanics | `changed-feature`, blocking for loading UI | `runnable` |
 | `token-usage-privacy-no-raw-session` | Token Usage artifacts, diagnostics, and UI emit aggregates only, never prompts, session rows, paths, account IDs, emails, or hostnames. | `privacy` | `diagnostics-export` and negative leakage fixtures | `changed-feature`, blocking for token usage diagnostics | `target` |
 
 ## App Controls
@@ -134,7 +134,7 @@ quality rather than a product user path.
 
 Recommended order:
 
-1. Promote `token-usage-loading-progress` after the ready card, or earlier only
-   if the loading scenario has an equally explicit scope and privacy contract.
-2. One explicit live/preview scenario only after deterministic coverage is
-   broader and the manifest declares live opt-in and non-claims.
+1. One explicit live/preview scenario only after the manifest declares live
+   opt-in, cleanup, privacy rules, and non-claims.
+2. Promote lower-level Token Usage parser/cache/privacy scenarios when scanner,
+   cache, diagnostics, or artifact behavior changes.
