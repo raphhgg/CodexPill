@@ -21,6 +21,8 @@ NOTIFICATIONS_CURRENT_RUNS_OUT_SCENARIO := notifications-current-runs-out-action
 NOTIFICATIONS_CURRENT_RUNS_OUT_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(NOTIFICATIONS_CURRENT_RUNS_OUT_SCENARIO)
 NOTIFICATIONS_DEDUPE_SCENARIO := notifications-dedupe-after-delivery
 NOTIFICATIONS_DEDUPE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(NOTIFICATIONS_DEDUPE_SCENARIO)
+LAUNCH_AT_LOGIN_ENABLE_SCENARIO := launch-at-login-enable-confirmation
+LAUNCH_AT_LOGIN_ENABLE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(LAUNCH_AT_LOGIN_ENABLE_SCENARIO)
 STATUS_BAR_HOVER_SCENARIO := status-bar-hover-label
 STATUS_BAR_HOVER_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(STATUS_BAR_HOVER_SCENARIO)
 STATUS_BAR_SHORTCUT_SCENARIO := status-bar-shortcut-reveal
@@ -62,7 +64,7 @@ TOKEN_USAGE_CACHE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE
 TOKEN_USAGE_PRIVACY_SCENARIO := token-usage-privacy-no-raw-session
 TOKEN_USAGE_PRIVACY_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_PRIVACY_SCENARIO)
 
-.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-diagnostics-export-confirmation-scenario verify-notifications-permission-denied-menu-state-scenario verify-notifications-account-available-policy-scenario verify-notifications-current-runs-out-action-scenario verify-notifications-dedupe-after-delivery-scenario verify-status-bar-hover-label-scenario verify-status-bar-shortcut-reveal-scenario verify-status-bar-usage-bars-preferences-scenario verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-switch-account-remote-install-verify-scenario verify-remote-host-add-panel-validation-scenario verify-remote-host-install-switch-current-account-scenario verify-remote-host-verification-failure-scenario verify-remote-host-rate-limit-fallback-scenario verify-remove-account-active-targets-sign-out-scenario verify-remove-account-signout-failure-keeps-control-scenario verify-refresh-inactive-isolated-status-scenario verify-refresh-active-relinks-same-account-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
+.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-diagnostics-export-confirmation-scenario verify-notifications-permission-denied-menu-state-scenario verify-notifications-account-available-policy-scenario verify-notifications-current-runs-out-action-scenario verify-notifications-dedupe-after-delivery-scenario verify-launch-at-login-enable-confirmation-scenario verify-status-bar-hover-label-scenario verify-status-bar-shortcut-reveal-scenario verify-status-bar-usage-bars-preferences-scenario verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-switch-account-remote-install-verify-scenario verify-remote-host-add-panel-validation-scenario verify-remote-host-install-switch-current-account-scenario verify-remote-host-verification-failure-scenario verify-remote-host-rate-limit-fallback-scenario verify-remove-account-active-targets-sign-out-scenario verify-remove-account-signout-failure-keeps-control-scenario verify-refresh-inactive-isolated-status-scenario verify-refresh-active-relinks-same-account-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -371,6 +373,57 @@ verify-notifications-dedupe-after-delivery-scenario: generate prepare-result-bun
 		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
 		'  "workflowReceipt": "$(NOTIFICATIONS_DEDUPE_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
 		'}' > "$(NOTIFICATIONS_DEDUPE_SCENARIO_ARTIFACTS)/scenario-summary.json"
+
+verify-launch-at-login-enable-confirmation-scenario: generate prepare-result-bundle
+	mkdir -p "$(LAUNCH_AT_LOGIN_ENABLE_SCENARIO_ARTIFACTS)"
+	xcodebuild test \
+		-project $(PROJECT_PATH) \
+		-scheme $(APP_NAME) \
+		-configuration Debug \
+		-destination "platform=macOS" \
+		-derivedDataPath "$(DERIVED_DATA)" \
+		-resultBundlePath "$(RESULT_BUNDLE)" \
+		-only-testing:CodexPillTests/MenuBarMenuBuilderTests \
+		PRODUCT_BUNDLE_IDENTIFIER="$(STAGING_BUNDLE_ID)"
+	printf '%s\n' \
+		'{' \
+		'  "scenario": "$(LAUNCH_AT_LOGIN_ENABLE_SCENARIO)",' \
+		'  "proofLayer": "workflow-event-log",' \
+		'  "events": [' \
+		'    "Disabled Launch at Login state asks for confirmation before fake registration",' \
+		'    "Accepted confirmation calls the fake login-item controller with enabled true",' \
+		'    "Cancelled confirmation leaves the fake login item disabled and records no mutation",' \
+		'    "Enabled Launch at Login state unregisters directly without showing enable confirmation",' \
+		'    "Registration failure leaves the fake state disabled and reports a truthful error"' \
+		'  ],' \
+		'  "status": "passed"' \
+		'}' > "$(LAUNCH_AT_LOGIN_ENABLE_SCENARIO_ARTIFACTS)/workflow-receipt.json"
+	printf '%s\n' \
+		'{' \
+		'  "assertions": [' \
+		'    "Enable path presents Launch CodexPill at Login? before setEnabled(true)",' \
+		'    "Cancel path keeps the fake login item disabled and records no controller mutation",' \
+		'    "Disable path calls setEnabled(false) without confirmation",' \
+		'    "Failed registration reports an error without claiming enabled state"' \
+		'  ],' \
+		'  "command": "make verify-launch-at-login-enable-confirmation-scenario",' \
+		'  "gaps": [' \
+		'    "Real macOS login item registration or unregistration is not performed",' \
+		'    "Signed app visibility in System Settings Login Items is not proven",' \
+		'    "Live menu-bar clicks and live System Settings UI are not exercised"' \
+		'  ],' \
+		'  "invariantIds": [' \
+		'    "launch-at-login.enable.confirmation-before-register",' \
+		'    "launch-at-login.enable.cancel-no-mutation",' \
+		'    "launch-at-login.disable.unregisters-directly",' \
+		'    "launch-at-login.enable.failure-truthful"' \
+		'  ],' \
+		'  "proofLayer": "workflow-event-log",' \
+		'  "scenario": "$(LAUNCH_AT_LOGIN_ENABLE_SCENARIO)",' \
+		'  "status": "passed",' \
+		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
+		'  "workflowReceipt": "$(LAUNCH_AT_LOGIN_ENABLE_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
+		'}' > "$(LAUNCH_AT_LOGIN_ENABLE_SCENARIO_ARTIFACTS)/scenario-summary.json"
 
 verify-status-bar-hover-label-scenario: generate prepare-result-bundle
 	mkdir -p "$(STATUS_BAR_HOVER_SCENARIO_ARTIFACTS)"

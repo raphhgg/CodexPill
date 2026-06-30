@@ -136,7 +136,7 @@ must include or link to the refinement proof-contract shape:
 | Scenario | Acceptance Criteria | Validation Intent | Proof Layer | Non-Regression | Status |
 | --- | --- | --- | --- | --- | --- |
 | `launch-at-login-menu-states` | Preferences shows checked, unchecked, blocked, and unavailable Launch at Login states truthfully. | `state_truth`, `ui_visual`, `privacy` | `unit` plus `deterministic-ui`; screenshot, UI tree, summary, and state matrix | `changed-feature`, blocking for app controls | `runnable` |
-| `launch-at-login-enable-confirmation` | Enabling asks for confirmation before registering the macOS login item; disabling unregisters directly. | `ui_interaction`, `system_mutation` | `workflow-event-log` with fake login-item controller | `changed-feature`, blocking for app controls | `target` |
+| `launch-at-login-enable-confirmation` | Enabling asks for confirmation before registering the macOS login item; cancelling preserves state; disabling unregisters directly. | `ui_interaction`, `system_mutation`, `privacy` | `workflow-event-log`; fake login-item controller, confirmation presenter, and failure receipt | `changed-feature`, blocking for app controls | `runnable` |
 | `launch-at-login-blocked-opens-settings` | Blocked or unavailable state opens System Settings instead of pretending to toggle. | `ui_interaction`, `failure_path` | `workflow-event-log` with fake system opener | `changed-feature`, blocking for app controls | `target` |
 | `launch-at-login-real-os-smoke` | A local macOS build appears in System Settings and survives toggle on/off. | `system_mutation`, `manual_release_confidence` | `manual-qa` or explicit opt-in live OS proof with cleanup | release confidence only | `manual-gate` |
 

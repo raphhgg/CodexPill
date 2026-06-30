@@ -38,7 +38,7 @@ that inventory into `.kite/scenarios.json` only when its owning feature doc has
 concrete acceptance criteria, proof rows, fixtures, command, artifacts, privacy
 rules, non-claims, and degraded-proof rules.
 
-The current clean-main manifest contains thirty-five deterministic scenarios:
+The current clean-main manifest contains thirty-six deterministic scenarios:
 
 ```bash
 make verify-ui SCENARIO=hosted-menu-default
@@ -66,6 +66,7 @@ make verify-rename-scenario
 make verify-refresh-inactive-isolated-status-scenario
 make verify-refresh-active-relinks-same-account-scenario
 make verify-ui SCENARIO=launch-at-login-menu-states
+make verify-launch-at-login-enable-confirmation-scenario
 make verify-ui SCENARIO=status-bar-icon-text-visible
 make verify-status-bar-hover-label-scenario
 make verify-status-bar-shortcut-reveal-scenario
@@ -295,6 +296,14 @@ Current deterministic scenarios:
   or unregister the real macOS login item, open System Settings, prove a signed
   app appears in Login Items, prove the enable confirmation workflow, or prove
   live macOS menu-bar behavior.
+- `launch-at-login-enable-confirmation`: changed-feature non-regression for App
+  Controls workflow behavior. It proves through fake login-item controller and
+  confirmation presenter tests that enabling asks for confirmation before fake
+  registration, cancelling leaves the fake login item disabled, disabling
+  unregisters directly without confirmation, and registration failure reports a
+  truthful error without claiming enabled state; it does not register or
+  unregister the real macOS login item, prove signed-app Login Items visibility,
+  or exercise live menu-bar/System Settings UI.
 - `status-bar-icon-text-visible`: changed-feature non-regression for Status Bar
   closed-state presentation. It proves that a synthetic active account produces
   an icon-and-text status item runtime snapshot with displayed title
@@ -416,6 +425,8 @@ The adapter currently includes:
   Accounts inactive isolated status proof;
 - `make verify-refresh-active-relinks-same-account-scenario` for focused
   Refresh Accounts active relink proof;
+- `make verify-launch-at-login-enable-confirmation-scenario` for focused App
+  Controls Launch at Login confirmation and unregister workflow proof;
 - `make verify-token-usage-parser-scenario` for focused Token Usage scanner
   contract-fixture proof;
 - `make verify-token-usage-cache-scenario` for focused Token Usage cache and

@@ -416,6 +416,28 @@
       ]
     },
     {
+      "id": "launch-at-login-enable-confirmation",
+      "title": "Launch at Login enable confirmation",
+      "acceptanceCriteria": [
+        {
+          "id": "enable-confirmation-before-register",
+          "statement": "Enabling Launch at Login must ask for explicit confirmation before registering the login item."
+        },
+        {
+          "id": "enable-cancel-preserves-disabled-state",
+          "statement": "Cancelling the enable confirmation must not call the login-item controller and must leave the disabled state unchanged."
+        },
+        {
+          "id": "disable-unregisters-directly",
+          "statement": "Disabling Launch at Login must unregister directly without showing the enable confirmation."
+        },
+        {
+          "id": "enable-failure-remains-truthful",
+          "statement": "Registration failure must report an error and must not claim Launch at Login is enabled."
+        }
+      ]
+    },
+    {
       "id": "status-bar-closed-state",
       "title": "Status bar closed state",
       "acceptanceCriteria": [
@@ -2633,6 +2655,94 @@
       ],
       "expectedMetadata": {
         "scenario": "launch-at-login-menu-states"
+      },
+      "privacy": {
+        "fixtureData": "synthetic",
+        "restrictedEvidence": [
+          "account_data",
+          "hostname",
+          "raw_local_path",
+          "private_product_data",
+          "token"
+        ]
+      }
+    },
+    {
+      "id": "launch-at-login-enable-confirmation",
+      "title": "Launch at Login enable confirmation",
+      "featureId": "launch-at-login-enable-confirmation",
+      "acceptanceCriteria": [
+        "enable-confirmation-before-register",
+        "enable-cancel-preserves-disabled-state",
+        "disable-unregisters-directly",
+        "enable-failure-remains-truthful"
+      ],
+      "targetSurface": "CodexPill Launch at Login coordinator, confirmation presenter, fake login-item controller, and fake error path",
+      "validationModes": ["unit_only"],
+      "suites": ["deterministic"],
+      "validationIntent": {
+        "featureRisk": ["ui_interaction", "system_mutation", "privacy"],
+        "primaryProof": "workflow-event-log",
+        "supportingProof": ["fake-controller", "confirmation-presenter", "privacy-redaction"],
+        "requiredEvidence": ["test-output", "workflow-receipt", "scenario-summary"],
+        "nonClaims": [
+          "Does not register or unregister the real macOS login item.",
+          "Does not prove signed app visibility in System Settings Login Items.",
+          "Does not exercise live menu-bar clicks or live System Settings UI."
+        ],
+        "liveOptIn": {
+          "required": false
+        }
+      },
+      "nonRegression": {
+        "tier": "changed-feature",
+        "runWhen": [
+          "local-handoff",
+          "app-controls-ui-changed",
+          "launch-at-login-state-changed",
+          "login-item-controller-changed",
+          "alert-copy-changed",
+          "scenario-fixture-changed"
+        ],
+        "blocking": true
+      },
+      "proof": {
+        "layer": "workflow-event-log",
+        "artifactSource": "focused-test-suite",
+        "nonClaims": [
+          "Does not register or unregister the real macOS login item.",
+          "Does not prove signed app visibility in System Settings Login Items.",
+          "Does not exercise live menu-bar clicks or live System Settings UI."
+        ]
+      },
+      "command": {
+        "run": "make verify-launch-at-login-enable-confirmation-scenario"
+      },
+      "expectedArtifacts": [
+        {
+          "id": "launch-at-login-enable-confirmation-result-bundle",
+          "kind": "test_output",
+          "path": "build/results/local/CodexPill.xcresult",
+          "claimScope": ["launch-at-login-workflow-tests"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "launch-at-login-enable-confirmation-workflow-receipt",
+          "kind": "workflow_receipt",
+          "path": "build/verification/launch-at-login-enable-confirmation/workflow-receipt.json",
+          "claimScope": ["launch-at-login-fake-controller-events"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "launch-at-login-enable-confirmation-summary",
+          "kind": "reconciliation_report",
+          "path": "build/verification/launch-at-login-enable-confirmation/scenario-summary.json",
+          "claimScope": ["launch-at-login-workflow-reconciled"],
+          "redactionStatus": "sanitized"
+        }
+      ],
+      "expectedMetadata": {
+        "scenario": "launch-at-login-enable-confirmation"
       },
       "privacy": {
         "fixtureData": "synthetic",
