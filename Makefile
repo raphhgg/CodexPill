@@ -13,8 +13,10 @@ VERIFICATION_REQUEST := $(VERIFICATION_DIR)/request.json
 VERIFICATION_ARTIFACTS := $(BUILD_ROOT)/verification/$(SCENARIO)
 RENAME_SCENARIO := rename-account-label-only
 RENAME_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(RENAME_SCENARIO)
+ADD_ACCOUNT_NAME_SCENARIO := add-account-name-validation
+ADD_ACCOUNT_NAME_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(ADD_ACCOUNT_NAME_SCENARIO)
 
-.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario run clean
+.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario verify-add-account-name-scenario run clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -86,6 +88,40 @@ verify-rename-scenario: generate prepare-result-bundle
 		'  "scenario": "$(RENAME_SCENARIO)",' \
 		'  "testResultBundle": "$(RESULT_BUNDLE)"' \
 		'}' > "$(RENAME_SCENARIO_ARTIFACTS)/scenario-summary.json"
+
+verify-add-account-name-scenario: generate prepare-result-bundle
+	mkdir -p "$(ADD_ACCOUNT_NAME_SCENARIO_ARTIFACTS)"
+	xcodebuild test \
+		-project $(PROJECT_PATH) \
+		-scheme $(APP_NAME) \
+		-configuration Debug \
+		-destination "platform=macOS" \
+		-derivedDataPath "$(DERIVED_DATA)" \
+		-resultBundlePath "$(RESULT_BUNDLE)" \
+		-only-testing:CodexPillTests/AddAccountWorkflowTests \
+		-only-testing:CodexPillTests/AccountActionFlowTests \
+		PRODUCT_BUNDLE_IDENTIFIER="$(STAGING_BUNDLE_ID)"
+	printf '%s\n' \
+		'{' \
+		'  "assertions": [' \
+		'    "Empty or whitespace-only Add Account names are rejected before isolated sign-in starts",' \
+		'    "Case-insensitive duplicate Add Account names are rejected before isolated sign-in starts",' \
+		'    "Display-name errors resolve back into the Add Account name-recovery flow"' \
+		'  ],' \
+		'  "command": "make verify-add-account-name-scenario",' \
+		'  "gaps": [' \
+		'    "Native Add Account panel rendering and disabled Continue state are not proven by this unit scenario",' \
+		'    "Browser/device-code sign-in and live auth state are not exercised"' \
+		'  ],' \
+		'  "invariantIds": [' \
+		'    "account-catalog.add-account-name-required",' \
+		'    "account-catalog.add-account-name-unique-before-sign-in"' \
+		'  ],' \
+		'  "proofLayer": "unit",' \
+		'  "scenario": "$(ADD_ACCOUNT_NAME_SCENARIO)",' \
+		'  "status": "passed",' \
+		'  "testResultBundle": "$(RESULT_BUNDLE)"' \
+		'}' > "$(ADD_ACCOUNT_NAME_SCENARIO_ARTIFACTS)/scenario-summary.json"
 
 run:
 	./scripts/run_menubar.sh

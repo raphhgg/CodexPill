@@ -38,7 +38,7 @@ that inventory into `.kite/scenarios.json` only when its owning feature doc has
 concrete acceptance criteria, proof rows, fixtures, command, artifacts, privacy
 rules, non-claims, and degraded-proof rules.
 
-The current clean-main manifest contains eleven deterministic scenarios:
+The current clean-main manifest contains twelve deterministic scenarios:
 
 ```bash
 make verify-ui SCENARIO=hosted-menu-default
@@ -46,6 +46,7 @@ make verify-ui SCENARIO=menu-busy-status
 make verify-ui SCENARIO=menu-unmatched-active-account
 make verify-ui SCENARIO=menu-empty-catalog
 make verify-ui SCENARIO=menu-account-overflow
+make verify-add-account-name-scenario
 make verify-rename-scenario
 make verify-ui SCENARIO=launch-at-login-menu-states
 make verify-ui SCENARIO=status-bar-icon-text-visible
@@ -88,6 +89,13 @@ Current deterministic scenarios:
 - `menu-account-overflow`: changed-feature non-regression for Account Catalog
   overflow truth. It proves that hidden saved accounts remain discoverable under
   `More Accounts…` and keep the same submenu action shape as visible rows.
+- `add-account-name-validation`: changed-feature non-regression for Add Account
+  name validation. It proves through focused unit tests that empty,
+  whitespace-only, and case-insensitive duplicate names are rejected before
+  isolated sign-in starts, and that display-name errors return to the Add
+  Account name-recovery flow; it does not prove native Add Account panel
+  rendering, disabled `Continue` state, browser/device-code sign-in, live auth
+  mutation, or live macOS menu-bar behavior.
 - `rename-account-label-only`: changed-feature non-regression for Rename
   Account. It proves through focused unit tests that rename changes only the
   CodexPill display label, preserves saved auth snapshot identity, plan, and
@@ -130,6 +138,8 @@ The adapter currently includes:
 - `.kite/scenarios.json` for feature, acceptance criteria, Validation Intent,
   artifact, privacy, and non-regression declarations;
 - `make verify-ui SCENARIO=<scenario>` for deterministic hosted-menu proof;
+- `make verify-add-account-name-scenario` for focused Add Account name
+  validation unit proof;
 - `make verify-rename-scenario` for focused Rename Account unit proof;
 - `MenuBarValidationSupport` for semantic menu snapshots and hosted UI
   artifacts;
