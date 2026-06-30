@@ -31,6 +31,12 @@ The manifest uses Kite's v2 feature-scenario contract:
 - each scenario records Validation Intent before execution;
 - each scenario declares non-regression policy separately from product truth.
 
+Feature-level target scenarios are tracked in
+[Feature Validation Scenarios](features/validation-scenarios.md). A scenario
+should move from that inventory into `.kite/scenarios.json` only when it is
+runnable and has concrete fixtures, command, artifacts, privacy rules,
+non-claims, and degraded-proof rules.
+
 The current clean-main manifest contains two deterministic hosted-menu
 scenarios:
 
