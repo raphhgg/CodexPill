@@ -37,12 +37,13 @@ should move from that inventory into `.kite/scenarios.json` only when it is
 runnable and has concrete fixtures, command, artifacts, privacy rules,
 non-claims, and degraded-proof rules.
 
-The current clean-main manifest contains two deterministic hosted-menu
+The current clean-main manifest contains three deterministic hosted-menu
 scenarios:
 
 ```bash
 make verify-ui SCENARIO=hosted-menu-default
 make verify-ui SCENARIO=menu-unmatched-active-account
+make verify-ui SCENARIO=menu-empty-catalog
 ```
 
 Those commands write hosted validation screenshots, `ui-tree.json`, and
@@ -65,6 +66,9 @@ Current deterministic scenarios:
 - `menu-unmatched-active-account`: smoke non-regression for Active Account
   truth. It proves that saved accounts remain catalog rows and are not presented
   as active when the active local auth state is unmatched.
+- `menu-empty-catalog`: changed-feature non-regression for Account Catalog
+  empty-state truth. It proves that an empty catalog guides toward Add Account
+  and does not expose saved-account rows or switch actions.
 
 ## Product Validation Adapter
 

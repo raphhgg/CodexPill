@@ -50,7 +50,6 @@ proof-contract shape:
 | Scenario | Acceptance Criteria | Validation Intent | Proof Layer | Non-Regression | Status |
 | --- | --- | --- | --- | --- | --- |
 | `hosted-menu-default` | Default saved-account menu shape does not claim live state. | `ui_visual`, `static_ui`, `privacy` | `deterministic-ui`; screenshot, UI tree, summary | `smoke`, blocking | `runnable` |
-| `menu-empty-catalog` | Empty state guides toward Add Account and does not imply switching is possible. | `ui_visual`, `static_ui` | `deterministic-ui`; hosted menu fixture | `changed-feature`, blocking for account-catalog UI | `target` |
 | `menu-account-overflow` | More than the visible saved-account limit renders discoverable overflow. | `ui_visual`, `static_ui` | `deterministic-ui`; hosted menu fixture | `changed-feature`, blocking for catalog layout | `target` |
 | `menu-busy-status` | Busy workflows expose status and disable or route conflicting actions. | `workflow_state`, `ui_visual` | `deterministic-ui` plus `workflow-event-log` for action availability | `changed-feature`, blocking for menu action changes | `target` |
 | `diagnostics-export-confirmation` | Diagnostics export requires confirmation and writes only a redacted support artifact. | `privacy`, `diagnostics`, `user_confirmation` | `diagnostics-export`; generated report plus negative leakage assertions | `changed-feature`, blocking for diagnostics changes | `target` |
@@ -59,6 +58,7 @@ proof-contract shape:
 
 | Scenario | Acceptance Criteria | Validation Intent | Proof Layer | Non-Regression | Status |
 | --- | --- | --- | --- | --- | --- |
+| `menu-empty-catalog` | Empty state guides toward Add Account and does not imply switching is possible. | `state_truth`, `ui_visual`, `static_ui` | `deterministic-ui`; screenshot, UI tree, summary | `changed-feature`, blocking for account-catalog UI | `runnable` |
 | `menu-unmatched-active-account` | Unmatched local auth must not present a saved account as active. | `state_truth`, `ui_visual`, `privacy` | `deterministic-ui`; screenshot, UI tree, summary | `smoke`, blocking | `runnable` |
 | `add-account-name-validation` | Empty or duplicate display names are blocked before sign-in starts. | `workflow_state`, `privacy` | `unit` plus alert/panel presentation assertions | `changed-feature`, blocking for Add Account | `target` |
 | `add-account-isolated-success` | Add Account saves an isolated account without switching This Mac and hydrates usable status when available. | `auth_isolation`, `workflow_state`, `privacy` | `integration` plus `workflow-event-log`; fake login/app-server clients | `changed-feature`, blocking for Add Account | `target` |
@@ -134,11 +134,9 @@ quality rather than a product user path.
 
 Recommended order:
 
-1. `menu-empty-catalog`, because it is deterministic, low-risk, and protects
-   onboarding truth.
-2. `menu-account-overflow`, because it protects the catalog shape without live
+1. `menu-account-overflow`, because it protects the catalog shape without live
    auth mutation.
-3. `token-usage-ready-card` or `token-usage-loading-progress`, after deciding
+2. `token-usage-ready-card` or `token-usage-loading-progress`, after deciding
    whether Token Usage should be the next product dogfood lane.
-4. One explicit live/preview scenario only after deterministic coverage is
+3. One explicit live/preview scenario only after deterministic coverage is
    broader and the manifest declares live opt-in and non-claims.

@@ -248,7 +248,7 @@ struct MenuBarUIValidationTests {
     func emptyStateForcesIconOnlyStatusItemContentInValidationSnapshot() {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
         let snapshot = MenuBarValidationSupport.makeSnapshot(
-            state: makeHostedValidationState(for: "hosted-menu-empty", now: now),
+            state: makeHostedValidationState(for: "menu-empty-catalog", now: now),
             now: now
         )
 
@@ -366,7 +366,10 @@ struct MenuBarUIValidationTests {
         )
         let now = Date(timeIntervalSince1970: 1_744_195_200)
         let state = makeHostedValidationState(for: request.scenario, now: now)
-        let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, now: now)
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let menu = builder.makeMenu(state: state, target: coordinator)
+        let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, menu: menu, now: now)
 
         try assertScenarioSnapshot(snapshot, scenario: request.scenario)
 
@@ -465,6 +468,14 @@ struct MenuBarUIValidationTests {
         return nil
     }
 
+    private func flattenedMenuItems(
+        in items: [MenuBarValidationSnapshot.MenuItem]
+    ) -> [MenuBarValidationSnapshot.MenuItem] {
+        items.flatMap { item in
+            [item] + flattenedMenuItems(in: item.children)
+        }
+    }
+
     private func assertScenarioSnapshot(_ snapshot: MenuBarValidationSnapshot, scenario: String) throws {
         switch scenario {
         case "hosted-menu-default":
@@ -545,7 +556,7 @@ struct MenuBarUIValidationTests {
             #expect(snapshot.statusMessage == "Refreshing account data...")
             #expect(snapshot.sections[1].items.contains("Add Account… (disabled)"))
 
-        case "hosted-menu-empty":
+        case "menu-empty-catalog":
             #expect(snapshot.sections.map(\.title) == [
                 "Active Account",
                 "Manage Accounts",
@@ -553,6 +564,15 @@ struct MenuBarUIValidationTests {
             ])
             #expect(snapshot.sections[0].items == ["No active saved account"])
             #expect(snapshot.sections[1].items.contains("Add Account…"))
+            #expect(snapshot.sections.contains(where: { $0.title == "Accounts" }) == false)
+            #expect(snapshot.sections.contains(where: { $0.title == "Other Accounts" }) == false)
+            #expect(snapshot.sections.contains(where: { $0.title == "More Accounts…" }) == false)
+            #expect(snapshot.currentAccount == nil)
+            #expect(menuItem(containing: "Add Account", in: snapshot.menuItems)?.actionSelector == "addAccount")
+            #expect(flattenedMenuItems(in: snapshot.menuItems).contains(where: { item in
+                item.actionSelector == "switchAccount:" ||
+                    item.actionSelector == "switchAccountOnHost:"
+            }) == false)
             #expect(snapshot.statusMessage == nil)
 
         case "menu-unmatched-active-account":
@@ -616,11 +636,11 @@ struct MenuBarUIValidationTests {
                 "Busy status message is rendered into the artifact snapshot",
                 "Add-account action is marked disabled in the snapshot"
             ]
-        case "hosted-menu-empty":
+        case "menu-empty-catalog":
             return [
                 "Empty state shows no active saved account",
                 "Add Account… remains available when the menu is idle and empty",
-                "Per-account management actions are omitted when there are no saved accounts"
+                "Saved-account rows and switch actions are omitted when there are no saved accounts"
             ]
         case "menu-unmatched-active-account":
             return [
@@ -929,7 +949,7 @@ struct MenuBarUIValidationTests {
                 statusMessage: "Refreshing account data..."
             )
 
-        case "hosted-menu-empty":
+        case "menu-empty-catalog":
             return MenuBarMenuState(
                 activeAccount: nil,
                 inactiveAccounts: [],

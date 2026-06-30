@@ -26,6 +26,16 @@
           "statement": "If local auth does not match a saved account, CodexPill must not present any saved account as active."
         }
       ]
+    },
+    {
+      "id": "account-catalog-empty-state",
+      "title": "Account catalog empty state",
+      "acceptanceCriteria": [
+        {
+          "id": "empty-catalog-guides-to-add-account",
+          "statement": "When no accounts are saved, CodexPill must guide the user toward adding an account and must not imply that account switching is possible."
+        }
+      ]
     }
   ],
   "scenarios": [
@@ -182,6 +192,91 @@
       ],
       "expectedMetadata": {
         "scenario": "menu-unmatched-active-account"
+      },
+      "privacy": {
+        "fixtureData": "synthetic",
+        "restrictedEvidence": [
+          "account_data",
+          "hostname",
+          "raw_local_path",
+          "private_product_data",
+          "token"
+        ]
+      }
+    },
+    {
+      "id": "menu-empty-catalog",
+      "title": "Menu empty catalog",
+      "featureId": "account-catalog-empty-state",
+      "acceptanceCriteria": [
+        "empty-catalog-guides-to-add-account"
+      ],
+      "targetSurface": "CodexPill hosted menu validation view",
+      "validationModes": ["unit_only"],
+      "suites": ["deterministic"],
+      "validationIntent": {
+        "featureRisk": ["state_truth", "ui_visual", "static_ui"],
+        "primaryProof": "deterministic-ui",
+        "supportingProof": ["privacy-redaction"],
+        "requiredEvidence": ["screenshot", "ui-tree", "scenario-summary"],
+        "nonClaims": [
+          "Does not prove live Codex auth lookup.",
+          "Does not prove the Add Account sign-in workflow.",
+          "Does not prove account switching.",
+          "Does not prove the live macOS menu bar surface."
+        ],
+        "liveOptIn": {
+          "required": false
+        }
+      },
+      "nonRegression": {
+        "tier": "changed-feature",
+        "runWhen": [
+          "local-handoff",
+          "account-catalog-ui-changed",
+          "menubar-ui-changed",
+          "scenario-fixture-changed"
+        ],
+        "blocking": true
+      },
+      "proof": {
+        "layer": "deterministic-ui",
+        "artifactSource": "hosted-validation-view",
+        "nonClaims": [
+          "Does not prove live Codex auth lookup.",
+          "Does not prove the Add Account sign-in workflow.",
+          "Does not prove account switching.",
+          "Does not prove the live macOS menu bar surface."
+        ]
+      },
+      "command": {
+        "run": "make verify-ui SCENARIO=menu-empty-catalog"
+      },
+      "expectedArtifacts": [
+        {
+          "id": "menu-empty-catalog-screenshot",
+          "kind": "visual_snapshot",
+          "path": "build/verification/menu-empty-catalog/screenshots/menu-empty-catalog.png",
+          "claimScope": ["deterministic-hosted-view"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "menu-empty-catalog-tree",
+          "kind": "semantic_snapshot",
+          "path": "build/verification/menu-empty-catalog/ui-tree.json",
+          "claimScope": ["semantic-ui-tree"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "menu-empty-catalog-summary",
+          "kind": "reconciliation_report",
+          "path": "build/verification/menu-empty-catalog/scenario-summary.json",
+          "claimScope": ["deterministic-reconciled"],
+          "redactionStatus": "sanitized"
+        }
+      ],
+      "expectedMetadata": {
+        "scenario": "menu-empty-catalog"
       },
       "privacy": {
         "fixtureData": "synthetic",
