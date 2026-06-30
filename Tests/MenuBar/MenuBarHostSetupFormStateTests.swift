@@ -71,6 +71,23 @@ struct MenuBarHostSetupFormStateTests {
     }
 
     @Test
+    func codexReadinessFailureKeepsSubmitDisabled() {
+        var state = MenuBarHostSetupFormState(
+            destination: "user@devbox",
+            idleStatusText: "CodexPill checks the connection automatically."
+        )
+
+        state.beginTesting()
+        state.finishTesting(with: .failure(RemoteHostClientError.commandFailed("codex: command not found")))
+
+        #expect(state.isTesting == false)
+        #expect(!state.canSubmit)
+        #expect(state.validatedHost == nil)
+        #expect(state.statusMessage == "codex: command not found")
+        #expect(state.statusKind == .failure)
+    }
+
+    @Test
     func nonInteractiveSSHSetupFailureShowsActionableMessage() {
         var state = MenuBarHostSetupFormState(
             destination: "user@devbox",

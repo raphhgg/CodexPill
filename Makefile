@@ -23,6 +23,8 @@ SWITCH_ACCOUNT_LOCAL_SCENARIO := switch-account-local-confirmed
 SWITCH_ACCOUNT_LOCAL_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(SWITCH_ACCOUNT_LOCAL_SCENARIO)
 SWITCH_ACCOUNT_REMOTE_SCENARIO := switch-account-remote-install-verify
 SWITCH_ACCOUNT_REMOTE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(SWITCH_ACCOUNT_REMOTE_SCENARIO)
+REMOTE_HOST_ADD_PANEL_SCENARIO := remote-host-add-panel-validation
+REMOTE_HOST_ADD_PANEL_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(REMOTE_HOST_ADD_PANEL_SCENARIO)
 REMOVE_ACCOUNT_ACTIVE_SCENARIO := remove-account-active-targets-sign-out
 REMOVE_ACCOUNT_ACTIVE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(REMOVE_ACCOUNT_ACTIVE_SCENARIO)
 REMOVE_ACCOUNT_FAILURE_SCENARIO := remove-account-signout-failure-keeps-control
@@ -38,7 +40,7 @@ TOKEN_USAGE_CACHE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE
 TOKEN_USAGE_PRIVACY_SCENARIO := token-usage-privacy-no-raw-session
 TOKEN_USAGE_PRIVACY_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_PRIVACY_SCENARIO)
 
-.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-switch-account-remote-install-verify-scenario verify-remove-account-active-targets-sign-out-scenario verify-remove-account-signout-failure-keeps-control-scenario verify-refresh-inactive-isolated-status-scenario verify-refresh-active-relinks-same-account-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
+.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-switch-account-remote-install-verify-scenario verify-remote-host-add-panel-validation-scenario verify-remove-account-active-targets-sign-out-scenario verify-remove-account-signout-failure-keeps-control-scenario verify-refresh-inactive-isolated-status-scenario verify-refresh-active-relinks-same-account-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -381,6 +383,58 @@ verify-switch-account-remote-install-verify-scenario: generate prepare-result-bu
 		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
 		'  "workflowReceipt": "$(SWITCH_ACCOUNT_REMOTE_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
 		'}' > "$(SWITCH_ACCOUNT_REMOTE_SCENARIO_ARTIFACTS)/scenario-summary.json"
+
+verify-remote-host-add-panel-validation-scenario: generate prepare-result-bundle
+	mkdir -p "$(REMOTE_HOST_ADD_PANEL_SCENARIO_ARTIFACTS)"
+	xcodebuild test \
+		-project $(PROJECT_PATH) \
+		-scheme $(APP_NAME) \
+		-configuration Debug \
+		-destination "platform=macOS" \
+		-derivedDataPath "$(DERIVED_DATA)" \
+		-resultBundlePath "$(RESULT_BUNDLE)" \
+		-only-testing:CodexPillTests/MenuBarHostSetupFormStateTests \
+		-only-testing:CodexPillTests/MenuBarAlertFactoryTests \
+		-only-testing:CodexPillTests/SSHRemoteHostClientTests \
+		PRODUCT_BUNDLE_IDENTIFIER="$(STAGING_BUNDLE_ID)"
+	printf '%s\n' \
+		'{' \
+		'  "scenario": "$(REMOTE_HOST_ADD_PANEL_SCENARIO)",' \
+		'  "proofLayer": "contract-fixture",' \
+		'  "events": [' \
+		'    "Add Host copy names the destination field, optional host name, idle validation, success state, and final Add Host action",' \
+		'    "Form state keeps Add Host disabled until a matching destination succeeds",' \
+		'    "Editing the destination after success clears the validated host and disables Add Host",' \
+		'    "Unknown destination, non-interactive SSH setup, unreachable SSH, and not-Codex-ready failures stay disabled with surfaced feedback",' \
+		'    "SSH validation uses BatchMode, a short connect timeout, Codex CLI and app-server readiness checks, and writable CodexPill/Codex directories"' \
+		'  ],' \
+		'  "status": "passed"' \
+		'}' > "$(REMOTE_HOST_ADD_PANEL_SCENARIO_ARTIFACTS)/contract-receipt.json"
+	printf '%s\n' \
+		'{' \
+		'  "assertions": [' \
+		'    "Add Host remains disabled for idle, testing, invalid, unreachable, SSH-not-ready, and not-Codex-ready destinations",' \
+		'    "Add Host unlocks only after validation succeeds for the same trimmed destination",' \
+		'    "Changing the destination after success clears the validated host before submission",' \
+		'    "The SSH contract runs non-interactively and requires Codex CLI, Codex app-server help, and writable remote directories"' \
+		'  ],' \
+		'  "command": "make verify-remote-host-add-panel-validation-scenario",' \
+		'  "gaps": [' \
+		'    "Native Add Host panel screenshot, first responder focus, and click automation are not proven",' \
+		'    "No live SSH host, live Codex app-server, or real remote filesystem is exercised",' \
+		'    "Install-and-switch follow-up is tracked by remote-host-install-switch-current-account, not this scenario"' \
+		'  ],' \
+		'  "invariantIds": [' \
+		'    "remote-host.add-panel.disabled-until-codex-ready-validation-succeeds",' \
+		'    "remote-host.add-panel.validation-feedback-maps-ssh-and-codex-readiness-failures",' \
+		'    "remote-host.add-panel.ssh-validation-is-noninteractive-and-codex-ready"' \
+		'  ],' \
+		'  "proofLayer": "contract-fixture",' \
+		'  "scenario": "$(REMOTE_HOST_ADD_PANEL_SCENARIO)",' \
+		'  "status": "passed",' \
+		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
+		'  "contractReceipt": "$(REMOTE_HOST_ADD_PANEL_SCENARIO_ARTIFACTS)/contract-receipt.json"' \
+		'}' > "$(REMOTE_HOST_ADD_PANEL_SCENARIO_ARTIFACTS)/scenario-summary.json"
 
 verify-remove-account-active-targets-sign-out-scenario: generate prepare-result-bundle
 	mkdir -p "$(REMOVE_ACCOUNT_ACTIVE_SCENARIO_ARTIFACTS)"

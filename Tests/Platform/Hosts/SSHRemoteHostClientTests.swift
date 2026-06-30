@@ -250,6 +250,27 @@ struct SSHRemoteHostClientTests {
     }
 
     @Test
+    func testConnectionClassifiesConnectionRefusedAsSetupRequired() async {
+        let runner = CommandRunnerProbe(results: [
+            .success(.init(
+                terminationStatus: 255,
+                standardOutput: Data(),
+                standardError: Data("ssh: connect to host buildbox port 22: Connection refused".utf8)
+            ))
+        ])
+        let client = SSHRemoteHostClient(
+            snapshotLocator: SnapshotLocatorFixture(snapshotURL: URL(fileURLWithPath: "/tmp/unused.json")),
+            commandRunner: runner,
+            sshExecutableURL: URL(fileURLWithPath: "/usr/bin/ssh"),
+            scpExecutableURL: URL(fileURLWithPath: "/usr/bin/scp")
+        )
+
+        await #expect(throws: RemoteHostClientError.nonInteractiveSSHSetupRequired) {
+            try await client.testConnection(to: RemoteHost(destination: "user@buildbox"))
+        }
+    }
+
+    @Test
     func testConnectionClassifiesUnknownHostAsDestinationNotFound() async {
         let runner = CommandRunnerProbe(results: [
             .success(.init(
