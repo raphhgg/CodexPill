@@ -491,6 +491,70 @@ struct MenuBarUIValidationTests {
             #expect(snapshot.sections[2].items.count == 1)
             #expect(snapshot.sections[3].items.contains("Add Account…"))
 
+        case "menu-account-overflow":
+            #expect(snapshot.sections.map(\.title) == [
+                "Active Account",
+                "Other Accounts",
+                "More Accounts…",
+                "Manage Accounts",
+                "Preferences"
+            ])
+            let accountsSection = try #require(snapshot.sections.first(where: { $0.title == "Other Accounts" }))
+            let overflowSection = try #require(snapshot.sections.first(where: { $0.title == "More Accounts…" }))
+            let allSavedAccountNames = ["Research", "Sandbox", "Overflow"]
+            let renderedAccountItems = accountsSection.items + overflowSection.items
+            #expect(accountsSection.items.count == 2)
+            #expect(overflowSection.items.count == 1)
+            #expect(allSavedAccountNames.allSatisfy { name in
+                renderedAccountItems.contains(where: { $0.contains(name) })
+            })
+            #expect(accountsSection.items.allSatisfy { visibleItem in
+                overflowSection.items.allSatisfy { overflowItem in
+                    allSavedAccountNames.allSatisfy { name in
+                        !(visibleItem.contains(name) && overflowItem.contains(name))
+                    }
+                }
+            })
+
+            let moreAccountsItem = try #require(snapshot.menuItems.first(where: { $0.title == "More Accounts…" }))
+            #expect(moreAccountsItem.hasAction == false)
+            let overflowItem = try #require(moreAccountsItem.children.first(where: { item in
+                allSavedAccountNames.contains(where: { item.title.contains($0) })
+            }))
+            let overflowAccountName = try #require(allSavedAccountNames.first(where: { overflowItem.title.contains($0) }))
+            #expect(overflowItem.hasAction == false)
+            #expect(overflowSection.items.first?.contains(overflowAccountName) == true)
+            #expect(overflowItem.children.contains(where: { $0.title.hasSuffix("@example.com") }))
+            #expect(overflowItem.children.contains(where: { $0.title == "Not currently in use" }))
+            #expect(overflowItem.children.first(where: { $0.title == "Switch on This Mac" })?.actionSelector == "switchAccount:")
+            #expect(overflowItem.children.first(where: { $0.title == "Rename…" })?.actionSelector == "renameAccount:")
+            #expect(overflowItem.children.first(where: { $0.title == "Remove…" })?.actionSelector == "removeAccount:")
+            #expect(snapshot.statusMessage == nil)
+
+        case "token-usage-ready-card":
+            #expect(snapshot.sections.map(\.title) == [
+                "Active Account",
+                "Other Accounts",
+                "More Accounts…",
+                "Manage Accounts",
+                "Preferences"
+            ])
+            let activeSection = try #require(snapshot.sections.first(where: { $0.title == "Active Account" }))
+            let tokenUsage = try #require(activeSection.items.first(where: { $0.contains("Token Usage") }))
+            #expect(activeSection.items.count == 2)
+            #expect(tokenUsage.contains("Last 30 days"))
+            #expect(tokenUsage.contains("Today: 3,400 tokens"))
+            #expect(tokenUsage.contains("Last 30 days: 4,600 tokens"))
+            #expect(tokenUsage.contains("Peak day: May 20: 3,400 tokens"))
+            #expect(!tokenUsage.contains("Primary"))
+            #expect(!tokenUsage.contains("Research"))
+            #expect(!tokenUsage.contains("@example.com"))
+            #expect(!tokenUsage.localizedCaseInsensitiveContains("workspace"))
+            #expect(!tokenUsage.localizedCaseInsensitiveContains("remote"))
+            #expect(!tokenUsage.localizedCaseInsensitiveContains("host"))
+            #expect(snapshot.remoteHosts.isEmpty)
+            #expect(snapshot.statusMessage == nil)
+
         case "hosted-menu-with-host":
             #expect(snapshot.sections.map(\.title) == [
                 "Active Accounts",
@@ -602,6 +666,18 @@ struct MenuBarUIValidationTests {
                 "Two inactive accounts are visible and one account overflows into More Accounts…",
                 "Status message is omitted when the menu is not busy"
             ]
+        case "menu-account-overflow":
+            return [
+                "Visible account rows stop at the configured account limit",
+                "Hidden saved accounts remain discoverable under More Accounts…",
+                "Overflow rows preserve the same submenu actions as visible account rows"
+            ]
+        case "token-usage-ready-card":
+            return [
+                "Token Usage ready card renders in the active account area",
+                "Synthetic aggregate data renders today, period total, and peak day",
+                "Token Usage card does not emit account, email, workspace, remote, or host attribution"
+            ]
         case "hosted-menu-with-host":
             return [
                 "Remote host active account renders as an active account card",
@@ -674,7 +750,7 @@ struct MenuBarUIValidationTests {
 
     private func makeHostedValidationState(for scenario: String, now: Date) -> MenuBarMenuState {
         switch scenario {
-        case "hosted-menu-default":
+        case "hosted-menu-default", "menu-account-overflow":
             let active = makeAccount(
                 name: "Primary",
                 email: "primary@example.com",
@@ -703,6 +779,48 @@ struct MenuBarUIValidationTests {
                 statusBarDisplayMode: .textOnHover,
                 isBusy: false,
                 statusMessage: "Ready"
+            )
+
+        case "token-usage-ready-card":
+            let active = makeAccount(
+                name: "Primary",
+                email: "primary@example.com",
+                planType: "pro",
+                sessionUsedPercent: 42,
+                weeklyUsedPercent: 68,
+                now: now
+            )
+
+            let others = [
+                makeAccount(name: "Research", email: "research@example.com", planType: "pro", sessionUsedPercent: 8, weeklyUsedPercent: 35, now: now),
+                makeAccount(name: "Sandbox", email: "sandbox@example.com", planType: "plus", sessionUsedPercent: 19, weeklyUsedPercent: 50, now: now),
+                makeAccount(name: "Overflow", email: "overflow@example.com", planType: "plus", sessionUsedPercent: 74, weeklyUsedPercent: 88, now: now)
+            ]
+
+            return MenuBarMenuState(
+                activeAccount: active,
+                inactiveAccounts: others,
+                remoteHosts: [],
+                visibleInactiveAccountCount: 2,
+                visibleInactiveAccountCountOptions: [2, 3, 5, 0],
+                refreshIntervalMinutes: 5,
+                refreshIntervalOptions: [1, 2, 5, 10, 15, 30],
+                statusBarMonochrome: false,
+                statusBarIndicatorStyle: .dualArcBadge,
+                statusBarDisplayMode: .textOnHover,
+                isBusy: false,
+                statusMessage: "Ready",
+                tokenUsageEnabled: true,
+                tokenUsagePeriod: .last30Days,
+                tokenUsageChartStyle: .heatStrip,
+                tokenUsageCard: makeTokenUsageCard(
+                    period: .last30Days,
+                    style: .heatStrip,
+                    loadState: loadedTokenUsageData([
+                        dailyTokenUsage(daysAgo: 1, totalTokens: 1_200),
+                        dailyTokenUsage(daysAgo: 0, totalTokens: 3_400)
+                    ])
+                )
             )
 
         case "hosted-menu-with-host":
@@ -1018,6 +1136,43 @@ struct MenuBarUIValidationTests {
             .appendingPathComponent("MenuBarUIValidationTests-\(UUID().uuidString)", isDirectory: true)
         return try AccountRepository(
             environment: [AppRuntimeEnvironment.validationAppSupportDirectoryEnvironmentKey: appSupportDirectory.path]
+        )
+    }
+
+    private func makeTokenUsageCard(
+        period: CodexTokenUsagePeriod = .last30Days,
+        style: TokenUsageChartStyle = .dailyBars,
+        peakScope: TokenUsagePeakScope = .currentPeriod,
+        loadState: TokenUsageMenuLoadState
+    ) -> TokenUsageMenuCard {
+        TokenUsageMenuCard.make(
+            style: style,
+            peakScope: peakScope,
+            period: period,
+            loadState: loadState,
+            calendar: Calendar(identifier: .gregorian)
+        )
+    }
+
+    private func loadedTokenUsageData(
+        _ buckets: [CodexDailyTokenUsage],
+        allTimePeak: CodexDailyTokenUsage? = nil
+    ) -> TokenUsageMenuLoadState {
+        .loaded(TokenUsageMenuLoadedData(buckets: buckets, allTimePeak: allTimePeak))
+    }
+
+    private func dailyTokenUsage(daysAgo: Int, totalTokens: Int) -> CodexDailyTokenUsage {
+        let calendar = Calendar(identifier: .gregorian)
+        let base = calendar.date(from: DateComponents(year: 2026, month: 5, day: 20)) ?? .now
+        return CodexDailyTokenUsage(
+            day: calendar.date(byAdding: .day, value: -daysAgo, to: base) ?? base,
+            usage: CodexTokenUsageTotals(
+                inputTokens: 0,
+                cachedInputTokens: 0,
+                outputTokens: 0,
+                reasoningOutputTokens: 0,
+                totalTokens: totalTokens
+            )
         )
     }
 

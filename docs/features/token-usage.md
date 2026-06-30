@@ -62,7 +62,9 @@ Menu card:
 
 - Position: inside the active account area, directly below the Session and Weekly limit rows and before the divider/account-action sections.
 - Title: `Token Usage`
-- Scope label: `This Mac`
+- Scope: local Codex session history for the current Mac. The card does not need
+  a dedicated visible scope label, but it must not imply saved-account,
+  workspace, organization, or remote-host attribution.
 - Chart: compact chart for the selected period.
 - Chart styles: `Daily Bars`, `Heat Strip`, and `Sparkline`.
 - Chart design must go through a human review checkpoint before final implementation. RGR-360 should validate these three styles with screenshots and make sure the final Token Usage card lets the user choose between them.
@@ -127,7 +129,8 @@ Expected behavior:
 - The card displays the selected chart style for the selected period.
 - The card displays today’s token total and the selected-period token total.
 - The card displays the highest-usage day in the selected period when usage data exists.
-- The card is clearly scoped to `This Mac`.
+- The card presents local session-history aggregates without implying
+  saved-account, workspace, organization, or remote-host attribution.
 - The visible period is fixed to last 30 days for v1.
 - The chart style can be changed between daily bars, heat strip, and sparkline.
 - Enabling Token Usage starts a background scan that continues if the menu closes.
@@ -170,7 +173,8 @@ Acceptance:
 
 - Every style uses the same data and comparable card dimensions.
 - Every style shows realistic `Today` and selected-period totals.
-- Every style includes `This Mac` scope copy.
+- Every style avoids account, workspace, organization, and remote-host usage
+  claims.
 - The prototype shows how the user chooses between `Daily Bars`, `Heat Strip`, and `Sparkline`.
 - The handoff includes screenshots and a short trade-off note for each variant.
 - The issue is marked for human review before the final Token Usage UI implementation begins.

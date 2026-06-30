@@ -37,13 +37,15 @@ should move from that inventory into `.kite/scenarios.json` only when it is
 runnable and has concrete fixtures, command, artifacts, privacy rules,
 non-claims, and degraded-proof rules.
 
-The current clean-main manifest contains three deterministic hosted-menu
+The current clean-main manifest contains five deterministic hosted-menu
 scenarios:
 
 ```bash
 make verify-ui SCENARIO=hosted-menu-default
 make verify-ui SCENARIO=menu-unmatched-active-account
 make verify-ui SCENARIO=menu-empty-catalog
+make verify-ui SCENARIO=menu-account-overflow
+make verify-ui SCENARIO=token-usage-ready-card
 ```
 
 Those commands write hosted validation screenshots, `ui-tree.json`, and
@@ -69,6 +71,13 @@ Current deterministic scenarios:
 - `menu-empty-catalog`: changed-feature non-regression for Account Catalog
   empty-state truth. It proves that an empty catalog guides toward Add Account
   and does not expose saved-account rows or switch actions.
+- `menu-account-overflow`: changed-feature non-regression for Account Catalog
+  overflow truth. It proves that hidden saved accounts remain discoverable under
+  `More Accounts…` and keep the same submenu action shape as visible rows.
+- `token-usage-ready-card`: changed-feature non-regression for Token Usage card
+  presentation. It proves that synthetic local aggregate data renders in the
+  active account area without account, workspace, organization, remote-host,
+  raw-session, or prompt attribution.
 
 ## Product Validation Adapter
 

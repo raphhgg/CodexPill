@@ -36,6 +36,26 @@
           "statement": "When no accounts are saved, CodexPill must guide the user toward adding an account and must not imply that account switching is possible."
         }
       ]
+    },
+    {
+      "id": "account-catalog-overflow",
+      "title": "Account catalog overflow",
+      "acceptanceCriteria": [
+        {
+          "id": "overflow-keeps-hidden-accounts-discoverable",
+          "statement": "When saved accounts exceed the visible account limit, CodexPill must show the configured visible rows and keep hidden saved accounts discoverable through More Accounts… without changing account submenu behavior."
+        }
+      ]
+    },
+    {
+      "id": "token-usage-menu-card",
+      "title": "Token Usage menu card",
+      "acceptanceCriteria": [
+        {
+          "id": "ready-card-shows-local-aggregate-without-attribution",
+          "statement": "When Token Usage is enabled and aggregate data exists, CodexPill must show a compact Last 30 Days card without implying saved-account, workspace, organization, or remote-host usage attribution."
+        }
+      ]
     }
   ],
   "scenarios": [
@@ -285,6 +305,177 @@
           "hostname",
           "raw_local_path",
           "private_product_data",
+          "token"
+        ]
+      }
+    },
+    {
+      "id": "menu-account-overflow",
+      "title": "Menu account overflow",
+      "featureId": "account-catalog-overflow",
+      "acceptanceCriteria": [
+        "overflow-keeps-hidden-accounts-discoverable"
+      ],
+      "targetSurface": "CodexPill hosted menu validation view",
+      "validationModes": ["unit_only"],
+      "suites": ["deterministic"],
+      "validationIntent": {
+        "featureRisk": ["ui_visual", "static_ui", "state_truth"],
+        "primaryProof": "deterministic-ui",
+        "supportingProof": ["privacy-redaction"],
+        "requiredEvidence": ["screenshot", "ui-tree", "scenario-summary"],
+        "nonClaims": [
+          "Does not prove live Codex auth lookup.",
+          "Does not prove account switching.",
+          "Does not prove the live macOS menu bar surface.",
+          "Does not prove runtime menu opening or pointer interaction."
+        ],
+        "liveOptIn": {
+          "required": false
+        }
+      },
+      "nonRegression": {
+        "tier": "changed-feature",
+        "runWhen": [
+          "local-handoff",
+          "account-catalog-ui-changed",
+          "menubar-ui-changed",
+          "scenario-fixture-changed"
+        ],
+        "blocking": true
+      },
+      "proof": {
+        "layer": "deterministic-ui",
+        "artifactSource": "hosted-validation-view",
+        "nonClaims": [
+          "Does not prove live Codex auth lookup.",
+          "Does not prove account switching.",
+          "Does not prove the live macOS menu bar surface.",
+          "Does not prove runtime menu opening or pointer interaction."
+        ]
+      },
+      "command": {
+        "run": "make verify-ui SCENARIO=menu-account-overflow"
+      },
+      "expectedArtifacts": [
+        {
+          "id": "menu-account-overflow-screenshot",
+          "kind": "visual_snapshot",
+          "path": "build/verification/menu-account-overflow/screenshots/menu-account-overflow.png",
+          "claimScope": ["deterministic-hosted-view"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "menu-account-overflow-tree",
+          "kind": "semantic_snapshot",
+          "path": "build/verification/menu-account-overflow/ui-tree.json",
+          "claimScope": ["semantic-ui-tree", "menu-action-metadata"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "menu-account-overflow-summary",
+          "kind": "reconciliation_report",
+          "path": "build/verification/menu-account-overflow/scenario-summary.json",
+          "claimScope": ["deterministic-reconciled"],
+          "redactionStatus": "sanitized"
+        }
+      ],
+      "expectedMetadata": {
+        "scenario": "menu-account-overflow"
+      },
+      "privacy": {
+        "fixtureData": "synthetic",
+        "restrictedEvidence": [
+          "account_data",
+          "hostname",
+          "raw_local_path",
+          "private_product_data",
+          "token"
+        ]
+      }
+    },
+    {
+      "id": "token-usage-ready-card",
+      "title": "Token Usage ready card",
+      "featureId": "token-usage-menu-card",
+      "acceptanceCriteria": [
+        "ready-card-shows-local-aggregate-without-attribution"
+      ],
+      "targetSurface": "CodexPill hosted menu validation view",
+      "validationModes": ["unit_only"],
+      "suites": ["deterministic"],
+      "validationIntent": {
+        "featureRisk": ["ui_visual", "state_truth", "privacy"],
+        "primaryProof": "deterministic-ui",
+        "supportingProof": ["privacy-redaction"],
+        "requiredEvidence": ["screenshot", "ui-tree", "scenario-summary"],
+        "nonClaims": [
+          "Does not prove live local Codex session scanning.",
+          "Does not prove Token Usage runtime lifecycle or duplicate-scan prevention.",
+          "Does not prove saved-account, workspace, organization, or remote-host usage history.",
+          "Does not prove the live macOS menu bar surface."
+        ],
+        "liveOptIn": {
+          "required": false
+        }
+      },
+      "nonRegression": {
+        "tier": "changed-feature",
+        "runWhen": [
+          "local-handoff",
+          "token-usage-ui-changed",
+          "menubar-ui-changed",
+          "scenario-fixture-changed"
+        ],
+        "blocking": true
+      },
+      "proof": {
+        "layer": "deterministic-ui",
+        "artifactSource": "hosted-validation-view",
+        "nonClaims": [
+          "Does not prove live local Codex session scanning.",
+          "Does not prove Token Usage runtime lifecycle or duplicate-scan prevention.",
+          "Does not prove saved-account, workspace, organization, or remote-host usage history.",
+          "Does not prove the live macOS menu bar surface."
+        ]
+      },
+      "command": {
+        "run": "make verify-ui SCENARIO=token-usage-ready-card"
+      },
+      "expectedArtifacts": [
+        {
+          "id": "token-usage-ready-card-screenshot",
+          "kind": "visual_snapshot",
+          "path": "build/verification/token-usage-ready-card/screenshots/token-usage-ready-card.png",
+          "claimScope": ["deterministic-hosted-view"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "token-usage-ready-card-tree",
+          "kind": "semantic_snapshot",
+          "path": "build/verification/token-usage-ready-card/ui-tree.json",
+          "claimScope": ["semantic-ui-tree"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "token-usage-ready-card-summary",
+          "kind": "reconciliation_report",
+          "path": "build/verification/token-usage-ready-card/scenario-summary.json",
+          "claimScope": ["deterministic-reconciled"],
+          "redactionStatus": "sanitized"
+        }
+      ],
+      "expectedMetadata": {
+        "scenario": "token-usage-ready-card"
+      },
+      "privacy": {
+        "fixtureData": "synthetic",
+        "restrictedEvidence": [
+          "account_data",
+          "hostname",
+          "private_product_data",
+          "raw_local_path",
+          "raw_transcript",
           "token"
         ]
       }

@@ -50,7 +50,6 @@ proof-contract shape:
 | Scenario | Acceptance Criteria | Validation Intent | Proof Layer | Non-Regression | Status |
 | --- | --- | --- | --- | --- | --- |
 | `hosted-menu-default` | Default saved-account menu shape does not claim live state. | `ui_visual`, `static_ui`, `privacy` | `deterministic-ui`; screenshot, UI tree, summary | `smoke`, blocking | `runnable` |
-| `menu-account-overflow` | More than the visible saved-account limit renders discoverable overflow. | `ui_visual`, `static_ui` | `deterministic-ui`; hosted menu fixture | `changed-feature`, blocking for catalog layout | `target` |
 | `menu-busy-status` | Busy workflows expose status and disable or route conflicting actions. | `workflow_state`, `ui_visual` | `deterministic-ui` plus `workflow-event-log` for action availability | `changed-feature`, blocking for menu action changes | `target` |
 | `diagnostics-export-confirmation` | Diagnostics export requires confirmation and writes only a redacted support artifact. | `privacy`, `diagnostics`, `user_confirmation` | `diagnostics-export`; generated report plus negative leakage assertions | `changed-feature`, blocking for diagnostics changes | `target` |
 
@@ -59,6 +58,7 @@ proof-contract shape:
 | Scenario | Acceptance Criteria | Validation Intent | Proof Layer | Non-Regression | Status |
 | --- | --- | --- | --- | --- | --- |
 | `menu-empty-catalog` | Empty state guides toward Add Account and does not imply switching is possible. | `state_truth`, `ui_visual`, `static_ui` | `deterministic-ui`; screenshot, UI tree, summary | `changed-feature`, blocking for account-catalog UI | `runnable` |
+| `menu-account-overflow` | More than the visible saved-account limit renders discoverable overflow without changing account submenu behavior. | `state_truth`, `ui_visual`, `static_ui` | `deterministic-ui`; screenshot, UI tree, summary | `changed-feature`, blocking for account-catalog UI | `runnable` |
 | `menu-unmatched-active-account` | Unmatched local auth must not present a saved account as active. | `state_truth`, `ui_visual`, `privacy` | `deterministic-ui`; screenshot, UI tree, summary | `smoke`, blocking | `runnable` |
 | `add-account-name-validation` | Empty or duplicate display names are blocked before sign-in starts. | `workflow_state`, `privacy` | `unit` plus alert/panel presentation assertions | `changed-feature`, blocking for Add Account | `target` |
 | `add-account-isolated-success` | Add Account saves an isolated account without switching This Mac and hydrates usable status when available. | `auth_isolation`, `workflow_state`, `privacy` | `integration` plus `workflow-event-log`; fake login/app-server clients | `changed-feature`, blocking for Add Account | `target` |
@@ -103,7 +103,7 @@ proof-contract shape:
 | Scenario | Acceptance Criteria | Validation Intent | Proof Layer | Non-Regression | Status |
 | --- | --- | --- | --- | --- | --- |
 | `token-usage-off-hidden` | Token Usage off hides the card and does not start scanning. | `state_truth`, `privacy` | `unit` plus deterministic menu projection | `changed-feature`, blocking for Token Usage UI | `target` |
-| `token-usage-ready-card` | Enabled Token Usage shows a local Last 30 Days aggregate card scoped to This Mac. | `ui_visual`, `state_truth`, `privacy` | `deterministic-ui` plus parser/cache fixtures | `changed-feature`, blocking for Token Usage card | `target` |
+| `token-usage-ready-card` | Enabled Token Usage shows a local Last 30 Days aggregate card without implying account, workspace, organization, or remote-host attribution. | `ui_visual`, `state_truth`, `privacy` | `deterministic-ui`; screenshot, UI tree, summary | `changed-feature`, blocking for Token Usage card | `runnable` |
 | `token-usage-parser-aggregation` | Scanner parses token-count rows, handles malformed rows, repeated cumulative totals, and large files safely. | `parser`, `privacy`, `performance` | `contract-fixture`; synthetic JSONL fixtures | `changed-feature`, blocking for scanner changes | `target` |
 | `token-usage-cache-first` | Cache is reused before scanning and refreshes only changed or new eligible files for the selected period. | `state_truth`, `performance`, `privacy` | `unit` and integration cache fixtures | `changed-feature`, blocking for cache/runtime | `target` |
 | `token-usage-loading-progress` | First-load progress is animated or live-updating without fake percentages or raw file/session details. | `ui_visual`, `temporal`, `privacy` | `deterministic-ui`; future temporal proof if animation cadence is claimed | `changed-feature`, blocking for loading UI | `target` |
@@ -134,9 +134,7 @@ quality rather than a product user path.
 
 Recommended order:
 
-1. `menu-account-overflow`, because it protects the catalog shape without live
-   auth mutation.
-2. `token-usage-ready-card` or `token-usage-loading-progress`, after deciding
-   whether Token Usage should be the next product dogfood lane.
-3. One explicit live/preview scenario only after deterministic coverage is
+1. Promote `token-usage-loading-progress` after the ready card, or earlier only
+   if the loading scenario has an equally explicit scope and privacy contract.
+2. One explicit live/preview scenario only after deterministic coverage is
    broader and the manifest declares live opt-in and non-claims.
