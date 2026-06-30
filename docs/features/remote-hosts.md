@@ -99,7 +99,11 @@ Primary proof for `remote-host-add-panel-validation`: `contract-fixture`
 
 Supporting proof for `remote-host-add-panel-validation`: `unit`
 
-Product scenario:
+Primary proof for `remote-host-install-switch-current-account`: `workflow-event-log`
+
+Supporting proof for `remote-host-install-switch-current-account`: `contract-fixture`
+
+Product scenarios:
 
 - `remote-host-add-panel-validation` proves that Add Host stays disabled until
   destination validation succeeds for the same trimmed destination, that
@@ -107,28 +111,42 @@ Product scenario:
   unreachable SSH, and not-Codex-ready failures, and that the SSH validation
   contract checks Codex CLI/app-server readiness plus writable CodexPill/Codex
   directories.
+- `remote-host-install-switch-current-account` proves that the Add Host
+  follow-up either installs and switches the current active account on the
+  validated host in order, then persists verified host/account state, or leaves
+  no pending host state when the follow-up is cancelled.
 
 Required evidence:
 
-- focused suite output from `MenuBarHostSetupFormStateTests`,
+- for Add Host validation, focused suite output from `MenuBarHostSetupFormStateTests`,
   `MenuBarAlertFactoryTests`, and `SSHRemoteHostClientTests`;
 - `build/verification/remote-host-add-panel-validation/contract-receipt.json`;
 - `build/verification/remote-host-add-panel-validation/scenario-summary.json`.
+- for install-and-switch follow-up, focused suite output from
+  `MenuBarRuntimeValidationTests`, `SwitchAccountOnHostWorkflowTests`, and
+  `MenuBarAlertFactoryTests`;
+- `build/verification/remote-host-install-switch-current-account/workflow-receipt.json`;
+- `build/verification/remote-host-install-switch-current-account/scenario-summary.json`.
 
 Non-claims:
 
-- This scenario does not prove native Add Host panel screenshot rendering, first
-  responder focus, click automation, live SSH, live Codex app-server behavior,
-  real remote filesystem mutation, or the install-and-switch follow-up.
+- The Add Host validation scenario does not prove native Add Host panel
+  screenshot rendering, first responder focus, click automation, live SSH, live
+  Codex app-server behavior, real remote filesystem mutation, or the
+  install-and-switch follow-up.
+- The install-and-switch follow-up scenario does not prove native Add Host or
+  confirmation panel rendering, focus, click automation, live SSH, live Codex
+  app-server behavior, real remote auth mutation, real remote filesystem
+  mutation, or remote verification failure presentation.
 
-Live opt-in: not required for this scenario.
+Live opt-in: not required for these scenarios.
 
 ## Proof Contract
 
 | Acceptance Criterion | Owning Proof Layer | Command / Method | Artifact | Pass Condition | Privacy / Redaction |
 | --- | --- | --- | --- | --- | --- |
 | Add Host validates destination feedback and unlocks `Add Host` only for reachable Codex-ready targets. | `contract-fixture` plus `unit` | `make verify-remote-host-add-panel-validation-scenario` running `MenuBarHostSetupFormStateTests`, `MenuBarAlertFactoryTests`, and `SSHRemoteHostClientTests`. | `build/results/local/CodexPill.xcresult`, `build/verification/remote-host-add-panel-validation/contract-receipt.json`, and `scenario-summary.json`. | Invalid, unreachable, not-Codex-ready, and successful destinations map to the documented feedback states; `Add Host` unlocks only for successful Codex-ready validation of the same trimmed destination; SSH validation uses non-interactive BatchMode and checks Codex app-server readiness plus writable CodexPill/Codex directories. | Synthetic destinations and fake command results only; no raw SSH output, private hostnames, usernames, paths, tokens, or auth payloads. |
-| Host setup installs and switches the current account, or leaves no confusing pending host state when cancelled. | `workflow-event-log` | Host setup coordinator test with fake remote operations and cancel branch. | Structured host setup receipt. | Confirming runs install then switch in order; cancelling creates no ambiguous pending host or records an explicit incomplete state visible to the user. | Fake remote host and auth snapshots only; redact raw SSH output, auth payloads, tokens, private paths, emails, and hostnames. |
+| Host setup installs and switches the current account, or leaves no confusing pending host state when cancelled. | `workflow-event-log` plus `contract-fixture` | `make verify-remote-host-install-switch-current-account-scenario` running `MenuBarRuntimeValidationTests`, `SwitchAccountOnHostWorkflowTests`, and `MenuBarAlertFactoryTests`. | `build/results/local/CodexPill.xcresult`, `build/verification/remote-host-install-switch-current-account/workflow-receipt.json`, and `scenario-summary.json`. | Confirming records install, switch, app-server refresh, and status verification in order for the current active account, then persists desired account, verified account, verified status, and installed account id; cancelling creates no pending host state. | Fake remote host, fake command/client results, and synthetic auth snapshots only; no raw SSH output, auth payloads, tokens, private paths, emails, or hostnames. |
 | Failed or ambiguous remote verification is surfaced and not shown as verified active state. | `unit` plus `deterministic-ui` | Remote verification failure tests and menu projection assertion. | Failure result bundle plus optional hosted menu artifact. | Ambiguous/mismatched verification surfaces recovery state and the menu does not show the remote card as verified active. | Synthetic host/account data only; no raw SSH output, auth payloads, tokens, private paths, emails, or hostnames. |
 | Remote cards prefer verified remote values and use saved fallback only when remote data is missing or suspicious. | `unit` plus `contract-fixture` | Rate-limit resolution tests with verified, missing, and suspicious remote fixtures. | Resolution fixture result bundle. | Verified remote values win; fallback values are labeled/presented only as fallback and never as verified remote truth. | Synthetic rate-limit payloads only; no real account ids, emails, hostnames, raw SSH output, auth payloads, or tokens. |
 

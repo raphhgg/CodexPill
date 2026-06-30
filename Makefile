@@ -25,6 +25,8 @@ SWITCH_ACCOUNT_REMOTE_SCENARIO := switch-account-remote-install-verify
 SWITCH_ACCOUNT_REMOTE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(SWITCH_ACCOUNT_REMOTE_SCENARIO)
 REMOTE_HOST_ADD_PANEL_SCENARIO := remote-host-add-panel-validation
 REMOTE_HOST_ADD_PANEL_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(REMOTE_HOST_ADD_PANEL_SCENARIO)
+REMOTE_HOST_INSTALL_SWITCH_SCENARIO := remote-host-install-switch-current-account
+REMOTE_HOST_INSTALL_SWITCH_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(REMOTE_HOST_INSTALL_SWITCH_SCENARIO)
 REMOVE_ACCOUNT_ACTIVE_SCENARIO := remove-account-active-targets-sign-out
 REMOVE_ACCOUNT_ACTIVE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(REMOVE_ACCOUNT_ACTIVE_SCENARIO)
 REMOVE_ACCOUNT_FAILURE_SCENARIO := remove-account-signout-failure-keeps-control
@@ -40,7 +42,7 @@ TOKEN_USAGE_CACHE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE
 TOKEN_USAGE_PRIVACY_SCENARIO := token-usage-privacy-no-raw-session
 TOKEN_USAGE_PRIVACY_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_PRIVACY_SCENARIO)
 
-.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-switch-account-remote-install-verify-scenario verify-remote-host-add-panel-validation-scenario verify-remove-account-active-targets-sign-out-scenario verify-remove-account-signout-failure-keeps-control-scenario verify-refresh-inactive-isolated-status-scenario verify-refresh-active-relinks-same-account-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
+.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-switch-account-remote-install-verify-scenario verify-remote-host-add-panel-validation-scenario verify-remote-host-install-switch-current-account-scenario verify-remove-account-active-targets-sign-out-scenario verify-remove-account-signout-failure-keeps-control-scenario verify-refresh-inactive-isolated-status-scenario verify-refresh-active-relinks-same-account-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -435,6 +437,58 @@ verify-remote-host-add-panel-validation-scenario: generate prepare-result-bundle
 		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
 		'  "contractReceipt": "$(REMOTE_HOST_ADD_PANEL_SCENARIO_ARTIFACTS)/contract-receipt.json"' \
 		'}' > "$(REMOTE_HOST_ADD_PANEL_SCENARIO_ARTIFACTS)/scenario-summary.json"
+
+verify-remote-host-install-switch-current-account-scenario: generate prepare-result-bundle
+	mkdir -p "$(REMOTE_HOST_INSTALL_SWITCH_SCENARIO_ARTIFACTS)"
+	xcodebuild test \
+		-project $(PROJECT_PATH) \
+		-scheme $(APP_NAME) \
+		-configuration Debug \
+		-destination "platform=macOS" \
+		-derivedDataPath "$(DERIVED_DATA)" \
+		-resultBundlePath "$(RESULT_BUNDLE)" \
+		-only-testing:CodexPillTests/MenuBarRuntimeValidationTests \
+		-only-testing:CodexPillTests/SwitchAccountOnHostWorkflowTests \
+		-only-testing:CodexPillTests/MenuBarAlertFactoryTests \
+		PRODUCT_BUNDLE_IDENTIFIER="$(STAGING_BUNDLE_ID)"
+	printf '%s\n' \
+		'{' \
+		'  "scenario": "$(REMOTE_HOST_INSTALL_SWITCH_SCENARIO)",' \
+		'  "proofLayer": "workflow-event-log",' \
+		'  "events": [' \
+		'    "Add Host cancellation after destination validation presents the install follow-up and persists no pending host state",' \
+		'    "Add Host confirmation for the current active account records install, switch, app-server refresh, and status verification in order",' \
+		'    "Confirmed setup persists the host desired account, verified account, verified status, and installed account id",' \
+		'    "The remote switch workflow installs missing snapshots before switching and switches directly when already installed",' \
+		'    "Install-and-switch follow-up copy explains that cancelling means the host will not be added yet"' \
+		'  ],' \
+		'  "status": "passed"' \
+		'}' > "$(REMOTE_HOST_INSTALL_SWITCH_SCENARIO_ARTIFACTS)/workflow-receipt.json"
+	printf '%s\n' \
+		'{' \
+		'  "assertions": [' \
+		'    "Cancelling the install-current-account follow-up leaves no configured or pending remote host state",' \
+		'    "Confirming setup switches the validated host to the current active account through fake remote operations",' \
+		'    "Missing remote snapshots install before switch, refresh, and verification",' \
+		'    "Verified setup persists desired, verified, and installed host/account state"' \
+		'  ],' \
+		'  "command": "make verify-remote-host-install-switch-current-account-scenario",' \
+		'  "gaps": [' \
+		'    "Native Add Host and confirmation panel rendering, focus, and click automation are not proven",' \
+		'    "No live SSH host, live Codex app-server, real remote auth mutation, or real remote filesystem is exercised",' \
+		'    "Remote verification failure presentation is tracked by remote-host-verification-failure, not this scenario"' \
+		'  ],' \
+		'  "invariantIds": [' \
+		'    "remote-host.install-switch.cancel-leaves-no-pending-host",' \
+		'    "remote-host.install-switch.confirm-runs-current-account-workflow-in-order",' \
+		'    "remote-host.install-switch.verified-setup-persists-host-state"' \
+		'  ],' \
+		'  "proofLayer": "workflow-event-log",' \
+		'  "scenario": "$(REMOTE_HOST_INSTALL_SWITCH_SCENARIO)",' \
+		'  "status": "passed",' \
+		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
+		'  "workflowReceipt": "$(REMOTE_HOST_INSTALL_SWITCH_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
+		'}' > "$(REMOTE_HOST_INSTALL_SWITCH_SCENARIO_ARTIFACTS)/scenario-summary.json"
 
 verify-remove-account-active-targets-sign-out-scenario: generate prepare-result-bundle
 	mkdir -p "$(REMOVE_ACCOUNT_ACTIVE_SCENARIO_ARTIFACTS)"

@@ -1066,7 +1066,8 @@ struct MenuBarRuntimeValidationTests {
     func addHostPersistsVerifiedHostOnlyAfterInstallConfirmation() async throws {
         let repository = try makeIsolatedRepository()
         let activeAccount = try makeActiveAccount(named: "Business 1", email: "business-1@example.com", in: repository)
-        let remoteHostClient = RemoteHostStatusProbe(
+        let remoteHostClient = RecordingRemoteHostSwitchProbe(
+            installationState: .missing,
             status: CodexAccountStatus(email: activeAccount.email, planType: activeAccount.planType, rateLimits: nil)
         )
         let store = MenuBarAccountsStore(
@@ -1110,6 +1111,13 @@ struct MenuBarRuntimeValidationTests {
         #expect(hostState.verifiedAccount?.id == activeAccount.id)
         #expect(hostState.verificationStatus == .verified)
         #expect(hostState.installedAccountIDs.contains(activeAccount.id))
+        #expect(remoteHostClient.events == [
+            "installationState:Business 1:buildbox",
+            "install:Business 1:buildbox",
+            "switch:Business 1:buildbox",
+            "refresh:buildbox",
+            "readStatus:buildbox"
+        ])
     }
 
     @Test
@@ -2739,6 +2747,50 @@ private final class RecordingCodexAppProcessClient: CodexAppProcessClient, @unch
 
     func relaunchCodex() async throws {
         relaunchCount += 1
+    }
+}
+
+private final class RecordingRemoteHostSwitchProbe: RemoteHostSwitchWorkflowOperations, RemoteHostAccountSigningOut, @unchecked Sendable {
+    private let installationStateValue: RemoteHostAccountInstallationState
+    private let status: CodexAccountStatus
+    private(set) var events: [String] = []
+
+    init(
+        installationState: RemoteHostAccountInstallationState,
+        status: CodexAccountStatus
+    ) {
+        self.installationStateValue = installationState
+        self.status = status
+    }
+
+    func testConnection(to host: RemoteHost) async throws {
+        events.append("testConnection:\(host.displayName)")
+    }
+
+    func installationState(for account: CodexAccount, on host: RemoteHost) async throws -> RemoteHostAccountInstallationState {
+        events.append("installationState:\(account.name):\(host.displayName)")
+        return installationStateValue
+    }
+
+    func installAccount(_ account: CodexAccount, on host: RemoteHost) async throws {
+        events.append("install:\(account.name):\(host.displayName)")
+    }
+
+    func switchToAccount(_ account: CodexAccount, on host: RemoteHost) async throws {
+        events.append("switch:\(account.name):\(host.displayName)")
+    }
+
+    func signOut(on host: RemoteHost) async throws {
+        events.append("signOut:\(host.displayName)")
+    }
+
+    func refreshCodexAppServer(on host: RemoteHost) async throws {
+        events.append("refresh:\(host.displayName)")
+    }
+
+    func readCurrentAccountStatus(on host: RemoteHost) async throws -> CodexAccountStatus {
+        events.append("readStatus:\(host.displayName)")
+        return status
     }
 }
 

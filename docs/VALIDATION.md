@@ -38,7 +38,7 @@ that inventory into `.kite/scenarios.json` only when its owning feature doc has
 concrete acceptance criteria, proof rows, fixtures, command, artifacts, privacy
 rules, non-claims, and degraded-proof rules.
 
-The current clean-main manifest contains twenty-four deterministic scenarios:
+The current clean-main manifest contains twenty-five deterministic scenarios:
 
 ```bash
 make verify-ui SCENARIO=hosted-menu-default
@@ -52,6 +52,7 @@ make verify-add-account-failure-cleanup-scenario
 make verify-switch-account-local-confirmed-scenario
 make verify-switch-account-remote-install-verify-scenario
 make verify-remote-host-add-panel-validation-scenario
+make verify-remote-host-install-switch-current-account-scenario
 make verify-remove-account-active-targets-sign-out-scenario
 make verify-remove-account-signout-failure-keeps-control-scenario
 make verify-rename-scenario
@@ -160,6 +161,16 @@ Current deterministic scenarios:
   native Add Host panel screenshot rendering, first responder focus, click
   automation, live SSH, live Codex app-server behavior, real remote filesystem
   mutation, install-and-switch follow-up, or live macOS menu-bar behavior.
+- `remote-host-install-switch-current-account`: changed-feature non-regression
+  for Remote Hosts setup follow-up. It proves through focused runtime,
+  workflow, and alert-copy tests that cancelling the install-current-account
+  follow-up leaves no pending host state, confirming setup installs missing
+  snapshots before switching the current active account, refreshes the remote
+  app-server, verifies status, and persists desired, verified, and installed
+  host/account state; it does not prove native panel rendering, focus, click
+  automation, live SSH, live Codex app-server behavior, real remote auth
+  mutation, real remote filesystem mutation, remote verification failure
+  presentation, or live macOS menu-bar behavior.
 - `remove-account-active-targets-sign-out`: changed-feature non-regression for
   Remove Account active-target success. It proves through runtime, delete
   use-case, and alert-copy tests that removing an account active on This Mac and
@@ -277,6 +288,8 @@ The adapter currently includes:
   remote Switch Account workflow-event proof;
 - `make verify-remote-host-add-panel-validation-scenario` for focused Remote
   Hosts Add Host contract-fixture proof;
+- `make verify-remote-host-install-switch-current-account-scenario` for focused
+  Remote Hosts setup follow-up workflow-event proof;
 - `make verify-remove-account-active-targets-sign-out-scenario` for focused
   Remove Account active-target workflow-event proof;
 - `make verify-remove-account-signout-failure-keeps-control-scenario` for
