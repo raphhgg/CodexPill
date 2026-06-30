@@ -81,6 +81,81 @@ struct MenuBarRuntimeValidationTests {
     }
 
     @Test
+    func localSwitchConfirmationGatesAuthActivationAndRelaunch() async throws {
+        let repository = try makeIsolatedRepository()
+        let authService = CodexAuthSnapshotService(repository: repository)
+        let activeAccount = try makeActiveAccount(
+            named: "Personal",
+            email: "personal@example.com",
+            in: repository
+        )
+        let activeAuthData = try Data(contentsOf: repository.paths.codexAuthFile)
+        let targetAuthData = Data("target-auth-\(UUID().uuidString)".utf8)
+        var targetAccount = try authService.saveAuthSnapshot(targetAuthData, named: "Business 2")
+        targetAccount.email = "business-2@example.com"
+        targetAccount.planType = "team"
+        targetAccount.identity.remoteIdentity = CodexRemoteAccountIdentity(emailAddress: "business-2@example.com")
+        try repository.saveAccounts([activeAccount, targetAccount])
+
+        let codexProcessClient = RecordingCodexAppProcessClient()
+        let store = MenuBarAccountsStore(
+            repository: repository,
+            authService: CodexAuthSnapshotService(repository: repository),
+            codexAppProcessClient: codexProcessClient,
+            accountStatusClient: DisabledAccountStatusClient()
+        )
+        store.load()
+
+        let suiteName = "MenuBarRuntimeValidationLocalSwitch-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
+        let alertPresenter = AlertPresenterProbe()
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let coordinator = MenuBarCoordinator(
+            statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
+            store: store,
+            settings: settings,
+            alertPresenter: alertPresenter,
+            allowsEmptyStatePrompt: false
+        )
+        let item = NSMenuItem()
+        item.representedObject = targetAccount.id.uuidString
+
+        defer { coordinator.invalidate() }
+        coordinator.start()
+        try await Task.sleep(for: .milliseconds(120))
+
+        alertPresenter.confirmationResponse = false
+        coordinator.switchAccount(item)
+        try await Task.sleep(for: .milliseconds(80))
+
+        #expect(alertPresenter.confirmationRequests.last?.messageText == "Switch account?")
+        #expect(codexProcessClient.availabilityCheckCount == 0)
+        #expect(codexProcessClient.relaunchCount == 0)
+        #expect(try Data(contentsOf: repository.paths.codexAuthFile) == activeAuthData)
+        #expect(store.activeAccountID == activeAccount.id)
+
+        alertPresenter.confirmationResponse = true
+        coordinator.switchAccount(item)
+        try await waitUntil {
+            codexProcessClient.relaunchCount == 1
+        }
+
+        #expect(alertPresenter.confirmationRequests.count == 2)
+        #expect(alertPresenter.confirmationRequests.last?.confirmTitle == "Switch")
+        #expect(codexProcessClient.availabilityCheckCount == 1)
+        #expect(codexProcessClient.relaunchCount == 1)
+        #expect(try Data(contentsOf: repository.paths.codexAuthFile) == targetAuthData)
+        #expect(store.activeAccountID == targetAccount.id)
+    }
+
+    @Test
     func notificationResponseSubstitutesBetterRemoteAccountAndExplainsIt() async throws {
         let repository = try makeIsolatedRepository()
         let now = Date()
@@ -2578,6 +2653,19 @@ private final class NotificationSettingsLauncherProbe: NotificationSettingsLaunc
 private struct NullCodexAppProcessClient: CodexAppProcessClient {
     func assertCodexAvailable() throws {}
     func relaunchCodex() async throws {}
+}
+
+private final class RecordingCodexAppProcessClient: CodexAppProcessClient, @unchecked Sendable {
+    private(set) var availabilityCheckCount = 0
+    private(set) var relaunchCount = 0
+
+    func assertCodexAvailable() throws {
+        availabilityCheckCount += 1
+    }
+
+    func relaunchCodex() async throws {
+        relaunchCount += 1
+    }
 }
 
 private struct RemoteHostStatusProbe: RemoteHostSwitchWorkflowOperations, RemoteHostAccountSigningOut {

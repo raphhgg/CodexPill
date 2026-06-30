@@ -108,12 +108,45 @@ Given a remote switch command completes but verification reports a different or 
 - `switch-account-local-confirmed`
 - `switch-account-remote-install-verify`
 
+## Validation Intent
+
+Feature risk: `auth_mutation`, `workflow_state`, `privacy`
+
+Primary proof for `switch-account-local-confirmed`: `workflow-event-log`
+
+Product scenarios:
+
+- `switch-account-local-confirmed` proves that `Switch on This Mac` presents a
+  confirmation before mutating local auth, cancellation leaves This Mac
+  unchanged, confirmation activates the selected saved snapshot through fake
+  auth/process clients, Codex relaunch is requested, Add Account success can
+  reuse the same local switch path without a second confirmation, and
+  post-switch refresh behavior is covered by the silent refresh proof.
+
+Required evidence:
+
+- focused test output from `SwitchAccountWorkflowTests`,
+  `MenuBarRuntimeValidationTests`, `MenuBarAlertFactoryTests`,
+  `MenuBarValidationObserverTests`, `AccountActionFlowTests`, and
+  `SilentPostActionRefreshTests`;
+- `build/verification/switch-account-local-confirmed/workflow-receipt.json`;
+- `build/verification/switch-account-local-confirmed/scenario-summary.json`.
+
+Non-claims:
+
+- The local-confirmed scenario does not prove native confirmation panel
+  rendering, click automation, live Codex process relaunch, live app-server
+  refresh, remote host switching, or live macOS menu-bar behavior.
+- `switch-account-remote-install-verify` remains a separate target scenario.
+
+Live opt-in: not required for this scenario.
+
 ## Proof Contract
 
 | Acceptance Criterion | Owning Proof Layer | Command / Method | Artifact | Pass Condition | Privacy / Redaction |
 | --- | --- | --- | --- | --- | --- |
-| Local switch asks for confirmation before activating the saved snapshot. | `workflow-event-log` | Local switch coordinator test with fake confirmation presenter, auth store, process client, and status client. | Structured local-switch receipt. | Auth activation is not called before confirmation; confirming writes the selected snapshot, relaunches Codex through the fake process client, and refreshes account data. | Fake auth snapshots only; receipt must not include raw auth JSON, tokens, private paths, emails, hostnames, or account identifiers beyond synthetic ids. |
-| Add Account success uses the existing switch path without a second confirmation. | `workflow-event-log` | Add Account success action test with fake switch coordinator. | Structured action routing receipt. | The success action invokes the same local switch operation with confirmation suppression, and no duplicate confirmation prompt is emitted. | Synthetic account ids only; no raw auth, tokens, paths, emails, or hostnames. |
+| Local switch asks for confirmation before activating the saved snapshot. | `workflow-event-log` | `make verify-switch-account-local-confirmed-scenario` running `SwitchAccountWorkflowTests`, `MenuBarRuntimeValidationTests`, `MenuBarAlertFactoryTests`, `MenuBarValidationObserverTests`, `AccountActionFlowTests`, and `SilentPostActionRefreshTests`. | `build/results/local/CodexPill.xcresult`, `build/verification/switch-account-local-confirmed/workflow-receipt.json`, and `scenario-summary.json`. | Auth activation is not called before confirmation; cancellation leaves This Mac auth unchanged and does not relaunch Codex; confirming writes the selected snapshot, persists catalog state, relaunches Codex through the fake process client, records switch workflow events, and the post-switch active-account refresh proof applies refreshed metadata when status data is available. | Fake auth snapshots, fake process clients, synthetic account ids, and synthetic status data only; receipts must not include raw auth JSON, tokens, private paths, emails, hostnames, or stable account identifiers. |
+| Add Account success uses the existing switch path without a second confirmation. | `workflow-event-log` | Included in `make verify-switch-account-local-confirmed-scenario` through `AccountActionFlowTests`. | `build/results/local/CodexPill.xcresult` and scenario summary. | The success action resolves to the same local switch step with confirmation suppression, and no duplicate confirmation prompt is emitted by the action flow. | Synthetic account ids only; no raw auth, tokens, paths, emails, or hostnames. |
 | Remote switch installs missing or stale snapshots before switching. | `workflow-event-log` plus `contract-fixture` | Remote switch test with `InMemoryRemoteHostClient` or fake SSH contract. | Structured remote-operation receipt. | Missing or stale host snapshots trigger install before switch; already-fresh snapshots use direct switch; operation order is visible in the receipt. | Fake remote hosts and snapshots only; no raw SSH output, auth payloads, tokens, private paths, real emails, or hostnames. |
 | Remote switch refreshes and verifies the expected account. | `workflow-event-log` plus `integration` | Remote switch verification test with fake app-server/status clients. | Remote refresh and verification receipt. | After switching, CodexPill refreshes remote app-server state and marks success only when the reported account uniquely matches the selected saved account. | Synthetic app-server payloads only; no raw auth, tokens, emails, hostnames, private paths, or stable account identifiers. |
 | Remote verification failure is surfaced instead of silently accepted. | `unit` plus `workflow-event-log` | Remote verification failure test with ambiguous and mismatched fixtures. | Failure-state receipt plus menu projection assertion when applicable. | Mismatch or ambiguity produces a recoverable failure state and does not present the host as verified active. | Synthetic fixtures only; no raw SSH output, auth payloads, tokens, emails, hostnames, or private paths. |

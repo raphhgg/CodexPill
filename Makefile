@@ -19,6 +19,8 @@ ADD_ACCOUNT_ISOLATED_SUCCESS_SCENARIO := add-account-isolated-success
 ADD_ACCOUNT_ISOLATED_SUCCESS_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(ADD_ACCOUNT_ISOLATED_SUCCESS_SCENARIO)
 ADD_ACCOUNT_FAILURE_CLEANUP_SCENARIO := add-account-failure-cleanup
 ADD_ACCOUNT_FAILURE_CLEANUP_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(ADD_ACCOUNT_FAILURE_CLEANUP_SCENARIO)
+SWITCH_ACCOUNT_LOCAL_SCENARIO := switch-account-local-confirmed
+SWITCH_ACCOUNT_LOCAL_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(SWITCH_ACCOUNT_LOCAL_SCENARIO)
 TOKEN_USAGE_PARSER_SCENARIO := token-usage-parser-aggregation
 TOKEN_USAGE_PARSER_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_PARSER_SCENARIO)
 TOKEN_USAGE_CACHE_SCENARIO := token-usage-cache-first
@@ -26,7 +28,7 @@ TOKEN_USAGE_CACHE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE
 TOKEN_USAGE_PRIVACY_SCENARIO := token-usage-privacy-no-raw-session
 TOKEN_USAGE_PRIVACY_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_PRIVACY_SCENARIO)
 
-.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
+.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -252,6 +254,65 @@ verify-add-account-failure-cleanup-scenario: generate prepare-result-bundle
 		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
 		'  "workflowReceipt": "$(ADD_ACCOUNT_FAILURE_CLEANUP_SCENARIO_ARTIFACTS)/cleanup-receipt.json"' \
 		'}' > "$(ADD_ACCOUNT_FAILURE_CLEANUP_SCENARIO_ARTIFACTS)/scenario-summary.json"
+
+verify-switch-account-local-confirmed-scenario: generate prepare-result-bundle
+	mkdir -p "$(SWITCH_ACCOUNT_LOCAL_SCENARIO_ARTIFACTS)"
+	xcodebuild test \
+		-project $(PROJECT_PATH) \
+		-scheme $(APP_NAME) \
+		-configuration Debug \
+		-destination "platform=macOS" \
+		-derivedDataPath "$(DERIVED_DATA)" \
+		-resultBundlePath "$(RESULT_BUNDLE)" \
+		-only-testing:CodexPillTests/SwitchAccountWorkflowTests \
+		-only-testing:CodexPillTests/MenuBarRuntimeValidationTests \
+		-only-testing:CodexPillTests/MenuBarAlertFactoryTests \
+		-only-testing:CodexPillTests/MenuBarValidationObserverTests \
+		-only-testing:CodexPillTests/AccountActionFlowTests \
+		-only-testing:CodexPillTests/SilentPostActionRefreshTests \
+		PRODUCT_BUNDLE_IDENTIFIER="$(STAGING_BUNDLE_ID)"
+	printf '%s\n' \
+		'{' \
+		'  "scenario": "$(SWITCH_ACCOUNT_LOCAL_SCENARIO)",' \
+		'  "proofLayer": "workflow-event-log",' \
+		'  "events": [' \
+		'    "local switch menu action presents confirmation before auth activation",' \
+		'    "cancelled confirmation leaves the local auth file unchanged and does not relaunch Codex",' \
+		'    "accepted confirmation activates the selected saved snapshot",' \
+		'    "accepted confirmation relaunches Codex through a fake process client",' \
+		'    "workflow activation persists the account catalog and resolves the active account when identity matches",' \
+		'    "Add Account success action routes into the local switch path without a second confirmation",' \
+		'    "silent post-action refresh applies refreshed active-account metadata when status proof is available"' \
+		'  ],' \
+		'  "status": "passed"' \
+		'}' > "$(SWITCH_ACCOUNT_LOCAL_SCENARIO_ARTIFACTS)/workflow-receipt.json"
+	printf '%s\n' \
+		'{' \
+		'  "assertions": [' \
+		'    "Local switch asks for confirmation before activating the selected saved snapshot",' \
+		'    "Cancel leaves This Mac auth unchanged and does not relaunch Codex",' \
+		'    "Confirm activates the selected saved snapshot, persists catalog state, relaunches Codex, and records switch workflow events",' \
+		'    "Add Account success can reuse the same local switch path without a second confirmation",' \
+		'    "Post-switch active-account refresh behavior is covered by silent refresh tests"' \
+		'  ],' \
+		'  "command": "make verify-switch-account-local-confirmed-scenario",' \
+		'  "gaps": [' \
+		'    "Native confirmation panel rendering and click automation are not proven by this workflow-event scenario",' \
+		'    "Live Codex process relaunch and live app-server refresh are not exercised",' \
+		'    "Remote host switching is tracked by switch-account-remote-install-verify, not this local scenario"' \
+		'  ],' \
+		'  "invariantIds": [' \
+		'    "switch-account.local.confirmation-gates-auth-activation",' \
+		'    "switch-account.local.confirmed-switch-activates-and-relaunches",' \
+		'    "switch-account.local.add-account-success-reuses-switch-path",' \
+		'    "switch-account.local.post-switch-refresh-covered"' \
+		'  ],' \
+		'  "proofLayer": "workflow-event-log",' \
+		'  "scenario": "$(SWITCH_ACCOUNT_LOCAL_SCENARIO)",' \
+		'  "status": "passed",' \
+		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
+		'  "workflowReceipt": "$(SWITCH_ACCOUNT_LOCAL_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
+		'}' > "$(SWITCH_ACCOUNT_LOCAL_SCENARIO_ARTIFACTS)/scenario-summary.json"
 
 verify-token-usage-parser-scenario: generate prepare-result-bundle
 	mkdir -p "$(TOKEN_USAGE_PARSER_SCENARIO_ARTIFACTS)"
