@@ -15,6 +15,8 @@ RENAME_SCENARIO := rename-account-label-only
 RENAME_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(RENAME_SCENARIO)
 ADD_ACCOUNT_NAME_SCENARIO := add-account-name-validation
 ADD_ACCOUNT_NAME_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(ADD_ACCOUNT_NAME_SCENARIO)
+ADD_ACCOUNT_ISOLATED_SUCCESS_SCENARIO := add-account-isolated-success
+ADD_ACCOUNT_ISOLATED_SUCCESS_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(ADD_ACCOUNT_ISOLATED_SUCCESS_SCENARIO)
 TOKEN_USAGE_PARSER_SCENARIO := token-usage-parser-aggregation
 TOKEN_USAGE_PARSER_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_PARSER_SCENARIO)
 TOKEN_USAGE_CACHE_SCENARIO := token-usage-cache-first
@@ -22,7 +24,7 @@ TOKEN_USAGE_CACHE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE
 TOKEN_USAGE_PRIVACY_SCENARIO := token-usage-privacy-no-raw-session
 TOKEN_USAGE_PRIVACY_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_PRIVACY_SCENARIO)
 
-.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario verify-add-account-name-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
+.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -127,7 +129,62 @@ verify-add-account-name-scenario: generate prepare-result-bundle
 		'  "scenario": "$(ADD_ACCOUNT_NAME_SCENARIO)",' \
 		'  "status": "passed",' \
 		'  "testResultBundle": "$(RESULT_BUNDLE)"' \
-		'}' > "$(ADD_ACCOUNT_NAME_SCENARIO_ARTIFACTS)/scenario-summary.json"
+	'}' > "$(ADD_ACCOUNT_NAME_SCENARIO_ARTIFACTS)/scenario-summary.json"
+
+verify-add-account-isolated-success-scenario: generate prepare-result-bundle
+	mkdir -p "$(ADD_ACCOUNT_ISOLATED_SUCCESS_SCENARIO_ARTIFACTS)"
+	xcodebuild test \
+		-project $(PROJECT_PATH) \
+		-scheme $(APP_NAME) \
+		-configuration Debug \
+		-destination "platform=macOS" \
+		-derivedDataPath "$(DERIVED_DATA)" \
+		-resultBundlePath "$(RESULT_BUNDLE)" \
+		-only-testing:CodexPillTests/AddAccountWorkflowTests \
+		-only-testing:CodexPillTests/AccountsControllerTests \
+		-only-testing:CodexPillTests/AccountActionFlowTests \
+		PRODUCT_BUNDLE_IDENTIFIER="$(STAGING_BUNDLE_ID)"
+	printf '%s\n' \
+		'{' \
+		'  "scenario": "$(ADD_ACCOUNT_ISOLATED_SUCCESS_SCENARIO)",' \
+		'  "proofLayer": "workflow-event-log",' \
+		'  "events": [' \
+		'    "validated display name before login",' \
+		'    "started isolated login with fake client",' \
+		'    "captured isolated auth snapshot",' \
+		'    "verified isolated login status",' \
+		'    "confirmed live local auth fingerprint was unchanged",' \
+		'    "saved inactive account snapshot and catalog row",' \
+		'    "hydrated saved account metadata through fake saved-account status client",' \
+		'    "preserved active This Mac account id",' \
+		'    "cleaned isolated login session"' \
+		'  ],' \
+		'  "status": "passed"' \
+		'}' > "$(ADD_ACCOUNT_ISOLATED_SUCCESS_SCENARIO_ARTIFACTS)/workflow-receipt.json"
+	printf '%s\n' \
+		'{' \
+		'  "assertions": [' \
+		'    "Add Account persists captured isolated auth without changing the active This Mac account",' \
+		'    "New inactive account metadata and usable rate-limit status are hydrated through the fake saved-account status client when available",' \
+		'    "The success confirmation can route to local switch without a second confirmation, but the save path itself does not relaunch or switch Codex"' \
+		'  ],' \
+		'  "command": "make verify-add-account-isolated-success-scenario",' \
+		'  "gaps": [' \
+		'    "Native device-code panel rendering and browser sign-in are not proven by this workflow-event scenario",' \
+		'    "Live Codex auth, live app-server, and real process relaunch are not exercised",' \
+		'    "Failure cleanup is tracked by add-account-failure-cleanup, not this success scenario"' \
+		'  ],' \
+		'  "invariantIds": [' \
+		'    "add-account.isolated-success.saves-without-switching-this-mac",' \
+		'    "add-account.isolated-success.hydrates-new-inactive-account",' \
+		'    "add-account.isolated-success.cleans-login-session"' \
+		'  ],' \
+		'  "proofLayer": "workflow-event-log",' \
+		'  "scenario": "$(ADD_ACCOUNT_ISOLATED_SUCCESS_SCENARIO)",' \
+		'  "status": "passed",' \
+		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
+		'  "workflowReceipt": "$(ADD_ACCOUNT_ISOLATED_SUCCESS_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
+		'}' > "$(ADD_ACCOUNT_ISOLATED_SUCCESS_SCENARIO_ARTIFACTS)/scenario-summary.json"
 
 verify-token-usage-parser-scenario: generate prepare-result-bundle
 	mkdir -p "$(TOKEN_USAGE_PARSER_SCENARIO_ARTIFACTS)"

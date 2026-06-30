@@ -229,26 +229,38 @@ Feature risk: `workflow_state`, `auth_isolation`, `privacy`
 
 Primary proof for `add-account-name-validation`: `unit`
 
+Primary proof for `add-account-isolated-success`: `workflow-event-log`
+
 Product scenarios:
 
 - `add-account-name-validation` proves that empty, whitespace-only, and
   case-insensitive duplicate display names are rejected before CodexPill starts
   isolated sign-in, and that display-name failures route back into the Add
   Account name-recovery flow.
+- `add-account-isolated-success` proves that fake-client isolated Add Account
+  saves the captured account as inactive, preserves the active This Mac account,
+  hydrates the new inactive account through the fake saved-account status
+  client when usable status is available, and cleans the isolated login session
+  after success.
 
 Required evidence:
 
 - focused test output from `AddAccountWorkflowTests` and
   `AccountActionFlowTests`;
 - `build/verification/add-account-name-validation/scenario-summary.json`.
+- focused test output from `AddAccountWorkflowTests`, `AccountsControllerTests`,
+  and `AccountActionFlowTests`;
+- `build/verification/add-account-isolated-success/workflow-receipt.json`;
+- `build/verification/add-account-isolated-success/scenario-summary.json`.
 
 Non-claims:
 
-- Does not prove native Add Account panel rendering or text entry.
-- Does not prove the disabled `Continue` button state in the native name panel.
-- Does not prove browser/device-code sign-in.
-- Does not prove live auth mutation, live Codex process state, or live macOS
-  menu-bar behavior.
+- The name-validation scenario does not prove native Add Account panel
+  rendering, text entry, or disabled `Continue` state.
+- The isolated-success scenario does not prove native device-code panel
+  rendering, browser sign-in, live Codex auth, live app-server, real process
+  relaunch, or terminal failure cleanup paths.
+- Neither scenario proves live macOS menu-bar behavior.
 
 Live opt-in: not required for this scenario.
 
@@ -257,7 +269,7 @@ Live opt-in: not required for this scenario.
 | Acceptance Criterion | Owning Proof Layer | Command / Method | Artifact | Pass Condition | Privacy / Redaction |
 | --- | --- | --- | --- | --- | --- |
 | Empty or duplicate display names are blocked before sign-in starts. | `unit` | `make verify-add-account-name-scenario` running `AddAccountWorkflowTests` and `AccountActionFlowTests`. | `build/results/local/CodexPill.xcresult` and `build/verification/add-account-name-validation/scenario-summary.json`. | Empty, whitespace-only, and case-insensitive duplicate names throw before isolated login starts, keep the user in the Add Account name-recovery flow, and do not start browser/device-code sign-in. This unit scenario does not prove native panel rendering or the disabled `Continue` state. | Synthetic account names only; no raw auth payloads, tokens, account identifiers, private paths, emails, hostnames, or device codes. |
-| Add Account saves an isolated account without switching This Mac. | `integration` plus `workflow-event-log` | Add Account integration test with fake login, fake app-server, fake auth store, and fake process client. | Structured workflow receipt plus isolated temp-home cleanup assertion. | The saved account appears in the catalog, live local auth is unchanged, optional status hydration is applied when available, and no Codex relaunch/switch occurs unless the success alert action is chosen. | Fake auth snapshots only; receipts must redact device codes, auth URLs, auth JSON, tokens, emails, account identifiers, private paths, and hostnames. |
+| Add Account saves an isolated account without switching This Mac. | `workflow-event-log` | `make verify-add-account-isolated-success-scenario` running `AddAccountWorkflowTests`, `AccountsControllerTests`, and `AccountActionFlowTests`. | `build/results/local/CodexPill.xcresult`, `build/verification/add-account-isolated-success/workflow-receipt.json`, and `scenario-summary.json`. | The saved account appears in the catalog, live local auth is unchanged, saved-account hydration applies returned usable email, plan, and rate-limit metadata when available, the isolated login session is cleaned after success, and no Codex relaunch/switch occurs unless the success alert action is chosen. | Fake auth snapshots and fake status clients only; receipts must redact device codes, auth URLs, auth JSON, tokens, emails, account identifiers, private paths, and hostnames. |
 | Terminal Add Account failures clean sensitive temporary state. | `integration` plus negative filesystem/state assertions | Add Account failure matrix tests for cancel, expiry, startup failure, live-auth mutation, save failure, quit, and stale temp-home cleanup. | Test result plus cleanup receipt. | Each terminal failure clears pending state, deletes temporary isolated homes when appropriate, saves no unintended account, and leaves live local auth unchanged. | Temporary fixture paths must be synthetic or redacted; no raw auth payloads, device codes, auth URLs, tokens, emails, account identifiers, or hostnames may appear in artifacts. |
 | `Use on This Mac` routes through the existing switch flow without a second confirmation. | `workflow-event-log` | Add Account success action test with fake switch coordinator. | Structured action routing receipt. | Selecting `Use on This Mac` calls the existing local switch path once with confirmation suppression and does not duplicate switch prompts. | Synthetic account ids only; no raw auth payloads, tokens, private paths, emails, or hostnames. |
 

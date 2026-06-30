@@ -38,7 +38,7 @@ that inventory into `.kite/scenarios.json` only when its owning feature doc has
 concrete acceptance criteria, proof rows, fixtures, command, artifacts, privacy
 rules, non-claims, and degraded-proof rules.
 
-The current clean-main manifest contains fifteen deterministic scenarios:
+The current clean-main manifest contains sixteen deterministic scenarios:
 
 ```bash
 make verify-ui SCENARIO=hosted-menu-default
@@ -47,6 +47,7 @@ make verify-ui SCENARIO=menu-unmatched-active-account
 make verify-ui SCENARIO=menu-empty-catalog
 make verify-ui SCENARIO=menu-account-overflow
 make verify-add-account-name-scenario
+make verify-add-account-isolated-success-scenario
 make verify-rename-scenario
 make verify-ui SCENARIO=launch-at-login-menu-states
 make verify-ui SCENARIO=status-bar-icon-text-visible
@@ -99,6 +100,15 @@ Current deterministic scenarios:
   Account name-recovery flow; it does not prove native Add Account panel
   rendering, disabled `Continue` state, browser/device-code sign-in, live auth
   mutation, or live macOS menu-bar behavior.
+- `add-account-isolated-success`: changed-feature non-regression for Add Account
+  isolated success. It proves through focused fake-client workflow/controller
+  tests that captured isolated auth is saved as an inactive account, the active
+  This Mac account is preserved, usable metadata and rate limits are hydrated
+  through the saved-account status client, the isolated login session is
+  cleaned after success, and the success action can route to local switch
+  without a second confirmation; it does not prove native device-code UI,
+  browser sign-in, live Codex auth/app-server/process relaunch, terminal
+  failure cleanup, or live macOS menu-bar behavior.
 - `rename-account-label-only`: changed-feature non-regression for Rename
   Account. It proves through focused unit tests that rename changes only the
   CodexPill display label, preserves saved auth snapshot identity, plan, and
@@ -167,6 +177,8 @@ The adapter currently includes:
 - `make verify-ui SCENARIO=<scenario>` for deterministic hosted-menu proof;
 - `make verify-add-account-name-scenario` for focused Add Account name
   validation unit proof;
+- `make verify-add-account-isolated-success-scenario` for focused Add Account
+  fake-client workflow-event proof;
 - `make verify-rename-scenario` for focused Rename Account unit proof;
 - `make verify-token-usage-parser-scenario` for focused Token Usage scanner
   contract-fixture proof;
