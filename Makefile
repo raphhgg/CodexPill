@@ -27,6 +27,8 @@ REMOVE_ACCOUNT_ACTIVE_SCENARIO := remove-account-active-targets-sign-out
 REMOVE_ACCOUNT_ACTIVE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(REMOVE_ACCOUNT_ACTIVE_SCENARIO)
 REMOVE_ACCOUNT_FAILURE_SCENARIO := remove-account-signout-failure-keeps-control
 REMOVE_ACCOUNT_FAILURE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(REMOVE_ACCOUNT_FAILURE_SCENARIO)
+REFRESH_INACTIVE_SCENARIO := refresh-inactive-isolated-status
+REFRESH_INACTIVE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(REFRESH_INACTIVE_SCENARIO)
 TOKEN_USAGE_PARSER_SCENARIO := token-usage-parser-aggregation
 TOKEN_USAGE_PARSER_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_PARSER_SCENARIO)
 TOKEN_USAGE_CACHE_SCENARIO := token-usage-cache-first
@@ -34,7 +36,7 @@ TOKEN_USAGE_CACHE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE
 TOKEN_USAGE_PRIVACY_SCENARIO := token-usage-privacy-no-raw-session
 TOKEN_USAGE_PRIVACY_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_PRIVACY_SCENARIO)
 
-.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-switch-account-remote-install-verify-scenario verify-remove-account-active-targets-sign-out-scenario verify-remove-account-signout-failure-keeps-control-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
+.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-switch-account-remote-install-verify-scenario verify-remove-account-active-targets-sign-out-scenario verify-remove-account-signout-failure-keeps-control-scenario verify-refresh-inactive-isolated-status-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -481,6 +483,62 @@ verify-remove-account-signout-failure-keeps-control-scenario: generate prepare-r
 		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
 		'  "workflowReceipt": "$(REMOVE_ACCOUNT_FAILURE_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
 		'}' > "$(REMOVE_ACCOUNT_FAILURE_SCENARIO_ARTIFACTS)/scenario-summary.json"
+
+verify-refresh-inactive-isolated-status-scenario: generate prepare-result-bundle
+	mkdir -p "$(REFRESH_INACTIVE_SCENARIO_ARTIFACTS)"
+	xcodebuild test \
+		-project $(PROJECT_PATH) \
+		-scheme $(APP_NAME) \
+		-configuration Debug \
+		-destination "platform=macOS" \
+		-derivedDataPath "$(DERIVED_DATA)" \
+		-resultBundlePath "$(RESULT_BUNDLE)" \
+		-only-testing:CodexPillTests/HydrateSavedAccountsMetadataUseCaseTests \
+		-only-testing:CodexPillTests/CodexAppServerClientTests \
+		-only-testing:CodexPillTests/AppPathsTests \
+		PRODUCT_BUNDLE_IDENTIFIER="$(STAGING_BUNDLE_ID)"
+	printf '%s\n' \
+		'{' \
+		'  "scenario": "$(REFRESH_INACTIVE_SCENARIO)",' \
+		'  "proofLayer": "contract-fixture",' \
+		'  "events": [' \
+		'    "inactive saved accounts are read through saved-account status clients instead of live auth switching",' \
+		'    "live local auth data remains unchanged after inactive refresh",' \
+		'    "isolated app-server reads require account and rate-limit responses before success",' \
+		'    "previous meaningful limits are preserved when isolated reads fail, return no limits, or return suspicious zeroed limits",' \
+		'    "isolated CODEX_HOME sessions use root auth.json and clean up temporary state"' \
+		'  ],' \
+		'  "status": "passed"' \
+		'}' > "$(REFRESH_INACTIVE_SCENARIO_ARTIFACTS)/workflow-receipt.json"
+	printf '%s\n' \
+		'{' \
+		'  "assertions": [' \
+		'    "Inactive saved-account refresh uses isolated saved auth data and does not mutate live auth",' \
+		'    "Complete isolated status updates inactive account metadata and rate limits",' \
+		'    "Failed, missing, or suspicious isolated status preserves previous meaningful limits",' \
+		'    "The app-server contract sends initialize, initialized, account/read, and account/rateLimits/read before accepting status",' \
+		'    "Isolated CODEX_HOME sessions keep auth.json at the root and remove their temporary root on cleanup"' \
+		'  ],' \
+		'  "command": "make verify-refresh-inactive-isolated-status-scenario",' \
+		'  "gaps": [' \
+		'    "Live Codex app-server execution with real saved accounts is not exercised",' \
+		'    "Real auth snapshots, tokens, account identifiers, emails, hostnames, and private paths are not used",' \
+		'    "Remote inactive-account refresh is not proven by this local inactive refresh scenario",' \
+		'    "Menu projection and live macOS menu-bar behavior are not proven"' \
+		'  ],' \
+		'  "invariantIds": [' \
+		'    "refresh.inactive.isolated-saved-auth-read",' \
+		'    "refresh.inactive.live-auth-unchanged",' \
+		'    "refresh.inactive.preserve-meaningful-limits-on-unusable-read",' \
+		'    "refresh.inactive.app-server-rate-limits-required",' \
+		'    "refresh.inactive.isolated-home-cleanup"' \
+		'  ],' \
+		'  "proofLayer": "contract-fixture",' \
+		'  "scenario": "$(REFRESH_INACTIVE_SCENARIO)",' \
+		'  "status": "passed",' \
+		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
+		'  "workflowReceipt": "$(REFRESH_INACTIVE_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
+		'}' > "$(REFRESH_INACTIVE_SCENARIO_ARTIFACTS)/scenario-summary.json"
 
 verify-token-usage-parser-scenario: generate prepare-result-bundle
 	mkdir -p "$(TOKEN_USAGE_PARSER_SCENARIO_ARTIFACTS)"

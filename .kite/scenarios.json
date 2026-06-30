@@ -180,6 +180,20 @@
       ]
     },
     {
+      "id": "refresh-inactive-saved-accounts",
+      "title": "Refresh inactive saved accounts",
+      "acceptanceCriteria": [
+        {
+          "id": "inactive-refresh-uses-isolated-saved-auth",
+          "statement": "Inactive saved accounts must refresh through isolated saved-account app-server reads without mutating live local Codex auth."
+        },
+        {
+          "id": "inactive-refresh-preserves-meaningful-limits-on-unusable-read",
+          "statement": "Failed, missing, partial, zeroed, or suspicious inactive saved-account reads must preserve previous meaningful session and weekly rate-limit windows."
+        }
+      ]
+    },
+    {
       "id": "token-usage-menu-card",
       "title": "Token Usage menu card",
       "acceptanceCriteria": [
@@ -1349,6 +1363,93 @@
       ],
       "expectedMetadata": {
         "scenario": "rename-account-label-only"
+      },
+      "privacy": {
+        "fixtureData": "synthetic",
+        "restrictedEvidence": [
+          "account_data",
+          "hostname",
+          "raw_local_path",
+          "private_product_data",
+          "token"
+        ]
+      }
+    },
+    {
+      "id": "refresh-inactive-isolated-status",
+      "title": "Refresh inactive isolated status",
+      "featureId": "refresh-inactive-saved-accounts",
+      "acceptanceCriteria": [
+        "inactive-refresh-uses-isolated-saved-auth",
+        "inactive-refresh-preserves-meaningful-limits-on-unusable-read"
+      ],
+      "targetSurface": "CodexPill inactive saved-account refresh use-case and app-server contract fixtures",
+      "validationModes": ["unit_only"],
+      "suites": ["deterministic"],
+      "validationIntent": {
+        "featureRisk": ["parser", "auth_isolation", "state_truth", "privacy"],
+        "primaryProof": "contract-fixture",
+        "supportingProof": ["integration", "privacy-redaction"],
+        "requiredEvidence": ["test-output", "workflow-receipt", "scenario-summary"],
+        "nonClaims": [
+          "Does not execute a live Codex app-server with real saved accounts.",
+          "Does not use real auth snapshots, tokens, account identifiers, emails, hostnames, or private paths.",
+          "Does not prove remote inactive-account refresh.",
+          "Does not prove menu projection or live macOS menu-bar behavior."
+        ],
+        "liveOptIn": {
+          "required": false
+        }
+      },
+      "nonRegression": {
+        "tier": "changed-feature",
+        "runWhen": [
+          "local-handoff",
+          "refresh-accounts-changed",
+          "app-server-client-changed",
+          "isolated-codex-home-changed",
+          "scenario-fixture-changed"
+        ],
+        "blocking": true
+      },
+      "proof": {
+        "layer": "contract-fixture",
+        "artifactSource": "focused-test-suite",
+        "nonClaims": [
+          "Does not execute a live Codex app-server with real saved accounts.",
+          "Does not use real auth snapshots, tokens, account identifiers, emails, hostnames, or private paths.",
+          "Does not prove remote inactive-account refresh.",
+          "Does not prove menu projection or live macOS menu-bar behavior."
+        ]
+      },
+      "command": {
+        "run": "make verify-refresh-inactive-isolated-status-scenario"
+      },
+      "expectedArtifacts": [
+        {
+          "id": "refresh-inactive-isolated-status-result-bundle",
+          "kind": "test_output",
+          "path": "build/results/local/CodexPill.xcresult",
+          "claimScope": ["refresh-inactive-isolated-status-tests"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "refresh-inactive-isolated-status-workflow-receipt",
+          "kind": "workflow_receipt",
+          "path": "build/verification/refresh-inactive-isolated-status/workflow-receipt.json",
+          "claimScope": ["isolated-refresh-workflow-events"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "refresh-inactive-isolated-status-summary",
+          "kind": "reconciliation_report",
+          "path": "build/verification/refresh-inactive-isolated-status/scenario-summary.json",
+          "claimScope": ["contract-fixture-and-integration-reconciled"],
+          "redactionStatus": "sanitized"
+        }
+      ],
+      "expectedMetadata": {
+        "scenario": "refresh-inactive-isolated-status"
       },
       "privacy": {
         "fixtureData": "synthetic",
