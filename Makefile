@@ -21,6 +21,8 @@ ADD_ACCOUNT_FAILURE_CLEANUP_SCENARIO := add-account-failure-cleanup
 ADD_ACCOUNT_FAILURE_CLEANUP_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(ADD_ACCOUNT_FAILURE_CLEANUP_SCENARIO)
 SWITCH_ACCOUNT_LOCAL_SCENARIO := switch-account-local-confirmed
 SWITCH_ACCOUNT_LOCAL_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(SWITCH_ACCOUNT_LOCAL_SCENARIO)
+SWITCH_ACCOUNT_REMOTE_SCENARIO := switch-account-remote-install-verify
+SWITCH_ACCOUNT_REMOTE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(SWITCH_ACCOUNT_REMOTE_SCENARIO)
 TOKEN_USAGE_PARSER_SCENARIO := token-usage-parser-aggregation
 TOKEN_USAGE_PARSER_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_PARSER_SCENARIO)
 TOKEN_USAGE_CACHE_SCENARIO := token-usage-cache-first
@@ -28,7 +30,7 @@ TOKEN_USAGE_CACHE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE
 TOKEN_USAGE_PRIVACY_SCENARIO := token-usage-privacy-no-raw-session
 TOKEN_USAGE_PRIVACY_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_PRIVACY_SCENARIO)
 
-.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
+.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-switch-account-remote-install-verify-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -313,6 +315,64 @@ verify-switch-account-local-confirmed-scenario: generate prepare-result-bundle
 		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
 		'  "workflowReceipt": "$(SWITCH_ACCOUNT_LOCAL_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
 		'}' > "$(SWITCH_ACCOUNT_LOCAL_SCENARIO_ARTIFACTS)/scenario-summary.json"
+
+verify-switch-account-remote-install-verify-scenario: generate prepare-result-bundle
+	mkdir -p "$(SWITCH_ACCOUNT_REMOTE_SCENARIO_ARTIFACTS)"
+	xcodebuild test \
+		-project $(PROJECT_PATH) \
+		-scheme $(APP_NAME) \
+		-configuration Debug \
+		-destination "platform=macOS" \
+		-derivedDataPath "$(DERIVED_DATA)" \
+		-resultBundlePath "$(RESULT_BUNDLE)" \
+		-only-testing:CodexPillTests/SwitchAccountOnHostWorkflowTests \
+		-only-testing:CodexPillTests/InMemoryRemoteHostClientTests \
+		-only-testing:CodexPillTests/SSHRemoteHostClientTests \
+		-only-testing:CodexPillTests/RemoteHostAccountVerifierTests \
+		-only-testing:CodexPillTests/AccountsControllerTests \
+		PRODUCT_BUNDLE_IDENTIFIER="$(STAGING_BUNDLE_ID)"
+	printf '%s\n' \
+		'{' \
+		'  "scenario": "$(SWITCH_ACCOUNT_REMOTE_SCENARIO)",' \
+		'  "proofLayer": "workflow-event-log",' \
+		'  "events": [' \
+		'    "missing remote snapshot installs before switch",' \
+		'    "installed remote snapshot switches directly without reinstall",' \
+		'    "stale remote snapshot hash is classified as missing by the SSH contract fixture",' \
+		'    "remote switch refreshes Codex app-server before status verification",' \
+		'    "remote verification retries stale status and accepts the expected account only",' \
+		'    "verification mismatch or ambiguity returns a not-verified outcome instead of verified active state",' \
+		'    "active local snapshot is relinked before remote switch when current local auth is fresher"' \
+		'  ],' \
+		'  "status": "passed"' \
+		'}' > "$(SWITCH_ACCOUNT_REMOTE_SCENARIO_ARTIFACTS)/workflow-receipt.json"
+	printf '%s\n' \
+		'{' \
+		'  "assertions": [' \
+		'    "Missing or stale remote snapshots are installed before switching",' \
+		'    "Already-installed remote snapshots switch directly",' \
+		'    "Remote switch refreshes app-server state and verifies the expected account before reporting success",' \
+		'    "Mismatched or ambiguous remote status is surfaced instead of marked verified",' \
+		'    "Active local snapshots are relinked before remote install or switch when the selected account is active on This Mac"' \
+		'  ],' \
+		'  "command": "make verify-switch-account-remote-install-verify-scenario",' \
+		'  "gaps": [' \
+		'    "No live SSH host, live Codex app-server, or real remote auth mutation is exercised",' \
+		'    "Menu presentation and native click routing are not proven by this workflow-event scenario",' \
+		'    "Remote verification failure menu projection is tracked by remote-host-verification-failure, not this scenario"' \
+		'  ],' \
+		'  "invariantIds": [' \
+		'    "switch-account.remote.install-before-switch-when-missing-or-stale",' \
+		'    "switch-account.remote.direct-switch-when-installed",' \
+		'    "switch-account.remote.refresh-and-verify-expected-account",' \
+		'    "switch-account.remote.relink-active-local-snapshot-before-switch"' \
+		'  ],' \
+		'  "proofLayer": "workflow-event-log",' \
+		'  "scenario": "$(SWITCH_ACCOUNT_REMOTE_SCENARIO)",' \
+		'  "status": "passed",' \
+		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
+		'  "workflowReceipt": "$(SWITCH_ACCOUNT_REMOTE_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
+		'}' > "$(SWITCH_ACCOUNT_REMOTE_SCENARIO_ARTIFACTS)/scenario-summary.json"
 
 verify-token-usage-parser-scenario: generate prepare-result-bundle
 	mkdir -p "$(TOKEN_USAGE_PARSER_SCENARIO_ARTIFACTS)"

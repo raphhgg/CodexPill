@@ -38,7 +38,7 @@ that inventory into `.kite/scenarios.json` only when its owning feature doc has
 concrete acceptance criteria, proof rows, fixtures, command, artifacts, privacy
 rules, non-claims, and degraded-proof rules.
 
-The current clean-main manifest contains eighteen deterministic scenarios:
+The current clean-main manifest contains nineteen deterministic scenarios:
 
 ```bash
 make verify-ui SCENARIO=hosted-menu-default
@@ -50,6 +50,7 @@ make verify-add-account-name-scenario
 make verify-add-account-isolated-success-scenario
 make verify-add-account-failure-cleanup-scenario
 make verify-switch-account-local-confirmed-scenario
+make verify-switch-account-remote-install-verify-scenario
 make verify-rename-scenario
 make verify-ui SCENARIO=launch-at-login-menu-states
 make verify-ui SCENARIO=status-bar-icon-text-visible
@@ -133,6 +134,17 @@ Current deterministic scenarios:
   has covered post-switch refresh behavior; it does not prove native
   confirmation panel rendering, click automation, live Codex relaunch, live
   app-server refresh, remote host switching, or live macOS menu-bar behavior.
+- `switch-account-remote-install-verify`: changed-feature non-regression for
+  remote Switch Account. It proves through fake-host workflow tests, SSH
+  contract fixtures, controller relink proof, and verifier tests that missing
+  or stale remote snapshots are installed before switching, already-installed
+  snapshots switch directly, remote Codex app-server refresh occurs before
+  verification, stale status is retried, only the expected account is accepted
+  as verified, mismatch or ambiguity is surfaced as not verified, and fresher
+  active local auth is relinked before remote mutation when needed; it does not
+  exercise a live SSH host, live remote Codex app-server, real remote auth
+  mutation, native menu presentation, native click routing, remote verification
+  failure menu projection, or live macOS menu-bar behavior.
 - `rename-account-label-only`: changed-feature non-regression for Rename
   Account. It proves through focused unit tests that rename changes only the
   CodexPill display label, preserves saved auth snapshot identity, plan, and
@@ -207,6 +219,8 @@ The adapter currently includes:
   failure cleanup workflow-event proof;
 - `make verify-switch-account-local-confirmed-scenario` for focused local
   Switch Account workflow-event proof;
+- `make verify-switch-account-remote-install-verify-scenario` for focused
+  remote Switch Account workflow-event proof;
 - `make verify-rename-scenario` for focused Rename Account unit proof;
 - `make verify-token-usage-parser-scenario` for focused Token Usage scanner
   contract-fixture proof;

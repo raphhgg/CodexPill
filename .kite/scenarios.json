@@ -122,6 +122,28 @@
       ]
     },
     {
+      "id": "switch-account-remote",
+      "title": "Switch Account remote install and verify",
+      "acceptanceCriteria": [
+        {
+          "id": "remote-switch-installs-missing-or-stale-snapshot-before-switch",
+          "statement": "Remote switch must install the selected saved snapshot before switching when the host reports the account snapshot as missing or stale."
+        },
+        {
+          "id": "remote-switch-direct-when-installed",
+          "statement": "Remote switch must skip installation and switch directly when the host reports the selected saved snapshot as already installed."
+        },
+        {
+          "id": "remote-switch-refreshes-and-verifies-expected-account",
+          "statement": "After remote auth mutation, CodexPill must refresh the remote Codex app-server and report success only when the remote status verifies the expected account."
+        },
+        {
+          "id": "remote-switch-relinks-active-local-snapshot-before-remote-mutation",
+          "statement": "When the selected saved account is active on This Mac, CodexPill must relink the saved snapshot from fresher local auth before installing or switching it remotely."
+        }
+      ]
+    },
+    {
       "id": "rename-account-label",
       "title": "Rename account label",
       "acceptanceCriteria": [
@@ -962,6 +984,96 @@
       ],
       "expectedMetadata": {
         "scenario": "switch-account-local-confirmed"
+      },
+      "privacy": {
+        "fixtureData": "synthetic",
+        "restrictedEvidence": [
+          "account_data",
+          "hostname",
+          "raw_local_path",
+          "private_product_data",
+          "token"
+        ]
+      }
+    },
+    {
+      "id": "switch-account-remote-install-verify",
+      "title": "Switch Account remote install and verify",
+      "featureId": "switch-account-remote",
+      "acceptanceCriteria": [
+        "remote-switch-installs-missing-or-stale-snapshot-before-switch",
+        "remote-switch-direct-when-installed",
+        "remote-switch-refreshes-and-verifies-expected-account",
+        "remote-switch-relinks-active-local-snapshot-before-remote-mutation"
+      ],
+      "targetSurface": "CodexPill remote switch fake-host workflow boundary",
+      "validationModes": ["unit_only"],
+      "suites": ["deterministic"],
+      "validationIntent": {
+        "featureRisk": ["remote_mutation", "workflow_state", "privacy"],
+        "primaryProof": "workflow-event-log",
+        "supportingProof": ["contract-fixture", "privacy-redaction"],
+        "requiredEvidence": ["test-output", "workflow-receipt", "scenario-summary"],
+        "nonClaims": [
+          "Does not exercise a live SSH host or live remote Codex app-server.",
+          "Does not mutate real remote auth state.",
+          "Does not prove native menu presentation or click routing.",
+          "Does not prove live macOS menu-bar behavior."
+        ],
+        "liveOptIn": {
+          "required": false
+        }
+      },
+      "nonRegression": {
+        "tier": "changed-feature",
+        "runWhen": [
+          "local-handoff",
+          "remote-switch-workflow-changed",
+          "remote-host-client-contract-changed",
+          "remote-verifier-changed",
+          "accounts-controller-changed",
+          "scenario-fixture-changed"
+        ],
+        "blocking": true
+      },
+      "proof": {
+        "layer": "workflow-event-log",
+        "artifactSource": "focused-test-suite",
+        "nonClaims": [
+          "Does not exercise a live SSH host or live remote Codex app-server.",
+          "Does not mutate real remote auth state.",
+          "Does not prove native menu presentation or click routing.",
+          "Does not prove live macOS menu-bar behavior."
+        ]
+      },
+      "command": {
+        "run": "make verify-switch-account-remote-install-verify-scenario"
+      },
+      "expectedArtifacts": [
+        {
+          "id": "switch-account-remote-install-verify-result-bundle",
+          "kind": "test_output",
+          "path": "build/results/local/CodexPill.xcresult",
+          "claimScope": ["switch-account-remote-tests"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "switch-account-remote-install-verify-workflow-receipt",
+          "kind": "workflow_receipt",
+          "path": "build/verification/switch-account-remote-install-verify/workflow-receipt.json",
+          "claimScope": ["fake-remote-host-workflow-events", "ssh-contract-fixtures"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "switch-account-remote-install-verify-summary",
+          "kind": "reconciliation_report",
+          "path": "build/verification/switch-account-remote-install-verify/scenario-summary.json",
+          "claimScope": ["workflow-event-reconciled"],
+          "redactionStatus": "sanitized"
+        }
+      ],
+      "expectedMetadata": {
+        "scenario": "switch-account-remote-install-verify"
       },
       "privacy": {
         "fixtureData": "synthetic",
