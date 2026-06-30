@@ -6,7 +6,7 @@ import UserNotifications
 @testable import CodexPill
 
 @MainActor
-struct MenuBarLiveValidationTests {
+struct MenuBarRuntimeValidationTests {
     @Test
     func removeAccountSignsOutLocalAndRemoteTargetsBeforeDeletingSavedAccount() async throws {
         let repository = try makeIsolatedRepository()
@@ -22,7 +22,7 @@ struct MenuBarLiveValidationTests {
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient(),
-            remoteHostSwitchOperations: ValidationRemoteHostClient(
+            remoteHostSwitchOperations: InMemoryRemoteHostClient(
                 seedStates: [
                     PersistedRemoteHostState(
                         host: host,
@@ -35,7 +35,7 @@ struct MenuBarLiveValidationTests {
         )
         store.load()
 
-        let suiteName = "MenuBarLiveValidationRemoveAccount-\(UUID().uuidString)"
+        let suiteName = "MenuBarRuntimeValidationRemoveAccount-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = CodexPillSettingsStore(userDefaults: defaults)
@@ -59,7 +59,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostMenuOperations: ValidationRemoteHostClient(seedStates: settings.remoteHostStates),
+            remoteHostMenuOperations: InMemoryRemoteHostClient(seedStates: settings.remoteHostStates),
             alertPresenter: alertPresenter,
             allowsEmptyStatePrompt: false
         )
@@ -144,7 +144,7 @@ struct MenuBarLiveValidationTests {
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient(),
-            remoteHostSwitchOperations: ValidationRemoteHostClient(
+            remoteHostSwitchOperations: InMemoryRemoteHostClient(
                 seedStates: [
                     PersistedRemoteHostState(
                         host: RemoteHost(destination: "user@debian-vm", displayName: "debian-vm"),
@@ -157,7 +157,7 @@ struct MenuBarLiveValidationTests {
         )
         store.load()
 
-        let suiteName = "MenuBarLiveValidationNotificationSwitch-\(UUID().uuidString)"
+        let suiteName = "MenuBarRuntimeValidationNotificationSwitch-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = CodexPillSettingsStore(userDefaults: defaults)
@@ -183,7 +183,7 @@ struct MenuBarLiveValidationTests {
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
             settings: settings,
-            remoteHostMenuOperations: ValidationRemoteHostClient(seedStates: settings.remoteHostStates),
+            remoteHostMenuOperations: InMemoryRemoteHostClient(seedStates: settings.remoteHostStates),
             alertPresenter: alertPresenter,
             applicationActivator: foregrounder,
             allowsEmptyStatePrompt: false
@@ -283,7 +283,7 @@ struct MenuBarLiveValidationTests {
         )
         store.load()
 
-        let suiteName = "MenuBarLiveValidationNotificationFailure-\(UUID().uuidString)"
+        let suiteName = "MenuBarRuntimeValidationNotificationFailure-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = CodexPillSettingsStore(userDefaults: defaults)
@@ -376,7 +376,7 @@ struct MenuBarLiveValidationTests {
         )
         store.load()
 
-        let suiteName = "MenuBarLiveValidationLocalNotificationSwitch-\(UUID().uuidString)"
+        let suiteName = "MenuBarRuntimeValidationLocalNotificationSwitch-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = CodexPillSettingsStore(userDefaults: defaults)
@@ -595,7 +595,7 @@ struct MenuBarLiveValidationTests {
             codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
-        let suiteName = "MenuBarLiveValidationEnableNotifications-\(UUID().uuidString)"
+        let suiteName = "MenuBarRuntimeValidationEnableNotifications-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = CodexPillSettingsStore(userDefaults: defaults)
@@ -636,7 +636,7 @@ struct MenuBarLiveValidationTests {
             codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
-        let suiteName = "MenuBarLiveValidationDeniedNotifications-\(UUID().uuidString)"
+        let suiteName = "MenuBarRuntimeValidationDeniedNotifications-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = CodexPillSettingsStore(userDefaults: defaults)
@@ -836,7 +836,7 @@ struct MenuBarLiveValidationTests {
             codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
-        let suiteName = "MenuBarLiveValidationNotificationPermission-\(UUID().uuidString)"
+        let suiteName = "MenuBarRuntimeValidationNotificationPermission-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = CodexPillSettingsStore(userDefaults: defaults)
@@ -882,7 +882,7 @@ struct MenuBarLiveValidationTests {
         )
         store.load()
 
-        let suiteName = "MenuBarLiveValidationAddHostCancel-\(UUID().uuidString)"
+        let suiteName = "MenuBarRuntimeValidationAddHostCancel-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = CodexPillSettingsStore(userDefaults: defaults)
@@ -929,7 +929,7 @@ struct MenuBarLiveValidationTests {
         )
         store.load()
 
-        let suiteName = "MenuBarLiveValidationAddHostConfirmed-\(UUID().uuidString)"
+        let suiteName = "MenuBarRuntimeValidationAddHostConfirmed-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = CodexPillSettingsStore(userDefaults: defaults)
@@ -973,7 +973,7 @@ struct MenuBarLiveValidationTests {
             codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
-        let suiteName = "MenuBarLiveValidationTests-\(UUID().uuidString)"
+        let suiteName = "MenuBarRuntimeValidationTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = CodexPillSettingsStore(userDefaults: defaults)
@@ -1022,7 +1022,7 @@ struct MenuBarLiveValidationTests {
             codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
-        let suiteName = "MenuBarLiveValidationRemoteRestore-\(UUID().uuidString)"
+        let suiteName = "MenuBarRuntimeValidationRemoteRestore-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = CodexPillSettingsStore(userDefaults: defaults)
@@ -1090,7 +1090,7 @@ struct MenuBarLiveValidationTests {
             codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
-        let suiteName = "MenuBarLiveValidationRemoteFailure-\(UUID().uuidString)"
+        let suiteName = "MenuBarRuntimeValidationRemoteFailure-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = CodexPillSettingsStore(userDefaults: defaults)
@@ -1152,7 +1152,7 @@ struct MenuBarLiveValidationTests {
             codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
-        let suiteName = "MenuBarLiveValidationMissingDesiredRemote-\(UUID().uuidString)"
+        let suiteName = "MenuBarRuntimeValidationMissingDesiredRemote-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = CodexPillSettingsStore(userDefaults: defaults)
@@ -1201,7 +1201,7 @@ struct MenuBarLiveValidationTests {
             codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
-        let suiteName = "MenuBarLiveValidationMultipleRemoteRestore-\(UUID().uuidString)"
+        let suiteName = "MenuBarRuntimeValidationMultipleRemoteRestore-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = CodexPillSettingsStore(userDefaults: defaults)
@@ -1277,7 +1277,7 @@ struct MenuBarLiveValidationTests {
             codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
-        let suiteName = "MenuBarLiveValidationMixedRemoteRestore-\(UUID().uuidString)"
+        let suiteName = "MenuBarRuntimeValidationMixedRemoteRestore-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = CodexPillSettingsStore(userDefaults: defaults)
@@ -1360,7 +1360,7 @@ struct MenuBarLiveValidationTests {
             codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
-        let suiteName = "MenuBarLiveValidationReverifyRemote-\(UUID().uuidString)"
+        let suiteName = "MenuBarRuntimeValidationReverifyRemote-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = CodexPillSettingsStore(userDefaults: defaults)
@@ -1463,7 +1463,7 @@ struct MenuBarLiveValidationTests {
         )
         store.load()
 
-        let suiteName = "MenuBarLiveValidationAdoptDetectedRemote-\(UUID().uuidString)"
+        let suiteName = "MenuBarRuntimeValidationAdoptDetectedRemote-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = CodexPillSettingsStore(userDefaults: defaults)
@@ -1533,7 +1533,7 @@ struct MenuBarLiveValidationTests {
             codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
-        let suiteName = "MenuBarLiveValidationRemoteMismatch-\(UUID().uuidString)"
+        let suiteName = "MenuBarRuntimeValidationRemoteMismatch-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = CodexPillSettingsStore(userDefaults: defaults)
@@ -1616,7 +1616,7 @@ struct MenuBarLiveValidationTests {
         )
         store.load()
 
-        let suiteName = "MenuBarLiveValidationReachableRemoteFailure-\(UUID().uuidString)"
+        let suiteName = "MenuBarRuntimeValidationReachableRemoteFailure-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = CodexPillSettingsStore(userDefaults: defaults)
@@ -1677,7 +1677,7 @@ struct MenuBarLiveValidationTests {
         )
         try repository.saveAccounts([account])
 
-        let suiteName = "MenuBarLiveValidationReachableRemoteSwitchFailure-\(UUID().uuidString)"
+        let suiteName = "MenuBarRuntimeValidationReachableRemoteSwitchFailure-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = CodexPillSettingsStore(userDefaults: defaults)
@@ -1799,7 +1799,7 @@ struct MenuBarLiveValidationTests {
         )
         try repository.saveAccounts([previousSaved, nextAccount])
 
-        let suiteName = "MenuBarLiveValidationRemoteCatalogBackfill-\(UUID().uuidString)"
+        let suiteName = "MenuBarRuntimeValidationRemoteCatalogBackfill-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = CodexPillSettingsStore(userDefaults: defaults)
@@ -1893,7 +1893,7 @@ struct MenuBarLiveValidationTests {
         )
         try repository.saveAccounts([account])
 
-        let suiteName = "MenuBarLiveValidationNotificationRearm-\(UUID().uuidString)"
+        let suiteName = "MenuBarRuntimeValidationNotificationRearm-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = CodexPillSettingsStore(userDefaults: defaults)
@@ -1970,7 +1970,7 @@ struct MenuBarLiveValidationTests {
             codexAppProcessClient: NullCodexAppProcessClient(),
             accountStatusClient: DisabledAccountStatusClient()
         )
-        let suiteName = "MenuBarLiveValidationRemoteLimitsFallback-\(UUID().uuidString)"
+        let suiteName = "MenuBarRuntimeValidationRemoteLimitsFallback-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = CodexPillSettingsStore(userDefaults: defaults)
@@ -2102,7 +2102,7 @@ struct MenuBarLiveValidationTests {
         )
         store.load()
 
-        let suiteName = "MenuBarLiveValidationRemoteInactiveFallback-\(UUID().uuidString)"
+        let suiteName = "MenuBarRuntimeValidationRemoteInactiveFallback-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = CodexPillSettingsStore(userDefaults: defaults)
@@ -2240,7 +2240,7 @@ struct MenuBarLiveValidationTests {
         )
         store.load()
 
-        let suiteName = "MenuBarLiveValidationRelinkedRemoteHost-\(UUID().uuidString)"
+        let suiteName = "MenuBarRuntimeValidationRelinkedRemoteHost-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = CodexPillSettingsStore(userDefaults: defaults)
@@ -2389,7 +2389,7 @@ struct MenuBarLiveValidationTests {
         )
         store.load()
 
-        let suiteName = "MenuBarLiveValidationScheduledRemoteRefresh-\(UUID().uuidString)"
+        let suiteName = "MenuBarRuntimeValidationScheduledRemoteRefresh-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = CodexPillSettingsStore(userDefaults: defaults)
@@ -2484,7 +2484,7 @@ struct MenuBarLiveValidationTests {
 
     private func makeIsolatedRepository() throws -> AccountRepository {
         let appSupportDirectory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("MenuBarLiveValidationTests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("MenuBarRuntimeValidationTests-\(UUID().uuidString)", isDirectory: true)
         return try AccountRepository(
             environment: [AppRuntimeEnvironment.validationAppSupportDirectoryEnvironmentKey: appSupportDirectory.path]
         )

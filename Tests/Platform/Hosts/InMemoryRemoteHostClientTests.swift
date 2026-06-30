@@ -3,7 +3,7 @@ import Testing
 
 @testable import CodexPill
 
-struct ValidationRemoteHostClientTests {
+struct InMemoryRemoteHostClientTests {
     @Test
     func switchFlowInstallsThenReturnsRemoteStatusForActiveAccount() async throws {
         let account = makeAccount(
@@ -12,7 +12,7 @@ struct ValidationRemoteHostClientTests {
             usedPercent: 81
         )
         let host = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
-        let client = ValidationRemoteHostClient(
+        let client = InMemoryRemoteHostClient(
             seedStates: [PersistedRemoteHostState(host: host)]
         )
 
@@ -39,7 +39,7 @@ struct ValidationRemoteHostClientTests {
             usedPercent: 44
         )
         let host = RemoteHost(destination: "user@debian-vm", displayName: "debian-vm")
-        let client = ValidationRemoteHostClient(
+        let client = InMemoryRemoteHostClient(
             seedStates: [
                 PersistedRemoteHostState(
                     host: host,
@@ -59,9 +59,9 @@ struct ValidationRemoteHostClientTests {
     @Test
     func readingHostWithoutActiveAccountFailsClearly() async {
         let host = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
-        let client = ValidationRemoteHostClient(seedStates: [PersistedRemoteHostState(host: host)])
+        let client = InMemoryRemoteHostClient(seedStates: [PersistedRemoteHostState(host: host)])
 
-        await #expect(throws: RemoteHostClientError.commandFailed("Validation host buildbox has no active account.")) {
+        await #expect(throws: RemoteHostClientError.commandFailed("In-memory remote host buildbox has no active account.")) {
             try await client.readCurrentAccountStatus(on: host)
         }
     }
@@ -74,7 +74,7 @@ struct ValidationRemoteHostClientTests {
             usedPercent: 44
         )
         let host = RemoteHost(destination: "user@debian-vm", displayName: "debian-vm")
-        let client = ValidationRemoteHostClient(
+        let client = InMemoryRemoteHostClient(
             seedStates: [
                 PersistedRemoteHostState(
                     host: host,
@@ -87,7 +87,7 @@ struct ValidationRemoteHostClientTests {
         try await client.signOut(on: host)
 
         #expect(try await client.installationState(for: account, on: host) == .installed)
-        await #expect(throws: RemoteHostClientError.commandFailed("Validation host debian-vm has no active account.")) {
+        await #expect(throws: RemoteHostClientError.commandFailed("In-memory remote host debian-vm has no active account.")) {
             try await client.readCurrentAccountStatus(on: host)
         }
     }

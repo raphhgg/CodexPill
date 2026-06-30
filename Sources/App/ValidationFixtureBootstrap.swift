@@ -1,10 +1,10 @@
 import Foundation
 
-struct ValidationAppBootstrapFixture: Codable {
+struct ValidationFixtureBootstrapPayload: Codable {
     let remoteHostStates: [PersistedRemoteHostState]
 }
 
-enum ValidationAppBootstrap {
+enum ValidationFixtureBootstrap {
     @MainActor
     static func applyFixtureIfPresent(
         to settings: CodexPillSettingsStore,
@@ -15,7 +15,7 @@ enum ValidationAppBootstrap {
         }
 
         guard let data = try? Data(contentsOf: fixtureURL),
-              let fixture = try? JSONDecoder().decode(ValidationAppBootstrapFixture.self, from: data) else {
+              let fixture = try? JSONDecoder().decode(ValidationFixtureBootstrapPayload.self, from: data) else {
             return
         }
 

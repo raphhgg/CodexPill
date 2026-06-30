@@ -16,7 +16,7 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
             .flatMap(UserDefaults.init(suiteName:))
             ?? .standard
         settings = CodexPillSettingsStore(userDefaults: defaults)
-        ValidationAppBootstrap.applyFixtureIfPresent(to: settings, environment: environment)
+        ValidationFixtureBootstrap.applyFixtureIfPresent(to: settings, environment: environment)
 
         guard AppRuntimeEnvironment.shouldStartAppRuntime(environment: environment) else {
             return
@@ -24,14 +24,14 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
 
         let repository = try! AccountRepository()
         let authService = CodexAuthSnapshotService(repository: repository)
-        let processClient: CodexAppProcessClient = AppRuntimeEnvironment.shouldUseValidationCodexProcessClient(environment: environment)
-            ? ValidationCodexAppProcessClient()
+        let processClient: CodexAppProcessClient = AppRuntimeEnvironment.shouldUseNoopCodexProcessClient(environment: environment)
+            ? NoopCodexAppProcessClient()
             : SystemCodexAppProcessClient()
         let accountStatusClient = CodexAppServerClient()
         let remoteHostClient: RemoteHostSwitchWorkflowOperations
             & RemoteHostAccountSigningOut
-        if AppRuntimeEnvironment.shouldUseValidationRemoteHostClient(environment: environment) {
-            remoteHostClient = ValidationRemoteHostClient(seedStates: settings.remoteHostStates)
+        if AppRuntimeEnvironment.shouldUseInMemoryRemoteHostClient(environment: environment) {
+            remoteHostClient = InMemoryRemoteHostClient(seedStates: settings.remoteHostStates)
         } else {
             remoteHostClient = SSHRemoteHostClient(snapshotLocator: repository)
         }

@@ -1,6 +1,6 @@
 import Foundation
 
-actor ValidationRemoteHostClient: RemoteHostSwitchWorkflowOperations, RemoteHostAccountSigningOut {
+actor InMemoryRemoteHostClient: RemoteHostSwitchWorkflowOperations, RemoteHostAccountSigningOut {
     private struct HostState {
         var installedAccountIDs: Set<UUID>
         var activeAccount: CodexAccount?
@@ -54,7 +54,7 @@ actor ValidationRemoteHostClient: RemoteHostSwitchWorkflowOperations, RemoteHost
     func readCurrentAccountStatus(on host: RemoteHost) async throws -> CodexAccountStatus {
         let state = ensureHostState(for: host)
         guard let account = state.activeAccount else {
-            throw RemoteHostClientError.commandFailed("Validation host \(host.displayName) has no active account.")
+            throw RemoteHostClientError.commandFailed("In-memory remote host \(host.displayName) has no active account.")
         }
 
         return CodexAccountStatus(

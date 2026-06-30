@@ -60,6 +60,32 @@ Current deterministic scenarios:
   truth. It proves that saved accounts remain catalog rows and are not presented
   as active when the active local auth state is unmatched.
 
+## Product Validation Adapter
+
+CodexPill's Product Validation Adapter is the product-local layer that makes
+those manifest scenarios runnable. It is not generic Kite Harness code.
+
+The adapter currently includes:
+
+- `.kite/scenarios.json` for feature, acceptance criteria, Validation Intent,
+  artifact, privacy, and non-regression declarations;
+- `make verify-ui SCENARIO=<scenario>` for deterministic hosted-menu proof;
+- `MenuBarValidationSupport` for semantic menu snapshots and hosted UI
+  artifacts;
+- `InMemoryRemoteHostClient` for isolated remote-host behavior in deterministic
+  tests and validation runs;
+- `NoopCodexAppProcessClient` for validation runs that must not relaunch the
+  real Codex app;
+- `ValidationFixtureBootstrap` for loading product-owned validation fixture
+  state into isolated settings;
+- `MenuBarValidationObserver` and `MenuBarValidationConfiguration` as dormant
+  runtime-event instrumentation for a future explicit live/preview scenario.
+
+The observer/configuration path is disabled unless validation output
+environment variables are set. It does not become a reusable Kite scenario until
+`.kite/scenarios.json` declares the scenario and its live opt-in, privacy,
+cleanup, and non-claim rules.
+
 ## Main Local Gate
 
 Run the default test suite before shipping changes:

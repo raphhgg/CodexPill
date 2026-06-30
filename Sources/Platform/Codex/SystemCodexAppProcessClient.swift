@@ -101,7 +101,7 @@ struct SystemCodexAppProcessClient: CodexAppProcessClient {
     }
 }
 
-struct ValidationCodexAppProcessClient: CodexAppProcessClient {
+struct NoopCodexAppProcessClient: CodexAppProcessClient {
     func assertCodexAvailable() throws {}
     func relaunchCodex() async throws {}
 }

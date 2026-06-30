@@ -42,39 +42,39 @@ struct AppRuntimeEnvironmentTests {
     }
 
     @Test
-    func validationRemoteHostClientModeAcceptsExplicitTruthValues() {
+    func inMemoryRemoteHostClientModeAcceptsExplicitTruthValues() {
         #expect(
-            AppRuntimeEnvironment.shouldUseValidationRemoteHostClient(
-                environment: [AppRuntimeEnvironment.validationRemoteHostClientEnvironmentKey: "memory"]
+            AppRuntimeEnvironment.shouldUseInMemoryRemoteHostClient(
+                environment: [AppRuntimeEnvironment.validationInMemoryRemoteHostClientEnvironmentKey: "memory"]
             )
         )
         #expect(
-            AppRuntimeEnvironment.shouldUseValidationRemoteHostClient(
-                environment: [AppRuntimeEnvironment.validationRemoteHostClientEnvironmentKey: "true"]
+            AppRuntimeEnvironment.shouldUseInMemoryRemoteHostClient(
+                environment: [AppRuntimeEnvironment.validationInMemoryRemoteHostClientEnvironmentKey: "true"]
             )
         )
         #expect(
-            !AppRuntimeEnvironment.shouldUseValidationRemoteHostClient(
-                environment: [AppRuntimeEnvironment.validationRemoteHostClientEnvironmentKey: "0"]
+            !AppRuntimeEnvironment.shouldUseInMemoryRemoteHostClient(
+                environment: [AppRuntimeEnvironment.validationInMemoryRemoteHostClientEnvironmentKey: "0"]
             )
         )
     }
 
     @Test
-    func validationCodexProcessClientModeAcceptsExplicitTruthValues() {
+    func noopCodexProcessClientModeAcceptsExplicitTruthValues() {
         #expect(
-            AppRuntimeEnvironment.shouldUseValidationCodexProcessClient(
-                environment: [AppRuntimeEnvironment.validationCodexProcessClientEnvironmentKey: "memory"]
+            AppRuntimeEnvironment.shouldUseNoopCodexProcessClient(
+                environment: [AppRuntimeEnvironment.validationNoopCodexProcessClientEnvironmentKey: "memory"]
             )
         )
         #expect(
-            AppRuntimeEnvironment.shouldUseValidationCodexProcessClient(
-                environment: [AppRuntimeEnvironment.validationCodexProcessClientEnvironmentKey: "true"]
+            AppRuntimeEnvironment.shouldUseNoopCodexProcessClient(
+                environment: [AppRuntimeEnvironment.validationNoopCodexProcessClientEnvironmentKey: "true"]
             )
         )
         #expect(
-            !AppRuntimeEnvironment.shouldUseValidationCodexProcessClient(
-                environment: [AppRuntimeEnvironment.validationCodexProcessClientEnvironmentKey: "0"]
+            !AppRuntimeEnvironment.shouldUseNoopCodexProcessClient(
+                environment: [AppRuntimeEnvironment.validationNoopCodexProcessClientEnvironmentKey: "0"]
             )
         )
     }

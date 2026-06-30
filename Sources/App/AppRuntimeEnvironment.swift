@@ -6,8 +6,8 @@ enum AppRuntimeEnvironment {
     static let validationAppSupportDirectoryEnvironmentKey = "CODEXPILL_VALIDATION_APP_SUPPORT_DIR"
     static let validationUserDefaultsSuiteEnvironmentKey = "CODEXPILL_VALIDATION_USER_DEFAULTS_SUITE"
     static let validationSettingsFixtureEnvironmentKey = "CODEXPILL_VALIDATION_SETTINGS_FIXTURE"
-    static let validationRemoteHostClientEnvironmentKey = "CODEXPILL_VALIDATION_REMOTE_HOST_CLIENT"
-    static let validationCodexProcessClientEnvironmentKey = "CODEXPILL_VALIDATION_CODEX_PROCESS_CLIENT"
+    static let validationInMemoryRemoteHostClientEnvironmentKey = "CODEXPILL_VALIDATION_REMOTE_HOST_CLIENT"
+    static let validationNoopCodexProcessClientEnvironmentKey = "CODEXPILL_VALIDATION_CODEX_PROCESS_CLIENT"
     static let validationAllowInteractiveAlertsEnvironmentKey = "CODEXPILL_VALIDATION_ALLOW_INTERACTIVE_ALERTS"
     static let xctestConfigurationFilePathEnvironmentKey = "XCTestConfigurationFilePath"
 
@@ -57,19 +57,19 @@ enum AppRuntimeEnvironment {
             .map(URL.init(fileURLWithPath:))
     }
 
-    static func shouldUseValidationRemoteHostClient(
+    static func shouldUseInMemoryRemoteHostClient(
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) -> Bool {
-        validationModeIsEnabled(environment[validationRemoteHostClientEnvironmentKey])
+        validationAdapterFlagIsEnabled(environment[validationInMemoryRemoteHostClientEnvironmentKey])
     }
 
-    static func shouldUseValidationCodexProcessClient(
+    static func shouldUseNoopCodexProcessClient(
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) -> Bool {
-        validationModeIsEnabled(environment[validationCodexProcessClientEnvironmentKey])
+        validationAdapterFlagIsEnabled(environment[validationNoopCodexProcessClientEnvironmentKey])
     }
 
-    private static func validationModeIsEnabled(_ rawValue: String?) -> Bool {
+    private static func validationAdapterFlagIsEnabled(_ rawValue: String?) -> Bool {
         if let rawValue = rawValue?
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased(),
