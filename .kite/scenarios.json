@@ -194,6 +194,20 @@
       ]
     },
     {
+      "id": "refresh-active-local-account",
+      "title": "Refresh active local account",
+      "acceptanceCriteria": [
+        {
+          "id": "active-refresh-relinks-same-account-changed-fingerprint",
+          "statement": "Active local refresh must overwrite the matched saved snapshot with current live auth only when the current live identity resolves to the same saved account and the auth fingerprint changed."
+        },
+        {
+          "id": "active-refresh-refuses-ambiguous-or-different-identity",
+          "statement": "Active local refresh must not overwrite saved snapshots when the current live identity is ambiguous or does not match a saved account."
+        }
+      ]
+    },
+    {
       "id": "token-usage-menu-card",
       "title": "Token Usage menu card",
       "acceptanceCriteria": [
@@ -1450,6 +1464,93 @@
       ],
       "expectedMetadata": {
         "scenario": "refresh-inactive-isolated-status"
+      },
+      "privacy": {
+        "fixtureData": "synthetic",
+        "restrictedEvidence": [
+          "account_data",
+          "hostname",
+          "raw_local_path",
+          "private_product_data",
+          "token"
+        ]
+      }
+    },
+    {
+      "id": "refresh-active-relinks-same-account",
+      "title": "Refresh active relinks same account",
+      "featureId": "refresh-active-local-account",
+      "acceptanceCriteria": [
+        "active-refresh-relinks-same-account-changed-fingerprint",
+        "active-refresh-refuses-ambiguous-or-different-identity"
+      ],
+      "targetSurface": "CodexPill active refresh use-case and identity matcher fixtures",
+      "validationModes": ["unit_only"],
+      "suites": ["deterministic"],
+      "validationIntent": {
+        "featureRisk": ["auth_mutation", "state_truth", "privacy"],
+        "primaryProof": "unit",
+        "supportingProof": ["privacy-redaction"],
+        "requiredEvidence": ["test-output", "workflow-receipt", "scenario-summary"],
+        "nonClaims": [
+          "Does not execute a live Codex app-server.",
+          "Does not use real auth snapshots, tokens, account identifiers, emails, hostnames, or private paths.",
+          "Does not prove remote install or switch preflight relink.",
+          "Does not prove menu projection or live macOS menu-bar behavior."
+        ],
+        "liveOptIn": {
+          "required": false
+        }
+      },
+      "nonRegression": {
+        "tier": "changed-feature",
+        "runWhen": [
+          "local-handoff",
+          "refresh-accounts-changed",
+          "identity-matcher-changed",
+          "auth-snapshot-relink-changed",
+          "scenario-fixture-changed"
+        ],
+        "blocking": true
+      },
+      "proof": {
+        "layer": "unit",
+        "artifactSource": "focused-test-suite",
+        "nonClaims": [
+          "Does not execute a live Codex app-server.",
+          "Does not use real auth snapshots, tokens, account identifiers, emails, hostnames, or private paths.",
+          "Does not prove remote install or switch preflight relink.",
+          "Does not prove menu projection or live macOS menu-bar behavior."
+        ]
+      },
+      "command": {
+        "run": "make verify-refresh-active-relinks-same-account-scenario"
+      },
+      "expectedArtifacts": [
+        {
+          "id": "refresh-active-relinks-same-account-result-bundle",
+          "kind": "test_output",
+          "path": "build/results/local/CodexPill.xcresult",
+          "claimScope": ["refresh-active-relink-tests"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "refresh-active-relinks-same-account-workflow-receipt",
+          "kind": "workflow_receipt",
+          "path": "build/verification/refresh-active-relinks-same-account/workflow-receipt.json",
+          "claimScope": ["active-refresh-relink-workflow-events"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "refresh-active-relinks-same-account-summary",
+          "kind": "reconciliation_report",
+          "path": "build/verification/refresh-active-relinks-same-account/scenario-summary.json",
+          "claimScope": ["unit-reconciled"],
+          "redactionStatus": "sanitized"
+        }
+      ],
+      "expectedMetadata": {
+        "scenario": "refresh-active-relinks-same-account"
       },
       "privacy": {
         "fixtureData": "synthetic",

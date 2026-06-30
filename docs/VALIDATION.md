@@ -38,7 +38,7 @@ that inventory into `.kite/scenarios.json` only when its owning feature doc has
 concrete acceptance criteria, proof rows, fixtures, command, artifacts, privacy
 rules, non-claims, and degraded-proof rules.
 
-The current clean-main manifest contains twenty-two deterministic scenarios:
+The current clean-main manifest contains twenty-three deterministic scenarios:
 
 ```bash
 make verify-ui SCENARIO=hosted-menu-default
@@ -55,6 +55,7 @@ make verify-remove-account-active-targets-sign-out-scenario
 make verify-remove-account-signout-failure-keeps-control-scenario
 make verify-rename-scenario
 make verify-refresh-inactive-isolated-status-scenario
+make verify-refresh-active-relinks-same-account-scenario
 make verify-ui SCENARIO=launch-at-login-menu-states
 make verify-ui SCENARIO=status-bar-icon-text-visible
 make verify-ui SCENARIO=token-usage-off-hidden
@@ -185,6 +186,14 @@ Current deterministic scenarios:
   does not prove live Codex app-server execution with real accounts, real auth
   snapshots, remote inactive-account refresh, menu projection, or live macOS
   menu-bar behavior.
+- `refresh-active-relinks-same-account`: changed-feature non-regression for
+  Refresh Accounts active local snapshot relinking. It proves through focused
+  active-refresh and matcher unit tests that same-account refresh with a changed
+  auth fingerprint saves current live auth into the matched saved account,
+  preserves the saved account shape, and refuses ambiguous or different
+  identities before overwriting saved snapshots; it does not prove live Codex app-server
+  execution, real auth snapshots, remote install/switch preflight relink, menu
+  projection, or live macOS menu-bar behavior.
 - `launch-at-login-menu-states`: changed-feature non-regression for App Controls
   presentation. It proves that enabled, disabled, requires-approval, and
   unavailable Launch at Login states map to truthful row copy, checked state,
@@ -262,6 +271,8 @@ The adapter currently includes:
 - `make verify-rename-scenario` for focused Rename Account unit proof;
 - `make verify-refresh-inactive-isolated-status-scenario` for focused Refresh
   Accounts inactive isolated status proof;
+- `make verify-refresh-active-relinks-same-account-scenario` for focused
+  Refresh Accounts active relink proof;
 - `make verify-token-usage-parser-scenario` for focused Token Usage scanner
   contract-fixture proof;
 - `make verify-token-usage-cache-scenario` for focused Token Usage cache and

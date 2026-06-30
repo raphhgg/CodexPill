@@ -110,6 +110,49 @@ struct RefreshActiveAccountUseCaseTests {
     }
 
     @Test
+    func runDoesNotRelinkSavedSnapshotWhenLiveIdentityIsAmbiguous() async {
+        var first = makeAccount(name: "Personal", fingerprint: "first-fingerprint", email: "personal@example.com")
+        var second = makeAccount(name: "Work", fingerprint: "second-fingerprint", email: "work@example.com")
+        first.identity.stableAccountID = "acct_shared"
+        second.identity.stableAccountID = "acct_shared"
+        let relinker = ActiveAuthSnapshotRelinkerProbe(
+            currentFingerprint: "fresh-fingerprint",
+            currentAuthData: Data("fresh-auth".utf8),
+            relinkedAccount: first
+        )
+        let repository = PersistingAccountCatalogProbe()
+        let useCase = RefreshActiveAccountUseCase(
+            accountStatusClient: AccountStatusProbe(
+                status: CodexAccountStatus(
+                    email: nil,
+                    planType: nil,
+                    rateLimits: nil,
+                    stableAccountID: "acct_shared",
+                    snapshotFingerprint: "fresh-fingerprint"
+                )
+            ),
+            identityResolver: SavedAccountIdentityResolver(
+                liveIdentitySource: CurrentIdentityFixture(
+                    stableAccountID: "acct_shared",
+                    fingerprint: "fresh-fingerprint"
+                ),
+                storedAccountReconciler: IdentityReconcilerAdapter()
+            ),
+            repository: repository,
+            activeAuthSnapshotRelinker: relinker
+        )
+
+        let ambiguousIDs = [first.id, second.id].sorted { $0.uuidString < $1.uuidString }
+        await #expect(throws: RefreshActiveAccountUseCaseError.targetResolutionFailed(.ambiguousStableAccountID(ambiguousIDs))) {
+            try await useCase.run(accounts: [first, second])
+        }
+
+        #expect(relinker.savedAuthData == nil)
+        #expect(relinker.savedExistingAccount == nil)
+        #expect(repository.savedAccounts == nil)
+    }
+
+    @Test
     func runDoesNotMarkPreservedRateLimitsFreshWhenAppServerReturnsNoRateLimits() async throws {
         let existingUpdatedAt = Date(timeIntervalSince1970: 1_744_195_200)
         let existingRateLimits = CodexRateLimitSnapshot(

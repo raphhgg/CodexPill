@@ -29,6 +29,8 @@ REMOVE_ACCOUNT_FAILURE_SCENARIO := remove-account-signout-failure-keeps-control
 REMOVE_ACCOUNT_FAILURE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(REMOVE_ACCOUNT_FAILURE_SCENARIO)
 REFRESH_INACTIVE_SCENARIO := refresh-inactive-isolated-status
 REFRESH_INACTIVE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(REFRESH_INACTIVE_SCENARIO)
+REFRESH_ACTIVE_RELINK_SCENARIO := refresh-active-relinks-same-account
+REFRESH_ACTIVE_RELINK_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(REFRESH_ACTIVE_RELINK_SCENARIO)
 TOKEN_USAGE_PARSER_SCENARIO := token-usage-parser-aggregation
 TOKEN_USAGE_PARSER_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_PARSER_SCENARIO)
 TOKEN_USAGE_CACHE_SCENARIO := token-usage-cache-first
@@ -36,7 +38,7 @@ TOKEN_USAGE_CACHE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE
 TOKEN_USAGE_PRIVACY_SCENARIO := token-usage-privacy-no-raw-session
 TOKEN_USAGE_PRIVACY_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_PRIVACY_SCENARIO)
 
-.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-switch-account-remote-install-verify-scenario verify-remove-account-active-targets-sign-out-scenario verify-remove-account-signout-failure-keeps-control-scenario verify-refresh-inactive-isolated-status-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
+.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-switch-account-remote-install-verify-scenario verify-remove-account-active-targets-sign-out-scenario verify-remove-account-signout-failure-keeps-control-scenario verify-refresh-inactive-isolated-status-scenario verify-refresh-active-relinks-same-account-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -539,6 +541,58 @@ verify-refresh-inactive-isolated-status-scenario: generate prepare-result-bundle
 		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
 		'  "workflowReceipt": "$(REFRESH_INACTIVE_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
 		'}' > "$(REFRESH_INACTIVE_SCENARIO_ARTIFACTS)/scenario-summary.json"
+
+verify-refresh-active-relinks-same-account-scenario: generate prepare-result-bundle
+	mkdir -p "$(REFRESH_ACTIVE_RELINK_SCENARIO_ARTIFACTS)"
+	xcodebuild test \
+		-project $(PROJECT_PATH) \
+		-scheme $(APP_NAME) \
+		-configuration Debug \
+		-destination "platform=macOS" \
+		-derivedDataPath "$(DERIVED_DATA)" \
+		-resultBundlePath "$(RESULT_BUNDLE)" \
+		-only-testing:CodexPillTests/RefreshActiveAccountUseCaseTests \
+		-only-testing:CodexPillTests/CodexAccountMatcherTests \
+		PRODUCT_BUNDLE_IDENTIFIER="$(STAGING_BUNDLE_ID)"
+	printf '%s\n' \
+		'{' \
+		'  "scenario": "$(REFRESH_ACTIVE_RELINK_SCENARIO)",' \
+		'  "proofLayer": "unit",' \
+		'  "events": [' \
+		'    "active local refresh relinks the saved snapshot when stable identity matches and fingerprint changed",' \
+		'    "relink preserves saved account id, display name, catalog position, and previous updatedAt when only auth snapshot changes",' \
+		'    "ambiguous live identity fails before overwriting saved auth snapshots",' \
+		'    "different live identity fails before overwriting saved auth snapshots"' \
+		'  ],' \
+		'  "status": "passed"' \
+		'}' > "$(REFRESH_ACTIVE_RELINK_SCENARIO_ARTIFACTS)/workflow-receipt.json"
+	printf '%s\n' \
+		'{' \
+		'  "assertions": [' \
+		'    "Same-account active refresh with changed fingerprint saves the current live auth snapshot into the matched saved account",' \
+		'    "The relinked account preserves id, label, catalog position, and applies returned metadata or rate limits according to refresh rules",' \
+		'    "Ambiguous stable identity does not call the snapshot relinker or persist catalog changes",' \
+		'    "No-match identity is surfaced as a refresh failure rather than overwriting saved snapshots",' \
+		'    "Matcher fixtures keep exact, ambiguous, and no-match identity outcomes explicit"' \
+		'  ],' \
+		'  "command": "make verify-refresh-active-relinks-same-account-scenario",' \
+		'  "gaps": [' \
+		'    "Live Codex app-server execution and real auth snapshots are not exercised",' \
+		'    "Remote install or switch preflight relink is not the primary claim of this scenario",' \
+		'    "Menu projection and live macOS menu-bar behavior are not proven"' \
+		'  ],' \
+		'  "invariantIds": [' \
+		'    "refresh.active.same-account-relinks-changed-fingerprint",' \
+		'    "refresh.active.relink-preserves-saved-account-shape",' \
+		'    "refresh.active.ambiguous-identity-refuses-relink",' \
+		'    "refresh.active.different-identity-refuses-relink"' \
+		'  ],' \
+		'  "proofLayer": "unit",' \
+		'  "scenario": "$(REFRESH_ACTIVE_RELINK_SCENARIO)",' \
+		'  "status": "passed",' \
+		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
+		'  "workflowReceipt": "$(REFRESH_ACTIVE_RELINK_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
+		'}' > "$(REFRESH_ACTIVE_RELINK_SCENARIO_ARTIFACTS)/scenario-summary.json"
 
 verify-token-usage-parser-scenario: generate prepare-result-bundle
 	mkdir -p "$(TOKEN_USAGE_PARSER_SCENARIO_ARTIFACTS)"
