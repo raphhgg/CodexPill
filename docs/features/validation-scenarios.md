@@ -127,7 +127,7 @@ must include or link to the refinement proof-contract shape:
 | `token-usage-off-hidden` | Token Usage off hides the card in the hosted active-account area; scanner lifecycle remains lower-level/runtime proof. | `state_truth`, `ui_visual`, `privacy` | `deterministic-ui`; screenshot, UI tree, summary; runtime scan prevention is a non-claim | `changed-feature`, blocking for Token Usage UI | `runnable` |
 | `token-usage-ready-card` | Enabled Token Usage shows a local Last 30 Days aggregate card without implying account, workspace, organization, or remote-host attribution. | `ui_visual`, `state_truth`, `privacy` | `deterministic-ui`; screenshot, UI tree, summary | `changed-feature`, blocking for Token Usage card | `runnable` |
 | `token-usage-parser-aggregation` | Scanner parses token-count rows, handles malformed rows, repeated cumulative totals, and large files safely. | `parser`, `privacy`, `performance` | `contract-fixture`; focused test output and scenario summary | `changed-feature`, blocking for scanner changes | `runnable` |
-| `token-usage-cache-first` | Cache is reused before scanning and refreshes only changed or new eligible files for the selected period. | `state_truth`, `performance`, `privacy` | `unit` and integration cache fixtures | `changed-feature`, blocking for cache/runtime | `target` |
+| `token-usage-cache-first` | Cache is reused before scanning and refreshes only changed or new eligible files for the selected period. | `state_truth`, `performance`, `privacy` | `contract-fixture`; focused test output and scenario summary | `changed-feature`, blocking for cache/runtime | `runnable` |
 | `token-usage-loading-progress` | First-load progress is animated or live-updating without fake percentages or raw file/session details. | `ui_visual`, `temporal`, `privacy` | `deterministic-ui`; screenshot, UI tree, summary; existing unit coverage owns frame animation mechanics | `changed-feature`, blocking for loading UI | `runnable` |
 | `token-usage-privacy-no-raw-session` | Token Usage artifacts, diagnostics, and UI emit aggregates only, never prompts, session rows, paths, account IDs, emails, or hostnames. | `privacy` | `diagnostics-export` and negative leakage fixtures | `changed-feature`, blocking for token usage diagnostics | `target` |
 
@@ -163,8 +163,7 @@ artifact expectations, privacy rules, and degraded-proof rules.
 
 Recommended promotion order after the current runnable deterministic scenarios:
 
-1. Token Usage cache-first and privacy scenarios when cache, diagnostics, or
-   artifact behavior changes.
+1. Token Usage privacy scenario when diagnostics or artifact behavior changes.
 2. Local account mutation, remote host mutation, notification action routing,
    temporal status-bar interaction, and live/system-mutation gates only after
    fake-client workflow receipts or explicit live opt-in exist.

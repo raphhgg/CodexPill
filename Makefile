@@ -17,8 +17,10 @@ ADD_ACCOUNT_NAME_SCENARIO := add-account-name-validation
 ADD_ACCOUNT_NAME_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(ADD_ACCOUNT_NAME_SCENARIO)
 TOKEN_USAGE_PARSER_SCENARIO := token-usage-parser-aggregation
 TOKEN_USAGE_PARSER_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_PARSER_SCENARIO)
+TOKEN_USAGE_CACHE_SCENARIO := token-usage-cache-first
+TOKEN_USAGE_CACHE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_CACHE_SCENARIO)
 
-.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario verify-add-account-name-scenario verify-token-usage-parser-scenario run clean
+.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario verify-add-account-name-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario run clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -161,6 +163,45 @@ verify-token-usage-parser-scenario: generate prepare-result-bundle
 		'  "status": "passed",' \
 		'  "testResultBundle": "$(RESULT_BUNDLE)"' \
 		'}' > "$(TOKEN_USAGE_PARSER_SCENARIO_ARTIFACTS)/scenario-summary.json"
+
+verify-token-usage-cache-scenario: generate prepare-result-bundle
+	mkdir -p "$(TOKEN_USAGE_CACHE_SCENARIO_ARTIFACTS)"
+	xcodebuild test \
+		-project $(PROJECT_PATH) \
+		-scheme $(APP_NAME) \
+		-configuration Debug \
+		-destination "platform=macOS" \
+		-derivedDataPath "$(DERIVED_DATA)" \
+		-resultBundlePath "$(RESULT_BUNDLE)" \
+		-only-testing:CodexPillTests/LocalCodexSessionTokenUsageMenuProviderTests \
+		-only-testing:CodexPillTests/TokenUsageMenuRuntimeTests \
+		-only-testing:CodexPillTests/TokenUsageCacheBackedRefreshPolicyTests \
+		PRODUCT_BUNDLE_IDENTIFIER="$(STAGING_BUNDLE_ID)"
+	printf '%s\n' \
+		'{' \
+		'  "assertions": [' \
+		'    "Cached aggregate data is reused before scanner work when it covers the requested period",' \
+		'    "Repeated runtime refreshes keep one active Token Usage load for the same period",' \
+		'    "Loaded charts stay visible while refresh progress updates",' \
+		'    "Forced refresh reparses only new or changed eligible selected-period files"' \
+		'  ],' \
+		'  "command": "make verify-token-usage-cache-scenario",' \
+		'  "gaps": [' \
+		'    "Token Usage UI rendering is not proven by this contract-fixture scenario",' \
+		'    "Diagnostics export privacy is not proven by this scenario",' \
+		'    "Real local Codex history and live macOS menu-bar behavior are not exercised"' \
+		'  ],' \
+		'  "invariantIds": [' \
+		'    "token-usage.cache.cached-data-before-scan",' \
+		'    "token-usage.cache.no-duplicate-runtime-loads",' \
+		'    "token-usage.cache.refresh-preserves-visible-chart",' \
+		'    "token-usage.cache.incremental-new-or-changed-files"' \
+		'  ],' \
+		'  "proofLayer": "contract-fixture",' \
+		'  "scenario": "$(TOKEN_USAGE_CACHE_SCENARIO)",' \
+		'  "status": "passed",' \
+		'  "testResultBundle": "$(RESULT_BUNDLE)"' \
+		'}' > "$(TOKEN_USAGE_CACHE_SCENARIO_ARTIFACTS)/scenario-summary.json"
 
 run:
 	./scripts/run_menubar.sh

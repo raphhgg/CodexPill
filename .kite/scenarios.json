@@ -110,6 +110,20 @@
       ]
     },
     {
+      "id": "token-usage-incremental-cache",
+      "title": "Token Usage incremental cache",
+      "acceptanceCriteria": [
+        {
+          "id": "cached-data-is-used-before-scanning",
+          "statement": "When cached aggregate data covers the requested Token Usage period, CodexPill must present it before starting scanner work and must not restart scanning for repeated menu/runtime refreshes."
+        },
+        {
+          "id": "refresh-reuses-unchanged-file-contributions",
+          "statement": "When refreshing a cached selected period, CodexPill must reuse unchanged synthetic file contributions and rescan only new or changed eligible files."
+        }
+      ]
+    },
+    {
       "id": "launch-at-login-menu-state",
       "title": "Launch at Login menu state",
       "acceptanceCriteria": [
@@ -1141,6 +1155,89 @@
       ],
       "expectedMetadata": {
         "scenario": "token-usage-parser-aggregation"
+      },
+      "privacy": {
+        "fixtureData": "synthetic",
+        "restrictedEvidence": [
+          "account_data",
+          "hostname",
+          "private_product_data",
+          "raw_local_path",
+          "raw_transcript",
+          "token"
+        ]
+      }
+    },
+    {
+      "id": "token-usage-cache-first",
+      "title": "Token Usage cache first",
+      "featureId": "token-usage-incremental-cache",
+      "acceptanceCriteria": [
+        "cached-data-is-used-before-scanning",
+        "refresh-reuses-unchanged-file-contributions"
+      ],
+      "targetSurface": "CodexPill Token Usage cache/runtime fixture boundary",
+      "validationModes": ["unit_only"],
+      "suites": ["deterministic"],
+      "validationIntent": {
+        "featureRisk": ["state_truth", "performance", "privacy"],
+        "primaryProof": "contract-fixture",
+        "supportingProof": ["privacy-redaction"],
+        "requiredEvidence": ["test-output", "scenario-summary"],
+        "nonClaims": [
+          "Does not prove Token Usage UI rendering.",
+          "Does not prove diagnostics export privacy.",
+          "Does not prove saved-account, workspace, organization, or remote-host usage history.",
+          "Does not prove real local Codex history scanning.",
+          "Does not prove live macOS menu-bar behavior."
+        ],
+        "liveOptIn": {
+          "required": false
+        }
+      },
+      "nonRegression": {
+        "tier": "changed-feature",
+        "runWhen": [
+          "local-handoff",
+          "token-usage-cache-changed",
+          "token-usage-runtime-changed",
+          "token-usage-scanner-changed",
+          "scenario-fixture-changed"
+        ],
+        "blocking": true
+      },
+      "proof": {
+        "layer": "contract-fixture",
+        "artifactSource": "focused-test-suite",
+        "nonClaims": [
+          "Does not prove Token Usage UI rendering.",
+          "Does not prove diagnostics export privacy.",
+          "Does not prove saved-account, workspace, organization, or remote-host usage history.",
+          "Does not prove real local Codex history scanning.",
+          "Does not prove live macOS menu-bar behavior."
+        ]
+      },
+      "command": {
+        "run": "make verify-token-usage-cache-scenario"
+      },
+      "expectedArtifacts": [
+        {
+          "id": "token-usage-cache-first-result-bundle",
+          "kind": "test_output",
+          "path": "build/results/local/CodexPill.xcresult",
+          "claimScope": ["cache-runtime-contract-fixtures"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "token-usage-cache-first-summary",
+          "kind": "reconciliation_report",
+          "path": "build/verification/token-usage-cache-first/scenario-summary.json",
+          "claimScope": ["contract-fixture-reconciled"],
+          "redactionStatus": "sanitized"
+        }
+      ],
+      "expectedMetadata": {
+        "scenario": "token-usage-cache-first"
       },
       "privacy": {
         "fixtureData": "synthetic",
