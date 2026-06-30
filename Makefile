@@ -13,6 +13,8 @@ VERIFICATION_REQUEST := $(VERIFICATION_DIR)/request.json
 VERIFICATION_ARTIFACTS := $(BUILD_ROOT)/verification/$(SCENARIO)
 DIAGNOSTICS_EXPORT_SCENARIO := diagnostics-export-confirmation
 DIAGNOSTICS_EXPORT_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(DIAGNOSTICS_EXPORT_SCENARIO)
+NOTIFICATIONS_PERMISSION_DENIED_SCENARIO := notifications-permission-denied-menu-state
+NOTIFICATIONS_PERMISSION_DENIED_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(NOTIFICATIONS_PERMISSION_DENIED_SCENARIO)
 RENAME_SCENARIO := rename-account-label-only
 RENAME_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(RENAME_SCENARIO)
 ADD_ACCOUNT_NAME_SCENARIO := add-account-name-validation
@@ -48,7 +50,7 @@ TOKEN_USAGE_CACHE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE
 TOKEN_USAGE_PRIVACY_SCENARIO := token-usage-privacy-no-raw-session
 TOKEN_USAGE_PRIVACY_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_PRIVACY_SCENARIO)
 
-.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-diagnostics-export-confirmation-scenario verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-switch-account-remote-install-verify-scenario verify-remote-host-add-panel-validation-scenario verify-remote-host-install-switch-current-account-scenario verify-remote-host-verification-failure-scenario verify-remote-host-rate-limit-fallback-scenario verify-remove-account-active-targets-sign-out-scenario verify-remove-account-signout-failure-keeps-control-scenario verify-refresh-inactive-isolated-status-scenario verify-refresh-active-relinks-same-account-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
+.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-diagnostics-export-confirmation-scenario verify-notifications-permission-denied-menu-state-scenario verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-switch-account-remote-install-verify-scenario verify-remote-host-add-panel-validation-scenario verify-remote-host-install-switch-current-account-scenario verify-remote-host-verification-failure-scenario verify-remote-host-rate-limit-fallback-scenario verify-remove-account-active-targets-sign-out-scenario verify-remove-account-signout-failure-keeps-control-scenario verify-refresh-inactive-isolated-status-scenario verify-refresh-active-relinks-same-account-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -149,6 +151,57 @@ verify-diagnostics-export-confirmation-scenario: generate prepare-result-bundle
 		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
 		'  "workflowReceipt": "$(DIAGNOSTICS_EXPORT_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
 		'}' > "$(DIAGNOSTICS_EXPORT_SCENARIO_ARTIFACTS)/scenario-summary.json"
+
+verify-notifications-permission-denied-menu-state-scenario: generate prepare-result-bundle
+	mkdir -p "$(NOTIFICATIONS_PERMISSION_DENIED_SCENARIO_ARTIFACTS)"
+	xcodebuild test \
+		-project $(PROJECT_PATH) \
+		-scheme $(APP_NAME) \
+		-configuration Debug \
+		-destination "platform=macOS" \
+		-derivedDataPath "$(DERIVED_DATA)" \
+		-resultBundlePath "$(RESULT_BUNDLE)" \
+		-only-testing:CodexPillTests/MenuBarMenuBuilderTests \
+		-only-testing:CodexPillTests/MenuBarRuntimeValidationTests \
+		PRODUCT_BUNDLE_IDENTIFIER="$(STAGING_BUNDLE_ID)"
+	printf '%s\n' \
+		'{' \
+		'  "scenario": "$(NOTIFICATIONS_PERMISSION_DENIED_SCENARIO)",' \
+		'  "proofLayer": "unit",' \
+		'  "events": [' \
+		'    "Denied macOS notification permission shows Enable in macOS Settings in the Notifications submenu",' \
+		'    "Denied permission renders Account Available and Current Runs Out unchecked and disabled",' \
+		'    "Enable Notifications routes to System Settings through the fake launcher when authorization is denied",' \
+		'    "Saved CodexPill notification intent is preserved while denied",' \
+		'    "Denied permission does not request notification authorization again"' \
+		'  ],' \
+		'  "status": "passed"' \
+		'}' > "$(NOTIFICATIONS_PERMISSION_DENIED_SCENARIO_ARTIFACTS)/workflow-receipt.json"
+	printf '%s\n' \
+		'{' \
+		'  "assertions": [' \
+		'    "Denied permission exposes System Settings recovery copy and action wiring",' \
+		'    "Denied permission makes notification mode rows effectively off and disabled",' \
+		'    "Recovery preserves saved notification preferences and does not request authorization again",' \
+		'    "Recovery uses a fake settings launcher instead of live System Settings"' \
+		'  ],' \
+		'  "command": "make verify-notifications-permission-denied-menu-state-scenario",' \
+		'  "gaps": [' \
+		'    "Live macOS System Settings is not opened",' \
+		'    "Live notification permission dialogs are not exercised",' \
+		'    "Native click automation and live menu-bar interaction are not proven"' \
+		'  ],' \
+		'  "invariantIds": [' \
+		'    "notifications.permission-denied.modes-disabled",' \
+		'    "notifications.permission-denied.opens-settings",' \
+		'    "notifications.permission-denied.preserves-saved-intent"' \
+		'  ],' \
+		'  "proofLayer": "unit",' \
+		'  "scenario": "$(NOTIFICATIONS_PERMISSION_DENIED_SCENARIO)",' \
+		'  "status": "passed",' \
+		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
+		'  "workflowReceipt": "$(NOTIFICATIONS_PERMISSION_DENIED_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
+		'}' > "$(NOTIFICATIONS_PERMISSION_DENIED_SCENARIO_ARTIFACTS)/scenario-summary.json"
 
 verify-rename-scenario: generate prepare-result-bundle
 	mkdir -p "$(RENAME_SCENARIO_ARTIFACTS)"

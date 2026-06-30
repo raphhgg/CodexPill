@@ -38,12 +38,13 @@ that inventory into `.kite/scenarios.json` only when its owning feature doc has
 concrete acceptance criteria, proof rows, fixtures, command, artifacts, privacy
 rules, non-claims, and degraded-proof rules.
 
-The current clean-main manifest contains twenty-eight deterministic scenarios:
+The current clean-main manifest contains twenty-nine deterministic scenarios:
 
 ```bash
 make verify-ui SCENARIO=hosted-menu-default
 make verify-ui SCENARIO=menu-busy-status
 make verify-diagnostics-export-confirmation-scenario
+make verify-notifications-permission-denied-menu-state-scenario
 make verify-ui SCENARIO=menu-unmatched-active-account
 make verify-ui SCENARIO=menu-empty-catalog
 make verify-ui SCENARIO=menu-account-overflow
@@ -104,6 +105,14 @@ Current deterministic scenarios:
   support artifact, and report construction rejects or aliases sensitive
   evidence; it does not prove live `NSSavePanel` rendering, real file writing,
   real local logs/history inspection, or live macOS menu-bar behavior.
+- `notifications-permission-denied-menu-state`: changed-feature non-regression
+  for Notifications permission recovery. It proves through focused menu and
+  runtime tests that denied macOS notification permission shows
+  `Enable in macOS Settings…`, renders notification modes effectively off and
+  disabled, opens System Settings through a fake launcher, preserves saved
+  CodexPill notification preferences, and does not request authorization again;
+  it does not prove live System Settings, live notification permission dialogs,
+  native click automation, or live macOS menu-bar behavior.
 - `menu-unmatched-active-account`: smoke non-regression for Active Account
   truth. It proves that saved accounts remain catalog rows and are not presented
   as active when the active local auth state is unmatched.
@@ -308,6 +317,8 @@ The adapter currently includes:
 - `make verify-ui SCENARIO=<scenario>` for deterministic hosted-menu proof;
 - `make verify-diagnostics-export-confirmation-scenario` for focused
   Diagnostics export confirmation and redacted-support artifact proof;
+- `make verify-notifications-permission-denied-menu-state-scenario` for focused
+  Notifications denied-permission menu and recovery proof;
 - `make verify-add-account-name-scenario` for focused Add Account name
   validation unit proof;
 - `make verify-add-account-isolated-success-scenario` for focused Add Account
