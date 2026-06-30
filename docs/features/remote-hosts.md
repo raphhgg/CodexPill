@@ -103,6 +103,10 @@ Primary proof for `remote-host-install-switch-current-account`: `workflow-event-
 
 Supporting proof for `remote-host-install-switch-current-account`: `contract-fixture`
 
+Primary proof for `remote-host-verification-failure`: `unit`
+
+Supporting proof for `remote-host-verification-failure`: `deterministic-ui`
+
 Product scenarios:
 
 - `remote-host-add-panel-validation` proves that Add Host stays disabled until
@@ -115,6 +119,10 @@ Product scenarios:
   follow-up either installs and switches the current active account on the
   validated host in order, then persists verified host/account state, or leaves
   no pending host state when the follow-up is cancelled.
+- `remote-host-verification-failure` proves that different, ambiguous, failed,
+  or unreadable remote verification is represented as failed/unverified host
+  state, never as a verified active remote account, while detected accounts stay
+  recoverable through host management instead of replacing saved catalog truth.
 
 Required evidence:
 
@@ -127,6 +135,12 @@ Required evidence:
   `MenuBarAlertFactoryTests`;
 - `build/verification/remote-host-install-switch-current-account/workflow-receipt.json`;
 - `build/verification/remote-host-install-switch-current-account/scenario-summary.json`.
+- for verification failure, focused suite output from
+  `RemoteHostAccountVerifierTests`, `RemoteHostRuntimeTests`,
+  `SwitchAccountOnHostWorkflowTests`, `MenuBarMenuStateTests`, and
+  `MenuBarMenuBuilderTests`;
+- `build/verification/remote-host-verification-failure/workflow-receipt.json`;
+- `build/verification/remote-host-verification-failure/scenario-summary.json`.
 
 Non-claims:
 
@@ -138,6 +152,10 @@ Non-claims:
   confirmation panel rendering, focus, click automation, live SSH, live Codex
   app-server behavior, real remote auth mutation, real remote filesystem
   mutation, or remote verification failure presentation.
+- The verification failure scenario does not prove live SSH, live Codex
+  app-server behavior, real remote auth mutation, real remote filesystem
+  mutation, native click automation, live menu-bar interaction, or remote
+  rate-limit fallback.
 
 Live opt-in: not required for these scenarios.
 
@@ -147,7 +165,7 @@ Live opt-in: not required for these scenarios.
 | --- | --- | --- | --- | --- | --- |
 | Add Host validates destination feedback and unlocks `Add Host` only for reachable Codex-ready targets. | `contract-fixture` plus `unit` | `make verify-remote-host-add-panel-validation-scenario` running `MenuBarHostSetupFormStateTests`, `MenuBarAlertFactoryTests`, and `SSHRemoteHostClientTests`. | `build/results/local/CodexPill.xcresult`, `build/verification/remote-host-add-panel-validation/contract-receipt.json`, and `scenario-summary.json`. | Invalid, unreachable, not-Codex-ready, and successful destinations map to the documented feedback states; `Add Host` unlocks only for successful Codex-ready validation of the same trimmed destination; SSH validation uses non-interactive BatchMode and checks Codex app-server readiness plus writable CodexPill/Codex directories. | Synthetic destinations and fake command results only; no raw SSH output, private hostnames, usernames, paths, tokens, or auth payloads. |
 | Host setup installs and switches the current account, or leaves no confusing pending host state when cancelled. | `workflow-event-log` plus `contract-fixture` | `make verify-remote-host-install-switch-current-account-scenario` running `MenuBarRuntimeValidationTests`, `SwitchAccountOnHostWorkflowTests`, and `MenuBarAlertFactoryTests`. | `build/results/local/CodexPill.xcresult`, `build/verification/remote-host-install-switch-current-account/workflow-receipt.json`, and `scenario-summary.json`. | Confirming records install, switch, app-server refresh, and status verification in order for the current active account, then persists desired account, verified account, verified status, and installed account id; cancelling creates no pending host state. | Fake remote host, fake command/client results, and synthetic auth snapshots only; no raw SSH output, auth payloads, tokens, private paths, emails, or hostnames. |
-| Failed or ambiguous remote verification is surfaced and not shown as verified active state. | `unit` plus `deterministic-ui` | Remote verification failure tests and menu projection assertion. | Failure result bundle plus optional hosted menu artifact. | Ambiguous/mismatched verification surfaces recovery state and the menu does not show the remote card as verified active. | Synthetic host/account data only; no raw SSH output, auth payloads, tokens, private paths, emails, or hostnames. |
+| Failed or ambiguous remote verification is surfaced and not shown as verified active state. | `unit` plus `deterministic-ui` | `make verify-remote-host-verification-failure-scenario` running `RemoteHostAccountVerifierTests`, `RemoteHostRuntimeTests`, `SwitchAccountOnHostWorkflowTests`, `MenuBarMenuStateTests`, and `MenuBarMenuBuilderTests`. | `build/results/local/CodexPill.xcresult`, `build/verification/remote-host-verification-failure/workflow-receipt.json`, and `scenario-summary.json`. | Ambiguous, mismatched, failed, or unreadable verification clears verified active state, stores failure/detected-account recovery state, keeps failed hosts out of primary active remote cards, and does not replace the saved account catalog. | Synthetic host/account/status data only; no raw SSH output, auth payloads, tokens, private paths, emails, or hostnames. |
 | Remote cards prefer verified remote values and use saved fallback only when remote data is missing or suspicious. | `unit` plus `contract-fixture` | Rate-limit resolution tests with verified, missing, and suspicious remote fixtures. | Resolution fixture result bundle. | Verified remote values win; fallback values are labeled/presented only as fallback and never as verified remote truth. | Synthetic rate-limit payloads only; no real account ids, emails, hostnames, raw SSH output, auth payloads, or tokens. |
 
 ## Validation Targets

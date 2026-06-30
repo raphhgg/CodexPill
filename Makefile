@@ -27,6 +27,8 @@ REMOTE_HOST_ADD_PANEL_SCENARIO := remote-host-add-panel-validation
 REMOTE_HOST_ADD_PANEL_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(REMOTE_HOST_ADD_PANEL_SCENARIO)
 REMOTE_HOST_INSTALL_SWITCH_SCENARIO := remote-host-install-switch-current-account
 REMOTE_HOST_INSTALL_SWITCH_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(REMOTE_HOST_INSTALL_SWITCH_SCENARIO)
+REMOTE_HOST_VERIFICATION_FAILURE_SCENARIO := remote-host-verification-failure
+REMOTE_HOST_VERIFICATION_FAILURE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(REMOTE_HOST_VERIFICATION_FAILURE_SCENARIO)
 REMOVE_ACCOUNT_ACTIVE_SCENARIO := remove-account-active-targets-sign-out
 REMOVE_ACCOUNT_ACTIVE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(REMOVE_ACCOUNT_ACTIVE_SCENARIO)
 REMOVE_ACCOUNT_FAILURE_SCENARIO := remove-account-signout-failure-keeps-control
@@ -42,7 +44,7 @@ TOKEN_USAGE_CACHE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE
 TOKEN_USAGE_PRIVACY_SCENARIO := token-usage-privacy-no-raw-session
 TOKEN_USAGE_PRIVACY_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_PRIVACY_SCENARIO)
 
-.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-switch-account-remote-install-verify-scenario verify-remote-host-add-panel-validation-scenario verify-remote-host-install-switch-current-account-scenario verify-remove-account-active-targets-sign-out-scenario verify-remove-account-signout-failure-keeps-control-scenario verify-refresh-inactive-isolated-status-scenario verify-refresh-active-relinks-same-account-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
+.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-switch-account-remote-install-verify-scenario verify-remote-host-add-panel-validation-scenario verify-remote-host-install-switch-current-account-scenario verify-remote-host-verification-failure-scenario verify-remove-account-active-targets-sign-out-scenario verify-remove-account-signout-failure-keeps-control-scenario verify-refresh-inactive-isolated-status-scenario verify-refresh-active-relinks-same-account-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -489,6 +491,60 @@ verify-remote-host-install-switch-current-account-scenario: generate prepare-res
 		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
 		'  "workflowReceipt": "$(REMOTE_HOST_INSTALL_SWITCH_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
 		'}' > "$(REMOTE_HOST_INSTALL_SWITCH_SCENARIO_ARTIFACTS)/scenario-summary.json"
+
+verify-remote-host-verification-failure-scenario: generate prepare-result-bundle
+	mkdir -p "$(REMOTE_HOST_VERIFICATION_FAILURE_SCENARIO_ARTIFACTS)"
+	xcodebuild test \
+		-project $(PROJECT_PATH) \
+		-scheme $(APP_NAME) \
+		-configuration Debug \
+		-destination "platform=macOS" \
+		-derivedDataPath "$(DERIVED_DATA)" \
+		-resultBundlePath "$(RESULT_BUNDLE)" \
+		-only-testing:CodexPillTests/RemoteHostAccountVerifierTests \
+		-only-testing:CodexPillTests/RemoteHostRuntimeTests \
+		-only-testing:CodexPillTests/SwitchAccountOnHostWorkflowTests \
+		-only-testing:CodexPillTests/MenuBarMenuStateTests \
+		-only-testing:CodexPillTests/MenuBarMenuBuilderTests \
+		PRODUCT_BUNDLE_IDENTIFIER="$(STAGING_BUNDLE_ID)"
+	printf '%s\n' \
+		'{' \
+		'  "scenario": "$(REMOTE_HOST_VERIFICATION_FAILURE_SCENARIO)",' \
+		'  "proofLayer": "unit",' \
+		'  "events": [' \
+		'    "Verifier returns not-verified for different and ambiguous remote identities with actionable messages",' \
+		'    "Runtime applies not-verified outcomes as failed host state with no verified active account",' \
+		'    "Refresh/read failures clear verified remote account state and preserve failure details",' \
+		'    "Menu state and builder projection keep failed or unverified hosts out of primary active remote cards",' \
+		'    "Detected remote accounts stay in host management/adoption surfaces instead of replacing the saved account catalog"' \
+		'  ],' \
+		'  "status": "passed"' \
+		'}' > "$(REMOTE_HOST_VERIFICATION_FAILURE_SCENARIO_ARTIFACTS)/workflow-receipt.json"
+	printf '%s\n' \
+		'{' \
+		'  "assertions": [' \
+		'    "Different and ambiguous remote identities are surfaced as not verified, not verified active state",' \
+		'    "Failed verification clears verifiedAccount and stores failure/detected-account state for recovery",' \
+		'    "Failed or disconnected remote hosts do not render primary active remote account cards",' \
+		'    "Detected remote accounts remain recoverable through host management without replacing saved accounts"' \
+		'  ],' \
+		'  "command": "make verify-remote-host-verification-failure-scenario",' \
+		'  "gaps": [' \
+		'    "No live SSH host, live Codex app-server, real remote auth mutation, or real remote filesystem is exercised",' \
+		'    "Native click automation and live menu-bar interaction are not proven",' \
+		'    "Remote rate-limit fallback is tracked by remote-host-rate-limit-fallback, not this scenario"' \
+		'  ],' \
+		'  "invariantIds": [' \
+		'    "remote-host.verification-failure.not-verified-is-failed-state",' \
+		'    "remote-host.verification-failure.no-primary-active-card",' \
+		'    "remote-host.verification-failure.detected-account-is-recoverable-not-catalog-truth"' \
+		'  ],' \
+		'  "proofLayer": "unit",' \
+		'  "scenario": "$(REMOTE_HOST_VERIFICATION_FAILURE_SCENARIO)",' \
+		'  "status": "passed",' \
+		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
+		'  "workflowReceipt": "$(REMOTE_HOST_VERIFICATION_FAILURE_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
+		'}' > "$(REMOTE_HOST_VERIFICATION_FAILURE_SCENARIO_ARTIFACTS)/scenario-summary.json"
 
 verify-remove-account-active-targets-sign-out-scenario: generate prepare-result-bundle
 	mkdir -p "$(REMOVE_ACCOUNT_ACTIVE_SCENARIO_ARTIFACTS)"

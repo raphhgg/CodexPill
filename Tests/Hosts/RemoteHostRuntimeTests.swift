@@ -48,6 +48,29 @@ struct RemoteHostRuntimeTests {
     }
 
     @Test
+    func notVerifiedSwitchOutcomeStoresFailureWithoutVerifiedActiveAccount() throws {
+        let desired = makeAccount(name: "Business 4")
+        let detected = makeAccount(name: "Business 2")
+        let host = RemoteHost(destination: "user@debian-vm", displayName: "debian-vm")
+        let settings = makeSettings()
+        let runtime = makeRuntime(settings: settings, accounts: [desired, detected])
+
+        runtime.applySwitchOutcome(
+            .notVerified("debian-vm is using Business 2, not Business 4.", detectedAccountID: detected.id),
+            account: desired,
+            host: host
+        )
+
+        let state = try #require(settings.remoteHostState(for: host.destination))
+        #expect(state.desiredAccountID == desired.id)
+        #expect(state.verifiedAccount == nil)
+        #expect(state.detectedAccountID == detected.id)
+        #expect(state.verificationStatus == .failed)
+        #expect(state.lastVerificationError == "debian-vm is using Business 2, not Business 4.")
+        #expect(state.installedAccountIDs == [desired.id])
+    }
+
+    @Test
     func refreshFailurePreservesPreviousVerifiedRemoteMetadataInCatalog() async throws {
         let account = makeAccount(name: "Business 4", email: "business-4@example.com")
         var remoteSnapshot = account
