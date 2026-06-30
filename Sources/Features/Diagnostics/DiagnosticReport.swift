@@ -56,6 +56,7 @@ struct DiagnosticReport: Codable, Equatable {
     let environment: DiagnosticEnvironmentMetadata
     let accounts: [DiagnosticAccount]
     let hosts: [DiagnosticHost]
+    let tokenUsage: DiagnosticTokenUsage
     let freshness: [DiagnosticFreshnessState]
     let events: [DiagnosticEvent]
     let decisionTraces: [DiagnosticDecisionTrace]
@@ -88,6 +89,17 @@ struct DiagnosticHost: Codable, Equatable {
     let activeAccountAlias: String?
     let detectedAccountAlias: String?
     let deployedAccountAliases: [String]
+}
+
+struct DiagnosticTokenUsage: Codable, Equatable {
+    let enabled: Bool
+    let period: String
+    let chartStyle: String
+    let loadState: String
+    let bucketCount: Int
+    let todayTotalTokens: Int?
+    let periodTotalTokens: Int?
+    let peakDayTotalTokens: Int?
 }
 
 struct DiagnosticFreshnessState: Codable, Equatable {
@@ -126,6 +138,7 @@ enum DiagnosticEventCategory: String, Codable, Equatable {
     case addHost = "add_host"
     case refresh = "refresh"
     case notificationEvaluation = "notification_evaluation"
+    case tokenUsage = "token_usage"
     case failure = "failure"
     case decision = "decision"
     case menuAction = "menu_action"
@@ -226,6 +239,7 @@ struct DiagnosticReportBuilder {
             ),
             accounts: accounts,
             hosts: hosts,
+            tokenUsage: diagnosticTokenUsage(from: state),
             freshness: diagnosticFreshness(from: state, aliases: &aliases),
             events: diagnosticEvents,
             decisionTraces: diagnosticDecisionTraces(from: state, aliases: &aliases),
@@ -257,6 +271,56 @@ struct DiagnosticReportBuilder {
                 rejectedFields: rejectedFields.values
             )
         )
+    }
+
+    private func diagnosticTokenUsage(from state: MenuBarMenuState) -> DiagnosticTokenUsage {
+        guard state.tokenUsageEnabled else {
+            return DiagnosticTokenUsage(
+                enabled: false,
+                period: state.tokenUsagePeriod.menuTitle,
+                chartStyle: state.tokenUsageChartStyle.rawValue,
+                loadState: "disabled",
+                bucketCount: 0,
+                todayTotalTokens: nil,
+                periodTotalTokens: nil,
+                peakDayTotalTokens: nil
+            )
+        }
+
+        guard let card = state.tokenUsageCard else {
+            return DiagnosticTokenUsage(
+                enabled: true,
+                period: state.tokenUsagePeriod.menuTitle,
+                chartStyle: state.tokenUsageChartStyle.rawValue,
+                loadState: "not_loaded",
+                bucketCount: 0,
+                todayTotalTokens: nil,
+                periodTotalTokens: nil,
+                peakDayTotalTokens: nil
+            )
+        }
+
+        return DiagnosticTokenUsage(
+            enabled: true,
+            period: card.period.menuTitle,
+            chartStyle: card.style.rawValue,
+            loadState: diagnosticTokenUsageLoadState(card.loadState),
+            bucketCount: card.buckets.count,
+            todayTotalTokens: card.loadState.hasCachedData ? card.todayTokenCount : nil,
+            periodTotalTokens: card.loadState.hasCachedData ? card.periodTotalTokenCount : nil,
+            peakDayTotalTokens: card.loadState.hasCachedData ? card.peakDayBucket?.tokenCount : nil
+        )
+    }
+
+    private func diagnosticTokenUsageLoadState(_ loadState: TokenUsageMenuLoadState) -> String {
+        switch loadState {
+        case .loading:
+            return "loading"
+        case .loaded:
+            return "loaded"
+        case .unavailable:
+            return "unavailable"
+        }
     }
 
     private func diagnosticAccounts(

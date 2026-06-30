@@ -124,6 +124,16 @@
       ]
     },
     {
+      "id": "token-usage-privacy",
+      "title": "Token Usage privacy",
+      "acceptanceCriteria": [
+        {
+          "id": "diagnostics-export-omits-raw-session-evidence",
+          "statement": "Token Usage diagnostics must expose only aggregate state and totals, and must reject prompt content, raw session rows, local paths, account identifiers, emails, hostnames, auth material, and token-like values."
+        }
+      ]
+    },
+    {
       "id": "launch-at-login-menu-state",
       "title": "Launch at Login menu state",
       "acceptanceCriteria": [
@@ -1238,6 +1248,83 @@
       ],
       "expectedMetadata": {
         "scenario": "token-usage-cache-first"
+      },
+      "privacy": {
+        "fixtureData": "synthetic",
+        "restrictedEvidence": [
+          "account_data",
+          "hostname",
+          "private_product_data",
+          "raw_local_path",
+          "raw_transcript",
+          "token"
+        ]
+      }
+    },
+    {
+      "id": "token-usage-privacy-no-raw-session",
+      "title": "Token Usage privacy no raw session",
+      "featureId": "token-usage-privacy",
+      "acceptanceCriteria": [
+        "diagnostics-export-omits-raw-session-evidence"
+      ],
+      "targetSurface": "CodexPill diagnostics export fixture boundary",
+      "validationModes": ["unit_only"],
+      "suites": ["deterministic"],
+      "validationIntent": {
+        "featureRisk": ["privacy", "diagnostics"],
+        "primaryProof": "diagnostics-export",
+        "supportingProof": ["privacy-redaction"],
+        "requiredEvidence": ["test-output", "diagnostics-export", "scenario-summary"],
+        "nonClaims": [
+          "Does not prove live NSSavePanel confirmation or user-initiated file writing.",
+          "Does not inspect real local Codex history.",
+          "Does not prove Token Usage UI rendering or live macOS menu-bar behavior."
+        ],
+        "liveOptIn": {
+          "required": false
+        }
+      },
+      "nonRegression": {
+        "tier": "changed-feature",
+        "runWhen": [
+          "local-handoff",
+          "token-usage-diagnostics-changed",
+          "diagnostics-export-changed",
+          "scenario-fixture-changed"
+        ],
+        "blocking": true
+      },
+      "proof": {
+        "layer": "diagnostics-export",
+        "artifactSource": "focused-test-suite",
+        "nonClaims": [
+          "Does not prove live NSSavePanel confirmation or user-initiated file writing.",
+          "Does not inspect real local Codex history.",
+          "Does not prove Token Usage UI rendering or live macOS menu-bar behavior."
+        ]
+      },
+      "command": {
+        "run": "make verify-token-usage-privacy-scenario"
+      },
+      "expectedArtifacts": [
+        {
+          "id": "token-usage-privacy-no-raw-session-result-bundle",
+          "kind": "test_output",
+          "path": "build/results/local/CodexPill.xcresult",
+          "claimScope": ["diagnostics-export-tests"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "token-usage-privacy-no-raw-session-summary",
+          "kind": "reconciliation_report",
+          "path": "build/verification/token-usage-privacy-no-raw-session/scenario-summary.json",
+          "claimScope": ["diagnostics-export-reconciled"],
+          "redactionStatus": "sanitized"
+        }
+      ],
+      "expectedMetadata": {
+        "scenario": "token-usage-privacy-no-raw-session"
       },
       "privacy": {
         "fixtureData": "synthetic",

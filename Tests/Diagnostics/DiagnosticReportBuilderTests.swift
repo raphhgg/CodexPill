@@ -155,6 +155,89 @@ struct DiagnosticReportBuilderTests {
     }
 
     @Test
+    func tokenUsageDiagnosticsExposeAggregatesAndRejectRawSessionEvidence() throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let rawValues = [
+            "Prompt: summarize the private launch plan",
+            #"{"payload":{"type":"message","content":"secret prompt"}}"#,
+            "/Users/raphh/.codex/sessions/2026/06/30/private-session.jsonl",
+            "auth0|private-account-id",
+            "token-user@example.com",
+            "token-host.example.com",
+            "fixture-token-like-value-abcdefghijklmnopqrstuvwxyz1234567890"
+        ]
+        let account = makeAccount(
+            id: UUID(uuidString: "77777777-7777-7777-7777-777777777777")!,
+            name: rawValues[0],
+            email: rawValues[4],
+            stableAccountID: rawValues[3],
+            fetchedAt: now
+        )
+        let state = makeMenuState(
+            activeAccount: account,
+            inactiveAccounts: [],
+            remoteHosts: [
+                RemoteHostMenuState(
+                    name: rawValues[5],
+                    destination: "user@\(rawValues[5])",
+                    connectionState: .connected,
+                    desiredAccount: account,
+                    activeAccount: account,
+                    verificationStatus: .verified
+                )
+            ],
+            tokenUsageEnabled: true,
+            tokenUsageChartStyle: .sparkline,
+            tokenUsageCard: makeLoadedTokenUsageCard(now: now)
+        )
+
+        let report = DiagnosticReportBuilder(
+            appMetadata: .fixture,
+            systemMetadata: .fixture(now: now)
+        ).makeReport(
+            state: state,
+            events: [
+                DiagnosticWorkflowEvent(
+                    name: "token_usage_scan",
+                    category: .tokenUsage,
+                    fields: [
+                        .string(name: "scanner_result", value: "loaded", redaction: .resultCategory),
+                        .string(name: "prompt", value: rawValues[0], redaction: nil),
+                        .string(name: "raw_row", value: rawValues[1], redaction: nil),
+                        .string(name: "session_path", value: rawValues[2], redaction: nil),
+                        .string(name: "account_id", value: rawValues[3], redaction: nil),
+                        .string(name: "email", value: rawValues[4], redaction: nil),
+                        .string(name: "hostname", value: rawValues[5], redaction: nil),
+                        .string(name: "token", value: rawValues[6], redaction: nil)
+                    ]
+                )
+            ]
+        )
+        let json = try encodedJSONString(report)
+
+        #expect(report.tokenUsage.enabled)
+        #expect(report.tokenUsage.period == "Last 30 Days")
+        #expect(report.tokenUsage.chartStyle == "sparkline")
+        #expect(report.tokenUsage.loadState == "loaded")
+        #expect(report.tokenUsage.bucketCount == 2)
+        #expect(report.tokenUsage.todayTotalTokens == 3_400)
+        #expect(report.tokenUsage.periodTotalTokens == 4_600)
+        #expect(report.tokenUsage.peakDayTotalTokens == 3_400)
+        #expect(report.events.first?.fields["scanner_result"] == "loaded")
+        #expect(report.events.first?.fields["prompt"] == nil)
+        #expect(report.events.first?.fields["raw_row"] == nil)
+        #expect(report.events.first?.fields["session_path"] == nil)
+        #expect(report.events.first?.fields["account_id"] == nil)
+        #expect(report.redactionManifest.rejectedFields.contains("events.token_usage_scan.prompt"))
+        #expect(report.redactionManifest.rejectedFields.contains("events.token_usage_scan.raw_row"))
+        #expect(report.redactionManifest.rejectedFields.contains("events.token_usage_scan.session_path"))
+
+        for rawValue in rawValues {
+            #expect(!json.contains(rawValue))
+        }
+    }
+
+    @Test
     func aliasesAreStableWithinOneExportButDependOnlyOnExportLocalEncounterOrder() {
         let firstID = UUID(uuidString: "55555555-5555-5555-5555-555555555555")!
         let secondID = UUID(uuidString: "66666666-6666-6666-6666-666666666666")!
@@ -225,7 +308,10 @@ private func encodedJSONString<T: Encodable>(_ value: T) throws -> String {
 private func makeMenuState(
     activeAccount: CodexAccount?,
     inactiveAccounts: [CodexAccount],
-    remoteHosts: [RemoteHostMenuState] = []
+    remoteHosts: [RemoteHostMenuState] = [],
+    tokenUsageEnabled: Bool = false,
+    tokenUsageChartStyle: TokenUsageChartStyle = .dailyBars,
+    tokenUsageCard: TokenUsageMenuCard? = nil
 ) -> MenuBarMenuState {
     MenuBarMenuState(
         activeAccount: activeAccount,
@@ -239,7 +325,36 @@ private func makeMenuState(
         statusBarIndicatorStyle: .stackedBars,
         statusBarDisplayMode: .iconOnly,
         isBusy: false,
-        statusMessage: ""
+        statusMessage: "",
+        tokenUsageEnabled: tokenUsageEnabled,
+        tokenUsageChartStyle: tokenUsageChartStyle,
+        tokenUsageCard: tokenUsageCard
+    )
+}
+
+private func makeLoadedTokenUsageCard(now: Date) -> TokenUsageMenuCard {
+    TokenUsageMenuCard.make(
+        style: .sparkline,
+        period: .last30Days,
+        loadState: .loaded(TokenUsageMenuLoadedData(
+            buckets: [
+                dailyUsage(day: now.addingTimeInterval(-86_400), totalTokens: 1_200),
+                dailyUsage(day: now, totalTokens: 3_400)
+            ]
+        ))
+    )
+}
+
+private func dailyUsage(day: Date, totalTokens: Int) -> CodexDailyTokenUsage {
+    CodexDailyTokenUsage(
+        day: day,
+        usage: CodexTokenUsageTotals(
+            inputTokens: totalTokens / 2,
+            cachedInputTokens: 0,
+            outputTokens: totalTokens / 2,
+            reasoningOutputTokens: 0,
+            totalTokens: totalTokens
+        )
     )
 }
 

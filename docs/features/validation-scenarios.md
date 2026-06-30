@@ -129,7 +129,7 @@ must include or link to the refinement proof-contract shape:
 | `token-usage-parser-aggregation` | Scanner parses token-count rows, handles malformed rows, repeated cumulative totals, and large files safely. | `parser`, `privacy`, `performance` | `contract-fixture`; focused test output and scenario summary | `changed-feature`, blocking for scanner changes | `runnable` |
 | `token-usage-cache-first` | Cache is reused before scanning and refreshes only changed or new eligible files for the selected period. | `state_truth`, `performance`, `privacy` | `contract-fixture`; focused test output and scenario summary | `changed-feature`, blocking for cache/runtime | `runnable` |
 | `token-usage-loading-progress` | First-load progress is animated or live-updating without fake percentages or raw file/session details. | `ui_visual`, `temporal`, `privacy` | `deterministic-ui`; screenshot, UI tree, summary; existing unit coverage owns frame animation mechanics | `changed-feature`, blocking for loading UI | `runnable` |
-| `token-usage-privacy-no-raw-session` | Token Usage artifacts, diagnostics, and UI emit aggregates only, never prompts, session rows, paths, account IDs, emails, or hostnames. | `privacy` | `diagnostics-export` and negative leakage fixtures | `changed-feature`, blocking for token usage diagnostics | `target` |
+| `token-usage-privacy-no-raw-session` | Token Usage diagnostics emit aggregate state/totals only, never prompts, session rows, paths, account IDs, emails, hostnames, auth material, or token-like values. | `privacy`, `diagnostics` | `diagnostics-export`; focused test output and scenario summary | `changed-feature`, blocking for token usage diagnostics | `runnable` |
 
 ## App Controls
 
@@ -163,8 +163,7 @@ artifact expectations, privacy rules, and degraded-proof rules.
 
 Recommended promotion order after the current runnable deterministic scenarios:
 
-1. Token Usage privacy scenario when diagnostics or artifact behavior changes.
-2. Local account mutation, remote host mutation, notification action routing,
+1. Local account mutation, remote host mutation, notification action routing,
    temporal status-bar interaction, and live/system-mutation gates only after
    fake-client workflow receipts or explicit live opt-in exist.
 

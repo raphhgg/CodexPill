@@ -38,7 +38,7 @@ that inventory into `.kite/scenarios.json` only when its owning feature doc has
 concrete acceptance criteria, proof rows, fixtures, command, artifacts, privacy
 rules, non-claims, and degraded-proof rules.
 
-The current clean-main manifest contains fourteen deterministic scenarios:
+The current clean-main manifest contains fifteen deterministic scenarios:
 
 ```bash
 make verify-ui SCENARIO=hosted-menu-default
@@ -54,6 +54,7 @@ make verify-ui SCENARIO=token-usage-off-hidden
 make verify-ui SCENARIO=token-usage-ready-card
 make verify-token-usage-parser-scenario
 make verify-token-usage-cache-scenario
+make verify-token-usage-privacy-scenario
 make verify-ui SCENARIO=token-usage-loading-progress
 ```
 
@@ -141,6 +142,14 @@ Current deterministic scenarios:
   changed eligible selected-period files; it does not prove Token Usage UI
   rendering, diagnostics export privacy, real local history, saved-account
   attribution, or live macOS menu-bar behavior.
+- `token-usage-privacy-no-raw-session`: changed-feature non-regression for
+  Token Usage diagnostics privacy. It proves through focused diagnostics export
+  tests that support artifacts expose only enabled state, period, chart style,
+  load state, bucket count, and aggregate token totals, while prompt content,
+  raw session rows, local paths, account identifiers, emails, hostnames, auth
+  material, and token-like values are rejected; it does not prove live save
+  panel confirmation, real local history, Token Usage UI rendering, or live
+  macOS menu-bar behavior.
 - `token-usage-loading-progress`: changed-feature non-regression for Token
   Usage first-load feedback. It proves that synthetic file-count progress
   renders in the active account area without fake percentages, account,
@@ -163,6 +172,8 @@ The adapter currently includes:
   contract-fixture proof;
 - `make verify-token-usage-cache-scenario` for focused Token Usage cache and
   runtime contract-fixture proof;
+- `make verify-token-usage-privacy-scenario` for focused Token Usage
+  diagnostics-export privacy proof;
 - `MenuBarValidationSupport` for semantic menu snapshots and hosted UI
   artifacts;
 - `InMemoryRemoteHostClient` for isolated remote-host behavior in deterministic

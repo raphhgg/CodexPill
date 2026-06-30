@@ -19,8 +19,10 @@ TOKEN_USAGE_PARSER_SCENARIO := token-usage-parser-aggregation
 TOKEN_USAGE_PARSER_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_PARSER_SCENARIO)
 TOKEN_USAGE_CACHE_SCENARIO := token-usage-cache-first
 TOKEN_USAGE_CACHE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_CACHE_SCENARIO)
+TOKEN_USAGE_PRIVACY_SCENARIO := token-usage-privacy-no-raw-session
+TOKEN_USAGE_PRIVACY_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_PRIVACY_SCENARIO)
 
-.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario verify-add-account-name-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario run clean
+.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario verify-add-account-name-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -201,7 +203,42 @@ verify-token-usage-cache-scenario: generate prepare-result-bundle
 		'  "scenario": "$(TOKEN_USAGE_CACHE_SCENARIO)",' \
 		'  "status": "passed",' \
 		'  "testResultBundle": "$(RESULT_BUNDLE)"' \
-		'}' > "$(TOKEN_USAGE_CACHE_SCENARIO_ARTIFACTS)/scenario-summary.json"
+	'}' > "$(TOKEN_USAGE_CACHE_SCENARIO_ARTIFACTS)/scenario-summary.json"
+
+verify-token-usage-privacy-scenario: generate prepare-result-bundle
+	mkdir -p "$(TOKEN_USAGE_PRIVACY_SCENARIO_ARTIFACTS)"
+	xcodebuild test \
+		-project $(PROJECT_PATH) \
+		-scheme $(APP_NAME) \
+		-configuration Debug \
+		-destination "platform=macOS" \
+		-derivedDataPath "$(DERIVED_DATA)" \
+		-resultBundlePath "$(RESULT_BUNDLE)" \
+		-only-testing:CodexPillTests/DiagnosticReportBuilderTests \
+		PRODUCT_BUNDLE_IDENTIFIER="$(STAGING_BUNDLE_ID)"
+	printf '%s\n' \
+		'{' \
+		'  "assertions": [' \
+		'    "Token Usage diagnostics expose only enabled state, period, chart style, load state, bucket count, and aggregate token totals",' \
+		'    "Prompt content, raw session rows, local session paths, account identifiers, emails, hostnames, and token-like values are rejected from diagnostic event fields",' \
+		'    "Diagnostic account and host topology uses per-export aliases instead of raw account or host identifiers"' \
+		'  ],' \
+		'  "command": "make verify-token-usage-privacy-scenario",' \
+		'  "gaps": [' \
+		'    "Live NSSavePanel confirmation and file writing are not exercised by this diagnostics-export scenario",' \
+		'    "Real local Codex history is not inspected",' \
+		'    "Token Usage UI rendering is covered by deterministic UI scenarios, not this diagnostics export scenario"' \
+		'  ],' \
+		'  "invariantIds": [' \
+		'    "token-usage.diagnostics.aggregate-only",' \
+		'    "diagnostics.export.rejects-raw-session-evidence",' \
+		'    "diagnostics.export.aliases-account-and-host-identifiers"' \
+		'  ],' \
+		'  "proofLayer": "diagnostics-export",' \
+		'  "scenario": "$(TOKEN_USAGE_PRIVACY_SCENARIO)",' \
+		'  "status": "passed",' \
+		'  "testResultBundle": "$(RESULT_BUNDLE)"' \
+		'}' > "$(TOKEN_USAGE_PRIVACY_SCENARIO_ARTIFACTS)/scenario-summary.json"
 
 run:
 	./scripts/run_menubar.sh
