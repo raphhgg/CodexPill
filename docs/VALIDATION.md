@@ -38,7 +38,7 @@ that inventory into `.kite/scenarios.json` only when its owning feature doc has
 concrete acceptance criteria, proof rows, fixtures, command, artifacts, privacy
 rules, non-claims, and degraded-proof rules.
 
-The current clean-main manifest contains twenty deterministic scenarios:
+The current clean-main manifest contains twenty-one deterministic scenarios:
 
 ```bash
 make verify-ui SCENARIO=hosted-menu-default
@@ -52,6 +52,7 @@ make verify-add-account-failure-cleanup-scenario
 make verify-switch-account-local-confirmed-scenario
 make verify-switch-account-remote-install-verify-scenario
 make verify-remove-account-active-targets-sign-out-scenario
+make verify-remove-account-signout-failure-keeps-control-scenario
 make verify-rename-scenario
 make verify-ui SCENARIO=launch-at-login-menu-states
 make verify-ui SCENARIO=status-bar-icon-text-visible
@@ -157,6 +158,15 @@ Current deterministic scenarios:
   rendering, click automation, live Codex relaunch, live SSH sign-out, real
   remote auth mutation, sign-out failure handling, or live macOS menu-bar
   behavior.
+- `remove-account-signout-failure-keeps-control`: changed-feature
+  non-regression for Remove Account required sign-out failure. It proves through
+  focused local use-case and runtime workflow tests that failed local sign-out
+  prevents snapshot deletion and catalog persistence, failed remote sign-out
+  keeps the saved-account catalog row and active remote state intact, and the
+  real sanitized failure is shown to the user; it does not prove native
+  confirmation panel rendering, click automation, live Codex relaunch, live SSH
+  sign-out, real remote auth mutation, remote inactive snapshot deletion, or
+  live macOS menu-bar behavior.
 - `rename-account-label-only`: changed-feature non-regression for Rename
   Account. It proves through focused unit tests that rename changes only the
   CodexPill display label, preserves saved auth snapshot identity, plan, and
@@ -235,6 +245,8 @@ The adapter currently includes:
   remote Switch Account workflow-event proof;
 - `make verify-remove-account-active-targets-sign-out-scenario` for focused
   Remove Account active-target workflow-event proof;
+- `make verify-remove-account-signout-failure-keeps-control-scenario` for
+  focused Remove Account required sign-out failure workflow-event proof;
 - `make verify-rename-scenario` for focused Rename Account unit proof;
 - `make verify-token-usage-parser-scenario` for focused Token Usage scanner
   contract-fixture proof;

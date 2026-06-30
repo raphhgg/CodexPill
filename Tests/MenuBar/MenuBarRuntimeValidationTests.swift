@@ -81,6 +81,80 @@ struct MenuBarRuntimeValidationTests {
     }
 
     @Test
+    func removeAccountRemoteSignOutFailureKeepsSavedAccountAndShowsError() async throws {
+        let repository = try makeIsolatedRepository()
+        let account = try makeActiveAccount(
+            named: "Business 4",
+            email: "business-4@example.com",
+            in: repository
+        )
+        let host = RemoteHost(destination: "user@debian-vm", displayName: "debian-vm")
+        let persistedHostState = PersistedRemoteHostState(
+            host: host,
+            installedAccountIDs: [account.id],
+            desiredAccountID: account.id,
+            verifiedAccount: account
+        )
+
+        let store = MenuBarAccountsStore(
+            repository: repository,
+            authService: CodexAuthSnapshotService(repository: repository),
+            codexAppProcessClient: NullCodexAppProcessClient(),
+            accountStatusClient: DisabledAccountStatusClient(),
+            remoteHostSwitchOperations: InMemoryRemoteHostClient(seedStates: [persistedHostState])
+        )
+        store.load()
+
+        let suiteName = "MenuBarRuntimeValidationRemoveAccountFailure-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
+        settings.remoteHostStates = [persistedHostState]
+        let alertPresenter = AlertPresenterProbe()
+        alertPresenter.confirmationResponse = true
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let coordinator = MenuBarCoordinator(
+            statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
+            store: store,
+            settings: settings,
+            remoteHostMenuOperations: RemoteHostStatusProbe(
+                status: CodexAccountStatus(
+                    email: account.email,
+                    planType: account.planType,
+                    rateLimits: account.rateLimits,
+                    snapshotFingerprint: account.identity.snapshotFingerprint
+                ),
+                signOutError: RemoteHostClientError.commandFailed("ssh sign out refused")
+            ),
+            alertPresenter: alertPresenter,
+            allowsEmptyStatePrompt: false
+        )
+
+        defer { coordinator.invalidate() }
+        coordinator.start()
+        try await Task.sleep(for: .milliseconds(120))
+        let item = NSMenuItem()
+        item.representedObject = account.id.uuidString
+        coordinator.removeAccount(item)
+        try await waitUntil {
+            !alertPresenter.infoRequests.isEmpty
+        }
+
+        #expect(alertPresenter.confirmationRequests.last?.messageText == "Business 4 is in use")
+        #expect(alertPresenter.confirmationRequests.last?.informativeText == "Sign out on This Mac and debian-vm before removing it?")
+        #expect(alertPresenter.infoRequests.last?.informativeText == "ssh sign out refused")
+        #expect(store.accounts.map(\.id) == [account.id])
+        #expect(FileManager.default.fileExists(atPath: repository.paths.codexAuthFile.path))
+        #expect(settings.remoteHostStates.first?.verifiedAccount?.id == account.id)
+        #expect(settings.remoteHostStates.first?.desiredAccountID == account.id)
+    }
+
+    @Test
     func localSwitchConfirmationGatesAuthActivationAndRelaunch() async throws {
         let repository = try makeIsolatedRepository()
         let authService = CodexAuthSnapshotService(repository: repository)
@@ -2674,6 +2748,7 @@ private struct RemoteHostStatusProbe: RemoteHostSwitchWorkflowOperations, Remote
     var readError: Error?
     var readErrorsByDestination: [String: Error] = [:]
     var switchError: Error?
+    var signOutError: Error?
 
     func testConnection(to host: RemoteHost) async throws {}
     func installationState(for account: CodexAccount, on host: RemoteHost) async throws -> RemoteHostAccountInstallationState { .installed }
@@ -2683,7 +2758,11 @@ private struct RemoteHostStatusProbe: RemoteHostSwitchWorkflowOperations, Remote
             throw switchError
         }
     }
-    func signOut(on host: RemoteHost) async throws {}
+    func signOut(on host: RemoteHost) async throws {
+        if let signOutError {
+            throw signOutError
+        }
+    }
     func refreshCodexAppServer(on host: RemoteHost) async throws {}
     func readCurrentAccountStatus(on host: RemoteHost) async throws -> CodexAccountStatus {
         if let scopedError = readErrorsByDestination[host.destination] {

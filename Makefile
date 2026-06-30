@@ -25,6 +25,8 @@ SWITCH_ACCOUNT_REMOTE_SCENARIO := switch-account-remote-install-verify
 SWITCH_ACCOUNT_REMOTE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(SWITCH_ACCOUNT_REMOTE_SCENARIO)
 REMOVE_ACCOUNT_ACTIVE_SCENARIO := remove-account-active-targets-sign-out
 REMOVE_ACCOUNT_ACTIVE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(REMOVE_ACCOUNT_ACTIVE_SCENARIO)
+REMOVE_ACCOUNT_FAILURE_SCENARIO := remove-account-signout-failure-keeps-control
+REMOVE_ACCOUNT_FAILURE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(REMOVE_ACCOUNT_FAILURE_SCENARIO)
 TOKEN_USAGE_PARSER_SCENARIO := token-usage-parser-aggregation
 TOKEN_USAGE_PARSER_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_PARSER_SCENARIO)
 TOKEN_USAGE_CACHE_SCENARIO := token-usage-cache-first
@@ -32,7 +34,7 @@ TOKEN_USAGE_CACHE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE
 TOKEN_USAGE_PRIVACY_SCENARIO := token-usage-privacy-no-raw-session
 TOKEN_USAGE_PRIVACY_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_PRIVACY_SCENARIO)
 
-.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-switch-account-remote-install-verify-scenario verify-remove-account-active-targets-sign-out-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
+.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-switch-account-remote-install-verify-scenario verify-remove-account-active-targets-sign-out-scenario verify-remove-account-signout-failure-keeps-control-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -428,6 +430,57 @@ verify-remove-account-active-targets-sign-out-scenario: generate prepare-result-
 		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
 		'  "workflowReceipt": "$(REMOVE_ACCOUNT_ACTIVE_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
 		'}' > "$(REMOVE_ACCOUNT_ACTIVE_SCENARIO_ARTIFACTS)/scenario-summary.json"
+
+verify-remove-account-signout-failure-keeps-control-scenario: generate prepare-result-bundle
+	mkdir -p "$(REMOVE_ACCOUNT_FAILURE_SCENARIO_ARTIFACTS)"
+	xcodebuild test \
+		-project $(PROJECT_PATH) \
+		-scheme $(APP_NAME) \
+		-configuration Debug \
+		-destination "platform=macOS" \
+		-derivedDataPath "$(DERIVED_DATA)" \
+		-resultBundlePath "$(RESULT_BUNDLE)" \
+		-only-testing:CodexPillTests/MenuBarRuntimeValidationTests \
+		-only-testing:CodexPillTests/DeleteSavedAccountUseCaseTests \
+		PRODUCT_BUNDLE_IDENTIFIER="$(STAGING_BUNDLE_ID)"
+	printf '%s\n' \
+		'{' \
+		'  "scenario": "$(REMOVE_ACCOUNT_FAILURE_SCENARIO)",' \
+		'  "proofLayer": "workflow-event-log",' \
+		'  "events": [' \
+		'    "local required sign-out failure throws before deleting the saved snapshot",' \
+		'    "remote required sign-out failure throws before deleting the saved snapshot or catalog row",' \
+		'    "remote failure keeps desired and verified remote account state intact",' \
+		'    "failure is surfaced through the user-facing error alert"' \
+		'  ],' \
+		'  "status": "passed"' \
+		'}' > "$(REMOVE_ACCOUNT_FAILURE_SCENARIO_ARTIFACTS)/workflow-receipt.json"
+	printf '%s\n' \
+		'{' \
+		'  "assertions": [' \
+		'    "Failed local sign-out prevents snapshot deletion and catalog persistence",' \
+		'    "Failed remote sign-out prevents saved-account deletion and keeps the catalog row visible",' \
+		'    "Failed remote sign-out keeps remote desired and verified state pointed at the saved account",' \
+		'    "The real sanitized sign-out failure is shown to the user"' \
+		'  ],' \
+		'  "command": "make verify-remove-account-signout-failure-keeps-control-scenario",' \
+		'  "gaps": [' \
+		'    "Native confirmation panel rendering and click automation are not proven by this workflow-event scenario",' \
+		'    "Live Codex relaunch, live SSH sign-out, and real remote auth mutation are not exercised",' \
+		'    "Remote inactive snapshot deletion is out of scope for this scenario"' \
+		'  ],' \
+		'  "invariantIds": [' \
+		'    "remove-account.signout-failure.local-keeps-snapshot",' \
+		'    "remove-account.signout-failure.remote-keeps-catalog-row",' \
+		'    "remove-account.signout-failure.remote-keeps-active-state",' \
+		'    "remove-account.signout-failure.surfaces-real-error"' \
+		'  ],' \
+		'  "proofLayer": "workflow-event-log",' \
+		'  "scenario": "$(REMOVE_ACCOUNT_FAILURE_SCENARIO)",' \
+		'  "status": "passed",' \
+		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
+		'  "workflowReceipt": "$(REMOVE_ACCOUNT_FAILURE_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
+		'}' > "$(REMOVE_ACCOUNT_FAILURE_SCENARIO_ARTIFACTS)/scenario-summary.json"
 
 verify-token-usage-parser-scenario: generate prepare-result-bundle
 	mkdir -p "$(TOKEN_USAGE_PARSER_SCENARIO_ARTIFACTS)"

@@ -114,6 +114,9 @@ Feature risk: `auth_mutation`, `workflow_state`, `failure_path`, `privacy`
 
 Primary proof for `remove-account-active-targets-sign-out`: `workflow-event-log`
 
+Primary proof for `remove-account-signout-failure-keeps-control`:
+`workflow-event-log`
+
 Product scenarios:
 
 - `remove-account-active-targets-sign-out` proves that removing an active saved
@@ -121,6 +124,10 @@ Product scenarios:
   auth and active remote hosts before deleting the saved snapshot, removes the
   account from the catalog, and no longer presents the removed account as active
   locally or remotely.
+- `remove-account-signout-failure-keeps-control` proves that local and remote
+  required sign-out failures stop removal before deleting the saved snapshot or
+  catalog row, keep the active remote state pointed at the saved account, and
+  surface the real sanitized failure to the user.
 
 Required evidence:
 
@@ -128,6 +135,10 @@ Required evidence:
   `DeleteSavedAccountUseCaseTests`, and `MenuBarAlertFactoryTests`;
 - `build/verification/remove-account-active-targets-sign-out/workflow-receipt.json`;
 - `build/verification/remove-account-active-targets-sign-out/scenario-summary.json`.
+- for sign-out failure, focused suite output from
+  `MenuBarRuntimeValidationTests` and `DeleteSavedAccountUseCaseTests`;
+- `build/verification/remove-account-signout-failure-keeps-control/workflow-receipt.json`;
+- `build/verification/remove-account-signout-failure-keeps-control/scenario-summary.json`.
 
 Non-claims:
 
@@ -135,8 +146,10 @@ Non-claims:
   rendering, click automation, live Codex relaunch, live SSH sign-out, real
   remote auth mutation, required sign-out failure handling, or live macOS
   menu-bar behavior.
-- `remove-account-signout-failure-keeps-control` remains a separate target
-  scenario.
+- The sign-out failure scenario does not prove native confirmation panel
+  rendering, click automation, live Codex relaunch, live SSH sign-out, real
+  remote auth mutation, remote inactive snapshot deletion, or live macOS
+  menu-bar behavior.
 
 Live opt-in: not required for this scenario.
 
@@ -146,7 +159,7 @@ Live opt-in: not required for this scenario.
 | --- | --- | --- | --- | --- | --- |
 | Remove requires confirmation and cancel does not mutate state. | `workflow-event-log` | Remove coordinator test with fake confirmation presenter and catalog/auth stores. | Structured confirmation and mutation receipt. | No delete/sign-out call happens before confirmation; cancelling leaves catalog, saved snapshot, active account match, and menu state unchanged. | Synthetic account ids and snapshots only; no raw auth payloads, tokens, private paths, emails, hostnames, or prompts. |
 | Removing an active account signs out local and remote active targets before deleting the saved snapshot. | `workflow-event-log` | `make verify-remove-account-active-targets-sign-out-scenario` running `MenuBarRuntimeValidationTests`, `DeleteSavedAccountUseCaseTests`, and `MenuBarAlertFactoryTests`. | `build/results/local/CodexPill.xcresult`, `build/verification/remove-account-active-targets-sign-out/workflow-receipt.json`, and `scenario-summary.json`. | Required local and remote sign-outs happen before deleting the saved snapshot; local auth is removed and Codex relaunch is requested through the fake process client; after success the removed account is gone from the catalog and no longer presented as active locally or remotely. | Fake auth, fake process clients, fake remote fixtures, and synthetic snapshots only; no raw auth, tokens, raw SSH output, private paths, emails, or hostnames. |
-| Required sign-out failure keeps the saved snapshot and catalog row. | `unit` plus `workflow-event-log` | Failure-path test with fake local or remote sign-out error. | Failure receipt plus catalog-state assertion. | Failed required sign-out prevents snapshot deletion, keeps the catalog row, and surfaces the real failure. | Synthetic failure data only; redact raw stderr, SSH output, auth payloads, tokens, paths, emails, and hostnames. |
+| Required sign-out failure keeps the saved snapshot and catalog row. | `workflow-event-log` | `make verify-remove-account-signout-failure-keeps-control-scenario` running focused local and remote fake sign-out failure tests. | `build/results/local/CodexPill.xcresult`, `build/verification/remove-account-signout-failure-keeps-control/workflow-receipt.json`, and `scenario-summary.json`. | Failed local sign-out prevents snapshot deletion and catalog persistence; failed remote sign-out prevents saved-account deletion, keeps the catalog row, keeps remote desired and verified state pointed at the saved account, and surfaces the real sanitized failure. | Synthetic failure data, fake auth, fake remote host state, and synthetic snapshots only; no raw stderr, SSH output, auth payloads, tokens, private paths, emails, or hostnames. |
 | Removing a locally saved account does not delete inactive remote snapshots. | `workflow-event-log` | Remove test with fake remote host containing inactive installed snapshot. | Remote-operation receipt. | The local saved snapshot is deleted after confirmation, and no remote file-delete operation is called for inactive remote snapshots. | Synthetic remote host and snapshot ids only; no raw SSH output, auth payloads, tokens, paths, emails, or hostnames. |
 
 ## Validation Targets
