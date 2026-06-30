@@ -24,17 +24,36 @@ The manifest is product-owned: CodexPill owns scenario IDs, commands, fixture
 state, and product semantics; Kite owns manifest validation, artifact
 validation, receipts, and reports.
 
-The current clean-main manifest contains one deterministic hosted-menu scenario:
+The manifest uses Kite's v2 feature-scenario contract:
+
+- each scenario names its owning feature;
+- each scenario maps to one or more acceptance criteria;
+- each scenario records Validation Intent before execution;
+- each scenario declares non-regression policy separately from product truth.
+
+The current clean-main manifest contains two deterministic hosted-menu
+scenarios:
 
 ```bash
 make verify-ui SCENARIO=hosted-menu-default
+make verify-ui SCENARIO=menu-unmatched-active-account
 ```
 
-That command writes a hosted validation screenshot, `ui-tree.json`, and
-`scenario-summary.json` under `build/verification/hosted-menu-default/`. This is
-deterministic UI evidence, not SwiftUI preview proof and not live macOS menu-bar
-proof. Preview and live scenarios should be added only when their product-local
-commands and fixtures exist on the branch being validated.
+Those commands write hosted validation screenshots, `ui-tree.json`, and
+`scenario-summary.json` under their matching `build/verification/<scenario>/`
+directories. This is deterministic UI evidence, not SwiftUI preview proof and
+not live macOS menu-bar proof. Preview and live scenarios should be added only
+when their product-local commands and fixtures exist on the branch being
+validated.
+
+Current deterministic scenarios:
+
+- `hosted-menu-default`: smoke non-regression for the default hosted menu
+  projection. It should run before handoff when menubar UI, scenario fixtures,
+  or the validation manifest changes.
+- `menu-unmatched-active-account`: smoke non-regression for Active Account
+  truth. It proves that saved accounts remain catalog rows and are not presented
+  as active when the active local auth state is unmatched.
 
 ## Main Local Gate
 

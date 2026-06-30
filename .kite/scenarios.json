@@ -1,18 +1,67 @@
 {
   "kind": "product_scenario_manifest",
-  "schemaVersion": "kite.validation.scenarios.v1",
+  "schemaVersion": "kite.validation.scenarios.v2",
   "product": {
     "id": "codexpill",
     "name": "CodexPill",
     "platforms": ["macos"]
   },
+  "features": [
+    {
+      "id": "menubar-default-read-state",
+      "title": "Menubar default read state",
+      "acceptanceCriteria": [
+        {
+          "id": "default-menu-shape-does-not-claim-live-state",
+          "statement": "The hosted menu projection presents the normal saved-account shape without claiming live auth, switching, preview rendering, or native menu-bar behavior."
+        }
+      ]
+    },
+    {
+      "id": "active-account-truth",
+      "title": "Active account truth",
+      "acceptanceCriteria": [
+        {
+          "id": "active-account-unmatched-does-not-lie",
+          "statement": "If local auth does not match a saved account, CodexPill must not present any saved account as active."
+        }
+      ]
+    }
+  ],
   "scenarios": [
     {
       "id": "hosted-menu-default",
       "title": "Hosted menu default",
+      "featureId": "menubar-default-read-state",
+      "acceptanceCriteria": [
+        "default-menu-shape-does-not-claim-live-state"
+      ],
       "targetSurface": "CodexPill hosted menu validation view",
       "validationModes": ["unit_only"],
       "suites": ["smoke", "deterministic"],
+      "validationIntent": {
+        "featureRisk": ["ui_visual", "static_ui", "privacy"],
+        "primaryProof": "deterministic-ui",
+        "supportingProof": ["privacy-redaction"],
+        "requiredEvidence": ["screenshot", "ui-tree", "scenario-summary"],
+        "nonClaims": [
+          "Does not prove SwiftUI preview rendering.",
+          "Does not prove the live macOS menu bar surface.",
+          "Does not prove live Codex account or app-server state."
+        ],
+        "liveOptIn": {
+          "required": false
+        }
+      },
+      "nonRegression": {
+        "tier": "smoke",
+        "runWhen": [
+          "local-handoff",
+          "menubar-ui-changed",
+          "scenario-fixture-changed"
+        ],
+        "blocking": true
+      },
       "proof": {
         "layer": "deterministic-ui",
         "artifactSource": "hosted-validation-view",
@@ -50,6 +99,89 @@
       ],
       "expectedMetadata": {
         "scenario": "hosted-menu-default"
+      },
+      "privacy": {
+        "fixtureData": "synthetic",
+        "restrictedEvidence": [
+          "account_data",
+          "hostname",
+          "raw_local_path",
+          "private_product_data",
+          "token"
+        ]
+      }
+    },
+    {
+      "id": "menu-unmatched-active-account",
+      "title": "Menu unmatched active account",
+      "featureId": "active-account-truth",
+      "acceptanceCriteria": [
+        "active-account-unmatched-does-not-lie"
+      ],
+      "targetSurface": "CodexPill hosted menu validation view",
+      "validationModes": ["unit_only"],
+      "suites": ["smoke", "deterministic"],
+      "validationIntent": {
+        "featureRisk": ["state_truth", "ui_visual", "privacy"],
+        "primaryProof": "deterministic-ui",
+        "supportingProof": ["privacy-redaction"],
+        "requiredEvidence": ["screenshot", "ui-tree", "scenario-summary"],
+        "nonClaims": [
+          "Does not prove live Codex auth lookup.",
+          "Does not prove account switching.",
+          "Does not prove the live macOS menu bar surface."
+        ],
+        "liveOptIn": {
+          "required": false
+        }
+      },
+      "nonRegression": {
+        "tier": "smoke",
+        "runWhen": [
+          "local-handoff",
+          "account-state-model-changed",
+          "menubar-ui-changed",
+          "scenario-fixture-changed"
+        ],
+        "blocking": true
+      },
+      "proof": {
+        "layer": "deterministic-ui",
+        "artifactSource": "hosted-validation-view",
+        "nonClaims": [
+          "Does not prove live Codex auth lookup.",
+          "Does not prove account switching.",
+          "Does not prove the live macOS menu bar surface."
+        ]
+      },
+      "command": {
+        "run": "make verify-ui SCENARIO=menu-unmatched-active-account"
+      },
+      "expectedArtifacts": [
+        {
+          "id": "menu-unmatched-active-account-screenshot",
+          "kind": "visual_snapshot",
+          "path": "build/verification/menu-unmatched-active-account/screenshots/menu-unmatched-active-account.png",
+          "claimScope": ["deterministic-hosted-view"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "menu-unmatched-active-account-tree",
+          "kind": "semantic_snapshot",
+          "path": "build/verification/menu-unmatched-active-account/ui-tree.json",
+          "claimScope": ["semantic-ui-tree"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "menu-unmatched-active-account-summary",
+          "kind": "reconciliation_report",
+          "path": "build/verification/menu-unmatched-active-account/scenario-summary.json",
+          "claimScope": ["deterministic-reconciled"],
+          "redactionStatus": "sanitized"
+        }
+      ],
+      "expectedMetadata": {
+        "scenario": "menu-unmatched-active-account"
       },
       "privacy": {
         "fixtureData": "synthetic",

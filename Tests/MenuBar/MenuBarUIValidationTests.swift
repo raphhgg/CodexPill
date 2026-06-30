@@ -37,6 +37,25 @@ struct MenuBarUIValidationTests {
     }
 
     @Test
+    func unmatchedActiveAccountDoesNotDisplaySavedAccountAsCurrent() throws {
+        let now = Date(timeIntervalSince1970: 1_744_195_200)
+        let snapshot = MenuBarValidationSupport.makeSnapshot(
+            state: makeHostedValidationState(for: "menu-unmatched-active-account", now: now),
+            now: now
+        )
+
+        let activeSection = try #require(snapshot.sections.first(where: { $0.title == "Active Account" }))
+        let accountsSection = try #require(snapshot.sections.first(where: { $0.title == "Other Accounts" }))
+        let overflowSection = try #require(snapshot.sections.first(where: { $0.title == "More Accounts…" }))
+        let savedAccountItems = accountsSection.items + overflowSection.items
+
+        #expect(activeSection.items == ["No active saved account"])
+        #expect(savedAccountItems.contains(where: { $0.contains("Research") }))
+        #expect(savedAccountItems.contains(where: { $0.contains("Sandbox") }))
+        #expect(activeSection.items.allSatisfy { !$0.contains("Research") && !$0.contains("Sandbox") })
+    }
+
+    @Test
     func remoteAccountsSectionRendersWithoutChangingAccountsSource() {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
         let snapshot = MenuBarValidationSupport.makeSnapshot(
@@ -536,6 +555,20 @@ struct MenuBarUIValidationTests {
             #expect(snapshot.sections[1].items.contains("Add Account…"))
             #expect(snapshot.statusMessage == nil)
 
+        case "menu-unmatched-active-account":
+            #expect(snapshot.sections.map(\.title) == [
+                "Active Account",
+                "Other Accounts",
+                "More Accounts…",
+                "Manage Accounts",
+                "Preferences"
+            ])
+            #expect(snapshot.sections[0].items == ["No active saved account"])
+            #expect(snapshot.sections[1].items.count == 2)
+            #expect(snapshot.sections[2].items.count == 1)
+            #expect(snapshot.sections[1].items.allSatisfy { !$0.contains("This Mac") })
+            #expect(snapshot.statusMessage == nil)
+
         case "live-menu-open",
              "live-account-switch",
              "live-add-host-destination-validation-failed",
@@ -597,6 +630,12 @@ struct MenuBarUIValidationTests {
                 "Empty state shows no active saved account",
                 "Add Account… remains available when the menu is idle and empty",
                 "Per-account management actions are omitted when there are no saved accounts"
+            ]
+        case "menu-unmatched-active-account":
+            return [
+                "Unmatched local auth state does not render a saved account as active",
+                "Saved accounts remain available as account catalog rows",
+                "Overflow behavior remains intact while the active account state is empty"
             ]
         default:
             return []
@@ -910,6 +949,28 @@ struct MenuBarUIValidationTests {
                 refreshIntervalOptions: [1, 2, 5, 10, 15, 30],
                 statusBarMonochrome: false,
                 statusBarIndicatorStyle: .stackedBars,
+                statusBarDisplayMode: .textOnHover,
+                isBusy: false,
+                statusMessage: "Ready"
+            )
+
+        case "menu-unmatched-active-account":
+            let accounts = [
+                makeAccount(name: "Research", email: "research@example.com", planType: "pro", sessionUsedPercent: 8, weeklyUsedPercent: 35, now: now),
+                makeAccount(name: "Sandbox", email: "sandbox@example.com", planType: "plus", sessionUsedPercent: 19, weeklyUsedPercent: 50, now: now),
+                makeAccount(name: "Overflow", email: "overflow@example.com", planType: "plus", sessionUsedPercent: 74, weeklyUsedPercent: 88, now: now)
+            ]
+
+            return MenuBarMenuState(
+                activeAccount: nil,
+                inactiveAccounts: accounts,
+                remoteHosts: [],
+                visibleInactiveAccountCount: 2,
+                visibleInactiveAccountCountOptions: [2, 3, 5, 0],
+                refreshIntervalMinutes: 5,
+                refreshIntervalOptions: [1, 2, 5, 10, 15, 30],
+                statusBarMonochrome: false,
+                statusBarIndicatorStyle: .dualArcBadge,
                 statusBarDisplayMode: .textOnHover,
                 isBusy: false,
                 statusMessage: "Ready"
