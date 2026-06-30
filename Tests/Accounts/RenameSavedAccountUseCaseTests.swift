@@ -24,6 +24,32 @@ struct RenameSavedAccountUseCaseTests {
     }
 
     @Test
+    func runChangesOnlyDisplayLabelForLoadedAccount() throws {
+        let account = makeLoadedAccount(name: "Business 1")
+        let repository = RenamingCatalogProbe()
+        let useCase = RenameSavedAccountUseCase(repository: repository)
+
+        let result = try useCase.run(
+            account: account,
+            newName: "Business Main",
+            accounts: [account]
+        )
+
+        #expect(result.renamedAccount.name == "Business Main")
+        #expect(result.renamedAccount.id == account.id)
+        #expect(result.renamedAccount.snapshotFileName == account.snapshotFileName)
+        #expect(result.renamedAccount.createdAt == account.createdAt)
+        #expect(result.renamedAccount.updatedAt == account.updatedAt)
+        #expect(result.renamedAccount.email == account.email)
+        #expect(result.renamedAccount.planType == account.planType)
+        #expect(result.renamedAccount.rateLimits == account.rateLimits)
+        #expect(result.renamedAccount.identity == account.identity)
+        #expect(repository.savedAccounts?.first?.snapshotFileName == account.snapshotFileName)
+        #expect(repository.savedAccounts?.first?.rateLimits == account.rateLimits)
+        #expect(repository.savedAccounts?.first?.identity == account.identity)
+    }
+
+    @Test
     func runDoesNotChangeUpdatedAtForLabelOnlyRename() throws {
         let createdAt = Date(timeIntervalSince1970: 100)
         let updatedAt = Date(timeIntervalSince1970: 200)
@@ -122,6 +148,42 @@ struct RenameSavedAccountUseCaseTests {
             identity: CodexAccountIdentity(
                 snapshotFingerprint: UUID().uuidString,
                 remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "\(name.lowercased())@example.com")
+            )
+        )
+    }
+
+    private func makeLoadedAccount(name: String) -> CodexAccount {
+        let createdAt = Date(timeIntervalSince1970: 1_000)
+        let updatedAt = Date(timeIntervalSince1970: 2_000)
+        let fetchedAt = Date(timeIntervalSince1970: 3_000)
+        return CodexAccount(
+            id: UUID(),
+            name: name,
+            snapshotFileName: "business-1.json",
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            email: "business@example.com",
+            planType: "team",
+            rateLimits: CodexRateLimitSnapshot(
+                limitID: "synthetic-limit",
+                limitName: "Synthetic Team",
+                planType: "team",
+                primary: CodexRateLimitWindow(
+                    usedPercent: 42,
+                    resetsAt: fetchedAt.addingTimeInterval(3_600),
+                    windowDurationMinutes: 300
+                ),
+                secondary: CodexRateLimitWindow(
+                    usedPercent: 68,
+                    resetsAt: fetchedAt.addingTimeInterval(86_400),
+                    windowDurationMinutes: 10_080
+                ),
+                fetchedAt: fetchedAt
+            ),
+            identity: CodexAccountIdentity(
+                stableAccountID: "synthetic-stable-account",
+                snapshotFingerprint: "synthetic-fingerprint",
+                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "business@example.com")
             )
         )
     }

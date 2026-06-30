@@ -58,6 +58,20 @@
       ]
     },
     {
+      "id": "rename-account-label",
+      "title": "Rename account label",
+      "acceptanceCriteria": [
+        {
+          "id": "rename-changes-label-only",
+          "statement": "Renaming a saved account must change only the CodexPill display label while preserving the saved auth snapshot, Codex identity, plan, and rate-limit data without invoking active-auth mutation."
+        },
+        {
+          "id": "rename-rejects-invalid-names",
+          "statement": "Empty, whitespace-only, and case-insensitive duplicate rename inputs must be rejected without mutating the account catalog or auth state."
+        }
+      ]
+    },
+    {
       "id": "token-usage-menu-card",
       "title": "Token Usage menu card",
       "acceptanceCriteria": [
@@ -505,6 +519,85 @@
       ],
       "expectedMetadata": {
         "scenario": "menu-account-overflow"
+      },
+      "privacy": {
+        "fixtureData": "synthetic",
+        "restrictedEvidence": [
+          "account_data",
+          "hostname",
+          "raw_local_path",
+          "private_product_data",
+          "token"
+        ]
+      }
+    },
+    {
+      "id": "rename-account-label-only",
+      "title": "Rename account label only",
+      "featureId": "rename-account-label",
+      "acceptanceCriteria": [
+        "rename-changes-label-only",
+        "rename-rejects-invalid-names"
+      ],
+      "targetSurface": "CodexPill account catalog unit boundary",
+      "validationModes": ["unit_only"],
+      "suites": ["deterministic"],
+      "validationIntent": {
+        "featureRisk": ["pure_model", "state_truth", "privacy"],
+        "primaryProof": "unit",
+        "supportingProof": ["privacy-redaction"],
+        "requiredEvidence": ["test-output", "scenario-summary"],
+        "nonClaims": [
+          "Does not prove native rename dialog presentation or text entry.",
+          "Does not prove live auth mutation or live Codex process state.",
+          "Does not prove remote host mutation.",
+          "Does not prove live macOS menu-bar behavior."
+        ],
+        "liveOptIn": {
+          "required": false
+        }
+      },
+      "nonRegression": {
+        "tier": "changed-feature",
+        "runWhen": [
+          "local-handoff",
+          "account-rename-changed",
+          "account-catalog-changed",
+          "scenario-fixture-changed"
+        ],
+        "blocking": true
+      },
+      "proof": {
+        "layer": "unit",
+        "artifactSource": "focused-test-suite",
+        "nonClaims": [
+          "Does not prove native rename dialog presentation or text entry.",
+          "Does not prove live auth mutation or live Codex process state.",
+          "Does not prove remote host mutation.",
+          "Does not prove live macOS menu-bar behavior."
+        ]
+      },
+      "command": {
+        "run": "make verify-rename-scenario"
+      },
+      "expectedArtifacts": [
+        {
+          "id": "rename-account-label-only-result-bundle",
+          "kind": "test_output",
+          "path": "build/results/local/CodexPill.xcresult",
+          "claimScope": ["rename-unit-tests"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "rename-account-label-only-summary",
+          "kind": "reconciliation_report",
+          "path": "build/verification/rename-account-label-only/scenario-summary.json",
+          "claimScope": ["unit-reconciled"],
+          "redactionStatus": "sanitized"
+        }
+      ],
+      "expectedMetadata": {
+        "scenario": "rename-account-label-only"
       },
       "privacy": {
         "fixtureData": "synthetic",

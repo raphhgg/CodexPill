@@ -91,13 +91,40 @@ Given CodexPill is performing another account operation, then rename actions are
 
 - `rename-account-label-only`
 
+## Validation Intent
+
+Feature risk: `pure_model`, `state_truth`, `privacy`
+
+Primary proof: `unit`
+
+Product scenarios:
+
+- `rename-account-label-only` proves that renaming changes only the display
+  label, preserves saved auth snapshot, Codex identity, plan, and rate-limit
+  data, and rejects empty, whitespace-only, duplicate, and same-name inputs
+  without auth mutation.
+
+Required evidence:
+
+- focused test output from `RenameSavedAccountUseCaseTests`;
+- `build/verification/rename-account-label-only/scenario-summary.json`.
+
+Non-claims:
+
+- Does not prove native rename dialog presentation or text entry.
+- Does not prove live auth mutation or live Codex process state.
+- Does not prove remote host mutation.
+- Does not prove live macOS menu-bar behavior.
+
+Live opt-in: not required for this scenario.
+
 ## Proof Contract
 
 | Acceptance Criterion | Owning Proof Layer | Command / Method | Artifact | Pass Condition | Privacy / Redaction |
 | --- | --- | --- | --- | --- | --- |
-| Rename changes only the display label. | `unit` plus deterministic menu projection when row copy changes | Rename account model/catalog tests and future `rename-account-label-only` scenario if promoted. | Test result plus optional hosted menu artifact. | The catalog display label updates, menu copy reflects the new label, and saved auth snapshot, Codex identity, active local auth, remote installed snapshots, plan, and rate-limit data remain unchanged. | Synthetic account labels and snapshots only; no raw auth, tokens, account identifiers, private paths, emails, or hostnames. |
-| Empty or duplicate names are rejected. | `unit` | Rename validation tests. | Test result. | Empty/whitespace-only and case-insensitive duplicate names keep the original label and do not mutate catalog or auth state. | Synthetic labels only; no private account data. |
-| Same-name rename is a no-op and successful rename preserves catalog ordering. | `unit` | Rename no-op and sort-order tests. | Test result. | Same-name confirmation does not create duplicates or change auth state; successful rename reorders the catalog according to display-name sort rules when reloaded/rendered. | Synthetic labels only; no raw auth, tokens, emails, hostnames, or private paths. |
+| Rename changes only the display label. | `unit` | `make verify-rename-scenario` running `RenameSavedAccountUseCaseTests`. | `build/results/local/CodexPill.xcresult` and `build/verification/rename-account-label-only/scenario-summary.json`. | The catalog display label updates while saved auth snapshot filename, Codex identity, plan, and rate-limit data remain unchanged, and no active-auth mutation boundary is involved. This unit scenario does not prove native menu row copy or dialog interaction. | Synthetic account labels and snapshots only; no raw auth, tokens, account identifiers, private paths, emails, or hostnames. |
+| Empty or duplicate names are rejected. | `unit` | `make verify-rename-scenario` running `RenameSavedAccountUseCaseTests`. | `build/results/local/CodexPill.xcresult` and `build/verification/rename-account-label-only/scenario-summary.json`. | Empty/whitespace-only and case-insensitive duplicate names keep the original label and do not mutate catalog or auth state. | Synthetic labels only; no private account data. |
+| Same-name rename is a no-op and successful rename preserves catalog ordering. | `unit` | `make verify-rename-scenario` running `RenameSavedAccountUseCaseTests`. | `build/results/local/CodexPill.xcresult` and `build/verification/rename-account-label-only/scenario-summary.json`. | Same-name confirmation does not create duplicates or change auth state; successful rename reorders the catalog according to display-name sort rules when persisted. | Synthetic labels only; no raw auth, tokens, emails, hostnames, or private paths. |
 | Busy state blocks rename. | `deterministic-ui` plus `workflow-event-log` | Menu action availability test with fake busy workflow state. | Action-availability receipt plus optional menu projection assertion. | Rename action is disabled while another account operation is active and no rename workflow starts. | Synthetic state only; no raw workflow payloads, auth data, tokens, paths, emails, or hostnames. |
 
 ## Validation Targets

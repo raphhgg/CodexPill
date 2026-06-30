@@ -89,7 +89,7 @@ must include or link to the refinement proof-contract shape:
 | `switch-account-remote-install-verify` | Remote switch installs missing or stale snapshots, switches the target, refreshes app-server, and verifies the expected account. | `remote_mutation`, `workflow_state`, `privacy` | `workflow-event-log` with `InMemoryRemoteHostClient` or fake SSH contract | `changed-feature`, blocking for remote switch | `target` |
 | `remove-account-active-targets-sign-out` | Removing an active account signs out local and remote active targets before deleting the saved snapshot. | `auth_mutation`, `workflow_state`, `privacy` | `workflow-event-log`; fake auth/process/remote clients | `changed-feature`, blocking for remove | `target` |
 | `remove-account-signout-failure-keeps-control` | Required sign-out failure keeps the saved snapshot and catalog row. | `failure_path`, `state_truth`, `privacy` | `unit` or `workflow-event-log`; fake failure clients | `changed-feature`, blocking for remove | `target` |
-| `rename-account-label-only` | Rename changes only the display label and rejects empty or duplicate names. | `pure_model`, `state_truth` | `unit` plus menu projection when row copy changes | `changed-feature`, blocking for rename | `target` |
+| `rename-account-label-only` | Rename changes only the display label and rejects empty or duplicate names. | `pure_model`, `state_truth`, `privacy` | `unit`; focused test output and scenario summary | `changed-feature`, blocking for rename | `runnable` |
 | `refresh-inactive-isolated-status` | Inactive saved accounts refresh through isolated app-server reads without mutating live auth and preserve meaningful previous limits on failed or suspicious reads. | `parser`, `auth_isolation`, `privacy` | `contract-fixture` plus integration fake app-server/status clients | `changed-feature`, blocking for refresh | `target` |
 | `refresh-active-relinks-same-account` | Active local refresh relinks the saved snapshot when live identity is the same but auth fingerprint changed. | `auth_mutation`, `state_truth`, `privacy` | `integration` with fake auth/status clients | `changed-feature`, blocking for refresh | `target` |
 
@@ -161,11 +161,10 @@ target scenarios. A target scenario may move into `.kite/scenarios.json` only
 after the owning feature doc has concrete acceptance criteria, proof rows,
 artifact expectations, privacy rules, and degraded-proof rules.
 
-Recommended promotion order after the current runnable deterministic menu
-scenarios:
+Recommended promotion order after the current runnable deterministic scenarios:
 
-1. `rename-account-label-only` and `add-account-name-validation`: lower-risk
-   account model/presentation scenarios before auth mutation workflows.
+1. `add-account-name-validation`: lower-risk account presentation/workflow
+   validation before auth mutation workflows.
 2. Token Usage parser, cache, and privacy scenarios when scanner, cache,
    diagnostics, or artifact behavior changes.
 3. Local account mutation, remote host mutation, notification action routing,

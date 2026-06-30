@@ -11,8 +11,10 @@ SCENARIO ?= hosted-menu-default
 VERIFICATION_DIR := $(BUILD_ROOT)/verification
 VERIFICATION_REQUEST := $(VERIFICATION_DIR)/request.json
 VERIFICATION_ARTIFACTS := $(BUILD_ROOT)/verification/$(SCENARIO)
+RENAME_SCENARIO := rename-account-label-only
+RENAME_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(RENAME_SCENARIO)
 
-.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui run clean
+.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario run clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -61,6 +63,29 @@ verify-ui: generate prepare-result-bundle
 		-derivedDataPath "$(DERIVED_DATA)" \
 		-resultBundlePath "$(RESULT_BUNDLE)" \
 		PRODUCT_BUNDLE_IDENTIFIER="$(STAGING_BUNDLE_ID)"
+
+verify-rename-scenario: generate prepare-result-bundle
+	mkdir -p "$(RENAME_SCENARIO_ARTIFACTS)"
+	xcodebuild test \
+		-project $(PROJECT_PATH) \
+		-scheme $(APP_NAME) \
+		-configuration Debug \
+		-destination "platform=macOS" \
+		-derivedDataPath "$(DERIVED_DATA)" \
+		-resultBundlePath "$(RESULT_BUNDLE)" \
+		-only-testing:CodexPillTests/RenameSavedAccountUseCaseTests \
+		PRODUCT_BUNDLE_IDENTIFIER="$(STAGING_BUNDLE_ID)"
+	printf '%s\n' \
+		'{' \
+		'  "assertions": [' \
+		'    "Rename changes only the CodexPill display label",' \
+		'    "Rename preserves saved auth snapshot, identity, plan, and rate-limit state",' \
+		'    "Empty, whitespace-only, duplicate, and same-name inputs do not mutate auth state"' \
+		'  ],' \
+		'  "extraArtifacts": [],' \
+		'  "scenario": "$(RENAME_SCENARIO)",' \
+		'  "testResultBundle": "$(RESULT_BUNDLE)"' \
+		'}' > "$(RENAME_SCENARIO_ARTIFACTS)/scenario-summary.json"
 
 run:
 	./scripts/run_menubar.sh

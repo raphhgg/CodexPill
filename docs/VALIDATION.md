@@ -38,7 +38,7 @@ that inventory into `.kite/scenarios.json` only when its owning feature doc has
 concrete acceptance criteria, proof rows, fixtures, command, artifacts, privacy
 rules, non-claims, and degraded-proof rules.
 
-The current clean-main manifest contains ten deterministic scenarios:
+The current clean-main manifest contains eleven deterministic scenarios:
 
 ```bash
 make verify-ui SCENARIO=hosted-menu-default
@@ -46,6 +46,7 @@ make verify-ui SCENARIO=menu-busy-status
 make verify-ui SCENARIO=menu-unmatched-active-account
 make verify-ui SCENARIO=menu-empty-catalog
 make verify-ui SCENARIO=menu-account-overflow
+make verify-rename-scenario
 make verify-ui SCENARIO=launch-at-login-menu-states
 make verify-ui SCENARIO=status-bar-icon-text-visible
 make verify-ui SCENARIO=token-usage-off-hidden
@@ -54,13 +55,14 @@ make verify-ui SCENARIO=token-usage-loading-progress
 ```
 
 Those commands write deterministic artifacts under their matching
-`build/verification/<scenario>/` directories, usually a hosted validation
-screenshot, `ui-tree.json`, and `scenario-summary.json`. Some scenarios also
-write feature-specific structured artifacts such as state matrices or runtime
-state snapshots. This is deterministic UI evidence, not SwiftUI preview proof
-and not live macOS menu-bar proof. Preview and live scenarios should be added
-only when their product-local commands and fixtures exist on the branch being
-validated.
+`build/verification/<scenario>/` directories. UI scenarios usually write a
+hosted validation screenshot, `ui-tree.json`, and `scenario-summary.json`.
+Unit scenarios write focused test output and a scenario summary. Some scenarios
+also write feature-specific structured artifacts such as state matrices or
+runtime state snapshots. This is deterministic product evidence, not SwiftUI
+preview proof and not live macOS menu-bar proof. Preview and live scenarios
+should be added only when their product-local commands and fixtures exist on
+the branch being validated.
 
 There is intentionally no `verify-ui-live` command. A live or preview scenario
 must first be declared in `.kite/scenarios.json` with explicit opt-in,
@@ -86,6 +88,12 @@ Current deterministic scenarios:
 - `menu-account-overflow`: changed-feature non-regression for Account Catalog
   overflow truth. It proves that hidden saved accounts remain discoverable under
   `More Accounts…` and keep the same submenu action shape as visible rows.
+- `rename-account-label-only`: changed-feature non-regression for Rename
+  Account. It proves through focused unit tests that rename changes only the
+  CodexPill display label, preserves saved auth snapshot identity, plan, and
+  rate-limit state, and rejects empty or duplicate names; it does not prove
+  native rename dialog interaction, live auth mutation, remote host mutation, or
+  live macOS menu-bar behavior.
 - `launch-at-login-menu-states`: changed-feature non-regression for App Controls
   presentation. It proves that enabled, disabled, requires-approval, and
   unavailable Launch at Login states map to truthful row copy, checked state,
@@ -122,6 +130,7 @@ The adapter currently includes:
 - `.kite/scenarios.json` for feature, acceptance criteria, Validation Intent,
   artifact, privacy, and non-regression declarations;
 - `make verify-ui SCENARIO=<scenario>` for deterministic hosted-menu proof;
+- `make verify-rename-scenario` for focused Rename Account unit proof;
 - `MenuBarValidationSupport` for semantic menu snapshots and hosted UI
   artifacts;
 - `InMemoryRemoteHostClient` for isolated remote-host behavior in deterministic
