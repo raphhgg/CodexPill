@@ -369,7 +369,16 @@ struct MenuBarUIValidationTests {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(state: state, target: coordinator)
-        let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, menu: menu, now: now)
+        let statusItemState = try makeScenarioStatusItemRuntimeState(
+            for: request.scenario,
+            state: state
+        )
+        let snapshot = MenuBarValidationSupport.makeSnapshot(
+            state: state,
+            menu: menu,
+            statusItemState: statusItemState,
+            now: now
+        )
 
         try assertScenarioSnapshot(snapshot, scenario: request.scenario)
 
@@ -390,6 +399,7 @@ struct MenuBarUIValidationTests {
         let extraArtifacts = try writeScenarioSpecificArtifacts(
             for: request.scenario,
             artifactDirectory: artifactDirectory,
+            statusItemState: statusItemState,
             now: now
         )
 
@@ -447,6 +457,7 @@ struct MenuBarUIValidationTests {
     private func writeScenarioSpecificArtifacts(
         for scenario: String,
         artifactDirectory: URL,
+        statusItemState: StatusItemRuntimeSnapshot?,
         now: Date
     ) throws -> [String] {
         switch scenario {
@@ -454,9 +465,83 @@ struct MenuBarUIValidationTests {
             let matrixURL = artifactDirectory.appendingPathComponent("launch-at-login-states.json")
             try writeJSON(try makeLaunchAtLoginStateMatrix(now: now), to: matrixURL)
             return [matrixURL.lastPathComponent]
+        case "status-bar-icon-text-visible":
+            let runtimeState = try #require(statusItemState)
+            let stateURL = artifactDirectory.appendingPathComponent("status-item-state.json")
+            try writeJSON(StatusItemStateArtifact(snapshot: runtimeState), to: stateURL)
+            return [stateURL.lastPathComponent]
         default:
             return []
         }
+    }
+
+    private func makeScenarioStatusItemRuntimeState(
+        for scenario: String,
+        state: MenuBarMenuState
+    ) throws -> StatusItemRuntimeSnapshot? {
+        switch scenario {
+        case "status-bar-icon-text-visible":
+            return try makeStatusItemRuntimeState(for: state)
+        default:
+            return nil
+        }
+    }
+
+    private func makeStatusItemRuntimeState(for state: MenuBarMenuState) throws -> StatusItemRuntimeSnapshot {
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer { NSStatusBar.system.removeStatusItem(statusItem) }
+
+        let runtime = StatusItemRuntime(
+            statusItem: statusItem,
+            hoverActivationDelay: 0,
+            hoverExitDelay: 0,
+            hoverPollingInterval: 60
+        )
+        runtime.start(
+            presentation: .init(
+                activeAccount: makeStatusItemRuntimeAccount(from: state.activeAccount),
+                indicatorStyle: state.statusBarIndicatorStyle,
+                monochrome: state.statusBarMonochrome,
+                displayMode: state.statusBarDisplayMode,
+                progressAccentColor: state.progressAccentColor
+            )
+        )
+
+        let snapshot = try #require(runtime.snapshotState())
+        #expect(snapshot.isTitleVisible)
+        #expect(snapshot.displayedTitle == "S 42% W 68%")
+        #expect(snapshot.imagePosition == "imageLeading")
+        #expect(snapshot.buttonFrame != nil)
+        return snapshot
+    }
+
+    private func makeStatusItemRuntimeAccount(from account: CodexAccount?) -> CodexAccount? {
+        guard var account, let rateLimits = account.rateLimits else {
+            return account
+        }
+
+        let runtimeNow = Date()
+        account.rateLimits = CodexRateLimitSnapshot(
+            limitID: rateLimits.limitID,
+            limitName: rateLimits.limitName,
+            planType: rateLimits.planType,
+            primary: rateLimits.sessionWindow.map {
+                CodexRateLimitWindow(
+                    usedPercent: $0.usedPercent,
+                    resetsAt: runtimeNow.addingTimeInterval(3_600),
+                    windowDurationMinutes: $0.windowDurationMinutes
+                )
+            },
+            secondary: rateLimits.weeklyWindow.map {
+                CodexRateLimitWindow(
+                    usedPercent: $0.usedPercent,
+                    resetsAt: runtimeNow.addingTimeInterval(86_400),
+                    windowDurationMinutes: $0.windowDurationMinutes
+                )
+            },
+            fetchedAt: runtimeNow
+        )
+        return account
     }
 
     private func makeLaunchAtLoginStateMatrix(now: Date) throws -> LaunchAtLoginStateMatrix {
@@ -762,6 +847,24 @@ struct MenuBarUIValidationTests {
             #expect(launchItem.actionSelector == "openLoginItemsSettings:")
             #expect(snapshot.statusMessage == nil)
 
+        case "status-bar-icon-text-visible":
+            #expect(snapshot.sections.map(\.title) == [
+                "Active Account",
+                "Other Accounts",
+                "More Accounts…",
+                "Manage Accounts",
+                "Preferences"
+            ])
+            let preferencesSection = try #require(snapshot.sections.first { $0.title == "Preferences" })
+            #expect(preferencesSection.items.contains("Menu Bar Label: Icon + Text"))
+            let statusItem = try #require(snapshot.statusItem)
+            #expect(statusItem.isTitleVisible)
+            #expect(statusItem.displayedTitle == "S 42% W 68%")
+            #expect(statusItem.imagePosition == "imageLeading")
+            #expect(statusItem.buttonFrame != nil)
+            #expect(snapshot.effectiveStatusBarDisplayMode == "iconAndText")
+            #expect(snapshot.statusMessage == nil)
+
         case "menu-empty-catalog":
             #expect(snapshot.sections.map(\.title) == [
                 "Active Account",
@@ -872,6 +975,12 @@ struct MenuBarUIValidationTests {
                 "Structured state matrix covers enabled, disabled, requires-approval, and unavailable states",
                 "State matrix preserves checked state and action selectors without real macOS login-item mutation"
             ]
+        case "status-bar-icon-text-visible":
+            return [
+                "Status item runtime snapshot renders the visible icon-and-text state",
+                "Synthetic active account produces S 42% W 68% as the displayed title",
+                "Runtime state is captured without live menubar screen capture, hover, or shortcut proof"
+            ]
         case "menu-empty-catalog":
             return [
                 "Empty state shows no active saved account",
@@ -943,6 +1052,9 @@ struct MenuBarUIValidationTests {
 
         case "launch-at-login-menu-states":
             return makeLaunchAtLoginValidationState(loginItemState: .requiresApproval, now: now)
+
+        case "status-bar-icon-text-visible":
+            return makeStatusBarIconTextValidationState(now: now)
 
         case "token-usage-ready-card":
             let active = makeAccount(
@@ -1316,6 +1428,18 @@ struct MenuBarUIValidationTests {
         loginItemState: LoginItemState,
         now: Date
     ) -> MenuBarMenuState {
+        makeHostedValidationStateVariant(now: now, loginItemState: loginItemState)
+    }
+
+    private func makeStatusBarIconTextValidationState(now: Date) -> MenuBarMenuState {
+        makeHostedValidationStateVariant(now: now, statusBarDisplayMode: .iconAndText)
+    }
+
+    private func makeHostedValidationStateVariant(
+        now: Date,
+        loginItemState: LoginItemState? = nil,
+        statusBarDisplayMode: StatusBarDisplayMode? = nil
+    ) -> MenuBarMenuState {
         let base = makeHostedValidationState(for: "hosted-menu-default", now: now)
         return MenuBarMenuState(
             activeAccount: base.activeAccount,
@@ -1327,7 +1451,7 @@ struct MenuBarUIValidationTests {
             refreshIntervalOptions: base.refreshIntervalOptions,
             statusBarMonochrome: base.statusBarMonochrome,
             statusBarIndicatorStyle: base.statusBarIndicatorStyle,
-            statusBarDisplayMode: base.statusBarDisplayMode,
+            statusBarDisplayMode: statusBarDisplayMode ?? base.statusBarDisplayMode,
             revealStatusItemTitleShortcut: base.revealStatusItemTitleShortcut,
             progressAccentColor: base.progressAccentColor,
             pacingMarkersEnabled: base.pacingMarkersEnabled,
@@ -1337,7 +1461,7 @@ struct MenuBarUIValidationTests {
             notificationsWhenBlockedEnabled: base.notificationsWhenBlockedEnabled,
             notificationsWhenOutEnabled: base.notificationsWhenOutEnabled,
             notificationAuthorizationState: base.notificationAuthorizationState,
-            loginItemState: loginItemState,
+            loginItemState: loginItemState ?? base.loginItemState,
             tokenUsageEnabled: base.tokenUsageEnabled,
             tokenUsagePeriod: base.tokenUsagePeriod,
             tokenUsageChartStyle: base.tokenUsageChartStyle,
@@ -1475,6 +1599,44 @@ private struct LaunchAtLoginStateMatrix: Codable {
 
     let scenario: String
     let states: [Entry]
+}
+
+private struct StatusItemStateArtifact: Codable {
+    struct Rect: Codable {
+        let x: Double
+        let y: Double
+        let width: Double
+        let height: Double
+    }
+
+    struct Point: Codable {
+        let x: Double
+        let y: Double
+    }
+
+    let isHovered: Bool
+    let isPointerInsideButton: Bool
+    let isTitleVisible: Bool
+    let displayedTitle: String?
+    let imagePosition: String
+    let isHoverPollingActive: Bool
+    let buttonFrame: Rect?
+    let pointerLocation: Point?
+
+    init(snapshot: StatusItemRuntimeSnapshot) {
+        isHovered = snapshot.isHovered
+        isPointerInsideButton = snapshot.isPointerInsideButton
+        isTitleVisible = snapshot.isTitleVisible
+        displayedTitle = snapshot.displayedTitle
+        imagePosition = snapshot.imagePosition
+        isHoverPollingActive = snapshot.isHoverPollingActive
+        buttonFrame = snapshot.buttonFrame.map {
+            Rect(x: $0.x, y: $0.y, width: $0.width, height: $0.height)
+        }
+        pointerLocation = snapshot.pointerLocation.map {
+            Point(x: $0.x, y: $0.y)
+        }
+    }
 }
 
 private struct ValidationRequest: Codable {

@@ -38,8 +38,7 @@ that inventory into `.kite/scenarios.json` only when its owning feature doc has
 concrete acceptance criteria, proof rows, fixtures, command, artifacts, privacy
 rules, non-claims, and degraded-proof rules.
 
-The current clean-main manifest contains nine deterministic hosted-menu
-scenarios:
+The current clean-main manifest contains ten deterministic scenarios:
 
 ```bash
 make verify-ui SCENARIO=hosted-menu-default
@@ -48,16 +47,19 @@ make verify-ui SCENARIO=menu-unmatched-active-account
 make verify-ui SCENARIO=menu-empty-catalog
 make verify-ui SCENARIO=menu-account-overflow
 make verify-ui SCENARIO=launch-at-login-menu-states
+make verify-ui SCENARIO=status-bar-icon-text-visible
 make verify-ui SCENARIO=token-usage-off-hidden
 make verify-ui SCENARIO=token-usage-ready-card
 make verify-ui SCENARIO=token-usage-loading-progress
 ```
 
-Those commands write hosted validation screenshots, `ui-tree.json`, and
-`scenario-summary.json` under their matching `build/verification/<scenario>/`
-directories. This is deterministic UI evidence, not SwiftUI preview proof and
-not live macOS menu-bar proof. Preview and live scenarios should be added only
-when their product-local commands and fixtures exist on the branch being
+Those commands write deterministic artifacts under their matching
+`build/verification/<scenario>/` directories, usually a hosted validation
+screenshot, `ui-tree.json`, and `scenario-summary.json`. Some scenarios also
+write feature-specific structured artifacts such as state matrices or runtime
+state snapshots. This is deterministic UI evidence, not SwiftUI preview proof
+and not live macOS menu-bar proof. Preview and live scenarios should be added
+only when their product-local commands and fixtures exist on the branch being
 validated.
 
 There is intentionally no `verify-ui-live` command. A live or preview scenario
@@ -91,6 +93,12 @@ Current deterministic scenarios:
   or unregister the real macOS login item, open System Settings, prove a signed
   app appears in Login Items, prove the enable confirmation workflow, or prove
   live macOS menu-bar behavior.
+- `status-bar-icon-text-visible`: changed-feature non-regression for Status Bar
+  closed-state presentation. It proves that a synthetic active account produces
+  an icon-and-text status item runtime snapshot with displayed title
+  `S 42% W 68%`; it does not prove live menubar screen capture, native
+  hittability, hover expansion, shortcut reveal, temporal behavior, or
+  multiple-display layout behavior.
 - `token-usage-off-hidden`: changed-feature non-regression for Token Usage card
   disabled-state presentation. It proves that the hosted active-account area
   omits the Token Usage card and scanner-derived copy when Token Usage is off;

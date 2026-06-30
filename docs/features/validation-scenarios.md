@@ -115,7 +115,7 @@ must include or link to the refinement proof-contract shape:
 
 | Scenario | Acceptance Criteria | Validation Intent | Proof Layer | Non-Regression | Status |
 | --- | --- | --- | --- | --- | --- |
-| `status-bar-icon-text-visible` | Icon and optional text produce a visible closed-state status item snapshot. | `ui_visual` | `unit` or `deterministic-ui` snapshot of runtime state | `changed-feature`, blocking for status item rendering | `target` |
+| `status-bar-icon-text-visible` | Icon and optional text produce a visible closed-state status item runtime snapshot. | `ui_visual`, `runtime_state`, `privacy` | `unit` plus `deterministic-ui`; runtime-state artifact, UI tree, and summary | `changed-feature`, blocking for status item rendering | `runnable` |
 | `status-bar-hover-label` | Text-on-hover expands while the pointer is inside bounds and collapses when it leaves. | `ui_interaction`, `temporal` | `workflow-event-log`; future `macos_vm_temporal` if native timing is claimed | `changed-feature`, blocking for hover behavior | `target` |
 | `status-bar-shortcut-reveal` | Reveal shortcut temporarily shows the label without changing saved display mode, and repeat press collapses it. | `ui_interaction`, `temporal` | `workflow-event-log`; native smoke optional | `changed-feature`, blocking for shortcut behavior | `target` |
 | `status-bar-usage-bars-preferences` | Preferences control label mode, icon style, usage bar pacing markers, and accent colors without changing account state. | `ui_visual`, `state_truth` | `unit` plus deterministic menu projection | `changed-feature`, blocking for visual preferences | `target` |
@@ -164,13 +164,11 @@ artifact expectations, privacy rules, and degraded-proof rules.
 Recommended promotion order after the current runnable deterministic menu
 scenarios:
 
-1. `status-bar-icon-text-visible`: cover simple deterministic closed-state
-   presentation before temporal interaction proof.
-2. `rename-account-label-only` and `add-account-name-validation`: lower-risk
+1. `rename-account-label-only` and `add-account-name-validation`: lower-risk
    account model/presentation scenarios before auth mutation workflows.
-3. Token Usage parser, cache, and privacy scenarios when scanner, cache,
+2. Token Usage parser, cache, and privacy scenarios when scanner, cache,
    diagnostics, or artifact behavior changes.
-4. Local account mutation, remote host mutation, notification action routing,
+3. Local account mutation, remote host mutation, notification action routing,
    temporal status-bar interaction, and live/system-mutation gates only after
    fake-client workflow receipts or explicit live opt-in exist.
 
