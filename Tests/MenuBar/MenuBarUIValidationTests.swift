@@ -387,6 +387,11 @@ struct MenuBarUIValidationTests {
 
         let uiTreeURL = artifactDirectory.appendingPathComponent("ui-tree.json")
         let summaryURL = artifactDirectory.appendingPathComponent("scenario-summary.json")
+        let extraArtifacts = try writeScenarioSpecificArtifacts(
+            for: request.scenario,
+            artifactDirectory: artifactDirectory,
+            now: now
+        )
 
         try renderHostedValidationView(
             MenuBarValidationSupport.makeHostedValidationView(state: state, now: now),
@@ -398,7 +403,8 @@ struct MenuBarUIValidationTests {
                 scenario: request.scenario,
                 assertions: scenarioAssertions(for: request.scenario),
                 screenshot: screenshotURL.lastPathComponent,
-                uiTree: uiTreeURL.lastPathComponent
+                uiTree: uiTreeURL.lastPathComponent,
+                extraArtifacts: extraArtifacts.isEmpty ? nil : extraArtifacts
             ),
             to: summaryURL
         )
@@ -436,6 +442,78 @@ struct MenuBarUIValidationTests {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         try encoder.encode(value).write(to: url, options: .atomic)
+    }
+
+    private func writeScenarioSpecificArtifacts(
+        for scenario: String,
+        artifactDirectory: URL,
+        now: Date
+    ) throws -> [String] {
+        switch scenario {
+        case "launch-at-login-menu-states":
+            let matrixURL = artifactDirectory.appendingPathComponent("launch-at-login-states.json")
+            try writeJSON(try makeLaunchAtLoginStateMatrix(now: now), to: matrixURL)
+            return [matrixURL.lastPathComponent]
+        default:
+            return []
+        }
+    }
+
+    private func makeLaunchAtLoginStateMatrix(now: Date) throws -> LaunchAtLoginStateMatrix {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let variants: [(id: String, state: LoginItemState)] = [
+            ("enabled", .enabled),
+            ("disabled", .disabled),
+            ("requiresApproval", .requiresApproval),
+            ("unavailable", .unavailable)
+        ]
+
+        let entries = try variants.map { variant in
+            let state = makeLaunchAtLoginValidationState(
+                loginItemState: variant.state,
+                now: now
+            )
+            let menu = builder.makeMenu(state: state, target: coordinator)
+            let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, menu: menu, now: now)
+            let preferencesSection = try #require(snapshot.sections.first { $0.title == "Preferences" })
+            let preferencesMenu = try #require(menu.items.first { $0.title == "Preferences" }?.submenu)
+            let launchItem = try #require(preferencesMenu.items.first { $0.title.hasPrefix("Launch at Login") })
+            let preferenceSummary = try #require(preferencesSection.items.first { $0.hasPrefix("Launch at Login:") })
+
+            return LaunchAtLoginStateMatrix.Entry(
+                state: variant.id,
+                preferencesSummary: preferenceSummary,
+                menuTitle: launchItem.title,
+                menuState: launchItem.state == .on ? "on" : "off",
+                isEnabled: launchItem.isEnabled,
+                actionSelector: launchItem.action.map { NSStringFromSelector($0) }
+            )
+        }
+
+        #expect(entries.map(\.state) == ["enabled", "disabled", "requiresApproval", "unavailable"])
+        #expect(entries.map(\.preferencesSummary) == [
+            "Launch at Login: On",
+            "Launch at Login: Off",
+            "Launch at Login: Needs Approval",
+            "Launch at Login: Unavailable"
+        ])
+        #expect(entries.map(\.menuTitle) == [
+            "Launch at Login",
+            "Launch at Login",
+            "Launch at Login…",
+            "Launch at Login…"
+        ])
+        #expect(entries.map(\.menuState) == ["on", "off", "off", "off"])
+        #expect(entries.allSatisfy { $0.isEnabled })
+        #expect(entries.map(\.actionSelector) == [
+            "toggleLaunchAtLogin:",
+            "toggleLaunchAtLogin:",
+            "openLoginItemsSettings:",
+            "openLoginItemsSettings:"
+        ])
+
+        return LaunchAtLoginStateMatrix(scenario: "launch-at-login-menu-states", states: entries)
     }
 
     private func menuItem(
@@ -667,6 +745,23 @@ struct MenuBarUIValidationTests {
             let addAccountItem = try #require(flattenedMenuItems(in: menuItems).first { $0.title == "Add Account…" })
             #expect(addAccountItem.isEnabled == false)
 
+        case "launch-at-login-menu-states":
+            #expect(snapshot.sections.map(\.title) == [
+                "Active Account",
+                "Other Accounts",
+                "More Accounts…",
+                "Manage Accounts",
+                "Preferences"
+            ])
+            let preferencesSection = try #require(snapshot.sections.first { $0.title == "Preferences" })
+            #expect(preferencesSection.items.contains("Launch at Login: Needs Approval"))
+            let preferencesMenu = try #require(snapshot.menuItems.first { $0.title == "Preferences" })
+            let launchItem = try #require(preferencesMenu.children.first { $0.title == "Launch at Login…" })
+            #expect(launchItem.state == "off")
+            #expect(launchItem.isEnabled)
+            #expect(launchItem.actionSelector == "openLoginItemsSettings:")
+            #expect(snapshot.statusMessage == nil)
+
         case "menu-empty-catalog":
             #expect(snapshot.sections.map(\.title) == [
                 "Active Account",
@@ -771,6 +866,12 @@ struct MenuBarUIValidationTests {
                 "Busy status message is rendered before Quit in the artifact snapshot",
                 "Add-account action is marked disabled in the snapshot"
             ]
+        case "launch-at-login-menu-states":
+            return [
+                "Requires-approval state renders Launch at Login with System Settings routing",
+                "Structured state matrix covers enabled, disabled, requires-approval, and unavailable states",
+                "State matrix preserves checked state and action selectors without real macOS login-item mutation"
+            ]
         case "menu-empty-catalog":
             return [
                 "Empty state shows no active saved account",
@@ -839,6 +940,9 @@ struct MenuBarUIValidationTests {
                 isBusy: false,
                 statusMessage: "Ready"
             )
+
+        case "launch-at-login-menu-states":
+            return makeLaunchAtLoginValidationState(loginItemState: .requiresApproval, now: now)
 
         case "token-usage-ready-card":
             let active = makeAccount(
@@ -1208,6 +1312,42 @@ struct MenuBarUIValidationTests {
         }
     }
 
+    private func makeLaunchAtLoginValidationState(
+        loginItemState: LoginItemState,
+        now: Date
+    ) -> MenuBarMenuState {
+        let base = makeHostedValidationState(for: "hosted-menu-default", now: now)
+        return MenuBarMenuState(
+            activeAccount: base.activeAccount,
+            inactiveAccounts: base.inactiveAccounts,
+            remoteHosts: base.remoteHosts,
+            visibleInactiveAccountCount: base.visibleInactiveAccountCount,
+            visibleInactiveAccountCountOptions: base.visibleInactiveAccountCountOptions,
+            refreshIntervalMinutes: base.refreshIntervalMinutes,
+            refreshIntervalOptions: base.refreshIntervalOptions,
+            statusBarMonochrome: base.statusBarMonochrome,
+            statusBarIndicatorStyle: base.statusBarIndicatorStyle,
+            statusBarDisplayMode: base.statusBarDisplayMode,
+            revealStatusItemTitleShortcut: base.revealStatusItemTitleShortcut,
+            progressAccentColor: base.progressAccentColor,
+            pacingMarkersEnabled: base.pacingMarkersEnabled,
+            hasCustomProgressAccentColor: base.hasCustomProgressAccentColor,
+            isBusy: base.isBusy,
+            statusMessage: base.statusMessage,
+            notificationsWhenBlockedEnabled: base.notificationsWhenBlockedEnabled,
+            notificationsWhenOutEnabled: base.notificationsWhenOutEnabled,
+            notificationAuthorizationState: base.notificationAuthorizationState,
+            loginItemState: loginItemState,
+            tokenUsageEnabled: base.tokenUsageEnabled,
+            tokenUsagePeriod: base.tokenUsagePeriod,
+            tokenUsageChartStyle: base.tokenUsageChartStyle,
+            tokenUsageLoadingAnimationStyle: base.tokenUsageLoadingAnimationStyle,
+            tokenUsagePeakScope: base.tokenUsagePeakScope,
+            tokenUsageCard: base.tokenUsageCard,
+            tokenUsagePrototypeCards: base.tokenUsagePrototypeCards
+        )
+    }
+
     private func makeCoordinator() throws -> MenuBarCoordinator {
         let repository = try makeIsolatedRepository()
         let store = MenuBarAccountsStore(
@@ -1320,6 +1460,21 @@ private struct ScenarioSummary: Codable {
     let assertions: [String]
     let screenshot: String
     let uiTree: String
+    let extraArtifacts: [String]?
+}
+
+private struct LaunchAtLoginStateMatrix: Codable {
+    struct Entry: Codable {
+        let state: String
+        let preferencesSummary: String
+        let menuTitle: String
+        let menuState: String
+        let isEnabled: Bool
+        let actionSelector: String?
+    }
+
+    let scenario: String
+    let states: [Entry]
 }
 
 private struct ValidationRequest: Codable {

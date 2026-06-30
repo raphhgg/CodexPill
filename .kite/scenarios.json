@@ -74,6 +74,16 @@
           "statement": "When Token Usage is enabled and no cached aggregate exists, CodexPill must show active loading/progress feedback without fake percentages, raw session details, file paths, account, workspace, organization, or remote-host attribution."
         }
       ]
+    },
+    {
+      "id": "launch-at-login-menu-state",
+      "title": "Launch at Login menu state",
+      "acceptanceCriteria": [
+        {
+          "id": "menu-states-reflect-login-item-state",
+          "statement": "Preferences must present enabled, disabled, requires-approval, and unavailable Launch at Login states truthfully without implying registration success when macOS reports a blocked or unavailable state."
+        }
+      ]
     }
   ],
   "scenarios": [
@@ -485,6 +495,101 @@
       ],
       "expectedMetadata": {
         "scenario": "menu-account-overflow"
+      },
+      "privacy": {
+        "fixtureData": "synthetic",
+        "restrictedEvidence": [
+          "account_data",
+          "hostname",
+          "raw_local_path",
+          "private_product_data",
+          "token"
+        ]
+      }
+    },
+    {
+      "id": "launch-at-login-menu-states",
+      "title": "Launch at Login menu states",
+      "featureId": "launch-at-login-menu-state",
+      "acceptanceCriteria": [
+        "menu-states-reflect-login-item-state"
+      ],
+      "targetSurface": "CodexPill hosted menu validation view",
+      "validationModes": ["unit_only"],
+      "suites": ["deterministic"],
+      "validationIntent": {
+        "featureRisk": ["state_truth", "ui_visual", "privacy"],
+        "primaryProof": "deterministic-ui",
+        "supportingProof": ["state-matrix", "privacy-redaction"],
+        "requiredEvidence": ["screenshot", "ui-tree", "scenario-summary", "state-matrix"],
+        "nonClaims": [
+          "Does not register or unregister the real macOS login item.",
+          "Does not open System Settings.",
+          "Does not prove a signed app appears in macOS Login Items.",
+          "Does not prove the enable confirmation workflow.",
+          "Does not prove the live macOS menu bar surface."
+        ],
+        "liveOptIn": {
+          "required": false
+        }
+      },
+      "nonRegression": {
+        "tier": "changed-feature",
+        "runWhen": [
+          "local-handoff",
+          "app-controls-ui-changed",
+          "launch-at-login-state-changed",
+          "menubar-ui-changed",
+          "scenario-fixture-changed"
+        ],
+        "blocking": true
+      },
+      "proof": {
+        "layer": "deterministic-ui",
+        "artifactSource": "hosted-validation-view",
+        "nonClaims": [
+          "Does not register or unregister the real macOS login item.",
+          "Does not open System Settings.",
+          "Does not prove a signed app appears in macOS Login Items.",
+          "Does not prove the enable confirmation workflow.",
+          "Does not prove the live macOS menu bar surface."
+        ]
+      },
+      "command": {
+        "run": "make verify-ui SCENARIO=launch-at-login-menu-states"
+      },
+      "expectedArtifacts": [
+        {
+          "id": "launch-at-login-menu-states-screenshot",
+          "kind": "visual_snapshot",
+          "path": "build/verification/launch-at-login-menu-states/screenshots/launch-at-login-menu-states.png",
+          "claimScope": ["deterministic-hosted-view"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "launch-at-login-menu-states-tree",
+          "kind": "semantic_snapshot",
+          "path": "build/verification/launch-at-login-menu-states/ui-tree.json",
+          "claimScope": ["semantic-ui-tree", "menu-action-metadata"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "launch-at-login-menu-states-summary",
+          "kind": "reconciliation_report",
+          "path": "build/verification/launch-at-login-menu-states/scenario-summary.json",
+          "claimScope": ["deterministic-reconciled"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "launch-at-login-menu-states-matrix",
+          "kind": "state_matrix",
+          "path": "build/verification/launch-at-login-menu-states/launch-at-login-states.json",
+          "claimScope": ["login-item-state-mapping", "menu-action-metadata"],
+          "redactionStatus": "sanitized"
+        }
+      ],
+      "expectedMetadata": {
+        "scenario": "launch-at-login-menu-states"
       },
       "privacy": {
         "fixtureData": "synthetic",

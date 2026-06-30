@@ -38,7 +38,7 @@ that inventory into `.kite/scenarios.json` only when its owning feature doc has
 concrete acceptance criteria, proof rows, fixtures, command, artifacts, privacy
 rules, non-claims, and degraded-proof rules.
 
-The current clean-main manifest contains eight deterministic hosted-menu
+The current clean-main manifest contains nine deterministic hosted-menu
 scenarios:
 
 ```bash
@@ -47,6 +47,7 @@ make verify-ui SCENARIO=menu-busy-status
 make verify-ui SCENARIO=menu-unmatched-active-account
 make verify-ui SCENARIO=menu-empty-catalog
 make verify-ui SCENARIO=menu-account-overflow
+make verify-ui SCENARIO=launch-at-login-menu-states
 make verify-ui SCENARIO=token-usage-off-hidden
 make verify-ui SCENARIO=token-usage-ready-card
 make verify-ui SCENARIO=token-usage-loading-progress
@@ -83,6 +84,13 @@ Current deterministic scenarios:
 - `menu-account-overflow`: changed-feature non-regression for Account Catalog
   overflow truth. It proves that hidden saved accounts remain discoverable under
   `More Accounts…` and keep the same submenu action shape as visible rows.
+- `launch-at-login-menu-states`: changed-feature non-regression for App Controls
+  presentation. It proves that enabled, disabled, requires-approval, and
+  unavailable Launch at Login states map to truthful row copy, checked state,
+  and action selectors through a structured state matrix; it does not register
+  or unregister the real macOS login item, open System Settings, prove a signed
+  app appears in Login Items, prove the enable confirmation workflow, or prove
+  live macOS menu-bar behavior.
 - `token-usage-off-hidden`: changed-feature non-regression for Token Usage card
   disabled-state presentation. It proves that the hosted active-account area
   omits the Token Usage card and scanner-derived copy when Token Usage is off;

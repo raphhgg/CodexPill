@@ -135,7 +135,7 @@ must include or link to the refinement proof-contract shape:
 
 | Scenario | Acceptance Criteria | Validation Intent | Proof Layer | Non-Regression | Status |
 | --- | --- | --- | --- | --- | --- |
-| `launch-at-login-menu-states` | Preferences shows checked, unchecked, blocked, and unavailable Launch at Login states truthfully. | `state_truth`, `ui_visual` | `unit` plus deterministic menu projection | `changed-feature`, blocking for app controls | `target` |
+| `launch-at-login-menu-states` | Preferences shows checked, unchecked, blocked, and unavailable Launch at Login states truthfully. | `state_truth`, `ui_visual`, `privacy` | `unit` plus `deterministic-ui`; screenshot, UI tree, summary, and state matrix | `changed-feature`, blocking for app controls | `runnable` |
 | `launch-at-login-enable-confirmation` | Enabling asks for confirmation before registering the macOS login item; disabling unregisters directly. | `ui_interaction`, `system_mutation` | `workflow-event-log` with fake login-item controller | `changed-feature`, blocking for app controls | `target` |
 | `launch-at-login-blocked-opens-settings` | Blocked or unavailable state opens System Settings instead of pretending to toggle. | `ui_interaction`, `failure_path` | `workflow-event-log` with fake system opener | `changed-feature`, blocking for app controls | `target` |
 | `launch-at-login-real-os-smoke` | A local macOS build appears in System Settings and survives toggle on/off. | `system_mutation`, `manual_release_confidence` | `manual-qa` or explicit opt-in live OS proof with cleanup | release confidence only | `manual-gate` |
@@ -164,9 +164,8 @@ artifact expectations, privacy rules, and degraded-proof rules.
 Recommended promotion order after the current runnable deterministic menu
 scenarios:
 
-1. `launch-at-login-menu-states` and `status-bar-icon-text-visible`: cover
-   simple deterministic presentation states before system mutation or temporal
-   interaction proof.
+1. `status-bar-icon-text-visible`: cover simple deterministic closed-state
+   presentation before temporal interaction proof.
 2. `rename-account-label-only` and `add-account-name-validation`: lower-risk
    account model/presentation scenarios before auth mutation workflows.
 3. Token Usage parser, cache, and privacy scenarios when scanner, cache,
