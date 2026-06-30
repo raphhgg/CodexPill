@@ -1181,6 +1181,7 @@ struct MenuBarRuntimeValidationTests {
         #expect(sink.events.contains(where: { $0.event == "status_item_hover_entered" }))
         #expect(sink.snapshots.count > initialSnapshotCount)
         #expect(sink.snapshots.last?.statusItem?.isHovered == true)
+        #expect(settings.statusBarDisplayMode == .textOnHover)
     }
 
 

@@ -424,6 +424,24 @@
           "statement": "The closed status item must expose a visible icon and the expected optional text label for synthetic active-account usage state."
         }
       ]
+    },
+    {
+      "id": "status-bar-hover-label",
+      "title": "Status bar hover label",
+      "acceptanceCriteria": [
+        {
+          "id": "hover-label-polls-only-in-text-on-hover-mode",
+          "statement": "Text-on-hover mode must enable hover polling, while icon-only and icon-and-text modes must not keep hover polling active."
+        },
+        {
+          "id": "hover-label-enter-shows-and-leave-hides-title",
+          "statement": "A hover enter event must show the synthetic status title and a hover leave event must hide it again."
+        },
+        {
+          "id": "hover-label-does-not-mutate-display-preference",
+          "statement": "Hover reveal behavior must not mutate the saved menu-bar label display preference."
+        }
+      ]
     }
   ],
   "scenarios": [
@@ -2673,6 +2691,93 @@
       ],
       "expectedMetadata": {
         "scenario": "status-bar-icon-text-visible"
+      },
+      "privacy": {
+        "fixtureData": "synthetic",
+        "restrictedEvidence": [
+          "account_data",
+          "hostname",
+          "raw_local_path",
+          "private_product_data",
+          "token"
+        ]
+      }
+    },
+    {
+      "id": "status-bar-hover-label",
+      "title": "Status bar hover label",
+      "featureId": "status-bar-hover-label",
+      "acceptanceCriteria": [
+        "hover-label-polls-only-in-text-on-hover-mode",
+        "hover-label-enter-shows-and-leave-hides-title",
+        "hover-label-does-not-mutate-display-preference"
+      ],
+      "targetSurface": "CodexPill status item runtime fake hover events and validation snapshots",
+      "validationModes": ["unit_only"],
+      "suites": ["deterministic"],
+      "validationIntent": {
+        "featureRisk": ["ui_interaction", "temporal", "privacy"],
+        "primaryProof": "workflow-event-log",
+        "supportingProof": ["runtime-state-snapshot", "privacy-redaction"],
+        "requiredEvidence": ["test-output", "workflow-receipt", "scenario-summary"],
+        "nonClaims": [
+          "Does not exercise native mouse movement or real pointer bounds.",
+          "Does not prove live macOS menu-bar screen capture or native hittability.",
+          "Does not prove multiple-display, notch, or menu-bar layout behavior."
+        ],
+        "liveOptIn": {
+          "required": false
+        }
+      },
+      "nonRegression": {
+        "tier": "changed-feature",
+        "runWhen": [
+          "local-handoff",
+          "status-item-runtime-changed",
+          "status-bar-hover-changed",
+          "status-bar-settings-changed",
+          "validation-observer-changed",
+          "scenario-fixture-changed"
+        ],
+        "blocking": true
+      },
+      "proof": {
+        "layer": "workflow-event-log",
+        "artifactSource": "focused-test-suite",
+        "nonClaims": [
+          "Does not exercise native mouse movement or real pointer bounds.",
+          "Does not prove live macOS menu-bar screen capture or native hittability.",
+          "Does not prove multiple-display, notch, or menu-bar layout behavior."
+        ]
+      },
+      "command": {
+        "run": "make verify-status-bar-hover-label-scenario"
+      },
+      "expectedArtifacts": [
+        {
+          "id": "status-bar-hover-label-result-bundle",
+          "kind": "test_output",
+          "path": "build/results/local/CodexPill.xcresult",
+          "claimScope": ["status-item-hover-runtime-tests"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "status-bar-hover-label-workflow-receipt",
+          "kind": "workflow_receipt",
+          "path": "build/verification/status-bar-hover-label/workflow-receipt.json",
+          "claimScope": ["hover-runtime-events"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "status-bar-hover-label-summary",
+          "kind": "reconciliation_report",
+          "path": "build/verification/status-bar-hover-label/scenario-summary.json",
+          "claimScope": ["hover-runtime-reconciled"],
+          "redactionStatus": "sanitized"
+        }
+      ],
+      "expectedMetadata": {
+        "scenario": "status-bar-hover-label"
       },
       "privacy": {
         "fixtureData": "synthetic",
