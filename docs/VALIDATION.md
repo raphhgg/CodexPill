@@ -38,7 +38,7 @@ that inventory into `.kite/scenarios.json` only when its owning feature doc has
 concrete acceptance criteria, proof rows, fixtures, command, artifacts, privacy
 rules, non-claims, and degraded-proof rules.
 
-The current clean-main manifest contains thirty-six deterministic scenarios:
+The current clean-main manifest contains thirty-seven deterministic scenarios:
 
 ```bash
 make verify-ui SCENARIO=hosted-menu-default
@@ -67,6 +67,7 @@ make verify-refresh-inactive-isolated-status-scenario
 make verify-refresh-active-relinks-same-account-scenario
 make verify-ui SCENARIO=launch-at-login-menu-states
 make verify-launch-at-login-enable-confirmation-scenario
+make verify-launch-at-login-blocked-opens-settings-scenario
 make verify-ui SCENARIO=status-bar-icon-text-visible
 make verify-status-bar-hover-label-scenario
 make verify-status-bar-shortcut-reveal-scenario
@@ -304,6 +305,13 @@ Current deterministic scenarios:
   truthful error without claiming enabled state; it does not register or
   unregister the real macOS login item, prove signed-app Login Items visibility,
   or exercise live menu-bar/System Settings UI.
+- `launch-at-login-blocked-opens-settings`: changed-feature non-regression for
+  App Controls blocked-state routing. It proves through fake system opener,
+  fake login-item controller, and menu projection tests that requires-approval
+  and unavailable states render `Launch at Login…`, route to System Settings,
+  and do not call register/unregister; it does not open real System Settings,
+  mutate real macOS login-item approval state, prove live menu-bar clicks, or
+  prove signed-app Login Items visibility.
 - `status-bar-icon-text-visible`: changed-feature non-regression for Status Bar
   closed-state presentation. It proves that a synthetic active account produces
   an icon-and-text status item runtime snapshot with displayed title
@@ -427,6 +435,8 @@ The adapter currently includes:
   Refresh Accounts active relink proof;
 - `make verify-launch-at-login-enable-confirmation-scenario` for focused App
   Controls Launch at Login confirmation and unregister workflow proof;
+- `make verify-launch-at-login-blocked-opens-settings-scenario` for focused App
+  Controls blocked Launch at Login System Settings routing proof;
 - `make verify-token-usage-parser-scenario` for focused Token Usage scanner
   contract-fixture proof;
 - `make verify-token-usage-cache-scenario` for focused Token Usage cache and

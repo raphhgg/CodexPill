@@ -23,6 +23,8 @@ NOTIFICATIONS_DEDUPE_SCENARIO := notifications-dedupe-after-delivery
 NOTIFICATIONS_DEDUPE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(NOTIFICATIONS_DEDUPE_SCENARIO)
 LAUNCH_AT_LOGIN_ENABLE_SCENARIO := launch-at-login-enable-confirmation
 LAUNCH_AT_LOGIN_ENABLE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(LAUNCH_AT_LOGIN_ENABLE_SCENARIO)
+LAUNCH_AT_LOGIN_BLOCKED_SCENARIO := launch-at-login-blocked-opens-settings
+LAUNCH_AT_LOGIN_BLOCKED_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(LAUNCH_AT_LOGIN_BLOCKED_SCENARIO)
 STATUS_BAR_HOVER_SCENARIO := status-bar-hover-label
 STATUS_BAR_HOVER_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(STATUS_BAR_HOVER_SCENARIO)
 STATUS_BAR_SHORTCUT_SCENARIO := status-bar-shortcut-reveal
@@ -64,7 +66,7 @@ TOKEN_USAGE_CACHE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE
 TOKEN_USAGE_PRIVACY_SCENARIO := token-usage-privacy-no-raw-session
 TOKEN_USAGE_PRIVACY_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_PRIVACY_SCENARIO)
 
-.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-diagnostics-export-confirmation-scenario verify-notifications-permission-denied-menu-state-scenario verify-notifications-account-available-policy-scenario verify-notifications-current-runs-out-action-scenario verify-notifications-dedupe-after-delivery-scenario verify-launch-at-login-enable-confirmation-scenario verify-status-bar-hover-label-scenario verify-status-bar-shortcut-reveal-scenario verify-status-bar-usage-bars-preferences-scenario verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-switch-account-remote-install-verify-scenario verify-remote-host-add-panel-validation-scenario verify-remote-host-install-switch-current-account-scenario verify-remote-host-verification-failure-scenario verify-remote-host-rate-limit-fallback-scenario verify-remove-account-active-targets-sign-out-scenario verify-remove-account-signout-failure-keeps-control-scenario verify-refresh-inactive-isolated-status-scenario verify-refresh-active-relinks-same-account-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
+.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-diagnostics-export-confirmation-scenario verify-notifications-permission-denied-menu-state-scenario verify-notifications-account-available-policy-scenario verify-notifications-current-runs-out-action-scenario verify-notifications-dedupe-after-delivery-scenario verify-launch-at-login-enable-confirmation-scenario verify-launch-at-login-blocked-opens-settings-scenario verify-status-bar-hover-label-scenario verify-status-bar-shortcut-reveal-scenario verify-status-bar-usage-bars-preferences-scenario verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-switch-account-remote-install-verify-scenario verify-remote-host-add-panel-validation-scenario verify-remote-host-install-switch-current-account-scenario verify-remote-host-verification-failure-scenario verify-remote-host-rate-limit-fallback-scenario verify-remove-account-active-targets-sign-out-scenario verify-remove-account-signout-failure-keeps-control-scenario verify-refresh-inactive-isolated-status-scenario verify-refresh-active-relinks-same-account-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -424,6 +426,58 @@ verify-launch-at-login-enable-confirmation-scenario: generate prepare-result-bun
 		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
 		'  "workflowReceipt": "$(LAUNCH_AT_LOGIN_ENABLE_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
 		'}' > "$(LAUNCH_AT_LOGIN_ENABLE_SCENARIO_ARTIFACTS)/scenario-summary.json"
+
+verify-launch-at-login-blocked-opens-settings-scenario: generate prepare-result-bundle
+	mkdir -p "$(LAUNCH_AT_LOGIN_BLOCKED_SCENARIO_ARTIFACTS)"
+	xcodebuild test \
+		-project $(PROJECT_PATH) \
+		-scheme $(APP_NAME) \
+		-configuration Debug \
+		-destination "platform=macOS" \
+		-derivedDataPath "$(DERIVED_DATA)" \
+		-resultBundlePath "$(RESULT_BUNDLE)" \
+		-only-testing:CodexPillTests/MenuBarMenuBuilderTests \
+		PRODUCT_BUNDLE_IDENTIFIER="$(STAGING_BUNDLE_ID)"
+	printf '%s\n' \
+		'{' \
+		'  "scenario": "$(LAUNCH_AT_LOGIN_BLOCKED_SCENARIO)",' \
+		'  "proofLayer": "workflow-event-log",' \
+		'  "events": [' \
+		'    "Requires-approval menu state renders Launch at Login… with open settings action",' \
+		'    "Unavailable menu state renders Launch at Login… with open settings action",' \
+		'    "Requires-approval coordinator path opens the fake Login Items settings launcher",' \
+		'    "Unavailable coordinator path opens the fake Login Items settings launcher",' \
+		'    "Blocked and unavailable paths do not call fake register or unregister"' \
+		'  ],' \
+		'  "status": "passed"' \
+		'}' > "$(LAUNCH_AT_LOGIN_BLOCKED_SCENARIO_ARTIFACTS)/workflow-receipt.json"
+	printf '%s\n' \
+		'{' \
+		'  "assertions": [' \
+		'    "Requires-approval and unavailable menu rows use Launch at Login… copy",' \
+		'    "Requires-approval and unavailable menu rows route to openLoginItemsSettings:",' \
+		'    "Blocked state opens the fake System Settings launcher exactly once",' \
+		'    "Unavailable state opens the fake System Settings launcher exactly once",' \
+		'    "Blocked/unavailable actions do not call setEnabled(true) or setEnabled(false)"' \
+		'  ],' \
+		'  "command": "make verify-launch-at-login-blocked-opens-settings-scenario",' \
+		'  "gaps": [' \
+		'    "Real System Settings UI is not opened",' \
+		'    "Real macOS login item approval state is not mutated",' \
+		'    "Live menu-bar clicks and signed-app Login Items visibility are not proven"' \
+		'  ],' \
+		'  "invariantIds": [' \
+		'    "launch-at-login.blocked.requires-approval-opens-settings",' \
+		'    "launch-at-login.blocked.unavailable-opens-settings",' \
+		'    "launch-at-login.blocked.no-register-unregister",' \
+		'    "launch-at-login.blocked.truthful-menu-copy"' \
+		'  ],' \
+		'  "proofLayer": "workflow-event-log",' \
+		'  "scenario": "$(LAUNCH_AT_LOGIN_BLOCKED_SCENARIO)",' \
+		'  "status": "passed",' \
+		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
+		'  "workflowReceipt": "$(LAUNCH_AT_LOGIN_BLOCKED_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
+		'}' > "$(LAUNCH_AT_LOGIN_BLOCKED_SCENARIO_ARTIFACTS)/scenario-summary.json"
 
 verify-status-bar-hover-label-scenario: generate prepare-result-bundle
 	mkdir -p "$(STATUS_BAR_HOVER_SCENARIO_ARTIFACTS)"
