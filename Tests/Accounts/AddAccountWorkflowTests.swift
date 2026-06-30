@@ -149,6 +149,86 @@ struct AddAccountWorkflowTests {
     }
 
     @Test
+    func completeIsolatedAddAccountCleansUpWhenAuthCaptureTimesOut() async throws {
+        let active = makeAccount(name: "Personal", fingerprint: "live-fingerprint")
+        let captured = makeAccount(name: "Business 2", fingerprint: "isolated-fingerprint")
+        let auth = AddAccountAuthSnapshotProbe(
+            savedAccount: captured,
+            currentAuthData: Data("live-auth".utf8),
+            currentFingerprint: "live-fingerprint"
+        )
+        let repository = AddAccountCatalogProbe()
+        let loginSession = AddAccountIsolatedLoginSessionProbe(
+            waitForAuthDataError: IsolatedCodexLoginError.authCaptureTimedOut
+        )
+        let workflow = AddAccountWorkflow(
+            authService: auth,
+            repository: repository,
+            identityResolver: makeResolver(auth: auth),
+            isolatedLoginClient: AddAccountIsolatedLoginClientProbe(session: loginSession)
+        )
+
+        let session = try await workflow.startIsolatedAddAccount(named: "Business 2", existingAccounts: [active])
+
+        do {
+            _ = try await workflow.completeIsolatedAddAccount(
+                session,
+                existingAccounts: [active],
+                activeAccountID: active.id
+            )
+            Issue.record("Expected Add Account completion to fail when auth capture times out")
+        } catch IsolatedCodexLoginError.authCaptureTimedOut {
+            #expect(auth.savedNames.isEmpty)
+            #expect(auth.savedAuthData.isEmpty)
+            #expect(repository.savedAccounts == nil)
+            #expect(loginSession.waitForAuthDataCount == 1)
+            #expect(loginSession.verifyLoginStatusCount == 0)
+            #expect(loginSession.cleanupCount == 1)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test
+    func completeIsolatedAddAccountCleansUpWhenLoginStatusVerificationFails() async throws {
+        let active = makeAccount(name: "Personal", fingerprint: "live-fingerprint")
+        let captured = makeAccount(name: "Business 2", fingerprint: "isolated-fingerprint")
+        let auth = AddAccountAuthSnapshotProbe(
+            savedAccount: captured,
+            currentAuthData: Data("live-auth".utf8),
+            currentFingerprint: "live-fingerprint"
+        )
+        let repository = AddAccountCatalogProbe()
+        let loginSession = AddAccountIsolatedLoginSessionProbe(loginStatusVerified: false)
+        let workflow = AddAccountWorkflow(
+            authService: auth,
+            repository: repository,
+            identityResolver: makeResolver(auth: auth),
+            isolatedLoginClient: AddAccountIsolatedLoginClientProbe(session: loginSession)
+        )
+
+        let session = try await workflow.startIsolatedAddAccount(named: "Business 2", existingAccounts: [active])
+
+        do {
+            _ = try await workflow.completeIsolatedAddAccount(
+                session,
+                existingAccounts: [active],
+                activeAccountID: active.id
+            )
+            Issue.record("Expected Add Account completion to fail when login status verification fails")
+        } catch IsolatedCodexLoginError.loginStatusVerificationFailed {
+            #expect(auth.savedNames.isEmpty)
+            #expect(auth.savedAuthData.isEmpty)
+            #expect(repository.savedAccounts == nil)
+            #expect(loginSession.waitForAuthDataCount == 1)
+            #expect(loginSession.verifyLoginStatusCount == 1)
+            #expect(loginSession.cleanupCount == 1)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test
     func completeIsolatedAddAccountMapsCatalogSaveFailureAfterCapture() async throws {
         let active = makeAccount(name: "Personal", fingerprint: "live-fingerprint")
         let captured = makeAccount(name: "Business 2", fingerprint: "isolated-fingerprint")
@@ -379,23 +459,34 @@ private final class AddAccountIsolatedLoginSessionProbe: IsolatedCodexLoginSessi
     let codexHome = URL(fileURLWithPath: "/tmp/codexpill-test-codex-home")
 
     private let authData: Data
+    private let waitForAuthDataError: Error?
+    private let loginStatusVerified: Bool
     private(set) var waitForAuthDataCount = 0
     private(set) var verifyLoginStatusCount = 0
     private(set) var cancelCount = 0
     private(set) var cleanupCount = 0
 
-    init(authData: Data = Data("isolated-auth".utf8)) {
+    init(
+        authData: Data = Data("isolated-auth".utf8),
+        waitForAuthDataError: Error? = nil,
+        loginStatusVerified: Bool = true
+    ) {
         self.authData = authData
+        self.waitForAuthDataError = waitForAuthDataError
+        self.loginStatusVerified = loginStatusVerified
     }
 
     func waitForAuthData() async throws -> Data {
         waitForAuthDataCount += 1
+        if let waitForAuthDataError {
+            throw waitForAuthDataError
+        }
         return authData
     }
 
     func verifyLoginStatus() async -> Bool {
         verifyLoginStatusCount += 1
-        return true
+        return loginStatusVerified
     }
 
     func cancel() {

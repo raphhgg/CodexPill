@@ -231,6 +231,8 @@ Primary proof for `add-account-name-validation`: `unit`
 
 Primary proof for `add-account-isolated-success`: `workflow-event-log`
 
+Primary proof for `add-account-failure-cleanup`: `workflow-event-log`
+
 Product scenarios:
 
 - `add-account-name-validation` proves that empty, whitespace-only, and
@@ -242,6 +244,10 @@ Product scenarios:
   hydrates the new inactive account through the fake saved-account status
   client when usable status is available, and cleans the isolated login session
   after success.
+- `add-account-failure-cleanup` proves that fake-client terminal failure paths
+  clean isolated Add Account state, save no unintended account, keep This Mac
+  unchanged, preserve sanitized startup diagnostics, and bound stale
+  `CODEX_HOME` cleanup to old CodexPill session directories.
 
 Required evidence:
 
@@ -252,6 +258,11 @@ Required evidence:
   and `AccountActionFlowTests`;
 - `build/verification/add-account-isolated-success/workflow-receipt.json`;
 - `build/verification/add-account-isolated-success/scenario-summary.json`.
+- focused test output from `AddAccountWorkflowTests`,
+  `AccountActionFlowTests`, `AppPathsTests`, and
+  `SystemIsolatedCodexLoginClientTests`;
+- `build/verification/add-account-failure-cleanup/cleanup-receipt.json`;
+- `build/verification/add-account-failure-cleanup/scenario-summary.json`.
 
 Non-claims:
 
@@ -260,7 +271,12 @@ Non-claims:
 - The isolated-success scenario does not prove native device-code panel
   rendering, browser sign-in, live Codex auth, live app-server, real process
   relaunch, or terminal failure cleanup paths.
-- Neither scenario proves live macOS menu-bar behavior.
+- The failure-cleanup scenario does not prove native device-code panel
+  rendering, browser sign-in, live Codex auth, live Codex process termination,
+  real app quit handling, or app crash simulation. Quit-during-sign-in is
+  represented by the same cancel and cleanup contract; crash recovery is
+  represented by stale isolated `CODEX_HOME` cleanup.
+- None of these scenarios prove live macOS menu-bar behavior.
 
 Live opt-in: not required for this scenario.
 
@@ -270,7 +286,7 @@ Live opt-in: not required for this scenario.
 | --- | --- | --- | --- | --- | --- |
 | Empty or duplicate display names are blocked before sign-in starts. | `unit` | `make verify-add-account-name-scenario` running `AddAccountWorkflowTests` and `AccountActionFlowTests`. | `build/results/local/CodexPill.xcresult` and `build/verification/add-account-name-validation/scenario-summary.json`. | Empty, whitespace-only, and case-insensitive duplicate names throw before isolated login starts, keep the user in the Add Account name-recovery flow, and do not start browser/device-code sign-in. This unit scenario does not prove native panel rendering or the disabled `Continue` state. | Synthetic account names only; no raw auth payloads, tokens, account identifiers, private paths, emails, hostnames, or device codes. |
 | Add Account saves an isolated account without switching This Mac. | `workflow-event-log` | `make verify-add-account-isolated-success-scenario` running `AddAccountWorkflowTests`, `AccountsControllerTests`, and `AccountActionFlowTests`. | `build/results/local/CodexPill.xcresult`, `build/verification/add-account-isolated-success/workflow-receipt.json`, and `scenario-summary.json`. | The saved account appears in the catalog, live local auth is unchanged, saved-account hydration applies returned usable email, plan, and rate-limit metadata when available, the isolated login session is cleaned after success, and no Codex relaunch/switch occurs unless the success alert action is chosen. | Fake auth snapshots and fake status clients only; receipts must redact device codes, auth URLs, auth JSON, tokens, emails, account identifiers, private paths, and hostnames. |
-| Terminal Add Account failures clean sensitive temporary state. | `integration` plus negative filesystem/state assertions | Add Account failure matrix tests for cancel, expiry, startup failure, live-auth mutation, save failure, quit, and stale temp-home cleanup. | Test result plus cleanup receipt. | Each terminal failure clears pending state, deletes temporary isolated homes when appropriate, saves no unintended account, and leaves live local auth unchanged. | Temporary fixture paths must be synthetic or redacted; no raw auth payloads, device codes, auth URLs, tokens, emails, account identifiers, or hostnames may appear in artifacts. |
+| Terminal Add Account failures clean sensitive temporary state. | `workflow-event-log` with negative filesystem/state assertions | `make verify-add-account-failure-cleanup-scenario` running `AddAccountWorkflowTests`, `AccountActionFlowTests`, `AppPathsTests`, and `SystemIsolatedCodexLoginClientTests`. | `build/results/local/CodexPill.xcresult`, `build/verification/add-account-failure-cleanup/cleanup-receipt.json`, and `scenario-summary.json`. | Cancel, auth capture timeout, login verification failure, live-auth mutation, duplicate captured identity, and save failures clean fake isolated Add Account state, save no unintended account, and do not switch This Mac. Stale cleanup removes only old CodexPill isolated `CODEX_HOME` directories, and startup failure diagnostics redact device codes and auth URL query strings. | Fake auth snapshots, fake login sessions, and synthetic temporary directories only; receipts must redact device codes, auth URLs, auth JSON, tokens, emails, account identifiers, private paths, and hostnames. |
 | `Use on This Mac` routes through the existing switch flow without a second confirmation. | `workflow-event-log` | Add Account success action test with fake switch coordinator. | Structured action routing receipt. | Selecting `Use on This Mac` calls the existing local switch path once with confirmation suppression and does not duplicate switch prompts. | Synthetic account ids only; no raw auth payloads, tokens, private paths, emails, or hostnames. |
 
 ## Validation Targets

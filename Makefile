@@ -17,6 +17,8 @@ ADD_ACCOUNT_NAME_SCENARIO := add-account-name-validation
 ADD_ACCOUNT_NAME_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(ADD_ACCOUNT_NAME_SCENARIO)
 ADD_ACCOUNT_ISOLATED_SUCCESS_SCENARIO := add-account-isolated-success
 ADD_ACCOUNT_ISOLATED_SUCCESS_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(ADD_ACCOUNT_ISOLATED_SUCCESS_SCENARIO)
+ADD_ACCOUNT_FAILURE_CLEANUP_SCENARIO := add-account-failure-cleanup
+ADD_ACCOUNT_FAILURE_CLEANUP_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(ADD_ACCOUNT_FAILURE_CLEANUP_SCENARIO)
 TOKEN_USAGE_PARSER_SCENARIO := token-usage-parser-aggregation
 TOKEN_USAGE_PARSER_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_PARSER_SCENARIO)
 TOKEN_USAGE_CACHE_SCENARIO := token-usage-cache-first
@@ -24,7 +26,7 @@ TOKEN_USAGE_CACHE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE
 TOKEN_USAGE_PRIVACY_SCENARIO := token-usage-privacy-no-raw-session
 TOKEN_USAGE_PRIVACY_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_PRIVACY_SCENARIO)
 
-.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
+.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -185,6 +187,71 @@ verify-add-account-isolated-success-scenario: generate prepare-result-bundle
 		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
 		'  "workflowReceipt": "$(ADD_ACCOUNT_ISOLATED_SUCCESS_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
 		'}' > "$(ADD_ACCOUNT_ISOLATED_SUCCESS_SCENARIO_ARTIFACTS)/scenario-summary.json"
+
+verify-add-account-failure-cleanup-scenario: generate prepare-result-bundle
+	mkdir -p "$(ADD_ACCOUNT_FAILURE_CLEANUP_SCENARIO_ARTIFACTS)"
+	xcodebuild test \
+		-project $(PROJECT_PATH) \
+		-scheme $(APP_NAME) \
+		-configuration Debug \
+		-destination "platform=macOS" \
+		-derivedDataPath "$(DERIVED_DATA)" \
+		-resultBundlePath "$(RESULT_BUNDLE)" \
+		-only-testing:CodexPillTests/AddAccountWorkflowTests \
+		-only-testing:CodexPillTests/AccountActionFlowTests \
+		-only-testing:CodexPillTests/AppPathsTests \
+		-only-testing:CodexPillTests/SystemIsolatedCodexLoginClientTests \
+		PRODUCT_BUNDLE_IDENTIFIER="$(STAGING_BUNDLE_ID)"
+	printf '%s\n' \
+		'{' \
+		'  "scenario": "$(ADD_ACCOUNT_FAILURE_CLEANUP_SCENARIO)",' \
+		'  "proofLayer": "workflow-event-log",' \
+		'  "events": [' \
+		'    "cancel terminates and cleans the fake isolated login session",' \
+		'    "auth capture timeout cleans the fake isolated login session and saves no account",' \
+		'    "login status verification failure cleans the fake isolated login session and saves no account",' \
+		'    "live auth mutation cleans the fake isolated login session and saves no account",' \
+		'    "duplicate captured identity cleans the fake isolated login session and saves no duplicate account",' \
+		'    "snapshot save failure cleans the fake isolated login session and leaves the account catalog unchanged",' \
+		'    "repository save failure cleans the fake isolated login session and deletes the saved snapshot rollback target",' \
+		'    "stale isolated CODEX_HOME cleanup removes only old CodexPill session directories",' \
+		'    "startup prompt failure reasons redact device codes and prompt URL query strings"' \
+		'  ],' \
+		'  "negativeStateAssertions": [' \
+		'    "no unintended saved account is written for terminal failure paths",' \
+		'    "live local auth fingerprint remains the comparison boundary",' \
+		'    "fresh isolated homes and unrelated directories survive stale cleanup",' \
+		'    "device codes and auth URL query strings are not emitted in sanitized startup failure diagnostics"' \
+		'  ],' \
+		'  "status": "passed"' \
+		'}' > "$(ADD_ACCOUNT_FAILURE_CLEANUP_SCENARIO_ARTIFACTS)/cleanup-receipt.json"
+	printf '%s\n' \
+		'{' \
+		'  "assertions": [' \
+		'    "Cancel, auth capture timeout, login verification failure, live-auth mutation, duplicate captured identity, and save failures clean fake isolated Add Account state",' \
+		'    "Terminal failure paths do not save unintended accounts or switch This Mac",' \
+		'    "Stale isolated CODEX_HOME cleanup removes only old CodexPill session directories",' \
+		'    "Prompt startup failure diagnostics redact device codes and auth URL query strings"' \
+		'  ],' \
+		'  "command": "make verify-add-account-failure-cleanup-scenario",' \
+		'  "gaps": [' \
+		'    "Native device-code UI, browser sign-in, live Codex auth, and live process termination are not exercised",' \
+		'    "Quit-during-sign-in is represented by the same cancel and cleanup contract rather than a live app termination smoke",' \
+		'    "Crash recovery is proven at the stale isolated CODEX_HOME session cleanup layer, not by crashing the app"' \
+		'  ],' \
+		'  "invariantIds": [' \
+		'    "add-account.failure.cancel-cleans-isolated-session",' \
+		'    "add-account.failure.timeout-and-verification-clean-isolated-session",' \
+		'    "add-account.failure.live-auth-and-save-failure-save-no-unintended-account",' \
+		'    "add-account.failure.stale-codex-home-cleanup-is-bounded",' \
+		'    "add-account.failure.prompt-diagnostics-redact-device-code-and-query"' \
+		'  ],' \
+		'  "proofLayer": "workflow-event-log",' \
+		'  "scenario": "$(ADD_ACCOUNT_FAILURE_CLEANUP_SCENARIO)",' \
+		'  "status": "passed",' \
+		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
+		'  "workflowReceipt": "$(ADD_ACCOUNT_FAILURE_CLEANUP_SCENARIO_ARTIFACTS)/cleanup-receipt.json"' \
+		'}' > "$(ADD_ACCOUNT_FAILURE_CLEANUP_SCENARIO_ARTIFACTS)/scenario-summary.json"
 
 verify-token-usage-parser-scenario: generate prepare-result-bundle
 	mkdir -p "$(TOKEN_USAGE_PARSER_SCENARIO_ARTIFACTS)"

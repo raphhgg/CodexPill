@@ -38,7 +38,7 @@ that inventory into `.kite/scenarios.json` only when its owning feature doc has
 concrete acceptance criteria, proof rows, fixtures, command, artifacts, privacy
 rules, non-claims, and degraded-proof rules.
 
-The current clean-main manifest contains sixteen deterministic scenarios:
+The current clean-main manifest contains seventeen deterministic scenarios:
 
 ```bash
 make verify-ui SCENARIO=hosted-menu-default
@@ -48,6 +48,7 @@ make verify-ui SCENARIO=menu-empty-catalog
 make verify-ui SCENARIO=menu-account-overflow
 make verify-add-account-name-scenario
 make verify-add-account-isolated-success-scenario
+make verify-add-account-failure-cleanup-scenario
 make verify-rename-scenario
 make verify-ui SCENARIO=launch-at-login-menu-states
 make verify-ui SCENARIO=status-bar-icon-text-visible
@@ -109,6 +110,17 @@ Current deterministic scenarios:
   without a second confirmation; it does not prove native device-code UI,
   browser sign-in, live Codex auth/app-server/process relaunch, terminal
   failure cleanup, or live macOS menu-bar behavior.
+- `add-account-failure-cleanup`: changed-feature non-regression for Add
+  Account terminal failure handling. It proves through focused fake-client
+  workflow tests, path cleanup tests, and startup diagnostic redaction tests
+  that cancel, auth capture timeout, login verification failure, live-auth
+  mutation, duplicate captured identity, and save failures clean isolated state,
+  save no unintended account, keep This Mac unchanged, remove only stale old
+  CodexPill isolated `CODEX_HOME` directories, and redact device codes and auth
+  URL query strings from startup failure diagnostics; it does not prove native
+  device-code UI, browser sign-in, live Codex auth, live process termination,
+  real app quit handling, app crash simulation, or live macOS menu-bar
+  behavior.
 - `rename-account-label-only`: changed-feature non-regression for Rename
   Account. It proves through focused unit tests that rename changes only the
   CodexPill display label, preserves saved auth snapshot identity, plan, and
@@ -179,6 +191,8 @@ The adapter currently includes:
   validation unit proof;
 - `make verify-add-account-isolated-success-scenario` for focused Add Account
   fake-client workflow-event proof;
+- `make verify-add-account-failure-cleanup-scenario` for focused Add Account
+  failure cleanup workflow-event proof;
 - `make verify-rename-scenario` for focused Rename Account unit proof;
 - `make verify-token-usage-parser-scenario` for focused Token Usage scanner
   contract-fixture proof;
