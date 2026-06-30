@@ -1184,6 +1184,90 @@ struct MenuBarRuntimeValidationTests {
         #expect(settings.statusBarDisplayMode == .textOnHover)
     }
 
+    @Test
+    func coordinatorRevealShortcutShowsTitleWithoutChangingSavedDisplayMode() throws {
+        let sink = ValidationSinkProbe()
+        let repository = try makeIsolatedRepository()
+        var activeAccount = try makeActiveAccount(
+            named: "Primary",
+            email: "primary@example.com",
+            in: repository
+        )
+        let now = Date(timeIntervalSince1970: 1_744_195_200)
+        activeAccount.rateLimits = CodexRateLimitSnapshot(
+            limitID: nil,
+            limitName: nil,
+            planType: "team",
+            primary: CodexRateLimitWindow(
+                usedPercent: 42,
+                resetsAt: nil,
+                windowDurationMinutes: nil
+            ),
+            secondary: CodexRateLimitWindow(
+                usedPercent: 68,
+                resetsAt: nil,
+                windowDurationMinutes: nil
+            ),
+            fetchedAt: now
+        )
+        try repository.saveAccounts([activeAccount])
+        let store = MenuBarAccountsStore(
+            repository: repository,
+            authService: CodexAuthSnapshotService(repository: repository),
+            codexAppProcessClient: NullCodexAppProcessClient(),
+            accountStatusClient: DisabledAccountStatusClient()
+        )
+        store.load()
+
+        let suiteName = "MenuBarRuntimeValidationShortcutReveal-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
+        settings.statusBarDisplayMode = .iconOnly
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let runtime = StatusItemRuntime(
+            statusItem: statusItem,
+            hoverActivationDelay: 0,
+            hoverExitDelay: 0,
+            hoverPollingInterval: 60
+        )
+        let shortcutRuntime = GlobalShortcutRuntime(client: NullGlobalShortcutClient())
+        let coordinator = MenuBarCoordinator(
+            statusItemRuntime: runtime,
+            shortcutRuntime: shortcutRuntime,
+            store: store,
+            settings: settings,
+            alertPresenter: AlertPresenterProbe(),
+            validationSink: sink,
+            validationScenario: "status-bar-shortcut-reveal",
+            allowsEmptyStatePrompt: false
+        )
+
+        defer { coordinator.invalidate() }
+        coordinator.start()
+        #expect(try #require(runtime.snapshotState()).isTitleVisible == false)
+
+        shortcutRuntime.triggerForTesting()
+
+        let revealed = try #require(runtime.snapshotState())
+        #expect(revealed.isTitleVisible)
+        #expect(revealed.displayedTitle == "S 42% W 68%")
+        #expect(settings.statusBarDisplayMode == .iconOnly)
+        #expect(sink.events.contains(where: { $0.event == "status_item_shortcut_reveal_started" }))
+
+        shortcutRuntime.triggerForTesting()
+
+        let collapsed = try #require(runtime.snapshotState())
+        #expect(!collapsed.isTitleVisible)
+        #expect(settings.statusBarDisplayMode == .iconOnly)
+        #expect(sink.events.contains(where: { $0.event == "status_item_shortcut_reveal_ended" }))
+    }
+
 
     @Test
     func coordinatorRestoresPersistedRemoteHostAccountOnStart() async throws {

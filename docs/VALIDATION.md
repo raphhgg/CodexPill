@@ -38,7 +38,7 @@ that inventory into `.kite/scenarios.json` only when its owning feature doc has
 concrete acceptance criteria, proof rows, fixtures, command, artifacts, privacy
 rules, non-claims, and degraded-proof rules.
 
-The current clean-main manifest contains thirty-three deterministic scenarios:
+The current clean-main manifest contains thirty-four deterministic scenarios:
 
 ```bash
 make verify-ui SCENARIO=hosted-menu-default
@@ -68,6 +68,7 @@ make verify-refresh-active-relinks-same-account-scenario
 make verify-ui SCENARIO=launch-at-login-menu-states
 make verify-ui SCENARIO=status-bar-icon-text-visible
 make verify-status-bar-hover-label-scenario
+make verify-status-bar-shortcut-reveal-scenario
 make verify-ui SCENARIO=token-usage-off-hidden
 make verify-ui SCENARIO=token-usage-ready-card
 make verify-token-usage-parser-scenario
@@ -307,6 +308,14 @@ Current deterministic scenarios:
   not mutated; it does not prove native mouse movement, real pointer bounds,
   live menubar screen capture, native hittability, or multiple-display layout
   behavior.
+- `status-bar-shortcut-reveal`: changed-feature non-regression for Status Bar
+  reveal shortcut behavior. It proves through fake global shortcut callbacks,
+  status item runtime tests, and validation snapshots that first reveal shows
+  the synthetic status title `S 42% W 68%` from icon-only mode, repeat press
+  collapses it, shortcut lifecycle events are emitted and recorded through
+  validation, and saved display mode is not mutated; it does not prove live
+  Carbon/global hotkey registration, native keyboard input, system shortcut
+  conflicts, live menubar capture, or native hittability.
 - `token-usage-off-hidden`: changed-feature non-regression for Token Usage card
   disabled-state presentation. It proves that the hosted active-account area
   omits the Token Usage card and scanner-derived copy when Token Usage is off;
@@ -366,6 +375,8 @@ The adapter currently includes:
   delivered notification dedupe and activation re-arm proof;
 - `make verify-status-bar-hover-label-scenario` for focused Status Bar hover
   runtime event and validation snapshot proof;
+- `make verify-status-bar-shortcut-reveal-scenario` for focused Status Bar
+  shortcut callback and reveal/collapse proof;
 - `make verify-add-account-name-scenario` for focused Add Account name
   validation unit proof;
 - `make verify-add-account-isolated-success-scenario` for focused Add Account

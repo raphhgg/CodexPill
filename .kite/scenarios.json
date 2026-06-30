@@ -442,6 +442,24 @@
           "statement": "Hover reveal behavior must not mutate the saved menu-bar label display preference."
         }
       ]
+    },
+    {
+      "id": "status-bar-shortcut-reveal",
+      "title": "Status bar shortcut reveal",
+      "acceptanceCriteria": [
+        {
+          "id": "shortcut-reveal-callback-shows-title",
+          "statement": "A reveal shortcut callback must temporarily show the synthetic status title from icon-only mode."
+        },
+        {
+          "id": "shortcut-reveal-repeat-press-collapses-title",
+          "statement": "Pressing the reveal shortcut again while the title is visible must collapse it."
+        },
+        {
+          "id": "shortcut-reveal-does-not-mutate-display-preference",
+          "statement": "Shortcut reveal behavior must not mutate the saved menu-bar label display preference."
+        }
+      ]
     }
   ],
   "scenarios": [
@@ -2778,6 +2796,94 @@
       ],
       "expectedMetadata": {
         "scenario": "status-bar-hover-label"
+      },
+      "privacy": {
+        "fixtureData": "synthetic",
+        "restrictedEvidence": [
+          "account_data",
+          "hostname",
+          "raw_local_path",
+          "private_product_data",
+          "token"
+        ]
+      }
+    },
+    {
+      "id": "status-bar-shortcut-reveal",
+      "title": "Status bar shortcut reveal",
+      "featureId": "status-bar-shortcut-reveal",
+      "acceptanceCriteria": [
+        "shortcut-reveal-callback-shows-title",
+        "shortcut-reveal-repeat-press-collapses-title",
+        "shortcut-reveal-does-not-mutate-display-preference"
+      ],
+      "targetSurface": "CodexPill fake global shortcut callback, status item runtime, and validation snapshots",
+      "validationModes": ["unit_only"],
+      "suites": ["deterministic"],
+      "validationIntent": {
+        "featureRisk": ["ui_interaction", "temporal", "privacy"],
+        "primaryProof": "workflow-event-log",
+        "supportingProof": ["runtime-state-snapshot", "shortcut-controller", "privacy-redaction"],
+        "requiredEvidence": ["test-output", "workflow-receipt", "scenario-summary"],
+        "nonClaims": [
+          "Does not exercise live Carbon/global hotkey registration.",
+          "Does not prove native keyboard input or system shortcut conflicts.",
+          "Does not prove live macOS menu-bar screen capture or native hittability."
+        ],
+        "liveOptIn": {
+          "required": false
+        }
+      },
+      "nonRegression": {
+        "tier": "changed-feature",
+        "runWhen": [
+          "local-handoff",
+          "status-item-runtime-changed",
+          "status-bar-shortcut-changed",
+          "shortcut-runtime-changed",
+          "status-bar-settings-changed",
+          "validation-observer-changed",
+          "scenario-fixture-changed"
+        ],
+        "blocking": true
+      },
+      "proof": {
+        "layer": "workflow-event-log",
+        "artifactSource": "focused-test-suite",
+        "nonClaims": [
+          "Does not exercise live Carbon/global hotkey registration.",
+          "Does not prove native keyboard input or system shortcut conflicts.",
+          "Does not prove live macOS menu-bar screen capture or native hittability."
+        ]
+      },
+      "command": {
+        "run": "make verify-status-bar-shortcut-reveal-scenario"
+      },
+      "expectedArtifacts": [
+        {
+          "id": "status-bar-shortcut-reveal-result-bundle",
+          "kind": "test_output",
+          "path": "build/results/local/CodexPill.xcresult",
+          "claimScope": ["status-item-shortcut-runtime-tests"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "status-bar-shortcut-reveal-workflow-receipt",
+          "kind": "workflow_receipt",
+          "path": "build/verification/status-bar-shortcut-reveal/workflow-receipt.json",
+          "claimScope": ["shortcut-reveal-runtime-events"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "status-bar-shortcut-reveal-summary",
+          "kind": "reconciliation_report",
+          "path": "build/verification/status-bar-shortcut-reveal/scenario-summary.json",
+          "claimScope": ["shortcut-reveal-runtime-reconciled"],
+          "redactionStatus": "sanitized"
+        }
+      ],
+      "expectedMetadata": {
+        "scenario": "status-bar-shortcut-reveal"
       },
       "privacy": {
         "fixtureData": "synthetic",

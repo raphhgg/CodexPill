@@ -23,6 +23,8 @@ NOTIFICATIONS_DEDUPE_SCENARIO := notifications-dedupe-after-delivery
 NOTIFICATIONS_DEDUPE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(NOTIFICATIONS_DEDUPE_SCENARIO)
 STATUS_BAR_HOVER_SCENARIO := status-bar-hover-label
 STATUS_BAR_HOVER_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(STATUS_BAR_HOVER_SCENARIO)
+STATUS_BAR_SHORTCUT_SCENARIO := status-bar-shortcut-reveal
+STATUS_BAR_SHORTCUT_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(STATUS_BAR_SHORTCUT_SCENARIO)
 RENAME_SCENARIO := rename-account-label-only
 RENAME_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(RENAME_SCENARIO)
 ADD_ACCOUNT_NAME_SCENARIO := add-account-name-validation
@@ -58,7 +60,7 @@ TOKEN_USAGE_CACHE_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE
 TOKEN_USAGE_PRIVACY_SCENARIO := token-usage-privacy-no-raw-session
 TOKEN_USAGE_PRIVACY_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_PRIVACY_SCENARIO)
 
-.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-diagnostics-export-confirmation-scenario verify-notifications-permission-denied-menu-state-scenario verify-notifications-account-available-policy-scenario verify-notifications-current-runs-out-action-scenario verify-notifications-dedupe-after-delivery-scenario verify-status-bar-hover-label-scenario verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-switch-account-remote-install-verify-scenario verify-remote-host-add-panel-validation-scenario verify-remote-host-install-switch-current-account-scenario verify-remote-host-verification-failure-scenario verify-remote-host-rate-limit-fallback-scenario verify-remove-account-active-targets-sign-out-scenario verify-remove-account-signout-failure-keeps-control-scenario verify-refresh-inactive-isolated-status-scenario verify-refresh-active-relinks-same-account-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
+.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-diagnostics-export-confirmation-scenario verify-notifications-permission-denied-menu-state-scenario verify-notifications-account-available-policy-scenario verify-notifications-current-runs-out-action-scenario verify-notifications-dedupe-after-delivery-scenario verify-status-bar-hover-label-scenario verify-status-bar-shortcut-reveal-scenario verify-rename-scenario verify-add-account-name-scenario verify-add-account-isolated-success-scenario verify-add-account-failure-cleanup-scenario verify-switch-account-local-confirmed-scenario verify-switch-account-remote-install-verify-scenario verify-remote-host-add-panel-validation-scenario verify-remote-host-install-switch-current-account-scenario verify-remote-host-verification-failure-scenario verify-remote-host-rate-limit-fallback-scenario verify-remove-account-active-targets-sign-out-scenario verify-remove-account-signout-failure-keeps-control-scenario verify-refresh-inactive-isolated-status-scenario verify-refresh-active-relinks-same-account-scenario verify-token-usage-parser-scenario verify-token-usage-cache-scenario verify-token-usage-privacy-scenario run clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -419,6 +421,58 @@ verify-status-bar-hover-label-scenario: generate prepare-result-bundle
 		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
 		'  "workflowReceipt": "$(STATUS_BAR_HOVER_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
 		'}' > "$(STATUS_BAR_HOVER_SCENARIO_ARTIFACTS)/scenario-summary.json"
+
+verify-status-bar-shortcut-reveal-scenario: generate prepare-result-bundle
+	mkdir -p "$(STATUS_BAR_SHORTCUT_SCENARIO_ARTIFACTS)"
+	xcodebuild test \
+		-project $(PROJECT_PATH) \
+		-scheme $(APP_NAME) \
+		-configuration Debug \
+		-destination "platform=macOS" \
+		-derivedDataPath "$(DERIVED_DATA)" \
+		-resultBundlePath "$(RESULT_BUNDLE)" \
+		-only-testing:CodexPillTests/StatusItemRuntimeTests \
+		-only-testing:CodexPillTests/GlobalShortcutRuntimeTests \
+		-only-testing:CodexPillTests/MenuBarRuntimeValidationTests \
+		PRODUCT_BUNDLE_IDENTIFIER="$(STAGING_BUNDLE_ID)"
+	printf '%s\n' \
+		'{' \
+		'  "scenario": "$(STATUS_BAR_SHORTCUT_SCENARIO)",' \
+		'  "proofLayer": "workflow-event-log",' \
+		'  "events": [' \
+		'    "Fake global shortcut callback is forwarded to the coordinator",' \
+		'    "Shortcut reveal shows the synthetic status title S 42% W 68% from icon-only mode",' \
+		'    "Repeat shortcut press collapses the visible status title",' \
+		'    "Shortcut reveal lifecycle events are emitted and recorded through validation",' \
+		'    "Shortcut reveal does not mutate the saved menu-bar label display mode"' \
+		'  ],' \
+		'  "status": "passed"' \
+		'}' > "$(STATUS_BAR_SHORTCUT_SCENARIO_ARTIFACTS)/workflow-receipt.json"
+	printf '%s\n' \
+		'{' \
+		'  "assertions": [' \
+		'    "Fake global shortcut callback reaches StatusItemRuntime through MenuBarCoordinator",' \
+		'    "First reveal shows the synthetic status title while saved mode remains icon-only",' \
+		'    "Repeat reveal collapses the status title",' \
+		'    "Runtime and validation events record shortcut reveal start and end"' \
+		'  ],' \
+		'  "command": "make verify-status-bar-shortcut-reveal-scenario",' \
+		'  "gaps": [' \
+		'    "Live Carbon/global hotkey registration is not exercised",' \
+		'    "Native keyboard input and system shortcut conflicts are not proven",' \
+		'    "Live macOS menu-bar screen capture and native hittability are not proven"' \
+		'  ],' \
+		'  "invariantIds": [' \
+		'    "status-bar.shortcut.callback-reveals-title",' \
+		'    "status-bar.shortcut.repeat-collapses-title",' \
+		'    "status-bar.shortcut.display-mode-unchanged"' \
+		'  ],' \
+		'  "proofLayer": "workflow-event-log",' \
+		'  "scenario": "$(STATUS_BAR_SHORTCUT_SCENARIO)",' \
+		'  "status": "passed",' \
+		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
+		'  "workflowReceipt": "$(STATUS_BAR_SHORTCUT_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
+		'}' > "$(STATUS_BAR_SHORTCUT_SCENARIO_ARTIFACTS)/scenario-summary.json"
 
 verify-rename-scenario: generate prepare-result-bundle
 	mkdir -p "$(RENAME_SCENARIO_ARTIFACTS)"
