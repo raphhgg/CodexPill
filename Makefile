@@ -15,8 +15,10 @@ RENAME_SCENARIO := rename-account-label-only
 RENAME_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(RENAME_SCENARIO)
 ADD_ACCOUNT_NAME_SCENARIO := add-account-name-validation
 ADD_ACCOUNT_NAME_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(ADD_ACCOUNT_NAME_SCENARIO)
+TOKEN_USAGE_PARSER_SCENARIO := token-usage-parser-aggregation
+TOKEN_USAGE_PARSER_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(TOKEN_USAGE_PARSER_SCENARIO)
 
-.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario verify-add-account-name-scenario run clean
+.PHONY: diagnose generate prepare-result-bundle build test package-release verify-ui verify-rename-scenario verify-add-account-name-scenario verify-token-usage-parser-scenario run clean
 
 diagnose:
 	command -v tuist >/dev/null
@@ -122,6 +124,43 @@ verify-add-account-name-scenario: generate prepare-result-bundle
 		'  "status": "passed",' \
 		'  "testResultBundle": "$(RESULT_BUNDLE)"' \
 		'}' > "$(ADD_ACCOUNT_NAME_SCENARIO_ARTIFACTS)/scenario-summary.json"
+
+verify-token-usage-parser-scenario: generate prepare-result-bundle
+	mkdir -p "$(TOKEN_USAGE_PARSER_SCENARIO_ARTIFACTS)"
+	xcodebuild test \
+		-project $(PROJECT_PATH) \
+		-scheme $(APP_NAME) \
+		-configuration Debug \
+		-destination "platform=macOS" \
+		-derivedDataPath "$(DERIVED_DATA)" \
+		-resultBundlePath "$(RESULT_BUNDLE)" \
+		-only-testing:CodexPillTests/CodexSessionTokenUsageScannerTests \
+		PRODUCT_BUNDLE_IDENTIFIER="$(STAGING_BUNDLE_ID)"
+	printf '%s\n' \
+		'{' \
+		'  "assertions": [' \
+		'    "Synthetic token-count rows aggregate into expected daily buckets",' \
+		'    "Repeated cumulative totals and forked history do not inflate usage",' \
+		'    "Malformed, oversized, and non-usage rows are skipped safely",' \
+		'    "Progress and cache contribution metadata avoid raw session paths"' \
+		'  ],' \
+		'  "command": "make verify-token-usage-parser-scenario",' \
+		'  "gaps": [' \
+		'    "Token Usage UI presentation is not proven by this contract-fixture scenario",' \
+		'    "Diagnostics export privacy is not proven by this scenario",' \
+		'    "Real local Codex history and live scanner lifecycle are not exercised"' \
+		'  ],' \
+		'  "invariantIds": [' \
+		'    "token-usage.parser.synthetic-token-count-aggregation",' \
+		'    "token-usage.parser.cumulative-delta-deduplication",' \
+		'    "token-usage.parser.bounded-malformed-row-handling",' \
+		'    "token-usage.parser.privacy-safe-progress"' \
+		'  ],' \
+		'  "proofLayer": "contract-fixture",' \
+		'  "scenario": "$(TOKEN_USAGE_PARSER_SCENARIO)",' \
+		'  "status": "passed",' \
+		'  "testResultBundle": "$(RESULT_BUNDLE)"' \
+		'}' > "$(TOKEN_USAGE_PARSER_SCENARIO_ARTIFACTS)/scenario-summary.json"
 
 run:
 	./scripts/run_menubar.sh

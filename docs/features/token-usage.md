@@ -153,13 +153,44 @@ Expected behavior:
 - `token-usage-parser-aggregation`
 - `token-usage-privacy-no-raw-session`
 
+## Validation Intent
+
+Feature risk: `ui_visual`, `parser`, `state_truth`, `privacy`, `performance`
+
+Primary proof for `token-usage-parser-aggregation`: `contract-fixture`
+
+Product scenarios:
+
+- `token-usage-parser-aggregation` proves that synthetic local Codex session
+  JSONL rows are parsed into aggregate daily buckets, repeated cumulative totals
+  do not inflate usage, malformed or oversized rows are skipped safely, and
+  progress/cache contribution metadata avoids raw local session paths.
+
+Required evidence:
+
+- focused test output from `CodexSessionTokenUsageScannerTests`;
+- `build/verification/token-usage-parser-aggregation/scenario-summary.json`.
+
+Non-claims:
+
+- Does not prove Token Usage UI presentation.
+- Does not prove diagnostics export privacy.
+- Does not prove saved-account, workspace, organization, or remote-host usage
+  history.
+- Does not prove real local Codex history scanning.
+- Does not prove live Token Usage runtime lifecycle or duplicate-scan
+  prevention.
+- Does not prove live macOS menu-bar behavior.
+
+Live opt-in: not required for this scenario.
+
 ## Proof Contract
 
 | Acceptance Criterion | Owning Proof Layer | Command / Method | Artifact | Pass Condition | Privacy / Redaction |
 | --- | --- | --- | --- | --- | --- |
 | When disabled, the main menu does not show the Token Usage card. | `unit` plus `deterministic-ui` | Presentation tests for disabled Token Usage state, plus `make verify-ui SCENARIO=token-usage-off-hidden`. | Test result plus `build/verification/token-usage-off-hidden/` screenshot, UI tree, and scenario summary. | The menu projection has no Token Usage card or scanner-derived loading copy. Hosted deterministic proof does not claim live scanner lifecycle or duplicate-scan prevention. | Synthetic fixture data only; artifacts must not include raw session rows, file paths, account identifiers, emails, hostnames, auth material, or tokens. |
 | When enabled with aggregate data, the main menu shows a compact Last 30 Days card inside the active account area. | `deterministic-ui` | `make verify-ui SCENARIO=token-usage-ready-card` | `build/verification/token-usage-ready-card/screenshots/token-usage-ready-card.png`, `ui-tree.json`, and `scenario-summary.json`. | The card appears below the Session and Weekly limit rows, shows today/Last 30 Days/peak-day summary data, and does not imply saved-account, workspace, organization, or remote-host attribution. | Synthetic aggregate data only; screenshot, UI tree, and summary must stay free of raw session content, paths, account IDs, emails, hostnames, auth material, and token-like secrets. |
-| The scanner parses local Codex token-count rows safely and aggregates malformed, repeated, and large rows into daily buckets. | `contract-fixture` | Focused scanner/parser fixture tests using synthetic JSONL rows. | Synthetic JSONL fixtures and parser result bundle. | Valid token-count rows contribute to the expected buckets, malformed or oversized rows are skipped safely, and repeated cumulative totals do not inflate daily usage. | Fixtures must be synthetic and must not copy real prompts, session rows, paths, account identifiers, emails, hostnames, or auth material. |
+| The scanner parses local Codex token-count rows safely and aggregates malformed, repeated, and large rows into daily buckets. | `contract-fixture` | `make verify-token-usage-parser-scenario` running `CodexSessionTokenUsageScannerTests`. | `build/results/local/CodexPill.xcresult` and `build/verification/token-usage-parser-aggregation/scenario-summary.json`. | Valid synthetic token-count rows contribute to expected buckets, malformed or oversized rows are skipped safely, repeated cumulative totals do not inflate daily usage, large files can be scanned when the size cap is disabled, and progress/cache metadata avoids raw session paths. This contract-fixture scenario does not prove Token Usage UI, diagnostics export privacy, real local history, or live runtime lifecycle. | Fixtures must be synthetic and must not copy real prompts, session rows, paths, account identifiers, emails, hostnames, auth material, or token-like secrets. |
 | Token Usage emits aggregate totals only. | `diagnostics-export` plus `fresh-context-review` | Diagnostics export fixture or privacy review for Token Usage artifacts. | Redacted diagnostics artifact plus negative leakage assertions. | UI, diagnostics, and validation artifacts contain aggregate totals only and fail if prompt content, raw rows, local paths, account identifiers, emails, hostnames, auth material, or tokens appear. | Any local proof using real data is degraded to manual review; committed artifacts must use synthetic or redacted data only. |
 
 ## Candidate Execution Slices

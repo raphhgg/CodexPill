@@ -38,7 +38,7 @@ that inventory into `.kite/scenarios.json` only when its owning feature doc has
 concrete acceptance criteria, proof rows, fixtures, command, artifacts, privacy
 rules, non-claims, and degraded-proof rules.
 
-The current clean-main manifest contains twelve deterministic scenarios:
+The current clean-main manifest contains thirteen deterministic scenarios:
 
 ```bash
 make verify-ui SCENARIO=hosted-menu-default
@@ -52,6 +52,7 @@ make verify-ui SCENARIO=launch-at-login-menu-states
 make verify-ui SCENARIO=status-bar-icon-text-visible
 make verify-ui SCENARIO=token-usage-off-hidden
 make verify-ui SCENARIO=token-usage-ready-card
+make verify-token-usage-parser-scenario
 make verify-ui SCENARIO=token-usage-loading-progress
 ```
 
@@ -123,6 +124,14 @@ Current deterministic scenarios:
   presentation. It proves that synthetic local aggregate data renders in the
   active account area without account, workspace, organization, remote-host,
   raw-session, or prompt attribution.
+- `token-usage-parser-aggregation`: changed-feature non-regression for Token
+  Usage parser aggregation. It proves through focused synthetic JSONL scanner
+  tests that token-count rows aggregate into daily buckets, repeated cumulative
+  totals do not inflate usage, malformed or oversized rows are skipped safely,
+  and progress/cache contribution metadata avoids raw session paths; it does
+  not prove Token Usage UI presentation, diagnostics export privacy, real local
+  Codex history, saved-account attribution, live scanner lifecycle, or live
+  macOS menu-bar behavior.
 - `token-usage-loading-progress`: changed-feature non-regression for Token
   Usage first-load feedback. It proves that synthetic file-count progress
   renders in the active account area without fake percentages, account,
@@ -141,6 +150,8 @@ The adapter currently includes:
 - `make verify-add-account-name-scenario` for focused Add Account name
   validation unit proof;
 - `make verify-rename-scenario` for focused Rename Account unit proof;
+- `make verify-token-usage-parser-scenario` for focused Token Usage scanner
+  contract-fixture proof;
 - `MenuBarValidationSupport` for semantic menu snapshots and hosted UI
   artifacts;
 - `InMemoryRemoteHostClient` for isolated remote-host behavior in deterministic
