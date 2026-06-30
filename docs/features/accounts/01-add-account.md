@@ -217,6 +217,21 @@ Given isolated sign-in is in progress, when CodexPill quits, then CodexPill abor
 
 Given CodexPill crashes during isolated sign-in, when CodexPill next launches, then it removes stale isolated Add Account temporary homes older than a safe threshold.
 
+## Validation Scenario Candidates
+
+- `add-account-name-validation`
+- `add-account-isolated-success`
+- `add-account-failure-cleanup`
+
+## Proof Contract
+
+| Acceptance Criterion | Owning Proof Layer | Command / Method | Artifact | Pass Condition | Privacy / Redaction |
+| --- | --- | --- | --- | --- | --- |
+| Empty or duplicate display names are blocked before sign-in starts. | `unit` plus alert/panel presentation assertion | Add Account name validation tests. | Test result plus presentation assertion output. | Empty, whitespace-only, and duplicate names keep the user in the name flow and do not start browser/device-code sign-in. | Synthetic account names only; no raw auth payloads, tokens, account identifiers, private paths, emails, or hostnames. |
+| Add Account saves an isolated account without switching This Mac. | `integration` plus `workflow-event-log` | Add Account integration test with fake login, fake app-server, fake auth store, and fake process client. | Structured workflow receipt plus isolated temp-home cleanup assertion. | The saved account appears in the catalog, live local auth is unchanged, optional status hydration is applied when available, and no Codex relaunch/switch occurs unless the success alert action is chosen. | Fake auth snapshots only; receipts must redact device codes, auth URLs, auth JSON, tokens, emails, account identifiers, private paths, and hostnames. |
+| Terminal Add Account failures clean sensitive temporary state. | `integration` plus negative filesystem/state assertions | Add Account failure matrix tests for cancel, expiry, startup failure, live-auth mutation, save failure, quit, and stale temp-home cleanup. | Test result plus cleanup receipt. | Each terminal failure clears pending state, deletes temporary isolated homes when appropriate, saves no unintended account, and leaves live local auth unchanged. | Temporary fixture paths must be synthetic or redacted; no raw auth payloads, device codes, auth URLs, tokens, emails, account identifiers, or hostnames may appear in artifacts. |
+| `Use on This Mac` routes through the existing switch flow without a second confirmation. | `workflow-event-log` | Add Account success action test with fake switch coordinator. | Structured action routing receipt. | Selecting `Use on This Mac` calls the existing local switch path once with confirmation suppression and does not duplicate switch prompts. | Synthetic account ids only; no raw auth payloads, tokens, private paths, emails, or hostnames. |
+
 ## Validation Targets
 
 The Add Account acceptance criteria should drive unit, integration, and live UI validation. At minimum, validation should cover:

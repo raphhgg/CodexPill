@@ -201,3 +201,39 @@ Remove:
 ### Visual Contract
 
 Submenu rows should remain compact because this is a menu, not a details panel. Extra explanatory copy belongs in confirmation alerts or feature docs, not in the menu.
+
+## Acceptance Criteria
+
+- When no saved accounts exist, the menu guides the user toward `Add Account…`
+  and does not imply switching is possible.
+- When saved accounts exceed the visible-account limit, hidden accounts remain
+  discoverable under `More Accounts…` and keep the same submenu behavior as
+  visible rows.
+- If live local auth does not match a saved account, CodexPill does not present
+  any saved account as active.
+- Remote active account cards prefer verified remote target values over stale
+  local catalog values.
+
+## Validation Scenario Candidates
+
+- `menu-empty-catalog`
+- `menu-account-overflow`
+- `menu-unmatched-active-account`
+- `remote-host-rate-limit-fallback`
+
+## Proof Contract
+
+| Acceptance Criterion | Owning Proof Layer | Command / Method | Artifact | Pass Condition | Privacy / Redaction |
+| --- | --- | --- | --- | --- | --- |
+| Empty catalog guides toward `Add Account…` and does not imply switching. | `deterministic-ui` | `make verify-ui SCENARIO=menu-empty-catalog` | `build/verification/menu-empty-catalog/screenshots/menu-empty-catalog.png`, `ui-tree.json`, and `scenario-summary.json`. | The hosted menu shows the empty-state copy and Add Account entry, with no saved-account rows or switch actions. | Synthetic empty catalog only; artifacts must not include raw auth, tokens, account identifiers, private paths, emails, hostnames, or prompts. |
+| Account overflow keeps hidden accounts discoverable. | `deterministic-ui` | `make verify-ui SCENARIO=menu-account-overflow` | `build/verification/menu-account-overflow/screenshots/menu-account-overflow.png`, `ui-tree.json`, and `scenario-summary.json`. | The hosted menu shows the configured visible account rows and `More Accounts…`; hidden rows use the same submenu action shape when expanded. | Synthetic saved accounts only; no raw auth payloads, tokens, private paths, real emails, real hostnames, or stable account identifiers. |
+| Unmatched local auth does not present a saved account as active. | `deterministic-ui` | `make verify-ui SCENARIO=menu-unmatched-active-account` | `build/verification/menu-unmatched-active-account/screenshots/menu-unmatched-active-account.png`, `ui-tree.json`, and `scenario-summary.json`. | Saved accounts remain catalog rows, and the active section does not mark any saved account as active when local auth is unmatched. | Synthetic unmatched auth state only; artifacts must not include raw auth payloads, tokens, account identifiers, private paths, emails, hostnames, or prompts. |
+| Remote active cards prefer verified remote values over stale local catalog values. | `unit` plus `contract-fixture` | Future remote rate-limit resolution tests with verified, missing, and suspicious remote fixtures. | Test result plus rate-limit resolution fixture bundle. | Verified remote values win for the remote card; fallback values appear only when remote data is missing or suspicious and are not presented as verified remote state. | Synthetic host/account/rate-limit fixtures only; no raw SSH output, auth payloads, tokens, private paths, real emails, or hostnames. |
+
+## Validation Targets
+
+- Hosted menu projection proof for empty catalog, overflow, and unmatched active
+  account states.
+- Unit or contract-fixture proof for remote rate-limit value selection.
+- Privacy review confirming account-menu artifacts use synthetic accounts,
+  hosts, and rate-limit values.

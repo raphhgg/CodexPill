@@ -109,6 +109,19 @@ Unavailable:
 - Reduced-motion users get a non-distracting loading state without aggressive motion.
 - No raw session content, file paths, account identifiers, emails, hostnames, or auth data are shown.
 
+## Validation Scenario Candidates
+
+- `token-usage-loading-progress`
+
+## Proof Contract
+
+| Acceptance Criterion | Owning Proof Layer | Command / Method | Artifact | Pass Condition | Privacy / Redaction |
+| --- | --- | --- | --- | --- | --- |
+| The no-cache loading state uses active, honest loading feedback without fake percentages. | `deterministic-ui` | `make verify-ui SCENARIO=token-usage-loading-progress` | `build/verification/token-usage-loading-progress/screenshots/token-usage-loading-progress.png`, `ui-tree.json`, and `scenario-summary.json`. | The Token Usage card shows loading/progress copy in the active account area, includes no fake percentage or completion estimate, and reconciles to the requested scenario metadata. | Synthetic file-count progress only; artifacts must not include raw session rows, file paths, account identifiers, emails, hostnames, auth material, or tokens. |
+| Loading copy visibly changes over time while scanner file-count progress remains private. | `unit` plus `deterministic-ui` | Existing loading-frame/unit coverage plus hosted scenario proof. | Unit test output plus scenario summary. | Frame/copy progression is covered by unit tests, while the hosted artifact proves only the selected deterministic frame and does not claim real-time animation cadence. | Unit fixtures must use synthetic counts; no raw local path, session id, prompt, auth payload, account identifier, email, hostname, or token may be emitted. |
+| Closing and reopening the menu while scanning keeps one active loading state. | `workflow-event-log` | Future coordinator test with fake scanner lifecycle recorder. | Structured scan lifecycle receipt. | Repeated menu opens reuse the same scan job and keep loading state alive instead of starting duplicate scans. | Event receipts must use synthetic scenario ids and no raw user data. |
+| Existing cached charts remain visible during refresh. | `unit` plus `workflow-event-log` | Future coordinator/presentation test with cached aggregate and refresh-in-progress fixture. | Test result plus structured refresh receipt. | Refresh begins without replacing the visible cached chart with the first-load loading placeholder. | Synthetic aggregate data only; no raw session rows or private attribution. |
+
 ## Validation Targets
 
 - Presentation tests for loading-state copy.

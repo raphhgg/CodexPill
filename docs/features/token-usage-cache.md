@@ -177,6 +177,21 @@ Runtime behavior:
 - Cold scanning stays within an agreed resource budget on a large-history fixture or local benchmark.
 - Cache and diagnostics expose only aggregate metadata, never raw Codex session content.
 
+## Validation Scenario Candidates
+
+- `token-usage-parser-aggregation`
+- `token-usage-cache-first`
+- `token-usage-privacy-no-raw-session`
+
+## Proof Contract
+
+| Acceptance Criterion | Owning Proof Layer | Command / Method | Artifact | Pass Condition | Privacy / Redaction |
+| --- | --- | --- | --- | --- | --- |
+| With cache, CodexPill shows cached aggregate data immediately and does not restart scanning on repeated menu opens. | `unit` plus `workflow-event-log` | Cache/coordinator tests with fake scanner lifecycle recorder. | Test result plus structured scan lifecycle receipt. | Cached data is presented before a scan starts, repeated menu opens do not create duplicate scan jobs, and chart-style changes do not enqueue scanner work. | Synthetic aggregate fixtures only; no raw session rows, prompts, local paths, account identifiers, emails, hostnames, auth material, or tokens. |
+| Refreshing a cached selected period reparses only new or changed eligible files. | `contract-fixture` plus `integration` | Incremental cache fixture tests with file metadata/change fixtures. | Synthetic cache fixture, per-file contribution fixture, and result bundle. | Unchanged file contributions are reused, changed/new files are rescanned, and selected-period totals match expected aggregate buckets. | Fixtures must avoid real absolute paths unless redacted or hashed; committed fixtures use synthetic paths and rows. |
+| Scanner parses malformed, repeated, oversized, and large rows within bounded resources. | `contract-fixture` | Synthetic JSONL scanner tests, including malformed rows and large-file fixtures. | Parser result bundle plus resource benchmark or bounded-memory assertion. | Malformed or oversized rows are skipped safely, repeated cumulative totals do not overcount, and large eligible files are processed without loading the whole file into memory. | Synthetic JSONL only; no real prompts, session rows, account identifiers, emails, hostnames, auth payloads, or tokens. |
+| Cache and diagnostics expose aggregate metadata only. | `diagnostics-export` plus `fresh-context-review` | Diagnostics export fixture or privacy review for Token Usage cache artifacts. | Redacted diagnostics artifact plus negative leakage assertions. | Exported cache/diagnostic evidence contains aggregate metadata and fails if raw Codex session content, paths, account identifiers, emails, hostnames, auth material, or token-like values appear. | Real local data may be inspected only as manual degraded proof; committed artifacts must be synthetic or redacted. |
+
 ## Validation Targets
 
 - Unit tests for cache read/write, schema invalidation, and corrupted cache recovery.

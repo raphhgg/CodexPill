@@ -103,6 +103,21 @@ Given a remote switch completes, when CodexPill refreshes the remote Codex app-s
 
 Given a remote switch command completes but verification reports a different or ambiguous account, then CodexPill surfaces the verification failure instead of silently marking the remote switch as successful.
 
+## Validation Scenario Candidates
+
+- `switch-account-local-confirmed`
+- `switch-account-remote-install-verify`
+
+## Proof Contract
+
+| Acceptance Criterion | Owning Proof Layer | Command / Method | Artifact | Pass Condition | Privacy / Redaction |
+| --- | --- | --- | --- | --- | --- |
+| Local switch asks for confirmation before activating the saved snapshot. | `workflow-event-log` | Local switch coordinator test with fake confirmation presenter, auth store, process client, and status client. | Structured local-switch receipt. | Auth activation is not called before confirmation; confirming writes the selected snapshot, relaunches Codex through the fake process client, and refreshes account data. | Fake auth snapshots only; receipt must not include raw auth JSON, tokens, private paths, emails, hostnames, or account identifiers beyond synthetic ids. |
+| Add Account success uses the existing switch path without a second confirmation. | `workflow-event-log` | Add Account success action test with fake switch coordinator. | Structured action routing receipt. | The success action invokes the same local switch operation with confirmation suppression, and no duplicate confirmation prompt is emitted. | Synthetic account ids only; no raw auth, tokens, paths, emails, or hostnames. |
+| Remote switch installs missing or stale snapshots before switching. | `workflow-event-log` plus `contract-fixture` | Remote switch test with `InMemoryRemoteHostClient` or fake SSH contract. | Structured remote-operation receipt. | Missing or stale host snapshots trigger install before switch; already-fresh snapshots use direct switch; operation order is visible in the receipt. | Fake remote hosts and snapshots only; no raw SSH output, auth payloads, tokens, private paths, real emails, or hostnames. |
+| Remote switch refreshes and verifies the expected account. | `workflow-event-log` plus `integration` | Remote switch verification test with fake app-server/status clients. | Remote refresh and verification receipt. | After switching, CodexPill refreshes remote app-server state and marks success only when the reported account uniquely matches the selected saved account. | Synthetic app-server payloads only; no raw auth, tokens, emails, hostnames, private paths, or stable account identifiers. |
+| Remote verification failure is surfaced instead of silently accepted. | `unit` plus `workflow-event-log` | Remote verification failure test with ambiguous and mismatched fixtures. | Failure-state receipt plus menu projection assertion when applicable. | Mismatch or ambiguity produces a recoverable failure state and does not present the host as verified active. | Synthetic fixtures only; no raw SSH output, auth payloads, tokens, emails, hostnames, or private paths. |
+
 ## Validation Targets
 
 - `switch_account_local_confirms_before_activation`

@@ -57,6 +57,10 @@ No user-facing UI, copy, or menu-state changes are expected.
   `@preconcurrency` workaround is introduced without a local safety invariant
   and a reason it is narrower than an actor-isolation or value-conformance fix.
 
+## Validation Scenario Candidates
+
+- `swift-6-language-mode`
+
 ## Validation Targets
 
 - Capture the baseline Swift 6 diagnostic list before fixing.
@@ -68,6 +72,13 @@ No user-facing UI, copy, or menu-state changes are expected.
   isolation, and `Sendable` correctness.
 - Confirm validation artifacts do not print auth payloads, tokens, account
   identifiers, or saved snapshot contents.
+
+## Proof Contract
+
+| Acceptance Criterion | Owning Proof Layer | Command / Method | Artifact | Pass Condition | Privacy / Redaction |
+| --- | --- | --- | --- | --- | --- |
+| App and test targets compile and test in Swift 6 language mode. | `contract-fixture` | Swift 6 build/test commands selected by the implementation slice, ending with `make test`. | Compiler output summary plus test result. | App and test targets use Swift 6 language mode, known diagnostics are resolved, and `make test` passes without broad unsafe concurrency workarounds. | Build/test logs must not include raw auth payloads, tokens, account identifiers, saved snapshots, private local data, or personal fixture values. |
+| Concurrency fixes are narrow and preserve product behavior. | `fresh-context-review` | Focused review of changed concurrency boundaries. | Review note covering task lifetime, cancellation, actor isolation, and `Sendable` correctness. | Any `@unchecked Sendable`, `nonisolated(unsafe)`, or `@preconcurrency` use has a local safety invariant and is narrower than the available actor/value fix. | Review artifacts must not expose auth snapshots, tokens, account identifiers, private paths, emails, or hostnames. |
 
 ## Out Of Scope / Deferrals
 

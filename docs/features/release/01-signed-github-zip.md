@@ -103,6 +103,20 @@ The README should include a short first-run note:
 - Repo safety grep for secrets, private paths, and personal fixture data before
   publishing.
 
+## Validation Scenario Candidates
+
+- `signed-release-package`
+- `beta-release-fresh-download`
+
+## Proof Contract
+
+| Acceptance Criterion | Owning Proof Layer | Command / Method | Artifact | Pass Condition | Privacy / Redaction |
+| --- | --- | --- | --- | --- | --- |
+| A clean `main` checkout produces a signed, hardened, notarized, stapled zip. | `manual-qa` | `AGENT_NAME=release RELEASE_VERSION=<tag> make package-release` from clean `main`. | Release artifact under `build/release/artifacts/` plus summarized packaging output. | Packaging builds `CodexPill.app`, signs with Developer ID Application, enables hardened runtime, notarizes, staples, validates the staple, runs Gatekeeper assessment, and creates the zip. | Do not record signing credentials, Apple account identifiers, keychain profile secrets, private paths, auth snapshots, tokens, or personal fixture data. |
+| GitHub Release and Homebrew cask point at the same signed/notarized artifact. | `manual-qa` | Maintainer release checklist plus fresh download and Homebrew install smoke. | Release URL, zip filename, cask reference, and smoke-test notes. | The GitHub Release contains the signed zip, the Homebrew cask installs the same artifact, and a fresh download launches without Gatekeeper bypass. | Public release notes and checklist entries must avoid credentials, private local paths, auth data, tokens, account identifiers, and personal fixture data. |
+| README install instructions match the real install paths. | `fresh-context-review` | Review README install copy against release artifact and Homebrew cask. | Review note or checklist row. | README mentions only available install paths; if signed beta downloads are unavailable, it says build from source for now. | Review artifacts must not include secrets, private paths, or local keychain/profile details. |
+| No signing credentials or notarization secrets are stored in the repo. | `fresh-context-review` | Repo safety grep plus staged diff review before publishing. | Secret-scan summary with reviewed matches. | Any match is classified as safe documentation or a blocker before release. | Never print or commit secret values; summarize blockers without exposing raw credentials. |
+
 ## Out Of Scope / Deferrals
 
 - Sparkle auto-updates.

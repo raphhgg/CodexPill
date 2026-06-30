@@ -63,6 +63,30 @@ When CodexPill is busy, menu actions that would conflict with the active workflo
 
 If `statusMessage` is visible, it appears below App Controls and above `Quit`.
 
+## Acceptance Criteria
+
+- The hosted default menu keeps the documented section order and does not claim
+  live auth, live Codex state, preview rendering, or native menu-bar behavior.
+- Busy workflows expose a menu status message and disable or route conflicting
+  menu actions through their existing confirmation paths.
+- Diagnostics export requires explicit user confirmation before writing any
+  support artifact.
+- Diagnostics export writes only allowlisted, redacted support data.
+
+## Validation Scenario Candidates
+
+- `hosted-menu-default`
+- `menu-busy-status`
+- `diagnostics-export-confirmation`
+
+## Proof Contract
+
+| Acceptance Criterion | Owning Proof Layer | Command / Method | Artifact | Pass Condition | Privacy / Redaction |
+| --- | --- | --- | --- | --- | --- |
+| The hosted default menu keeps the documented section order and does not claim live state. | `deterministic-ui` | `make verify-ui SCENARIO=hosted-menu-default` | `build/verification/hosted-menu-default/screenshots/hosted-menu-default.png`, `ui-tree.json`, and `scenario-summary.json`. | The hosted menu projection shows the expected sections and metadata for synthetic saved-account state, while the scenario summary records non-claims for SwiftUI preview rendering, live macOS menu-bar behavior, and live Codex state. | Synthetic accounts/hosts only; artifacts must not include raw auth payloads, tokens, account identifiers, private paths, prompts, emails, or hostnames outside synthetic fixture values. |
+| Busy workflows expose status and disable or route conflicting actions. | `deterministic-ui` plus `workflow-event-log` | Future busy-state menu projection test and fake workflow/action recorder. | Hosted menu artifact plus structured action-availability receipt. | The visible status appears below App Controls and above `Quit`; conflicting actions are disabled or routed through the documented confirmation flow rather than firing conflicting mutations. | Event receipts must use synthetic account/host ids and must not include raw auth payloads, tokens, private paths, emails, or hostnames. |
+| Diagnostics export requires confirmation and writes only a redacted support artifact. | `diagnostics-export` | Future diagnostics export fixture with cancel and confirm branches. | Redacted diagnostics JSON plus negative leakage assertions. | Cancel writes no report; confirm writes only allowlisted aliases, freshness/result summaries, and CodexPill-owned workflow events. | The report must fail validation if it contains raw logs, auth JSON, saved snapshots, raw UserDefaults, raw SSH output, emails, hostnames, local paths, tokens, stable account IDs, prompt/session content, or raw stderr. |
+
 ## Validation Notes
 
 Menu UI validation should assert section ordering, direct-row versus submenu placement, action wiring, disabled states during busy work, and the presence or absence of optional sections.

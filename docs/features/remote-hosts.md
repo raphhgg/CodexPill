@@ -74,3 +74,39 @@ Copy:
 - Secondary action: `Cancel`
 
 If the user cancels this follow-up, CodexPill should not leave a confusing pending host state. The host should either not be added yet or the UI must clearly explain what remains incomplete.
+
+## Acceptance Criteria
+
+- Add Host validates destination feedback and unlocks `Add Host` only for a
+  reachable Codex-ready SSH target.
+- Host setup can install and switch the current account, or leave no confusing
+  pending host state when cancelled.
+- Failed or ambiguous remote verification is surfaced and is not presented as a
+  verified active account.
+- Remote account cards prefer verified remote values and use saved-account
+  fallback only when remote data is missing or suspicious.
+
+## Validation Scenario Candidates
+
+- `remote-host-add-panel-validation`
+- `remote-host-install-switch-current-account`
+- `remote-host-verification-failure`
+- `remote-host-rate-limit-fallback`
+
+## Proof Contract
+
+| Acceptance Criterion | Owning Proof Layer | Command / Method | Artifact | Pass Condition | Privacy / Redaction |
+| --- | --- | --- | --- | --- | --- |
+| Add Host validates destination feedback and unlocks `Add Host` only for reachable Codex-ready targets. | `deterministic-ui` plus `contract-fixture` | Add Host panel presentation tests and fake SSH/Codex readiness contract tests. | Panel state artifact plus fake SSH validation result bundle. | Invalid, unreachable, not-Codex-ready, and successful destinations render the documented feedback; `Add Host` unlocks only for successful Codex-ready validation. | Synthetic destinations only; no raw SSH output, private hostnames, usernames, paths, tokens, or auth payloads. |
+| Host setup installs and switches the current account, or leaves no confusing pending host state when cancelled. | `workflow-event-log` | Host setup coordinator test with fake remote operations and cancel branch. | Structured host setup receipt. | Confirming runs install then switch in order; cancelling creates no ambiguous pending host or records an explicit incomplete state visible to the user. | Fake remote host and auth snapshots only; redact raw SSH output, auth payloads, tokens, private paths, emails, and hostnames. |
+| Failed or ambiguous remote verification is surfaced and not shown as verified active state. | `unit` plus `deterministic-ui` | Remote verification failure tests and menu projection assertion. | Failure result bundle plus optional hosted menu artifact. | Ambiguous/mismatched verification surfaces recovery state and the menu does not show the remote card as verified active. | Synthetic host/account data only; no raw SSH output, auth payloads, tokens, private paths, emails, or hostnames. |
+| Remote cards prefer verified remote values and use saved fallback only when remote data is missing or suspicious. | `unit` plus `contract-fixture` | Rate-limit resolution tests with verified, missing, and suspicious remote fixtures. | Resolution fixture result bundle. | Verified remote values win; fallback values are labeled/presented only as fallback and never as verified remote truth. | Synthetic rate-limit payloads only; no real account ids, emails, hostnames, raw SSH output, auth payloads, or tokens. |
+
+## Validation Targets
+
+- Panel presentation tests for Add Host field states and validation feedback.
+- Fake SSH/Codex readiness contract fixtures for reachable, unreachable,
+  host-key prompt, credential prompt, not-Codex-ready, and success branches.
+- Workflow-event tests for install-and-switch ordering and cancel behavior.
+- Unit/menu projection tests for remote verification failure states.
+- Contract fixtures for remote rate-limit fallback resolution.

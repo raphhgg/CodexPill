@@ -101,6 +101,19 @@ Record:
 
 Do not mark the release complete until the freshly downloaded artifact launches.
 
+## Validation Scenario Candidates
+
+- `signed-release-package`
+- `beta-release-fresh-download`
+
+## Proof Contract
+
+| Gate | Owning Proof Layer | Command / Method | Artifact | Pass Condition | Privacy / Redaction |
+| --- | --- | --- | --- | --- | --- |
+| Signed release package | `manual-qa` | `AGENT_NAME=release RELEASE_VERSION=<tag> make package-release` from clean `main`. | Completed Build, Sign, And Notarize checklist table. | Build, zip inspection, codesign verification, hardened runtime display, notarization, stapling, stapler validation, and Gatekeeper assessment all pass. | Record summarized evidence only; never record Apple account identifiers, signing credentials, keychain profile secrets, auth snapshots, tokens, or private paths. |
+| Fresh beta download | `manual-qa` plus `live-ui-smoke` | Fresh GitHub Release download, unzip, launch, and Homebrew cask install. | Completed Fresh Download Smoke checklist table. | Downloaded app launches without Gatekeeper bypass, menubar item appears, README copy matches the artifact, and Homebrew installs the same release. | Avoid screenshots or logs containing private desktop content, local usernames, account data, tokens, or private paths. |
+| Repo safety | `fresh-context-review` | `git status --short`, `git diff --check`, and the documented secret-safety `rg` command. | Repo Safety Check notes. | Working tree is clean for release inputs, formatting has no diff-check errors, and every grep match is classified as safe docs or a blocker. | Do not paste secret values into notes, release text, issue comments, or commits. |
+
 ## Repo Safety Check
 
 Before announcing the beta, confirm the public repo and release notes do not

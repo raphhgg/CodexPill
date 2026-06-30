@@ -80,3 +80,40 @@ For the active local account:
 - then apply returned email, plan, and rate-limit metadata as normal.
 
 For inactive saved accounts, CodexPill must keep using isolated saved-account status reads and must not rotate inactive snapshots through the real local auth file.
+
+## Acceptance Criteria
+
+- Inactive saved accounts refresh through isolated app-server reads without
+  mutating live local Codex auth.
+- Failed, missing, partial, zeroed, or suspicious isolated reads preserve
+  previous meaningful rate-limit data.
+- Active local refresh relinks the saved snapshot from current live auth when
+  the returned identity is the same saved account and the auth fingerprint
+  changed.
+- Active local refresh does not relink when identity is ambiguous or different.
+
+## Validation Scenario Candidates
+
+- `refresh-inactive-isolated-status`
+- `refresh-active-relinks-same-account`
+
+## Proof Contract
+
+| Acceptance Criterion | Owning Proof Layer | Command / Method | Artifact | Pass Condition | Privacy / Redaction |
+| --- | --- | --- | --- | --- | --- |
+| Inactive saved accounts refresh through isolated app-server reads without mutating live auth. | `contract-fixture` plus `integration` | Refresh test with fake isolated `CODEX_HOME`, fake app-server client, and live-auth hash guard. | App-server request/response fixture plus live-auth unchanged assertion. | The isolated read sends the expected app-server sequence, updates metadata/rate limits when complete, removes temporary state, and leaves live local auth hash/size/mtime unchanged. | Fake auth snapshots and synthetic app-server payloads only; artifacts must not include raw auth JSON, tokens, private paths, account identifiers, emails, or hostnames. |
+| Failed or suspicious inactive reads preserve meaningful previous limits. | `contract-fixture` | Refresh failure/suspicious response fixture tests. | Result bundle for failed, missing, partial, zeroed, and suspicious limit responses. | Previous meaningful session/weekly windows remain authoritative when the isolated read is unusable, and the menu does not present suspicious data as fresh truth. | Synthetic payloads only; no raw app-server output from real accounts. |
+| Active local refresh relinks the same account when the auth fingerprint changed. | `integration` | Active refresh test with fake live auth, status client, and catalog store. | Relink receipt plus saved snapshot assertion. | Matching identity with changed fingerprint overwrites that saved account's snapshot, preserves saved account id/display name/catalog position, and applies returned metadata/rate limits. | Fake live auth and synthetic identity data only; no raw auth payloads, tokens, private paths, real emails, hostnames, or stable account identifiers. |
+| Active local refresh refuses ambiguous or different identity relinks. | `integration` | Active refresh ambiguity/mismatch tests. | Refresh result receipt plus catalog-state assertion. | Ambiguous or different returned identity does not overwrite saved snapshots and surfaces recoverable state. | Synthetic identity fixtures only; no raw account, auth, token, path, email, or hostname data. |
+
+## Validation Targets
+
+- Contract fixtures for complete and partial app-server status payloads.
+- Integration tests proving inactive isolated reads do not mutate live local
+  auth.
+- Integration tests for preserving previous meaningful rate-limit windows on
+  failed or suspicious reads.
+- Active-refresh tests for same-identity relinking and ambiguous/different
+  identity refusal.
+- Privacy review confirming refresh artifacts do not print auth payloads,
+  tokens, account identifiers, emails, hostnames, or private paths.

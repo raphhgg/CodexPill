@@ -1,14 +1,15 @@
 # Feature Validation Scenarios
 
-This inventory records the scenarios CodexPill should validate for each feature
-area. It follows the refinement contract: scenarios belong to features, prove
-acceptance criteria, declare Validation Intent, map to a proof layer, and carry
-non-regression policy before they are considered harness-ready.
+This inventory indexes the scenarios CodexPill should validate for each feature
+area. The owning feature document is the source of truth for behavior,
+acceptance criteria, proof contract, validation targets, deferrals, and open
+questions. This file tracks readiness and promotion order across those feature
+contracts.
 
 This is not a scenario pack. `.kite/scenarios.json` remains the source of truth
 only for runnable Kite scenarios. Target scenarios stay here until their
-feature contract, fixture, command, artifacts, privacy rules, and degraded-proof
-rules are concrete enough to promote.
+owning feature contract, fixture, command, artifacts, privacy rules, and
+degraded-proof rules are concrete enough to promote.
 
 ## Readiness
 
@@ -33,9 +34,9 @@ rules are concrete enough to promote.
 
 ## Proof Contract Expansion
 
-Each row below is a scenario candidate, not the full runnable proof contract.
-Before promotion to `.kite/scenarios.json`, expand the row into the refinement
-proof-contract shape:
+Each row below is a scenario candidate summary, not the full runnable proof
+contract. Before promotion to `.kite/scenarios.json`, the owning feature doc
+must include or link to the refinement proof-contract shape:
 
 | Required Field | Promotion Requirement |
 | --- | --- |
@@ -44,6 +45,27 @@ proof-contract shape:
 | Pass Condition | State what must be true in the artifact, not merely that the command exits successfully. |
 | Privacy / Redaction | Declare synthetic fixture data, redaction status, and restricted evidence classes. |
 | Degraded Proof | State what remains unproven when live, visual, system, or external proof is skipped. |
+
+## Feature Contract Ownership
+
+| Scenario Area | Owning Feature Contract |
+| --- | --- |
+| Menubar composition, busy state, diagnostics export | [Menubar](menubar.md) |
+| Account catalog, overflow, unmatched active account, remote value fallback | [Accounts](accounts/00-accounts.md) |
+| Add Account | [Add Account](accounts/01-add-account.md) |
+| Switch Account | [Switch Account](accounts/02-switch-account.md) |
+| Remove Account | [Remove Account](accounts/03-remove-account.md) |
+| Rename Account | [Rename Account](accounts/04-rename-account.md) |
+| Refresh Accounts | [Refresh Accounts](accounts/05-refresh-accounts.md) |
+| Remote Hosts | [Remote Hosts](remote-hosts.md) |
+| Notifications | [Notifications](notifications.md) |
+| Status Bar | [Status Bar](status-bar.md) |
+| Token Usage menu card and privacy boundary | [Token Usage](token-usage.md) |
+| Token Usage loading state | [Token Usage Loading Progress](token-usage-loading-progress.md) |
+| Token Usage parser/cache behavior | [Token Usage Incremental Cache](token-usage-cache.md) |
+| Launch at Login | [Launch At Login](app-controls/01-launch-at-login.md) |
+| Signed release package and beta download gates | [Signed GitHub Release Zip](release/01-signed-github-zip.md), [First Signed Beta Release Checklist](release/03-first-beta-release-checklist.md) |
+| Swift 6 compiler gate | [Swift 6 Language Mode Migration](release/04-swift-6-language-mode.md) |
 
 ## Menubar
 
@@ -132,9 +154,31 @@ quality rather than a product user path.
 
 ## Next Promotion Candidates
 
-Recommended order:
+Current lane:
 
-1. One explicit live/preview scenario only after the manifest declares live
-   opt-in, cleanup, privacy rules, and non-claims.
-2. Promote lower-level Token Usage parser/cache/privacy scenarios when scanner,
-   cache, diagnostics, or artifact behavior changes.
+Feature-owned proof contracts are the prerequisite before promoting more
+target scenarios. A target scenario may move into `.kite/scenarios.json` only
+after the owning feature doc has concrete acceptance criteria, proof rows,
+artifact expectations, privacy rules, and degraded-proof rules.
+
+Recommended promotion order after the proof-contract backfill:
+
+1. `token-usage-off-hidden`: closes the Token Usage menu-card state triangle
+   across off, loading, and ready states using the existing deterministic hosted
+   UI path.
+2. `menu-busy-status`: protects global menu action availability while keeping
+   workflow mutation proof in structured event receipts.
+3. `launch-at-login-menu-states` and `status-bar-icon-text-visible`: cover
+   simple deterministic presentation states before system mutation or temporal
+   interaction proof.
+4. `rename-account-label-only` and `add-account-name-validation`: lower-risk
+   account model/presentation scenarios before auth mutation workflows.
+5. Token Usage parser, cache, and privacy scenarios when scanner, cache,
+   diagnostics, or artifact behavior changes.
+6. Local account mutation, remote host mutation, notification action routing,
+   temporal status-bar interaction, and live/system-mutation gates only after
+   fake-client workflow receipts or explicit live opt-in exist.
+
+Release and compiler gates remain maintainer validation gates, not normal Kite
+product scenarios, until Kite has a separate gate registry for non-product
+release evidence.

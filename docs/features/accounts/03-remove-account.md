@@ -103,6 +103,20 @@ Given the removed account had previously been installed on a remote host but is 
 
 Given CodexPill is performing another account operation, then remove actions are disabled until the app returns to idle.
 
+## Validation Scenario Candidates
+
+- `remove-account-active-targets-sign-out`
+- `remove-account-signout-failure-keeps-control`
+
+## Proof Contract
+
+| Acceptance Criterion | Owning Proof Layer | Command / Method | Artifact | Pass Condition | Privacy / Redaction |
+| --- | --- | --- | --- | --- | --- |
+| Remove requires confirmation and cancel does not mutate state. | `workflow-event-log` | Remove coordinator test with fake confirmation presenter and catalog/auth stores. | Structured confirmation and mutation receipt. | No delete/sign-out call happens before confirmation; cancelling leaves catalog, saved snapshot, active account match, and menu state unchanged. | Synthetic account ids and snapshots only; no raw auth payloads, tokens, private paths, emails, hostnames, or prompts. |
+| Removing an active account signs out local and remote active targets before deleting the saved snapshot. | `workflow-event-log` | Remove active-target test with fake local auth, fake process client, and fake remote host client. | Ordered sign-out/delete receipt. | Required local and remote sign-outs happen before deleting the saved snapshot; after success the removed account is no longer presented as active. | Fake auth/remote fixtures only; no raw auth, tokens, raw SSH output, private paths, emails, or hostnames. |
+| Required sign-out failure keeps the saved snapshot and catalog row. | `unit` plus `workflow-event-log` | Failure-path test with fake local or remote sign-out error. | Failure receipt plus catalog-state assertion. | Failed required sign-out prevents snapshot deletion, keeps the catalog row, and surfaces the real failure. | Synthetic failure data only; redact raw stderr, SSH output, auth payloads, tokens, paths, emails, and hostnames. |
+| Removing a locally saved account does not delete inactive remote snapshots. | `workflow-event-log` | Remove test with fake remote host containing inactive installed snapshot. | Remote-operation receipt. | The local saved snapshot is deleted after confirmation, and no remote file-delete operation is called for inactive remote snapshots. | Synthetic remote host and snapshot ids only; no raw SSH output, auth payloads, tokens, paths, emails, or hostnames. |
+
 ## Validation Targets
 
 - `remove_account_requires_confirmation`

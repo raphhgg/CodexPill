@@ -94,6 +94,23 @@ Settings to the relevant Login Items surface instead of trying to toggle again.
 - The menu state never claims launch at login is enabled when registration
   failed or macOS reports the item as blocked.
 
+## Validation Scenario Candidates
+
+- `launch-at-login-menu-states`
+- `launch-at-login-enable-confirmation`
+- `launch-at-login-blocked-opens-settings`
+- `launch-at-login-real-os-smoke`
+
+## Proof Contract
+
+| Acceptance Criterion | Owning Proof Layer | Command / Method | Artifact | Pass Condition | Privacy / Redaction |
+| --- | --- | --- | --- | --- | --- |
+| Preferences shows checked, unchecked, blocked, and unavailable Launch at Login states truthfully. | `unit` plus `deterministic-ui` | Login-item state mapping tests and future `make verify-ui SCENARIO=launch-at-login-menu-states` once promoted. | Test result plus hosted menu screenshot, UI tree, and scenario summary. | Checked, unchecked, blocked, and unavailable states map to the documented row copy and checkbox/ellipsis behavior without claiming registration success when macOS reports failure or blocked state. | Synthetic login-item state only; artifacts must not include private machine paths, account identifiers, auth payloads, tokens, emails, or hostnames. |
+| Enabling requires confirmation before registering the macOS login item. | `workflow-event-log` | Coordinator test with fake login-item controller and confirmation presenter. | Structured confirmation and fake-controller call receipt. | The fake controller is not called before confirmation; confirming calls register once; cancelling leaves state unchanged. | Event receipts must avoid user account names, private paths, tokens, or system identifiers. |
+| Disabling unregisters directly. | `workflow-event-log` | Coordinator test with fake login-item controller. | Structured fake-controller call receipt. | Selecting checked `Launch at Login` calls unregister once without showing the enable confirmation. | Synthetic state only; no private system identifiers. |
+| Blocked or unavailable state opens System Settings instead of toggling. | `workflow-event-log` | Coordinator test with fake system opener. | Structured opener receipt. | Blocked/unavailable rows call the System Settings opener and do not call register/unregister. | Receipts must not record private preference paths or local account data. |
+| A real macOS build appears in System Settings and survives toggle on/off. | `manual-qa` or explicit opt-in live OS proof | Signed/local app build manual QA. | Maintainer checklist with summarized System Settings evidence. | The login item appears, toggles on/off, and leaves the menu state truthful after refresh. | Manual notes must not include Apple account identifiers, local usernames, private paths, or screenshots containing unrelated private data. |
+
 ## Validation Targets
 
 - Unit or boundary tests for mapping macOS login item statuses to menu states.
