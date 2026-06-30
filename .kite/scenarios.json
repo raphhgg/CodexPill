@@ -144,6 +144,24 @@
       ]
     },
     {
+      "id": "remove-account-active-targets",
+      "title": "Remove Account active targets",
+      "acceptanceCriteria": [
+        {
+          "id": "remove-active-account-confirms-before-mutation",
+          "statement": "Removing an active account must require destructive confirmation before local or remote sign-out and before deleting the saved snapshot."
+        },
+        {
+          "id": "remove-active-account-signs-out-local-before-delete",
+          "statement": "When the removed account is active on This Mac, CodexPill must sign out local auth and relaunch Codex before deleting the saved snapshot."
+        },
+        {
+          "id": "remove-active-account-signs-out-remote-before-delete",
+          "statement": "When the removed account is active on a connected remote host, CodexPill must sign out that host before deleting the saved snapshot and must stop presenting the removed account as remotely active."
+        }
+      ]
+    },
+    {
       "id": "rename-account-label",
       "title": "Rename account label",
       "acceptanceCriteria": [
@@ -1074,6 +1092,94 @@
       ],
       "expectedMetadata": {
         "scenario": "switch-account-remote-install-verify"
+      },
+      "privacy": {
+        "fixtureData": "synthetic",
+        "restrictedEvidence": [
+          "account_data",
+          "hostname",
+          "raw_local_path",
+          "private_product_data",
+          "token"
+        ]
+      }
+    },
+    {
+      "id": "remove-account-active-targets-sign-out",
+      "title": "Remove Account active targets sign out",
+      "featureId": "remove-account-active-targets",
+      "acceptanceCriteria": [
+        "remove-active-account-confirms-before-mutation",
+        "remove-active-account-signs-out-local-before-delete",
+        "remove-active-account-signs-out-remote-before-delete"
+      ],
+      "targetSurface": "CodexPill remove-account fake local and remote workflow boundary",
+      "validationModes": ["unit_only"],
+      "suites": ["deterministic"],
+      "validationIntent": {
+        "featureRisk": ["auth_mutation", "workflow_state", "privacy"],
+        "primaryProof": "workflow-event-log",
+        "supportingProof": ["privacy-redaction"],
+        "requiredEvidence": ["test-output", "workflow-receipt", "scenario-summary"],
+        "nonClaims": [
+          "Does not prove native confirmation panel rendering or click automation.",
+          "Does not exercise live Codex relaunch, live SSH sign-out, or real remote auth mutation.",
+          "Does not prove required sign-out failure handling.",
+          "Does not prove live macOS menu-bar behavior."
+        ],
+        "liveOptIn": {
+          "required": false
+        }
+      },
+      "nonRegression": {
+        "tier": "changed-feature",
+        "runWhen": [
+          "local-handoff",
+          "remove-account-workflow-changed",
+          "menubar-runtime-changed",
+          "remote-host-signout-changed",
+          "scenario-fixture-changed"
+        ],
+        "blocking": true
+      },
+      "proof": {
+        "layer": "workflow-event-log",
+        "artifactSource": "focused-test-suite",
+        "nonClaims": [
+          "Does not prove native confirmation panel rendering or click automation.",
+          "Does not exercise live Codex relaunch, live SSH sign-out, or real remote auth mutation.",
+          "Does not prove required sign-out failure handling.",
+          "Does not prove live macOS menu-bar behavior."
+        ]
+      },
+      "command": {
+        "run": "make verify-remove-account-active-targets-sign-out-scenario"
+      },
+      "expectedArtifacts": [
+        {
+          "id": "remove-account-active-targets-sign-out-result-bundle",
+          "kind": "test_output",
+          "path": "build/results/local/CodexPill.xcresult",
+          "claimScope": ["remove-account-active-target-tests"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "remove-account-active-targets-sign-out-workflow-receipt",
+          "kind": "workflow_receipt",
+          "path": "build/verification/remove-account-active-targets-sign-out/workflow-receipt.json",
+          "claimScope": ["fake-local-remote-signout-workflow-events"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "remove-account-active-targets-sign-out-summary",
+          "kind": "reconciliation_report",
+          "path": "build/verification/remove-account-active-targets-sign-out/scenario-summary.json",
+          "claimScope": ["workflow-event-reconciled"],
+          "redactionStatus": "sanitized"
+        }
+      ],
+      "expectedMetadata": {
+        "scenario": "remove-account-active-targets-sign-out"
       },
       "privacy": {
         "fixtureData": "synthetic",
