@@ -1220,11 +1220,13 @@
       "validationModes": ["unit_only"],
       "suites": ["deterministic"],
       "validationIntent": {
-        "featureRisk": ["state_truth", "ui_visual", "static_ui"],
-        "primaryProof": "deterministic-ui",
-        "supportingProof": ["privacy-redaction"],
-        "requiredEvidence": ["screenshot", "ui-tree", "scenario-summary"],
+        "featureRisk": ["state_truth", "static_ui", "privacy"],
+        "primaryProof": "ui-structure-contract",
+        "supportingProof": ["privacy-leak-proof"],
+        "requiredEvidence": ["ui-structure-contract", "scenario-summary"],
         "nonClaims": [
+          "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
+          "Does not prove native menu opening, native click routing, focus, or hittability.",
           "Does not prove live Codex auth lookup.",
           "Does not prove the Add Account sign-in workflow.",
           "Does not prove account switching.",
@@ -1245,9 +1247,11 @@
         "blocking": true
       },
       "proof": {
-        "layer": "deterministic-ui",
-        "artifactSource": "hosted-validation-view",
+        "layer": "ui-structure-contract",
+        "artifactSource": "hosted-menu-structure-exporter",
         "nonClaims": [
+          "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
+          "Does not prove native menu opening, native click routing, focus, or hittability.",
           "Does not prove live Codex auth lookup.",
           "Does not prove the Add Account sign-in workflow.",
           "Does not prove account switching.",
@@ -1259,24 +1263,17 @@
       },
       "expectedArtifacts": [
         {
-          "id": "menu-empty-catalog-screenshot",
-          "kind": "visual_snapshot",
-          "path": "build/verification/menu-empty-catalog/screenshots/menu-empty-catalog.png",
-          "claimScope": ["deterministic-hosted-view"],
-          "redactionStatus": "sanitized"
-        },
-        {
-          "id": "menu-empty-catalog-tree",
-          "kind": "semantic_snapshot",
-          "path": "build/verification/menu-empty-catalog/ui-tree.json",
-          "claimScope": ["semantic-ui-tree"],
+          "id": "menu-empty-catalog-ui-structure-contract",
+          "kind": "ui_structure_contract",
+          "path": "build/verification/menu-empty-catalog/ui-structure-contract.json",
+          "claimScope": ["menu-empty-catalog-structure"],
           "redactionStatus": "sanitized"
         },
         {
           "id": "menu-empty-catalog-summary",
           "kind": "reconciliation_report",
           "path": "build/verification/menu-empty-catalog/scenario-summary.json",
-          "claimScope": ["deterministic-reconciled"],
+          "claimScope": ["ui-structure-contract-reconciled"],
           "redactionStatus": "sanitized"
         }
       ],

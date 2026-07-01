@@ -399,6 +399,7 @@ struct MenuBarUIValidationTests {
         let extraArtifacts = try writeScenarioSpecificArtifacts(
             for: request.scenario,
             artifactDirectory: artifactDirectory,
+            snapshot: snapshot,
             statusItemState: statusItemState,
             now: now
         )
@@ -418,6 +419,60 @@ struct MenuBarUIValidationTests {
             ),
             to: summaryURL
         )
+    }
+
+    @Test
+    func menuEmptyCatalogScenarioProducesUiStructureContractArtifact() throws {
+        let artifactDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("MenuBarUIValidationTests-\(UUID().uuidString)", isDirectory: true)
+        let now = Date(timeIntervalSince1970: 1_744_195_200)
+        let state = makeHostedValidationState(for: "menu-empty-catalog", now: now)
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let menu = builder.makeMenu(state: state, target: coordinator)
+        let snapshot = MenuBarValidationSupport.makeSnapshot(
+            state: state,
+            menu: menu,
+            now: now
+        )
+
+        let extraArtifacts = try writeScenarioSpecificArtifacts(
+            for: "menu-empty-catalog",
+            artifactDirectory: artifactDirectory,
+            snapshot: snapshot,
+            statusItemState: nil,
+            now: now
+        )
+
+        #expect(extraArtifacts == ["ui-structure-contract.json"])
+
+        let contractURL = artifactDirectory.appendingPathComponent("ui-structure-contract.json")
+        let data = try Data(contentsOf: contractURL)
+        let contract = try JSONDecoder().decode(UiStructureContractArtifact.self, from: data)
+
+        #expect(contract.kind == "ui_structure_contract")
+        #expect(contract.schemaVersion == "kite.ui-structure-contract.v1")
+        #expect(contract.scenario.id == "menu-empty-catalog")
+        #expect(contract.scenario.featureId == "account-catalog-empty-state")
+        #expect(contract.scenario.acceptanceCriteria == ["empty-catalog-guides-to-add-account"])
+        #expect(contract.scenario.proofType == "ui-structure-contract")
+        #expect(contract.root.children?.map(\.id) == [
+            "active-account-section",
+            "manage-accounts-section",
+            "preferences-section"
+        ])
+        #expect(contract.assertions.map(\.id) == [
+            "active-account-section-visible",
+            "empty-active-account-row-visible",
+            "add-account-visible-and-enabled",
+            "add-account-action-available",
+            "no-saved-account-row",
+            "no-more-accounts-section",
+            "no-switch-action",
+            "top-level-menu-order"
+        ])
+        #expect(contract.nonClaims.contains("Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity."))
+        #expect(contract.nonClaims.contains("Does not prove native menu opening, native click routing, focus, or hittability."))
     }
 
     private func renderHostedValidationView<V: View>(_ view: V, to url: URL) throws {
@@ -457,10 +512,19 @@ struct MenuBarUIValidationTests {
     private func writeScenarioSpecificArtifacts(
         for scenario: String,
         artifactDirectory: URL,
+        snapshot: MenuBarValidationSnapshot,
         statusItemState: StatusItemRuntimeSnapshot?,
         now: Date
     ) throws -> [String] {
         switch scenario {
+        case "menu-empty-catalog":
+            let contractURL = artifactDirectory.appendingPathComponent("ui-structure-contract.json")
+            try FileManager.default.createDirectory(at: artifactDirectory, withIntermediateDirectories: true)
+            try writeJSON(
+                makeMenuEmptyCatalogUiStructureContract(from: snapshot),
+                to: contractURL
+            )
+            return [contractURL.lastPathComponent]
         case "launch-at-login-menu-states":
             let matrixURL = artifactDirectory.appendingPathComponent("launch-at-login-states.json")
             try writeJSON(try makeLaunchAtLoginStateMatrix(now: now), to: matrixURL)
@@ -473,6 +537,150 @@ struct MenuBarUIValidationTests {
         default:
             return []
         }
+    }
+
+    private func makeMenuEmptyCatalogUiStructureContract(
+        from snapshot: MenuBarValidationSnapshot
+    ) throws -> UiStructureContractArtifact {
+        let addAccountItem = try #require(menuItem(containing: "Add Account", in: snapshot.menuItems))
+
+        return UiStructureContractArtifact(
+            kind: "ui_structure_contract",
+            schemaVersion: "kite.ui-structure-contract.v1",
+            id: "codexpill-menu-empty-catalog-structure",
+            scenario: UiStructureScenarioArtifact(
+                id: "menu-empty-catalog",
+                featureId: "account-catalog-empty-state",
+                acceptanceCriteria: ["empty-catalog-guides-to-add-account"],
+                targetSurface: "CodexPill hosted menubar projection",
+                proofType: "ui-structure-contract"
+            ),
+            root: UiStructureNodeArtifact(
+                id: "menu-root",
+                role: "menu",
+                label: "CodexPill",
+                visible: true,
+                children: [
+                    UiStructureNodeArtifact(
+                        id: "active-account-section",
+                        role: "section",
+                        label: "Active Account",
+                        visible: true,
+                        children: [
+                            UiStructureNodeArtifact(
+                                id: "empty-active-account-row",
+                                role: "text",
+                                label: "No active saved account",
+                                visible: true,
+                                semanticTags: ["empty-active-account-row"]
+                            )
+                        ]
+                    ),
+                    UiStructureNodeArtifact(
+                        id: "manage-accounts-section",
+                        role: "section",
+                        label: "Manage Accounts",
+                        visible: true,
+                        children: [
+                            UiStructureNodeArtifact(
+                                id: "add-account",
+                                role: "menu-item",
+                                label: "Add Account…",
+                                visible: true,
+                                enabled: addAccountItem.isEnabled,
+                                actions: addAccountItem.hasAction ? [
+                                    UiStructureActionArtifact(
+                                        id: "add-account",
+                                        label: "Add Account…",
+                                        enabled: addAccountItem.isEnabled
+                                    )
+                                ] : nil
+                            )
+                        ]
+                    ),
+                    UiStructureNodeArtifact(
+                        id: "preferences-section",
+                        role: "section",
+                        label: "Preferences",
+                        visible: true
+                    )
+                ]
+            ),
+            assertions: [
+                UiStructureAssertionArtifact(
+                    id: "active-account-section-visible",
+                    type: "node-exists",
+                    match: UiStructureMatchArtifact(
+                        id: "active-account-section",
+                        role: "section",
+                        label: "Active Account",
+                        visible: true
+                    )
+                ),
+                UiStructureAssertionArtifact(
+                    id: "empty-active-account-row-visible",
+                    type: "node-exists",
+                    match: UiStructureMatchArtifact(
+                        id: "empty-active-account-row",
+                        role: "text",
+                        label: "No active saved account",
+                        visible: true
+                    )
+                ),
+                UiStructureAssertionArtifact(
+                    id: "add-account-visible-and-enabled",
+                    type: "node-exists",
+                    match: UiStructureMatchArtifact(
+                        id: "add-account",
+                        role: "menu-item",
+                        label: "Add Account…",
+                        visible: true,
+                        enabled: true
+                    )
+                ),
+                UiStructureAssertionArtifact(
+                    id: "add-account-action-available",
+                    type: "action-available",
+                    match: UiStructureMatchArtifact(id: "add-account"),
+                    action: UiStructureActionMatchArtifact(
+                        id: "add-account",
+                        label: "Add Account…",
+                        enabled: true
+                    )
+                ),
+                UiStructureAssertionArtifact(
+                    id: "no-saved-account-row",
+                    type: "node-absent",
+                    match: UiStructureMatchArtifact(semanticTag: "saved-account-row")
+                ),
+                UiStructureAssertionArtifact(
+                    id: "no-more-accounts-section",
+                    type: "node-absent",
+                    match: UiStructureMatchArtifact(id: "more-accounts-section")
+                ),
+                UiStructureAssertionArtifact(
+                    id: "no-switch-action",
+                    type: "action-absent",
+                    action: UiStructureActionMatchArtifact(id: "switch-account")
+                ),
+                UiStructureAssertionArtifact(
+                    id: "top-level-menu-order",
+                    type: "child-order",
+                    parent: UiStructureMatchArtifact(id: "menu-root"),
+                    orderedChildIds: [
+                        "active-account-section",
+                        "manage-accounts-section",
+                        "preferences-section"
+                    ]
+                )
+            ],
+            nonClaims: [
+                "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
+                "Does not prove native menu opening, native click routing, focus, or hittability.",
+                "Does not prove Add Account sign-in workflow behavior.",
+                "Does not prove live Codex auth lookup, account switching, or live macOS menu bar behavior."
+            ]
+        )
     }
 
     private func makeScenarioStatusItemRuntimeState(
@@ -1636,6 +1844,141 @@ private struct StatusItemStateArtifact: Codable {
         pointerLocation = snapshot.pointerLocation.map {
             Point(x: $0.x, y: $0.y)
         }
+    }
+}
+
+private struct UiStructureContractArtifact: Codable {
+    let kind: String
+    let schemaVersion: String
+    let id: String
+    let scenario: UiStructureScenarioArtifact
+    let root: UiStructureNodeArtifact
+    let assertions: [UiStructureAssertionArtifact]
+    let nonClaims: [String]
+}
+
+private struct UiStructureScenarioArtifact: Codable {
+    let id: String
+    let featureId: String
+    let acceptanceCriteria: [String]
+    let targetSurface: String
+    let proofType: String
+}
+
+private struct UiStructureNodeArtifact: Codable {
+    let id: String
+    let role: String
+    let label: String?
+    let text: String?
+    let visible: Bool?
+    let enabled: Bool?
+    let selected: Bool?
+    let semanticTags: [String]?
+    let actions: [UiStructureActionArtifact]?
+    let children: [UiStructureNodeArtifact]?
+
+    init(
+        id: String,
+        role: String,
+        label: String? = nil,
+        text: String? = nil,
+        visible: Bool? = nil,
+        enabled: Bool? = nil,
+        selected: Bool? = nil,
+        semanticTags: [String]? = nil,
+        actions: [UiStructureActionArtifact]? = nil,
+        children: [UiStructureNodeArtifact]? = nil
+    ) {
+        self.id = id
+        self.role = role
+        self.label = label
+        self.text = text
+        self.visible = visible
+        self.enabled = enabled
+        self.selected = selected
+        self.semanticTags = semanticTags
+        self.actions = actions
+        self.children = children
+    }
+}
+
+private struct UiStructureActionArtifact: Codable {
+    let id: String
+    let label: String?
+    let enabled: Bool?
+
+    init(id: String, label: String? = nil, enabled: Bool? = nil) {
+        self.id = id
+        self.label = label
+        self.enabled = enabled
+    }
+}
+
+private struct UiStructureMatchArtifact: Codable {
+    let id: String?
+    let role: String?
+    let label: String?
+    let text: String?
+    let semanticTag: String?
+    let visible: Bool?
+    let enabled: Bool?
+    let selected: Bool?
+
+    init(
+        id: String? = nil,
+        role: String? = nil,
+        label: String? = nil,
+        text: String? = nil,
+        semanticTag: String? = nil,
+        visible: Bool? = nil,
+        enabled: Bool? = nil,
+        selected: Bool? = nil
+    ) {
+        self.id = id
+        self.role = role
+        self.label = label
+        self.text = text
+        self.semanticTag = semanticTag
+        self.visible = visible
+        self.enabled = enabled
+        self.selected = selected
+    }
+}
+
+private struct UiStructureActionMatchArtifact: Codable {
+    let id: String?
+    let label: String?
+    let enabled: Bool?
+
+    init(id: String? = nil, label: String? = nil, enabled: Bool? = nil) {
+        self.id = id
+        self.label = label
+        self.enabled = enabled
+    }
+}
+
+private struct UiStructureAssertionArtifact: Codable {
+    let id: String
+    let type: String
+    let match: UiStructureMatchArtifact?
+    let action: UiStructureActionMatchArtifact?
+    let parent: UiStructureMatchArtifact?
+    let orderedChildIds: [String]?
+
+    init(
+        id: String,
+        type: String,
+        match: UiStructureMatchArtifact? = nil,
+        action: UiStructureActionMatchArtifact? = nil,
+        parent: UiStructureMatchArtifact? = nil,
+        orderedChildIds: [String]? = nil
+    ) {
+        self.id = id
+        self.type = type
+        self.match = match
+        self.action = action
+        self.parent = parent
+        self.orderedChildIds = orderedChildIds
     }
 }
 

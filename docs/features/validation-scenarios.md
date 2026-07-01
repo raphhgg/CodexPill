@@ -79,7 +79,7 @@ must include or link to the refinement proof-contract shape:
 
 | Scenario | Acceptance Criteria | Validation Intent | Proof Layer | Non-Regression | Status |
 | --- | --- | --- | --- | --- | --- |
-| `menu-empty-catalog` | Empty state guides toward Add Account and does not imply switching is possible. | `state_truth`, `ui_visual`, `static_ui` | `deterministic-ui`; screenshot, UI tree, summary | `changed-feature`, blocking for account-catalog UI | `runnable` |
+| `menu-empty-catalog` | Empty state guides toward Add Account and does not imply switching is possible. | `state_truth`, `static_ui`, `privacy` | `ui-structure-contract`; structure contract and summary; screenshot/UI tree are debug-only | `changed-feature`, blocking for account-catalog UI | `runnable` |
 | `menu-account-overflow` | More than the visible saved-account limit renders discoverable overflow without changing account submenu behavior. | `state_truth`, `ui_visual`, `static_ui` | `deterministic-ui`; screenshot, UI tree, summary | `changed-feature`, blocking for account-catalog UI | `runnable` |
 | `menu-unmatched-active-account` | Unmatched local auth must not present a saved account as active. | `state_truth`, `ui_visual`, `privacy` | `deterministic-ui`; screenshot, UI tree, summary | `smoke`, blocking | `runnable` |
 | `add-account-name-validation` | Empty or duplicate display names are blocked before sign-in starts. | `workflow_state`, `privacy` | `unit`; focused test output and scenario summary | `changed-feature`, blocking for Add Account | `runnable` |

@@ -225,15 +225,77 @@ Submenu rows should remain compact because this is a menu, not a details panel. 
 
 | Acceptance Criterion | Owning Proof Layer | Command / Method | Artifact | Pass Condition | Privacy / Redaction |
 | --- | --- | --- | --- | --- | --- |
-| Empty catalog guides toward `Add Account…` and does not imply switching. | `deterministic-ui` | `make verify-ui SCENARIO=menu-empty-catalog` | `build/verification/menu-empty-catalog/screenshots/menu-empty-catalog.png`, `ui-tree.json`, and `scenario-summary.json`. | The hosted menu shows the empty-state copy and Add Account entry, with no saved-account rows or switch actions. | Synthetic empty catalog only; artifacts must not include raw auth, tokens, account identifiers, private paths, emails, hostnames, or prompts. |
+| Empty catalog guides toward `Add Account…` and does not imply switching. | `ui-structure-contract` | `make verify-ui SCENARIO=menu-empty-catalog`, updated to emit Kite's `kite.ui-structure-contract.v1` artifact. | Required: `build/verification/menu-empty-catalog/ui-structure-contract.json` and `scenario-summary.json`. Optional/debug: hosted screenshot under `screenshots/`. | The Kite UI structure artifact proves the hosted menu has `Active Account`, `Manage Accounts`, and `Preferences` in order; shows the current empty active-account row and enabled `Add Account…` action; omits saved-account rows, `More Accounts…`, and switch actions; and records live/menu/pixel non-claims. | Synthetic empty catalog only; artifacts must not include raw auth, tokens, account identifiers, private paths, emails, hostnames, prompts, or raw AppKit payloads. |
 | Account overflow keeps hidden accounts discoverable. | `deterministic-ui` | `make verify-ui SCENARIO=menu-account-overflow` | `build/verification/menu-account-overflow/screenshots/menu-account-overflow.png`, `ui-tree.json`, and `scenario-summary.json`. | The hosted menu shows the configured visible account rows and `More Accounts…`; hidden rows use the same submenu action shape when expanded. | Synthetic saved accounts only; no raw auth payloads, tokens, private paths, real emails, real hostnames, or stable account identifiers. |
 | Unmatched local auth does not present a saved account as active. | `deterministic-ui` | `make verify-ui SCENARIO=menu-unmatched-active-account` | `build/verification/menu-unmatched-active-account/screenshots/menu-unmatched-active-account.png`, `ui-tree.json`, and `scenario-summary.json`. | Saved accounts remain catalog rows, and the active section does not mark any saved account as active when local auth is unmatched. | Synthetic unmatched auth state only; artifacts must not include raw auth payloads, tokens, account identifiers, private paths, emails, hostnames, or prompts. |
 | Remote active cards prefer verified remote values over stale local catalog values. | `contract-fixture` plus `unit` | `make verify-remote-host-rate-limit-fallback-scenario` running remote rate-limit resolution, account catalog projection, menu state, and runtime validation suites. | `build/results/local/CodexPill.xcresult`, `build/verification/remote-host-rate-limit-fallback/contract-receipt.json`, and `scenario-summary.json`. | Verified remote values win for the remote card when meaningful; fallback values appear only when remote data is missing, partial, zeroed, expired, or suspicious and are not presented as live SSH proof. | Synthetic host/account/rate-limit fixtures only; no raw SSH output, auth payloads, tokens, private paths, real emails, or hostnames. |
 
+### Menu Empty Catalog UI Structure Contract
+
+This is the target contract for the Slice 5 Kite migration. It updates proof
+ownership only; it does not change user-facing copy, menu order, or Add Account
+behavior.
+
+Product-owned inputs:
+
+- Scenario id: `menu-empty-catalog`.
+- Feature id: `account-catalog-empty-state`.
+- Acceptance criterion id: `empty-catalog-guides-to-add-account`.
+- Fixture state: no active account, no inactive accounts, no remote hosts, idle
+  menu state, synthetic preferences.
+- Product command: `make verify-ui SCENARIO=menu-empty-catalog`.
+
+Kite-owned proof shape:
+
+- Artifact kind: `ui_structure_contract`.
+- Schema version: `kite.ui-structure-contract.v1`.
+- Required artifact path:
+  `build/verification/menu-empty-catalog/ui-structure-contract.json`.
+- Required summary path:
+  `build/verification/menu-empty-catalog/scenario-summary.json`.
+- Optional debug artifact:
+  `build/verification/menu-empty-catalog/screenshots/menu-empty-catalog.png`.
+
+Required structure assertions:
+
+- `node-exists`: top-level `Active Account` section is visible.
+- `node-exists`: empty active-account row is visible using current product copy.
+- `node-exists`: `Add Account…` menu item is visible and enabled.
+- `action-available`: `Add Account…` exposes the add-account action.
+- `node-absent`: no saved-account catalog row is present.
+- `node-absent`: `More Accounts…` is absent.
+- `action-absent`: local or remote switch actions are absent.
+- `child-order`: top-level sections appear as `Active Account`,
+  `Manage Accounts`, then `Preferences`.
+
+Required non-claims:
+
+- Does not prove pixel rendering, typography, spacing, or screenshot visual
+  fidelity.
+- Does not prove native menu opening, native click routing, focus, or
+  hittability.
+- Does not prove Add Account sign-in workflow behavior.
+- Does not prove live Codex auth lookup, account switching, or live macOS menu
+  bar behavior.
+
+Implementation notes:
+
+- CodexPill should keep only a thin exporter that maps product menu state and
+  AppKit menu metadata into Kite's generic structure artifact.
+- Existing hosted screenshots may remain useful for debugging, but they must not
+  be required evidence for this scenario unless a later scenario explicitly
+  claims visual rendering.
+- Existing `MenuBarValidationSnapshot` assertions can be reused as product
+  exporter tests, but generic assertion semantics belong to Kite.
+- Changing the empty-state copy is out of scope for this migration. If the copy
+  should become more explicit than the current product text, refine that as a
+  product UX slice.
+
 ## Validation Targets
 
-- Hosted menu projection proof for empty catalog, overflow, and unmatched active
-  account states.
+- Kite UI structure contract proof for `menu-empty-catalog`.
+- Hosted menu projection proof for overflow and unmatched active account states
+  until those scenarios are migrated.
 - Unit or contract-fixture proof for remote rate-limit value selection.
 - Privacy review confirming account-menu artifacts use synthetic accounts,
   hosts, and rate-limit values.
