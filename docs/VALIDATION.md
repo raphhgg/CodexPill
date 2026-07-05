@@ -98,13 +98,14 @@ command for it.
 Current deterministic scenarios:
 
 - `hosted-menu-default`: smoke non-regression for the default hosted menu
-  projection. It should run before handoff when menubar UI, scenario fixtures,
-  or the validation manifest changes.
+  projection. It proves the menu section structure through
+  `ui-structure-contract.json`; screenshot and UI-tree outputs are debug
+  evidence only.
 - `menu-busy-status`: changed-feature non-regression for Menubar busy-state
-  presentation. It proves that the hosted menu shows the busy status before
-  `Quit` and marks `Add Account…` disabled; it does not prove workflow action
-  dispatch, confirmation routing, event-log ordering, live Codex workflow state,
-  or live macOS menu-bar behavior.
+  presentation. It proves through `ui-structure-contract.json` that the hosted
+  menu exposes the busy status and marks `Add Account…` disabled; it does not
+  prove workflow action dispatch, confirmation routing, event-log ordering,
+  live Codex workflow state, or live macOS menu-bar behavior.
 - `diagnostics-export-confirmation`: changed-feature non-regression for
   Diagnostics export confirmation and privacy. It proves through focused menu,
   alert, and diagnostics builder tests that `Diagnostics…` is present in the
@@ -149,14 +150,16 @@ Current deterministic scenarios:
   macOS notification delivery, native Notification Center rendering, real user
   clicks, real account data, real remote hosts, or real switching.
 - `menu-unmatched-active-account`: smoke non-regression for Active Account
-  truth. It proves that saved accounts remain catalog rows and are not presented
-  as active when the active local auth state is unmatched.
+  truth. It proves through `ui-structure-contract.json` that saved accounts
+  remain catalog rows and are not presented as active when the active local auth
+  state is unmatched.
 - `menu-empty-catalog`: changed-feature non-regression for Account Catalog
   empty-state truth. It proves that an empty catalog guides toward Add Account
   and does not expose saved-account rows or switch actions.
 - `menu-account-overflow`: changed-feature non-regression for Account Catalog
-  overflow truth. It proves that hidden saved accounts remain discoverable under
-  `More Accounts…` and keep the same submenu action shape as visible rows.
+  overflow truth. It proves through `ui-structure-contract.json` that hidden
+  saved accounts remain discoverable under `More Accounts…`; screenshot and
+  UI-tree outputs are debug evidence only.
 - `add-account-name-validation`: changed-feature non-regression for Add Account
   name validation. It proves through focused unit tests that empty,
   whitespace-only, and case-insensitive duplicate names are rejected before
@@ -368,12 +371,13 @@ Current deterministic scenarios:
   attribution, or live macOS menu-bar behavior.
 - `token-usage-privacy-no-raw-session`: changed-feature non-regression for
   Token Usage diagnostics privacy. It proves through focused diagnostics export
-  tests that support artifacts expose only enabled state, period, chart style,
-  load state, bucket count, and aggregate token totals, while prompt content,
-  raw session rows, local paths, account identifiers, emails, hostnames, auth
-  material, and token-like values are rejected; it does not prove live save
-  panel confirmation, real local history, Token Usage UI rendering, or live
-  macOS menu-bar behavior.
+  tests plus `diagnostics-export.json` and `privacy-leak-report.json` that
+  support artifacts expose only enabled state, period, chart style, load state,
+  bucket count, and aggregate token totals, while prompt content, raw session
+  rows, local paths, account identifiers, emails, hostnames, auth material, and
+  token-like values are rejected; it does not prove live save panel
+  confirmation, real local history, Token Usage UI rendering, or live macOS
+  menu-bar behavior.
 - `token-usage-loading-progress`: changed-feature non-regression for Token
   Usage first-load feedback. It proves that synthetic file-count progress
   renders in the active account area without fake percentages, account,
@@ -442,8 +446,10 @@ The adapter currently includes:
 - `make verify-token-usage-cache-scenario` for focused Token Usage cache and
   runtime contract-fixture proof;
 - `make verify-token-usage-privacy-scenario` for focused Token Usage
-  diagnostics-export privacy proof;
+  diagnostics-export and privacy-leak proof;
 - `MenuBarValidationSupport` for semantic menu snapshots;
+- `MenuBarStructureContractExporter` for required
+  `ui-structure-contract.json` menu proof artifacts;
 - `MenuBarHostedDebugRenderer` for optional hosted debug screenshots that are
   not required proof for `ui-structure-contract`;
 - `InMemoryRemoteHostClient` for isolated remote-host behavior in deterministic

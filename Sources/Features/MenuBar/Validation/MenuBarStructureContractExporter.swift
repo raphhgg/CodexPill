@@ -3,14 +3,25 @@ import Foundation
 @MainActor
 enum MenuBarStructureExporter {
     static func makeStructure(from snapshot: MenuBarValidationSnapshot) -> UiStructureNodeArtifact {
-        UiStructureNodeArtifact(
+        var children = snapshot.sections.map { section in
+            makeSectionNode(section, menuItems: snapshot.menuItems)
+        }
+        if let statusMessage = snapshot.statusMessage {
+            children.append(UiStructureNodeArtifact(
+                id: "status-message",
+                role: "status",
+                text: statusMessage,
+                visible: true,
+                semanticTags: ["menu-status-message"]
+            ))
+        }
+
+        return UiStructureNodeArtifact(
             id: "menu-root",
             role: "menu",
             label: "CodexPill",
             visible: true,
-            children: snapshot.sections.map { section in
-                makeSectionNode(section, menuItems: snapshot.menuItems)
-            }
+            children: children
         )
     }
 
@@ -159,25 +170,180 @@ enum MenuBarStructureExporter {
 
 @MainActor
 enum MenuBarStructureContractExporter {
+    static func makeContract(
+        for scenario: String,
+        from snapshot: MenuBarValidationSnapshot
+    ) throws -> UiStructureContractArtifact {
+        guard let spec = scenarioSpecs[scenario] else {
+            throw MenuBarStructureContractExporterError.unsupportedScenario(scenario)
+        }
+        return makeContract(spec: spec, from: snapshot)
+    }
+
     static func makeMenuEmptyCatalogContract(
         from snapshot: MenuBarValidationSnapshot
     ) throws -> UiStructureContractArtifact {
-        return UiStructureContractArtifact(
+        try makeContract(for: "menu-empty-catalog", from: snapshot)
+    }
+
+    private static func makeContract(
+        spec: UiStructureContractSpec,
+        from snapshot: MenuBarValidationSnapshot
+    ) -> UiStructureContractArtifact {
+        UiStructureContractArtifact(
             kind: "ui_structure_contract",
             schemaVersion: "kite.ui-structure-contract.v1",
-            id: "codexpill-menu-empty-catalog-structure",
+            id: "codexpill-\(spec.scenario)-structure",
             scenario: UiStructureScenarioArtifact(
-                id: "menu-empty-catalog",
-                featureId: "account-catalog-empty-state",
-                acceptanceCriteria: ["empty-catalog-guides-to-add-account"],
+                id: spec.scenario,
+                featureId: spec.featureId,
+                acceptanceCriteria: spec.acceptanceCriteria,
                 targetSurface: "CodexPill hosted menubar projection",
                 proofType: "ui-structure-contract"
             ),
             root: MenuBarStructureExporter.makeStructure(from: snapshot),
-            assertions: menuEmptyCatalogAssertions,
-            nonClaims: menuEmptyCatalogNonClaims
+            assertions: spec.assertions,
+            nonClaims: spec.nonClaims
         )
     }
+
+    private static let scenarioSpecs: [String: UiStructureContractSpec] = [
+        "hosted-menu-default": UiStructureContractSpec(
+            scenario: "hosted-menu-default",
+            featureId: "menubar-default-read-state",
+            acceptanceCriteria: ["default-menu-shape-does-not-claim-live-state"],
+            assertions: [
+                sectionVisible("active-account-section", "Active Account"),
+                sectionVisible("other-accounts-section", "Other Accounts"),
+                sectionVisible("more-accounts-section", "More Accounts…"),
+                sectionVisible("manage-accounts-section", "Manage Accounts"),
+                sectionVisible("preferences-section", "Preferences"),
+                topLevelOrder([
+                    "active-account-section",
+                    "other-accounts-section",
+                    "more-accounts-section",
+                    "manage-accounts-section",
+                    "preferences-section"
+                ])
+            ],
+            nonClaims: menuStructureNonClaims + [
+                "Does not prove SwiftUI preview rendering.",
+                "Does not prove live Codex account or app-server state."
+            ]
+        ),
+        "menu-busy-status": UiStructureContractSpec(
+            scenario: "menu-busy-status",
+            featureId: "menubar-busy-status",
+            acceptanceCriteria: ["busy-status-visible-and-conflicting-actions-disabled"],
+            assertions: [
+                nodeExists(
+                    id: "busy-status-message-visible",
+                    match: UiStructureMatchArtifact(
+                        id: "status-message",
+                        role: "status",
+                        text: "Refreshing account data...",
+                        visible: true
+                    )
+                ),
+                nodeExists(
+                    id: "add-account-visible-and-disabled",
+                    match: UiStructureMatchArtifact(
+                        id: "add-account",
+                        role: "menu-item",
+                        label: "Add Account…",
+                        visible: true,
+                        enabled: false
+                    )
+                ),
+                UiStructureAssertionArtifact(
+                    id: "add-account-action-disabled",
+                    type: "action-available",
+                    match: UiStructureMatchArtifact(id: "add-account"),
+                    action: UiStructureActionMatchArtifact(
+                        id: "selector:add-account",
+                        label: "Add Account…",
+                        enabled: false
+                    )
+                ),
+                topLevelOrder([
+                    "active-account-section",
+                    "manage-accounts-section",
+                    "preferences-section",
+                    "status-message"
+                ])
+            ],
+            nonClaims: menuStructureNonClaims + [
+                "Does not prove workflow action dispatch or event-log ordering.",
+                "Does not prove busy actions route through confirmation paths.",
+                "Does not prove live Codex workflow state."
+            ]
+        ),
+        "menu-empty-catalog": UiStructureContractSpec(
+            scenario: "menu-empty-catalog",
+            featureId: "account-catalog-empty-state",
+            acceptanceCriteria: ["empty-catalog-guides-to-add-account"],
+            assertions: menuEmptyCatalogAssertions,
+            nonClaims: menuStructureNonClaims + [
+                "Does not prove Add Account sign-in workflow behavior.",
+                "Does not prove live Codex auth lookup or account switching."
+            ]
+        ),
+        "menu-account-overflow": UiStructureContractSpec(
+            scenario: "menu-account-overflow",
+            featureId: "account-catalog-overflow",
+            acceptanceCriteria: ["overflow-keeps-hidden-accounts-discoverable"],
+            assertions: [
+                sectionVisible("other-accounts-section", "Other Accounts"),
+                sectionVisible("more-accounts-section", "More Accounts…"),
+                nodeExists(
+                    id: "saved-account-rows-present",
+                    match: UiStructureMatchArtifact(semanticTag: "saved-account-row")
+                ),
+                topLevelOrder([
+                    "active-account-section",
+                    "other-accounts-section",
+                    "more-accounts-section",
+                    "manage-accounts-section",
+                    "preferences-section"
+                ])
+            ],
+            nonClaims: menuStructureNonClaims + [
+                "Does not prove live Codex auth lookup.",
+                "Does not prove account switching.",
+                "Does not prove runtime menu opening or pointer interaction."
+            ]
+        ),
+        "menu-unmatched-active-account": UiStructureContractSpec(
+            scenario: "menu-unmatched-active-account",
+            featureId: "active-account-truth",
+            acceptanceCriteria: ["active-account-unmatched-does-not-lie"],
+            assertions: [
+                sectionVisible("active-account-section", "Active Account"),
+                nodeExists(
+                    id: "empty-active-account-row-visible",
+                    match: UiStructureMatchArtifact(
+                        id: "empty-active-account-row",
+                        role: "text",
+                        label: "No active saved account",
+                        visible: true
+                    )
+                ),
+                sectionVisible("other-accounts-section", "Other Accounts"),
+                sectionVisible("more-accounts-section", "More Accounts…"),
+                topLevelOrder([
+                    "active-account-section",
+                    "other-accounts-section",
+                    "more-accounts-section",
+                    "manage-accounts-section",
+                    "preferences-section"
+                ])
+            ],
+            nonClaims: menuStructureNonClaims + [
+                "Does not prove live Codex auth lookup.",
+                "Does not prove account switching."
+            ]
+        )
+    ]
 
     private static let menuEmptyCatalogAssertions: [UiStructureAssertionArtifact] = [
         UiStructureAssertionArtifact(
@@ -253,12 +419,58 @@ enum MenuBarStructureContractExporter {
         )
     ]
 
-    private static let menuEmptyCatalogNonClaims = [
+    private static let menuStructureNonClaims = [
         "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
         "Does not prove native menu opening, native click routing, focus, or hittability.",
-        "Does not prove Add Account sign-in workflow behavior.",
-        "Does not prove live Codex auth lookup, account switching, or live macOS menu bar behavior."
+        "Does not prove the live macOS menu bar surface."
     ]
+
+    private static func sectionVisible(
+        _ id: String,
+        _ label: String
+    ) -> UiStructureAssertionArtifact {
+        nodeExists(
+            id: "\(id.replacingOccurrences(of: "-section", with: ""))-section-visible",
+            match: UiStructureMatchArtifact(
+                id: id,
+                role: "section",
+                label: label,
+                visible: true
+            )
+        )
+    }
+
+    private static func nodeExists(
+        id: String,
+        match: UiStructureMatchArtifact
+    ) -> UiStructureAssertionArtifact {
+        UiStructureAssertionArtifact(
+            id: id,
+            type: "node-exists",
+            match: match
+        )
+    }
+
+    private static func topLevelOrder(_ ids: [String]) -> UiStructureAssertionArtifact {
+        UiStructureAssertionArtifact(
+            id: "top-level-menu-order",
+            type: "child-order",
+            parent: UiStructureMatchArtifact(id: "menu-root"),
+            orderedChildIds: ids
+        )
+    }
+}
+
+private enum MenuBarStructureContractExporterError: Error {
+    case unsupportedScenario(String)
+}
+
+private struct UiStructureContractSpec {
+    let scenario: String
+    let featureId: String
+    let acceptanceCriteria: [String]
+    let assertions: [UiStructureAssertionArtifact]
+    let nonClaims: [String]
 }
 // Product-side payload structs for emitting Kite ui-structure-contract JSON.
 // Kite owns validation semantics; CodexPill only maps menu state into the schema.

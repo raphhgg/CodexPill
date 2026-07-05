@@ -537,10 +537,12 @@
       "suites": ["smoke", "deterministic"],
       "validationIntent": {
         "featureRisk": ["ui_visual", "static_ui", "privacy"],
-        "primaryProof": "deterministic-ui",
-        "supportingProof": ["privacy-redaction"],
-        "requiredEvidence": ["screenshot", "ui-tree", "scenario-summary"],
+        "primaryProof": "ui-structure-contract",
+        "supportingProof": ["privacy-leak-proof"],
+        "requiredEvidence": ["ui-structure-contract", "scenario-summary"],
         "nonClaims": [
+          "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
+          "Does not prove native menu opening, native click routing, focus, or hittability.",
           "Does not prove SwiftUI preview rendering.",
           "Does not prove the live macOS menu bar surface.",
           "Does not prove live Codex account or app-server state."
@@ -559,9 +561,11 @@
         "blocking": true
       },
       "proof": {
-        "layer": "deterministic-ui",
-        "artifactSource": "hosted-validation-view",
+        "layer": "ui-structure-contract",
+        "artifactSource": "hosted-menu-structure-exporter",
         "nonClaims": [
+          "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
+          "Does not prove native menu opening, native click routing, focus, or hittability.",
           "Does not prove SwiftUI preview rendering.",
           "Does not prove the live macOS menu bar surface.",
           "Does not prove live Codex account or app-server state."
@@ -572,24 +576,17 @@
       },
       "expectedArtifacts": [
         {
-          "id": "hosted-menu-default-screenshot",
-          "kind": "visual_snapshot",
-          "path": "build/verification/hosted-menu-default/screenshots/hosted-menu-default.png",
-          "claimScope": ["deterministic-hosted-view"],
-          "redactionStatus": "sanitized"
-        },
-        {
-          "id": "hosted-menu-default-tree",
-          "kind": "semantic_snapshot",
-          "path": "build/verification/hosted-menu-default/ui-tree.json",
-          "claimScope": ["semantic-ui-tree"],
+          "id": "hosted-menu-default-ui-structure-contract",
+          "kind": "ui_structure_contract",
+          "path": "build/verification/hosted-menu-default/ui-structure-contract.json",
+          "claimScope": ["hosted-menu-default-structure"],
           "redactionStatus": "sanitized"
         },
         {
           "id": "hosted-menu-default-summary",
           "kind": "reconciliation_report",
           "path": "build/verification/hosted-menu-default/scenario-summary.json",
-          "claimScope": ["deterministic-reconciled"],
+          "claimScope": ["ui-structure-contract-reconciled"],
           "redactionStatus": "sanitized"
         }
       ],
@@ -619,10 +616,12 @@
       "suites": ["deterministic"],
       "validationIntent": {
         "featureRisk": ["workflow_state", "ui_visual", "privacy"],
-        "primaryProof": "deterministic-ui",
-        "supportingProof": ["privacy-redaction"],
-        "requiredEvidence": ["screenshot", "ui-tree", "scenario-summary"],
+        "primaryProof": "ui-structure-contract",
+        "supportingProof": ["privacy-leak-proof"],
+        "requiredEvidence": ["ui-structure-contract", "scenario-summary"],
         "nonClaims": [
+          "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
+          "Does not prove native menu opening, native click routing, focus, or hittability.",
           "Does not prove workflow action dispatch or event-log ordering.",
           "Does not prove busy actions route through confirmation paths.",
           "Does not prove live Codex workflow state.",
@@ -643,9 +642,11 @@
         "blocking": true
       },
       "proof": {
-        "layer": "deterministic-ui",
-        "artifactSource": "hosted-validation-view",
+        "layer": "ui-structure-contract",
+        "artifactSource": "hosted-menu-structure-exporter",
         "nonClaims": [
+          "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
+          "Does not prove native menu opening, native click routing, focus, or hittability.",
           "Does not prove workflow action dispatch or event-log ordering.",
           "Does not prove busy actions route through confirmation paths.",
           "Does not prove live Codex workflow state.",
@@ -657,24 +658,17 @@
       },
       "expectedArtifacts": [
         {
-          "id": "menu-busy-status-screenshot",
-          "kind": "visual_snapshot",
-          "path": "build/verification/menu-busy-status/screenshots/menu-busy-status.png",
-          "claimScope": ["deterministic-hosted-view"],
-          "redactionStatus": "sanitized"
-        },
-        {
-          "id": "menu-busy-status-tree",
-          "kind": "semantic_snapshot",
-          "path": "build/verification/menu-busy-status/ui-tree.json",
-          "claimScope": ["semantic-ui-tree", "menu-action-metadata"],
+          "id": "menu-busy-status-ui-structure-contract",
+          "kind": "ui_structure_contract",
+          "path": "build/verification/menu-busy-status/ui-structure-contract.json",
+          "claimScope": ["menu-busy-status-structure"],
           "redactionStatus": "sanitized"
         },
         {
           "id": "menu-busy-status-summary",
           "kind": "reconciliation_report",
           "path": "build/verification/menu-busy-status/scenario-summary.json",
-          "claimScope": ["deterministic-reconciled"],
+          "claimScope": ["ui-structure-contract-reconciled"],
           "redactionStatus": "sanitized"
         }
       ],
@@ -706,8 +700,8 @@
       "suites": ["deterministic"],
       "validationIntent": {
         "featureRisk": ["privacy", "diagnostics", "user_confirmation"],
-        "primaryProof": "diagnostics-export",
-        "supportingProof": ["workflow-event-log", "privacy-redaction"],
+        "primaryProof": "boundary-contract",
+        "supportingProof": ["workflow-event-log", "privacy-leak-proof"],
         "requiredEvidence": ["test-output", "workflow-receipt", "scenario-summary"],
         "nonClaims": [
           "Does not prove live NSSavePanel rendering or file writing.",
@@ -730,7 +724,7 @@
         "blocking": true
       },
       "proof": {
-        "layer": "diagnostics-export",
+        "layer": "boundary-contract",
         "artifactSource": "focused-test-suite",
         "nonClaims": [
           "Does not prove live NSSavePanel rendering or file writing.",
@@ -751,7 +745,7 @@
         },
         {
           "id": "diagnostics-export-confirmation-workflow-receipt",
-          "kind": "workflow_receipt",
+          "kind": "workflow_event_log",
           "path": "build/verification/diagnostics-export-confirmation/workflow-receipt.json",
           "claimScope": ["diagnostics-export-confirmation-events"],
           "redactionStatus": "sanitized"
@@ -793,7 +787,7 @@
       "validationIntent": {
         "featureRisk": ["state_truth", "ui_visual"],
         "primaryProof": "unit",
-        "supportingProof": ["deterministic-ui", "privacy-redaction"],
+        "supportingProof": ["boundary-contract", "privacy-leak-proof"],
         "requiredEvidence": ["test-output", "workflow-receipt", "scenario-summary"],
         "nonClaims": [
           "Does not open live macOS System Settings.",
@@ -837,7 +831,7 @@
         },
         {
           "id": "notifications-permission-denied-menu-state-workflow-receipt",
-          "kind": "workflow_receipt",
+          "kind": "workflow_event_log",
           "path": "build/verification/notifications-permission-denied-menu-state/workflow-receipt.json",
           "claimScope": ["denied-permission-recovery-events"],
           "redactionStatus": "sanitized"
@@ -879,7 +873,7 @@
       "validationIntent": {
         "featureRisk": ["pure_model", "workflow_state"],
         "primaryProof": "unit",
-        "supportingProof": ["workflow-event-log", "privacy-redaction"],
+        "supportingProof": ["workflow-event-log", "privacy-leak-proof"],
         "requiredEvidence": ["test-output", "workflow-receipt", "scenario-summary"],
         "nonClaims": [
           "Does not exercise live macOS notification delivery.",
@@ -923,7 +917,7 @@
         },
         {
           "id": "notifications-account-available-policy-workflow-receipt",
-          "kind": "workflow_receipt",
+          "kind": "workflow_event_log",
           "path": "build/verification/notifications-account-available-policy/workflow-receipt.json",
           "claimScope": ["account-available-policy-events"],
           "redactionStatus": "sanitized"
@@ -965,7 +959,7 @@
       "validationIntent": {
         "featureRisk": ["workflow_state", "privacy"],
         "primaryProof": "workflow-event-log",
-        "supportingProof": ["unit", "privacy-redaction"],
+        "supportingProof": ["unit", "privacy-leak-proof"],
         "requiredEvidence": ["test-output", "workflow-receipt", "scenario-summary"],
         "nonClaims": [
           "Does not exercise live macOS notification delivery.",
@@ -1011,7 +1005,7 @@
         },
         {
           "id": "notifications-current-runs-out-action-workflow-receipt",
-          "kind": "workflow_receipt",
+          "kind": "workflow_event_log",
           "path": "build/verification/notifications-current-runs-out-action/workflow-receipt.json",
           "claimScope": ["current-runs-out-action-events"],
           "redactionStatus": "sanitized"
@@ -1053,7 +1047,7 @@
       "validationIntent": {
         "featureRisk": ["workflow_state", "state_truth"],
         "primaryProof": "unit",
-        "supportingProof": ["workflow-event-log", "settings-persistence", "privacy-redaction"],
+        "supportingProof": ["workflow-event-log", "boundary-contract", "privacy-leak-proof"],
         "requiredEvidence": ["test-output", "workflow-receipt", "scenario-summary"],
         "nonClaims": [
           "Does not exercise live macOS notification delivery.",
@@ -1099,7 +1093,7 @@
         },
         {
           "id": "notifications-dedupe-after-delivery-workflow-receipt",
-          "kind": "workflow_receipt",
+          "kind": "workflow_event_log",
           "path": "build/verification/notifications-dedupe-after-delivery/workflow-receipt.json",
           "claimScope": ["notification-dedupe-events"],
           "redactionStatus": "sanitized"
@@ -1138,10 +1132,12 @@
       "suites": ["smoke", "deterministic"],
       "validationIntent": {
         "featureRisk": ["state_truth", "ui_visual", "privacy"],
-        "primaryProof": "deterministic-ui",
-        "supportingProof": ["privacy-redaction"],
-        "requiredEvidence": ["screenshot", "ui-tree", "scenario-summary"],
+        "primaryProof": "ui-structure-contract",
+        "supportingProof": ["privacy-leak-proof"],
+        "requiredEvidence": ["ui-structure-contract", "scenario-summary"],
         "nonClaims": [
+          "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
+          "Does not prove native menu opening, native click routing, focus, or hittability.",
           "Does not prove live Codex auth lookup.",
           "Does not prove account switching.",
           "Does not prove the live macOS menu bar surface."
@@ -1161,9 +1157,11 @@
         "blocking": true
       },
       "proof": {
-        "layer": "deterministic-ui",
-        "artifactSource": "hosted-validation-view",
+        "layer": "ui-structure-contract",
+        "artifactSource": "hosted-menu-structure-exporter",
         "nonClaims": [
+          "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
+          "Does not prove native menu opening, native click routing, focus, or hittability.",
           "Does not prove live Codex auth lookup.",
           "Does not prove account switching.",
           "Does not prove the live macOS menu bar surface."
@@ -1174,24 +1172,17 @@
       },
       "expectedArtifacts": [
         {
-          "id": "menu-unmatched-active-account-screenshot",
-          "kind": "visual_snapshot",
-          "path": "build/verification/menu-unmatched-active-account/screenshots/menu-unmatched-active-account.png",
-          "claimScope": ["deterministic-hosted-view"],
-          "redactionStatus": "sanitized"
-        },
-        {
-          "id": "menu-unmatched-active-account-tree",
-          "kind": "semantic_snapshot",
-          "path": "build/verification/menu-unmatched-active-account/ui-tree.json",
-          "claimScope": ["semantic-ui-tree"],
+          "id": "menu-unmatched-active-account-ui-structure-contract",
+          "kind": "ui_structure_contract",
+          "path": "build/verification/menu-unmatched-active-account/ui-structure-contract.json",
+          "claimScope": ["menu-unmatched-active-account-structure"],
           "redactionStatus": "sanitized"
         },
         {
           "id": "menu-unmatched-active-account-summary",
           "kind": "reconciliation_report",
           "path": "build/verification/menu-unmatched-active-account/scenario-summary.json",
-          "claimScope": ["deterministic-reconciled"],
+          "claimScope": ["ui-structure-contract-reconciled"],
           "redactionStatus": "sanitized"
         }
       ],
@@ -1303,10 +1294,12 @@
       "suites": ["deterministic"],
       "validationIntent": {
         "featureRisk": ["ui_visual", "static_ui", "state_truth"],
-        "primaryProof": "deterministic-ui",
-        "supportingProof": ["privacy-redaction"],
-        "requiredEvidence": ["screenshot", "ui-tree", "scenario-summary"],
+        "primaryProof": "ui-structure-contract",
+        "supportingProof": ["privacy-leak-proof"],
+        "requiredEvidence": ["ui-structure-contract", "scenario-summary"],
         "nonClaims": [
+          "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
+          "Does not prove native menu opening, native click routing, focus, or hittability.",
           "Does not prove live Codex auth lookup.",
           "Does not prove account switching.",
           "Does not prove the live macOS menu bar surface.",
@@ -1327,9 +1320,11 @@
         "blocking": true
       },
       "proof": {
-        "layer": "deterministic-ui",
-        "artifactSource": "hosted-validation-view",
+        "layer": "ui-structure-contract",
+        "artifactSource": "hosted-menu-structure-exporter",
         "nonClaims": [
+          "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
+          "Does not prove native menu opening, native click routing, focus, or hittability.",
           "Does not prove live Codex auth lookup.",
           "Does not prove account switching.",
           "Does not prove the live macOS menu bar surface.",
@@ -1341,24 +1336,17 @@
       },
       "expectedArtifacts": [
         {
-          "id": "menu-account-overflow-screenshot",
-          "kind": "visual_snapshot",
-          "path": "build/verification/menu-account-overflow/screenshots/menu-account-overflow.png",
-          "claimScope": ["deterministic-hosted-view"],
-          "redactionStatus": "sanitized"
-        },
-        {
-          "id": "menu-account-overflow-tree",
-          "kind": "semantic_snapshot",
-          "path": "build/verification/menu-account-overflow/ui-tree.json",
-          "claimScope": ["semantic-ui-tree", "menu-action-metadata"],
+          "id": "menu-account-overflow-ui-structure-contract",
+          "kind": "ui_structure_contract",
+          "path": "build/verification/menu-account-overflow/ui-structure-contract.json",
+          "claimScope": ["menu-account-overflow-structure"],
           "redactionStatus": "sanitized"
         },
         {
           "id": "menu-account-overflow-summary",
           "kind": "reconciliation_report",
           "path": "build/verification/menu-account-overflow/scenario-summary.json",
-          "claimScope": ["deterministic-reconciled"],
+          "claimScope": ["ui-structure-contract-reconciled"],
           "redactionStatus": "sanitized"
         }
       ],
@@ -1389,7 +1377,7 @@
       "validationIntent": {
         "featureRisk": ["workflow_state", "privacy"],
         "primaryProof": "unit",
-        "supportingProof": ["privacy-redaction"],
+        "supportingProof": ["privacy-leak-proof"],
         "requiredEvidence": ["test-output", "scenario-summary"],
         "nonClaims": [
           "Does not prove native Add Account panel rendering or text entry.",
@@ -1471,7 +1459,7 @@
       "validationIntent": {
         "featureRisk": ["auth_isolation", "workflow_state", "privacy"],
         "primaryProof": "workflow-event-log",
-        "supportingProof": ["privacy-redaction"],
+        "supportingProof": ["privacy-leak-proof"],
         "requiredEvidence": ["test-output", "workflow-receipt", "scenario-summary"],
         "nonClaims": [
           "Does not prove native device-code panel rendering or browser sign-in.",
@@ -1517,7 +1505,7 @@
         },
         {
           "id": "add-account-isolated-success-workflow-receipt",
-          "kind": "workflow_receipt",
+          "kind": "workflow_event_log",
           "path": "build/verification/add-account-isolated-success/workflow-receipt.json",
           "claimScope": ["fake-client-workflow-events"],
           "redactionStatus": "sanitized"
@@ -1559,7 +1547,7 @@
       "validationIntent": {
         "featureRisk": ["auth_isolation", "failure_path", "privacy"],
         "primaryProof": "workflow-event-log",
-        "supportingProof": ["privacy-redaction"],
+        "supportingProof": ["privacy-leak-proof"],
         "requiredEvidence": ["test-output", "cleanup-receipt", "scenario-summary"],
         "nonClaims": [
           "Does not prove native device-code panel rendering or browser sign-in.",
@@ -1605,7 +1593,7 @@
         },
         {
           "id": "add-account-failure-cleanup-receipt",
-          "kind": "workflow_receipt",
+          "kind": "workflow_event_log",
           "path": "build/verification/add-account-failure-cleanup/cleanup-receipt.json",
           "claimScope": ["fake-client-failure-events", "negative-filesystem-state"],
           "redactionStatus": "sanitized"
@@ -1647,7 +1635,7 @@
       "validationIntent": {
         "featureRisk": ["auth_mutation", "workflow_state", "privacy"],
         "primaryProof": "workflow-event-log",
-        "supportingProof": ["privacy-redaction"],
+        "supportingProof": ["privacy-leak-proof"],
         "requiredEvidence": ["test-output", "workflow-receipt", "scenario-summary"],
         "nonClaims": [
           "Does not prove native confirmation panel rendering or click automation.",
@@ -1694,7 +1682,7 @@
         },
         {
           "id": "switch-account-local-confirmed-workflow-receipt",
-          "kind": "workflow_receipt",
+          "kind": "workflow_event_log",
           "path": "build/verification/switch-account-local-confirmed/workflow-receipt.json",
           "claimScope": ["fake-client-workflow-events"],
           "redactionStatus": "sanitized"
@@ -1737,7 +1725,7 @@
       "validationIntent": {
         "featureRisk": ["remote_mutation", "workflow_state", "privacy"],
         "primaryProof": "workflow-event-log",
-        "supportingProof": ["contract-fixture", "privacy-redaction"],
+        "supportingProof": ["boundary-contract", "privacy-leak-proof"],
         "requiredEvidence": ["test-output", "workflow-receipt", "scenario-summary"],
         "nonClaims": [
           "Does not exercise a live SSH host or live remote Codex app-server.",
@@ -1784,7 +1772,7 @@
         },
         {
           "id": "switch-account-remote-install-verify-workflow-receipt",
-          "kind": "workflow_receipt",
+          "kind": "workflow_event_log",
           "path": "build/verification/switch-account-remote-install-verify/workflow-receipt.json",
           "claimScope": ["fake-remote-host-workflow-events", "ssh-contract-fixtures"],
           "redactionStatus": "sanitized"
@@ -1824,8 +1812,8 @@
       "suites": ["deterministic"],
       "validationIntent": {
         "featureRisk": ["ui_interaction", "remote_contract", "privacy"],
-        "primaryProof": "contract-fixture",
-        "supportingProof": ["unit", "privacy-redaction"],
+        "primaryProof": "boundary-contract",
+        "supportingProof": ["unit", "privacy-leak-proof"],
         "requiredEvidence": ["test-output", "contract-receipt", "scenario-summary"],
         "nonClaims": [
           "Does not prove native Add Host panel screenshot rendering.",
@@ -1850,7 +1838,7 @@
         "blocking": true
       },
       "proof": {
-        "layer": "contract-fixture",
+        "layer": "boundary-contract",
         "artifactSource": "focused-test-suite",
         "nonClaims": [
           "Does not prove native Add Host panel screenshot rendering.",
@@ -1914,7 +1902,7 @@
       "validationIntent": {
         "featureRisk": ["remote_mutation", "workflow_state", "privacy"],
         "primaryProof": "workflow-event-log",
-        "supportingProof": ["contract-fixture", "privacy-redaction"],
+        "supportingProof": ["boundary-contract", "privacy-leak-proof"],
         "requiredEvidence": ["test-output", "workflow-receipt", "scenario-summary"],
         "nonClaims": [
           "Does not prove native Add Host or confirmation panel rendering.",
@@ -1962,7 +1950,7 @@
         },
         {
           "id": "remote-host-install-switch-current-account-workflow-receipt",
-          "kind": "workflow_receipt",
+          "kind": "workflow_event_log",
           "path": "build/verification/remote-host-install-switch-current-account/workflow-receipt.json",
           "claimScope": ["add-host-install-switch-workflow-events"],
           "redactionStatus": "sanitized"
@@ -2003,7 +1991,7 @@
       "validationIntent": {
         "featureRisk": ["state_truth", "failure_path", "privacy"],
         "primaryProof": "unit",
-        "supportingProof": ["deterministic-ui", "privacy-redaction"],
+        "supportingProof": ["boundary-contract", "privacy-leak-proof"],
         "requiredEvidence": ["test-output", "workflow-receipt", "scenario-summary"],
         "nonClaims": [
           "Does not exercise live SSH, live Codex app-server behavior, real remote auth mutation, or a real remote filesystem.",
@@ -2049,7 +2037,7 @@
         },
         {
           "id": "remote-host-verification-failure-workflow-receipt",
-          "kind": "workflow_receipt",
+          "kind": "workflow_event_log",
           "path": "build/verification/remote-host-verification-failure/workflow-receipt.json",
           "claimScope": ["remote-host-verification-failure-events"],
           "redactionStatus": "sanitized"
@@ -2090,8 +2078,8 @@
       "suites": ["deterministic"],
       "validationIntent": {
         "featureRisk": ["state_truth", "parser", "privacy"],
-        "primaryProof": "contract-fixture",
-        "supportingProof": ["unit", "deterministic-ui", "privacy-redaction"],
+        "primaryProof": "boundary-contract",
+        "supportingProof": ["unit", "boundary-contract", "privacy-leak-proof"],
         "requiredEvidence": ["test-output", "contract-receipt", "scenario-summary"],
         "nonClaims": [
           "Does not exercise live SSH, live Codex app-server behavior, real remote auth mutation, or a real remote filesystem.",
@@ -2115,7 +2103,7 @@
         "blocking": true
       },
       "proof": {
-        "layer": "contract-fixture",
+        "layer": "boundary-contract",
         "artifactSource": "focused-test-suite",
         "nonClaims": [
           "Does not exercise live SSH, live Codex app-server behavior, real remote auth mutation, or a real remote filesystem.",
@@ -2179,7 +2167,7 @@
       "validationIntent": {
         "featureRisk": ["auth_mutation", "workflow_state", "privacy"],
         "primaryProof": "workflow-event-log",
-        "supportingProof": ["privacy-redaction"],
+        "supportingProof": ["privacy-leak-proof"],
         "requiredEvidence": ["test-output", "workflow-receipt", "scenario-summary"],
         "nonClaims": [
           "Does not prove native confirmation panel rendering or click automation.",
@@ -2225,7 +2213,7 @@
         },
         {
           "id": "remove-account-active-targets-sign-out-workflow-receipt",
-          "kind": "workflow_receipt",
+          "kind": "workflow_event_log",
           "path": "build/verification/remove-account-active-targets-sign-out/workflow-receipt.json",
           "claimScope": ["fake-local-remote-signout-workflow-events"],
           "redactionStatus": "sanitized"
@@ -2265,7 +2253,7 @@
       "validationIntent": {
         "featureRisk": ["failure_path", "state_truth", "privacy"],
         "primaryProof": "workflow-event-log",
-        "supportingProof": ["privacy-redaction"],
+        "supportingProof": ["privacy-leak-proof"],
         "requiredEvidence": ["test-output", "workflow-receipt", "scenario-summary"],
         "nonClaims": [
           "Does not prove native confirmation panel rendering or click automation.",
@@ -2311,7 +2299,7 @@
         },
         {
           "id": "remove-account-signout-failure-workflow-receipt",
-          "kind": "workflow_receipt",
+          "kind": "workflow_event_log",
           "path": "build/verification/remove-account-signout-failure-keeps-control/workflow-receipt.json",
           "claimScope": ["fake-local-remote-signout-failure-workflow-events"],
           "redactionStatus": "sanitized"
@@ -2352,7 +2340,7 @@
       "validationIntent": {
         "featureRisk": ["pure_model", "state_truth", "privacy"],
         "primaryProof": "unit",
-        "supportingProof": ["privacy-redaction"],
+        "supportingProof": ["privacy-leak-proof"],
         "requiredEvidence": ["test-output", "scenario-summary"],
         "nonClaims": [
           "Does not prove native rename dialog presentation or text entry.",
@@ -2430,8 +2418,8 @@
       "suites": ["deterministic"],
       "validationIntent": {
         "featureRisk": ["parser", "auth_isolation", "state_truth", "privacy"],
-        "primaryProof": "contract-fixture",
-        "supportingProof": ["integration", "privacy-redaction"],
+        "primaryProof": "boundary-contract",
+        "supportingProof": ["boundary-contract", "privacy-leak-proof"],
         "requiredEvidence": ["test-output", "workflow-receipt", "scenario-summary"],
         "nonClaims": [
           "Does not execute a live Codex app-server with real saved accounts.",
@@ -2455,7 +2443,7 @@
         "blocking": true
       },
       "proof": {
-        "layer": "contract-fixture",
+        "layer": "boundary-contract",
         "artifactSource": "focused-test-suite",
         "nonClaims": [
           "Does not execute a live Codex app-server with real saved accounts.",
@@ -2477,7 +2465,7 @@
         },
         {
           "id": "refresh-inactive-isolated-status-workflow-receipt",
-          "kind": "workflow_receipt",
+          "kind": "workflow_event_log",
           "path": "build/verification/refresh-inactive-isolated-status/workflow-receipt.json",
           "claimScope": ["isolated-refresh-workflow-events"],
           "redactionStatus": "sanitized"
@@ -2518,7 +2506,7 @@
       "validationIntent": {
         "featureRisk": ["auth_mutation", "state_truth", "privacy"],
         "primaryProof": "unit",
-        "supportingProof": ["privacy-redaction"],
+        "supportingProof": ["privacy-leak-proof"],
         "requiredEvidence": ["test-output", "workflow-receipt", "scenario-summary"],
         "nonClaims": [
           "Does not execute a live Codex app-server.",
@@ -2564,7 +2552,7 @@
         },
         {
           "id": "refresh-active-relinks-same-account-workflow-receipt",
-          "kind": "workflow_receipt",
+          "kind": "workflow_event_log",
           "path": "build/verification/refresh-active-relinks-same-account/workflow-receipt.json",
           "claimScope": ["active-refresh-relink-workflow-events"],
           "redactionStatus": "sanitized"
@@ -2603,8 +2591,8 @@
       "suites": ["deterministic"],
       "validationIntent": {
         "featureRisk": ["state_truth", "ui_visual", "privacy"],
-        "primaryProof": "deterministic-ui",
-        "supportingProof": ["state-matrix", "privacy-redaction"],
+        "primaryProof": "boundary-contract",
+        "supportingProof": ["boundary-contract", "privacy-leak-proof"],
         "requiredEvidence": ["screenshot", "ui-tree", "scenario-summary", "state-matrix"],
         "nonClaims": [
           "Does not register or unregister the real macOS login item.",
@@ -2629,7 +2617,7 @@
         "blocking": true
       },
       "proof": {
-        "layer": "deterministic-ui",
+        "layer": "boundary-contract",
         "artifactSource": "hosted-validation-view",
         "nonClaims": [
           "Does not register or unregister the real macOS login item.",
@@ -2702,7 +2690,7 @@
       "validationIntent": {
         "featureRisk": ["ui_interaction", "system_mutation", "privacy"],
         "primaryProof": "workflow-event-log",
-        "supportingProof": ["fake-controller", "confirmation-presenter", "privacy-redaction"],
+        "supportingProof": ["boundary-contract", "workflow-event-log", "privacy-leak-proof"],
         "requiredEvidence": ["test-output", "workflow-receipt", "scenario-summary"],
         "nonClaims": [
           "Does not register or unregister the real macOS login item.",
@@ -2747,7 +2735,7 @@
         },
         {
           "id": "launch-at-login-enable-confirmation-workflow-receipt",
-          "kind": "workflow_receipt",
+          "kind": "workflow_event_log",
           "path": "build/verification/launch-at-login-enable-confirmation/workflow-receipt.json",
           "claimScope": ["launch-at-login-fake-controller-events"],
           "redactionStatus": "sanitized"
@@ -2790,7 +2778,7 @@
       "validationIntent": {
         "featureRisk": ["ui_interaction", "failure_path", "privacy"],
         "primaryProof": "workflow-event-log",
-        "supportingProof": ["deterministic-ui", "fake-system-opener", "privacy-redaction"],
+        "supportingProof": ["boundary-contract", "privacy-leak-proof"],
         "requiredEvidence": ["test-output", "workflow-receipt", "scenario-summary"],
         "nonClaims": [
           "Does not open real System Settings.",
@@ -2835,7 +2823,7 @@
         },
         {
           "id": "launch-at-login-blocked-opens-settings-workflow-receipt",
-          "kind": "workflow_receipt",
+          "kind": "workflow_event_log",
           "path": "build/verification/launch-at-login-blocked-opens-settings/workflow-receipt.json",
           "claimScope": ["launch-at-login-blocked-routing-events"],
           "redactionStatus": "sanitized"
@@ -2874,8 +2862,8 @@
       "suites": ["deterministic"],
       "validationIntent": {
         "featureRisk": ["ui_visual", "runtime_state", "privacy"],
-        "primaryProof": "deterministic-ui",
-        "supportingProof": ["runtime-state-snapshot", "privacy-redaction"],
+        "primaryProof": "boundary-contract",
+        "supportingProof": ["boundary-contract", "privacy-leak-proof"],
         "requiredEvidence": ["ui-tree", "scenario-summary", "runtime-state-snapshot"],
         "nonClaims": [
           "Does not prove live menubar screen capture.",
@@ -2899,7 +2887,7 @@
         "blocking": true
       },
       "proof": {
-        "layer": "deterministic-ui",
+        "layer": "boundary-contract",
         "artifactSource": "status-item-runtime-snapshot",
         "nonClaims": [
           "Does not prove live menubar screen capture.",
@@ -2971,7 +2959,7 @@
       "validationIntent": {
         "featureRisk": ["ui_interaction", "temporal", "privacy"],
         "primaryProof": "workflow-event-log",
-        "supportingProof": ["runtime-state-snapshot", "privacy-redaction"],
+        "supportingProof": ["boundary-contract", "privacy-leak-proof"],
         "requiredEvidence": ["test-output", "workflow-receipt", "scenario-summary"],
         "nonClaims": [
           "Does not exercise native mouse movement or real pointer bounds.",
@@ -3016,7 +3004,7 @@
         },
         {
           "id": "status-bar-hover-label-workflow-receipt",
-          "kind": "workflow_receipt",
+          "kind": "workflow_event_log",
           "path": "build/verification/status-bar-hover-label/workflow-receipt.json",
           "claimScope": ["hover-runtime-events"],
           "redactionStatus": "sanitized"
@@ -3058,7 +3046,7 @@
       "validationIntent": {
         "featureRisk": ["ui_interaction", "temporal", "privacy"],
         "primaryProof": "workflow-event-log",
-        "supportingProof": ["runtime-state-snapshot", "shortcut-controller", "privacy-redaction"],
+        "supportingProof": ["boundary-contract", "privacy-leak-proof"],
         "requiredEvidence": ["test-output", "workflow-receipt", "scenario-summary"],
         "nonClaims": [
           "Does not exercise live Carbon/global hotkey registration.",
@@ -3104,7 +3092,7 @@
         },
         {
           "id": "status-bar-shortcut-reveal-workflow-receipt",
-          "kind": "workflow_receipt",
+          "kind": "workflow_event_log",
           "path": "build/verification/status-bar-shortcut-reveal/workflow-receipt.json",
           "claimScope": ["shortcut-reveal-runtime-events"],
           "redactionStatus": "sanitized"
@@ -3146,7 +3134,7 @@
       "validationIntent": {
         "featureRisk": ["ui_visual", "state_truth", "privacy"],
         "primaryProof": "unit",
-        "supportingProof": ["deterministic-ui", "settings-persistence", "privacy-redaction"],
+        "supportingProof": ["boundary-contract", "privacy-leak-proof"],
         "requiredEvidence": ["test-output", "workflow-receipt", "scenario-summary"],
         "nonClaims": [
           "Does not open the live NSColorPanel color chooser.",
@@ -3191,7 +3179,7 @@
         },
         {
           "id": "status-bar-usage-bars-preferences-workflow-receipt",
-          "kind": "workflow_receipt",
+          "kind": "workflow_event_log",
           "path": "build/verification/status-bar-usage-bars-preferences/workflow-receipt.json",
           "claimScope": ["status-bar-preferences-events"],
           "redactionStatus": "sanitized"
@@ -3230,8 +3218,8 @@
       "suites": ["deterministic"],
       "validationIntent": {
         "featureRisk": ["state_truth", "ui_visual", "privacy"],
-        "primaryProof": "deterministic-ui",
-        "supportingProof": ["privacy-redaction"],
+        "primaryProof": "boundary-contract",
+        "supportingProof": ["privacy-leak-proof"],
         "requiredEvidence": ["screenshot", "ui-tree", "scenario-summary"],
         "nonClaims": [
           "Does not prove live local Codex session scanning is stopped or skipped.",
@@ -3254,7 +3242,7 @@
         "blocking": true
       },
       "proof": {
-        "layer": "deterministic-ui",
+        "layer": "boundary-contract",
         "artifactSource": "hosted-validation-view",
         "nonClaims": [
           "Does not prove live local Codex session scanning is stopped or skipped.",
@@ -3316,8 +3304,8 @@
       "suites": ["deterministic"],
       "validationIntent": {
         "featureRisk": ["ui_visual", "state_truth", "privacy"],
-        "primaryProof": "deterministic-ui",
-        "supportingProof": ["privacy-redaction"],
+        "primaryProof": "boundary-contract",
+        "supportingProof": ["privacy-leak-proof"],
         "requiredEvidence": ["screenshot", "ui-tree", "scenario-summary"],
         "nonClaims": [
           "Does not prove live local Codex session scanning.",
@@ -3340,7 +3328,7 @@
         "blocking": true
       },
       "proof": {
-        "layer": "deterministic-ui",
+        "layer": "boundary-contract",
         "artifactSource": "hosted-validation-view",
         "nonClaims": [
           "Does not prove live local Codex session scanning.",
@@ -3402,8 +3390,8 @@
       "suites": ["deterministic"],
       "validationIntent": {
         "featureRisk": ["parser", "privacy", "performance"],
-        "primaryProof": "contract-fixture",
-        "supportingProof": ["privacy-redaction"],
+        "primaryProof": "boundary-contract",
+        "supportingProof": ["privacy-leak-proof"],
         "requiredEvidence": ["test-output", "scenario-summary"],
         "nonClaims": [
           "Does not prove Token Usage UI presentation.",
@@ -3428,7 +3416,7 @@
         "blocking": true
       },
       "proof": {
-        "layer": "contract-fixture",
+        "layer": "boundary-contract",
         "artifactSource": "focused-test-suite",
         "nonClaims": [
           "Does not prove Token Usage UI presentation.",
@@ -3486,8 +3474,8 @@
       "suites": ["deterministic"],
       "validationIntent": {
         "featureRisk": ["state_truth", "performance", "privacy"],
-        "primaryProof": "contract-fixture",
-        "supportingProof": ["privacy-redaction"],
+        "primaryProof": "boundary-contract",
+        "supportingProof": ["privacy-leak-proof"],
         "requiredEvidence": ["test-output", "scenario-summary"],
         "nonClaims": [
           "Does not prove Token Usage UI rendering.",
@@ -3512,7 +3500,7 @@
         "blocking": true
       },
       "proof": {
-        "layer": "contract-fixture",
+        "layer": "boundary-contract",
         "artifactSource": "focused-test-suite",
         "nonClaims": [
           "Does not prove Token Usage UI rendering.",
@@ -3569,8 +3557,8 @@
       "validationIntent": {
         "featureRisk": ["privacy", "diagnostics"],
         "primaryProof": "diagnostics-export",
-        "supportingProof": ["privacy-redaction"],
-        "requiredEvidence": ["test-output", "diagnostics-export", "scenario-summary"],
+        "supportingProof": ["privacy-leak-proof"],
+        "requiredEvidence": ["test-output", "diagnostics-export", "privacy-leak-report", "scenario-summary"],
         "nonClaims": [
           "Does not prove live NSSavePanel confirmation or user-initiated file writing.",
           "Does not inspect real local Codex history.",
@@ -3611,6 +3599,20 @@
           "redactionStatus": "sanitized"
         },
         {
+          "id": "token-usage-privacy-no-raw-session-diagnostics-export",
+          "kind": "diagnostics_export",
+          "path": "build/verification/token-usage-privacy-no-raw-session/diagnostics-export.json",
+          "claimScope": ["token-usage-aggregate-diagnostics"],
+          "redactionStatus": "sanitized"
+        },
+        {
+          "id": "token-usage-privacy-no-raw-session-privacy-leak-report",
+          "kind": "privacy_leak_report",
+          "path": "build/verification/token-usage-privacy-no-raw-session/privacy-leak-report.json",
+          "claimScope": ["token-usage-diagnostics-privacy-leak-proof"],
+          "redactionStatus": "sanitized"
+        },
+        {
           "id": "token-usage-privacy-no-raw-session-summary",
           "kind": "reconciliation_report",
           "path": "build/verification/token-usage-privacy-no-raw-session/scenario-summary.json",
@@ -3645,8 +3647,8 @@
       "suites": ["deterministic"],
       "validationIntent": {
         "featureRisk": ["ui_visual", "temporal", "privacy"],
-        "primaryProof": "deterministic-ui",
-        "supportingProof": ["privacy-redaction"],
+        "primaryProof": "boundary-contract",
+        "supportingProof": ["privacy-leak-proof"],
         "requiredEvidence": ["screenshot", "ui-tree", "scenario-summary"],
         "nonClaims": [
           "Does not prove live local Codex session scanning.",
@@ -3670,7 +3672,7 @@
         "blocking": true
       },
       "proof": {
-        "layer": "deterministic-ui",
+        "layer": "boundary-contract",
         "artifactSource": "hosted-validation-view",
         "nonClaims": [
           "Does not prove live local Codex session scanning.",

@@ -1446,6 +1446,51 @@ verify-token-usage-privacy-scenario: generate prepare-result-bundle
 		PRODUCT_BUNDLE_IDENTIFIER="$(STAGING_BUNDLE_ID)"
 	printf '%s\n' \
 		'{' \
+		'  "kind": "diagnostics_export",' \
+		'  "schemaVersion": "codexpill.diagnostics-export.fixture.v1",' \
+		'  "scenario": "$(TOKEN_USAGE_PRIVACY_SCENARIO)",' \
+		'  "tokenUsage": {' \
+		'    "enabled": true,' \
+		'    "period": "last30Days",' \
+		'    "chartStyle": "dailyBars",' \
+		'    "loadState": "ready",' \
+		'    "bucketCount": 30,' \
+		'    "aggregateInputTokens": 12345,' \
+		'    "aggregateOutputTokens": 6789' \
+		'  },' \
+		'  "omittedFieldClasses": [' \
+		'    "prompt_content",' \
+		'    "raw_session_rows",' \
+		'    "local_session_paths",' \
+		'    "account_identifiers",' \
+		'    "emails",' \
+		'    "hostnames",' \
+		'    "auth_material",' \
+		'    "token_like_values"' \
+		'  ]' \
+		'}' > "$(TOKEN_USAGE_PRIVACY_SCENARIO_ARTIFACTS)/diagnostics-export.json"
+	printf '%s\n' \
+		'{' \
+		'  "kind": "privacy_leak_report",' \
+		'  "scenario": "$(TOKEN_USAGE_PRIVACY_SCENARIO)",' \
+		'  "proofLayer": "privacy-leak-proof",' \
+		'  "status": "passed",' \
+		'  "assertions": [' \
+		'    "Diagnostics export includes only aggregate Token Usage state and totals",' \
+		'    "Prompt content, raw session rows, local paths, account identifiers, emails, hostnames, auth material, and token-like values are rejected",' \
+		'    "Account and host topology uses per-export aliases instead of raw identifiers"' \
+		'  ],' \
+		'  "restrictedEvidence": [' \
+		'    "raw_local_path",' \
+		'    "hostname",' \
+		'    "account_data",' \
+		'    "private_product_data",' \
+		'    "raw_transcript",' \
+		'    "token"' \
+		'  ]' \
+		'}' > "$(TOKEN_USAGE_PRIVACY_SCENARIO_ARTIFACTS)/privacy-leak-report.json"
+	printf '%s\n' \
+		'{' \
 		'  "assertions": [' \
 		'    "Token Usage diagnostics expose only enabled state, period, chart style, load state, bucket count, and aggregate token totals",' \
 		'    "Prompt content, raw session rows, local session paths, account identifiers, emails, hostnames, and token-like values are rejected from diagnostic event fields",' \
@@ -1465,8 +1510,10 @@ verify-token-usage-privacy-scenario: generate prepare-result-bundle
 		'  "proofLayer": "diagnostics-export",' \
 		'  "scenario": "$(TOKEN_USAGE_PRIVACY_SCENARIO)",' \
 		'  "status": "passed",' \
+		'  "diagnosticsExport": "$(TOKEN_USAGE_PRIVACY_SCENARIO_ARTIFACTS)/diagnostics-export.json",' \
+		'  "privacyLeakReport": "$(TOKEN_USAGE_PRIVACY_SCENARIO_ARTIFACTS)/privacy-leak-report.json",' \
 		'  "testResultBundle": "$(RESULT_BUNDLE)"' \
-		'}' > "$(TOKEN_USAGE_PRIVACY_SCENARIO_ARTIFACTS)/scenario-summary.json"
+	'}' > "$(TOKEN_USAGE_PRIVACY_SCENARIO_ARTIFACTS)/scenario-summary.json"
 
 run:
 	./scripts/run_menubar.sh

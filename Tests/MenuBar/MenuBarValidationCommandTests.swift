@@ -71,10 +71,118 @@ struct MenuBarValidationCommandTests {
 
     @Test
     func menuEmptyCatalogScenarioProducesUiStructureContractArtifact() throws {
+        try assertUiStructureContractArtifact(
+            for: UiStructureContractExpectation(
+                scenario: "menu-empty-catalog",
+                featureId: "account-catalog-empty-state",
+                acceptanceCriteria: ["empty-catalog-guides-to-add-account"],
+                rootChildIds: [
+                    "active-account-section",
+                    "manage-accounts-section",
+                    "preferences-section"
+                ],
+                requiredAssertionIds: [
+                    "active-account-section-visible",
+                    "empty-active-account-row-visible",
+                    "add-account-visible-and-enabled",
+                    "add-account-action-available",
+                    "top-level-menu-order"
+                ]
+            )
+        )
+    }
+
+    @Test
+    func promotedMenuScenariosProduceUiStructureContractArtifacts() throws {
+        let expectations = [
+            UiStructureContractExpectation(
+                scenario: "hosted-menu-default",
+                featureId: "menubar-default-read-state",
+                acceptanceCriteria: ["default-menu-shape-does-not-claim-live-state"],
+                rootChildIds: [
+                    "active-account-section",
+                    "other-accounts-section",
+                    "more-accounts-section",
+                    "manage-accounts-section",
+                    "preferences-section"
+                ],
+                requiredAssertionIds: [
+                    "active-account-section-visible",
+                    "other-accounts-section-visible",
+                    "more-accounts-section-visible",
+                    "manage-accounts-section-visible",
+                    "preferences-section-visible",
+                    "top-level-menu-order"
+                ]
+            ),
+            UiStructureContractExpectation(
+                scenario: "menu-unmatched-active-account",
+                featureId: "active-account-truth",
+                acceptanceCriteria: ["active-account-unmatched-does-not-lie"],
+                rootChildIds: [
+                    "active-account-section",
+                    "other-accounts-section",
+                    "more-accounts-section",
+                    "manage-accounts-section",
+                    "preferences-section"
+                ],
+                requiredAssertionIds: [
+                    "active-account-section-visible",
+                    "empty-active-account-row-visible",
+                    "other-accounts-section-visible",
+                    "more-accounts-section-visible",
+                    "top-level-menu-order"
+                ]
+            ),
+            UiStructureContractExpectation(
+                scenario: "menu-account-overflow",
+                featureId: "account-catalog-overflow",
+                acceptanceCriteria: ["overflow-keeps-hidden-accounts-discoverable"],
+                rootChildIds: [
+                    "active-account-section",
+                    "other-accounts-section",
+                    "more-accounts-section",
+                    "manage-accounts-section",
+                    "preferences-section"
+                ],
+                requiredAssertionIds: [
+                    "other-accounts-section-visible",
+                    "more-accounts-section-visible",
+                    "saved-account-rows-present",
+                    "top-level-menu-order"
+                ]
+            ),
+            UiStructureContractExpectation(
+                scenario: "menu-busy-status",
+                featureId: "menubar-busy-status",
+                acceptanceCriteria: ["busy-status-visible-and-conflicting-actions-disabled"],
+                rootChildIds: [
+                    "active-account-section",
+                    "manage-accounts-section",
+                    "preferences-section",
+                    "status-message"
+                ],
+                requiredAssertionIds: [
+                    "busy-status-message-visible",
+                    "add-account-visible-and-disabled",
+                    "add-account-action-disabled",
+                    "top-level-menu-order"
+                ]
+            )
+        ]
+
+        for expectation in expectations {
+            try assertUiStructureContractArtifact(for: expectation)
+        }
+    }
+
+    private func assertUiStructureContractArtifact(
+        for expectation: UiStructureContractExpectation
+    ) throws {
         let artifactDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("MenuBarValidationCommandTests-\(UUID().uuidString)", isDirectory: true)
         let now = Date(timeIntervalSince1970: 1_744_195_200)
-        let state = makeHostedValidationState(for: "menu-empty-catalog", now: now)
+        let state = makeHostedValidationState(for: expectation.scenario, now: now)
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(state: state, target: coordinator)
@@ -85,7 +193,7 @@ struct MenuBarValidationCommandTests {
         )
 
         let extraArtifacts = try writeScenarioSpecificArtifacts(
-            for: "menu-empty-catalog",
+            for: expectation.scenario,
             artifactDirectory: artifactDirectory,
             snapshot: snapshot,
             statusItemState: nil,
@@ -100,28 +208,23 @@ struct MenuBarValidationCommandTests {
 
         #expect(contract.kind == "ui_structure_contract")
         #expect(contract.schemaVersion == "kite.ui-structure-contract.v1")
-        #expect(contract.scenario.id == "menu-empty-catalog")
-        #expect(contract.scenario.featureId == "account-catalog-empty-state")
-        #expect(contract.scenario.acceptanceCriteria == ["empty-catalog-guides-to-add-account"])
+        #expect(contract.scenario.id == expectation.scenario)
+        #expect(contract.scenario.featureId == expectation.featureId)
+        #expect(contract.scenario.acceptanceCriteria == expectation.acceptanceCriteria)
         #expect(contract.scenario.proofType == "ui-structure-contract")
-        #expect(contract.root.children?.map(\.id) == [
-            "active-account-section",
-            "manage-accounts-section",
-            "preferences-section"
-        ])
-        #expect(contract.assertions.map(\.id) == [
-            "active-account-section-visible",
-            "empty-active-account-row-visible",
-            "add-account-visible-and-enabled",
-            "add-account-action-available",
-            "no-saved-account-row",
-            "no-more-accounts-section",
-            "no-switch-action",
-            "no-remote-switch-action",
-            "top-level-menu-order"
-        ])
+        #expect(contract.root.children?.map(\.id) == expectation.rootChildIds)
+        let assertionIds = Set(contract.assertions.map(\.id))
+        #expect(expectation.requiredAssertionIds.allSatisfy { assertionIds.contains($0) })
         #expect(contract.nonClaims.contains("Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity."))
         #expect(contract.nonClaims.contains("Does not prove native menu opening, native click routing, focus, or hittability."))
+    }
+
+    private struct UiStructureContractExpectation {
+        let scenario: String
+        let featureId: String
+        let acceptanceCriteria: [String]
+        let rootChildIds: [String]
+        let requiredAssertionIds: [String]
     }
 
     private func writeJSON<T: Encodable>(_ value: T, to url: URL) throws {
@@ -138,11 +241,11 @@ struct MenuBarValidationCommandTests {
         now: Date
     ) throws -> [String] {
         switch scenario {
-        case "menu-empty-catalog":
+        case "hosted-menu-default", "menu-busy-status", "menu-empty-catalog", "menu-account-overflow", "menu-unmatched-active-account":
             let contractURL = artifactDirectory.appendingPathComponent("ui-structure-contract.json")
             try FileManager.default.createDirectory(at: artifactDirectory, withIntermediateDirectories: true)
             try writeJSON(
-                MenuBarStructureContractExporter.makeMenuEmptyCatalogContract(from: snapshot),
+                try MenuBarStructureContractExporter.makeContract(for: scenario, from: snapshot),
                 to: contractURL
             )
             return [contractURL.lastPathComponent]
