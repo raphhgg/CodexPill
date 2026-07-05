@@ -443,21 +443,22 @@ The adapter currently includes:
   runtime contract-fixture proof;
 - `make verify-token-usage-privacy-scenario` for focused Token Usage
   diagnostics-export privacy proof;
-- `MenuBarValidationSupport` for semantic menu snapshots and hosted UI
-  artifacts;
+- `MenuBarValidationSupport` for semantic menu snapshots;
+- `MenuBarHostedDebugRenderer` for optional hosted debug screenshots that are
+  not required proof for `ui-structure-contract`;
 - `InMemoryRemoteHostClient` for isolated remote-host behavior in deterministic
   tests and validation runs;
 - `NoopCodexAppProcessClient` for validation runs that must not relaunch the
   real Codex app;
 - `ValidationFixtureBootstrap` for loading product-owned validation fixture
   state into isolated settings;
-- `MenuBarValidationObserver` and `MenuBarValidationConfiguration` as dormant
-  runtime-event instrumentation for a future explicit live/preview scenario.
+- `MenuBarValidationObserver` and `MenuBarValidationConfiguration` as
+  product-owned runtime-event instrumentation for declared workflow scenarios.
 
 The observer/configuration path is disabled unless validation output
-environment variables are set. It does not become a reusable Kite scenario until
-`.kite/scenarios.json` declares the scenario and its live opt-in, privacy,
-cleanup, and non-claim rules.
+environment variables are set. Runtime events are emitted only for explicit
+manifest-backed workflow scenario ids; other scenarios may still write product
+snapshots but cannot silently imply workflow or live proof.
 
 ## Main Local Gate
 

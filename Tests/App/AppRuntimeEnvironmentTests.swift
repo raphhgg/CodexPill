@@ -151,7 +151,7 @@ struct AppRuntimeEnvironmentTests {
     func validationInteractiveAlertOverrideAllowsNonXCTestLiveSmokeLaunches() {
         let environment = [
             AppRuntimeEnvironment.validationAllowInteractiveAlertsEnvironmentKey: "true",
-            MenuBarValidationConfiguration.outputPathEnvironmentKey: "/tmp/codexpill-live-menu.json"
+            MenuBarValidationConfiguration.outputPathEnvironmentKey: "/tmp/codexpill-runtime-menu.json"
         ]
 
         #expect(

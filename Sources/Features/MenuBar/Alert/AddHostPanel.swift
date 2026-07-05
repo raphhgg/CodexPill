@@ -283,9 +283,6 @@ private struct AddHostPanel: View {
         .frame(width: 520)
         .onAppear {
             focusedField = .destination
-            if ProcessInfo.processInfo.environment["CODEXPILL_VALIDATION_SCENARIO"] == "live-add-host-destination-validation-failed" {
-                model.destination = "codexpill-validation.invalid"
-            }
         }
     }
 

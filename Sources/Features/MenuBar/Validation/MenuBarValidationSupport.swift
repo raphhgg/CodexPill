@@ -164,37 +164,9 @@ enum MenuBarValidationSupport {
         return sections
     }
 
+    @available(*, deprecated, message: "Debug-only hosted projection. Use MenuBarHostedDebugRenderer for screenshots and MenuBarStructureContractExporter for ui-structure-contract proof.")
     static func makeHostedValidationView(state: MenuBarMenuState, now: Date = .now) -> some View {
-        let snapshot = makeSnapshot(state: state, now: now)
-
-        return VStack(alignment: .leading, spacing: 16) {
-            ForEach(snapshot.sections, id: \.title) { section in
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(section.title)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.secondary)
-
-                    ForEach(Array(section.items.enumerated()), id: \.offset) { _, item in
-                        Text(item)
-                            .font(.system(size: 13))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.vertical, 3)
-                    }
-                }
-            }
-
-            if let statusMessage = snapshot.statusMessage {
-                VStack(alignment: .leading, spacing: 6) {
-                    Divider()
-                    Text(statusMessage)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .padding(18)
-        .frame(width: 360, alignment: .leading)
-        .background(Color(nsColor: .windowBackgroundColor))
+        MenuBarHostedDebugRenderer.makeView(state: state, now: now)
     }
 
     private static func accountSummary(
@@ -363,5 +335,41 @@ enum MenuBarValidationSupport {
                 .init(x: $0.x, y: $0.y)
             }
         )
+    }
+}
+
+@MainActor
+enum MenuBarHostedDebugRenderer {
+    static func makeView(state: MenuBarMenuState, now: Date = .now) -> some View {
+        let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, now: now)
+
+        return VStack(alignment: .leading, spacing: 16) {
+            ForEach(snapshot.sections, id: \.title) { section in
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(section.title)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.secondary)
+
+                    ForEach(Array(section.items.enumerated()), id: \.offset) { _, item in
+                        Text(item)
+                            .font(.system(size: 13))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 3)
+                    }
+                }
+            }
+
+            if let statusMessage = snapshot.statusMessage {
+                VStack(alignment: .leading, spacing: 6) {
+                    Divider()
+                    Text(statusMessage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(18)
+        .frame(width: 360, alignment: .leading)
+        .background(Color(nsColor: .windowBackgroundColor))
     }
 }

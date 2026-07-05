@@ -8,7 +8,6 @@ private let menuBarValidationObserverLogger = Logger(
 
 @MainActor
 final class MenuBarValidationObserver {
-    private static let liveProofLayer = "live_ui"
     private static let hoverInvariantIDs = ["menubar.text_on_hover.stays_visible_inside_resized_bounds"]
     private static let shortcutRevealInvariantIDs = ["status_bar.reveal_shortcut.temporarily_shows_label"]
     private static let switchInvariantIDs = ["accounts.switch_account.menu_action_changes_active_account"]
@@ -37,7 +36,7 @@ final class MenuBarValidationObserver {
         scenario: String? = MenuBarValidationConfiguration.scenario()
     ) {
         self.sink = sink
-        self.scenario = scenario
+        self.scenario = MenuBarRuntimeWorkflowScenario.normalize(scenario)
     }
 
     func cancelIfUnfinished() {
@@ -457,7 +456,7 @@ final class MenuBarValidationObserver {
             try sink.record(
                 MenuBarValidationEvent(
                     scenario: scenario,
-                    proofLayer: Self.liveProofLayer,
+                    proofLayer: MenuBarRuntimeWorkflowScenario.proofLayer,
                     invariantIds: invariantIds,
                     event: name,
                     step: step,

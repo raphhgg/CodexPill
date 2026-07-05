@@ -200,7 +200,7 @@ private final class MenuBarHostActionCoordinatorHarness {
             alertFactory: MenuBarAlertFactory(),
             validationObserver: MenuBarValidationObserver(
                 sink: validationSink,
-                scenario: "host-action-coordinator-tests"
+                scenario: "switch-account-remote-install-verify"
             ),
             recordMenuAction: { [weak self] name, payload in
                 self?.menuActions.append(MenuActionRecord(name: name, payload: payload))

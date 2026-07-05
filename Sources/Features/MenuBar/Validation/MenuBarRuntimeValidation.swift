@@ -1,5 +1,37 @@
 import Foundation
 
+enum MenuBarRuntimeWorkflowScenario {
+    static let proofLayer = "workflow-event-log"
+
+    private static let manifestBackedScenarioIDs: Set<String> = [
+        "add-account-isolated-success",
+        "add-account-failure-cleanup",
+        "switch-account-local-confirmed",
+        "switch-account-remote-install-verify",
+        "remote-host-install-switch-current-account",
+        "remote-host-verification-failure",
+        "remove-account-active-targets-sign-out",
+        "remove-account-signout-failure-keeps-control",
+        "notifications-account-available-policy",
+        "notifications-current-runs-out-action",
+        "notifications-dedupe-after-delivery",
+        "launch-at-login-enable-confirmation",
+        "launch-at-login-blocked-opens-settings",
+        "status-bar-hover-label",
+        "status-bar-shortcut-reveal",
+        "status-bar-usage-bars-preferences"
+    ]
+
+    static func normalize(_ scenario: String?) -> String? {
+        guard let scenario = scenario?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !scenario.isEmpty,
+              manifestBackedScenarioIDs.contains(scenario) else {
+            return nil
+        }
+        return scenario
+    }
+}
+
 struct MenuBarValidationEvent: Codable, Equatable {
     let ts: String
     let scenario: String
@@ -123,10 +155,6 @@ enum MenuBarValidationConfiguration {
     }
 
     static func scenario(environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
-        guard let scenario = environment[scenarioEnvironmentKey]?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !scenario.isEmpty else {
-            return nil
-        }
-        return scenario
+        MenuBarRuntimeWorkflowScenario.normalize(environment[scenarioEnvironmentKey])
     }
 }

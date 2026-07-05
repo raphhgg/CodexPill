@@ -10,7 +10,7 @@ struct MenuBarValidationObserverTests {
         let sink = ValidationSinkProbe()
         let observer = MenuBarValidationObserver(
             sink: sink,
-            scenario: "observer-tests"
+            scenario: "switch-account-local-confirmed"
         )
 
         observer.recordMenuAction(
@@ -25,8 +25,8 @@ struct MenuBarValidationObserverTests {
         )
 
         let event = try #require(sink.events.first)
-        #expect(event.scenario == "observer-tests")
-        #expect(event.proofLayer == "live_ui")
+        #expect(event.scenario == "switch-account-local-confirmed")
+        #expect(event.proofLayer == "workflow-event-log")
         #expect(event.event == "menu_action_dispatched")
         #expect(event.step == "menu_action_dispatch")
         #expect(event.payload["action"] == "switchAccount")
@@ -42,7 +42,7 @@ struct MenuBarValidationObserverTests {
         let sink = ValidationSinkProbe()
         let observer = MenuBarValidationObserver(
             sink: sink,
-            scenario: "observer-tests"
+            scenario: "switch-account-local-confirmed"
         )
         let previous = makeAccount(name: "Personal", email: "personal@example.com")
         let target = makeAccount(name: "Business", email: "business@example.com")
@@ -85,7 +85,7 @@ struct MenuBarValidationObserverTests {
         let sink = ValidationSinkProbe()
         let observer = MenuBarValidationObserver(
             sink: sink,
-            scenario: "observer-tests"
+            scenario: "switch-account-remote-install-verify"
         )
         let account = makeAccount(name: "Business", email: "business@example.com")
         let host = RemoteHost(destination: "user@buildbox", displayName: "Buildbox")
@@ -106,6 +106,21 @@ struct MenuBarValidationObserverTests {
             "hostName": "Buildbox",
             "targetName": "Business"
         ])
+    }
+
+    @Test
+    func undeclaredRuntimeScenarioDoesNotEmitWorkflowEvents() throws {
+        let sink = ValidationSinkProbe()
+        let observer = MenuBarValidationObserver(
+            sink: sink,
+            scenario: "undeclared-runtime-scenario"
+        )
+
+        observer.recordMenuOpened(menuItemCount: 4)
+        observer.recordSnapshot(state: makeMenuState(), menu: nil, statusItemState: nil)
+
+        #expect(sink.events.isEmpty)
+        #expect(sink.snapshots.count == 1)
     }
 
     private func makeMenuState(activeAccount: CodexAccount? = nil) -> MenuBarMenuState {
