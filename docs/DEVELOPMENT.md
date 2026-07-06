@@ -98,6 +98,24 @@ host's active Codex login.
 Behavior and invariant requirements live in [VALIDATION.md](VALIDATION.md). Run
 `make test` before opening a pull request.
 
+CodexPill also has a product-owned Kite policy at `.kite/policy.json`. The
+policy selects the reusable `product-repo-policy` base and declares only
+CodexPill check commands; it does not inherit Kite Harness's npm-based default
+checks.
+
+Kite-governed product runs expect a `kite` executable on `PATH`. Use an
+installed or linked Kite binary, then run Kite from the CodexPill repo root:
+
+```bash
+kite run start --change-class docs_process --target-platform macos --product codexpill
+kite gate run-checks
+```
+
+The docs-process checks gate validates `.kite/scenarios.json` through the
+stable `kite` command. Generated run state stays under ignored `.kite/runs/`;
+generated validation reports and scenario evidence stay under ignored `build/`
+paths such as `build/kite/` and `build/verification/`.
+
 ## Local Assumptions
 
 - Codex is installed as `com.openai.codex`.

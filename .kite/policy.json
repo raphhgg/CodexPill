@@ -1,0 +1,32 @@
+{
+  "kind": "harness_policy",
+  "schemaVersion": "kite.harness.policy.v1",
+  "id": "codexpill-product-policy",
+  "extends": "product-repo-policy",
+  "changeClasses": {
+    "docs_process": {
+      "phases": ["refine", "implement", "validate", "handoff"],
+      "gates": [
+        {
+          "id": "intent",
+          "kind": "intent",
+          "phase": "refine"
+        },
+        {
+          "id": "checks",
+          "kind": "checks",
+          "phase": "implement",
+          "commands": ["kite scenarios validate --manifest .kite/scenarios.json"],
+          "tier": "smoke"
+        },
+        {
+          "id": "handoff",
+          "kind": "handoff",
+          "phase": "handoff",
+          "stalenessTolerance": "tolerate",
+          "tier": "smoke"
+        }
+      ]
+    }
+  }
+}

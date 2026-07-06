@@ -6,6 +6,7 @@ build/
 Tuist/.build
 .codex/
 .harness/
+.kite/runs/
 *.xcodeproj
 *.xcworkspace
 **/xcuserdata/
