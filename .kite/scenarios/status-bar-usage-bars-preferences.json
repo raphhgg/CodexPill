@@ -34,9 +34,7 @@
       "privacy-leak-proof"
     ],
     "requiredEvidence": [
-      "test-output",
-      "workflow-receipt",
-      "scenario-summary"
+      "test-output"
     ],
     "nonClaims": [
       "Does not open the live NSColorPanel color chooser.",
@@ -64,7 +62,7 @@
     ]
   },
   "command": {
-    "run": "make verify-status-bar-usage-bars-preferences-scenario"
+    "run": "node scripts/run-kite-scenario.mjs"
   },
   "expectedArtifacts": [
     {
@@ -73,24 +71,6 @@
       "path": "build/results/local/CodexPill.xcresult",
       "claimScope": [
         "status-bar-preferences-focused-tests"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "status-bar-usage-bars-preferences-workflow-receipt",
-      "kind": "workflow_event_log",
-      "path": "build/verification/status-bar-usage-bars-preferences/workflow-receipt.json",
-      "claimScope": [
-        "status-bar-preferences-events"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "status-bar-usage-bars-preferences-summary",
-      "kind": "reconciliation_report",
-      "path": "build/verification/status-bar-usage-bars-preferences/scenario-summary.json",
-      "claimScope": [
-        "status-bar-preferences-reconciled"
       ],
       "redactionStatus": "sanitized"
     }

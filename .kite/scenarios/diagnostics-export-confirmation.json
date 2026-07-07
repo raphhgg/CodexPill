@@ -30,13 +30,10 @@
       "user_confirmation"
     ],
     "supportingProof": [
-      "workflow-event-log",
       "privacy-leak-proof"
     ],
     "requiredEvidence": [
-      "test-output",
-      "workflow-receipt",
-      "scenario-summary"
+      "test-output"
     ],
     "nonClaims": [
       "Does not prove live NSSavePanel rendering or file writing.",
@@ -63,7 +60,7 @@
     ]
   },
   "command": {
-    "run": "make verify-diagnostics-export-confirmation-scenario"
+    "run": "node scripts/run-kite-scenario.mjs"
   },
   "expectedArtifacts": [
     {
@@ -72,24 +69,6 @@
       "path": "build/results/local/CodexPill.xcresult",
       "claimScope": [
         "diagnostics-menu-alert-report-tests"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "diagnostics-export-confirmation-workflow-receipt",
-      "kind": "workflow_event_log",
-      "path": "build/verification/diagnostics-export-confirmation/workflow-receipt.json",
-      "claimScope": [
-        "diagnostics-export-confirmation-events"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "diagnostics-export-confirmation-summary",
-      "kind": "reconciliation_report",
-      "path": "build/verification/diagnostics-export-confirmation/scenario-summary.json",
-      "claimScope": [
-        "diagnostics-export-reconciled"
       ],
       "redactionStatus": "sanitized"
     }

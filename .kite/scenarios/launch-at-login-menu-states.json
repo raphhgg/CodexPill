@@ -28,7 +28,6 @@
     "requiredEvidence": [
       "screenshot",
       "ui-tree",
-      "scenario-summary",
       "state-matrix"
     ],
     "nonClaims": [
@@ -60,7 +59,7 @@
     ]
   },
   "command": {
-    "run": "make verify-ui SCENARIO=launch-at-login-menu-states"
+    "run": "node scripts/run-kite-scenario.mjs"
   },
   "expectedArtifacts": [
     {
@@ -79,15 +78,6 @@
       "claimScope": [
         "semantic-ui-tree",
         "menu-action-metadata"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "launch-at-login-menu-states-summary",
-      "kind": "reconciliation_report",
-      "path": "build/verification/launch-at-login-menu-states/scenario-summary.json",
-      "claimScope": [
-        "deterministic-reconciled"
       ],
       "redactionStatus": "sanitized"
     },

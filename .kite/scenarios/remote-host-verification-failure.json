@@ -29,9 +29,7 @@
       "privacy-leak-proof"
     ],
     "requiredEvidence": [
-      "test-output",
-      "validation-receipt",
-      "scenario-summary"
+      "test-output"
     ],
     "nonClaims": [
       "Does not exercise live SSH, live Codex app-server behavior, real remote auth mutation, or a real remote filesystem.",
@@ -60,7 +58,7 @@
     ]
   },
   "command": {
-    "run": "make verify-remote-host-verification-failure-scenario"
+    "run": "node scripts/run-kite-scenario.mjs"
   },
   "expectedArtifacts": [
     {
@@ -69,24 +67,6 @@
       "path": "build/results/local/CodexPill.xcresult",
       "claimScope": [
         "remote-host-verifier-runtime-menu-tests"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "remote-host-verification-failure-validation-receipt",
-      "kind": "validation_receipt",
-      "path": "build/verification/remote-host-verification-failure/validation-receipt.json",
-      "claimScope": [
-        "remote-host-verification-failure-receipt"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "remote-host-verification-failure-summary",
-      "kind": "reconciliation_report",
-      "path": "build/verification/remote-host-verification-failure/scenario-summary.json",
-      "claimScope": [
-        "unit-and-menu-projection-reconciled"
       ],
       "redactionStatus": "sanitized"
     }

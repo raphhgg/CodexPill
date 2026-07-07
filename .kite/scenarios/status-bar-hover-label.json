@@ -35,9 +35,7 @@
     ],
     "requiredEvidence": [
       "test-output",
-      "workflow-receipt",
-      "proof-sequence",
-      "scenario-summary"
+      "proof-sequence"
     ],
     "nonClaims": [
       "Does not exercise native mouse movement or real pointer bounds.",
@@ -57,7 +55,7 @@
     ]
   },
   "proof": {
-    "layer": "workflow-event-log",
+    "layer": "unit",
     "artifactSource": "focused-test-suite",
     "nonClaims": [
       "Does not exercise native mouse movement or real pointer bounds.",
@@ -67,7 +65,7 @@
     ]
   },
   "command": {
-    "run": "make verify-status-bar-hover-label-scenario"
+    "run": "node scripts/run-kite-scenario.mjs"
   },
   "expectedArtifacts": [
     {
@@ -76,24 +74,6 @@
       "path": "build/results/local/CodexPill.xcresult",
       "claimScope": [
         "status-item-hover-runtime-tests"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "status-bar-hover-label-workflow-receipt",
-      "kind": "workflow_event_log",
-      "path": "build/verification/status-bar-hover-label/workflow-receipt.json",
-      "claimScope": [
-        "hover-runtime-event-sequence"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "status-bar-hover-label-summary",
-      "kind": "reconciliation_report",
-      "path": "build/verification/status-bar-hover-label/scenario-summary.json",
-      "claimScope": [
-        "hover-runtime-reconciled"
       ],
       "redactionStatus": "sanitized"
     }

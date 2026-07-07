@@ -27,7 +27,6 @@
     ],
     "requiredEvidence": [
       "ui-tree",
-      "scenario-summary",
       "runtime-state-snapshot"
     ],
     "nonClaims": [
@@ -58,7 +57,7 @@
     ]
   },
   "command": {
-    "run": "make verify-ui SCENARIO=status-bar-icon-text-visible"
+    "run": "node scripts/run-kite-scenario.mjs"
   },
   "expectedArtifacts": [
     {
@@ -77,15 +76,6 @@
       "claimScope": [
         "semantic-ui-tree",
         "status-item-runtime-state"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "status-bar-icon-text-visible-summary",
-      "kind": "reconciliation_report",
-      "path": "build/verification/status-bar-icon-text-visible/scenario-summary.json",
-      "claimScope": [
-        "deterministic-reconciled"
       ],
       "redactionStatus": "sanitized"
     },

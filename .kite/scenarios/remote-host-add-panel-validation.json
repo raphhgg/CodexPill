@@ -30,9 +30,7 @@
       "privacy-leak-proof"
     ],
     "requiredEvidence": [
-      "test-output",
-      "contract-receipt",
-      "scenario-summary"
+      "test-output"
     ],
     "nonClaims": [
       "Does not prove native Add Host panel screenshot rendering.",
@@ -63,7 +61,7 @@
     ]
   },
   "command": {
-    "run": "make verify-remote-host-add-panel-validation-scenario"
+    "run": "node scripts/run-kite-scenario.mjs"
   },
   "expectedArtifacts": [
     {
@@ -73,24 +71,6 @@
       "claimScope": [
         "remote-host-add-panel-tests",
         "ssh-contract-fixtures"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "remote-host-add-panel-validation-contract-receipt",
-      "kind": "contract_receipt",
-      "path": "build/verification/remote-host-add-panel-validation/contract-receipt.json",
-      "claimScope": [
-        "add-host-validation-contract-events"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "remote-host-add-panel-validation-summary",
-      "kind": "reconciliation_report",
-      "path": "build/verification/remote-host-add-panel-validation/scenario-summary.json",
-      "claimScope": [
-        "contract-fixture-reconciled"
       ],
       "redactionStatus": "sanitized"
     }

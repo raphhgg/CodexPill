@@ -24,8 +24,7 @@
       "privacy-leak-proof"
     ],
     "requiredEvidence": [
-      "test-output",
-      "scenario-summary"
+      "test-output"
     ],
     "nonClaims": [
       "Does not prove native Add Account panel rendering or text entry.",
@@ -55,7 +54,7 @@
     ]
   },
   "command": {
-    "run": "make verify-add-account-name-scenario"
+    "run": "node scripts/run-kite-scenario.mjs"
   },
   "expectedArtifacts": [
     {
@@ -64,15 +63,6 @@
       "path": "build/results/local/CodexPill.xcresult",
       "claimScope": [
         "add-account-name-unit-tests"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "add-account-name-validation-summary",
-      "kind": "reconciliation_report",
-      "path": "build/verification/add-account-name-validation/scenario-summary.json",
-      "claimScope": [
-        "unit-reconciled"
       ],
       "redactionStatus": "sanitized"
     }

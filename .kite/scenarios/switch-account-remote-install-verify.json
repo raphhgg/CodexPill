@@ -38,9 +38,7 @@
       "privacy-leak-proof"
     ],
     "requiredEvidence": [
-      "test-output",
-      "workflow-receipt",
-      "scenario-summary"
+      "test-output"
     ],
     "nonClaims": [
       "Does not exercise a live SSH host or live remote Codex app-server.",
@@ -60,7 +58,7 @@
     ]
   },
   "proof": {
-    "layer": "workflow-event-log",
+    "layer": "unit",
     "artifactSource": "focused-test-suite",
     "nonClaims": [
       "Does not exercise a live SSH host or live remote Codex app-server.",
@@ -70,7 +68,7 @@
     ]
   },
   "command": {
-    "run": "make verify-switch-account-remote-install-verify-scenario"
+    "run": "node scripts/run-kite-scenario.mjs"
   },
   "expectedArtifacts": [
     {
@@ -79,25 +77,6 @@
       "path": "build/results/local/CodexPill.xcresult",
       "claimScope": [
         "switch-account-remote-tests"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "switch-account-remote-install-verify-workflow-receipt",
-      "kind": "workflow_event_log",
-      "path": "build/verification/switch-account-remote-install-verify/workflow-receipt.json",
-      "claimScope": [
-        "fake-remote-host-workflow-events",
-        "ssh-contract-fixtures"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "switch-account-remote-install-verify-summary",
-      "kind": "reconciliation_report",
-      "path": "build/verification/switch-account-remote-install-verify/scenario-summary.json",
-      "claimScope": [
-        "workflow-event-reconciled"
       ],
       "redactionStatus": "sanitized"
     }

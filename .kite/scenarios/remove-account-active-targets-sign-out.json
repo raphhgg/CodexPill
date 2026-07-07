@@ -33,9 +33,7 @@
       "privacy-leak-proof"
     ],
     "requiredEvidence": [
-      "test-output",
-      "workflow-receipt",
-      "scenario-summary"
+      "test-output"
     ],
     "nonClaims": [
       "Does not prove native confirmation panel rendering or click automation.",
@@ -54,7 +52,7 @@
     ]
   },
   "proof": {
-    "layer": "workflow-event-log",
+    "layer": "unit",
     "artifactSource": "focused-test-suite",
     "nonClaims": [
       "Does not prove native confirmation panel rendering or click automation.",
@@ -64,7 +62,7 @@
     ]
   },
   "command": {
-    "run": "make verify-remove-account-active-targets-sign-out-scenario"
+    "run": "node scripts/run-kite-scenario.mjs"
   },
   "expectedArtifacts": [
     {
@@ -73,24 +71,6 @@
       "path": "build/results/local/CodexPill.xcresult",
       "claimScope": [
         "remove-account-active-target-tests"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "remove-account-active-targets-sign-out-workflow-receipt",
-      "kind": "workflow_event_log",
-      "path": "build/verification/remove-account-active-targets-sign-out/workflow-receipt.json",
-      "claimScope": [
-        "fake-local-remote-signout-workflow-events"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "remove-account-active-targets-sign-out-summary",
-      "kind": "reconciliation_report",
-      "path": "build/verification/remove-account-active-targets-sign-out/scenario-summary.json",
-      "claimScope": [
-        "workflow-event-reconciled"
       ],
       "redactionStatus": "sanitized"
     }

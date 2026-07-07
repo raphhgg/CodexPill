@@ -22,7 +22,7 @@ struct MenuBarValidationCommandTests {
     }
 
     @Test
-    func structureContractScenarioSummarySeparatesRequiredProofFromDebugArtifacts() async throws {
+    func structureContractScenarioUsesKiteReceiptInsteadOfLegacyScenarioSummary() async throws {
         let artifactDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("MenuBarValidationCommandTests-\(UUID().uuidString)", isDirectory: true)
         let request = ValidationRequest(
@@ -58,28 +58,18 @@ struct MenuBarValidationCommandTests {
             uiStructureValidator: KiteUiStructureCLIValidator(commandRunner: runner)
         )
 
-        let summary = try loadJSONObject(at: artifactDirectory.appendingPathComponent("scenario-summary.json"))
-
-        #expect(summary["scenario"] as? String == "menu-empty-catalog")
-        #expect(summary["proofType"] as? String == "ui-structure-contract")
-        #expect(summary["proofLayer"] as? String == "ui-structure-contract")
-        #expect(summary.keys.contains("screenshot") == false)
-        #expect(summary.keys.contains("uiTree") == false)
-
-        let requiredArtifacts = try #require(summary["requiredArtifacts"] as? [[String: Any]])
-        #expect(requiredArtifacts.compactMap { $0["path"] as? String } == [
-            "ui-structure-contract.json"
-        ])
-        #expect(requiredArtifacts.compactMap { $0["kind"] as? String } == [
-            "ui_structure_contract"
-        ])
-
-        let debugArtifacts = try #require(summary["debugArtifacts"] as? [[String: Any]])
-        #expect(Set(debugArtifacts.compactMap { $0["path"] as? String }) == [
-            "screenshots/menu-empty-catalog.png",
-            "ui-tree.json"
-        ])
-        #expect(Set(debugArtifacts.compactMap { $0["required"] as? Bool }) == [false])
+        #expect(FileManager.default.fileExists(
+            atPath: artifactDirectory.appendingPathComponent("ui-structure-contract.json").path
+        ))
+        #expect(FileManager.default.fileExists(
+            atPath: artifactDirectory.appendingPathComponent("screenshots/menu-empty-catalog.png").path
+        ))
+        #expect(FileManager.default.fileExists(
+            atPath: artifactDirectory.appendingPathComponent("ui-tree.json").path
+        ))
+        #expect(!FileManager.default.fileExists(
+            atPath: artifactDirectory.appendingPathComponent("scenario-summary.json").path
+        ))
     }
 
     @Test
@@ -151,8 +141,7 @@ struct MenuBarValidationCommandTests {
         let artifactDirectory = URL(fileURLWithPath: request.artifactDirectory, isDirectory: true)
         try FileManager.default.createDirectory(at: artifactDirectory, withIntermediateDirectories: true)
 
-        let summaryURL = artifactDirectory.appendingPathComponent("scenario-summary.json")
-        let scenarioArtifacts = try await writeScenarioSpecificArtifacts(
+        _ = try await writeScenarioSpecificArtifacts(
             for: request.scenario,
             artifactDirectory: artifactDirectory,
             snapshot: snapshot,
@@ -161,20 +150,17 @@ struct MenuBarValidationCommandTests {
             uiStructureValidator: validator
         )
 
-        var requiredArtifacts = scenarioArtifacts.requiredArtifacts
-        var debugArtifacts: [ScenarioArtifact] = []
-
         if profile.hostedArtifactsAreRequired {
-            requiredArtifacts.append(contentsOf: try writeHostedDebugArtifacts(
+            _ = try writeHostedDebugArtifacts(
                 scenario: request.scenario,
                 artifactDirectory: artifactDirectory,
                 state: state,
                 snapshot: snapshot,
                 now: now,
                 required: true
-            ))
+            )
         } else {
-            debugArtifacts = writeOptionalHostedDebugArtifacts(
+            _ = writeOptionalHostedDebugArtifacts(
                 scenario: request.scenario,
                 artifactDirectory: artifactDirectory,
                 state: state,
@@ -182,21 +168,6 @@ struct MenuBarValidationCommandTests {
                 now: now
             )
         }
-
-        try writeJSON(
-            ScenarioSummary(
-                scenario: request.scenario,
-                proofType: profile.proofType,
-                proofLayer: profile.proofLayer,
-                assertions: scenarioAssertions(for: request.scenario),
-                requiredArtifacts: requiredArtifacts,
-                debugArtifacts: debugArtifacts.isEmpty ? nil : debugArtifacts,
-                gaps: profile.gaps,
-                kiteValidation: scenarioArtifacts.kiteValidation,
-                status: "passed"
-            ),
-            to: summaryURL
-        )
     }
 
     @Test
@@ -397,14 +368,6 @@ struct MenuBarValidationCommandTests {
         try encoder.encode(value).write(to: url, options: .atomic)
     }
 
-    private func loadJSONObject(at url: URL) throws -> [String: Any] {
-        let data = try Data(contentsOf: url)
-        guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw ValidationError.invalidJSONObject(url.path)
-        }
-        return object
-    }
-
     private func writeHostedDebugArtifacts(
         scenario: String,
         artifactDirectory: URL,
@@ -491,7 +454,7 @@ struct MenuBarValidationCommandTests {
                         claimScope: ["\(scenario)-structure"]
                     )
                 ],
-                kiteValidation: KiteValidationSummaryArtifact(summary: validationSummary)
+                kiteValidation: validationSummary
             )
         case "launch-at-login-menu-states":
             let matrixURL = artifactDirectory.appendingPathComponent("launch-at-login-states.json")
@@ -953,101 +916,6 @@ struct MenuBarValidationCommandTests {
         }
     }
 
-    private func scenarioAssertions(for scenario: String) -> [String] {
-        switch scenario {
-        case "hosted-menu-default":
-            return [
-                "Active Account section includes the active account summary",
-                "Two inactive accounts are visible and one account overflows into More Accounts…",
-                "Status message is omitted when the menu is not busy"
-            ]
-        case "menu-account-overflow":
-            return [
-                "Visible account rows stop at the configured account limit",
-                "Hidden saved accounts remain discoverable under More Accounts…",
-                "Overflow rows preserve the same submenu actions as visible account rows"
-            ]
-        case "token-usage-ready-card":
-            return [
-                "Token Usage ready card renders in the active account area",
-                "Synthetic aggregate data renders today, period total, and peak day",
-                "Token Usage card does not emit account, email, workspace, remote, or host attribution"
-            ]
-        case "token-usage-off-hidden":
-            return [
-                "Token Usage disabled state omits the active-area card",
-                "Disabled state omits Token Usage period and loading copy from the active account area",
-                "Disabled state emits no Token Usage workspace, remote, host, path, or raw session detail"
-            ]
-        case "token-usage-loading-progress":
-            return [
-                "Token Usage loading card renders in the active account area",
-                "Synthetic file-count progress renders without fake percentages",
-                "Loading card does not emit account, email, workspace, remote, host, path, or raw session detail"
-            ]
-        case "hosted-menu-with-host":
-            return [
-                "Remote host active account renders as an active account card",
-                "Accounts continues to reflect the local saved-account catalog",
-                "One inactive account still overflows into More Accounts… with a connected host present"
-            ]
-        case "hosted-menu-local-and-remote-same-account":
-            return [
-                "Same saved account active locally and on a verified host collapses to one Active Account card",
-                "Active Account communicates the remote host location",
-                "Connected host metadata remains in the snapshot for Hosts management"
-            ]
-        case "hosted-menu-multiple-hosts":
-            return [
-                "Each connected host with a different account renders its own active-account card",
-                "Accounts still reflects only the local saved-account catalog",
-                "Overflow account behavior stays intact with multiple connected hosts"
-            ]
-        case "host-account-missing-on-host":
-            return [
-                "Missing remote snapshots change the action copy to install-and-switch",
-                "Accounts still comes from the local catalog only"
-            ]
-        case "hosted-menu-disconnected-host":
-            return [
-                "Disconnected hosts stay out of the primary Active Account section",
-                "Configured hosts remain available under Hosts and per-account switch targets"
-            ]
-        case "menu-busy-status", "hosted-menu-busy":
-            return [
-                "Busy state exposes only the current account plus shared account and preference controls",
-                "Busy status message is rendered before Quit in the artifact snapshot",
-                "Add-account action is marked disabled in the snapshot"
-            ]
-        case "launch-at-login-menu-states":
-            return [
-                "Requires-approval state renders Launch at Login with System Settings routing",
-                "Structured state matrix covers enabled, disabled, requires-approval, and unavailable states",
-                "State matrix preserves checked state and action selectors without real macOS login-item mutation"
-            ]
-        case "status-bar-icon-text-visible":
-            return [
-                "Status item runtime snapshot renders the visible icon-and-text state",
-                "Synthetic active account produces S 42% W 68% as the displayed title",
-                "Runtime state is captured without live menubar screen capture, hover, or shortcut proof"
-            ]
-        case "menu-empty-catalog":
-            return [
-                "Empty state shows no active saved account",
-                "Add Account… remains available when the menu is idle and empty",
-                "Saved-account rows and switch actions are omitted when there are no saved accounts"
-            ]
-        case "menu-unmatched-active-account":
-            return [
-                "Unmatched local auth state does not render a saved account as active",
-                "Saved accounts remain available as account catalog rows",
-                "Overflow behavior remains intact while the active account state is empty"
-            ]
-        default:
-            return []
-        }
-    }
-
     private func loadValidationRequest(
         environment: [String: String] = ProcessInfo.processInfo.environment,
         fallbackURL: URL? = nil
@@ -1150,18 +1018,6 @@ struct MenuBarValidationCommandTests {
 
 }
 
-private struct ScenarioSummary: Codable {
-    let scenario: String
-    let proofType: String
-    let proofLayer: String
-    let assertions: [String]
-    let requiredArtifacts: [ScenarioArtifact]
-    let debugArtifacts: [ScenarioArtifact]?
-    let gaps: [String]
-    let kiteValidation: KiteValidationSummaryArtifact?
-    let status: String
-}
-
 private struct ScenarioArtifact: Codable, Equatable {
     let kind: String
     let path: String
@@ -1171,36 +1027,20 @@ private struct ScenarioArtifact: Codable, Equatable {
 
 private struct ScenarioSpecificArtifacts {
     let requiredArtifacts: [ScenarioArtifact]
-    let kiteValidation: KiteValidationSummaryArtifact?
+    let kiteValidation: KiteUiStructureValidationSummary?
 
     init(
         requiredArtifacts: [ScenarioArtifact] = [],
-        kiteValidation: KiteValidationSummaryArtifact? = nil
+        kiteValidation: KiteUiStructureValidationSummary? = nil
     ) {
         self.requiredArtifacts = requiredArtifacts
         self.kiteValidation = kiteValidation
     }
 }
 
-private struct KiteValidationSummaryArtifact: Codable, Equatable {
-    let command: String
-    let contractId: String
-    let scenarioId: String
-    let assertionCount: Int
-
-    init(summary: KiteUiStructureValidationSummary) {
-        command = "kite ui-structure validate --artifact ui-structure-contract.json --json"
-        contractId = summary.contractId
-        scenarioId = summary.scenarioId
-        assertionCount = summary.assertionCount
-    }
-}
-
 private struct ScenarioProofProfile {
     let proofType: String
-    let proofLayer: String
     let hostedArtifactsAreRequired: Bool
-    let gaps: [String]
 
     static func make(
         scenario: String,
@@ -1210,16 +1050,12 @@ private struct ScenarioProofProfile {
         if structureContractScenarios.contains(scenario) {
             profile = ScenarioProofProfile(
                 proofType: "ui-structure-contract",
-                proofLayer: "ui-structure-contract",
-                hostedArtifactsAreRequired: false,
-                gaps: structureContractGaps(for: scenario)
+                hostedArtifactsAreRequired: false
             )
         } else {
             profile = ScenarioProofProfile(
                 proofType: "deterministic-ui",
-                proofLayer: "deterministic-ui",
-                hostedArtifactsAreRequired: true,
-                gaps: deterministicUIGaps(for: scenario)
+                hostedArtifactsAreRequired: true
             )
         }
 
@@ -1240,67 +1076,6 @@ private struct ScenarioProofProfile {
         "menu-account-overflow",
         "menu-unmatched-active-account"
     ]
-
-    private static func structureContractGaps(for scenario: String) -> [String] {
-        var gaps = [
-            "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
-            "Does not prove native menu opening, native click routing, focus, or hittability.",
-            "Does not prove the live macOS menu bar surface."
-        ]
-
-        switch scenario {
-        case "hosted-menu-default":
-            gaps.append(contentsOf: [
-                "Does not prove SwiftUI preview rendering.",
-                "Does not prove live Codex account or app-server state."
-            ])
-        case "menu-busy-status":
-            gaps.append(contentsOf: [
-                "Does not prove workflow action dispatch or event-log ordering.",
-                "Does not prove busy actions route through confirmation paths.",
-                "Does not prove live Codex workflow state."
-            ])
-        case "menu-empty-catalog":
-            gaps.append(contentsOf: [
-                "Does not prove Add Account sign-in workflow behavior.",
-                "Does not prove live Codex auth lookup or account switching."
-            ])
-        case "menu-account-overflow":
-            gaps.append(contentsOf: [
-                "Does not prove live Codex auth lookup.",
-                "Does not prove account switching.",
-                "Does not prove runtime menu opening or pointer interaction."
-            ])
-        case "menu-unmatched-active-account":
-            gaps.append(contentsOf: [
-                "Does not prove live Codex auth lookup.",
-                "Does not prove account switching."
-            ])
-        default:
-            break
-        }
-
-        return gaps
-    }
-
-    private static func deterministicUIGaps(for scenario: String) -> [String] {
-        switch scenario {
-        case "launch-at-login-menu-states":
-            return [
-                "Does not register or unregister the real macOS login item.",
-                "Does not open System Settings.",
-                "Does not prove live macOS menu-bar behavior."
-            ]
-        case "status-bar-icon-text-visible":
-            return [
-                "Does not prove live menubar screen capture, hover, shortcut reveal, or native hittability."
-            ]
-        default:
-            return [
-                "Does not prove live macOS menu-bar behavior."
-            ]
-        }
-    }
 }
 
 private struct LaunchAtLoginStateMatrix: Codable {
@@ -1395,7 +1170,6 @@ private final class KiteCommandRunnerProbe: CommandRunner, @unchecked Sendable {
 
 private enum ValidationError: Error {
     case unknownScenario(String)
-    case invalidJSONObject(String)
     case unsupportedProofType(scenario: String, requested: String, expected: String)
 }
 

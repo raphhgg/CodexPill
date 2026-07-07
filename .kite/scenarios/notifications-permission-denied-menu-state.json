@@ -29,9 +29,7 @@
       "privacy-leak-proof"
     ],
     "requiredEvidence": [
-      "test-output",
-      "workflow-receipt",
-      "scenario-summary"
+      "test-output"
     ],
     "nonClaims": [
       "Does not open live macOS System Settings.",
@@ -58,7 +56,7 @@
     ]
   },
   "command": {
-    "run": "make verify-notifications-permission-denied-menu-state-scenario"
+    "run": "node scripts/run-kite-scenario.mjs"
   },
   "expectedArtifacts": [
     {
@@ -67,24 +65,6 @@
       "path": "build/results/local/CodexPill.xcresult",
       "claimScope": [
         "notification-menu-runtime-tests"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "notifications-permission-denied-menu-state-workflow-receipt",
-      "kind": "workflow_event_log",
-      "path": "build/verification/notifications-permission-denied-menu-state/workflow-receipt.json",
-      "claimScope": [
-        "denied-permission-recovery-events"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "notifications-permission-denied-menu-state-summary",
-      "kind": "reconciliation_report",
-      "path": "build/verification/notifications-permission-denied-menu-state/scenario-summary.json",
-      "claimScope": [
-        "permission-denied-menu-reconciled"
       ],
       "redactionStatus": "sanitized"
     }

@@ -33,9 +33,7 @@
       "privacy-leak-proof"
     ],
     "requiredEvidence": [
-      "test-output",
-      "workflow-receipt",
-      "scenario-summary"
+      "test-output"
     ],
     "nonClaims": [
       "Does not exercise live macOS notification delivery.",
@@ -55,7 +53,7 @@
     ]
   },
   "proof": {
-    "layer": "workflow-event-log",
+    "layer": "unit",
     "artifactSource": "focused-test-suite",
     "nonClaims": [
       "Does not exercise live macOS notification delivery.",
@@ -64,7 +62,7 @@
     ]
   },
   "command": {
-    "run": "make verify-notifications-current-runs-out-action-scenario"
+    "run": "node scripts/run-kite-scenario.mjs"
   },
   "expectedArtifacts": [
     {
@@ -74,25 +72,6 @@
       "claimScope": [
         "notification-action-routing-tests",
         "notification-action-event-log"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "notifications-current-runs-out-action-workflow-receipt",
-      "kind": "workflow_event_log",
-      "path": "build/verification/notifications-current-runs-out-action/workflow-receipt.json",
-      "claimScope": [
-        "current-runs-out-action-events",
-        "notification-action-event-log"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "notifications-current-runs-out-action-summary",
-      "kind": "reconciliation_report",
-      "path": "build/verification/notifications-current-runs-out-action/scenario-summary.json",
-      "claimScope": [
-        "current-runs-out-actions-reconciled"
       ],
       "redactionStatus": "sanitized"
     }

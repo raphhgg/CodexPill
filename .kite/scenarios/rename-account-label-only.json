@@ -33,8 +33,7 @@
       "privacy-leak-proof"
     ],
     "requiredEvidence": [
-      "test-output",
-      "scenario-summary"
+      "test-output"
     ],
     "nonClaims": [
       "Does not prove native rename dialog presentation or text entry.",
@@ -62,7 +61,7 @@
     ]
   },
   "command": {
-    "run": "make verify-rename-scenario"
+    "run": "node scripts/run-kite-scenario.mjs"
   },
   "expectedArtifacts": [
     {
@@ -71,15 +70,6 @@
       "path": "build/results/local/CodexPill.xcresult",
       "claimScope": [
         "rename-unit-tests"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "rename-account-label-only-summary",
-      "kind": "reconciliation_report",
-      "path": "build/verification/rename-account-label-only/scenario-summary.json",
-      "claimScope": [
-        "unit-reconciled"
       ],
       "redactionStatus": "sanitized"
     }

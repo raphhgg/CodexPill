@@ -744,40 +744,44 @@ struct MenuBarRuntimeValidationTests {
     }
 
     @Test
-    func runtimeWorkflowScenarioNormalizationMatchesManifestPrimaryWorkflowProofs() throws {
+    func runtimeWorkflowScenarioNormalizationMatchesManifestBackedRuntimeProofs() throws {
         let manifest = try loadScenarioManifest()
         let scenarioIDs = manifest.scenarios.map(\.id)
-        let primaryWorkflowScenarioIDs = manifest.scenarios
-            .filter { $0.proof.layer == MenuBarRuntimeWorkflowScenario.proofLayer }
-            .map(\.id)
-        let normalizedWorkflowScenarioIDs = scenarioIDs.filter {
+        let runtimeScenarioIDs = scenarioIDs.filter {
             MenuBarRuntimeWorkflowScenario.normalize($0) != nil
         }
 
-        #expect(normalizedWorkflowScenarioIDs == primaryWorkflowScenarioIDs)
+        #expect(!runtimeScenarioIDs.isEmpty)
+        #expect(runtimeScenarioIDs.allSatisfy { scenarioIDs.contains($0) })
     }
 
     @Test
-    func primaryWorkflowScenariosRequireWorkflowReceiptsAndSummaries() throws {
-        let scenarios = try loadScenarioManifest().scenarios
-            .filter { $0.proof.layer == MenuBarRuntimeWorkflowScenario.proofLayer }
+    func runtimeObserverScenariosUseKiteReceiptBoundaryAndProductTestOutput() throws {
+        let scenarios = try loadScenarioManifest().scenarios.filter {
+            MenuBarRuntimeWorkflowScenario.normalize($0.id) != nil
+        }
+        let legacyArtifactKinds = Set([
+            "workflow_event_log",
+            "reconciliation_report",
+            "contract_receipt",
+            "validation_receipt",
+            "cleanup_receipt"
+        ])
 
         #expect(!scenarios.isEmpty)
         #expect(scenarios.allSatisfy {
-            $0.expectedArtifacts.contains(where: { $0.kind == "workflow_event_log" })
+            $0.proof.layer == "unit"
         })
         #expect(scenarios.allSatisfy {
-            $0.expectedArtifacts.contains(where: { $0.kind == "reconciliation_report" })
+            $0.expectedArtifacts.contains(where: { $0.kind == "test_output" })
         })
         #expect(scenarios.allSatisfy {
-            !$0.expectedArtifacts.contains(where: { artifact in
-                artifact.kind == "ui_structure_contract" || artifact.kind == "visual_snapshot"
-            })
+            $0.expectedArtifacts.allSatisfy { !legacyArtifactKinds.contains($0.kind) }
         })
     }
 
     @Test
-    func remoteHostVerificationFailureScenarioUsesUnitValidationReceipt() throws {
+    func remoteHostVerificationFailureScenarioUsesUnitTestOutput() throws {
         let scenario = try #require(
             loadScenarioManifest().scenarios.first { $0.id == "remote-host-verification-failure" }
         )
@@ -785,8 +789,8 @@ struct MenuBarRuntimeValidationTests {
         #expect(scenario.proof.layer == "unit")
         #expect(!scenario.expectedArtifacts.contains { $0.kind == "workflow_event_log" })
         #expect(scenario.expectedArtifacts.contains { artifact in
-            artifact.kind == "validation_receipt"
-                && artifact.path == "build/verification/remote-host-verification-failure/validation-receipt.json"
+            artifact.kind == "test_output"
+                && artifact.path == "build/results/local/CodexPill.xcresult"
         })
     }
 
@@ -798,11 +802,13 @@ struct MenuBarRuntimeValidationTests {
         let hover = try #require(scenarios["status-bar-hover-label"])
         let shortcut = try #require(scenarios["status-bar-shortcut-reveal"])
 
-        #expect(hover.proof.layer == MenuBarRuntimeWorkflowScenario.proofLayer)
+        #expect(hover.proof.layer == "unit")
+        #expect(MenuBarRuntimeWorkflowScenario.normalize(hover.id) == hover.id)
         #expect(hover.validationIntent.requiredEvidence.contains("proof-sequence"))
         #expect(hover.validationIntent.nonClaims.contains("Does not prove native hover activation or exit timer cadence."))
 
-        #expect(shortcut.proof.layer == MenuBarRuntimeWorkflowScenario.proofLayer)
+        #expect(shortcut.proof.layer == "unit")
+        #expect(MenuBarRuntimeWorkflowScenario.normalize(shortcut.id) == shortcut.id)
         #expect(shortcut.validationIntent.requiredEvidence.contains("proof-sequence"))
         #expect(shortcut.validationIntent.nonClaims.contains("Does not prove native reveal timer cadence."))
     }

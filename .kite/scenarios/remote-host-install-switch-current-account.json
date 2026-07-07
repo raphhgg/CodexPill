@@ -30,9 +30,7 @@
       "privacy-leak-proof"
     ],
     "requiredEvidence": [
-      "test-output",
-      "workflow-receipt",
-      "scenario-summary"
+      "test-output"
     ],
     "nonClaims": [
       "Does not prove native Add Host or confirmation panel rendering.",
@@ -52,7 +50,7 @@
     ]
   },
   "proof": {
-    "layer": "workflow-event-log",
+    "layer": "unit",
     "artifactSource": "focused-test-suite",
     "nonClaims": [
       "Does not prove native Add Host or confirmation panel rendering.",
@@ -63,7 +61,7 @@
     ]
   },
   "command": {
-    "run": "make verify-remote-host-install-switch-current-account-scenario"
+    "run": "node scripts/run-kite-scenario.mjs"
   },
   "expectedArtifacts": [
     {
@@ -73,24 +71,6 @@
       "claimScope": [
         "remote-host-setup-runtime-tests",
         "remote-switch-contract-fixtures"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "remote-host-install-switch-current-account-workflow-receipt",
-      "kind": "workflow_event_log",
-      "path": "build/verification/remote-host-install-switch-current-account/workflow-receipt.json",
-      "claimScope": [
-        "add-host-install-switch-workflow-events"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "remote-host-install-switch-current-account-summary",
-      "kind": "reconciliation_report",
-      "path": "build/verification/remote-host-install-switch-current-account/scenario-summary.json",
-      "claimScope": [
-        "workflow-event-reconciled"
       ],
       "redactionStatus": "sanitized"
     }

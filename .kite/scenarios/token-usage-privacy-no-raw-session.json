@@ -26,8 +26,7 @@
     "requiredEvidence": [
       "test-output",
       "diagnostics-export",
-      "privacy-leak-report",
-      "scenario-summary"
+      "privacy-leak-report"
     ],
     "nonClaims": [
       "Does not prove live NSSavePanel confirmation or user-initiated file writing.",
@@ -53,7 +52,7 @@
     ]
   },
   "command": {
-    "run": "make verify-token-usage-privacy-scenario"
+    "run": "node scripts/run-kite-scenario.mjs"
   },
   "expectedArtifacts": [
     {
@@ -80,15 +79,6 @@
       "path": "build/verification/token-usage-privacy-no-raw-session/privacy-leak-report.json",
       "claimScope": [
         "token-usage-diagnostics-privacy-leak-proof"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "token-usage-privacy-no-raw-session-summary",
-      "kind": "reconciliation_report",
-      "path": "build/verification/token-usage-privacy-no-raw-session/scenario-summary.json",
-      "claimScope": [
-        "diagnostics-export-reconciled"
       ],
       "redactionStatus": "sanitized"
     }

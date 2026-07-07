@@ -35,9 +35,7 @@
       "privacy-leak-proof"
     ],
     "requiredEvidence": [
-      "test-output",
-      "contract-receipt",
-      "scenario-summary"
+      "test-output"
     ],
     "nonClaims": [
       "Does not exercise live SSH, live Codex app-server behavior, real remote auth mutation, or a real remote filesystem.",
@@ -66,7 +64,7 @@
     ]
   },
   "command": {
-    "run": "make verify-remote-host-rate-limit-fallback-scenario"
+    "run": "node scripts/run-kite-scenario.mjs"
   },
   "expectedArtifacts": [
     {
@@ -75,24 +73,6 @@
       "path": "build/results/local/CodexPill.xcresult",
       "claimScope": [
         "remote-rate-limit-resolution-and-menu-runtime-tests"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "remote-host-rate-limit-fallback-contract-receipt",
-      "kind": "contract_receipt",
-      "path": "build/verification/remote-host-rate-limit-fallback/contract-receipt.json",
-      "claimScope": [
-        "remote-rate-limit-fallback-resolution-events"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "remote-host-rate-limit-fallback-summary",
-      "kind": "reconciliation_report",
-      "path": "build/verification/remote-host-rate-limit-fallback/scenario-summary.json",
-      "claimScope": [
-        "contract-fixture-and-menu-runtime-reconciled"
       ],
       "redactionStatus": "sanitized"
     }

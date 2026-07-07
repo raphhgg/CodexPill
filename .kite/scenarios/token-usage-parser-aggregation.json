@@ -25,8 +25,7 @@
       "privacy-leak-proof"
     ],
     "requiredEvidence": [
-      "test-output",
-      "scenario-summary"
+      "test-output"
     ],
     "nonClaims": [
       "Does not prove Token Usage UI presentation.",
@@ -58,7 +57,7 @@
     ]
   },
   "command": {
-    "run": "make verify-token-usage-parser-scenario"
+    "run": "node scripts/run-kite-scenario.mjs"
   },
   "expectedArtifacts": [
     {
@@ -67,15 +66,6 @@
       "path": "build/results/local/CodexPill.xcresult",
       "claimScope": [
         "scanner-contract-fixtures"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "token-usage-parser-aggregation-summary",
-      "kind": "reconciliation_report",
-      "path": "build/verification/token-usage-parser-aggregation/scenario-summary.json",
-      "claimScope": [
-        "contract-fixture-reconciled"
       ],
       "redactionStatus": "sanitized"
     }

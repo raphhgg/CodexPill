@@ -29,14 +29,11 @@
       "state_truth"
     ],
     "supportingProof": [
-      "workflow-event-log",
       "boundary-contract",
       "privacy-leak-proof"
     ],
     "requiredEvidence": [
-      "test-output",
-      "workflow-receipt",
-      "scenario-summary"
+      "test-output"
     ],
     "nonClaims": [
       "Does not exercise live macOS notification delivery.",
@@ -65,7 +62,7 @@
     ]
   },
   "command": {
-    "run": "make verify-notifications-dedupe-after-delivery-scenario"
+    "run": "node scripts/run-kite-scenario.mjs"
   },
   "expectedArtifacts": [
     {
@@ -74,24 +71,6 @@
       "path": "build/results/local/CodexPill.xcresult",
       "claimScope": [
         "notification-dedupe-tests"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "notifications-dedupe-after-delivery-workflow-receipt",
-      "kind": "workflow_event_log",
-      "path": "build/verification/notifications-dedupe-after-delivery/workflow-receipt.json",
-      "claimScope": [
-        "notification-dedupe-events"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "notifications-dedupe-after-delivery-summary",
-      "kind": "reconciliation_report",
-      "path": "build/verification/notifications-dedupe-after-delivery/scenario-summary.json",
-      "claimScope": [
-        "notification-dedupe-reconciled"
       ],
       "redactionStatus": "sanitized"
     }

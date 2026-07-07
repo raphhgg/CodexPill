@@ -84,18 +84,23 @@ make verify-token-usage-privacy-scenario
 make verify-ui SCENARIO=token-usage-loading-progress
 ```
 
-Those commands write deterministic artifacts under their matching
-`build/verification/<scenario>/` directories. Structure-contract scenarios
-write required `ui-structure-contract.json` proof plus `scenario-summary.json`;
-hosted screenshots and `ui-tree.json` may also be emitted there, but only as
-debug artifacts and not as required proof. Deterministic visual scenarios still
-write required hosted screenshots, `ui-tree.json`, and `scenario-summary.json`.
-Unit scenarios write focused test output and a scenario summary. Some scenarios
-also write feature-specific structured artifacts such as state matrices or
-runtime state snapshots. This is deterministic product evidence, not SwiftUI
-preview proof and not live macOS menu-bar proof. Preview and live scenarios
-should be added only when their product-local commands and fixtures exist on
-the branch being validated.
+Kite runs every scenario through `node scripts/run-kite-scenario.mjs`. The
+adapter reads `KITE_SCENARIO_REQUEST`, checks Kite's request kind/schema, maps
+the requested scenario id to the existing focused `make` target, and passes the
+scenario id through `SCENARIO`. Direct local runs may still call the focused
+`make` targets above.
+
+CodexPill no longer writes product-local `scenario-summary.json`,
+`workflow-receipt.json`, `contract-receipt.json`, `validation-receipt.json`, or
+`cleanup-receipt.json` artifacts for runnable Kite scenarios. Kite owns the
+generic command request and scenario receipt. CodexPill writes only
+product-owned evidence under `build/verification/<scenario>/`: result bundles,
+required `ui-structure-contract.json` artifacts, deterministic screenshots and
+`ui-tree.json` where the scenario needs hosted UI proof, state/runtime
+snapshots, diagnostics exports, and privacy-leak reports. This is deterministic
+product evidence, not SwiftUI preview proof and not live macOS menu-bar proof.
+Preview and live scenarios should be added only when their product-local
+commands and fixtures exist on the branch being validated.
 
 There is intentionally no `verify-ui-live` command. A live or preview scenario
 must first be declared in `.kite/scenarios/<scenario-id>.json` with explicit opt-in,
@@ -479,14 +484,14 @@ The adapter currently includes:
 - `MenuBarValidationScenarioFixtures` for product-owned synthetic hosted-menu
   state used by runnable deterministic scenario commands and tests;
 - `MenuBarValidationObserver` and `MenuBarValidationConfiguration` as
-  product-owned `workflow-event-log` instrumentation for scenario-pack rows
-  whose canonical primary proof layer is `workflow-event-log`.
+  product-owned runtime event instrumentation used by focused tests.
 
 The observer/configuration path is disabled unless validation output
 environment variables are set. Runtime events are emitted only for
-pack-backed scenario ids whose `.kite/scenarios/<scenario-id>.json` proof layer is
-`workflow-event-log`; unit, contract-fixture, diagnostics, and deterministic UI
-scenarios may still write product snapshots or command receipts but cannot
+pack-backed scenario ids normalized by the product runtime; runnable `.kite`
+scenario rows do not claim workflow-event proof unless they also declare and
+produce a real workflow event artifact. Unit, contract-fixture, diagnostics,
+and deterministic UI scenarios may still write product snapshots but cannot
 silently imply observer-produced workflow-event or live proof.
 
 ## Main Local Gate

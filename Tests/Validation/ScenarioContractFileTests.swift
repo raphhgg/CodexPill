@@ -20,16 +20,68 @@ struct ScenarioContractFileTests {
         let contractIDs = try contractURLs.map { url in
             let object = try JSONObject.make(from: Data(contentsOf: url))
             let id = try object.string(forKey: "id")
+            let command = try object.object(forKey: "command")
 
             #expect(url.lastPathComponent == "\(id).json")
             #expect(object.containsObject(forKey: "feature"))
             #expect(!object.containsValue(forKey: "featureId"))
             #expect(!object.containsValue(forKey: "validationModes"))
+            #expect(try command.string(forKey: "run") == "node scripts/run-kite-scenario.mjs")
+            try assertNoLegacyKiteLocalEvidence(in: object, scenarioID: id)
             return id
         }
 
         #expect(contractIDs.count == 37)
         #expect(contractIDs.count == Set(contractIDs).count)
+    }
+
+    private func assertNoLegacyKiteLocalEvidence(
+        in object: JSONObject,
+        scenarioID: String
+    ) throws {
+        let legacyEvidence = Set([
+            "scenario-summary",
+            "workflow-receipt",
+            "contract-receipt",
+            "validation-receipt",
+            "cleanup-receipt"
+        ])
+        let legacyArtifactKinds = Set([
+            "reconciliation_report",
+            "workflow_event_log",
+            "contract_receipt",
+            "validation_receipt",
+            "cleanup_receipt"
+        ])
+        let expectedArtifacts = try object.arrayObjects(forKey: "expectedArtifacts")
+
+        for artifact in expectedArtifacts {
+            let kind = try artifact.string(forKey: "kind")
+            let path = try artifact.string(forKey: "path")
+
+            #expect(
+                !legacyArtifactKinds.contains(kind),
+                "\(scenarioID) should rely on Kite's scenario receipt instead of requiring \(kind)"
+            )
+            #expect(
+                !path.hasSuffix("scenario-summary.json"),
+                "\(scenarioID) should not require product-local scenario-summary.json"
+            )
+            #expect(
+                !path.hasSuffix("workflow-receipt.json")
+                    && !path.hasSuffix("contract-receipt.json")
+                    && !path.hasSuffix("validation-receipt.json")
+                    && !path.hasSuffix("cleanup-receipt.json"),
+                "\(scenarioID) should not require product-local receipt artifacts"
+            )
+        }
+
+        let validationIntent = try object.object(forKey: "validationIntent")
+        let requiredEvidence = try validationIntent.stringArray(forKey: "requiredEvidence")
+        #expect(
+            legacyEvidence.isDisjoint(with: Set(requiredEvidence)),
+            "\(scenarioID) requiredEvidence should not list legacy local summary or receipt evidence"
+        )
     }
 
     private func repositoryRoot(filePath: String = #filePath) throws -> URL {
@@ -66,14 +118,6 @@ struct ScenarioContractFileTests {
         }
         .sorted { $0.path < $1.path }
     }
-}
-
-private struct ScenarioManifest: Decodable {
-    let scenarios: [ScenarioReference]
-}
-
-private struct ScenarioReference: Decodable {
-    let id: String
 }
 
 private enum JSONObject: Equatable {
@@ -116,6 +160,40 @@ private enum JSONObject: Equatable {
         return true
     }
 
+    func object(forKey key: String) throws -> JSONObject {
+        guard case let .object(dictionary) = self,
+              case let .object(value) = dictionary[key] else {
+            throw ScenarioContractFileTestError.missingJSONObject(key)
+        }
+        return .object(value)
+    }
+
+    func arrayObjects(forKey key: String) throws -> [JSONObject] {
+        guard case let .object(dictionary) = self,
+              case let .array(values) = dictionary[key] else {
+            throw ScenarioContractFileTestError.missingJSONArray(key)
+        }
+        return try values.map { value in
+            guard case .object = value else {
+                throw ScenarioContractFileTestError.missingJSONObject(key)
+            }
+            return value
+        }
+    }
+
+    func stringArray(forKey key: String) throws -> [String] {
+        guard case let .object(dictionary) = self,
+              case let .array(values) = dictionary[key] else {
+            throw ScenarioContractFileTestError.missingJSONArray(key)
+        }
+        return try values.map { value in
+            guard case let .string(string) = value else {
+                throw ScenarioContractFileTestError.missingJSONString(key)
+            }
+            return string
+        }
+    }
+
     func containsValue(forKey key: String) -> Bool {
         guard case let .object(dictionary) = self else {
             return false
@@ -135,6 +213,8 @@ private enum JSONObject: Equatable {
 private enum ScenarioContractFileTestError: Error {
     case missingRepositoryRoot
     case missingContractsDirectory(String)
+    case missingJSONObject(String)
+    case missingJSONArray(String)
     case missingJSONString(String)
     case unsupportedJSONValue
 }

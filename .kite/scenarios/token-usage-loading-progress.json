@@ -26,8 +26,7 @@
     ],
     "requiredEvidence": [
       "screenshot",
-      "ui-tree",
-      "scenario-summary"
+      "ui-tree"
     ],
     "nonClaims": [
       "Does not prove live local Codex session scanning.",
@@ -57,7 +56,7 @@
     ]
   },
   "command": {
-    "run": "make verify-ui SCENARIO=token-usage-loading-progress"
+    "run": "node scripts/run-kite-scenario.mjs"
   },
   "expectedArtifacts": [
     {
@@ -75,15 +74,6 @@
       "path": "build/verification/token-usage-loading-progress/ui-tree.json",
       "claimScope": [
         "semantic-ui-tree"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "token-usage-loading-progress-summary",
-      "kind": "reconciliation_report",
-      "path": "build/verification/token-usage-loading-progress/scenario-summary.json",
-      "claimScope": [
-        "deterministic-reconciled"
       ],
       "redactionStatus": "sanitized"
     }

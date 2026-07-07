@@ -29,13 +29,10 @@
       "workflow_state"
     ],
     "supportingProof": [
-      "workflow-event-log",
       "privacy-leak-proof"
     ],
     "requiredEvidence": [
-      "test-output",
-      "workflow-receipt",
-      "scenario-summary"
+      "test-output"
     ],
     "nonClaims": [
       "Does not exercise live macOS notification delivery.",
@@ -62,7 +59,7 @@
     ]
   },
   "command": {
-    "run": "make verify-notifications-account-available-policy-scenario"
+    "run": "node scripts/run-kite-scenario.mjs"
   },
   "expectedArtifacts": [
     {
@@ -71,24 +68,6 @@
       "path": "build/results/local/CodexPill.xcresult",
       "claimScope": [
         "notification-policy-workflow-tests"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "notifications-account-available-policy-workflow-receipt",
-      "kind": "workflow_event_log",
-      "path": "build/verification/notifications-account-available-policy/workflow-receipt.json",
-      "claimScope": [
-        "account-available-policy-events"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "notifications-account-available-policy-summary",
-      "kind": "reconciliation_report",
-      "path": "build/verification/notifications-account-available-policy/scenario-summary.json",
-      "claimScope": [
-        "account-available-policy-reconciled"
       ],
       "redactionStatus": "sanitized"
     }

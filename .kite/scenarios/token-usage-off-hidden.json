@@ -26,8 +26,7 @@
     ],
     "requiredEvidence": [
       "screenshot",
-      "ui-tree",
-      "scenario-summary"
+      "ui-tree"
     ],
     "nonClaims": [
       "Does not prove live local Codex session scanning is stopped or skipped.",
@@ -55,7 +54,7 @@
     ]
   },
   "command": {
-    "run": "make verify-ui SCENARIO=token-usage-off-hidden"
+    "run": "node scripts/run-kite-scenario.mjs"
   },
   "expectedArtifacts": [
     {
@@ -73,15 +72,6 @@
       "path": "build/verification/token-usage-off-hidden/ui-tree.json",
       "claimScope": [
         "semantic-ui-tree"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "token-usage-off-hidden-summary",
-      "kind": "reconciliation_report",
-      "path": "build/verification/token-usage-off-hidden/scenario-summary.json",
-      "claimScope": [
-        "deterministic-reconciled"
       ],
       "redactionStatus": "sanitized"
     }

@@ -33,9 +33,7 @@
       "privacy-leak-proof"
     ],
     "requiredEvidence": [
-      "test-output",
-      "cleanup-receipt",
-      "scenario-summary"
+      "test-output"
     ],
     "nonClaims": [
       "Does not prove native device-code panel rendering or browser sign-in.",
@@ -54,7 +52,7 @@
     ]
   },
   "proof": {
-    "layer": "workflow-event-log",
+    "layer": "unit",
     "artifactSource": "focused-test-suite",
     "nonClaims": [
       "Does not prove native device-code panel rendering or browser sign-in.",
@@ -64,7 +62,7 @@
     ]
   },
   "command": {
-    "run": "make verify-add-account-failure-cleanup-scenario"
+    "run": "node scripts/run-kite-scenario.mjs"
   },
   "expectedArtifacts": [
     {
@@ -73,25 +71,6 @@
       "path": "build/results/local/CodexPill.xcresult",
       "claimScope": [
         "add-account-failure-tests"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "add-account-failure-cleanup-receipt",
-      "kind": "workflow_event_log",
-      "path": "build/verification/add-account-failure-cleanup/cleanup-receipt.json",
-      "claimScope": [
-        "fake-client-failure-events",
-        "negative-filesystem-state"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "add-account-failure-cleanup-summary",
-      "kind": "reconciliation_report",
-      "path": "build/verification/add-account-failure-cleanup/scenario-summary.json",
-      "claimScope": [
-        "workflow-event-reconciled"
       ],
       "redactionStatus": "sanitized"
     }

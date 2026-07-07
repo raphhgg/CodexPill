@@ -25,8 +25,7 @@
       "privacy-leak-proof"
     ],
     "requiredEvidence": [
-      "ui-structure-contract",
-      "scenario-summary"
+      "ui-structure-contract"
     ],
     "nonClaims": [
       "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
@@ -58,7 +57,7 @@
     ]
   },
   "command": {
-    "run": "make verify-ui SCENARIO=menu-account-overflow"
+    "run": "node scripts/run-kite-scenario.mjs"
   },
   "expectedArtifacts": [
     {
@@ -67,15 +66,6 @@
       "path": "build/verification/menu-account-overflow/ui-structure-contract.json",
       "claimScope": [
         "menu-account-overflow-structure"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "menu-account-overflow-summary",
-      "kind": "reconciliation_report",
-      "path": "build/verification/menu-account-overflow/scenario-summary.json",
-      "claimScope": [
-        "ui-structure-contract-reconciled"
       ],
       "redactionStatus": "sanitized"
     }

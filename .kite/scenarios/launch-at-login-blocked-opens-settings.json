@@ -38,9 +38,7 @@
       "privacy-leak-proof"
     ],
     "requiredEvidence": [
-      "test-output",
-      "workflow-receipt",
-      "scenario-summary"
+      "test-output"
     ],
     "nonClaims": [
       "Does not open real System Settings.",
@@ -59,7 +57,7 @@
     ]
   },
   "proof": {
-    "layer": "workflow-event-log",
+    "layer": "unit",
     "artifactSource": "focused-test-suite",
     "nonClaims": [
       "Does not open real System Settings.",
@@ -68,7 +66,7 @@
     ]
   },
   "command": {
-    "run": "make verify-launch-at-login-blocked-opens-settings-scenario"
+    "run": "node scripts/run-kite-scenario.mjs"
   },
   "expectedArtifacts": [
     {
@@ -77,24 +75,6 @@
       "path": "build/results/local/CodexPill.xcresult",
       "claimScope": [
         "launch-at-login-blocked-tests"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "launch-at-login-blocked-opens-settings-workflow-receipt",
-      "kind": "workflow_event_log",
-      "path": "build/verification/launch-at-login-blocked-opens-settings/workflow-receipt.json",
-      "claimScope": [
-        "launch-at-login-blocked-routing-events"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "launch-at-login-blocked-opens-settings-summary",
-      "kind": "reconciliation_report",
-      "path": "build/verification/launch-at-login-blocked-opens-settings/scenario-summary.json",
-      "claimScope": [
-        "launch-at-login-blocked-reconciled"
       ],
       "redactionStatus": "sanitized"
     }

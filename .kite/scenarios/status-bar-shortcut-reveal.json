@@ -35,9 +35,7 @@
     ],
     "requiredEvidence": [
       "test-output",
-      "workflow-receipt",
-      "proof-sequence",
-      "scenario-summary"
+      "proof-sequence"
     ],
     "nonClaims": [
       "Does not exercise live Carbon/global hotkey registration.",
@@ -58,7 +56,7 @@
     ]
   },
   "proof": {
-    "layer": "workflow-event-log",
+    "layer": "unit",
     "artifactSource": "focused-test-suite",
     "nonClaims": [
       "Does not exercise live Carbon/global hotkey registration.",
@@ -68,7 +66,7 @@
     ]
   },
   "command": {
-    "run": "make verify-status-bar-shortcut-reveal-scenario"
+    "run": "node scripts/run-kite-scenario.mjs"
   },
   "expectedArtifacts": [
     {
@@ -77,24 +75,6 @@
       "path": "build/results/local/CodexPill.xcresult",
       "claimScope": [
         "status-item-shortcut-runtime-tests"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "status-bar-shortcut-reveal-workflow-receipt",
-      "kind": "workflow_event_log",
-      "path": "build/verification/status-bar-shortcut-reveal/workflow-receipt.json",
-      "claimScope": [
-        "shortcut-reveal-runtime-event-sequence"
-      ],
-      "redactionStatus": "sanitized"
-    },
-    {
-      "id": "status-bar-shortcut-reveal-summary",
-      "kind": "reconciliation_report",
-      "path": "build/verification/status-bar-shortcut-reveal/scenario-summary.json",
-      "claimScope": [
-        "shortcut-reveal-runtime-reconciled"
       ],
       "redactionStatus": "sanitized"
     }
