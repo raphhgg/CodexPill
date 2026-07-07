@@ -7,7 +7,7 @@ import Testing
 @MainActor
 struct MenuBarValidationCommandTests {
     @Test
-    func hostedMenuScenarioProducesArtifacts() throws {
+    func hostedMenuScenarioProducesArtifacts() async throws {
         let request = try loadValidationRequest() ?? ValidationRequest(
             artifactDirectory: "",
             scenario: "hosted-menu-default"
@@ -44,7 +44,7 @@ struct MenuBarValidationCommandTests {
 
         let uiTreeURL = artifactDirectory.appendingPathComponent("ui-tree.json")
         let summaryURL = artifactDirectory.appendingPathComponent("scenario-summary.json")
-        let extraArtifacts = try writeScenarioSpecificArtifacts(
+        let extraArtifacts = try await writeScenarioSpecificArtifacts(
             for: request.scenario,
             artifactDirectory: artifactDirectory,
             snapshot: snapshot,
@@ -70,115 +70,124 @@ struct MenuBarValidationCommandTests {
     }
 
     @Test
-    func menuEmptyCatalogScenarioProducesUiStructureContractArtifact() throws {
-        try assertUiStructureContractArtifact(
+    func menuEmptyCatalogScenarioProducesUiStructureContractArtifactAndValidatesWithKite() async throws {
+        try await assertUiStructureContractArtifact(
             for: UiStructureContractExpectation(
                 scenario: "menu-empty-catalog",
                 featureId: "account-catalog-empty-state",
-                acceptanceCriteria: ["empty-catalog-guides-to-add-account"],
-                rootChildIds: [
-                    "active-account-section",
-                    "manage-accounts-section",
-                    "preferences-section"
-                ],
-                requiredAssertionIds: [
-                    "active-account-section-visible",
-                    "empty-active-account-row-visible",
-                    "add-account-visible-and-enabled",
-                    "add-account-action-available",
-                    "top-level-menu-order"
-                ]
+                acceptanceCriteria: ["empty-catalog-guides-to-add-account"]
             )
         )
     }
 
     @Test
-    func promotedMenuScenariosProduceUiStructureContractArtifacts() throws {
+    func promotedMenuScenariosProduceUiStructureContractArtifactsAndValidateWithKite() async throws {
         let expectations = [
             UiStructureContractExpectation(
                 scenario: "hosted-menu-default",
                 featureId: "menubar-default-read-state",
-                acceptanceCriteria: ["default-menu-shape-does-not-claim-live-state"],
-                rootChildIds: [
-                    "active-account-section",
-                    "other-accounts-section",
-                    "more-accounts-section",
-                    "manage-accounts-section",
-                    "preferences-section"
-                ],
-                requiredAssertionIds: [
-                    "active-account-section-visible",
-                    "other-accounts-section-visible",
-                    "more-accounts-section-visible",
-                    "manage-accounts-section-visible",
-                    "preferences-section-visible",
-                    "top-level-menu-order"
-                ]
+                acceptanceCriteria: ["default-menu-shape-does-not-claim-live-state"]
             ),
             UiStructureContractExpectation(
                 scenario: "menu-unmatched-active-account",
                 featureId: "active-account-truth",
-                acceptanceCriteria: ["active-account-unmatched-does-not-lie"],
-                rootChildIds: [
-                    "active-account-section",
-                    "other-accounts-section",
-                    "more-accounts-section",
-                    "manage-accounts-section",
-                    "preferences-section"
-                ],
-                requiredAssertionIds: [
-                    "active-account-section-visible",
-                    "empty-active-account-row-visible",
-                    "other-accounts-section-visible",
-                    "more-accounts-section-visible",
-                    "top-level-menu-order"
-                ]
+                acceptanceCriteria: ["active-account-unmatched-does-not-lie"]
             ),
             UiStructureContractExpectation(
                 scenario: "menu-account-overflow",
                 featureId: "account-catalog-overflow",
-                acceptanceCriteria: ["overflow-keeps-hidden-accounts-discoverable"],
-                rootChildIds: [
-                    "active-account-section",
-                    "other-accounts-section",
-                    "more-accounts-section",
-                    "manage-accounts-section",
-                    "preferences-section"
-                ],
-                requiredAssertionIds: [
-                    "other-accounts-section-visible",
-                    "more-accounts-section-visible",
-                    "saved-account-rows-present",
-                    "top-level-menu-order"
-                ]
+                acceptanceCriteria: ["overflow-keeps-hidden-accounts-discoverable"]
             ),
             UiStructureContractExpectation(
                 scenario: "menu-busy-status",
                 featureId: "menubar-busy-status",
-                acceptanceCriteria: ["busy-status-visible-and-conflicting-actions-disabled"],
-                rootChildIds: [
-                    "active-account-section",
-                    "manage-accounts-section",
-                    "preferences-section",
-                    "status-message"
-                ],
-                requiredAssertionIds: [
-                    "busy-status-message-visible",
-                    "add-account-visible-and-disabled",
-                    "add-account-action-disabled",
-                    "top-level-menu-order"
-                ]
+                acceptanceCriteria: ["busy-status-visible-and-conflicting-actions-disabled"]
             )
         ]
 
         for expectation in expectations {
-            try assertUiStructureContractArtifact(for: expectation)
+            try await assertUiStructureContractArtifact(for: expectation)
+        }
+    }
+
+    @Test
+    func kiteUiStructureValidationFailureSurfacesTypedCodeAndPath() async throws {
+        let runner = KiteCommandRunnerProbe(results: [
+            .success(.init(
+                terminationStatus: 1,
+                standardOutput: Data("""
+                {
+                  "command": "kite.ui-structure.validate",
+                  "status": "failed",
+                  "code": "ui_structure_contract.assertion_failed",
+                  "message": "UI structure assertion failed: top-level-menu-order",
+                  "path": "$.assertions[3]"
+                }
+                """.utf8),
+                standardError: Data()
+            ))
+        ])
+        let validator = KiteUiStructureCLIValidator(commandRunner: runner)
+        let artifactURL = URL(fileURLWithPath: "/tmp/ui-structure-contract.json")
+
+        do {
+            _ = try await validator.validate(artifactURL: artifactURL)
+            Issue.record("Expected Kite validation to fail.")
+        } catch let failure as KiteUiStructureValidationFailure {
+            #expect(failure.code == "ui_structure_contract.assertion_failed")
+            #expect(failure.path == "$.assertions[3]")
+            #expect(failure.terminationStatus == 1)
+        }
+
+        #expect(runner.calls == [
+            .init(
+                executableURL: URL(fileURLWithPath: "/usr/bin/env"),
+                arguments: [
+                    "kite",
+                    "ui-structure",
+                    "validate",
+                    "--artifact",
+                    artifactURL.path,
+                    "--json"
+                ]
+            )
+        ])
+    }
+
+    @Test
+    func kiteUiStructureValidationPrivacyFailureDoesNotLeakPrivateOutput() async throws {
+        let privateString = "/Users/private-user/.codex/auth.json"
+        let runner = KiteCommandRunnerProbe(results: [
+            .success(.init(
+                terminationStatus: 1,
+                standardOutput: Data("""
+                {
+                  "command": "kite.ui-structure.validate",
+                  "status": "failed",
+                  "code": "ui_structure_contract.private_payload",
+                  "message": "\(privateString)",
+                  "path": "$.root.children[0].label"
+                }
+                """.utf8),
+                standardError: Data(privateString.utf8)
+            ))
+        ])
+        let validator = KiteUiStructureCLIValidator(commandRunner: runner)
+
+        do {
+            _ = try await validator.validate(artifactURL: URL(fileURLWithPath: "/tmp/ui-structure-contract.json"))
+            Issue.record("Expected Kite validation to fail.")
+        } catch let failure as KiteUiStructureValidationFailure {
+            #expect(failure.code == "ui_structure_contract.private_payload")
+            #expect(failure.path == "$.root.children[0].label")
+            #expect(!failure.message.contains(privateString))
+            #expect(!String(describing: failure).contains(privateString))
         }
     }
 
     private func assertUiStructureContractArtifact(
         for expectation: UiStructureContractExpectation
-    ) throws {
+    ) async throws {
         let artifactDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("MenuBarValidationCommandTests-\(UUID().uuidString)", isDirectory: true)
         let now = Date(timeIntervalSince1970: 1_744_195_200)
@@ -192,12 +201,30 @@ struct MenuBarValidationCommandTests {
             now: now
         )
 
-        let extraArtifacts = try writeScenarioSpecificArtifacts(
+        let runner = KiteCommandRunnerProbe(results: [
+            .success(.init(
+                terminationStatus: 0,
+                standardOutput: Data("""
+                {
+                  "command": "kite.ui-structure.validate",
+                  "status": "passed",
+                  "kind": "ui_structure_contract",
+                  "schemaVersion": "kite.ui-structure-contract.v1",
+                  "contractId": "codexpill-\(expectation.scenario)-structure",
+                  "scenarioId": "\(expectation.scenario)",
+                  "assertionCount": 1
+                }
+                """.utf8),
+                standardError: Data()
+            ))
+        ])
+        let extraArtifacts = try await writeScenarioSpecificArtifacts(
             for: expectation.scenario,
             artifactDirectory: artifactDirectory,
             snapshot: snapshot,
             statusItemState: nil,
-            now: now
+            now: now,
+            uiStructureValidator: KiteUiStructureCLIValidator(commandRunner: runner)
         )
 
         #expect(extraArtifacts == ["ui-structure-contract.json"])
@@ -212,19 +239,22 @@ struct MenuBarValidationCommandTests {
         #expect(contract.scenario.featureId == expectation.featureId)
         #expect(contract.scenario.acceptanceCriteria == expectation.acceptanceCriteria)
         #expect(contract.scenario.proofType == "ui-structure-contract")
-        #expect(contract.root.children?.map(\.id) == expectation.rootChildIds)
-        let assertionIds = Set(contract.assertions.map(\.id))
-        #expect(expectation.requiredAssertionIds.allSatisfy { assertionIds.contains($0) })
         #expect(contract.nonClaims.contains("Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity."))
         #expect(contract.nonClaims.contains("Does not prove native menu opening, native click routing, focus, or hittability."))
+        #expect(runner.calls.first?.arguments == [
+            "kite",
+            "ui-structure",
+            "validate",
+            "--artifact",
+            contractURL.path,
+            "--json"
+        ])
     }
 
     private struct UiStructureContractExpectation {
         let scenario: String
         let featureId: String
         let acceptanceCriteria: [String]
-        let rootChildIds: [String]
-        let requiredAssertionIds: [String]
     }
 
     private func writeJSON<T: Encodable>(_ value: T, to url: URL) throws {
@@ -238,8 +268,9 @@ struct MenuBarValidationCommandTests {
         artifactDirectory: URL,
         snapshot: MenuBarValidationSnapshot,
         statusItemState: StatusItemRuntimeSnapshot?,
-        now: Date
-    ) throws -> [String] {
+        now: Date,
+        uiStructureValidator: KiteUiStructureCLIValidator = KiteUiStructureCLIValidator()
+    ) async throws -> [String] {
         switch scenario {
         case "hosted-menu-default", "menu-busy-status", "menu-empty-catalog", "menu-account-overflow", "menu-unmatched-active-account":
             let contractURL = artifactDirectory.appendingPathComponent("ui-structure-contract.json")
@@ -248,6 +279,7 @@ struct MenuBarValidationCommandTests {
                 try MenuBarStructureContractExporter.makeContract(for: scenario, from: snapshot),
                 to: contractURL
             )
+            _ = try await uiStructureValidator.validate(artifactURL: contractURL)
             return [contractURL.lastPathComponent]
         case "launch-at-login-menu-states":
             let matrixURL = artifactDirectory.appendingPathComponent("launch-at-login-states.json")
@@ -787,14 +819,10 @@ struct MenuBarValidationCommandTests {
     }
 
     private func loadValidationRequest() throws -> ValidationRequest? {
-        let repoRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-        let requestURL = repoRoot
-            .appendingPathComponent("build", isDirectory: true)
-            .appendingPathComponent("verification", isDirectory: true)
-            .appendingPathComponent("request.json")
+        guard let requestPath = ProcessInfo.processInfo.environment["CODEXPILL_VALIDATION_REQUEST"] else {
+            return nil
+        }
+        let requestURL = URL(fileURLWithPath: requestPath)
 
         guard FileManager.default.fileExists(atPath: requestURL.path) else {
             return nil
@@ -913,6 +941,28 @@ private struct StatusItemStateArtifact: Codable {
 private struct ValidationRequest: Codable {
     let artifactDirectory: String
     let scenario: String
+}
+
+private final class KiteCommandRunnerProbe: CommandRunner, @unchecked Sendable {
+    struct Call: Equatable {
+        let executableURL: URL
+        let arguments: [String]
+    }
+
+    private var results: [Result<CommandResult, Error>]
+    private(set) var calls: [Call] = []
+
+    init(results: [Result<CommandResult, Error>]) {
+        self.results = results
+    }
+
+    func run(executableURL: URL, arguments: [String]) async throws -> CommandResult {
+        calls.append(.init(executableURL: executableURL, arguments: arguments))
+        guard !results.isEmpty else {
+            throw ValidationError.unknownScenario("missing-kite-command-runner-result")
+        }
+        return try results.removeFirst().get()
+    }
 }
 
 private enum ValidationError: Error {

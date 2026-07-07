@@ -154,8 +154,10 @@ Current deterministic scenarios:
   remain catalog rows and are not presented as active when the active local auth
   state is unmatched.
 - `menu-empty-catalog`: changed-feature non-regression for Account Catalog
-  empty-state truth. It proves that an empty catalog guides toward Add Account
-  and does not expose saved-account rows or switch actions.
+  empty-state truth. It proves through `ui-structure-contract.json`, validated
+  by `kite ui-structure validate --artifact <path> --json`, that an empty
+  catalog guides toward Add Account and does not expose saved-account rows or
+  switch actions.
 - `menu-account-overflow`: changed-feature non-regression for Account Catalog
   overflow truth. It proves through `ui-structure-contract.json` that hidden
   saved accounts remain discoverable under `More Accounts…`; screenshot and
@@ -450,6 +452,9 @@ The adapter currently includes:
 - `MenuBarValidationSupport` for semantic menu snapshots;
 - `MenuBarStructureContractExporter` for required
   `ui-structure-contract.json` menu proof artifacts;
+- `KiteUiStructureCLIValidator` for delegating generic UI structure schema,
+  assertion, and private-payload validation to Kite's
+  `kite ui-structure validate --artifact <path> --json` helper;
 - `MenuBarHostedDebugRenderer` for optional hosted debug screenshots that are
   not required proof for `ui-structure-contract`;
 - `InMemoryRemoteHostClient` for isolated remote-host behavior in deterministic

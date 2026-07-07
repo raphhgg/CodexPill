@@ -249,6 +249,8 @@ Kite-owned proof shape:
 
 - Artifact kind: `ui_structure_contract`.
 - Schema version: `kite.ui-structure-contract.v1`.
+- Generic validation command:
+  `kite ui-structure validate --artifact build/verification/menu-empty-catalog/ui-structure-contract.json --json`.
 - Required artifact path:
   `build/verification/menu-empty-catalog/ui-structure-contract.json`.
 - Required summary path:
@@ -256,7 +258,7 @@ Kite-owned proof shape:
 - Optional debug artifact:
   `build/verification/menu-empty-catalog/screenshots/menu-empty-catalog.png`.
 
-Required structure assertions:
+Required structure assertions declared by CodexPill and evaluated by Kite:
 
 - `node-exists`: top-level `Active Account` section is visible.
 - `node-exists`: empty active-account row is visible using current product copy.
@@ -282,11 +284,15 @@ Implementation notes:
 
 - CodexPill should keep only a thin exporter that maps product menu state and
   AppKit menu metadata into Kite's generic structure artifact.
+- CodexPill should call Kite's `kite ui-structure validate --artifact <path>
+  --json` helper for generic schema, assertion, and private-payload validation
+  instead of reimplementing that assertion engine locally.
 - Existing hosted screenshots may remain useful for debugging, but they must not
   be required evidence for this scenario unless a later scenario explicitly
   claims visual rendering.
 - Existing `MenuBarValidationSnapshot` assertions can be reused as product
-  exporter tests, but generic assertion semantics belong to Kite.
+  exporter tests, but generic assertion semantics and failure typing belong to
+  Kite.
 - Changing the empty-state copy is out of scope for this migration. If the copy
   should become more explicit than the current product text, refine that as a
   product UX slice.

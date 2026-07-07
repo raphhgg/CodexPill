@@ -107,7 +107,7 @@ package-release:
 verify-ui: generate prepare-result-bundle
 	mkdir -p "$(VERIFICATION_DIR)"
 	printf '{\n  "artifactDirectory": "%s",\n  "scenario": "%s"\n}\n' "$(abspath $(VERIFICATION_ARTIFACTS))" "$(SCENARIO)" > "$(VERIFICATION_REQUEST)"
-	xcodebuild test \
+	CODEXPILL_VALIDATION_REQUEST="$(abspath $(VERIFICATION_REQUEST))" xcodebuild test \
 		-project $(PROJECT_PATH) \
 		-scheme $(APP_NAME) \
 		-configuration Debug \
