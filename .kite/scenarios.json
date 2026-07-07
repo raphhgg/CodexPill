@@ -2965,9 +2965,10 @@
         "featureRisk": ["ui_interaction", "temporal", "privacy"],
         "primaryProof": "workflow-event-log",
         "supportingProof": ["boundary-contract", "privacy-leak-proof"],
-        "requiredEvidence": ["test-output", "workflow-receipt", "scenario-summary"],
+        "requiredEvidence": ["test-output", "workflow-receipt", "proof-sequence", "scenario-summary"],
         "nonClaims": [
           "Does not exercise native mouse movement or real pointer bounds.",
+          "Does not prove native hover activation or exit timer cadence.",
           "Does not prove live macOS menu-bar screen capture or native hittability.",
           "Does not prove multiple-display, notch, or menu-bar layout behavior."
         ],
@@ -2992,6 +2993,7 @@
         "artifactSource": "focused-test-suite",
         "nonClaims": [
           "Does not exercise native mouse movement or real pointer bounds.",
+          "Does not prove native hover activation or exit timer cadence.",
           "Does not prove live macOS menu-bar screen capture or native hittability.",
           "Does not prove multiple-display, notch, or menu-bar layout behavior."
         ]
@@ -3011,7 +3013,7 @@
           "id": "status-bar-hover-label-workflow-receipt",
           "kind": "workflow_event_log",
           "path": "build/verification/status-bar-hover-label/workflow-receipt.json",
-          "claimScope": ["hover-runtime-events"],
+          "claimScope": ["hover-runtime-event-sequence"],
           "redactionStatus": "sanitized"
         },
         {
@@ -3052,10 +3054,11 @@
         "featureRisk": ["ui_interaction", "temporal", "privacy"],
         "primaryProof": "workflow-event-log",
         "supportingProof": ["boundary-contract", "privacy-leak-proof"],
-        "requiredEvidence": ["test-output", "workflow-receipt", "scenario-summary"],
+        "requiredEvidence": ["test-output", "workflow-receipt", "proof-sequence", "scenario-summary"],
         "nonClaims": [
           "Does not exercise live Carbon/global hotkey registration.",
           "Does not prove native keyboard input or system shortcut conflicts.",
+          "Does not prove native reveal timer cadence.",
           "Does not prove live macOS menu-bar screen capture or native hittability."
         ],
         "liveOptIn": {
@@ -3081,6 +3084,7 @@
         "nonClaims": [
           "Does not exercise live Carbon/global hotkey registration.",
           "Does not prove native keyboard input or system shortcut conflicts.",
+          "Does not prove native reveal timer cadence.",
           "Does not prove live macOS menu-bar screen capture or native hittability."
         ]
       },
@@ -3099,7 +3103,7 @@
           "id": "status-bar-shortcut-reveal-workflow-receipt",
           "kind": "workflow_event_log",
           "path": "build/verification/status-bar-shortcut-reveal/workflow-receipt.json",
-          "claimScope": ["shortcut-reveal-runtime-events"],
+          "claimScope": ["shortcut-reveal-runtime-event-sequence"],
           "redactionStatus": "sanitized"
         },
         {

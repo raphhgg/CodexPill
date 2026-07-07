@@ -791,6 +791,23 @@ struct MenuBarRuntimeValidationTests {
     }
 
     @Test
+    func temporalStatusBarScenariosRequireOrderedProofSequenceEvidence() throws {
+        let scenarios = Dictionary(
+            uniqueKeysWithValues: try loadScenarioManifest().scenarios.map { ($0.id, $0) }
+        )
+        let hover = try #require(scenarios["status-bar-hover-label"])
+        let shortcut = try #require(scenarios["status-bar-shortcut-reveal"])
+
+        #expect(hover.proof.layer == MenuBarRuntimeWorkflowScenario.proofLayer)
+        #expect(hover.validationIntent.requiredEvidence.contains("proof-sequence"))
+        #expect(hover.validationIntent.nonClaims.contains("Does not prove native hover activation or exit timer cadence."))
+
+        #expect(shortcut.proof.layer == MenuBarRuntimeWorkflowScenario.proofLayer)
+        #expect(shortcut.validationIntent.requiredEvidence.contains("proof-sequence"))
+        #expect(shortcut.validationIntent.nonClaims.contains("Does not prove native reveal timer cadence."))
+    }
+
+    @Test
     func configurationReturnsSinkOnlyWhenOutputPathIsPresent() {
         #expect(MenuBarValidationConfiguration.makeSink(environment: [:]) == nil)
         #expect(
@@ -2954,8 +2971,14 @@ private struct ScenarioManifest: Decodable {
 
 private struct ManifestScenario: Decodable {
     let id: String
+    let validationIntent: ManifestValidationIntent
     let expectedArtifacts: [ManifestExpectedArtifact]
     let proof: ManifestScenarioProof
+}
+
+private struct ManifestValidationIntent: Decodable {
+    let requiredEvidence: [String]
+    let nonClaims: [String]
 }
 
 private struct ManifestScenarioProof: Decodable {

@@ -510,6 +510,14 @@ verify-status-bar-hover-label-scenario: generate prepare-result-bundle
 		'    "Hover lifecycle events are emitted by StatusItemRuntime and recorded through validation",' \
 		'    "Hover handling does not mutate the saved menu-bar label display mode"' \
 		'  ],' \
+		'  "proofSequence": [' \
+		'    {"step": "hover_polling_enabled", "event": "hover_polling_active", "assertion": "Text-on-hover mode starts hover polling while other display modes do not"},' \
+		'    {"step": "hover_enter", "event": "status_item_hover_entered", "assertion": "Fake hover enter reaches the runtime boundary"},' \
+		'    {"step": "hover_title_visible", "event": "status_item_title_became_visible", "assertion": "Synthetic title S 42% W 68% becomes visible"},' \
+		'    {"step": "hover_exit_schedule", "event": "status_item_hover_exit_scheduled", "assertion": "Fake hover leave schedules exit validation"},' \
+		'    {"step": "hover_exit", "event": "status_item_hover_exited", "assertion": "Fake hover exit clears hovered state"},' \
+		'    {"step": "hover_title_hidden", "event": "status_item_title_hidden", "assertion": "Synthetic title is hidden after exit"}' \
+		'  ],' \
 		'  "status": "passed"' \
 		'}' > "$(STATUS_BAR_HOVER_SCENARIO_ARTIFACTS)/workflow-receipt.json"
 	printf '%s\n' \
@@ -521,9 +529,18 @@ verify-status-bar-hover-label-scenario: generate prepare-result-bundle
 		'    "Validation records hover lifecycle events and snapshots",' \
 		'    "Saved display preferences are unchanged by hover events"' \
 		'  ],' \
+		'  "proofSequence": [' \
+		'    {"step": "hover_polling_enabled", "event": "hover_polling_active", "assertion": "Text-on-hover mode starts hover polling while other display modes do not"},' \
+		'    {"step": "hover_enter", "event": "status_item_hover_entered", "assertion": "Fake hover enter reaches the runtime boundary"},' \
+		'    {"step": "hover_title_visible", "event": "status_item_title_became_visible", "assertion": "Synthetic title S 42% W 68% becomes visible"},' \
+		'    {"step": "hover_exit_schedule", "event": "status_item_hover_exit_scheduled", "assertion": "Fake hover leave schedules exit validation"},' \
+		'    {"step": "hover_exit", "event": "status_item_hover_exited", "assertion": "Fake hover exit clears hovered state"},' \
+		'    {"step": "hover_title_hidden", "event": "status_item_title_hidden", "assertion": "Synthetic title is hidden after exit"}' \
+		'  ],' \
 		'  "command": "make verify-status-bar-hover-label-scenario",' \
 		'  "gaps": [' \
 		'    "Native mouse movement and real pointer bounds are not exercised",' \
+		'    "Native hover activation and exit timer cadence are not proven",' \
 		'    "Live macOS menu-bar screen capture and native hittability are not proven",' \
 		'    "Multiple-display, notch, and menu-bar layout behavior is not proven"' \
 		'  ],' \
@@ -563,6 +580,14 @@ verify-status-bar-shortcut-reveal-scenario: generate prepare-result-bundle
 		'    "Shortcut reveal lifecycle events are emitted and recorded through validation",' \
 		'    "Shortcut reveal does not mutate the saved menu-bar label display mode"' \
 		'  ],' \
+		'  "proofSequence": [' \
+		'    {"step": "shortcut_callback", "event": "global_shortcut_callback_forwarded", "assertion": "Fake global shortcut callback reaches the coordinator"},' \
+		'    {"step": "shortcut_reveal_start", "event": "status_item_shortcut_reveal_started", "assertion": "Reveal starts from icon-only mode"},' \
+		'    {"step": "shortcut_title_visible", "event": "status_item_title_became_visible", "assertion": "Synthetic title S 42% W 68% becomes visible"},' \
+		'    {"step": "shortcut_repeat_press", "event": "global_shortcut_callback_forwarded", "assertion": "Repeat fake shortcut callback reaches the coordinator"},' \
+		'    {"step": "shortcut_reveal_end", "event": "status_item_shortcut_reveal_ended", "assertion": "Repeat press collapses shortcut reveal"},' \
+		'    {"step": "shortcut_title_hidden", "event": "status_item_title_hidden", "assertion": "Synthetic title is hidden after repeat press"}' \
+		'  ],' \
 		'  "status": "passed"' \
 		'}' > "$(STATUS_BAR_SHORTCUT_SCENARIO_ARTIFACTS)/workflow-receipt.json"
 	printf '%s\n' \
@@ -573,10 +598,19 @@ verify-status-bar-shortcut-reveal-scenario: generate prepare-result-bundle
 		'    "Repeat reveal collapses the status title",' \
 		'    "Runtime and validation events record shortcut reveal start and end"' \
 		'  ],' \
+		'  "proofSequence": [' \
+		'    {"step": "shortcut_callback", "event": "global_shortcut_callback_forwarded", "assertion": "Fake global shortcut callback reaches the coordinator"},' \
+		'    {"step": "shortcut_reveal_start", "event": "status_item_shortcut_reveal_started", "assertion": "Reveal starts from icon-only mode"},' \
+		'    {"step": "shortcut_title_visible", "event": "status_item_title_became_visible", "assertion": "Synthetic title S 42% W 68% becomes visible"},' \
+		'    {"step": "shortcut_repeat_press", "event": "global_shortcut_callback_forwarded", "assertion": "Repeat fake shortcut callback reaches the coordinator"},' \
+		'    {"step": "shortcut_reveal_end", "event": "status_item_shortcut_reveal_ended", "assertion": "Repeat press collapses shortcut reveal"},' \
+		'    {"step": "shortcut_title_hidden", "event": "status_item_title_hidden", "assertion": "Synthetic title is hidden after repeat press"}' \
+		'  ],' \
 		'  "command": "make verify-status-bar-shortcut-reveal-scenario",' \
 		'  "gaps": [' \
 		'    "Live Carbon/global hotkey registration is not exercised",' \
 		'    "Native keyboard input and system shortcut conflicts are not proven",' \
+		'    "Native reveal timer cadence is not proven",' \
 		'    "Live macOS menu-bar screen capture and native hittability are not proven"' \
 		'  ],' \
 		'  "invariantIds": [' \

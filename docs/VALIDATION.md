@@ -331,20 +331,20 @@ Current deterministic scenarios:
   multiple-display layout behavior.
 - `status-bar-hover-label`: changed-feature non-regression for Status Bar
   hover behavior. It proves through fake runtime hover events and validation
-  snapshots that text-on-hover mode starts hover polling, fake hover enter shows
-  the synthetic status title `S 42% W 68%`, fake hover leave hides it, lifecycle
-  events are emitted and recorded through validation, and saved display mode is
-  not mutated; it does not prove native mouse movement, real pointer bounds,
-  live menubar screen capture, native hittability, or multiple-display layout
-  behavior.
+  snapshots that text-on-hover mode starts hover polling and records the ordered
+  fake-runtime sequence from hover enter through title visible, hover exit, and
+  title hidden; saved display mode is not mutated; it does not prove native
+  mouse movement, real pointer bounds, native hover timer cadence, live menubar
+  screen capture, native hittability, or multiple-display layout behavior.
 - `status-bar-shortcut-reveal`: changed-feature non-regression for Status Bar
   reveal shortcut behavior. It proves through fake global shortcut callbacks,
-  status item runtime tests, and validation snapshots that first reveal shows
-  the synthetic status title `S 42% W 68%` from icon-only mode, repeat press
-  collapses it, shortcut lifecycle events are emitted and recorded through
-  validation, and saved display mode is not mutated; it does not prove live
+  status item runtime tests, and validation snapshots that the ordered
+  fake-runtime sequence forwards the callback, reveals the synthetic status
+  title `S 42% W 68%` from icon-only mode, repeats the press, and collapses the
+  title; saved display mode is not mutated; it does not prove live
   Carbon/global hotkey registration, native keyboard input, system shortcut
-  conflicts, live menubar capture, or native hittability.
+  conflicts, native reveal timer cadence, live menubar capture, or native
+  hittability.
 - `status-bar-usage-bars-preferences`: changed-feature non-regression for
   Status Bar presentation preferences. It proves through settings, menu
   builder, deterministic UI validation, and coordinator action tests that Menu
