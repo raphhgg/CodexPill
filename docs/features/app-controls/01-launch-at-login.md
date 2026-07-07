@@ -114,10 +114,10 @@ Settings to the relevant Login Items surface instead of trying to toggle again.
 ## Live / Manual Gate Contract
 
 `launch-at-login-real-os-smoke` is a manual gate, not a default Kite scenario.
-It must not be promoted into `.kite/scenarios.json` until CodexPill has a
-product-local command or checklist runner that records explicit live opt-in,
-pre-state, actions, cleanup, privacy review, blocker taxonomy, degraded proof,
-and non-claims.
+It must not be promoted into `.kite/scenarios/<scenario-id>.json` until
+CodexPill has a product-local command or checklist runner that records explicit
+live opt-in, pre-state, actions, cleanup, privacy review, blocker taxonomy,
+degraded proof, and non-claims.
 
 The gate is blocked unless the operator explicitly approves live macOS Login
 Items mutation in the current thread. That approval must name the build under

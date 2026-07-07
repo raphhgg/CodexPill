@@ -1,16 +1,25 @@
 {
   "id": "diagnostics-export-confirmation",
   "title": "Diagnostics export confirmation",
-  "featureId": "diagnostics-export",
-  "acceptanceCriteria": [
-    "diagnostics-export-confirms-before-report",
-    "diagnostics-export-cancel-writes-no-report",
-    "diagnostics-export-redacted-artifact-only"
-  ],
+  "feature": {
+    "id": "diagnostics-export",
+    "title": "Diagnostics export",
+    "acceptanceCriteria": [
+      {
+        "id": "diagnostics-export-confirms-before-report",
+        "statement": "Diagnostics export must present an explicit redacted-support disclosure before building or presenting an export report."
+      },
+      {
+        "id": "diagnostics-export-cancel-writes-no-report",
+        "statement": "Cancelling the diagnostics disclosure must stop before report export and must not write or present a support artifact."
+      },
+      {
+        "id": "diagnostics-export-redacted-artifact-only",
+        "statement": "Confirmed diagnostics export must build only an allowlisted per-export aliased support artifact and must reject or alias sensitive account, host, path, session, auth, and token-like evidence."
+      }
+    ]
+  },
   "targetSurface": "CodexPill Diagnostics menu action, confirmation flow, and diagnostic report builder",
-  "validationModes": [
-    "unit_only"
-  ],
   "suites": [
     "deterministic"
   ],
@@ -20,7 +29,6 @@
       "diagnostics",
       "user_confirmation"
     ],
-    "primaryProof": "boundary-contract",
     "supportingProof": [
       "workflow-event-log",
       "privacy-leak-proof"
@@ -34,21 +42,16 @@
       "Does not prove live NSSavePanel rendering or file writing.",
       "Does not inspect real local logs, auth snapshots, SSH output, UserDefaults, or Codex session history.",
       "Does not prove live macOS menu-bar interaction."
-    ],
-    "liveOptIn": {
-      "required": false
-    }
+    ]
   },
   "nonRegression": {
-    "tier": "changed-feature",
     "runWhen": [
       "local-handoff",
       "diagnostics-export-changed",
       "menu-action-wiring-changed",
       "alert-copy-changed",
       "scenario-fixture-changed"
-    ],
-    "blocking": true
+    ]
   },
   "proof": {
     "layer": "boundary-contract",

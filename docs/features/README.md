@@ -7,7 +7,7 @@ Feature docs are organized by product feature area. Each area can contain behavi
 - [Feature Validation Scenarios](validation-scenarios.md): cross-feature
   scenario index and promotion tracker. Owning feature docs carry the
   acceptance criteria, proof contracts, validation targets, and deferrals before
-  promotion into `.kite/scenarios.json`.
+  promotion into `.kite/scenarios/<scenario-id>.json`.
 - [Menubar](menubar.md): whole menu composition, section ordering, and App Controls placement.
 - [Status Bar](status-bar.md): closed-state icon, label, hover behavior, and usage indicators.
 - [Accounts](accounts/00-accounts.md): saved accounts, current account, switching, adding, removing, renaming, and account refresh.

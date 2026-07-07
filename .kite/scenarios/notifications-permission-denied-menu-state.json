@@ -1,15 +1,21 @@
 {
   "id": "notifications-permission-denied-menu-state",
   "title": "Notifications permission denied menu state",
-  "featureId": "notifications-permission-recovery",
-  "acceptanceCriteria": [
-    "denied-permission-renders-modes-disabled",
-    "denied-permission-routes-to-system-settings"
-  ],
+  "feature": {
+    "id": "notifications-permission-recovery",
+    "title": "Notifications permission recovery",
+    "acceptanceCriteria": [
+      {
+        "id": "denied-permission-renders-modes-disabled",
+        "statement": "When macOS notification permission is denied, CodexPill must render notification modes effectively off and disabled without deleting saved notification preferences."
+      },
+      {
+        "id": "denied-permission-routes-to-system-settings",
+        "statement": "When macOS notification permission is denied, CodexPill must expose System Settings recovery and route the recovery action to System Settings instead of requesting notification authorization again."
+      }
+    ]
+  },
   "targetSurface": "CodexPill Notifications submenu and fake permission recovery runtime",
-  "validationModes": [
-    "unit_only"
-  ],
   "suites": [
     "deterministic"
   ],
@@ -18,7 +24,6 @@
       "state_truth",
       "ui_visual"
     ],
-    "primaryProof": "unit",
     "supportingProof": [
       "boundary-contract",
       "privacy-leak-proof"
@@ -32,21 +37,16 @@
       "Does not open live macOS System Settings.",
       "Does not exercise live notification permission dialogs.",
       "Does not prove native click automation or live menu-bar interaction."
-    ],
-    "liveOptIn": {
-      "required": false
-    }
+    ]
   },
   "nonRegression": {
-    "tier": "changed-feature",
     "runWhen": [
       "local-handoff",
       "notification-menu-state-changed",
       "notification-permission-runtime-changed",
       "notification-settings-launcher-changed",
       "scenario-fixture-changed"
-    ],
-    "blocking": true
+    ]
   },
   "proof": {
     "layer": "unit",
@@ -91,15 +91,5 @@
   ],
   "expectedMetadata": {
     "scenario": "notifications-permission-denied-menu-state"
-  },
-  "privacy": {
-    "fixtureData": "synthetic",
-    "restrictedEvidence": [
-      "account_data",
-      "hostname",
-      "raw_local_path",
-      "private_product_data",
-      "token"
-    ]
   }
 }

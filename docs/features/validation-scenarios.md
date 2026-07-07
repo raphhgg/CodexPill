@@ -6,16 +6,17 @@ acceptance criteria, proof contract, validation targets, deferrals, and open
 questions. This file tracks readiness and promotion order across those feature
 contracts.
 
-This is not a scenario pack. `.kite/scenarios.json` remains the source of truth
-only for runnable Kite scenarios. Target scenarios stay here until their
-owning feature contract, fixture, command, artifacts, privacy rules, and
-degraded-proof rules are concrete enough to promote.
+This is not the scenario pack. `.kite/product.json` and
+`.kite/scenarios/<scenario-id>.json` are the source of truth only for runnable
+Kite scenarios. Target scenarios stay here until their owning feature contract,
+fixture, command, artifacts, privacy rules, and degraded-proof rules are
+concrete enough to promote.
 
 ## Readiness
 
 | Status | Meaning |
 | --- | --- |
-| `runnable` | Declared in `.kite/scenarios.json` and backed by a product-local command. |
+| `runnable` | Declared in `.kite/scenarios/<scenario-id>.json` and backed by a product-local command. |
 | `target` | Needed for the feature, but not yet manifest-ready. |
 | `manual-gate` | Maintainer or live-system validation; not a default Kite run. |
 | `deferred` | Useful later, but explicitly outside the current validation lane. |
@@ -31,7 +32,7 @@ degraded-proof rules are concrete enough to promote.
   non-claims.
 - Release and compiler migration gates can use the same proof-contract shape,
   but they are maintainer validation gates rather than product UI scenarios.
-- Manual gates stay out of `.kite/scenarios.json` until the owning feature doc
+- Manual gates stay out of `.kite/scenarios/<scenario-id>.json` until the owning feature doc
   names the opt-in requirement, cleanup requirement, allowed evidence, blocker
   taxonomy, degraded proof, and non-claims.
 
@@ -44,7 +45,7 @@ structure-contract scenarios: `verify-ui` names the requested proof type,
 requires `ui-structure-contract` plus summary evidence, and treats screenshots
 and UI trees as optional debug evidence. The runtime workflow-event boundary is
 closed for primary `workflow-event-log` scenarios: `MenuBarRuntimeValidation`
-and `MenuBarValidationObserver` emit runtime events only for manifest-backed
+and `MenuBarValidationObserver` emit runtime events only for pack-backed
 scenarios whose canonical proof layer is `workflow-event-log`; unit,
 contract-fixture, diagnostics, and deterministic UI scenarios may write
 receipts or snapshots but do not imply observer-produced workflow logs. This
@@ -60,7 +61,7 @@ No remaining validation boundary follow-up is documented in this index.
 ## Proof Contract Expansion
 
 Each row below is a scenario candidate summary, not the full runnable proof
-contract. Before promotion to `.kite/scenarios.json`, the owning feature doc
+contract. Before promotion to `.kite/scenarios/<scenario-id>.json`, the owning feature doc
 must include or link to the refinement proof-contract shape:
 
 | Required Field | Promotion Requirement |
@@ -182,7 +183,7 @@ quality rather than a product user path.
 Current lane:
 
 Feature-owned proof contracts are the prerequisite before promoting more
-target scenarios. A target scenario may move into `.kite/scenarios.json` only
+target scenarios. A target scenario may move into `.kite/scenarios/<scenario-id>.json` only
 after the owning feature doc has concrete acceptance criteria, proof rows,
 artifact expectations, privacy rules, and degraded-proof rules.
 

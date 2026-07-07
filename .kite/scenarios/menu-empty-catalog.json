@@ -1,14 +1,17 @@
 {
   "id": "menu-empty-catalog",
   "title": "Menu empty catalog",
-  "featureId": "account-catalog-empty-state",
-  "acceptanceCriteria": [
-    "empty-catalog-guides-to-add-account"
-  ],
+  "feature": {
+    "id": "account-catalog-empty-state",
+    "title": "Account catalog empty state",
+    "acceptanceCriteria": [
+      {
+        "id": "empty-catalog-guides-to-add-account",
+        "statement": "When no accounts are saved, CodexPill must guide the user toward adding an account and must not imply that account switching is possible."
+      }
+    ]
+  },
   "targetSurface": "CodexPill hosted menu validation view",
-  "validationModes": [
-    "unit_only"
-  ],
   "suites": [
     "deterministic"
   ],
@@ -18,7 +21,6 @@
       "static_ui",
       "privacy"
     ],
-    "primaryProof": "ui-structure-contract",
     "supportingProof": [
       "privacy-leak-proof"
     ],
@@ -33,20 +35,15 @@
       "Does not prove the Add Account sign-in workflow.",
       "Does not prove account switching.",
       "Does not prove the live macOS menu bar surface."
-    ],
-    "liveOptIn": {
-      "required": false
-    }
+    ]
   },
   "nonRegression": {
-    "tier": "changed-feature",
     "runWhen": [
       "local-handoff",
       "account-catalog-ui-changed",
       "menubar-ui-changed",
       "scenario-fixture-changed"
-    ],
-    "blocking": true
+    ]
   },
   "proof": {
     "layer": "ui-structure-contract",
@@ -85,15 +82,5 @@
   ],
   "expectedMetadata": {
     "scenario": "menu-empty-catalog"
-  },
-  "privacy": {
-    "fixtureData": "synthetic",
-    "restrictedEvidence": [
-      "account_data",
-      "hostname",
-      "raw_local_path",
-      "private_product_data",
-      "token"
-    ]
   }
 }

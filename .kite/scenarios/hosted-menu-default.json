@@ -1,14 +1,17 @@
 {
   "id": "hosted-menu-default",
   "title": "Hosted menu default",
-  "featureId": "menubar-default-read-state",
-  "acceptanceCriteria": [
-    "default-menu-shape-does-not-claim-live-state"
-  ],
+  "feature": {
+    "id": "menubar-default-read-state",
+    "title": "Menubar default read state",
+    "acceptanceCriteria": [
+      {
+        "id": "default-menu-shape-does-not-claim-live-state",
+        "statement": "The hosted menu projection presents the normal saved-account shape without claiming live auth, switching, preview rendering, or native menu-bar behavior."
+      }
+    ]
+  },
   "targetSurface": "CodexPill hosted menu validation view",
-  "validationModes": [
-    "unit_only"
-  ],
   "suites": [
     "smoke",
     "deterministic"
@@ -19,7 +22,6 @@
       "static_ui",
       "privacy"
     ],
-    "primaryProof": "ui-structure-contract",
     "supportingProof": [
       "privacy-leak-proof"
     ],
@@ -33,19 +35,15 @@
       "Does not prove SwiftUI preview rendering.",
       "Does not prove the live macOS menu bar surface.",
       "Does not prove live Codex account or app-server state."
-    ],
-    "liveOptIn": {
-      "required": false
-    }
+    ]
   },
   "nonRegression": {
-    "tier": "smoke",
     "runWhen": [
       "local-handoff",
       "menubar-ui-changed",
       "scenario-fixture-changed"
     ],
-    "blocking": true
+    "tier": "smoke"
   },
   "proof": {
     "layer": "ui-structure-contract",
@@ -83,15 +81,5 @@
   ],
   "expectedMetadata": {
     "scenario": "hosted-menu-default"
-  },
-  "privacy": {
-    "fixtureData": "synthetic",
-    "restrictedEvidence": [
-      "account_data",
-      "hostname",
-      "raw_local_path",
-      "private_product_data",
-      "token"
-    ]
   }
 }

@@ -1,16 +1,25 @@
 {
   "id": "status-bar-hover-label",
   "title": "Status bar hover label",
-  "featureId": "status-bar-hover-label",
-  "acceptanceCriteria": [
-    "hover-label-polls-only-in-text-on-hover-mode",
-    "hover-label-enter-shows-and-leave-hides-title",
-    "hover-label-does-not-mutate-display-preference"
-  ],
+  "feature": {
+    "id": "status-bar-hover-label",
+    "title": "Status bar hover label",
+    "acceptanceCriteria": [
+      {
+        "id": "hover-label-polls-only-in-text-on-hover-mode",
+        "statement": "Text-on-hover mode must enable hover polling, while icon-only and icon-and-text modes must not keep hover polling active."
+      },
+      {
+        "id": "hover-label-enter-shows-and-leave-hides-title",
+        "statement": "A hover enter event must show the synthetic status title and a hover leave event must hide it again."
+      },
+      {
+        "id": "hover-label-does-not-mutate-display-preference",
+        "statement": "Hover reveal behavior must not mutate the saved menu-bar label display preference."
+      }
+    ]
+  },
   "targetSurface": "CodexPill status item runtime fake hover events and validation snapshots",
-  "validationModes": [
-    "unit_only"
-  ],
   "suites": [
     "deterministic"
   ],
@@ -20,7 +29,6 @@
       "temporal",
       "privacy"
     ],
-    "primaryProof": "workflow-event-log",
     "supportingProof": [
       "boundary-contract",
       "privacy-leak-proof"
@@ -36,13 +44,9 @@
       "Does not prove native hover activation or exit timer cadence.",
       "Does not prove live macOS menu-bar screen capture or native hittability.",
       "Does not prove multiple-display, notch, or menu-bar layout behavior."
-    ],
-    "liveOptIn": {
-      "required": false
-    }
+    ]
   },
   "nonRegression": {
-    "tier": "changed-feature",
     "runWhen": [
       "local-handoff",
       "status-item-runtime-changed",
@@ -50,8 +54,7 @@
       "status-bar-settings-changed",
       "validation-observer-changed",
       "scenario-fixture-changed"
-    ],
-    "blocking": true
+    ]
   },
   "proof": {
     "layer": "workflow-event-log",
@@ -97,15 +100,5 @@
   ],
   "expectedMetadata": {
     "scenario": "status-bar-hover-label"
-  },
-  "privacy": {
-    "fixtureData": "synthetic",
-    "restrictedEvidence": [
-      "account_data",
-      "hostname",
-      "raw_local_path",
-      "private_product_data",
-      "token"
-    ]
   }
 }

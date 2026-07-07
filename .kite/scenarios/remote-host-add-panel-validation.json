@@ -1,15 +1,21 @@
 {
   "id": "remote-host-add-panel-validation",
   "title": "Remote Host Add Panel validation",
-  "featureId": "remote-host-add-panel",
-  "acceptanceCriteria": [
-    "add-host-feedback-and-unlock-require-codex-ready-target",
-    "add-host-validation-uses-noninteractive-codex-readiness-check"
-  ],
+  "feature": {
+    "id": "remote-host-add-panel",
+    "title": "Remote Host Add Host validation",
+    "acceptanceCriteria": [
+      {
+        "id": "add-host-feedback-and-unlock-require-codex-ready-target",
+        "statement": "Add Host validation must keep Add Host disabled for idle, testing, invalid, unreachable, SSH-not-ready, and not-Codex-ready destinations, and unlock only after validation succeeds for the same trimmed destination."
+      },
+      {
+        "id": "add-host-validation-uses-noninteractive-codex-readiness-check",
+        "statement": "Add Host validation must use non-interactive SSH and require Codex CLI, Codex app-server readiness, and writable CodexPill/Codex directories before treating a destination as ready."
+      }
+    ]
+  },
   "targetSurface": "CodexPill Add Host form state and fake SSH/Codex readiness contract",
-  "validationModes": [
-    "unit_only"
-  ],
   "suites": [
     "deterministic"
   ],
@@ -19,7 +25,6 @@
       "remote_contract",
       "privacy"
     ],
-    "primaryProof": "boundary-contract",
     "supportingProof": [
       "unit",
       "privacy-leak-proof"
@@ -35,21 +40,16 @@
       "Does not exercise live SSH, live Codex app-server behavior, or a real remote filesystem.",
       "Does not prove install-and-switch follow-up.",
       "Does not prove live macOS menu-bar behavior."
-    ],
-    "liveOptIn": {
-      "required": false
-    }
+    ]
   },
   "nonRegression": {
-    "tier": "changed-feature",
     "runWhen": [
       "local-handoff",
       "remote-host-add-panel-changed",
       "remote-host-form-state-changed",
       "remote-host-client-contract-changed",
       "scenario-fixture-changed"
-    ],
-    "blocking": true
+    ]
   },
   "proof": {
     "layer": "boundary-contract",
@@ -97,15 +97,5 @@
   ],
   "expectedMetadata": {
     "scenario": "remote-host-add-panel-validation"
-  },
-  "privacy": {
-    "fixtureData": "synthetic",
-    "restrictedEvidence": [
-      "account_data",
-      "hostname",
-      "raw_local_path",
-      "private_product_data",
-      "token"
-    ]
   }
 }

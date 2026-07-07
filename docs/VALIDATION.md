@@ -17,17 +17,16 @@ unit and integration tests.
 - UI copy and menu composition changes should be covered by menu projection or
   presentation tests where possible.
 
-## Kite Scenario Manifest
+## Kite Scenario Pack
 
-CodexPill exposes reusable product scenarios for Kite through scenario contract
-JSON. The reviewable product-owned contract for each scenario lives in
-`.kite/scenarios/<scenario-id>.json`; `.kite/scenarios.json` remains the
-aggregate Kite compatibility manifest while Kite consumes a single manifest
-file. CodexPill owns scenario IDs, commands, fixture state, and product
-semantics; Kite owns manifest validation, artifact validation, receipts, and
-reports.
+CodexPill exposes reusable product scenarios for Kite through a scenario pack.
+Product identity and shared defaults live in `.kite/product.json`; the
+reviewable product-owned contract for each scenario lives in
+`.kite/scenarios/<scenario-id>.json`. CodexPill owns scenario IDs, commands,
+fixture state, and product semantics; Kite owns pack normalization, manifest
+validation, artifact validation, receipts, and reports.
 
-The manifest uses Kite's v2 feature-scenario contract:
+The pack normalizes into Kite's v2 feature-scenario contract:
 
 - each scenario names its owning feature;
 - each scenario maps to one or more acceptance criteria;
@@ -39,12 +38,11 @@ Feature-owned proof contracts live near the feature in `docs/features/`.
 cross-feature scenario index and promotion tracker. A scenario should move from
 that inventory into `.kite/scenarios/<scenario-id>.json` only when its owning
 feature doc has concrete acceptance criteria, proof rows, fixtures, command,
-artifacts, privacy rules, non-claims, and degraded-proof rules. The aggregate
-`.kite/scenarios.json` and the dedicated scenario files are guarded by
-`ScenarioContractFileTests`; update both together until the aggregate can be
-generated or Kite can consume the dedicated contract directory directly.
+artifacts, privacy rules, non-claims, and degraded-proof rules. The pack files
+are guarded by `ScenarioContractFileTests`; validate them with
+`kite scenarios validate --pack .kite`.
 
-The current clean-main manifest contains thirty-seven deterministic scenarios:
+The current clean-main pack contains thirty-seven deterministic scenarios:
 
 ```bash
 make verify-ui SCENARIO=hosted-menu-default
@@ -100,7 +98,7 @@ should be added only when their product-local commands and fixtures exist on
 the branch being validated.
 
 There is intentionally no `verify-ui-live` command. A live or preview scenario
-must first be declared in `.kite/scenarios.json` with explicit opt-in,
+must first be declared in `.kite/scenarios/<scenario-id>.json` with explicit opt-in,
 privacy, cleanup, and non-claim rules before CodexPill exposes a runnable proof
 command for it.
 
@@ -400,14 +398,13 @@ Current deterministic scenarios:
 ## Product Validation Adapter
 
 CodexPill's Product Validation Adapter is the product-local layer that makes
-those manifest scenarios runnable. It is not generic Kite Harness code.
+those scenario-pack rows runnable. It is not generic Kite Harness code.
 
 The adapter currently includes:
 
-- `.kite/scenarios.json` for feature, acceptance criteria, Validation Intent,
-  artifact, privacy, and non-regression declarations, with dedicated
-  `.kite/scenarios/<scenario-id>.json` files as the reviewable per-scenario
-  contract source;
+- `.kite/product.json` for product identity and shared scenario defaults;
+- `.kite/scenarios/<scenario-id>.json` for feature, acceptance criteria,
+  Validation Intent, artifact, privacy, and non-regression declarations;
 - `make verify-ui SCENARIO=<scenario>` for deterministic hosted-menu proof,
   with the command request naming either `ui-structure-contract` or
   `deterministic-ui` as the requested proof type;
@@ -482,12 +479,12 @@ The adapter currently includes:
 - `MenuBarValidationScenarioFixtures` for product-owned synthetic hosted-menu
   state used by runnable deterministic scenario commands and tests;
 - `MenuBarValidationObserver` and `MenuBarValidationConfiguration` as
-  product-owned `workflow-event-log` instrumentation for manifest scenarios
+  product-owned `workflow-event-log` instrumentation for scenario-pack rows
   whose canonical primary proof layer is `workflow-event-log`.
 
 The observer/configuration path is disabled unless validation output
 environment variables are set. Runtime events are emitted only for
-manifest-backed scenario ids whose `.kite/scenarios.json` proof layer is
+pack-backed scenario ids whose `.kite/scenarios/<scenario-id>.json` proof layer is
 `workflow-event-log`; unit, contract-fixture, diagnostics, and deterministic UI
 scenarios may still write product snapshots or command receipts but cannot
 silently imply observer-produced workflow-event or live proof.

@@ -1,14 +1,17 @@
 {
   "id": "token-usage-loading-progress",
   "title": "Token Usage loading progress",
-  "featureId": "token-usage-menu-card",
-  "acceptanceCriteria": [
-    "loading-progress-is-honest-and-private"
-  ],
+  "feature": {
+    "id": "token-usage-menu-card",
+    "title": "Token Usage menu card",
+    "acceptanceCriteria": [
+      {
+        "id": "loading-progress-is-honest-and-private",
+        "statement": "When Token Usage is enabled and no cached aggregate exists, CodexPill must show active loading/progress feedback without fake percentages, raw session details, file paths, account, workspace, organization, or remote-host attribution."
+      }
+    ]
+  },
   "targetSurface": "CodexPill hosted menu validation view",
-  "validationModes": [
-    "unit_only"
-  ],
   "suites": [
     "deterministic"
   ],
@@ -18,7 +21,6 @@
       "temporal",
       "privacy"
     ],
-    "primaryProof": "boundary-contract",
     "supportingProof": [
       "privacy-leak-proof"
     ],
@@ -33,20 +35,15 @@
       "Does not prove close-and-reopen scan lifecycle.",
       "Does not prove reduced-motion runtime behavior.",
       "Does not prove the live macOS menu bar surface."
-    ],
-    "liveOptIn": {
-      "required": false
-    }
+    ]
   },
   "nonRegression": {
-    "tier": "changed-feature",
     "runWhen": [
       "local-handoff",
       "token-usage-ui-changed",
       "menubar-ui-changed",
       "scenario-fixture-changed"
-    ],
-    "blocking": true
+    ]
   },
   "proof": {
     "layer": "boundary-contract",

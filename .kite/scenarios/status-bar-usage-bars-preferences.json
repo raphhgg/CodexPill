@@ -1,16 +1,25 @@
 {
   "id": "status-bar-usage-bars-preferences",
   "title": "Status bar usage bar preferences",
-  "featureId": "status-bar-usage-bars-preferences",
-  "acceptanceCriteria": [
-    "usage-preferences-update-presentation-settings",
-    "usage-preferences-render-menu-and-validation-snapshot",
-    "usage-preferences-preserve-account-and-auth-state"
-  ],
+  "feature": {
+    "id": "status-bar-usage-bars-preferences",
+    "title": "Status bar usage bar preferences",
+    "acceptanceCriteria": [
+      {
+        "id": "usage-preferences-update-presentation-settings",
+        "statement": "Menu Bar Label, Icon Style, Show Pace Markers, Accent Color, and Use Default controls must update status-bar presentation settings."
+      },
+      {
+        "id": "usage-preferences-render-menu-and-validation-snapshot",
+        "statement": "Preference settings must appear in deterministic menu projection and validation snapshot evidence."
+      },
+      {
+        "id": "usage-preferences-preserve-account-and-auth-state",
+        "statement": "Presentation preference actions must not mutate the account catalog, active-account ID, or auth-file bytes."
+      }
+    ]
+  },
   "targetSurface": "CodexPill status bar settings, AppKit menu projection, hosted validation snapshot, and coordinator preference actions",
-  "validationModes": [
-    "unit_only"
-  ],
   "suites": [
     "deterministic"
   ],
@@ -20,7 +29,6 @@
       "state_truth",
       "privacy"
     ],
-    "primaryProof": "unit",
     "supportingProof": [
       "boundary-contract",
       "privacy-leak-proof"
@@ -34,13 +42,9 @@
       "Does not open the live NSColorPanel color chooser.",
       "Does not prove native menu-bar clicks, live screen capture, or native hittability.",
       "Does not use or prove behavior against real account/auth data."
-    ],
-    "liveOptIn": {
-      "required": false
-    }
+    ]
   },
   "nonRegression": {
-    "tier": "changed-feature",
     "runWhen": [
       "local-handoff",
       "status-bar-settings-changed",
@@ -48,8 +52,7 @@
       "validation-observer-changed",
       "account-state-changed",
       "scenario-fixture-changed"
-    ],
-    "blocking": true
+    ]
   },
   "proof": {
     "layer": "unit",
@@ -94,15 +97,5 @@
   ],
   "expectedMetadata": {
     "scenario": "status-bar-usage-bars-preferences"
-  },
-  "privacy": {
-    "fixtureData": "synthetic",
-    "restrictedEvidence": [
-      "account_data",
-      "hostname",
-      "raw_local_path",
-      "private_product_data",
-      "token"
-    ]
   }
 }

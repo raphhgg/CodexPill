@@ -1,14 +1,17 @@
 {
   "id": "menu-account-overflow",
   "title": "Menu account overflow",
-  "featureId": "account-catalog-overflow",
-  "acceptanceCriteria": [
-    "overflow-keeps-hidden-accounts-discoverable"
-  ],
+  "feature": {
+    "id": "account-catalog-overflow",
+    "title": "Account catalog overflow",
+    "acceptanceCriteria": [
+      {
+        "id": "overflow-keeps-hidden-accounts-discoverable",
+        "statement": "When saved accounts exceed the visible account limit, CodexPill must show the configured visible rows and keep hidden saved accounts discoverable through More Accounts… without changing account submenu behavior."
+      }
+    ]
+  },
   "targetSurface": "CodexPill hosted menu validation view",
-  "validationModes": [
-    "unit_only"
-  ],
   "suites": [
     "deterministic"
   ],
@@ -18,7 +21,6 @@
       "static_ui",
       "state_truth"
     ],
-    "primaryProof": "ui-structure-contract",
     "supportingProof": [
       "privacy-leak-proof"
     ],
@@ -33,20 +35,15 @@
       "Does not prove account switching.",
       "Does not prove the live macOS menu bar surface.",
       "Does not prove runtime menu opening or pointer interaction."
-    ],
-    "liveOptIn": {
-      "required": false
-    }
+    ]
   },
   "nonRegression": {
-    "tier": "changed-feature",
     "runWhen": [
       "local-handoff",
       "account-catalog-ui-changed",
       "menubar-ui-changed",
       "scenario-fixture-changed"
-    ],
-    "blocking": true
+    ]
   },
   "proof": {
     "layer": "ui-structure-contract",
@@ -85,15 +82,5 @@
   ],
   "expectedMetadata": {
     "scenario": "menu-account-overflow"
-  },
-  "privacy": {
-    "fixtureData": "synthetic",
-    "restrictedEvidence": [
-      "account_data",
-      "hostname",
-      "raw_local_path",
-      "private_product_data",
-      "token"
-    ]
   }
 }

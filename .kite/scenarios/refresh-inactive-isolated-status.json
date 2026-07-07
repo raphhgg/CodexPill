@@ -1,15 +1,21 @@
 {
   "id": "refresh-inactive-isolated-status",
   "title": "Refresh inactive isolated status",
-  "featureId": "refresh-inactive-saved-accounts",
-  "acceptanceCriteria": [
-    "inactive-refresh-uses-isolated-saved-auth",
-    "inactive-refresh-preserves-meaningful-limits-on-unusable-read"
-  ],
+  "feature": {
+    "id": "refresh-inactive-saved-accounts",
+    "title": "Refresh inactive saved accounts",
+    "acceptanceCriteria": [
+      {
+        "id": "inactive-refresh-uses-isolated-saved-auth",
+        "statement": "Inactive saved accounts must refresh through isolated saved-account app-server reads without mutating live local Codex auth."
+      },
+      {
+        "id": "inactive-refresh-preserves-meaningful-limits-on-unusable-read",
+        "statement": "Failed, missing, partial, zeroed, or suspicious inactive saved-account reads must preserve previous meaningful session and weekly rate-limit windows."
+      }
+    ]
+  },
   "targetSurface": "CodexPill inactive saved-account refresh use-case and app-server contract fixtures",
-  "validationModes": [
-    "unit_only"
-  ],
   "suites": [
     "deterministic"
   ],
@@ -20,7 +26,6 @@
       "state_truth",
       "privacy"
     ],
-    "primaryProof": "boundary-contract",
     "supportingProof": [
       "boundary-contract",
       "privacy-leak-proof"
@@ -35,21 +40,16 @@
       "Does not use real auth snapshots, tokens, account identifiers, emails, hostnames, or private paths.",
       "Does not prove remote inactive-account refresh.",
       "Does not prove menu projection or live macOS menu-bar behavior."
-    ],
-    "liveOptIn": {
-      "required": false
-    }
+    ]
   },
   "nonRegression": {
-    "tier": "changed-feature",
     "runWhen": [
       "local-handoff",
       "refresh-accounts-changed",
       "app-server-client-changed",
       "isolated-codex-home-changed",
       "scenario-fixture-changed"
-    ],
-    "blocking": true
+    ]
   },
   "proof": {
     "layer": "boundary-contract",
@@ -95,15 +95,5 @@
   ],
   "expectedMetadata": {
     "scenario": "refresh-inactive-isolated-status"
-  },
-  "privacy": {
-    "fixtureData": "synthetic",
-    "restrictedEvidence": [
-      "account_data",
-      "hostname",
-      "raw_local_path",
-      "private_product_data",
-      "token"
-    ]
   }
 }

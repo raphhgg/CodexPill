@@ -1,14 +1,17 @@
 {
   "id": "token-usage-ready-card",
   "title": "Token Usage ready card",
-  "featureId": "token-usage-menu-card",
-  "acceptanceCriteria": [
-    "ready-card-shows-local-aggregate-without-attribution"
-  ],
+  "feature": {
+    "id": "token-usage-menu-card",
+    "title": "Token Usage menu card",
+    "acceptanceCriteria": [
+      {
+        "id": "ready-card-shows-local-aggregate-without-attribution",
+        "statement": "When Token Usage is enabled and aggregate data exists, CodexPill must show a compact Last 30 Days card without implying saved-account, workspace, organization, or remote-host usage attribution."
+      }
+    ]
+  },
   "targetSurface": "CodexPill hosted menu validation view",
-  "validationModes": [
-    "unit_only"
-  ],
   "suites": [
     "deterministic"
   ],
@@ -18,7 +21,6 @@
       "state_truth",
       "privacy"
     ],
-    "primaryProof": "boundary-contract",
     "supportingProof": [
       "privacy-leak-proof"
     ],
@@ -32,20 +34,15 @@
       "Does not prove Token Usage runtime lifecycle or duplicate-scan prevention.",
       "Does not prove saved-account, workspace, organization, or remote-host usage history.",
       "Does not prove the live macOS menu bar surface."
-    ],
-    "liveOptIn": {
-      "required": false
-    }
+    ]
   },
   "nonRegression": {
-    "tier": "changed-feature",
     "runWhen": [
       "local-handoff",
       "token-usage-ui-changed",
       "menubar-ui-changed",
       "scenario-fixture-changed"
-    ],
-    "blocking": true
+    ]
   },
   "proof": {
     "layer": "boundary-contract",

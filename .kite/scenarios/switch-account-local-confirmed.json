@@ -1,16 +1,25 @@
 {
   "id": "switch-account-local-confirmed",
   "title": "Switch Account local confirmed",
-  "featureId": "switch-account-local",
-  "acceptanceCriteria": [
-    "local-switch-confirmation-gates-auth-activation",
-    "confirmed-local-switch-activates-relaunches-and-refreshes",
-    "add-account-success-reuses-local-switch-path"
-  ],
+  "feature": {
+    "id": "switch-account-local",
+    "title": "Switch Account local confirmed",
+    "acceptanceCriteria": [
+      {
+        "id": "local-switch-confirmation-gates-auth-activation",
+        "statement": "Choosing Switch on This Mac must ask for confirmation before activating the selected saved snapshot."
+      },
+      {
+        "id": "confirmed-local-switch-activates-relaunches-and-refreshes",
+        "statement": "After confirmation, CodexPill must activate the selected saved snapshot, persist account state, relaunch Codex, and run the post-switch active-account refresh path."
+      },
+      {
+        "id": "add-account-success-reuses-local-switch-path",
+        "statement": "Choosing Use on This Mac from Add Account success must route through the existing local switch path without a second confirmation."
+      }
+    ]
+  },
   "targetSurface": "CodexPill local switch fake-client workflow boundary",
-  "validationModes": [
-    "unit_only"
-  ],
   "suites": [
     "deterministic"
   ],
@@ -20,7 +29,6 @@
       "workflow_state",
       "privacy"
     ],
-    "primaryProof": "workflow-event-log",
     "supportingProof": [
       "privacy-leak-proof"
     ],
@@ -34,13 +42,9 @@
       "Does not prove live Codex process relaunch or live app-server refresh.",
       "Does not prove remote host switching.",
       "Does not prove live macOS menu-bar behavior."
-    ],
-    "liveOptIn": {
-      "required": false
-    }
+    ]
   },
   "nonRegression": {
-    "tier": "changed-feature",
     "runWhen": [
       "local-handoff",
       "switch-account-workflow-changed",
@@ -48,8 +52,7 @@
       "account-action-flow-changed",
       "silent-refresh-changed",
       "scenario-fixture-changed"
-    ],
-    "blocking": true
+    ]
   },
   "proof": {
     "layer": "workflow-event-log",
@@ -95,15 +98,5 @@
   ],
   "expectedMetadata": {
     "scenario": "switch-account-local-confirmed"
-  },
-  "privacy": {
-    "fixtureData": "synthetic",
-    "restrictedEvidence": [
-      "account_data",
-      "hostname",
-      "raw_local_path",
-      "private_product_data",
-      "token"
-    ]
   }
 }

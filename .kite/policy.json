@@ -16,7 +16,7 @@
           "id": "checks",
           "kind": "checks",
           "phase": "implement",
-          "commands": ["kite scenarios validate --manifest .kite/scenarios.json"],
+          "commands": ["kite scenarios validate --pack .kite"],
           "tier": "smoke"
         },
         {

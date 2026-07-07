@@ -111,13 +111,13 @@ kite run start --change-class docs_process --target-platform macos --product cod
 kite gate run-checks
 ```
 
-The docs-process checks gate validates `.kite/scenarios.json` through the
-stable `kite` command. Review and edit individual scenario contracts under
-`.kite/scenarios/<scenario-id>.json`; `ScenarioContractFileTests` guards drift
-between those per-scenario files and the aggregate manifest until the aggregate
-can be generated or Kite consumes the directory directly. Generated run state
-stays under ignored `.kite/runs/`; generated validation reports and scenario
-evidence stay under ignored `build/` paths such as `build/kite/` and
+The docs-process checks gate validates the scenario pack with
+`kite scenarios validate --pack .kite` through the stable `kite` command.
+Review product defaults in `.kite/product.json` and individual scenario
+contracts under `.kite/scenarios/<scenario-id>.json`;
+`ScenarioContractFileTests` guards the product-owned pack shape. Generated run
+state stays under ignored `.kite/runs/`; generated validation reports and
+scenario evidence stay under ignored `build/` paths such as `build/kite/` and
 `build/verification/`.
 
 ## Local Assumptions

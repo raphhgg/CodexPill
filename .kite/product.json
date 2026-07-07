@@ -1,0 +1,33 @@
+{
+  "kind": "product_scenario_pack",
+  "schemaVersion": "kite.validation.scenario-pack.v1",
+  "product": {
+    "id": "codexpill",
+    "name": "CodexPill",
+    "platforms": [
+      "macos"
+    ]
+  },
+  "scenarioDefaults": {
+    "validationModes": [
+      "unit_only"
+    ],
+    "nonRegression": {
+      "tier": "changed-feature",
+      "runWhen": [
+        "local-handoff"
+      ],
+      "blocking": true
+    },
+    "privacy": {
+      "fixtureData": "synthetic",
+      "restrictedEvidence": [
+        "account_data",
+        "hostname",
+        "raw_local_path",
+        "private_product_data",
+        "token"
+      ]
+    }
+  }
+}

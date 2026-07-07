@@ -1,14 +1,17 @@
 {
   "id": "menu-busy-status",
   "title": "Menu busy status",
-  "featureId": "menubar-busy-status",
-  "acceptanceCriteria": [
-    "busy-status-visible-and-conflicting-actions-disabled"
-  ],
+  "feature": {
+    "id": "menubar-busy-status",
+    "title": "Menubar busy status",
+    "acceptanceCriteria": [
+      {
+        "id": "busy-status-visible-and-conflicting-actions-disabled",
+        "statement": "When CodexPill is busy, the hosted menu projection must show the busy status message and disable conflicting immediate actions such as Add Account."
+      }
+    ]
+  },
   "targetSurface": "CodexPill hosted menu validation view",
-  "validationModes": [
-    "unit_only"
-  ],
   "suites": [
     "deterministic"
   ],
@@ -18,7 +21,6 @@
       "ui_visual",
       "privacy"
     ],
-    "primaryProof": "ui-structure-contract",
     "supportingProof": [
       "privacy-leak-proof"
     ],
@@ -33,20 +35,15 @@
       "Does not prove busy actions route through confirmation paths.",
       "Does not prove live Codex workflow state.",
       "Does not prove the live macOS menu bar surface."
-    ],
-    "liveOptIn": {
-      "required": false
-    }
+    ]
   },
   "nonRegression": {
-    "tier": "changed-feature",
     "runWhen": [
       "local-handoff",
       "workflow-state-ui-changed",
       "menubar-ui-changed",
       "scenario-fixture-changed"
-    ],
-    "blocking": true
+    ]
   },
   "proof": {
     "layer": "ui-structure-contract",
@@ -85,15 +82,5 @@
   ],
   "expectedMetadata": {
     "scenario": "menu-busy-status"
-  },
-  "privacy": {
-    "fixtureData": "synthetic",
-    "restrictedEvidence": [
-      "account_data",
-      "hostname",
-      "raw_local_path",
-      "private_product_data",
-      "token"
-    ]
   }
 }

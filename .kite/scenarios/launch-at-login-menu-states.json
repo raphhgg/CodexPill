@@ -1,14 +1,17 @@
 {
   "id": "launch-at-login-menu-states",
   "title": "Launch at Login menu states",
-  "featureId": "launch-at-login-menu-state",
-  "acceptanceCriteria": [
-    "menu-states-reflect-login-item-state"
-  ],
+  "feature": {
+    "id": "launch-at-login-menu-state",
+    "title": "Launch at Login menu state",
+    "acceptanceCriteria": [
+      {
+        "id": "menu-states-reflect-login-item-state",
+        "statement": "Preferences must present enabled, disabled, requires-approval, and unavailable Launch at Login states truthfully without implying registration success when macOS reports a blocked or unavailable state."
+      }
+    ]
+  },
   "targetSurface": "CodexPill hosted menu validation view",
-  "validationModes": [
-    "unit_only"
-  ],
   "suites": [
     "deterministic"
   ],
@@ -18,7 +21,6 @@
       "ui_visual",
       "privacy"
     ],
-    "primaryProof": "boundary-contract",
     "supportingProof": [
       "boundary-contract",
       "privacy-leak-proof"
@@ -35,21 +37,16 @@
       "Does not prove a signed app appears in macOS Login Items.",
       "Does not prove the enable confirmation workflow.",
       "Does not prove the live macOS menu bar surface."
-    ],
-    "liveOptIn": {
-      "required": false
-    }
+    ]
   },
   "nonRegression": {
-    "tier": "changed-feature",
     "runWhen": [
       "local-handoff",
       "app-controls-ui-changed",
       "launch-at-login-state-changed",
       "menubar-ui-changed",
       "scenario-fixture-changed"
-    ],
-    "blocking": true
+    ]
   },
   "proof": {
     "layer": "boundary-contract",
@@ -107,15 +104,5 @@
   ],
   "expectedMetadata": {
     "scenario": "launch-at-login-menu-states"
-  },
-  "privacy": {
-    "fixtureData": "synthetic",
-    "restrictedEvidence": [
-      "account_data",
-      "hostname",
-      "raw_local_path",
-      "private_product_data",
-      "token"
-    ]
   }
 }

@@ -1,16 +1,25 @@
 {
   "id": "notifications-current-runs-out-action",
   "title": "Notifications Current Runs Out action",
-  "featureId": "notifications-current-runs-out-action",
-  "acceptanceCriteria": [
-    "current-runs-out-fires-for-active-local-or-remote-exhaustion",
-    "current-runs-out-copy-and-actions-name-targets",
-    "current-runs-out-actions-recheck-stale-state-before-switch"
-  ],
+  "feature": {
+    "id": "notifications-current-runs-out-action",
+    "title": "Notifications Current Runs Out action",
+    "acceptanceCriteria": [
+      {
+        "id": "current-runs-out-fires-for-active-local-or-remote-exhaustion",
+        "statement": "Current Runs Out notifications must fire when the active local or remote account becomes exhausted and a fallback account is usable."
+      },
+      {
+        "id": "current-runs-out-copy-and-actions-name-targets",
+        "statement": "Current Runs Out notification copy and direct actions must name the exhausted target and the fallback switch target."
+      },
+      {
+        "id": "current-runs-out-actions-recheck-stale-state-before-switch",
+        "statement": "Current Runs Out direct actions must re-check current state before switching, substitute safer current targets when possible, and drop stale requests that are no longer actionable."
+      }
+    ]
+  },
   "targetSurface": "CodexPill Current Runs Out notification policy, payload rendering, fake response workflow, and notification action event log",
-  "validationModes": [
-    "unit_only"
-  ],
   "suites": [
     "deterministic"
   ],
@@ -19,7 +28,6 @@
       "workflow_state",
       "privacy"
     ],
-    "primaryProof": "workflow-event-log",
     "supportingProof": [
       "unit",
       "privacy-leak-proof"
@@ -33,13 +41,9 @@
       "Does not exercise live macOS notification delivery.",
       "Does not prove native Notification Center rendering or real user clicks.",
       "Does not touch real Codex account data, real remote hosts, or real switching."
-    ],
-    "liveOptIn": {
-      "required": false
-    }
+    ]
   },
   "nonRegression": {
-    "tier": "changed-feature",
     "runWhen": [
       "local-handoff",
       "notification-policy-changed",
@@ -48,8 +52,7 @@
       "account-availability-ranking-changed",
       "remote-switch-routing-changed",
       "scenario-fixture-changed"
-    ],
-    "blocking": true
+    ]
   },
   "proof": {
     "layer": "workflow-event-log",
@@ -96,15 +99,5 @@
   ],
   "expectedMetadata": {
     "scenario": "notifications-current-runs-out-action"
-  },
-  "privacy": {
-    "fixtureData": "synthetic",
-    "restrictedEvidence": [
-      "account_data",
-      "hostname",
-      "raw_local_path",
-      "private_product_data",
-      "token"
-    ]
   }
 }

@@ -1,16 +1,25 @@
 {
   "id": "add-account-failure-cleanup",
   "title": "Add Account failure cleanup",
-  "featureId": "add-account-failure-cleanup",
-  "acceptanceCriteria": [
-    "add-account-terminal-failures-clean-isolated-state",
-    "add-account-startup-failure-diagnostics-are-redacted",
-    "add-account-stale-temporary-homes-are-bounded"
-  ],
+  "feature": {
+    "id": "add-account-failure-cleanup",
+    "title": "Add Account failure cleanup",
+    "acceptanceCriteria": [
+      {
+        "id": "add-account-terminal-failures-clean-isolated-state",
+        "statement": "Cancel, auth capture timeout, login verification failure, live-auth mutation, duplicate captured identity, and save failures must clean isolated Add Account state and save no unintended account."
+      },
+      {
+        "id": "add-account-startup-failure-diagnostics-are-redacted",
+        "statement": "Startup prompt failures must preserve useful sanitized diagnostics without emitting device codes or auth URL query strings."
+      },
+      {
+        "id": "add-account-stale-temporary-homes-are-bounded",
+        "statement": "Stale isolated CODEX_HOME cleanup must remove old CodexPill session directories without deleting fresh sessions or unrelated directories."
+      }
+    ]
+  },
   "targetSurface": "CodexPill Add Account fake-client failure boundary",
-  "validationModes": [
-    "unit_only"
-  ],
   "suites": [
     "deterministic"
   ],
@@ -20,7 +29,6 @@
       "failure_path",
       "privacy"
     ],
-    "primaryProof": "workflow-event-log",
     "supportingProof": [
       "privacy-leak-proof"
     ],
@@ -34,21 +42,16 @@
       "Does not prove live Codex auth, live Codex process termination, or real app quit handling.",
       "Does not prove app crash simulation.",
       "Does not prove live macOS menu-bar behavior."
-    ],
-    "liveOptIn": {
-      "required": false
-    }
+    ]
   },
   "nonRegression": {
-    "tier": "changed-feature",
     "runWhen": [
       "local-handoff",
       "add-account-workflow-changed",
       "isolated-login-client-changed",
       "app-paths-changed",
       "scenario-fixture-changed"
-    ],
-    "blocking": true
+    ]
   },
   "proof": {
     "layer": "workflow-event-log",
@@ -95,15 +98,5 @@
   ],
   "expectedMetadata": {
     "scenario": "add-account-failure-cleanup"
-  },
-  "privacy": {
-    "fixtureData": "synthetic",
-    "restrictedEvidence": [
-      "account_data",
-      "hostname",
-      "raw_local_path",
-      "private_product_data",
-      "token"
-    ]
   }
 }

@@ -1,16 +1,25 @@
 {
   "id": "rename-account-label-only",
   "title": "Rename account label only",
-  "featureId": "rename-account-label",
-  "acceptanceCriteria": [
-    "rename-changes-label-only",
-    "rename-rejects-invalid-names",
-    "rename-sorts-catalog-by-display-name"
-  ],
+  "feature": {
+    "id": "rename-account-label",
+    "title": "Rename account label",
+    "acceptanceCriteria": [
+      {
+        "id": "rename-changes-label-only",
+        "statement": "Renaming a saved account must change only the CodexPill display label while preserving the saved auth snapshot, Codex identity, plan, and rate-limit data without invoking active-auth mutation."
+      },
+      {
+        "id": "rename-rejects-invalid-names",
+        "statement": "Empty, whitespace-only, and case-insensitive duplicate rename inputs must be rejected without mutating the account catalog or auth state."
+      },
+      {
+        "id": "rename-sorts-catalog-by-display-name",
+        "statement": "After a successful rename, the persisted account catalog must be sorted by display name without changing saved auth snapshots or account identity."
+      }
+    ]
+  },
   "targetSurface": "CodexPill account catalog unit boundary",
-  "validationModes": [
-    "unit_only"
-  ],
   "suites": [
     "deterministic"
   ],
@@ -20,7 +29,6 @@
       "state_truth",
       "privacy"
     ],
-    "primaryProof": "unit",
     "supportingProof": [
       "privacy-leak-proof"
     ],
@@ -33,20 +41,15 @@
       "Does not prove live auth mutation or live Codex process state.",
       "Does not prove remote host mutation.",
       "Does not prove live macOS menu-bar behavior."
-    ],
-    "liveOptIn": {
-      "required": false
-    }
+    ]
   },
   "nonRegression": {
-    "tier": "changed-feature",
     "runWhen": [
       "local-handoff",
       "account-rename-changed",
       "account-catalog-changed",
       "scenario-fixture-changed"
-    ],
-    "blocking": true
+    ]
   },
   "proof": {
     "layer": "unit",
@@ -83,15 +86,5 @@
   ],
   "expectedMetadata": {
     "scenario": "rename-account-label-only"
-  },
-  "privacy": {
-    "fixtureData": "synthetic",
-    "restrictedEvidence": [
-      "account_data",
-      "hostname",
-      "raw_local_path",
-      "private_product_data",
-      "token"
-    ]
   }
 }

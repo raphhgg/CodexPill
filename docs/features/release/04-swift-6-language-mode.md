@@ -84,8 +84,8 @@ No user-facing UI, copy, or menu-state changes are expected.
 
 `swift-6-language-mode` is a release/refactor gate, not a normal product UI
 scenario and not a live OS mutation gate. It should stay out of
-`.kite/scenarios.json` until Kite has a separate gate registry for compiler and
-release-quality evidence.
+`.kite/scenarios/<scenario-id>.json` until Kite has a separate gate registry
+for compiler and release-quality evidence.
 
 The gate evidence must name the exact build/test commands, the target set that
 compiled in Swift 6 mode, the final `make test` result, and any concurrency

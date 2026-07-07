@@ -2931,12 +2931,20 @@ struct MenuBarRuntimeValidationTests {
         var directory = URL(fileURLWithPath: filePath).deletingLastPathComponent()
 
         while directory.path != "/" {
-            let manifestURL = directory
+            let scenariosURL = directory
                 .appendingPathComponent(".kite", isDirectory: true)
-                .appendingPathComponent("scenarios.json")
-            if FileManager.default.fileExists(atPath: manifestURL.path) {
-                let data = try Data(contentsOf: manifestURL)
-                return try JSONDecoder().decode(ScenarioManifest.self, from: data)
+                .appendingPathComponent("scenarios", isDirectory: true)
+            if FileManager.default.fileExists(atPath: scenariosURL.path) {
+                let urls = try FileManager.default.contentsOfDirectory(
+                    at: scenariosURL,
+                    includingPropertiesForKeys: [.isRegularFileKey]
+                )
+                .filter { $0.pathExtension == "json" }
+                .sorted { $0.lastPathComponent < $1.lastPathComponent }
+                let scenarios = try urls.map { url in
+                    try JSONDecoder().decode(ManifestScenario.self, from: Data(contentsOf: url))
+                }
+                return ScenarioManifest(scenarios: scenarios)
             }
             directory.deleteLastPathComponent()
         }

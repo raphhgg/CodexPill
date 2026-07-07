@@ -1,14 +1,17 @@
 {
   "id": "token-usage-parser-aggregation",
   "title": "Token Usage parser aggregation",
-  "featureId": "token-usage-local-history-parser",
-  "acceptanceCriteria": [
-    "scanner-aggregates-synthetic-token-count-rows"
-  ],
+  "feature": {
+    "id": "token-usage-local-history-parser",
+    "title": "Token Usage local history parser",
+    "acceptanceCriteria": [
+      {
+        "id": "scanner-aggregates-synthetic-token-count-rows",
+        "statement": "The local Token Usage scanner must parse synthetic Codex token-count rows, handle malformed rows, repeated cumulative totals, large files, and oversized rows safely, and emit aggregate buckets without raw session content or raw local paths."
+      }
+    ]
+  },
   "targetSurface": "CodexPill local session scanner fixture boundary",
-  "validationModes": [
-    "unit_only"
-  ],
   "suites": [
     "deterministic"
   ],
@@ -18,7 +21,6 @@
       "privacy",
       "performance"
     ],
-    "primaryProof": "boundary-contract",
     "supportingProof": [
       "privacy-leak-proof"
     ],
@@ -33,20 +35,15 @@
       "Does not prove real local Codex history scanning.",
       "Does not prove live Token Usage runtime lifecycle or duplicate-scan prevention.",
       "Does not prove live macOS menu-bar behavior."
-    ],
-    "liveOptIn": {
-      "required": false
-    }
+    ]
   },
   "nonRegression": {
-    "tier": "changed-feature",
     "runWhen": [
       "local-handoff",
       "token-usage-scanner-changed",
       "token-usage-cache-changed",
       "scenario-fixture-changed"
-    ],
-    "blocking": true
+    ]
   },
   "proof": {
     "layer": "boundary-contract",

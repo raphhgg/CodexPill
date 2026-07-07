@@ -1,16 +1,25 @@
 {
   "id": "notifications-account-available-policy",
   "title": "Notifications Account Available policy",
-  "featureId": "notifications-account-available-policy",
-  "acceptanceCriteria": [
-    "account-available-fires-only-for-inactive-fallback-becoming-useful",
-    "account-available-skips-first-only-active-and-weak-accounts",
-    "account-available-delivery-suppresses-repeat-until-activation"
-  ],
+  "feature": {
+    "id": "notifications-account-available-policy",
+    "title": "Notifications Account Available policy",
+    "acceptanceCriteria": [
+      {
+        "id": "account-available-fires-only-for-inactive-fallback-becoming-useful",
+        "statement": "Account Available notifications must fire only when an inactive fallback account becomes useful again after previously being unavailable."
+      },
+      {
+        "id": "account-available-skips-first-only-active-and-weak-accounts",
+        "statement": "Account Available notifications must not announce first-saved, only-saved, already-active, barely usable, or non-fallback accounts."
+      },
+      {
+        "id": "account-available-delivery-suppresses-repeat-until-activation",
+        "statement": "After Account Available is delivered for a fallback account, repeated availability events for that account must be suppressed until CodexPill observes that account become active."
+      }
+    ]
+  },
   "targetSurface": "CodexPill notification policy and fake notification workflow delivery",
-  "validationModes": [
-    "unit_only"
-  ],
   "suites": [
     "deterministic"
   ],
@@ -19,7 +28,6 @@
       "pure_model",
       "workflow_state"
     ],
-    "primaryProof": "unit",
     "supportingProof": [
       "workflow-event-log",
       "privacy-leak-proof"
@@ -33,21 +41,16 @@
       "Does not exercise live macOS notification delivery.",
       "Does not prove native notification UI rendering or user clicks.",
       "Does not prove Current Runs Out action routing."
-    ],
-    "liveOptIn": {
-      "required": false
-    }
+    ]
   },
   "nonRegression": {
-    "tier": "changed-feature",
     "runWhen": [
       "local-handoff",
       "notification-policy-changed",
       "notification-workflow-changed",
       "account-availability-ranking-changed",
       "scenario-fixture-changed"
-    ],
-    "blocking": true
+    ]
   },
   "proof": {
     "layer": "unit",
@@ -92,15 +95,5 @@
   ],
   "expectedMetadata": {
     "scenario": "notifications-account-available-policy"
-  },
-  "privacy": {
-    "fixtureData": "synthetic",
-    "restrictedEvidence": [
-      "account_data",
-      "hostname",
-      "raw_local_path",
-      "private_product_data",
-      "token"
-    ]
   }
 }

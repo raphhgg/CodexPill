@@ -1,16 +1,25 @@
 {
   "id": "remote-host-rate-limit-fallback",
   "title": "Remote Host rate-limit fallback",
-  "featureId": "remote-host-rate-limit-display-truth",
-  "acceptanceCriteria": [
-    "remote-rate-limits-prefer-meaningful-verified-remote-values",
-    "remote-rate-limits-fallback-only-for-unusable-remote-data",
-    "remote-rate-limit-fallback-is-scoped-by-canonical-saved-identity"
-  ],
+  "feature": {
+    "id": "remote-host-rate-limit-display-truth",
+    "title": "Remote Host rate-limit display truth",
+    "acceptanceCriteria": [
+      {
+        "id": "remote-rate-limits-prefer-meaningful-verified-remote-values",
+        "statement": "Remote active account cards must prefer verified remote rate-limit values when those remote windows contain meaningful data."
+      },
+      {
+        "id": "remote-rate-limits-fallback-only-for-unusable-remote-data",
+        "statement": "Remote active account cards must fall back to meaningful saved-account windows only when remote rate-limit data is missing, zeroed, partial, expired, or suspicious."
+      },
+      {
+        "id": "remote-rate-limit-fallback-is-scoped-by-canonical-saved-identity",
+        "statement": "Saved fallback rate-limit windows must be borrowed from the canonical saved account identity, not from email alone."
+      }
+    ]
+  },
   "targetSurface": "CodexPill remote rate-limit resolution, account catalog projection, and runtime validation snapshot",
-  "validationModes": [
-    "unit_only"
-  ],
   "suites": [
     "deterministic"
   ],
@@ -20,7 +29,6 @@
       "parser",
       "privacy"
     ],
-    "primaryProof": "boundary-contract",
     "supportingProof": [
       "unit",
       "boundary-contract",
@@ -36,21 +44,16 @@
       "Does not prove native click automation or live menu-bar interaction.",
       "Does not prove final native menu pixels for fallback labels.",
       "Does not prove live macOS menu-bar behavior."
-    ],
-    "liveOptIn": {
-      "required": false
-    }
+    ]
   },
   "nonRegression": {
-    "tier": "changed-feature",
     "runWhen": [
       "local-handoff",
       "remote-rate-limit-resolution-changed",
       "remote-host-menu-projection-changed",
       "remote-host-runtime-refresh-changed",
       "scenario-fixture-changed"
-    ],
-    "blocking": true
+    ]
   },
   "proof": {
     "layer": "boundary-contract",
@@ -96,15 +99,5 @@
   ],
   "expectedMetadata": {
     "scenario": "remote-host-rate-limit-fallback"
-  },
-  "privacy": {
-    "fixtureData": "synthetic",
-    "restrictedEvidence": [
-      "account_data",
-      "hostname",
-      "raw_local_path",
-      "private_product_data",
-      "token"
-    ]
   }
 }

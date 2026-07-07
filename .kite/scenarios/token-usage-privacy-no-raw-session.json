@@ -1,14 +1,17 @@
 {
   "id": "token-usage-privacy-no-raw-session",
   "title": "Token Usage privacy no raw session",
-  "featureId": "token-usage-privacy",
-  "acceptanceCriteria": [
-    "diagnostics-export-omits-raw-session-evidence"
-  ],
+  "feature": {
+    "id": "token-usage-privacy",
+    "title": "Token Usage privacy",
+    "acceptanceCriteria": [
+      {
+        "id": "diagnostics-export-omits-raw-session-evidence",
+        "statement": "Token Usage diagnostics must expose only aggregate state and totals, and must reject prompt content, raw session rows, local paths, account identifiers, emails, hostnames, auth material, and token-like values."
+      }
+    ]
+  },
   "targetSurface": "CodexPill diagnostics export fixture boundary",
-  "validationModes": [
-    "unit_only"
-  ],
   "suites": [
     "deterministic"
   ],
@@ -17,7 +20,6 @@
       "privacy",
       "diagnostics"
     ],
-    "primaryProof": "diagnostics-export",
     "supportingProof": [
       "privacy-leak-proof"
     ],
@@ -31,20 +33,15 @@
       "Does not prove live NSSavePanel confirmation or user-initiated file writing.",
       "Does not inspect real local Codex history.",
       "Does not prove Token Usage UI rendering or live macOS menu-bar behavior."
-    ],
-    "liveOptIn": {
-      "required": false
-    }
+    ]
   },
   "nonRegression": {
-    "tier": "changed-feature",
     "runWhen": [
       "local-handoff",
       "token-usage-diagnostics-changed",
       "diagnostics-export-changed",
       "scenario-fixture-changed"
-    ],
-    "blocking": true
+    ]
   },
   "proof": {
     "layer": "diagnostics-export",

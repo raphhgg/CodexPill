@@ -1,15 +1,21 @@
 {
   "id": "remote-host-verification-failure",
   "title": "Remote Host verification failure",
-  "featureId": "remote-host-verification-truth",
-  "acceptanceCriteria": [
-    "remote-verification-failure-never-renders-verified-active",
-    "remote-verification-detected-account-is-recoverable-not-catalog-truth"
-  ],
+  "feature": {
+    "id": "remote-host-verification-truth",
+    "title": "Remote Host verification truth",
+    "acceptanceCriteria": [
+      {
+        "id": "remote-verification-failure-never-renders-verified-active",
+        "statement": "Failed, unreadable, mismatched, or ambiguous remote verification must clear verified active remote state and must not render the host as a verified active account."
+      },
+      {
+        "id": "remote-verification-detected-account-is-recoverable-not-catalog-truth",
+        "statement": "When remote verification detects a different saved account, CodexPill must surface recovery state without replacing the saved account catalog or treating the detected account as verified active."
+      }
+    ]
+  },
   "targetSurface": "CodexPill remote host verifier, runtime state, and menu projection",
-  "validationModes": [
-    "unit_only"
-  ],
   "suites": [
     "deterministic"
   ],
@@ -19,7 +25,6 @@
       "failure_path",
       "privacy"
     ],
-    "primaryProof": "unit",
     "supportingProof": [
       "privacy-leak-proof"
     ],
@@ -33,21 +38,16 @@
       "Does not prove native click automation or live menu-bar interaction.",
       "Does not prove remote rate-limit fallback.",
       "Does not prove live macOS menu-bar behavior."
-    ],
-    "liveOptIn": {
-      "required": false
-    }
+    ]
   },
   "nonRegression": {
-    "tier": "changed-feature",
     "runWhen": [
       "local-handoff",
       "remote-host-verifier-changed",
       "remote-host-runtime-state-changed",
       "remote-host-menu-projection-changed",
       "scenario-fixture-changed"
-    ],
-    "blocking": true
+    ]
   },
   "proof": {
     "layer": "unit",
@@ -93,15 +93,5 @@
   ],
   "expectedMetadata": {
     "scenario": "remote-host-verification-failure"
-  },
-  "privacy": {
-    "fixtureData": "synthetic",
-    "restrictedEvidence": [
-      "account_data",
-      "hostname",
-      "raw_local_path",
-      "private_product_data",
-      "token"
-    ]
   }
 }

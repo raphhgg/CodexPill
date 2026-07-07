@@ -1,14 +1,17 @@
 {
   "id": "menu-unmatched-active-account",
   "title": "Menu unmatched active account",
-  "featureId": "active-account-truth",
-  "acceptanceCriteria": [
-    "active-account-unmatched-does-not-lie"
-  ],
+  "feature": {
+    "id": "active-account-truth",
+    "title": "Active account truth",
+    "acceptanceCriteria": [
+      {
+        "id": "active-account-unmatched-does-not-lie",
+        "statement": "If local auth does not match a saved account, CodexPill must not present any saved account as active."
+      }
+    ]
+  },
   "targetSurface": "CodexPill hosted menu validation view",
-  "validationModes": [
-    "unit_only"
-  ],
   "suites": [
     "smoke",
     "deterministic"
@@ -19,7 +22,6 @@
       "ui_visual",
       "privacy"
     ],
-    "primaryProof": "ui-structure-contract",
     "supportingProof": [
       "privacy-leak-proof"
     ],
@@ -33,20 +35,16 @@
       "Does not prove live Codex auth lookup.",
       "Does not prove account switching.",
       "Does not prove the live macOS menu bar surface."
-    ],
-    "liveOptIn": {
-      "required": false
-    }
+    ]
   },
   "nonRegression": {
-    "tier": "smoke",
     "runWhen": [
       "local-handoff",
       "account-state-model-changed",
       "menubar-ui-changed",
       "scenario-fixture-changed"
     ],
-    "blocking": true
+    "tier": "smoke"
   },
   "proof": {
     "layer": "ui-structure-contract",
@@ -84,15 +82,5 @@
   ],
   "expectedMetadata": {
     "scenario": "menu-unmatched-active-account"
-  },
-  "privacy": {
-    "fixtureData": "synthetic",
-    "restrictedEvidence": [
-      "account_data",
-      "hostname",
-      "raw_local_path",
-      "private_product_data",
-      "token"
-    ]
   }
 }

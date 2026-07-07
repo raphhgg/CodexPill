@@ -1,14 +1,17 @@
 {
   "id": "status-bar-icon-text-visible",
   "title": "Status bar icon and text visible",
-  "featureId": "status-bar-closed-state",
-  "acceptanceCriteria": [
-    "closed-status-item-icon-and-text-visible"
-  ],
+  "feature": {
+    "id": "status-bar-closed-state",
+    "title": "Status bar closed state",
+    "acceptanceCriteria": [
+      {
+        "id": "closed-status-item-icon-and-text-visible",
+        "statement": "The closed status item must expose a visible icon and the expected optional text label for synthetic active-account usage state."
+      }
+    ]
+  },
   "targetSurface": "CodexPill status item runtime snapshot",
-  "validationModes": [
-    "unit_only"
-  ],
   "suites": [
     "deterministic"
   ],
@@ -18,7 +21,6 @@
       "runtime_state",
       "privacy"
     ],
-    "primaryProof": "boundary-contract",
     "supportingProof": [
       "boundary-contract",
       "privacy-leak-proof"
@@ -34,20 +36,15 @@
       "Does not prove hover expansion, shortcut reveal, or temporal behavior.",
       "Does not prove display across multiple screens, notches, or menu-bar layouts.",
       "Does not prove the live macOS menu bar surface."
-    ],
-    "liveOptIn": {
-      "required": false
-    }
+    ]
   },
   "nonRegression": {
-    "tier": "changed-feature",
     "runWhen": [
       "local-handoff",
       "status-bar-ui-changed",
       "status-item-runtime-changed",
       "scenario-fixture-changed"
-    ],
-    "blocking": true
+    ]
   },
   "proof": {
     "layer": "boundary-contract",
@@ -104,15 +101,5 @@
   ],
   "expectedMetadata": {
     "scenario": "status-bar-icon-text-visible"
-  },
-  "privacy": {
-    "fixtureData": "synthetic",
-    "restrictedEvidence": [
-      "account_data",
-      "hostname",
-      "raw_local_path",
-      "private_product_data",
-      "token"
-    ]
   }
 }

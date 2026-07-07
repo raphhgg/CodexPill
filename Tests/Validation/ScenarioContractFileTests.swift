@@ -3,55 +3,33 @@ import Testing
 
 struct ScenarioContractFileTests {
     @Test
-    func dedicatedScenarioContractsMatchAggregateManifestEntries() throws {
+    func scenarioPackFilesAreMinimalAndUniquelyAddressed() throws {
         let root = try repositoryRoot()
-        let manifestURL = root
+        let productURL = root
             .appendingPathComponent(".kite", isDirectory: true)
-            .appendingPathComponent("scenarios.json")
+            .appendingPathComponent("product.json")
         let contractsDirectory = root
             .appendingPathComponent(".kite", isDirectory: true)
             .appendingPathComponent("scenarios", isDirectory: true)
 
-        let manifestData = try Data(contentsOf: manifestURL)
-        let manifestObject = try JSONObject.make(from: manifestData)
-        let manifest = try JSONDecoder().decode(ScenarioManifest.self, from: manifestData)
-        let scenarioObjects = try manifestObject.objectArray(forKey: "scenarios")
-        let manifestScenarioPairs = try scenarioObjects.map { object in
-            (try object.string(forKey: "id"), object)
-        }
-        let manifestIDs = manifestScenarioPairs.map(\.0)
-        let manifestScenariosByID = Dictionary(grouping: manifestScenarioPairs) { pair in
-            pair.0
-        }
-        .compactMapValues { pairs in
-            pairs.count == 1 ? pairs[0].1 : nil
-        }
+        let productObject = try JSONObject.make(from: Data(contentsOf: productURL))
+        #expect(try productObject.string(forKey: "kind") == "product_scenario_pack")
+        #expect(try productObject.string(forKey: "schemaVersion") == "kite.validation.scenario-pack.v1")
 
         let contractURLs = try dedicatedContractURLs(in: contractsDirectory)
-        let contractPairs = try contractURLs.map { url in
+        let contractIDs = try contractURLs.map { url in
             let object = try JSONObject.make(from: Data(contentsOf: url))
-            return (try object.string(forKey: "id"), url)
-        }
-        let contractIDs = contractPairs.map(\.0)
-        let contractIDsByURL = Dictionary(grouping: contractPairs) { pair in
-            pair.0
-        }
-        .compactMapValues { pairs in
-            pairs.count == 1 ? pairs[0].1 : nil
+            let id = try object.string(forKey: "id")
+
+            #expect(url.lastPathComponent == "\(id).json")
+            #expect(object.containsObject(forKey: "feature"))
+            #expect(!object.containsValue(forKey: "featureId"))
+            #expect(!object.containsValue(forKey: "validationModes"))
+            return id
         }
 
-        #expect(manifestIDs.count == Set(manifestIDs).count)
-        #expect(contractURLs.count == manifest.scenarios.count)
+        #expect(contractIDs.count == 37)
         #expect(contractIDs.count == Set(contractIDs).count)
-        #expect(Set(contractIDsByURL.keys) == Set(manifest.scenarios.map(\.id)))
-
-        for scenario in manifest.scenarios {
-            let contractURL = try #require(contractIDsByURL[scenario.id])
-            #expect(contractURL.lastPathComponent == "\(scenario.id).json")
-
-            let contractObject = try JSONObject.make(from: Data(contentsOf: contractURL))
-            #expect(contractObject == manifestScenariosByID[scenario.id])
-        }
     }
 
     private func repositoryRoot(filePath: String = #filePath) throws -> URL {
@@ -60,7 +38,7 @@ struct ScenarioContractFileTests {
         while directory.path != "/" {
             let markerURL = directory
                 .appendingPathComponent(".kite", isDirectory: true)
-                .appendingPathComponent("scenarios.json")
+                .appendingPathComponent("product.json")
             if FileManager.default.fileExists(atPath: markerURL.path) {
                 return directory
             }
@@ -130,12 +108,19 @@ private enum JSONObject: Equatable {
         }
     }
 
-    func objectArray(forKey key: String) throws -> [JSONObject] {
+    func containsObject(forKey key: String) -> Bool {
         guard case let .object(dictionary) = self,
-              case let .array(array) = dictionary[key] else {
-            throw ScenarioContractFileTestError.missingJSONArray(key)
+              case .object = dictionary[key] else {
+            return false
         }
-        return array
+        return true
+    }
+
+    func containsValue(forKey key: String) -> Bool {
+        guard case let .object(dictionary) = self else {
+            return false
+        }
+        return dictionary[key] != nil
     }
 
     func string(forKey key: String) throws -> String {
@@ -150,7 +135,6 @@ private enum JSONObject: Equatable {
 private enum ScenarioContractFileTestError: Error {
     case missingRepositoryRoot
     case missingContractsDirectory(String)
-    case missingJSONArray(String)
     case missingJSONString(String)
     case unsupportedJSONValue
 }

@@ -1,16 +1,25 @@
 {
   "id": "notifications-dedupe-after-delivery",
   "title": "Notifications dedupe after delivery",
-  "featureId": "notifications-dedupe-after-delivery",
-  "acceptanceCriteria": [
-    "delivered-notification-disarms-repeat-delivery",
-    "delivered-notification-persists-reason-and-window",
-    "delivered-notification-rearms-after-local-or-remote-activation"
-  ],
+  "feature": {
+    "id": "notifications-dedupe-after-delivery",
+    "title": "Notifications dedupe after delivery",
+    "acceptanceCriteria": [
+      {
+        "id": "delivered-notification-disarms-repeat-delivery",
+        "statement": "After CodexPill delivers an account notification, repeated notifications for that account must be suppressed across later windows."
+      },
+      {
+        "id": "delivered-notification-persists-reason-and-window",
+        "statement": "Delivered notification dedupe state must persist the reason and reset window that caused the account notification."
+      },
+      {
+        "id": "delivered-notification-rearms-after-local-or-remote-activation",
+        "statement": "Suppressed notification state must re-arm only after CodexPill observes the account become active locally or on a verified remote host."
+      }
+    ]
+  },
   "targetSurface": "CodexPill notification state store, fake delivery workflow, and activation runtime",
-  "validationModes": [
-    "unit_only"
-  ],
   "suites": [
     "deterministic"
   ],
@@ -19,7 +28,6 @@
       "workflow_state",
       "state_truth"
     ],
-    "primaryProof": "unit",
     "supportingProof": [
       "workflow-event-log",
       "boundary-contract",
@@ -34,13 +42,9 @@
       "Does not exercise live macOS notification delivery.",
       "Does not prove native Notification Center rendering or real user clicks.",
       "Does not touch real Codex account data, real remote hosts, or real switching."
-    ],
-    "liveOptIn": {
-      "required": false
-    }
+    ]
   },
   "nonRegression": {
-    "tier": "changed-feature",
     "runWhen": [
       "local-handoff",
       "notification-state-changed",
@@ -49,8 +53,7 @@
       "local-switch-routing-changed",
       "remote-switch-routing-changed",
       "scenario-fixture-changed"
-    ],
-    "blocking": true
+    ]
   },
   "proof": {
     "layer": "unit",
@@ -95,15 +98,5 @@
   ],
   "expectedMetadata": {
     "scenario": "notifications-dedupe-after-delivery"
-  },
-  "privacy": {
-    "fixtureData": "synthetic",
-    "restrictedEvidence": [
-      "account_data",
-      "hostname",
-      "raw_local_path",
-      "private_product_data",
-      "token"
-    ]
   }
 }

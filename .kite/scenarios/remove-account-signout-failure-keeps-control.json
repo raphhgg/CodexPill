@@ -1,14 +1,17 @@
 {
   "id": "remove-account-signout-failure-keeps-control",
   "title": "Remove Account sign-out failure keeps control",
-  "featureId": "remove-account-active-targets",
-  "acceptanceCriteria": [
-    "remove-active-account-signout-failure-keeps-control"
-  ],
+  "feature": {
+    "id": "remove-account-active-targets",
+    "title": "Remove Account active targets",
+    "acceptanceCriteria": [
+      {
+        "id": "remove-active-account-signout-failure-keeps-control",
+        "statement": "When a required local or remote sign-out fails, CodexPill must keep the saved snapshot and catalog row, preserve the active remote state, and show the real sanitized failure."
+      }
+    ]
+  },
   "targetSurface": "CodexPill remove-account fake local and remote failure workflow boundary",
-  "validationModes": [
-    "unit_only"
-  ],
   "suites": [
     "deterministic"
   ],
@@ -18,7 +21,6 @@
       "state_truth",
       "privacy"
     ],
-    "primaryProof": "workflow-event-log",
     "supportingProof": [
       "privacy-leak-proof"
     ],
@@ -32,21 +34,16 @@
       "Does not exercise live Codex relaunch, live SSH sign-out, or real remote auth mutation.",
       "Does not prove remote inactive snapshot deletion.",
       "Does not prove live macOS menu-bar behavior."
-    ],
-    "liveOptIn": {
-      "required": false
-    }
+    ]
   },
   "nonRegression": {
-    "tier": "changed-feature",
     "runWhen": [
       "local-handoff",
       "remove-account-workflow-changed",
       "menubar-runtime-changed",
       "remote-host-signout-changed",
       "scenario-fixture-changed"
-    ],
-    "blocking": true
+    ]
   },
   "proof": {
     "layer": "workflow-event-log",
@@ -92,15 +89,5 @@
   ],
   "expectedMetadata": {
     "scenario": "remove-account-signout-failure-keeps-control"
-  },
-  "privacy": {
-    "fixtureData": "synthetic",
-    "restrictedEvidence": [
-      "account_data",
-      "hostname",
-      "raw_local_path",
-      "private_product_data",
-      "token"
-    ]
   }
 }

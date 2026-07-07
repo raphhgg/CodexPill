@@ -1,17 +1,29 @@
 {
   "id": "launch-at-login-blocked-opens-settings",
   "title": "Launch at Login blocked opens settings",
-  "featureId": "launch-at-login-blocked-opens-settings",
-  "acceptanceCriteria": [
-    "blocked-requires-approval-opens-settings",
-    "blocked-unavailable-opens-settings",
-    "blocked-states-do-not-register-or-unregister",
-    "blocked-states-render-truthful-menu-copy"
-  ],
+  "feature": {
+    "id": "launch-at-login-blocked-opens-settings",
+    "title": "Launch at Login blocked opens settings",
+    "acceptanceCriteria": [
+      {
+        "id": "blocked-requires-approval-opens-settings",
+        "statement": "When macOS requires approval, Launch at Login must route to System Settings instead of toggling."
+      },
+      {
+        "id": "blocked-unavailable-opens-settings",
+        "statement": "When login-item state is unavailable, Launch at Login must route to System Settings instead of toggling."
+      },
+      {
+        "id": "blocked-states-do-not-register-or-unregister",
+        "statement": "Blocked or unavailable actions must not call register or unregister on the login-item controller."
+      },
+      {
+        "id": "blocked-states-render-truthful-menu-copy",
+        "statement": "Blocked or unavailable menu rows must render Launch at Login… with unchecked state and the open-settings action."
+      }
+    ]
+  },
   "targetSurface": "CodexPill Launch at Login menu projection, fake login-item controller, and fake System Settings launcher",
-  "validationModes": [
-    "unit_only"
-  ],
   "suites": [
     "deterministic"
   ],
@@ -21,7 +33,6 @@
       "failure_path",
       "privacy"
     ],
-    "primaryProof": "workflow-event-log",
     "supportingProof": [
       "boundary-contract",
       "privacy-leak-proof"
@@ -35,13 +46,9 @@
       "Does not open real System Settings.",
       "Does not mutate real macOS login-item approval state.",
       "Does not prove live menu-bar clicks or signed-app Login Items visibility."
-    ],
-    "liveOptIn": {
-      "required": false
-    }
+    ]
   },
   "nonRegression": {
-    "tier": "changed-feature",
     "runWhen": [
       "local-handoff",
       "app-controls-ui-changed",
@@ -49,8 +56,7 @@
       "login-items-settings-launcher-changed",
       "menu-builder-changed",
       "scenario-fixture-changed"
-    ],
-    "blocking": true
+    ]
   },
   "proof": {
     "layer": "workflow-event-log",
@@ -95,15 +101,5 @@
   ],
   "expectedMetadata": {
     "scenario": "launch-at-login-blocked-opens-settings"
-  },
-  "privacy": {
-    "fixtureData": "synthetic",
-    "restrictedEvidence": [
-      "account_data",
-      "hostname",
-      "raw_local_path",
-      "private_product_data",
-      "token"
-    ]
   }
 }

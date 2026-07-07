@@ -1,15 +1,21 @@
 {
   "id": "token-usage-cache-first",
   "title": "Token Usage cache first",
-  "featureId": "token-usage-incremental-cache",
-  "acceptanceCriteria": [
-    "cached-data-is-used-before-scanning",
-    "refresh-reuses-unchanged-file-contributions"
-  ],
+  "feature": {
+    "id": "token-usage-incremental-cache",
+    "title": "Token Usage incremental cache",
+    "acceptanceCriteria": [
+      {
+        "id": "cached-data-is-used-before-scanning",
+        "statement": "When cached aggregate data covers the requested Token Usage period, CodexPill must present it before starting scanner work and must not restart scanning for repeated menu/runtime refreshes."
+      },
+      {
+        "id": "refresh-reuses-unchanged-file-contributions",
+        "statement": "When refreshing a cached selected period, CodexPill must reuse unchanged synthetic file contributions and rescan only new or changed eligible files."
+      }
+    ]
+  },
   "targetSurface": "CodexPill Token Usage cache/runtime fixture boundary",
-  "validationModes": [
-    "unit_only"
-  ],
   "suites": [
     "deterministic"
   ],
@@ -19,7 +25,6 @@
       "performance",
       "privacy"
     ],
-    "primaryProof": "boundary-contract",
     "supportingProof": [
       "privacy-leak-proof"
     ],
@@ -33,21 +38,16 @@
       "Does not prove saved-account, workspace, organization, or remote-host usage history.",
       "Does not prove real local Codex history scanning.",
       "Does not prove live macOS menu-bar behavior."
-    ],
-    "liveOptIn": {
-      "required": false
-    }
+    ]
   },
   "nonRegression": {
-    "tier": "changed-feature",
     "runWhen": [
       "local-handoff",
       "token-usage-cache-changed",
       "token-usage-runtime-changed",
       "token-usage-scanner-changed",
       "scenario-fixture-changed"
-    ],
-    "blocking": true
+    ]
   },
   "proof": {
     "layer": "boundary-contract",
