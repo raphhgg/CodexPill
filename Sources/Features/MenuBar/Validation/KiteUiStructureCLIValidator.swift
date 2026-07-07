@@ -40,22 +40,24 @@ struct KiteUiStructureCLIValidator {
     private let commandRunner: any CommandRunner
     private let executableURL: URL
     private let commandName: String
+    private let commandArgumentsPrefix: [String]
 
     init(
         commandRunner: any CommandRunner = ProcessCommandRunner(),
         executableURL: URL = URL(fileURLWithPath: "/usr/bin/env"),
-        commandName: String = "kite"
+        commandName: String = "kite",
+        commandArgumentsPrefix: [String] = []
     ) {
         self.commandRunner = commandRunner
         self.executableURL = executableURL
         self.commandName = commandName
+        self.commandArgumentsPrefix = commandArgumentsPrefix
     }
 
     func validate(artifactURL: URL) async throws -> KiteUiStructureValidationSummary {
         let result = try await commandRunner.run(
             executableURL: executableURL,
-            arguments: [
-                commandName,
+            arguments: [commandName] + commandArgumentsPrefix + [
                 "ui-structure",
                 "validate",
                 "--artifact",

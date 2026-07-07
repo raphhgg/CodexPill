@@ -72,12 +72,37 @@ enum MenuBarStructureExporter {
         in items: [MenuBarValidationSnapshot.MenuItem]
     ) -> MenuBarValidationSnapshot.MenuItem? {
         let expected = searchableTitle(for: title)
+        if let exactMatch = findExactMenuItem(matching: expected, in: items) {
+            return exactMatch
+        }
+        return findFuzzyMenuItem(matching: expected, in: items)
+    }
 
+    private static func findExactMenuItem(
+        matching expected: String,
+        in items: [MenuBarValidationSnapshot.MenuItem]
+    ) -> MenuBarValidationSnapshot.MenuItem? {
+        for item in items {
+            if searchableTitle(for: item.title) == expected {
+                return item
+            }
+            if let child = findExactMenuItem(matching: expected, in: item.children) {
+                return child
+            }
+        }
+
+        return nil
+    }
+
+    private static func findFuzzyMenuItem(
+        matching expected: String,
+        in items: [MenuBarValidationSnapshot.MenuItem]
+    ) -> MenuBarValidationSnapshot.MenuItem? {
         for item in items {
             if searchableTitle(for: item.title).contains(expected) || expected.contains(searchableTitle(for: item.title)) {
                 return item
             }
-            if let child = findMenuItem(for: title, in: item.children) {
+            if let child = findFuzzyMenuItem(matching: expected, in: item.children) {
                 return child
             }
         }

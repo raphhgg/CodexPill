@@ -8,8 +8,14 @@ DEV_BUNDLE_ID ?= com.raphhgg.codexpill.dev
 STAGING_BUNDLE_ID ?= com.raphhgg.codexpill.staging
 
 SCENARIO ?= hosted-menu-default
+STRUCTURE_CONTRACT_SCENARIOS := hosted-menu-default menu-busy-status menu-empty-catalog menu-account-overflow menu-unmatched-active-account
+REQUESTED_PROOF_TYPE ?= $(if $(filter $(SCENARIO),$(STRUCTURE_CONTRACT_SCENARIOS)),ui-structure-contract,deterministic-ui)
+KITE_HARNESS_BIN := $(abspath ../kite-harness/bin/kite.mjs)
+KITE_UI_STRUCTURE_COMMAND ?= $(shell if test -x "$(KITE_HARNESS_BIN)" && command -v node >/dev/null 2>&1; then command -v node; elif command -v kite >/dev/null 2>&1; then command -v kite; else printf '%s' kite; fi)
+KITE_UI_STRUCTURE_COMMAND_ARGUMENT ?= $(shell if test -x "$(KITE_HARNESS_BIN)" && command -v node >/dev/null 2>&1; then printf '%s' "$(KITE_HARNESS_BIN)"; fi)
 VERIFICATION_DIR := $(BUILD_ROOT)/verification
 VERIFICATION_REQUEST := $(VERIFICATION_DIR)/request.json
+VERIFICATION_REQUEST_ACTIVE := $(VERIFICATION_DIR)/request.active
 VERIFICATION_ARTIFACTS := $(BUILD_ROOT)/verification/$(SCENARIO)
 DIAGNOSTICS_EXPORT_SCENARIO := diagnostics-export-confirmation
 DIAGNOSTICS_EXPORT_SCENARIO_ARTIFACTS := $(BUILD_ROOT)/verification/$(DIAGNOSTICS_EXPORT_SCENARIO)
@@ -106,8 +112,8 @@ package-release:
 
 verify-ui: generate prepare-result-bundle
 	mkdir -p "$(VERIFICATION_DIR)"
-	printf '{\n  "artifactDirectory": "%s",\n  "scenario": "%s"\n}\n' "$(abspath $(VERIFICATION_ARTIFACTS))" "$(SCENARIO)" > "$(VERIFICATION_REQUEST)"
-	CODEXPILL_VALIDATION_REQUEST="$(abspath $(VERIFICATION_REQUEST))" xcodebuild test \
+	printf '{\n  "artifactDirectory": "%s",\n  "scenario": "%s",\n  "proofType": "%s",\n  "kiteCommand": "%s",\n  "kiteCommandArgument": "%s"\n}\n' "$(abspath $(VERIFICATION_ARTIFACTS))" "$(SCENARIO)" "$(REQUESTED_PROOF_TYPE)" "$(KITE_UI_STRUCTURE_COMMAND)" "$(KITE_UI_STRUCTURE_COMMAND_ARGUMENT)" > "$(VERIFICATION_REQUEST)"
+	trap 'rm -f "$(VERIFICATION_REQUEST_ACTIVE)"' EXIT; touch "$(VERIFICATION_REQUEST_ACTIVE)"; CODEXPILL_VALIDATION_REQUEST="$(abspath $(VERIFICATION_REQUEST))" xcodebuild test \
 		-project $(PROJECT_PATH) \
 		-scheme $(APP_NAME) \
 		-configuration Debug \

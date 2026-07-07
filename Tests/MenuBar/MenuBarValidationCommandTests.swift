@@ -10,9 +10,123 @@ struct MenuBarValidationCommandTests {
     func hostedMenuScenarioProducesArtifacts() async throws {
         let request = try loadValidationRequest() ?? ValidationRequest(
             artifactDirectory: "",
-            scenario: "hosted-menu-default"
+            scenario: "hosted-menu-default",
+            proofType: "ui-structure-contract",
+            kiteCommand: nil,
+            kiteCommandArgument: nil,
+            kiteCommandArguments: nil
         )
         let now = Date(timeIntervalSince1970: 1_744_195_200)
+
+        try await writeHostedMenuScenarioArtifacts(request: request, now: now)
+    }
+
+    @Test
+    func structureContractScenarioSummarySeparatesRequiredProofFromDebugArtifacts() async throws {
+        let artifactDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("MenuBarValidationCommandTests-\(UUID().uuidString)", isDirectory: true)
+        let request = ValidationRequest(
+            artifactDirectory: artifactDirectory.path,
+            scenario: "menu-empty-catalog",
+            proofType: "ui-structure-contract",
+            kiteCommand: nil,
+            kiteCommandArgument: nil,
+            kiteCommandArguments: nil
+        )
+        let now = Date(timeIntervalSince1970: 1_744_195_200)
+        let runner = KiteCommandRunnerProbe(results: [
+            .success(.init(
+                terminationStatus: 0,
+                standardOutput: Data("""
+                {
+                  "command": "kite.ui-structure.validate",
+                  "status": "passed",
+                  "kind": "ui_structure_contract",
+                  "schemaVersion": "kite.ui-structure-contract.v1",
+                  "contractId": "codexpill-menu-empty-catalog-structure",
+                  "scenarioId": "menu-empty-catalog",
+                  "assertionCount": 9
+                }
+                """.utf8),
+                standardError: Data()
+            ))
+        ])
+
+        try await writeHostedMenuScenarioArtifacts(
+            request: request,
+            now: now,
+            uiStructureValidator: KiteUiStructureCLIValidator(commandRunner: runner)
+        )
+
+        let summary = try loadJSONObject(at: artifactDirectory.appendingPathComponent("scenario-summary.json"))
+
+        #expect(summary["scenario"] as? String == "menu-empty-catalog")
+        #expect(summary["proofType"] as? String == "ui-structure-contract")
+        #expect(summary["proofLayer"] as? String == "ui-structure-contract")
+        #expect(summary.keys.contains("screenshot") == false)
+        #expect(summary.keys.contains("uiTree") == false)
+
+        let requiredArtifacts = try #require(summary["requiredArtifacts"] as? [[String: Any]])
+        #expect(requiredArtifacts.compactMap { $0["path"] as? String } == [
+            "ui-structure-contract.json"
+        ])
+        #expect(requiredArtifacts.compactMap { $0["kind"] as? String } == [
+            "ui_structure_contract"
+        ])
+
+        let debugArtifacts = try #require(summary["debugArtifacts"] as? [[String: Any]])
+        #expect(Set(debugArtifacts.compactMap { $0["path"] as? String }) == [
+            "screenshots/menu-empty-catalog.png",
+            "ui-tree.json"
+        ])
+        #expect(Set(debugArtifacts.compactMap { $0["required"] as? Bool }) == [false])
+    }
+
+    @Test
+    func validationRequestFallsBackToBuildVerificationRequestWhenEnvironmentIsMissing() throws {
+        let requestURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("MenuBarValidationCommandTests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("request.json")
+        try FileManager.default.createDirectory(
+            at: requestURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try writeJSON(
+            ValidationRequest(
+                artifactDirectory: "/tmp/codexpill-artifacts",
+                scenario: "menu-empty-catalog",
+                proofType: "ui-structure-contract",
+                kiteCommand: "/tmp/node",
+                kiteCommandArgument: nil,
+                kiteCommandArguments: ["/tmp/kite"]
+            ),
+            to: requestURL
+        )
+
+        let loadedRequest = try loadValidationRequest(environment: [:], fallbackURL: requestURL)
+        let request = try #require(loadedRequest)
+
+        #expect(request.artifactDirectory == "/tmp/codexpill-artifacts")
+        #expect(request.scenario == "menu-empty-catalog")
+        #expect(request.proofType == "ui-structure-contract")
+        #expect(request.kiteCommand == "/tmp/node")
+        #expect(request.kiteCommandArguments == ["/tmp/kite"])
+    }
+
+
+    private func writeHostedMenuScenarioArtifacts(
+        request: ValidationRequest,
+        now: Date,
+        uiStructureValidator: KiteUiStructureCLIValidator? = nil
+    ) async throws {
+        let validator = uiStructureValidator ?? KiteUiStructureCLIValidator(
+            commandName: request.kiteCommand ?? "kite",
+            commandArgumentsPrefix: request.kiteCommandArguments ?? request.singleKiteCommandArgument
+        )
+        let profile = try ScenarioProofProfile.make(
+            scenario: request.scenario,
+            requestedProofType: request.proofType
+        )
         let state = makeHostedValidationState(for: request.scenario, now: now)
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
@@ -37,33 +151,49 @@ struct MenuBarValidationCommandTests {
         let artifactDirectory = URL(fileURLWithPath: request.artifactDirectory, isDirectory: true)
         try FileManager.default.createDirectory(at: artifactDirectory, withIntermediateDirectories: true)
 
-        let screenshotURL = artifactDirectory
-            .appendingPathComponent("screenshots", isDirectory: true)
-            .appendingPathComponent("\(request.scenario).png")
-        try FileManager.default.createDirectory(at: screenshotURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-
-        let uiTreeURL = artifactDirectory.appendingPathComponent("ui-tree.json")
         let summaryURL = artifactDirectory.appendingPathComponent("scenario-summary.json")
-        let extraArtifacts = try await writeScenarioSpecificArtifacts(
+        let scenarioArtifacts = try await writeScenarioSpecificArtifacts(
             for: request.scenario,
             artifactDirectory: artifactDirectory,
             snapshot: snapshot,
             statusItemState: statusItemState,
-            now: now
+            now: now,
+            uiStructureValidator: validator
         )
 
-        try MenuBarHostedDebugRendererTestSupport.renderPNG(
-            MenuBarHostedDebugRenderer.makeView(state: state, now: now),
-            to: screenshotURL
-        )
-        try writeJSON(snapshot, to: uiTreeURL)
+        var requiredArtifacts = scenarioArtifacts.requiredArtifacts
+        var debugArtifacts: [ScenarioArtifact] = []
+
+        if profile.hostedArtifactsAreRequired {
+            requiredArtifacts.append(contentsOf: try writeHostedDebugArtifacts(
+                scenario: request.scenario,
+                artifactDirectory: artifactDirectory,
+                state: state,
+                snapshot: snapshot,
+                now: now,
+                required: true
+            ))
+        } else {
+            debugArtifacts = writeOptionalHostedDebugArtifacts(
+                scenario: request.scenario,
+                artifactDirectory: artifactDirectory,
+                state: state,
+                snapshot: snapshot,
+                now: now
+            )
+        }
+
         try writeJSON(
             ScenarioSummary(
                 scenario: request.scenario,
+                proofType: profile.proofType,
+                proofLayer: profile.proofLayer,
                 assertions: scenarioAssertions(for: request.scenario),
-                screenshot: screenshotURL.lastPathComponent,
-                uiTree: uiTreeURL.lastPathComponent,
-                extraArtifacts: extraArtifacts.isEmpty ? nil : extraArtifacts
+                requiredArtifacts: requiredArtifacts,
+                debugArtifacts: debugArtifacts.isEmpty ? nil : debugArtifacts,
+                gaps: profile.gaps,
+                kiteValidation: scenarioArtifacts.kiteValidation,
+                status: "passed"
             ),
             to: summaryURL
         )
@@ -218,7 +348,7 @@ struct MenuBarValidationCommandTests {
                 standardError: Data()
             ))
         ])
-        let extraArtifacts = try await writeScenarioSpecificArtifacts(
+        let scenarioArtifacts = try await writeScenarioSpecificArtifacts(
             for: expectation.scenario,
             artifactDirectory: artifactDirectory,
             snapshot: snapshot,
@@ -227,7 +357,11 @@ struct MenuBarValidationCommandTests {
             uiStructureValidator: KiteUiStructureCLIValidator(commandRunner: runner)
         )
 
-        #expect(extraArtifacts == ["ui-structure-contract.json"])
+        #expect(scenarioArtifacts.requiredArtifacts.map(\.path) == ["ui-structure-contract.json"])
+        #expect(scenarioArtifacts.requiredArtifacts.map(\.kind) == ["ui_structure_contract"])
+        #expect(scenarioArtifacts.requiredArtifacts.allSatisfy { $0.required })
+        #expect(scenarioArtifacts.kiteValidation?.contractId == "codexpill-\(expectation.scenario)-structure")
+        #expect(scenarioArtifacts.kiteValidation?.scenarioId == expectation.scenario)
 
         let contractURL = artifactDirectory.appendingPathComponent("ui-structure-contract.json")
         let data = try Data(contentsOf: contractURL)
@@ -263,6 +397,74 @@ struct MenuBarValidationCommandTests {
         try encoder.encode(value).write(to: url, options: .atomic)
     }
 
+    private func loadJSONObject(at url: URL) throws -> [String: Any] {
+        let data = try Data(contentsOf: url)
+        guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw ValidationError.invalidJSONObject(url.path)
+        }
+        return object
+    }
+
+    private func writeHostedDebugArtifacts(
+        scenario: String,
+        artifactDirectory: URL,
+        state: MenuBarMenuState,
+        snapshot: MenuBarValidationSnapshot,
+        now: Date,
+        required: Bool
+    ) throws -> [ScenarioArtifact] {
+        let screenshotRelativePath = "screenshots/\(scenario).png"
+        let screenshotURL = artifactDirectory.appendingPathComponent(screenshotRelativePath)
+        try FileManager.default.createDirectory(
+            at: screenshotURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+
+        let uiTreeRelativePath = "ui-tree.json"
+        let uiTreeURL = artifactDirectory.appendingPathComponent(uiTreeRelativePath)
+
+        try MenuBarHostedDebugRendererTestSupport.renderPNG(
+            MenuBarHostedDebugRenderer.makeView(state: state, now: now),
+            to: screenshotURL
+        )
+        try writeJSON(snapshot, to: uiTreeURL)
+
+        let claimScope = required ? "deterministic-hosted-view" : "debug-hosted-view"
+        return [
+            ScenarioArtifact(
+                kind: "visual_snapshot",
+                path: screenshotRelativePath,
+                required: required,
+                claimScope: [claimScope]
+            ),
+            ScenarioArtifact(
+                kind: "semantic_snapshot",
+                path: uiTreeRelativePath,
+                required: required,
+                claimScope: [required ? "semantic-ui-tree" : "debug-semantic-tree"]
+            )
+        ]
+    }
+
+    private func writeOptionalHostedDebugArtifacts(
+        scenario: String,
+        artifactDirectory: URL,
+        state: MenuBarMenuState,
+        snapshot: MenuBarValidationSnapshot,
+        now: Date
+    ) -> [ScenarioArtifact] {
+        (
+            try? writeHostedDebugArtifacts(
+                scenario: scenario,
+                artifactDirectory: artifactDirectory,
+                state: state,
+                snapshot: snapshot,
+                now: now,
+                required: false
+            )
+        ) ?? []
+    }
+
     private func writeScenarioSpecificArtifacts(
         for scenario: String,
         artifactDirectory: URL,
@@ -270,7 +472,7 @@ struct MenuBarValidationCommandTests {
         statusItemState: StatusItemRuntimeSnapshot?,
         now: Date,
         uiStructureValidator: KiteUiStructureCLIValidator = KiteUiStructureCLIValidator()
-    ) async throws -> [String] {
+    ) async throws -> ScenarioSpecificArtifacts {
         switch scenario {
         case "hosted-menu-default", "menu-busy-status", "menu-empty-catalog", "menu-account-overflow", "menu-unmatched-active-account":
             let contractURL = artifactDirectory.appendingPathComponent("ui-structure-contract.json")
@@ -279,19 +481,47 @@ struct MenuBarValidationCommandTests {
                 try MenuBarStructureContractExporter.makeContract(for: scenario, from: snapshot),
                 to: contractURL
             )
-            _ = try await uiStructureValidator.validate(artifactURL: contractURL)
-            return [contractURL.lastPathComponent]
+            let validationSummary = try await uiStructureValidator.validate(artifactURL: contractURL)
+            return ScenarioSpecificArtifacts(
+                requiredArtifacts: [
+                    ScenarioArtifact(
+                        kind: "ui_structure_contract",
+                        path: contractURL.lastPathComponent,
+                        required: true,
+                        claimScope: ["\(scenario)-structure"]
+                    )
+                ],
+                kiteValidation: KiteValidationSummaryArtifact(summary: validationSummary)
+            )
         case "launch-at-login-menu-states":
             let matrixURL = artifactDirectory.appendingPathComponent("launch-at-login-states.json")
             try writeJSON(try makeLaunchAtLoginStateMatrix(now: now), to: matrixURL)
-            return [matrixURL.lastPathComponent]
+            return ScenarioSpecificArtifacts(
+                requiredArtifacts: [
+                    ScenarioArtifact(
+                        kind: "state_matrix",
+                        path: matrixURL.lastPathComponent,
+                        required: true,
+                        claimScope: ["launch-at-login-state-matrix"]
+                    )
+                ]
+            )
         case "status-bar-icon-text-visible":
             let runtimeState = try #require(statusItemState)
             let stateURL = artifactDirectory.appendingPathComponent("status-item-state.json")
             try writeJSON(StatusItemStateArtifact(snapshot: runtimeState), to: stateURL)
-            return [stateURL.lastPathComponent]
+            return ScenarioSpecificArtifacts(
+                requiredArtifacts: [
+                    ScenarioArtifact(
+                        kind: "runtime_state",
+                        path: stateURL.lastPathComponent,
+                        required: true,
+                        claimScope: ["status-item-runtime-state"]
+                    )
+                ]
+            )
         default:
-            return []
+            return ScenarioSpecificArtifacts()
         }
     }
 
@@ -818,19 +1048,61 @@ struct MenuBarValidationCommandTests {
         }
     }
 
-    private func loadValidationRequest() throws -> ValidationRequest? {
-        guard let requestPath = ProcessInfo.processInfo.environment["CODEXPILL_VALIDATION_REQUEST"] else {
+    private func loadValidationRequest(
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        fallbackURL: URL? = nil
+    ) throws -> ValidationRequest? {
+        if let requestPath = environment["CODEXPILL_VALIDATION_REQUEST"] {
+            return try loadValidationRequest(at: URL(fileURLWithPath: requestPath))
+        }
+
+        if let fallbackURL {
+            return try loadValidationRequest(at: fallbackURL)
+        }
+
+        guard
+            let fallbackURL = defaultValidationRequestURL(),
+            let activeURL = defaultValidationRequestActiveURL(),
+            FileManager.default.fileExists(atPath: activeURL.path)
+        else {
             return nil
         }
-        let requestURL = URL(fileURLWithPath: requestPath)
+        return try loadValidationRequest(at: fallbackURL)
+    }
 
+    private func loadValidationRequest(at requestURL: URL) throws -> ValidationRequest? {
         guard FileManager.default.fileExists(atPath: requestURL.path) else {
             return nil
         }
 
         let data = try Data(contentsOf: requestURL)
-        let request = try JSONDecoder().decode(ValidationRequest.self, from: data)
-        return request
+        return try JSONDecoder().decode(ValidationRequest.self, from: data)
+    }
+
+    private func defaultValidationRequestURL(filePath: String = #filePath) -> URL? {
+        defaultValidationDirectory(filePath: filePath)?
+            .appendingPathComponent("request.json")
+    }
+
+    private func defaultValidationRequestActiveURL(filePath: String = #filePath) -> URL? {
+        defaultValidationDirectory(filePath: filePath)?
+            .appendingPathComponent("request.active")
+    }
+
+    private func defaultValidationDirectory(filePath: String = #filePath) -> URL? {
+        var directory = URL(fileURLWithPath: filePath).deletingLastPathComponent()
+
+        while directory.path != "/" {
+            let makefileURL = directory.appendingPathComponent("Makefile")
+            if FileManager.default.fileExists(atPath: makefileURL.path) {
+                return directory
+                    .appendingPathComponent("build", isDirectory: true)
+                    .appendingPathComponent("verification", isDirectory: true)
+            }
+            directory.deleteLastPathComponent()
+        }
+
+        return nil
     }
 
     private func makeHostedValidationState(for scenario: String, now: Date) -> MenuBarMenuState {
@@ -880,10 +1152,155 @@ struct MenuBarValidationCommandTests {
 
 private struct ScenarioSummary: Codable {
     let scenario: String
+    let proofType: String
+    let proofLayer: String
     let assertions: [String]
-    let screenshot: String
-    let uiTree: String
-    let extraArtifacts: [String]?
+    let requiredArtifacts: [ScenarioArtifact]
+    let debugArtifacts: [ScenarioArtifact]?
+    let gaps: [String]
+    let kiteValidation: KiteValidationSummaryArtifact?
+    let status: String
+}
+
+private struct ScenarioArtifact: Codable, Equatable {
+    let kind: String
+    let path: String
+    let required: Bool
+    let claimScope: [String]
+}
+
+private struct ScenarioSpecificArtifacts {
+    let requiredArtifacts: [ScenarioArtifact]
+    let kiteValidation: KiteValidationSummaryArtifact?
+
+    init(
+        requiredArtifacts: [ScenarioArtifact] = [],
+        kiteValidation: KiteValidationSummaryArtifact? = nil
+    ) {
+        self.requiredArtifacts = requiredArtifacts
+        self.kiteValidation = kiteValidation
+    }
+}
+
+private struct KiteValidationSummaryArtifact: Codable, Equatable {
+    let command: String
+    let contractId: String
+    let scenarioId: String
+    let assertionCount: Int
+
+    init(summary: KiteUiStructureValidationSummary) {
+        command = "kite ui-structure validate --artifact ui-structure-contract.json --json"
+        contractId = summary.contractId
+        scenarioId = summary.scenarioId
+        assertionCount = summary.assertionCount
+    }
+}
+
+private struct ScenarioProofProfile {
+    let proofType: String
+    let proofLayer: String
+    let hostedArtifactsAreRequired: Bool
+    let gaps: [String]
+
+    static func make(
+        scenario: String,
+        requestedProofType: String?
+    ) throws -> ScenarioProofProfile {
+        let profile: ScenarioProofProfile
+        if structureContractScenarios.contains(scenario) {
+            profile = ScenarioProofProfile(
+                proofType: "ui-structure-contract",
+                proofLayer: "ui-structure-contract",
+                hostedArtifactsAreRequired: false,
+                gaps: structureContractGaps(for: scenario)
+            )
+        } else {
+            profile = ScenarioProofProfile(
+                proofType: "deterministic-ui",
+                proofLayer: "deterministic-ui",
+                hostedArtifactsAreRequired: true,
+                gaps: deterministicUIGaps(for: scenario)
+            )
+        }
+
+        if let requestedProofType, requestedProofType != profile.proofType {
+            throw ValidationError.unsupportedProofType(
+                scenario: scenario,
+                requested: requestedProofType,
+                expected: profile.proofType
+            )
+        }
+        return profile
+    }
+
+    private static let structureContractScenarios: Set<String> = [
+        "hosted-menu-default",
+        "menu-busy-status",
+        "menu-empty-catalog",
+        "menu-account-overflow",
+        "menu-unmatched-active-account"
+    ]
+
+    private static func structureContractGaps(for scenario: String) -> [String] {
+        var gaps = [
+            "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
+            "Does not prove native menu opening, native click routing, focus, or hittability.",
+            "Does not prove the live macOS menu bar surface."
+        ]
+
+        switch scenario {
+        case "hosted-menu-default":
+            gaps.append(contentsOf: [
+                "Does not prove SwiftUI preview rendering.",
+                "Does not prove live Codex account or app-server state."
+            ])
+        case "menu-busy-status":
+            gaps.append(contentsOf: [
+                "Does not prove workflow action dispatch or event-log ordering.",
+                "Does not prove busy actions route through confirmation paths.",
+                "Does not prove live Codex workflow state."
+            ])
+        case "menu-empty-catalog":
+            gaps.append(contentsOf: [
+                "Does not prove Add Account sign-in workflow behavior.",
+                "Does not prove live Codex auth lookup or account switching."
+            ])
+        case "menu-account-overflow":
+            gaps.append(contentsOf: [
+                "Does not prove live Codex auth lookup.",
+                "Does not prove account switching.",
+                "Does not prove runtime menu opening or pointer interaction."
+            ])
+        case "menu-unmatched-active-account":
+            gaps.append(contentsOf: [
+                "Does not prove live Codex auth lookup.",
+                "Does not prove account switching."
+            ])
+        default:
+            break
+        }
+
+        return gaps
+    }
+
+    private static func deterministicUIGaps(for scenario: String) -> [String] {
+        switch scenario {
+        case "launch-at-login-menu-states":
+            return [
+                "Does not register or unregister the real macOS login item.",
+                "Does not open System Settings.",
+                "Does not prove live macOS menu-bar behavior."
+            ]
+        case "status-bar-icon-text-visible":
+            return [
+                "Does not prove live menubar screen capture, hover, shortcut reveal, or native hittability."
+            ]
+        default:
+            return [
+                "Does not prove live macOS menu-bar behavior."
+            ]
+        }
+    }
 }
 
 private struct LaunchAtLoginStateMatrix: Codable {
@@ -941,6 +1358,17 @@ private struct StatusItemStateArtifact: Codable {
 private struct ValidationRequest: Codable {
     let artifactDirectory: String
     let scenario: String
+    let proofType: String?
+    let kiteCommand: String?
+    let kiteCommandArgument: String?
+    let kiteCommandArguments: [String]?
+
+    var singleKiteCommandArgument: [String] {
+        guard let kiteCommandArgument, !kiteCommandArgument.isEmpty else {
+            return []
+        }
+        return [kiteCommandArgument]
+    }
 }
 
 private final class KiteCommandRunnerProbe: CommandRunner, @unchecked Sendable {
@@ -967,6 +1395,8 @@ private final class KiteCommandRunnerProbe: CommandRunner, @unchecked Sendable {
 
 private enum ValidationError: Error {
     case unknownScenario(String)
+    case invalidJSONObject(String)
+    case unsupportedProofType(scenario: String, requested: String, expected: String)
 }
 
 private struct NullCodexAppProcessClient: CodexAppProcessClient {

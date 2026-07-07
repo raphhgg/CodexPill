@@ -89,6 +89,61 @@ struct MenuBarStructureContractExporterTests {
         ])
     }
 
+    @Test
+    func menuStructureExporterPrefersExactSubmenuActionOverFuzzyParentMatch() throws {
+        let snapshot = MenuBarValidationSnapshot(
+            sections: [
+                .init(title: "Manage Accounts", items: ["Add Account… (disabled)"])
+            ],
+            statusMessage: nil,
+            currentAccount: nil,
+            remoteHosts: [],
+            hasStatusItemContentData: false,
+            effectiveStatusBarDisplayMode: "iconOnly",
+            statusItem: nil,
+            actionTrace: nil,
+            menuItems: [
+                .init(
+                    title: "Account",
+                    isEnabled: true,
+                    state: "off",
+                    hasAction: false,
+                    actionSelector: nil,
+                    isSeparator: false,
+                    viewFrameWidth: nil,
+                    children: [
+                        .init(
+                            title: "Add Account…",
+                            isEnabled: false,
+                            state: "off",
+                            hasAction: true,
+                            actionSelector: "addAccount:",
+                            isSeparator: false,
+                            viewFrameWidth: nil,
+                            children: []
+                        )
+                    ]
+                )
+            ]
+        )
+
+        let root = MenuBarStructureExporter.makeStructure(from: snapshot)
+        let manageSection = try #require(root.children?.first { $0.id == "manage-accounts-section" })
+        let addAccount = try #require(manageSection.children?.first)
+
+        #expect(addAccount.id == "add-account")
+        #expect(addAccount.role == "menu-item")
+        #expect(addAccount.label == "Add Account…")
+        #expect(addAccount.enabled == false)
+        #expect(addAccount.actions == [
+            UiStructureActionArtifact(
+                id: "selector:add-account",
+                label: "Add Account…",
+                enabled: false
+            )
+        ])
+    }
+
     private func emptyCatalogSnapshot() -> MenuBarValidationSnapshot {
         MenuBarValidationSnapshot(
             sections: [

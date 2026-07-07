@@ -81,8 +81,11 @@ make verify-ui SCENARIO=token-usage-loading-progress
 ```
 
 Those commands write deterministic artifacts under their matching
-`build/verification/<scenario>/` directories. UI scenarios usually write a
-hosted validation screenshot, `ui-tree.json`, and `scenario-summary.json`.
+`build/verification/<scenario>/` directories. Structure-contract scenarios
+write required `ui-structure-contract.json` proof plus `scenario-summary.json`;
+hosted screenshots and `ui-tree.json` may also be emitted there, but only as
+debug artifacts and not as required proof. Deterministic visual scenarios still
+write required hosted screenshots, `ui-tree.json`, and `scenario-summary.json`.
 Unit scenarios write focused test output and a scenario summary. Some scenarios
 also write feature-specific structured artifacts such as state matrices or
 runtime state snapshots. This is deterministic product evidence, not SwiftUI
@@ -394,7 +397,9 @@ The adapter currently includes:
 
 - `.kite/scenarios.json` for feature, acceptance criteria, Validation Intent,
   artifact, privacy, and non-regression declarations;
-- `make verify-ui SCENARIO=<scenario>` for deterministic hosted-menu proof;
+- `make verify-ui SCENARIO=<scenario>` for deterministic hosted-menu proof,
+  with the command request naming either `ui-structure-contract` or
+  `deterministic-ui` as the requested proof type;
 - `make verify-diagnostics-export-confirmation-scenario` for focused
   Diagnostics export confirmation and redacted-support artifact proof;
 - `make verify-notifications-permission-denied-menu-state-scenario` for focused
