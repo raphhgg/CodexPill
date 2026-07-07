@@ -22,12 +22,9 @@
       "privacy"
     ],
     "nonClaims": [
-      "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
-      "Does not prove native menu opening, native click routing, focus, or hittability.",
       "Does not prove workflow action dispatch or event-log ordering.",
       "Does not prove busy actions route through confirmation paths.",
-      "Does not prove live Codex workflow state.",
-      "Does not prove the live macOS menu bar surface."
+      "Does not prove live Codex workflow state."
     ]
   },
   "nonRegression": {
@@ -40,12 +37,9 @@
   },
   "proof": {
     "nonClaims": [
-      "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
-      "Does not prove native menu opening, native click routing, focus, or hittability.",
       "Does not prove workflow action dispatch or event-log ordering.",
       "Does not prove busy actions route through confirmation paths.",
-      "Does not prove live Codex workflow state.",
-      "Does not prove the live macOS menu bar surface."
+      "Does not prove live Codex workflow state."
     ]
   },
   "expectedMetadata": {

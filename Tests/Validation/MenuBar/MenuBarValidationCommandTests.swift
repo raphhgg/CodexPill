@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import KiteValidationContracts
 import Testing
 
 @testable import CodexPill
@@ -70,6 +71,59 @@ struct MenuBarValidationCommandTests {
         let request = try #require(loadedRequest)
 
         #expect(request.artifactDirectory == "/tmp/codexpill-artifacts")
+        #expect(request.scenario == "menu-empty-catalog")
+        #expect(request.proofType == "ui-structure-contract")
+    }
+
+    @Test
+    func validationRequestReadsKiteScenarioCommandRequestEnvironment() throws {
+        let requestURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("MenuBarValidationCommandTests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("kite-command-request.json")
+        try FileManager.default.createDirectory(
+            at: requestURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try Data("""
+        {
+          "kind": "kite_scenario_command_request",
+          "schemaVersion": "kite.validation.scenario-command-request.v1",
+          "product": {
+            "id": "codexpill",
+            "name": "CodexPill",
+            "platforms": ["macos"]
+          },
+          "scenario": {
+            "id": "menu-empty-catalog",
+            "title": "Menu empty catalog",
+            "featureId": "account-catalog-empty-state",
+            "acceptanceCriteria": ["empty-catalog-guides-to-add-account"],
+            "targetSurface": "CodexPill hosted menu validation view",
+            "proof": {
+              "layer": "ui-structure-contract",
+              "artifactSource": "hosted-menu-structure-exporter"
+            },
+            "validationModes": ["unit_only"]
+          },
+          "artifactDirectory": "/tmp/codexpill-kite-artifacts",
+          "expectedArtifacts": [
+            {
+              "id": "menu-empty-catalog-contract",
+              "kind": "ui_structure_contract",
+              "path": "build/verification/menu-empty-catalog/ui-structure-contract.json",
+              "claimScope": ["menu-empty-catalog-structure"],
+              "redactionStatus": "sanitized"
+            }
+          ]
+        }
+        """.utf8).write(to: requestURL, options: .atomic)
+
+        let loadedRequest = try loadValidationRequest(
+            environment: ["KITE_SCENARIO_REQUEST": requestURL.path]
+        )
+        let request = try #require(loadedRequest)
+
+        #expect(request.artifactDirectory == "/tmp/codexpill-kite-artifacts")
         #expect(request.scenario == "menu-empty-catalog")
         #expect(request.proofType == "ui-structure-contract")
     }
@@ -779,6 +833,14 @@ struct MenuBarValidationCommandTests {
         environment: [String: String] = ProcessInfo.processInfo.environment,
         fallbackURL: URL? = nil
     ) throws -> ValidationRequest? {
+        if let request = try KiteScenarioCommandRequestLoader.load(environment: environment) {
+            return ValidationRequest(
+                artifactDirectory: request.artifactDirectory,
+                scenario: request.scenario.id,
+                proofType: request.scenario.proof.layer
+            )
+        }
+
         if let requestPath = environment["CODEXPILL_VALIDATION_REQUEST"] {
             return try loadValidationRequest(at: URL(fileURLWithPath: requestPath))
         }

@@ -58,7 +58,7 @@ verify-selected-tests: generate prepare-result-bundle
 	mkdir -p "$(VERIFICATION_DIR)"
 	mkdir -p "$(VERIFICATION_ARTIFACTS)"
 	printf '{\n  "artifactDirectory": "%s",\n  "scenario": "%s",\n  "proofType": "%s"\n}\n' "$(abspath $(VERIFICATION_ARTIFACTS))" "$(SCENARIO)" "$(REQUESTED_PROOF_TYPE)" > "$(VERIFICATION_REQUEST)"
-	trap 'rm -f "$(VERIFICATION_REQUEST_ACTIVE)"' EXIT; touch "$(VERIFICATION_REQUEST_ACTIVE)"; CODEXPILL_VALIDATION_REQUEST="$(abspath $(VERIFICATION_REQUEST))" xcodebuild test \
+	trap 'rm -f "$(VERIFICATION_REQUEST_ACTIVE)"' EXIT; touch "$(VERIFICATION_REQUEST_ACTIVE)"; xcodebuild test \
 		-project $(PROJECT_PATH) \
 		-scheme $(APP_NAME) \
 		-configuration Debug \

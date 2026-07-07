@@ -23,11 +23,8 @@
       "privacy"
     ],
     "nonClaims": [
-      "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
-      "Does not prove native menu opening, native click routing, focus, or hittability.",
       "Does not prove live Codex auth lookup.",
-      "Does not prove account switching.",
-      "Does not prove the live macOS menu bar surface."
+      "Does not prove account switching."
     ]
   },
   "nonRegression": {
@@ -41,11 +38,8 @@
   },
   "proof": {
     "nonClaims": [
-      "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
-      "Does not prove native menu opening, native click routing, focus, or hittability.",
       "Does not prove live Codex auth lookup.",
-      "Does not prove account switching.",
-      "Does not prove the live macOS menu bar surface."
+      "Does not prove account switching."
     ]
   },
   "expectedMetadata": {

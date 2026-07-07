@@ -1,6 +1,12 @@
 import Foundation
 import Testing
 
+private let hostedUiStructureCommonNonClaims = [
+    "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
+    "Does not prove native menu opening, native click routing, focus, or hittability.",
+    "Does not prove the live macOS menu bar surface."
+]
+
 struct ScenarioContractFileTests {
     @Test
     func scenarioPackFilesAreMinimalAndUniquelyAddressed() throws {
@@ -23,6 +29,8 @@ struct ScenarioContractFileTests {
         #expect(try selectedTests.string(forKey: "run") == "make verify-selected-tests SCENARIO={scenarioId} TEST_SELECTORS=\"{commandInput.testSelectors}\"")
         let makeTarget = try commandProfiles.object(forKey: "make-target")
         #expect(try makeTarget.string(forKey: "run") == "make {commandTarget} SCENARIO={scenarioId}")
+        #expect(!makefile.contains("CODEXPILL_VALIDATION_REQUEST"))
+        #expect(makefile.contains("KITE_SCENARIO_REQUEST") == false)
         let commandInputTemplates = try defaults.object(forKey: "commandInputTemplates")
         let testSelectors = try commandInputTemplates.object(forKey: "testSelectors")
         #expect(try testSelectors.string(forKey: "item") == "-only-testing:{value}")
@@ -32,6 +40,9 @@ struct ScenarioContractFileTests {
         let hostedProof = try hostedUiStructure.object(forKey: "proof")
         #expect(try hostedProof.string(forKey: "layer") == "ui-structure-contract")
         #expect(try hostedProof.string(forKey: "artifactSource") == "hosted-menu-structure-exporter")
+        #expect(try hostedProof.stringArray(forKey: "nonClaims") == hostedUiStructureCommonNonClaims)
+        let hostedValidationIntent = try hostedUiStructure.object(forKey: "validationIntent")
+        #expect(try hostedValidationIntent.stringArray(forKey: "nonClaims") == hostedUiStructureCommonNonClaims)
         let hostedArtifact = try hostedUiStructure.object(forKey: "artifact")
         #expect(try hostedArtifact.string(forKey: "kind") == "ui_structure_contract")
         #expect(try hostedArtifact.string(forKey: "path") == "build/verification/{scenarioId}/ui-structure-contract.json")
@@ -151,6 +162,12 @@ struct ScenarioContractFileTests {
 
         let artifact = try object.object(forKey: "artifact")
         #expect(try artifact.stringArray(forKey: "claimScope") == ["\(scenarioID)-structure"])
+
+        let commonNonClaims = Set(hostedUiStructureCommonNonClaims)
+        let proof = try object.object(forKey: "proof")
+        let validationIntent = try object.object(forKey: "validationIntent")
+        #expect(commonNonClaims.isDisjoint(with: Set(try proof.stringArrayIfPresent(forKey: "nonClaims"))))
+        #expect(commonNonClaims.isDisjoint(with: Set(try validationIntent.stringArrayIfPresent(forKey: "nonClaims"))))
     }
 
     private func repositoryRoot(filePath: String = #filePath) throws -> URL {

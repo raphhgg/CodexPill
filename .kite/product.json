@@ -48,7 +48,12 @@
       "hosted-ui-structure": {
         "proof": {
           "layer": "ui-structure-contract",
-          "artifactSource": "hosted-menu-structure-exporter"
+          "artifactSource": "hosted-menu-structure-exporter",
+          "nonClaims": [
+            "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
+            "Does not prove native menu opening, native click routing, focus, or hittability.",
+            "Does not prove the live macOS menu bar surface."
+          ]
         },
         "validationIntent": {
           "supportingProof": [
@@ -56,6 +61,11 @@
           ],
           "requiredEvidence": [
             "ui-structure-contract"
+          ],
+          "nonClaims": [
+            "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
+            "Does not prove native menu opening, native click routing, focus, or hittability.",
+            "Does not prove the live macOS menu bar surface."
           ]
         },
         "artifact": {
