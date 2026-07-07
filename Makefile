@@ -637,7 +637,7 @@ verify-status-bar-usage-bars-preferences-scenario: generate prepare-result-bundl
 		-only-testing:CodexPillTests/StatusItemSettingsStoreTests \
 		-only-testing:CodexPillTests/CodexPillSettingsStoreTests \
 		-only-testing:CodexPillTests/MenuBarMenuBuilderTests \
-		-only-testing:CodexPillTests/MenuBarUIValidationTests \
+		-only-testing:CodexPillTests/MenuBarSnapshotExtractionTests \
 		-only-testing:CodexPillTests/MenuBarRuntimeValidationTests \
 		PRODUCT_BUNDLE_IDENTIFIER="$(STAGING_BUNDLE_ID)"
 	printf '%s\n' \
@@ -649,7 +649,7 @@ verify-status-bar-usage-bars-preferences-scenario: generate prepare-result-bundl
 		'    "Icon style action stores Stacked Bars without touching account state",' \
 		'    "Monochrome, pacing marker, and accent reset actions update presentation preferences only",' \
 		'    "Menu builder exposes preference controls with stable selectors and selected states",' \
-		'    "Deterministic validation snapshot records preference rows and configured accent color",' \
+		'    "Semantic menu snapshot records preference rows and configured accent color",' \
 		'    "Account catalog, active account, and isolated auth file remain unchanged"' \
 		'  ],' \
 		'  "status": "passed"' \
@@ -659,7 +659,7 @@ verify-status-bar-usage-bars-preferences-scenario: generate prepare-result-bundl
 		'  "assertions": [' \
 		'    "Status item settings persist label mode, icon style, pacing markers, custom accent color, and accent reset",' \
 		'    "Menu builder exposes Menu Bar Label, Icon Style, Show Pace Markers, Accent Color, and Use Default controls",' \
-		'    "UI validation snapshot records configured progress bar colors and preference rows",' \
+		'    "Semantic menu snapshot records configured progress bar colors and preference rows",' \
 		'    "Coordinator preference actions preserve account catalog, active account, and auth-file bytes"' \
 		'  ],' \
 		'  "command": "make verify-status-bar-usage-bars-preferences-scenario",' \
