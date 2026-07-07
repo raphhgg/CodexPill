@@ -32,7 +32,7 @@ degraded-proof rules are concrete enough to promote.
 - Release and compiler migration gates can use the same proof-contract shape,
   but they are maintainer validation gates rather than product UI scenarios.
 
-## Validation Boundary Follow-Ups
+## Validation Boundaries
 
 The menu structure exporter should emit observed structure from the built menu
 snapshot. Scenario-specific assertions should remain declarative and thin until
@@ -45,12 +45,14 @@ and `MenuBarValidationObserver` emit runtime events only for manifest-backed
 scenarios whose canonical proof layer is `workflow-event-log`; unit,
 contract-fixture, diagnostics, and deterministic UI scenarios may write
 receipts or snapshots but do not imply observer-produced workflow logs. This
-remaining follow-up should be tackled before promoting more live or
-workflow-heavy scenarios:
+fixture/bootstrap boundary is closed for the current runnable deterministic
+scenarios: product-owned `MenuBarValidationScenarioFixtures` builds synthetic
+hosted-menu states for scenario commands and tests, `ValidationFixtureBootstrap`
+loads external settings fixtures at app bootstrap, and SwiftUI
+presentation/alert views render from injected state instead of reading
+`CODEXPILL_VALIDATION_SCENARIO` or matching scenario ids directly.
 
-1. **Fixture/bootstrap boundary**: keep scenario fixtures in bootstrap or
-   injected environment code, not inside SwiftUI views. Production views should
-   not branch directly on `CODEXPILL_VALIDATION_SCENARIO`.
+No remaining validation boundary follow-up is documented in this index.
 
 ## Proof Contract Expansion
 

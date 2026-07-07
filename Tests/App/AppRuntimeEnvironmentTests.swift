@@ -161,4 +161,84 @@ struct AppRuntimeEnvironmentTests {
             )
         )
     }
+
+    @Test
+    func scenarioFixtureFactoryLivesInProductValidationAdapter() throws {
+        let root = try repositoryRoot()
+        let productFixture = root
+            .appendingPathComponent("Sources/Features/MenuBar/Validation/MenuBarValidationScenarioFixtures.swift")
+        let testFixture = root
+            .appendingPathComponent("Tests/MenuBar/MenuBarValidationScenarioFixtures.swift")
+
+        #expect(FileManager.default.fileExists(atPath: productFixture.path))
+        #expect(!FileManager.default.fileExists(atPath: testFixture.path))
+    }
+
+    @Test
+    func swiftUIPresentationDoesNotReadValidationScenarioEnvironment() throws {
+        let root = try repositoryRoot()
+        let searchedDirectories = [
+            root.appendingPathComponent("Sources/Features/MenuBar/Alert"),
+            root.appendingPathComponent("Sources/Features/MenuBar/Presentation")
+        ]
+        let forbiddenFragments = [
+            "CODEXPILL_VALIDATION_SCENARIO",
+            "MenuBarValidationConfiguration.scenario(",
+            "remote-host-add-panel-validation",
+            "menu-empty-catalog",
+            "token-usage-ready-card",
+            "token-usage-loading-progress"
+        ]
+
+        for fileURL in try swiftSourceFiles(in: searchedDirectories) {
+            let contents = try String(contentsOf: fileURL, encoding: .utf8)
+            for fragment in forbiddenFragments {
+                #expect(
+                    !contents.contains(fragment),
+                    "\(fileURL.path) should render from injected state instead of branching on validation scenario '\(fragment)'"
+                )
+            }
+        }
+    }
+
+    private func repositoryRoot(filePath: String = #filePath) throws -> URL {
+        var directory = URL(fileURLWithPath: filePath).deletingLastPathComponent()
+
+        while directory.path != "/" {
+            if FileManager.default.fileExists(atPath: directory.appendingPathComponent("Makefile").path) {
+                return directory
+            }
+            directory.deleteLastPathComponent()
+        }
+
+        throw AppRuntimeEnvironmentTestError.repositoryRootNotFound
+    }
+
+    private func swiftSourceFiles(in directories: [URL]) throws -> [URL] {
+        try directories.flatMap { directory in
+            guard let enumerator = FileManager.default.enumerator(
+                at: directory,
+                includingPropertiesForKeys: [.isRegularFileKey],
+                options: [.skipsHiddenFiles]
+            ) else {
+                return [URL]()
+            }
+
+            var files: [URL] = []
+            for item in enumerator {
+                guard let fileURL = item as? URL else { continue }
+                let resourceValues = try fileURL.resourceValues(forKeys: [.isRegularFileKey])
+                guard resourceValues.isRegularFile == true,
+                      fileURL.pathExtension == "swift" else {
+                    continue
+                }
+                files.append(fileURL)
+            }
+            return files
+        }
+    }
+}
+
+private enum AppRuntimeEnvironmentTestError: Error {
+    case repositoryRootNotFound
 }

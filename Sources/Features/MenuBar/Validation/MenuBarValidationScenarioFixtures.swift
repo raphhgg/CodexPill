@@ -1,7 +1,5 @@
 import Foundation
 
-@testable import CodexPill
-
 @MainActor
 enum MenuBarValidationScenarioFixtures {
     static func makeState(for scenario: String, now: Date) -> MenuBarMenuState {

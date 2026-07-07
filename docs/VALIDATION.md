@@ -467,7 +467,9 @@ The adapter currently includes:
 - `NoopCodexAppProcessClient` for validation runs that must not relaunch the
   real Codex app;
 - `ValidationFixtureBootstrap` for loading product-owned validation fixture
-  state into isolated settings;
+  state into isolated settings at app bootstrap;
+- `MenuBarValidationScenarioFixtures` for product-owned synthetic hosted-menu
+  state used by runnable deterministic scenario commands and tests;
 - `MenuBarValidationObserver` and `MenuBarValidationConfiguration` as
   product-owned `workflow-event-log` instrumentation for manifest scenarios
   whose canonical primary proof layer is `workflow-event-log`.
