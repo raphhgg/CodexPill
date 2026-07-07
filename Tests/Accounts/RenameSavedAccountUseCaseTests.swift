@@ -90,6 +90,26 @@ struct RenameSavedAccountUseCaseTests {
     }
 
     @Test
+    func runPersistsCatalogInDisplayNameOrderAfterSuccessfulRename() throws {
+        let account = makeAccount(name: "Zebra")
+        let first = makeAccount(name: "Alpha")
+        let last = makeAccount(name: "Omega")
+        let repository = RenamingCatalogProbe()
+        let useCase = RenameSavedAccountUseCase(repository: repository)
+
+        let result = try useCase.run(
+            account: account,
+            newName: "Beta",
+            accounts: [account, last, first]
+        )
+
+        #expect(result.accounts.map(\.name) == ["Alpha", "Beta", "Omega"])
+        #expect(repository.savedAccounts?.map(\.name) == ["Alpha", "Beta", "Omega"])
+        #expect(result.renamedAccount.id == account.id)
+        #expect(result.renamedAccount.snapshotFileName == account.snapshotFileName)
+    }
+
+    @Test
     func runRejectsDuplicateNameCaseInsensitively() {
         let account = makeAccount(name: "Business 1")
         let other = makeAccount(name: "Personal")

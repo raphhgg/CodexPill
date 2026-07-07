@@ -322,6 +322,10 @@
         {
           "id": "rename-rejects-invalid-names",
           "statement": "Empty, whitespace-only, and case-insensitive duplicate rename inputs must be rejected without mutating the account catalog or auth state."
+        },
+        {
+          "id": "rename-sorts-catalog-by-display-name",
+          "statement": "After a successful rename, the persisted account catalog must be sorted by display name without changing saved auth snapshots or account identity."
         }
       ]
     },
@@ -2332,7 +2336,8 @@
       "featureId": "rename-account-label",
       "acceptanceCriteria": [
         "rename-changes-label-only",
-        "rename-rejects-invalid-names"
+        "rename-rejects-invalid-names",
+        "rename-sorts-catalog-by-display-name"
       ],
       "targetSurface": "CodexPill account catalog unit boundary",
       "validationModes": ["unit_only"],

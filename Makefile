@@ -662,10 +662,24 @@ verify-rename-scenario: generate prepare-result-bundle
 		'  "assertions": [' \
 		'    "Rename changes only the CodexPill display label",' \
 		'    "Rename preserves saved auth snapshot, identity, plan, and rate-limit state",' \
-		'    "Empty, whitespace-only, duplicate, and same-name inputs do not mutate auth state"' \
+		'    "Empty, whitespace-only, duplicate, and same-name inputs do not mutate auth state",' \
+		'    "Successful rename persists the catalog in display-name sort order"' \
 		'  ],' \
-		'  "extraArtifacts": [],' \
+		'  "command": "make verify-rename-scenario",' \
+		'  "gaps": [' \
+		'    "Native rename dialog presentation and text entry are not proven by this unit scenario",' \
+		'    "Live auth mutation, live Codex process state, and remote host mutation are not exercised",' \
+		'    "Live macOS menu-bar behavior is not proven"' \
+		'  ],' \
+		'  "invariantIds": [' \
+		'    "rename-account.label-only.display-label-changes",' \
+		'    "rename-account.label-only.auth-state-preserved",' \
+		'    "rename-account.label-only.invalid-names-rejected",' \
+		'    "rename-account.catalog.sorts-by-display-name"' \
+		'  ],' \
+		'  "proofLayer": "unit",' \
 		'  "scenario": "$(RENAME_SCENARIO)",' \
+		'  "status": "passed",' \
 		'  "testResultBundle": "$(RESULT_BUNDLE)"' \
 		'}' > "$(RENAME_SCENARIO_ARTIFACTS)/scenario-summary.json"
 

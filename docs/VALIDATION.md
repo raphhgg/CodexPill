@@ -276,9 +276,10 @@ Current deterministic scenarios:
 - `rename-account-label-only`: changed-feature non-regression for Rename
   Account. It proves through focused unit tests that rename changes only the
   CodexPill display label, preserves saved auth snapshot identity, plan, and
-  rate-limit state, and rejects empty or duplicate names; it does not prove
-  native rename dialog interaction, live auth mutation, remote host mutation, or
-  live macOS menu-bar behavior.
+  rate-limit state, rejects empty or duplicate names, and persists successful
+  renames in display-name sort order; it does not prove native rename dialog
+  interaction, live auth mutation, remote host mutation, or live macOS menu-bar
+  behavior.
 - `refresh-inactive-isolated-status`: changed-feature non-regression for
   Refresh Accounts inactive saved-account status reads. It proves through
   focused use-case, app-server contract, and isolated path tests that inactive

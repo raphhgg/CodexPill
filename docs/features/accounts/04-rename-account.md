@@ -101,8 +101,8 @@ Product scenarios:
 
 - `rename-account-label-only` proves that renaming changes only the display
   label, preserves saved auth snapshot, Codex identity, plan, and rate-limit
-  data, and rejects empty, whitespace-only, duplicate, and same-name inputs
-  without auth mutation.
+  data, rejects empty, whitespace-only, duplicate, and same-name inputs without
+  auth mutation, and persists successful renames in display-name sort order.
 
 Required evidence:
 
