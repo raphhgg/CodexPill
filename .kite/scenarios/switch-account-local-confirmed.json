@@ -62,9 +62,7 @@
       "Does not prove live macOS menu-bar behavior."
     ]
   },
-  "command": {
-    "run": "node scripts/run-kite-scenario.mjs"
-  },
+  "commandTarget": "verify-switch-account-local-confirmed-scenario",
   "expectedArtifacts": [
     {
       "id": "switch-account-local-confirmed-result-bundle",

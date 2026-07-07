@@ -65,9 +65,7 @@
       "Does not exercise live menu-bar clicks or live System Settings UI."
     ]
   },
-  "command": {
-    "run": "node scripts/run-kite-scenario.mjs"
-  },
+  "commandTarget": "verify-launch-at-login-enable-confirmation-scenario",
   "expectedArtifacts": [
     {
       "id": "launch-at-login-enable-confirmation-result-bundle",

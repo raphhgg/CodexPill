@@ -22,9 +22,9 @@ unit and integration tests.
 CodexPill exposes reusable product scenarios for Kite through a scenario pack.
 Product identity and shared defaults live in `.kite/product.json`; the
 reviewable product-owned contract for each scenario lives in
-`.kite/scenarios/<scenario-id>.json`. CodexPill owns scenario IDs, commands,
-fixture state, and product semantics; Kite owns pack normalization, manifest
-validation, artifact validation, receipts, and reports.
+`.kite/scenarios/<scenario-id>.json`. CodexPill owns scenario IDs, command
+targets, fixture state, and product semantics; Kite owns pack normalization,
+manifest validation, artifact validation, receipts, and reports.
 
 The pack normalizes into Kite's v2 feature-scenario contract:
 
@@ -84,11 +84,11 @@ make verify-token-usage-privacy-scenario
 make verify-ui SCENARIO=token-usage-loading-progress
 ```
 
-Kite runs every scenario through `node scripts/run-kite-scenario.mjs`. The
-adapter reads `KITE_SCENARIO_REQUEST`, checks Kite's request kind/schema, maps
-the requested scenario id to the existing focused `make` target, and passes the
-scenario id through `SCENARIO`. Direct local runs may still call the focused
-`make` targets above.
+Kite expands the pack's shared `make-target` command profile into
+`make {commandTarget} SCENARIO={scenarioId}`. Each scenario file declares the
+small `commandTarget` it needs, so CodexPill no longer carries a local
+scenario-id dispatcher. Direct local runs may still call the focused `make`
+targets above.
 
 CodexPill no longer writes product-local `scenario-summary.json`,
 `workflow-receipt.json`, `contract-receipt.json`, `validation-receipt.json`, or

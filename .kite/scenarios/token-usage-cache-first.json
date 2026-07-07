@@ -59,9 +59,7 @@
       "Does not prove live macOS menu-bar behavior."
     ]
   },
-  "command": {
-    "run": "node scripts/run-kite-scenario.mjs"
-  },
+  "commandTarget": "verify-token-usage-cache-scenario",
   "expectedArtifacts": [
     {
       "id": "token-usage-cache-first-result-bundle",

@@ -65,9 +65,7 @@
       "Does not prove live macOS menu-bar screen capture or native hittability."
     ]
   },
-  "command": {
-    "run": "node scripts/run-kite-scenario.mjs"
-  },
+  "commandTarget": "verify-status-bar-shortcut-reveal-scenario",
   "expectedArtifacts": [
     {
       "id": "status-bar-shortcut-reveal-result-bundle",

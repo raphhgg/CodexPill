@@ -58,9 +58,7 @@
       "Does not prove the live macOS menu bar surface."
     ]
   },
-  "command": {
-    "run": "node scripts/run-kite-scenario.mjs"
-  },
+  "commandTarget": "verify-ui",
   "expectedArtifacts": [
     {
       "id": "launch-at-login-menu-states-screenshot",

@@ -64,9 +64,7 @@
       "Does not prove multiple-display, notch, or menu-bar layout behavior."
     ]
   },
-  "command": {
-    "run": "node scripts/run-kite-scenario.mjs"
-  },
+  "commandTarget": "verify-status-bar-hover-label-scenario",
   "expectedArtifacts": [
     {
       "id": "status-bar-hover-label-result-bundle",

@@ -58,9 +58,7 @@
       "Does not prove Current Runs Out action routing."
     ]
   },
-  "command": {
-    "run": "node scripts/run-kite-scenario.mjs"
-  },
+  "commandTarget": "verify-notifications-account-available-policy-scenario",
   "expectedArtifacts": [
     {
       "id": "notifications-account-available-policy-result-bundle",

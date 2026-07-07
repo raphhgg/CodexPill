@@ -61,9 +61,7 @@
       "Does not use or prove behavior against real account/auth data."
     ]
   },
-  "command": {
-    "run": "node scripts/run-kite-scenario.mjs"
-  },
+  "commandTarget": "verify-status-bar-usage-bars-preferences-scenario",
   "expectedArtifacts": [
     {
       "id": "status-bar-usage-bars-preferences-result-bundle",

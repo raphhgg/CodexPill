@@ -67,9 +67,7 @@
       "Does not prove live macOS menu-bar behavior."
     ]
   },
-  "command": {
-    "run": "node scripts/run-kite-scenario.mjs"
-  },
+  "commandTarget": "verify-switch-account-remote-install-verify-scenario",
   "expectedArtifacts": [
     {
       "id": "switch-account-remote-install-verify-result-bundle",

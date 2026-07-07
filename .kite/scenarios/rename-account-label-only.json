@@ -60,9 +60,7 @@
       "Does not prove live macOS menu-bar behavior."
     ]
   },
-  "command": {
-    "run": "node scripts/run-kite-scenario.mjs"
-  },
+  "commandTarget": "verify-rename-scenario",
   "expectedArtifacts": [
     {
       "id": "rename-account-label-only-result-bundle",

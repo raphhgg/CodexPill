@@ -59,9 +59,7 @@
       "Does not prove live macOS menu-bar interaction."
     ]
   },
-  "command": {
-    "run": "node scripts/run-kite-scenario.mjs"
-  },
+  "commandTarget": "verify-diagnostics-export-confirmation-scenario",
   "expectedArtifacts": [
     {
       "id": "diagnostics-export-confirmation-result-bundle",

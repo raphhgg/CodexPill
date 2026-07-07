@@ -57,9 +57,7 @@
       "Does not prove menu projection or live macOS menu-bar behavior."
     ]
   },
-  "command": {
-    "run": "node scripts/run-kite-scenario.mjs"
-  },
+  "commandTarget": "verify-refresh-active-relinks-same-account-scenario",
   "expectedArtifacts": [
     {
       "id": "refresh-active-relinks-same-account-result-bundle",

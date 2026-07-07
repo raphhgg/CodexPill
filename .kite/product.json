@@ -9,6 +9,12 @@
     ]
   },
   "scenarioDefaults": {
+    "commandProfile": "make-target",
+    "commandProfiles": {
+      "make-target": {
+        "run": "make {commandTarget} SCENARIO={scenarioId}"
+      }
+    },
     "validationModes": [
       "unit_only"
     ],

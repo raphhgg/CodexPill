@@ -61,9 +61,7 @@
       "Does not prove live macOS menu-bar behavior."
     ]
   },
-  "command": {
-    "run": "node scripts/run-kite-scenario.mjs"
-  },
+  "commandTarget": "verify-add-account-failure-cleanup-scenario",
   "expectedArtifacts": [
     {
       "id": "add-account-failure-cleanup-result-bundle",

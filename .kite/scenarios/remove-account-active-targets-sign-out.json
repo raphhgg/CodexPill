@@ -61,9 +61,7 @@
       "Does not prove live macOS menu-bar behavior."
     ]
   },
-  "command": {
-    "run": "node scripts/run-kite-scenario.mjs"
-  },
+  "commandTarget": "verify-remove-account-active-targets-sign-out-scenario",
   "expectedArtifacts": [
     {
       "id": "remove-account-active-targets-sign-out-result-bundle",

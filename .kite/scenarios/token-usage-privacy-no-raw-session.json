@@ -51,9 +51,7 @@
       "Does not prove Token Usage UI rendering or live macOS menu-bar behavior."
     ]
   },
-  "command": {
-    "run": "node scripts/run-kite-scenario.mjs"
-  },
+  "commandTarget": "verify-token-usage-privacy-scenario",
   "expectedArtifacts": [
     {
       "id": "token-usage-privacy-no-raw-session-result-bundle",

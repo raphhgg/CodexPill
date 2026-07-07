@@ -56,9 +56,7 @@
       "Does not prove runtime menu opening or pointer interaction."
     ]
   },
-  "command": {
-    "run": "node scripts/run-kite-scenario.mjs"
-  },
+  "commandTarget": "verify-ui",
   "expectedArtifacts": [
     {
       "id": "menu-account-overflow-ui-structure-contract",

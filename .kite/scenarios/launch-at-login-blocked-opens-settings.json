@@ -65,9 +65,7 @@
       "Does not prove live menu-bar clicks or signed-app Login Items visibility."
     ]
   },
-  "command": {
-    "run": "node scripts/run-kite-scenario.mjs"
-  },
+  "commandTarget": "verify-launch-at-login-blocked-opens-settings-scenario",
   "expectedArtifacts": [
     {
       "id": "launch-at-login-blocked-opens-settings-result-bundle",

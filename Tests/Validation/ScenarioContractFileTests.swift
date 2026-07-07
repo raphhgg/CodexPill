@@ -11,22 +11,34 @@ struct ScenarioContractFileTests {
         let contractsDirectory = root
             .appendingPathComponent(".kite", isDirectory: true)
             .appendingPathComponent("scenarios", isDirectory: true)
+        let makefile = try String(contentsOf: root.appendingPathComponent("Makefile"), encoding: .utf8)
 
         let productObject = try JSONObject.make(from: Data(contentsOf: productURL))
         #expect(try productObject.string(forKey: "kind") == "product_scenario_pack")
         #expect(try productObject.string(forKey: "schemaVersion") == "kite.validation.scenario-pack.v1")
+        let defaults = try productObject.object(forKey: "scenarioDefaults")
+        #expect(try defaults.string(forKey: "commandProfile") == "make-target")
+        let commandProfiles = try defaults.object(forKey: "commandProfiles")
+        let makeTarget = try commandProfiles.object(forKey: "make-target")
+        #expect(try makeTarget.string(forKey: "run") == "make {commandTarget} SCENARIO={scenarioId}")
 
         let contractURLs = try dedicatedContractURLs(in: contractsDirectory)
         let contractIDs = try contractURLs.map { url in
             let object = try JSONObject.make(from: Data(contentsOf: url))
             let id = try object.string(forKey: "id")
-            let command = try object.object(forKey: "command")
+            let commandTarget = try object.string(forKey: "commandTarget")
 
             #expect(url.lastPathComponent == "\(id).json")
             #expect(object.containsObject(forKey: "feature"))
             #expect(!object.containsValue(forKey: "featureId"))
             #expect(!object.containsValue(forKey: "validationModes"))
-            #expect(try command.string(forKey: "run") == "node scripts/run-kite-scenario.mjs")
+            #expect(!object.containsValue(forKey: "command"))
+            #expect(!object.containsValue(forKey: "commandProfile"))
+            #expect(commandTarget != "verify-kite-scenario")
+            #expect(
+                makefile.contains("\n\(commandTarget):"),
+                "\(id) commandTarget \(commandTarget) should be a Make target"
+            )
             try assertNoLegacyKiteLocalEvidence(in: object, scenarioID: id)
             return id
         }

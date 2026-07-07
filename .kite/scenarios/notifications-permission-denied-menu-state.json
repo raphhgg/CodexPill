@@ -55,9 +55,7 @@
       "Does not prove native click automation or live menu-bar interaction."
     ]
   },
-  "command": {
-    "run": "node scripts/run-kite-scenario.mjs"
-  },
+  "commandTarget": "verify-notifications-permission-denied-menu-state-scenario",
   "expectedArtifacts": [
     {
       "id": "notifications-permission-denied-menu-state-result-bundle",

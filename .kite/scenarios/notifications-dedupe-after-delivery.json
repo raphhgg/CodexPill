@@ -61,9 +61,7 @@
       "Does not touch real Codex account data, real remote hosts, or real switching."
     ]
   },
-  "command": {
-    "run": "node scripts/run-kite-scenario.mjs"
-  },
+  "commandTarget": "verify-notifications-dedupe-after-delivery-scenario",
   "expectedArtifacts": [
     {
       "id": "notifications-dedupe-after-delivery-result-bundle",

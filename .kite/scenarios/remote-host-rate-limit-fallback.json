@@ -63,9 +63,7 @@
       "Does not prove live macOS menu-bar behavior."
     ]
   },
-  "command": {
-    "run": "node scripts/run-kite-scenario.mjs"
-  },
+  "commandTarget": "verify-remote-host-rate-limit-fallback-scenario",
   "expectedArtifacts": [
     {
       "id": "remote-host-rate-limit-fallback-result-bundle",

@@ -55,9 +55,7 @@
       "Does not prove live Codex account or app-server state."
     ]
   },
-  "command": {
-    "run": "node scripts/run-kite-scenario.mjs"
-  },
+  "commandTarget": "verify-ui",
   "expectedArtifacts": [
     {
       "id": "hosted-menu-default-ui-structure-contract",

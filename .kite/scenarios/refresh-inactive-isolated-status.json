@@ -59,9 +59,7 @@
       "Does not prove menu projection or live macOS menu-bar behavior."
     ]
   },
-  "command": {
-    "run": "node scripts/run-kite-scenario.mjs"
-  },
+  "commandTarget": "verify-refresh-inactive-isolated-status-scenario",
   "expectedArtifacts": [
     {
       "id": "refresh-inactive-isolated-status-result-bundle",
