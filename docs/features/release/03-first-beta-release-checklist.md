@@ -114,6 +114,44 @@ Do not mark the release complete until the freshly downloaded artifact launches.
 | Fresh beta download | `manual-qa` plus `live-ui-smoke` | Fresh GitHub Release download, unzip, launch, and Homebrew cask install. | Completed Fresh Download Smoke checklist table. | Downloaded app launches without Gatekeeper bypass, menubar item appears, README copy matches the artifact, and Homebrew installs the same release. | Avoid screenshots or logs containing private desktop content, local usernames, account data, tokens, or private paths. |
 | Repo safety | `fresh-context-review` | `git status --short`, `git diff --check`, and the documented secret-safety `rg` command. | Repo Safety Check notes. | Working tree is clean for release inputs, formatting has no diff-check errors, and every grep match is classified as safe docs or a blocker. | Do not paste secret values into notes, release text, issue comments, or commits. |
 
+## Live Gate Rules
+
+This checklist is a manual release gate. Do not run signing, notarization,
+Gatekeeper assessment, GitHub Release upload, Homebrew install, or fresh
+download smoke as part of a default validation lane. Run those steps only after
+the maintainer explicitly opts into release work for the current thread and the
+source commit/tag are named.
+
+Record cleanup for every live step:
+
+- failed or unsigned release artifacts were not published;
+- temporary fresh-download directories were removed;
+- unpublished Homebrew cask edits were reverted or tracked as an explicit
+  follow-up;
+- any launched test copy of CodexPill was quit;
+- any private screenshots or logs were discarded or redacted.
+
+Use this blocker taxonomy when a row cannot be completed:
+
+- `maintainer_opt_in_missing`
+- `dirty_source`
+- `release_credentials_missing`
+- `packaging_failed`
+- `signing_failed`
+- `notarization_failed`
+- `gatekeeper_failed`
+- `github_release_blocked`
+- `homebrew_cask_blocked`
+- `fresh_download_blocked`
+- `cleanup_block`
+- `privacy_block`
+
+If only a subset runs, write the degraded proof plainly. An unsigned package
+validates local zip shape only. A signed local package validates packaging only
+until the freshly downloaded release artifact launches and the Homebrew cask is
+confirmed against the same file. A repo safety grep does not prove notarization,
+Gatekeeper, or cask install.
+
 ## Repo Safety Check
 
 Before announcing the beta, confirm the public repo and release notes do not

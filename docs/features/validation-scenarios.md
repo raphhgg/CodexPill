@@ -31,6 +31,9 @@ degraded-proof rules are concrete enough to promote.
   non-claims.
 - Release and compiler migration gates can use the same proof-contract shape,
   but they are maintainer validation gates rather than product UI scenarios.
+- Manual gates stay out of `.kite/scenarios.json` until the owning feature doc
+  names the opt-in requirement, cleanup requirement, allowed evidence, blocker
+  taxonomy, degraded proof, and non-claims.
 
 ## Validation Boundaries
 
@@ -160,7 +163,7 @@ must include or link to the refinement proof-contract shape:
 | `launch-at-login-menu-states` | Preferences shows checked, unchecked, blocked, and unavailable Launch at Login states truthfully. | `state_truth`, `ui_visual`, `privacy` | `unit` plus `deterministic-ui`; screenshot, UI tree, summary, and state matrix | `changed-feature`, blocking for app controls | `runnable` |
 | `launch-at-login-enable-confirmation` | Enabling asks for confirmation before registering the macOS login item; cancelling preserves state; disabling unregisters directly. | `ui_interaction`, `system_mutation`, `privacy` | `workflow-event-log`; fake login-item controller, confirmation presenter, and failure receipt | `changed-feature`, blocking for app controls | `runnable` |
 | `launch-at-login-blocked-opens-settings` | Blocked or unavailable state opens System Settings instead of pretending to toggle. | `ui_interaction`, `failure_path`, `privacy` | `workflow-event-log`; fake system opener, menu projection, and no-toggle receipt | `changed-feature`, blocking for app controls | `runnable` |
-| `launch-at-login-real-os-smoke` | A local macOS build appears in System Settings and survives toggle on/off. | `system_mutation`, `manual_release_confidence` | `manual-qa` or explicit opt-in live OS proof with cleanup | release confidence only | `manual-gate` |
+| `launch-at-login-real-os-smoke` | A local macOS build appears in System Settings and survives toggle on/off. | `system_mutation`, `manual_release_confidence` | `manual-qa` or explicit opt-in live OS proof; owning doc records opt-in, cleanup, blocker taxonomy, degraded proof, and non-claims | release confidence only | `manual-gate` |
 
 ## Release And Maintainer Gates
 
@@ -170,9 +173,9 @@ quality rather than a product user path.
 
 | Gate | Acceptance Criteria | Validation Intent | Proof Layer | Non-Regression | Status |
 | --- | --- | --- | --- | --- | --- |
-| `signed-release-package` | Clean `main` produces a signed, notarized, stapled zip that Gatekeeper accepts. | `release_artifact`, `privacy` | `manual-qa`; packaging command output and signing/notarization checks | release only, blocking | `manual-gate` |
-| `beta-release-fresh-download` | Fresh GitHub Release download unzips and launches without Gatekeeper bypass, and Homebrew installs the same artifact. | `release_artifact`, `live_smoke` | `manual-qa`; fresh download/install evidence | release only, blocking | `manual-gate` |
-| `swift-6-language-mode` | App and tests compile in Swift 6 mode with no broad unsafe concurrency escape hatches. | `engineering_quality`, `compiler_contract` | `contract-fixture`; build/test output plus focused code review | release/refactor gate | `manual-gate` |
+| `signed-release-package` | Clean `main` produces a signed, notarized, stapled zip that Gatekeeper accepts. | `release_artifact`, `privacy` | `manual-qa`; release docs record opt-in, cleanup, blocker taxonomy, degraded proof, and signing/notarization checks | release only, blocking | `manual-gate` |
+| `beta-release-fresh-download` | Fresh GitHub Release download unzips and launches without Gatekeeper bypass, and Homebrew installs the same artifact. | `release_artifact`, `live_smoke` | `manual-qa`; release docs record fresh download/install evidence, cleanup, blocker taxonomy, degraded proof, and non-claims | release only, blocking | `manual-gate` |
+| `swift-6-language-mode` | App and tests compile in Swift 6 mode with no broad unsafe concurrency escape hatches. | `engineering_quality`, `compiler_contract` | `contract-fixture`; build/test output, blocker taxonomy, degraded proof, and focused code review | release/refactor gate | `manual-gate` |
 
 ## Next Promotion Candidates
 

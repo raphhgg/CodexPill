@@ -117,6 +117,54 @@ The README should include a short first-run note:
 | README install instructions match the real install paths. | `fresh-context-review` | Review README install copy against release artifact and Homebrew cask. | Review note or checklist row. | README mentions only available install paths; if signed beta downloads are unavailable, it says build from source for now. | Review artifacts must not include secrets, private paths, or local keychain/profile details. |
 | No signing credentials or notarization secrets are stored in the repo. | `fresh-context-review` | Repo safety grep plus staged diff review before publishing. | Secret-scan summary with reviewed matches. | Any match is classified as safe documentation or a blocker before release. | Never print or commit secret values; summarize blockers without exposing raw credentials. |
 
+## Manual Gate Contract
+
+`signed-release-package` and `beta-release-fresh-download` are maintainer gates,
+not default Kite scenarios. They require explicit maintainer opt-in for release
+packaging, notarization, Gatekeeper assessment, GitHub Release publishing, and
+Homebrew cask validation. A local unsigned dry run may validate packaging shape,
+but it must not be presented as a public beta or as Gatekeeper proof.
+
+The release gate evidence must stay summarized:
+
+- source branch, source commit, public tag, and zip filename;
+- packaging, signing, notarization, stapling, and Gatekeeper check status;
+- GitHub Release URL and Homebrew cask reference when published;
+- fresh-download launch result;
+- cleanup result for temporary downloads, failed artifacts, and unpublished cask
+  edits;
+- blocker classification for any incomplete step.
+
+Cleanup is part of the pass condition. Failed or unsigned artifacts must not be
+attached to a public release, temporary download directories should be removed,
+and draft Homebrew or README install changes must be reverted or left as an
+explicit unpublished follow-up. Signing credentials, Apple account identifiers,
+notary profiles, keychain details, auth data, tokens, private paths, and
+personal fixture data must not appear in release notes, docs, issues, or
+commits.
+
+Use this blocker taxonomy for incomplete release proof:
+
+- `maintainer_opt_in_missing`
+- `dirty_source`
+- `release_credentials_missing`
+- `packaging_failed`
+- `signing_failed`
+- `notarization_failed`
+- `gatekeeper_failed`
+- `github_release_blocked`
+- `homebrew_cask_blocked`
+- `fresh_download_blocked`
+- `cleanup_block`
+- `privacy_block`
+
+Degraded proof must be explicit. `PACKAGE_RELEASE_ALLOW_UNSIGNED=1 make
+package-release` can prove local zip structure only; it does not prove Developer
+ID signing, hardened runtime, notarization, stapling, Gatekeeper acceptance,
+fresh download, or Homebrew install. A signed local package before publishing
+does not prove the GitHub Release or cask points at the same artifact. README
+review does not prove the release artifact exists.
+
 ## Out Of Scope / Deferrals
 
 - Sparkle auto-updates.

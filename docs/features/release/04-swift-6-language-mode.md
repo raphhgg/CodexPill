@@ -80,6 +80,33 @@ No user-facing UI, copy, or menu-state changes are expected.
 | App and test targets compile and test in Swift 6 language mode. | `contract-fixture` | Swift 6 build/test commands selected by the implementation slice, ending with `make test`. | Compiler output summary plus test result. | App and test targets use Swift 6 language mode, known diagnostics are resolved, and `make test` passes without broad unsafe concurrency workarounds. | Build/test logs must not include raw auth payloads, tokens, account identifiers, saved snapshots, private local data, or personal fixture values. |
 | Concurrency fixes are narrow and preserve product behavior. | `fresh-context-review` | Focused review of changed concurrency boundaries. | Review note covering task lifetime, cancellation, actor isolation, and `Sendable` correctness. | Any `@unchecked Sendable`, `nonisolated(unsafe)`, or `@preconcurrency` use has a local safety invariant and is narrower than the available actor/value fix. | Review artifacts must not expose auth snapshots, tokens, account identifiers, private paths, emails, or hostnames. |
 
+## Manual Gate Contract
+
+`swift-6-language-mode` is a release/refactor gate, not a normal product UI
+scenario and not a live OS mutation gate. It should stay out of
+`.kite/scenarios.json` until Kite has a separate gate registry for compiler and
+release-quality evidence.
+
+The gate evidence must name the exact build/test commands, the target set that
+compiled in Swift 6 mode, the final `make test` result, and any concurrency
+escape hatches reviewed. Cleanup means leaving only intentional source changes;
+generated projects, build logs, xcresult bundles, DerivedData, and other build
+artifacts must remain ignored and unstaged.
+
+Use this blocker taxonomy for incomplete compiler proof:
+
+- `toolchain_missing`
+- `tuist_generation_failed`
+- `app_target_diagnostic_block`
+- `test_target_diagnostic_block`
+- `test_failure`
+- `unsafe_concurrency_escape_block`
+- `privacy_block`
+
+Degraded proof must be explicit. App-target-only compilation does not prove the
+test target. A compiler build without `make test` does not prove behavior
+preservation. Focused code review does not replace compiler or test output.
+
 ## Out Of Scope / Deferrals
 
 - Adopting new Swift 6.3 language features beyond what is required for Swift 6
