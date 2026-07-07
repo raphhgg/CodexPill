@@ -282,19 +282,56 @@ final class MenuBarValidationObserver: AccountAvailabilityNotificationActionObse
             recordEvent("status_item_hover_exit_scheduled", step: "hover_exit_schedule", invariantIds: Self.hoverInvariantIDs)
         case .hoverExited:
             recordEvent("status_item_hover_exited", step: "hover_exit", invariantIds: Self.hoverInvariantIDs)
+        case .shortcutCallbackForwarded(let repeatPress):
+            recordEvent(
+                "global_shortcut_callback_forwarded",
+                step: repeatPress ? "shortcut_repeat_press" : "shortcut_callback",
+                invariantIds: Self.shortcutRevealInvariantIDs
+            )
         case .shortcutRevealStarted:
             recordEvent("status_item_shortcut_reveal_started", step: "shortcut_reveal_start", invariantIds: Self.shortcutRevealInvariantIDs)
         case .shortcutRevealEnded:
             recordEvent("status_item_shortcut_reveal_ended", step: "shortcut_reveal_end", invariantIds: Self.shortcutRevealInvariantIDs)
-        case .titleBecameVisible(let displayedTitle):
+        case .titleBecameVisible(let displayedTitle, let cause):
             recordEvent(
                 "status_item_title_became_visible",
-                step: "hover_title_visible",
-                invariantIds: Self.hoverInvariantIDs,
+                step: titleBecameVisibleStep(for: cause),
+                invariantIds: titleVisibilityInvariantIDs(for: cause),
                 payload: ["displayedTitle": displayedTitle ?? ""]
             )
-        case .titleHidden:
-            recordEvent("status_item_title_hidden", step: "hover_title_hidden", invariantIds: Self.hoverInvariantIDs)
+        case .titleHidden(let cause):
+            recordEvent(
+                "status_item_title_hidden",
+                step: titleHiddenStep(for: cause),
+                invariantIds: titleVisibilityInvariantIDs(for: cause)
+            )
+        }
+    }
+
+    private func titleBecameVisibleStep(for cause: StatusItemRuntime.TitleVisibilityCause) -> String {
+        switch cause {
+        case .shortcutReveal:
+            return "shortcut_title_visible"
+        case .hover, .persistent:
+            return "hover_title_visible"
+        }
+    }
+
+    private func titleHiddenStep(for cause: StatusItemRuntime.TitleVisibilityCause) -> String {
+        switch cause {
+        case .shortcutReveal:
+            return "shortcut_title_hidden"
+        case .hover, .persistent:
+            return "hover_title_hidden"
+        }
+    }
+
+    private func titleVisibilityInvariantIDs(for cause: StatusItemRuntime.TitleVisibilityCause) -> [String] {
+        switch cause {
+        case .shortcutReveal:
+            return Self.shortcutRevealInvariantIDs
+        case .hover, .persistent:
+            return Self.hoverInvariantIDs
         }
     }
 

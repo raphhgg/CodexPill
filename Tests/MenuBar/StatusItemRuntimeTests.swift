@@ -114,8 +114,8 @@ struct StatusItemRuntimeTests {
         #expect(events.contains(.hoverEntered))
         #expect(events.contains(.hoverExitScheduled))
         #expect(events.contains(.hoverExited))
-        #expect(events.contains(.titleBecameVisible(displayedTitle: "S 42% W 68%")))
-        #expect(events.contains(.titleHidden))
+        #expect(events.contains(.titleBecameVisible(displayedTitle: "S 42% W 68%", cause: .hover)))
+        #expect(events.contains(.titleHidden(cause: .hover)))
     }
 
     @Test
@@ -174,8 +174,12 @@ struct StatusItemRuntimeTests {
 
         let snapshot = try! #require(runtime.snapshotState())
         #expect(!snapshot.isTitleVisible)
+        #expect(events.contains(.shortcutCallbackForwarded(repeatPress: false)))
         #expect(events.contains(.shortcutRevealStarted))
+        #expect(events.contains(.titleBecameVisible(displayedTitle: "S 42% W 68%", cause: .shortcutReveal)))
+        #expect(events.contains(.shortcutCallbackForwarded(repeatPress: true)))
         #expect(events.contains(.shortcutRevealEnded))
+        #expect(events.contains(.titleHidden(cause: .shortcutReveal)))
     }
 
     private func makeAccount() -> CodexAccount {

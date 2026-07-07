@@ -1358,6 +1358,16 @@ struct MenuBarRuntimeValidationTests {
         #expect(!collapsed.isTitleVisible)
         #expect(settings.statusBarDisplayMode == .iconOnly)
         #expect(sink.events.contains(where: { $0.event == "status_item_shortcut_reveal_ended" }))
+
+        let proofSequence = sink.events.map { "\($0.step)|\($0.event)" }
+        #expect(proofSequence == [
+            "shortcut_callback|global_shortcut_callback_forwarded",
+            "shortcut_reveal_start|status_item_shortcut_reveal_started",
+            "shortcut_title_visible|status_item_title_became_visible",
+            "shortcut_repeat_press|global_shortcut_callback_forwarded",
+            "shortcut_reveal_end|status_item_shortcut_reveal_ended",
+            "shortcut_title_hidden|status_item_title_hidden"
+        ])
     }
 
     @Test

@@ -51,10 +51,17 @@ final class StatusItemRuntime {
         case hoverEntered
         case hoverExitScheduled
         case hoverExited
+        case shortcutCallbackForwarded(repeatPress: Bool)
         case shortcutRevealStarted
         case shortcutRevealEnded
-        case titleBecameVisible(displayedTitle: String?)
-        case titleHidden
+        case titleBecameVisible(displayedTitle: String?, cause: TitleVisibilityCause)
+        case titleHidden(cause: TitleVisibilityCause)
+    }
+
+    enum TitleVisibilityCause: Equatable {
+        case hover
+        case shortcutReveal
+        case persistent
     }
 
     var onEvent: ((Event) -> Void)?
@@ -82,6 +89,7 @@ final class StatusItemRuntime {
     private var isPointerInsideStatusItem = false
     private var keepsStatusTitleWhileMenuOpen = false
     private var lastRenderedStatusTitleVisible: Bool?
+    private var lastRenderedStatusTitleVisibilityCause: TitleVisibilityCause?
 
     init(
         statusItem: NSStatusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength),
@@ -172,12 +180,14 @@ final class StatusItemRuntime {
 
     func revealTitleTemporarily(duration: TimeInterval = 3) {
         guard !isShortcutRevealActive else {
+            onEvent?(.shortcutCallbackForwarded(repeatPress: true))
             endShortcutReveal()
             return
         }
 
         shortcutRevealTimer?.invalidate()
         isShortcutRevealActive = true
+        onEvent?(.shortcutCallbackForwarded(repeatPress: false))
         onEvent?(.shortcutRevealStarted)
         updateAppearance()
 
@@ -203,7 +213,10 @@ final class StatusItemRuntime {
         )
         button.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .medium)
 
-        if shouldShowStatusTitle {
+        let isStatusTitleVisible = shouldShowStatusTitle
+        let titleVisibilityCause = isStatusTitleVisible ? currentStatusTitleVisibilityCause : nil
+
+        if isStatusTitleVisible {
             let title = statusItemHoverTitle(for: presentation.activeAccount)
             button.imagePosition = .imageLeading
             button.title = title
@@ -222,8 +235,9 @@ final class StatusItemRuntime {
 
         button.toolTip = statusItemTooltipText(for: presentation.activeAccount)
         recordStatusTitleVisibilityTransition(
-            isVisible: shouldShowStatusTitle,
-            displayedTitle: shouldShowStatusTitle ? button.title : nil
+            isVisible: isStatusTitleVisible,
+            displayedTitle: isStatusTitleVisible ? button.title : nil,
+            cause: titleVisibilityCause
         )
     }
 
@@ -239,6 +253,18 @@ final class StatusItemRuntime {
 
     private var shouldPollHoverState: Bool {
         presentation.displayMode == .textOnHover
+    }
+
+    private var currentStatusTitleVisibilityCause: TitleVisibilityCause {
+        if isShortcutRevealActive {
+            return .shortcutReveal
+        }
+
+        if isStatusItemHovered || keepsStatusTitleWhileMenuOpen {
+            return .hover
+        }
+
+        return .persistent
     }
 
     private func endShortcutReveal() {
@@ -378,15 +404,23 @@ final class StatusItemRuntime {
         )
     }
 
-    private func recordStatusTitleVisibilityTransition(isVisible: Bool, displayedTitle: String?) {
-        defer { lastRenderedStatusTitleVisible = isVisible }
+    private func recordStatusTitleVisibilityTransition(
+        isVisible: Bool,
+        displayedTitle: String?,
+        cause: TitleVisibilityCause?
+    ) {
+        let previousCause = lastRenderedStatusTitleVisibilityCause
+        defer {
+            lastRenderedStatusTitleVisible = isVisible
+            lastRenderedStatusTitleVisibilityCause = isVisible ? cause : nil
+        }
         guard let lastRenderedStatusTitleVisible else { return }
         guard lastRenderedStatusTitleVisible != isVisible else { return }
 
         if isVisible {
-            onEvent?(.titleBecameVisible(displayedTitle: displayedTitle))
+            onEvent?(.titleBecameVisible(displayedTitle: displayedTitle, cause: cause ?? .persistent))
         } else {
-            onEvent?(.titleHidden)
+            onEvent?(.titleHidden(cause: previousCause ?? .persistent))
         }
     }
 
