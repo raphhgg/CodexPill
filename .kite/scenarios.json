@@ -1995,8 +1995,8 @@
       "validationIntent": {
         "featureRisk": ["state_truth", "failure_path", "privacy"],
         "primaryProof": "unit",
-        "supportingProof": ["boundary-contract", "privacy-leak-proof"],
-        "requiredEvidence": ["test-output", "workflow-receipt", "scenario-summary"],
+        "supportingProof": ["privacy-leak-proof"],
+        "requiredEvidence": ["test-output", "validation-receipt", "scenario-summary"],
         "nonClaims": [
           "Does not exercise live SSH, live Codex app-server behavior, real remote auth mutation, or a real remote filesystem.",
           "Does not prove native click automation or live menu-bar interaction.",
@@ -2040,10 +2040,10 @@
           "redactionStatus": "sanitized"
         },
         {
-          "id": "remote-host-verification-failure-workflow-receipt",
-          "kind": "workflow_event_log",
-          "path": "build/verification/remote-host-verification-failure/workflow-receipt.json",
-          "claimScope": ["remote-host-verification-failure-events"],
+          "id": "remote-host-verification-failure-validation-receipt",
+          "kind": "validation_receipt",
+          "path": "build/verification/remote-host-verification-failure/validation-receipt.json",
+          "claimScope": ["remote-host-verification-failure-receipt"],
           "redactionStatus": "sanitized"
         },
         {

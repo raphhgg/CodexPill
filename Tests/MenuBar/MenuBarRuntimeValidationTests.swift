@@ -755,6 +755,20 @@ struct MenuBarRuntimeValidationTests {
     }
 
     @Test
+    func remoteHostVerificationFailureScenarioUsesUnitValidationReceipt() throws {
+        let scenario = try #require(
+            loadScenarioManifest().scenarios.first { $0.id == "remote-host-verification-failure" }
+        )
+
+        #expect(scenario.proof.layer == "unit")
+        #expect(!scenario.expectedArtifacts.contains { $0.kind == "workflow_event_log" })
+        #expect(scenario.expectedArtifacts.contains { artifact in
+            artifact.kind == "validation_receipt"
+                && artifact.path == "build/verification/remote-host-verification-failure/validation-receipt.json"
+        })
+    }
+
+    @Test
     func configurationReturnsSinkOnlyWhenOutputPathIsPresent() {
         #expect(MenuBarValidationConfiguration.makeSink(environment: [:]) == nil)
         #expect(
@@ -2928,6 +2942,7 @@ private struct ManifestScenarioProof: Decodable {
 
 private struct ManifestExpectedArtifact: Decodable {
     let kind: String
+    let path: String
 }
 
 private enum ScenarioManifestLoadError: Error {

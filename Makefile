@@ -1085,7 +1085,7 @@ verify-remote-host-verification-failure-scenario: generate prepare-result-bundle
 		'    "Detected remote accounts stay in host management/adoption surfaces instead of replacing the saved account catalog"' \
 		'  ],' \
 		'  "status": "passed"' \
-		'}' > "$(REMOTE_HOST_VERIFICATION_FAILURE_SCENARIO_ARTIFACTS)/workflow-receipt.json"
+		'}' > "$(REMOTE_HOST_VERIFICATION_FAILURE_SCENARIO_ARTIFACTS)/validation-receipt.json"
 	printf '%s\n' \
 		'{' \
 		'  "assertions": [' \
@@ -1109,7 +1109,7 @@ verify-remote-host-verification-failure-scenario: generate prepare-result-bundle
 		'  "scenario": "$(REMOTE_HOST_VERIFICATION_FAILURE_SCENARIO)",' \
 		'  "status": "passed",' \
 		'  "testResultBundle": "$(RESULT_BUNDLE)",' \
-		'  "workflowReceipt": "$(REMOTE_HOST_VERIFICATION_FAILURE_SCENARIO_ARTIFACTS)/workflow-receipt.json"' \
+		'  "validationReceipt": "$(REMOTE_HOST_VERIFICATION_FAILURE_SCENARIO_ARTIFACTS)/validation-receipt.json"' \
 		'}' > "$(REMOTE_HOST_VERIFICATION_FAILURE_SCENARIO_ARTIFACTS)/scenario-summary.json"
 
 verify-remote-host-rate-limit-fallback-scenario: generate prepare-result-bundle
