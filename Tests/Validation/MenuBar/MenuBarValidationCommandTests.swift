@@ -1,6 +1,5 @@
 import AppKit
 import Foundation
-import KiteValidationContracts
 import Testing
 
 @testable import CodexPill
@@ -833,12 +832,8 @@ struct MenuBarValidationCommandTests {
         environment: [String: String] = ProcessInfo.processInfo.environment,
         fallbackURL: URL? = nil
     ) throws -> ValidationRequest? {
-        if let request = try KiteScenarioCommandRequestLoader.load(environment: environment) {
-            return ValidationRequest(
-                artifactDirectory: request.artifactDirectory,
-                scenario: request.scenario.id,
-                proofType: request.scenario.proof.layer
-            )
+        if let requestPath = environment["KITE_SCENARIO_REQUEST"] {
+            return try loadKiteValidationRequest(at: URL(fileURLWithPath: requestPath))
         }
 
         if let requestPath = environment["CODEXPILL_VALIDATION_REQUEST"] {
@@ -866,6 +861,34 @@ struct MenuBarValidationCommandTests {
 
         let data = try Data(contentsOf: requestURL)
         return try JSONDecoder().decode(ValidationRequest.self, from: data)
+    }
+
+    private func loadKiteValidationRequest(at requestURL: URL) throws -> ValidationRequest? {
+        guard FileManager.default.fileExists(atPath: requestURL.path) else {
+            return nil
+        }
+
+        let data = try Data(contentsOf: requestURL)
+        let object = try JSONSerialization.jsonObject(with: data)
+        guard let record = object as? [String: Any] else {
+            throw ValidationError.invalidKiteScenarioRequest
+        }
+        guard record["kind"] as? String == "kite_scenario_command_request",
+              record["schemaVersion"] as? String == "kite.validation.scenario-command-request.v1",
+              let artifactDirectory = record["artifactDirectory"] as? String,
+              let scenario = record["scenario"] as? [String: Any],
+              let scenarioID = scenario["id"] as? String,
+              let proof = scenario["proof"] as? [String: Any],
+              let proofType = proof["layer"] as? String
+        else {
+            throw ValidationError.invalidKiteScenarioRequest
+        }
+
+        return ValidationRequest(
+            artifactDirectory: artifactDirectory,
+            scenario: scenarioID,
+            proofType: proofType
+        )
     }
 
     private func defaultValidationRequestURL(filePath: String = #filePath) -> URL? {
@@ -1055,6 +1078,7 @@ private struct ValidationRequest: Codable {
 private enum ValidationError: Error {
     case unknownScenario(String)
     case unsupportedProofType(scenario: String, requested: String, expected: String)
+    case invalidKiteScenarioRequest
 }
 
 private struct NullCodexAppProcessClient: CodexAppProcessClient {

@@ -3,12 +3,7 @@ import ProjectDescription
 let project = Project(
     name: "CodexPill",
     organizationName: "raphhgg",
-    packages: [
-        .remote(
-            url: "https://github.com/raphhgg/kite-harness.git",
-            requirement: .revision("6447e5676ad6cce108dfc2e3bd5a5c2ed9c8f638")
-        )
-    ],
+    packages: [],
     targets: [
         .target(
             name: "CodexPill",
@@ -36,9 +31,7 @@ let project = Project(
                 "Resources/AppIcon.icns",
                 "Resources/AppIcon.png",
             ],
-            dependencies: [
-                .package(product: "KiteValidationContracts")
-            ],
+            dependencies: [],
             settings: .settings(base: [
                 "CODE_SIGN_INJECT_BASE_ENTITLEMENTS": "NO",
                 "CURRENT_PROJECT_VERSION": "2",
@@ -55,8 +48,7 @@ let project = Project(
             infoPlist: .default,
             sources: ["Tests/**"],
             dependencies: [
-                .target(name: "CodexPill"),
-                .package(product: "KiteValidationContracts")
+                .target(name: "CodexPill")
             ],
             settings: .settings(base: [
                 "SWIFT_VERSION": "6.0",
