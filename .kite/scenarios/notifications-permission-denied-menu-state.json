@@ -55,7 +55,6 @@
       "Does not prove native click automation or live menu-bar interaction."
     ]
   },
-  "commandTarget": "verify-notifications-permission-denied-menu-state-scenario",
   "expectedArtifacts": [
     {
       "id": "notifications-permission-denied-menu-state-result-bundle",
@@ -69,5 +68,11 @@
   ],
   "expectedMetadata": {
     "scenario": "notifications-permission-denied-menu-state"
+  },
+  "commandInputs": {
+    "testSelectors": [
+      "CodexPillTests/MenuBarMenuBuilderTests",
+      "CodexPillTests/MenuBarRuntimeValidationTests"
+    ]
   }
 }

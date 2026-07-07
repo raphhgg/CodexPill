@@ -58,7 +58,6 @@
       "Does not prove Current Runs Out action routing."
     ]
   },
-  "commandTarget": "verify-notifications-account-available-policy-scenario",
   "expectedArtifacts": [
     {
       "id": "notifications-account-available-policy-result-bundle",
@@ -72,5 +71,11 @@
   ],
   "expectedMetadata": {
     "scenario": "notifications-account-available-policy"
+  },
+  "commandInputs": {
+    "testSelectors": [
+      "CodexPillTests/InactiveAccountAvailabilityRankingTests",
+      "CodexPillTests/MenuBarNotificationWorkflowTests"
+    ]
   }
 }

@@ -21,12 +21,6 @@
       "ui_visual",
       "privacy"
     ],
-    "supportingProof": [
-      "privacy-leak-proof"
-    ],
-    "requiredEvidence": [
-      "ui-structure-contract"
-    ],
     "nonClaims": [
       "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
       "Does not prove native menu opening, native click routing, focus, or hittability.",
@@ -45,8 +39,6 @@
     ]
   },
   "proof": {
-    "layer": "ui-structure-contract",
-    "artifactSource": "hosted-menu-structure-exporter",
     "nonClaims": [
       "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
       "Does not prove native menu opening, native click routing, focus, or hittability.",
@@ -56,19 +48,20 @@
       "Does not prove the live macOS menu bar surface."
     ]
   },
-  "commandTarget": "verify-ui",
-  "expectedArtifacts": [
-    {
-      "id": "menu-busy-status-ui-structure-contract",
-      "kind": "ui_structure_contract",
-      "path": "build/verification/menu-busy-status/ui-structure-contract.json",
-      "claimScope": [
-        "menu-busy-status-structure"
-      ],
-      "redactionStatus": "sanitized"
-    }
-  ],
   "expectedMetadata": {
     "scenario": "menu-busy-status"
+  },
+  "commandInputs": {
+    "testSelectors": [
+      "CodexPillTests/MenuBarValidationCommandTests"
+    ]
+  },
+  "presets": [
+    "hosted-ui-structure"
+  ],
+  "artifact": {
+    "claimScope": [
+      "menu-busy-status-structure"
+    ]
   }
 }

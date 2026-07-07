@@ -53,7 +53,6 @@
       "Does not prove live macOS menu-bar behavior."
     ]
   },
-  "commandTarget": "verify-add-account-name-scenario",
   "expectedArtifacts": [
     {
       "id": "add-account-name-validation-result-bundle",
@@ -67,5 +66,11 @@
   ],
   "expectedMetadata": {
     "scenario": "add-account-name-validation"
+  },
+  "commandInputs": {
+    "testSelectors": [
+      "CodexPillTests/AddAccountWorkflowTests",
+      "CodexPillTests/AccountActionFlowTests"
+    ]
   }
 }

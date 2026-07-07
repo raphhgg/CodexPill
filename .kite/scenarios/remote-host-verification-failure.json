@@ -57,7 +57,6 @@
       "Does not prove live macOS menu-bar behavior."
     ]
   },
-  "commandTarget": "verify-remote-host-verification-failure-scenario",
   "expectedArtifacts": [
     {
       "id": "remote-host-verification-failure-result-bundle",
@@ -71,5 +70,14 @@
   ],
   "expectedMetadata": {
     "scenario": "remote-host-verification-failure"
+  },
+  "commandInputs": {
+    "testSelectors": [
+      "CodexPillTests/RemoteHostAccountVerifierTests",
+      "CodexPillTests/RemoteHostRuntimeTests",
+      "CodexPillTests/SwitchAccountOnHostWorkflowTests",
+      "CodexPillTests/MenuBarMenuStateTests",
+      "CodexPillTests/MenuBarMenuBuilderTests"
+    ]
   }
 }

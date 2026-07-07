@@ -65,7 +65,6 @@
       "Does not prove live macOS menu-bar screen capture or native hittability."
     ]
   },
-  "commandTarget": "verify-status-bar-shortcut-reveal-scenario",
   "expectedArtifacts": [
     {
       "id": "status-bar-shortcut-reveal-result-bundle",
@@ -79,5 +78,12 @@
   ],
   "expectedMetadata": {
     "scenario": "status-bar-shortcut-reveal"
+  },
+  "commandInputs": {
+    "testSelectors": [
+      "CodexPillTests/StatusItemRuntimeTests",
+      "CodexPillTests/GlobalShortcutRuntimeTests",
+      "CodexPillTests/MenuBarRuntimeValidationTests"
+    ]
   }
 }

@@ -53,7 +53,6 @@
       "Does not prove the live macOS menu bar surface."
     ]
   },
-  "commandTarget": "verify-ui",
   "expectedArtifacts": [
     {
       "id": "token-usage-off-hidden-screenshot",
@@ -86,6 +85,11 @@
       "raw_local_path",
       "raw_transcript",
       "token"
+    ]
+  },
+  "commandInputs": {
+    "testSelectors": [
+      "CodexPillTests/MenuBarValidationCommandTests"
     ]
   }
 }

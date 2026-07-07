@@ -56,7 +56,6 @@
       "Does not prove the live macOS menu bar surface."
     ]
   },
-  "commandTarget": "verify-ui",
   "expectedArtifacts": [
     {
       "id": "status-bar-icon-text-visible-screenshot",
@@ -89,5 +88,10 @@
   ],
   "expectedMetadata": {
     "scenario": "status-bar-icon-text-visible"
+  },
+  "commandInputs": {
+    "testSelectors": [
+      "CodexPillTests/MenuBarValidationCommandTests"
+    ]
   }
 }

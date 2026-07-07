@@ -60,7 +60,6 @@
       "Does not prove live macOS menu-bar behavior."
     ]
   },
-  "commandTarget": "verify-rename-scenario",
   "expectedArtifacts": [
     {
       "id": "rename-account-label-only-result-bundle",
@@ -74,5 +73,10 @@
   ],
   "expectedMetadata": {
     "scenario": "rename-account-label-only"
+  },
+  "commandInputs": {
+    "testSelectors": [
+      "CodexPillTests/RenameSavedAccountUseCaseTests"
+    ]
   }
 }

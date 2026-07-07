@@ -61,7 +61,6 @@
       "Does not prove live macOS menu-bar behavior."
     ]
   },
-  "commandTarget": "verify-remove-account-active-targets-sign-out-scenario",
   "expectedArtifacts": [
     {
       "id": "remove-account-active-targets-sign-out-result-bundle",
@@ -75,5 +74,12 @@
   ],
   "expectedMetadata": {
     "scenario": "remove-account-active-targets-sign-out"
+  },
+  "commandInputs": {
+    "testSelectors": [
+      "CodexPillTests/MenuBarRuntimeValidationTests",
+      "CodexPillTests/DeleteSavedAccountUseCaseTests",
+      "CodexPillTests/MenuBarAlertFactoryTests"
+    ]
   }
 }

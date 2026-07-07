@@ -22,9 +22,10 @@ unit and integration tests.
 CodexPill exposes reusable product scenarios for Kite through a scenario pack.
 Product identity and shared defaults live in `.kite/product.json`; the
 reviewable product-owned contract for each scenario lives in
-`.kite/scenarios/<scenario-id>.json`. CodexPill owns scenario IDs, command
-targets, fixture state, and product semantics; Kite owns pack normalization,
-manifest validation, artifact validation, receipts, and reports.
+`.kite/scenarios/<scenario-id>.json`. CodexPill owns scenario IDs, focused test
+selectors, fixture state, product artifact exporters, and product semantics;
+Kite owns pack normalization, command expansion, manifest validation, artifact
+validation, receipts, and reports.
 
 The pack normalizes into Kite's v2 feature-scenario contract:
 
@@ -42,53 +43,30 @@ artifacts, privacy rules, non-claims, and degraded-proof rules. The pack files
 are guarded by `ScenarioContractFileTests`; validate them with
 `kite scenarios validate --pack .kite`.
 
-The current clean-main pack contains thirty-seven deterministic scenarios:
+The current clean-main pack contains thirty-seven deterministic scenarios. Run
+them through Kite, not through one target per scenario:
 
 ```bash
-make verify-ui SCENARIO=hosted-menu-default
-make verify-ui SCENARIO=menu-busy-status
-make verify-diagnostics-export-confirmation-scenario
-make verify-notifications-permission-denied-menu-state-scenario
-make verify-notifications-account-available-policy-scenario
-make verify-notifications-current-runs-out-action-scenario
-make verify-notifications-dedupe-after-delivery-scenario
-make verify-ui SCENARIO=menu-unmatched-active-account
-make verify-ui SCENARIO=menu-empty-catalog
-make verify-ui SCENARIO=menu-account-overflow
-make verify-add-account-name-scenario
-make verify-add-account-isolated-success-scenario
-make verify-add-account-failure-cleanup-scenario
-make verify-switch-account-local-confirmed-scenario
-make verify-switch-account-remote-install-verify-scenario
-make verify-remote-host-add-panel-validation-scenario
-make verify-remote-host-install-switch-current-account-scenario
-make verify-remote-host-verification-failure-scenario
-make verify-remote-host-rate-limit-fallback-scenario
-make verify-remove-account-active-targets-sign-out-scenario
-make verify-remove-account-signout-failure-keeps-control-scenario
-make verify-rename-scenario
-make verify-refresh-inactive-isolated-status-scenario
-make verify-refresh-active-relinks-same-account-scenario
-make verify-ui SCENARIO=launch-at-login-menu-states
-make verify-launch-at-login-enable-confirmation-scenario
-make verify-launch-at-login-blocked-opens-settings-scenario
-make verify-ui SCENARIO=status-bar-icon-text-visible
-make verify-status-bar-hover-label-scenario
-make verify-status-bar-shortcut-reveal-scenario
-make verify-status-bar-usage-bars-preferences-scenario
-make verify-ui SCENARIO=token-usage-off-hidden
-make verify-ui SCENARIO=token-usage-ready-card
-make verify-token-usage-parser-scenario
-make verify-token-usage-cache-scenario
-make verify-token-usage-privacy-scenario
-make verify-ui SCENARIO=token-usage-loading-progress
+kite scenarios validate --pack .kite
+kite scenarios run --pack .kite --scenario hosted-menu-default --json
 ```
 
-Kite expands the pack's shared `make-target` command profile into
-`make {commandTarget} SCENARIO={scenarioId}`. Each scenario file declares the
-small `commandTarget` it needs, so CodexPill no longer carries a local
-scenario-id dispatcher. Direct local runs may still call the focused `make`
-targets above.
+Kite expands the pack's shared `selected-tests` command profile into:
+
+```bash
+make verify-selected-tests SCENARIO={scenarioId} TEST_SELECTORS="{commandInput.testSelectors}"
+```
+
+Most scenario files declare only their focused `commandInputs.testSelectors`;
+Kite renders those selectors with the shared `-only-testing:{value}` template.
+Hosted menu structure scenarios add the shared `hosted-ui-structure` preset so
+they do not repeat proof, Validation Intent, artifact kind, or artifact path
+plumbing.
+
+The only current `make-target` exception is
+`token-usage-privacy-no-raw-session`, because it writes additional
+product-owned `diagnostics-export.json` and `privacy-leak-report.json`
+artifacts after the focused test run.
 
 CodexPill no longer writes product-local `scenario-summary.json`,
 `workflow-receipt.json`, `contract-receipt.json`, `validation-receipt.json`, or
@@ -97,8 +75,11 @@ generic command request and scenario receipt. CodexPill writes only
 product-owned evidence under `build/verification/<scenario>/`: result bundles,
 required `ui-structure-contract.json` artifacts, deterministic screenshots and
 `ui-tree.json` where the scenario needs hosted UI proof, state/runtime
-snapshots, diagnostics exports, and privacy-leak reports. This is deterministic
-product evidence, not SwiftUI preview proof and not live macOS menu-bar proof.
+snapshots, diagnostics exports, and privacy-leak reports. Kite validates
+`ui_structure_contract` artifacts semantically during `kite scenarios run` and
+records the typed Validation Core result in the scenario receipt. This is
+deterministic product evidence, not SwiftUI preview proof and not live macOS
+menu-bar proof.
 Preview and live scenarios should be added only when their product-local
 commands and fixtures exist on the branch being validated.
 
@@ -410,69 +391,19 @@ The adapter currently includes:
 - `.kite/product.json` for product identity and shared scenario defaults;
 - `.kite/scenarios/<scenario-id>.json` for feature, acceptance criteria,
   Validation Intent, artifact, privacy, and non-regression declarations;
-- `make verify-ui SCENARIO=<scenario>` for deterministic hosted-menu proof,
-  with the command request naming either `ui-structure-contract` or
-  `deterministic-ui` as the requested proof type;
-- `make verify-diagnostics-export-confirmation-scenario` for focused
-  Diagnostics export confirmation and redacted-support artifact proof;
-- `make verify-notifications-permission-denied-menu-state-scenario` for focused
-  Notifications denied-permission menu and recovery proof;
-- `make verify-notifications-account-available-policy-scenario` for focused
-  Account Available notification policy and delivery proof;
-- `make verify-notifications-current-runs-out-action-scenario` for focused
-  Current Runs Out notification action and stale-response proof;
-- `make verify-notifications-dedupe-after-delivery-scenario` for focused
-  delivered notification dedupe and activation re-arm proof;
-- `make verify-status-bar-hover-label-scenario` for focused Status Bar hover
-  runtime event and validation snapshot proof;
-- `make verify-status-bar-shortcut-reveal-scenario` for focused Status Bar
-  shortcut callback and reveal/collapse proof;
-- `make verify-status-bar-usage-bars-preferences-scenario` for focused Status
-  Bar preference mapping, deterministic projection, and account-state
-  preservation proof;
-- `make verify-add-account-name-scenario` for focused Add Account name
-  validation unit proof;
-- `make verify-add-account-isolated-success-scenario` for focused Add Account
-  fake-client workflow-event proof;
-- `make verify-add-account-failure-cleanup-scenario` for focused Add Account
-  failure cleanup workflow-event proof;
-- `make verify-switch-account-local-confirmed-scenario` for focused local
-  Switch Account workflow-event proof;
-- `make verify-switch-account-remote-install-verify-scenario` for focused
-  remote Switch Account workflow-event proof;
-- `make verify-remote-host-add-panel-validation-scenario` for focused Remote
-  Hosts Add Host contract-fixture proof;
-- `make verify-remote-host-install-switch-current-account-scenario` for focused
-  Remote Hosts setup follow-up workflow-event proof;
-- `make verify-remote-host-verification-failure-scenario` for focused Remote
-  Hosts verification failure unit/menu proof;
-- `make verify-remote-host-rate-limit-fallback-scenario` for focused Remote
-  Hosts rate-limit fallback contract-fixture proof;
-- `make verify-remove-account-active-targets-sign-out-scenario` for focused
-  Remove Account active-target workflow-event proof;
-- `make verify-remove-account-signout-failure-keeps-control-scenario` for
-  focused Remove Account required sign-out failure workflow-event proof;
-- `make verify-rename-scenario` for focused Rename Account unit proof;
-- `make verify-refresh-inactive-isolated-status-scenario` for focused Refresh
-  Accounts inactive isolated status proof;
-- `make verify-refresh-active-relinks-same-account-scenario` for focused
-  Refresh Accounts active relink proof;
-- `make verify-launch-at-login-enable-confirmation-scenario` for focused App
-  Controls Launch at Login confirmation and unregister workflow proof;
-- `make verify-launch-at-login-blocked-opens-settings-scenario` for focused App
-  Controls blocked Launch at Login System Settings routing proof;
-- `make verify-token-usage-parser-scenario` for focused Token Usage scanner
-  contract-fixture proof;
-- `make verify-token-usage-cache-scenario` for focused Token Usage cache and
-  runtime contract-fixture proof;
-- `make verify-token-usage-privacy-scenario` for focused Token Usage
-  diagnostics-export and privacy-leak proof;
+- `make verify-selected-tests SCENARIO=<scenario> TEST_SELECTORS="<selectors>"`
+  as the shared product command used by Kite's `selected-tests` profile;
+- the `.kite/product.json` `commandInputTemplates.testSelectors` template,
+  which lets scenario files name Swift test selectors without repeating shell
+  plumbing;
+- the `.kite/product.json` `hosted-ui-structure` preset, which gives hosted
+  menu scenarios a shared proof layer, Validation Intent, and
+  `ui_structure_contract` artifact declaration;
+- `make verify-token-usage-privacy-scenario` as the one bespoke target for
+  Token Usage diagnostics-export and privacy-leak artifacts;
 - `MenuBarValidationSupport` for semantic menu snapshots;
 - `MenuBarStructureContractExporter` for required
   `ui-structure-contract.json` menu proof artifacts;
-- `KiteUiStructureCLIValidator` for delegating generic UI structure schema,
-  assertion, and private-payload validation to Kite's
-  `kite ui-structure validate --artifact <path> --json` helper;
 - `MenuBarHostedDebugRenderer` for optional hosted debug screenshots that are
   not required proof for `ui-structure-contract`;
 - `InMemoryRemoteHostClient` for isolated remote-host behavior in deterministic
@@ -485,6 +416,11 @@ The adapter currently includes:
   state used by runnable deterministic scenario commands and tests;
 - `MenuBarValidationObserver` and `MenuBarValidationConfiguration` as
   product-owned runtime event instrumentation used by focused tests.
+
+CodexPill does not ship a product-local Kite UI structure validator. It exports
+the `ui-structure-contract.json` artifact; Kite validates schema, assertions,
+private-payload rules, and typed failure reporting when it runs the scenario
+pack.
 
 The observer/configuration path is disabled unless validation output
 environment variables are set. Runtime events are emitted only for

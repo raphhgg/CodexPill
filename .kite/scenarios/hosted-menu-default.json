@@ -22,12 +22,6 @@
       "static_ui",
       "privacy"
     ],
-    "supportingProof": [
-      "privacy-leak-proof"
-    ],
-    "requiredEvidence": [
-      "ui-structure-contract"
-    ],
     "nonClaims": [
       "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
       "Does not prove native menu opening, native click routing, focus, or hittability.",
@@ -45,8 +39,6 @@
     "tier": "smoke"
   },
   "proof": {
-    "layer": "ui-structure-contract",
-    "artifactSource": "hosted-menu-structure-exporter",
     "nonClaims": [
       "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
       "Does not prove native menu opening, native click routing, focus, or hittability.",
@@ -55,19 +47,20 @@
       "Does not prove live Codex account or app-server state."
     ]
   },
-  "commandTarget": "verify-ui",
-  "expectedArtifacts": [
-    {
-      "id": "hosted-menu-default-ui-structure-contract",
-      "kind": "ui_structure_contract",
-      "path": "build/verification/hosted-menu-default/ui-structure-contract.json",
-      "claimScope": [
-        "hosted-menu-default-structure"
-      ],
-      "redactionStatus": "sanitized"
-    }
-  ],
   "expectedMetadata": {
     "scenario": "hosted-menu-default"
+  },
+  "commandInputs": {
+    "testSelectors": [
+      "CodexPillTests/MenuBarValidationCommandTests"
+    ]
+  },
+  "presets": [
+    "hosted-ui-structure"
+  ],
+  "artifact": {
+    "claimScope": [
+      "hosted-menu-default-structure"
+    ]
   }
 }

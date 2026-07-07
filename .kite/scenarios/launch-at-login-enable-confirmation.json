@@ -65,7 +65,6 @@
       "Does not exercise live menu-bar clicks or live System Settings UI."
     ]
   },
-  "commandTarget": "verify-launch-at-login-enable-confirmation-scenario",
   "expectedArtifacts": [
     {
       "id": "launch-at-login-enable-confirmation-result-bundle",
@@ -79,5 +78,10 @@
   ],
   "expectedMetadata": {
     "scenario": "launch-at-login-enable-confirmation"
+  },
+  "commandInputs": {
+    "testSelectors": [
+      "CodexPillTests/MenuBarMenuBuilderTests"
+    ]
   }
 }

@@ -9,8 +9,11 @@
     ]
   },
   "scenarioDefaults": {
-    "commandProfile": "make-target",
+    "commandProfile": "selected-tests",
     "commandProfiles": {
+      "selected-tests": {
+        "run": "make verify-selected-tests SCENARIO={scenarioId} TEST_SELECTORS=\"{commandInput.testSelectors}\""
+      },
       "make-target": {
         "run": "make {commandTarget} SCENARIO={scenarioId}"
       }
@@ -34,6 +37,32 @@
         "private_product_data",
         "token"
       ]
+    },
+    "commandInputTemplates": {
+      "testSelectors": {
+        "item": "-only-testing:{value}",
+        "separator": " "
+      }
+    },
+    "presets": {
+      "hosted-ui-structure": {
+        "proof": {
+          "layer": "ui-structure-contract",
+          "artifactSource": "hosted-menu-structure-exporter"
+        },
+        "validationIntent": {
+          "supportingProof": [
+            "privacy-leak-proof"
+          ],
+          "requiredEvidence": [
+            "ui-structure-contract"
+          ]
+        },
+        "artifact": {
+          "kind": "ui_structure_contract",
+          "path": "build/verification/{scenarioId}/ui-structure-contract.json"
+        }
+      }
     }
   }
 }

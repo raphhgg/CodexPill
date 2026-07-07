@@ -94,5 +94,6 @@
       "raw_transcript",
       "token"
     ]
-  }
+  },
+  "commandProfile": "make-target"
 }

@@ -53,7 +53,6 @@
       "Does not prove live macOS menu-bar behavior."
     ]
   },
-  "commandTarget": "verify-remove-account-signout-failure-keeps-control-scenario",
   "expectedArtifacts": [
     {
       "id": "remove-account-signout-failure-result-bundle",
@@ -67,5 +66,11 @@
   ],
   "expectedMetadata": {
     "scenario": "remove-account-signout-failure-keeps-control"
+  },
+  "commandInputs": {
+    "testSelectors": [
+      "CodexPillTests/MenuBarRuntimeValidationTests",
+      "CodexPillTests/DeleteSavedAccountUseCaseTests"
+    ]
   }
 }

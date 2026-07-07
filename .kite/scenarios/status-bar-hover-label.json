@@ -64,7 +64,6 @@
       "Does not prove multiple-display, notch, or menu-bar layout behavior."
     ]
   },
-  "commandTarget": "verify-status-bar-hover-label-scenario",
   "expectedArtifacts": [
     {
       "id": "status-bar-hover-label-result-bundle",
@@ -78,5 +77,11 @@
   ],
   "expectedMetadata": {
     "scenario": "status-bar-hover-label"
+  },
+  "commandInputs": {
+    "testSelectors": [
+      "CodexPillTests/StatusItemRuntimeTests",
+      "CodexPillTests/MenuBarRuntimeValidationTests"
+    ]
   }
 }

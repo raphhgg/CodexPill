@@ -61,7 +61,6 @@
       "Does not touch real Codex account data, real remote hosts, or real switching."
     ]
   },
-  "commandTarget": "verify-notifications-current-runs-out-action-scenario",
   "expectedArtifacts": [
     {
       "id": "notifications-current-runs-out-action-result-bundle",
@@ -76,5 +75,13 @@
   ],
   "expectedMetadata": {
     "scenario": "notifications-current-runs-out-action"
+  },
+  "commandInputs": {
+    "testSelectors": [
+      "CodexPillTests/InactiveAccountAvailabilityRankingTests",
+      "CodexPillTests/AccountAvailabilityNotificationRuntimeTests",
+      "CodexPillTests/MenuBarNotificationWorkflowTests",
+      "CodexPillTests/MenuBarRuntimeValidationTests"
+    ]
   }
 }

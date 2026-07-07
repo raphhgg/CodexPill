@@ -61,7 +61,6 @@
       "Does not touch real Codex account data, real remote hosts, or real switching."
     ]
   },
-  "commandTarget": "verify-notifications-dedupe-after-delivery-scenario",
   "expectedArtifacts": [
     {
       "id": "notifications-dedupe-after-delivery-result-bundle",
@@ -75,5 +74,12 @@
   ],
   "expectedMetadata": {
     "scenario": "notifications-dedupe-after-delivery"
+  },
+  "commandInputs": {
+    "testSelectors": [
+      "CodexPillTests/InactiveAccountAvailabilityRankingTests",
+      "CodexPillTests/MenuBarNotificationWorkflowTests",
+      "CodexPillTests/MenuBarRuntimeValidationTests"
+    ]
   }
 }

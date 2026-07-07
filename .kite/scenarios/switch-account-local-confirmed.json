@@ -62,7 +62,6 @@
       "Does not prove live macOS menu-bar behavior."
     ]
   },
-  "commandTarget": "verify-switch-account-local-confirmed-scenario",
   "expectedArtifacts": [
     {
       "id": "switch-account-local-confirmed-result-bundle",
@@ -76,5 +75,15 @@
   ],
   "expectedMetadata": {
     "scenario": "switch-account-local-confirmed"
+  },
+  "commandInputs": {
+    "testSelectors": [
+      "CodexPillTests/SwitchAccountWorkflowTests",
+      "CodexPillTests/MenuBarRuntimeValidationTests",
+      "CodexPillTests/MenuBarAlertFactoryTests",
+      "CodexPillTests/MenuBarValidationObserverTests",
+      "CodexPillTests/AccountActionFlowTests",
+      "CodexPillTests/SilentPostActionRefreshTests"
+    ]
   }
 }

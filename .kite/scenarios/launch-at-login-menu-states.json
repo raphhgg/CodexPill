@@ -58,7 +58,6 @@
       "Does not prove the live macOS menu bar surface."
     ]
   },
-  "commandTarget": "verify-ui",
   "expectedArtifacts": [
     {
       "id": "launch-at-login-menu-states-screenshot",
@@ -92,5 +91,10 @@
   ],
   "expectedMetadata": {
     "scenario": "launch-at-login-menu-states"
+  },
+  "commandInputs": {
+    "testSelectors": [
+      "CodexPillTests/MenuBarValidationCommandTests"
+    ]
   }
 }

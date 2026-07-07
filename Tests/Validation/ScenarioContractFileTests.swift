@@ -17,28 +17,38 @@ struct ScenarioContractFileTests {
         #expect(try productObject.string(forKey: "kind") == "product_scenario_pack")
         #expect(try productObject.string(forKey: "schemaVersion") == "kite.validation.scenario-pack.v1")
         let defaults = try productObject.object(forKey: "scenarioDefaults")
-        #expect(try defaults.string(forKey: "commandProfile") == "make-target")
+        #expect(try defaults.string(forKey: "commandProfile") == "selected-tests")
         let commandProfiles = try defaults.object(forKey: "commandProfiles")
+        let selectedTests = try commandProfiles.object(forKey: "selected-tests")
+        #expect(try selectedTests.string(forKey: "run") == "make verify-selected-tests SCENARIO={scenarioId} TEST_SELECTORS=\"{commandInput.testSelectors}\"")
         let makeTarget = try commandProfiles.object(forKey: "make-target")
         #expect(try makeTarget.string(forKey: "run") == "make {commandTarget} SCENARIO={scenarioId}")
+        let commandInputTemplates = try defaults.object(forKey: "commandInputTemplates")
+        let testSelectors = try commandInputTemplates.object(forKey: "testSelectors")
+        #expect(try testSelectors.string(forKey: "item") == "-only-testing:{value}")
+        #expect(try testSelectors.string(forKey: "separator") == " ")
+        let presets = try defaults.object(forKey: "presets")
+        let hostedUiStructure = try presets.object(forKey: "hosted-ui-structure")
+        let hostedProof = try hostedUiStructure.object(forKey: "proof")
+        #expect(try hostedProof.string(forKey: "layer") == "ui-structure-contract")
+        #expect(try hostedProof.string(forKey: "artifactSource") == "hosted-menu-structure-exporter")
+        let hostedArtifact = try hostedUiStructure.object(forKey: "artifact")
+        #expect(try hostedArtifact.string(forKey: "kind") == "ui_structure_contract")
+        #expect(try hostedArtifact.string(forKey: "path") == "build/verification/{scenarioId}/ui-structure-contract.json")
+        #expect(makefile.contains("\nverify-selected-tests:"))
 
         let contractURLs = try dedicatedContractURLs(in: contractsDirectory)
         let contractIDs = try contractURLs.map { url in
             let object = try JSONObject.make(from: Data(contentsOf: url))
             let id = try object.string(forKey: "id")
-            let commandTarget = try object.string(forKey: "commandTarget")
 
             #expect(url.lastPathComponent == "\(id).json")
             #expect(object.containsObject(forKey: "feature"))
             #expect(!object.containsValue(forKey: "featureId"))
             #expect(!object.containsValue(forKey: "validationModes"))
             #expect(!object.containsValue(forKey: "command"))
-            #expect(!object.containsValue(forKey: "commandProfile"))
-            #expect(commandTarget != "verify-kite-scenario")
-            #expect(
-                makefile.contains("\n\(commandTarget):"),
-                "\(id) commandTarget \(commandTarget) should be a Make target"
-            )
+            try assertMinimalCommandDeclaration(in: object, scenarioID: id, makefile: makefile)
+            try assertHostedUiStructurePresetUsage(in: object, scenarioID: id)
             try assertNoLegacyKiteLocalEvidence(in: object, scenarioID: id)
             return id
         }
@@ -65,7 +75,7 @@ struct ScenarioContractFileTests {
             "validation_receipt",
             "cleanup_receipt"
         ])
-        let expectedArtifacts = try object.arrayObjects(forKey: "expectedArtifacts")
+        let expectedArtifacts = try object.arrayObjectsIfPresent(forKey: "expectedArtifacts")
 
         for artifact in expectedArtifacts {
             let kind = try artifact.string(forKey: "kind")
@@ -89,11 +99,58 @@ struct ScenarioContractFileTests {
         }
 
         let validationIntent = try object.object(forKey: "validationIntent")
-        let requiredEvidence = try validationIntent.stringArray(forKey: "requiredEvidence")
+        let requiredEvidence = try validationIntent.stringArrayIfPresent(forKey: "requiredEvidence")
         #expect(
             legacyEvidence.isDisjoint(with: Set(requiredEvidence)),
             "\(scenarioID) requiredEvidence should not list legacy local summary or receipt evidence"
         )
+    }
+
+    private func assertMinimalCommandDeclaration(
+        in object: JSONObject,
+        scenarioID: String,
+        makefile: String
+    ) throws {
+        if scenarioID == "token-usage-privacy-no-raw-session" {
+            let commandTarget = try object.string(forKey: "commandTarget")
+            #expect(try object.string(forKey: "commandProfile") == "make-target")
+            #expect(commandTarget == "verify-token-usage-privacy-scenario")
+            #expect(
+                makefile.contains("\n\(commandTarget):"),
+                "\(scenarioID) commandTarget \(commandTarget) should be a Make target"
+            )
+            return
+        }
+
+        #expect(!object.containsValue(forKey: "commandTarget"))
+        #expect(!object.containsValue(forKey: "commandProfile"))
+
+        let commandInputs = try object.object(forKey: "commandInputs")
+        let selectors = try commandInputs.stringArray(forKey: "testSelectors")
+        #expect(!selectors.isEmpty, "\(scenarioID) should declare focused test selectors")
+        #expect(selectors.allSatisfy { $0.hasPrefix("CodexPillTests/") })
+    }
+
+    private func assertHostedUiStructurePresetUsage(
+        in object: JSONObject,
+        scenarioID: String
+    ) throws {
+        let hostedStructureScenarioIDs: Set<String> = [
+            "hosted-menu-default",
+            "menu-busy-status",
+            "menu-empty-catalog",
+            "menu-account-overflow",
+            "menu-unmatched-active-account"
+        ]
+        guard hostedStructureScenarioIDs.contains(scenarioID) else {
+            return
+        }
+
+        #expect(try object.stringArray(forKey: "presets") == ["hosted-ui-structure"])
+        #expect(!object.containsValue(forKey: "expectedArtifacts"))
+
+        let artifact = try object.object(forKey: "artifact")
+        #expect(try artifact.stringArray(forKey: "claimScope") == ["\(scenarioID)-structure"])
     }
 
     private func repositoryRoot(filePath: String = #filePath) throws -> URL {
@@ -193,9 +250,41 @@ private enum JSONObject: Equatable {
         }
     }
 
+    func arrayObjectsIfPresent(forKey key: String) throws -> [JSONObject] {
+        guard case let .object(dictionary) = self,
+              let jsonValue = dictionary[key] else {
+            return []
+        }
+        guard case let .array(values) = jsonValue else {
+            throw ScenarioContractFileTestError.missingJSONArray(key)
+        }
+        return try values.map { value in
+            guard case .object = value else {
+                throw ScenarioContractFileTestError.missingJSONObject(key)
+            }
+            return value
+        }
+    }
+
     func stringArray(forKey key: String) throws -> [String] {
         guard case let .object(dictionary) = self,
               case let .array(values) = dictionary[key] else {
+            throw ScenarioContractFileTestError.missingJSONArray(key)
+        }
+        return try values.map { value in
+            guard case let .string(string) = value else {
+                throw ScenarioContractFileTestError.missingJSONString(key)
+            }
+            return string
+        }
+    }
+
+    func stringArrayIfPresent(forKey key: String) throws -> [String] {
+        guard case let .object(dictionary) = self,
+              let jsonValue = dictionary[key] else {
+            return []
+        }
+        guard case let .array(values) = jsonValue else {
             throw ScenarioContractFileTestError.missingJSONArray(key)
         }
         return try values.map { value in
