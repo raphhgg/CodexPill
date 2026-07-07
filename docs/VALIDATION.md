@@ -139,11 +139,13 @@ Current deterministic scenarios:
   payload rendering, workflow response, and runtime validation tests that local
   and remote active-account exhaustion can trigger Current Runs Out, rendered
   copy names the exhausted target and fallback account, local and remote direct
-  actions are exposed, stale responses re-check current state before switching,
-  safer current targets are substituted with explanatory copy, stale remote
-  requests are dropped, and switch failures surface through the app; it does not
-  prove live macOS notification delivery, native Notification Center rendering,
-  real user clicks, real account data, real remote hosts, or real switching.
+  actions are exposed, notification action response/resolution/stale-drop
+  events are recorded with sanitized target/action categories, stale responses
+  re-check current state before switching, safer current targets are substituted
+  with explanatory copy, stale remote requests are dropped, and switch failures
+  surface through the app; it does not prove live macOS notification delivery,
+  native Notification Center rendering, real user clicks, real account data,
+  real remote hosts, or real switching.
 - `notifications-dedupe-after-delivery`: changed-feature non-regression for
   delivered account notification dedupe. It proves through focused state,
   workflow delivery, settings persistence, and runtime activation tests that a

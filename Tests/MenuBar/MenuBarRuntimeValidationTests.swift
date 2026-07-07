@@ -338,6 +338,7 @@ struct MenuBarRuntimeValidationTests {
         let alertPresenter = AlertPresenterProbe()
         alertPresenter.confirmationResponse = true
         let foregrounder = ApplicationActivatorProbe()
+        let sink = ValidationSinkProbe()
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         defer {
             NSStatusBar.system.removeStatusItem(statusItem)
@@ -351,6 +352,8 @@ struct MenuBarRuntimeValidationTests {
             remoteHostMenuOperations: InMemoryRemoteHostClient(seedStates: settings.remoteHostStates),
             alertPresenter: alertPresenter,
             applicationActivator: foregrounder,
+            validationSink: sink,
+            validationScenario: "notifications-current-runs-out-action",
             allowsEmptyStatePrompt: false
         )
 
@@ -370,6 +373,25 @@ struct MenuBarRuntimeValidationTests {
         let confirmation = try #require(alertPresenter.confirmationRequests.last)
         #expect(confirmation.informativeText.contains("Business 4 is no longer the best option. Switching to Business 2 instead."))
         #expect(settings.remoteHostState(for: "user@debian-vm")?.verifiedAccount?.id == betterAccount.id)
+        #expect(sink.events.contains { event in
+            event.event == "notification_action_response_received"
+                && event.step == "notification_action_response"
+                && event.invariantIds == ["notifications.current-runs-out.actions-recheck-stale-state"]
+                && event.payload == [
+                    "actionIdentifier": "use_remote",
+                    "requestedTarget": "remote"
+                ]
+        })
+        #expect(sink.events.contains { event in
+            event.event == "notification_action_resolved"
+                && event.step == "notification_action_resolution"
+                && event.invariantIds == ["notifications.current-runs-out.actions-recheck-stale-state"]
+                && event.payload == [
+                    "substituted": "true",
+                    "target": "remote"
+                ]
+        })
+        #expect(sink.events.contains { $0.event == "remote_host_active_account_changed" })
     }
 
     @Test

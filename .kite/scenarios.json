@@ -957,7 +957,7 @@
         "current-runs-out-copy-and-actions-name-targets",
         "current-runs-out-actions-recheck-stale-state-before-switch"
       ],
-      "targetSurface": "CodexPill Current Runs Out notification policy, payload rendering, and fake response workflow",
+      "targetSurface": "CodexPill Current Runs Out notification policy, payload rendering, fake response workflow, and notification action event log",
       "validationModes": ["unit_only"],
       "suites": ["deterministic"],
       "validationIntent": {
@@ -1004,14 +1004,14 @@
           "id": "notifications-current-runs-out-action-result-bundle",
           "kind": "test_output",
           "path": "build/results/local/CodexPill.xcresult",
-          "claimScope": ["notification-action-routing-tests"],
+          "claimScope": ["notification-action-routing-tests", "notification-action-event-log"],
           "redactionStatus": "sanitized"
         },
         {
           "id": "notifications-current-runs-out-action-workflow-receipt",
           "kind": "workflow_event_log",
           "path": "build/verification/notifications-current-runs-out-action/workflow-receipt.json",
-          "claimScope": ["current-runs-out-action-events"],
+          "claimScope": ["current-runs-out-action-events", "notification-action-event-log"],
           "redactionStatus": "sanitized"
         },
         {

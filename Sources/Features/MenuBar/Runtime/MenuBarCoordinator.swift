@@ -59,6 +59,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private lazy var notificationWorkflow = MenuBarNotificationWorkflow(
         stateStore: notificationStateStore,
         delivery: notificationDelivery,
+        actionObserver: validationObserver,
         applicationActivator: applicationActivator,
         settingsLauncher: notificationSettingsLauncher,
         scheduleRefresh: { [weak self] date in

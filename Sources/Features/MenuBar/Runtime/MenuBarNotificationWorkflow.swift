@@ -2,6 +2,19 @@ import Foundation
 import UserNotifications
 
 @MainActor
+protocol AccountAvailabilityNotificationActionObserving: AnyObject {
+    func recordNotificationActionResponse(
+        actionIdentifier: String,
+        requestedTarget: AccountAvailabilityNotificationRequestedTarget
+    )
+    func recordNotificationActionResolved(_ resolution: AccountAvailabilityNotificationActionResolution)
+    func recordNotificationActionDropped(
+        reason: String,
+        requestedTarget: AccountAvailabilityNotificationRequestedTarget?
+    )
+}
+
+@MainActor
 final class MenuBarNotificationWorkflow {
     typealias ScheduleRefresh = (Date?) -> Void
     typealias PresentLocalSwitch = (AccountAvailabilityNotificationActionResolution) -> Void
@@ -10,6 +23,7 @@ final class MenuBarNotificationWorkflow {
 
     private let stateStore: AccountAvailabilityNotificationStore
     private let delivery: AccountAvailabilityNotifier
+    private weak var actionObserver: AccountAvailabilityNotificationActionObserving?
     private let applicationActivator: ApplicationActivator
     private let settingsLauncher: NotificationSettingsLauncher
     private let scheduleRefresh: ScheduleRefresh
@@ -26,6 +40,7 @@ final class MenuBarNotificationWorkflow {
     init(
         stateStore: AccountAvailabilityNotificationStore,
         delivery: AccountAvailabilityNotifier,
+        actionObserver: AccountAvailabilityNotificationActionObserving? = nil,
         applicationActivator: ApplicationActivator,
         settingsLauncher: NotificationSettingsLauncher,
         scheduleRefresh: @escaping ScheduleRefresh,
@@ -35,6 +50,7 @@ final class MenuBarNotificationWorkflow {
     ) {
         self.stateStore = stateStore
         self.delivery = delivery
+        self.actionObserver = actionObserver
         self.applicationActivator = applicationActivator
         self.settingsLauncher = settingsLauncher
         self.scheduleRefresh = scheduleRefresh
@@ -148,15 +164,24 @@ final class MenuBarNotificationWorkflow {
             let notifiedAccountID = UUID(uuidString: accountIDString)
         else {
             applicationActivator.activate()
+            actionObserver?.recordNotificationActionDropped(
+                reason: "missing-account-id",
+                requestedTarget: nil
+            )
             return
         }
 
+        let requestedTarget = requestedTarget(
+            actionIdentifier: resolvedActionIdentifier,
+            remoteHostDestination: payload.remoteHostDestination
+        )
+        actionObserver?.recordNotificationActionResponse(
+            actionIdentifier: resolvedActionIdentifier,
+            requestedTarget: requestedTarget
+        )
         let resolution = actionResolver.resolve(
             notifiedAccountID: notifiedAccountID,
-            requestedTarget: requestedTarget(
-                actionIdentifier: resolvedActionIdentifier,
-                remoteHostDestination: payload.remoteHostDestination
-            ),
+            requestedTarget: requestedTarget,
             currentSnapshots: state.availabilitySnapshots,
             activeAccounts: activeContexts(from: state),
             settings: settings,
@@ -165,8 +190,15 @@ final class MenuBarNotificationWorkflow {
 
         applicationActivator.activate()
 
-        guard let resolution else { return }
+        guard let resolution else {
+            actionObserver?.recordNotificationActionDropped(
+                reason: "stale-or-unactionable",
+                requestedTarget: requestedTarget
+            )
+            return
+        }
 
+        actionObserver?.recordNotificationActionResolved(resolution)
         switch resolution.target {
         case .local:
             presentLocalSwitch(resolution)

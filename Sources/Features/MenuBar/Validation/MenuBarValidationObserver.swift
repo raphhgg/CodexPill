@@ -7,10 +7,11 @@ private let menuBarValidationObserverLogger = Logger(
 )
 
 @MainActor
-final class MenuBarValidationObserver {
+final class MenuBarValidationObserver: AccountAvailabilityNotificationActionObserving {
     private static let hoverInvariantIDs = ["menubar.text_on_hover.stays_visible_inside_resized_bounds"]
     private static let shortcutRevealInvariantIDs = ["status_bar.reveal_shortcut.temporarily_shows_label"]
     private static let switchInvariantIDs = ["accounts.switch_account.menu_action_changes_active_account"]
+    private static let notificationActionInvariantIDs = ["notifications.current-runs-out.actions-recheck-stale-state"]
     private static let addAccountNameDialogInvariantIDs = [
         "accounts.add_account.name_dialog_presented",
         "accounts.add_account.name_dialog_cancelled",
@@ -444,6 +445,50 @@ final class MenuBarValidationObserver {
         }
     }
 
+    func recordNotificationActionResponse(
+        actionIdentifier: String,
+        requestedTarget: AccountAvailabilityNotificationRequestedTarget
+    ) {
+        recordEvent(
+            "notification_action_response_received",
+            step: "notification_action_response",
+            invariantIds: Self.notificationActionInvariantIDs,
+            payload: [
+                "actionIdentifier": actionIdentifier,
+                "requestedTarget": requestedTargetPayloadValue(requestedTarget)
+            ]
+        )
+    }
+
+    func recordNotificationActionResolved(_ resolution: AccountAvailabilityNotificationActionResolution) {
+        recordEvent(
+            "notification_action_resolved",
+            step: "notification_action_resolution",
+            invariantIds: Self.notificationActionInvariantIDs,
+            payload: [
+                "substituted": resolution.substitutionMessage == nil ? "false" : "true",
+                "target": resolvedTargetPayloadValue(resolution.target)
+            ]
+        )
+    }
+
+    func recordNotificationActionDropped(
+        reason: String,
+        requestedTarget: AccountAvailabilityNotificationRequestedTarget?
+    ) {
+        var payload = ["reason": reason]
+        if let requestedTarget {
+            payload["requestedTarget"] = requestedTargetPayloadValue(requestedTarget)
+        }
+
+        recordEvent(
+            "notification_action_dropped",
+            step: "notification_action_resolution",
+            invariantIds: Self.notificationActionInvariantIDs,
+            payload: payload
+        )
+    }
+
     private func recordEvent(
         _ name: String,
         step: String,
@@ -465,6 +510,30 @@ final class MenuBarValidationObserver {
             )
         } catch {
             menuBarValidationObserverLogger.error("Failed to record validation event: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    private func requestedTargetPayloadValue(
+        _ target: AccountAvailabilityNotificationRequestedTarget
+    ) -> String {
+        switch target {
+        case .local:
+            return "local"
+        case .remote:
+            return "remote"
+        case .bestOption:
+            return "bestOption"
+        }
+    }
+
+    private func resolvedTargetPayloadValue(
+        _ target: AccountAvailabilityNotificationResolvedTarget
+    ) -> String {
+        switch target {
+        case .local:
+            return "local"
+        case .remote:
+            return "remote"
         }
     }
 }

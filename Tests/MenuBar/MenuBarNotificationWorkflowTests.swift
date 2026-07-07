@@ -125,6 +125,15 @@ struct MenuBarNotificationWorkflowTests {
         #expect(harness.activator.activateCount == 1)
         #expect(harness.localSwitchResolutions.isEmpty)
         #expect(harness.remoteSwitchResolutions.isEmpty)
+        #expect(harness.actionObserver.events.count == 2)
+        let responseEvent = try #require(harness.actionObserver.events.first)
+        #expect(responseEvent.name == "response")
+        #expect(responseEvent.actionIdentifier == "use_remote")
+        #expect(responseEvent.requestedTarget?.isRemote == true)
+        let droppedEvent = try #require(harness.actionObserver.events.last)
+        #expect(droppedEvent.name == "dropped")
+        #expect(droppedEvent.requestedTarget?.isRemote == true)
+        #expect(droppedEvent.reason == "stale-or-unactionable")
     }
 
     private func makeHarness() -> MenuBarNotificationWorkflowHarness {
@@ -192,6 +201,7 @@ private final class MenuBarNotificationWorkflowHarness {
     let delivery = AccountAvailabilityNotifierProbe()
     let activator = ApplicationActivatorProbe()
     let settingsLauncher = NotificationSettingsLauncherProbe()
+    let actionObserver = NotificationActionObserverProbe()
     var workflow: MenuBarNotificationWorkflow!
 
     private(set) var scheduledRefreshDates: [Date?] = []
@@ -212,6 +222,7 @@ private final class MenuBarNotificationWorkflowHarness {
         workflow = MenuBarNotificationWorkflow(
             stateStore: stateStore,
             delivery: delivery,
+            actionObserver: actionObserver,
             applicationActivator: activator,
             settingsLauncher: settingsLauncher,
             scheduleRefresh: { [weak self] date in
@@ -288,5 +299,63 @@ private final class NotificationSettingsLauncherProbe: NotificationSettingsLaunc
 
     func openNotificationSettings() {
         openCount += 1
+    }
+}
+
+private struct NotificationActionObserverEvent: Equatable {
+    let name: String
+    let actionIdentifier: String?
+    let requestedTarget: AccountAvailabilityNotificationRequestedTarget?
+    let resolution: AccountAvailabilityNotificationActionResolution?
+    let reason: String?
+}
+
+private extension AccountAvailabilityNotificationRequestedTarget {
+    var isRemote: Bool {
+        if case .remote = self {
+            return true
+        }
+        return false
+    }
+}
+
+@MainActor
+private final class NotificationActionObserverProbe: AccountAvailabilityNotificationActionObserving {
+    private(set) var events: [NotificationActionObserverEvent] = []
+
+    func recordNotificationActionResponse(
+        actionIdentifier: String,
+        requestedTarget: AccountAvailabilityNotificationRequestedTarget
+    ) {
+        events.append(NotificationActionObserverEvent(
+            name: "response",
+            actionIdentifier: actionIdentifier,
+            requestedTarget: requestedTarget,
+            resolution: nil,
+            reason: nil
+        ))
+    }
+
+    func recordNotificationActionResolved(_ resolution: AccountAvailabilityNotificationActionResolution) {
+        events.append(NotificationActionObserverEvent(
+            name: "resolved",
+            actionIdentifier: nil,
+            requestedTarget: nil,
+            resolution: resolution,
+            reason: nil
+        ))
+    }
+
+    func recordNotificationActionDropped(
+        reason: String,
+        requestedTarget: AccountAvailabilityNotificationRequestedTarget?
+    ) {
+        events.append(NotificationActionObserverEvent(
+            name: "dropped",
+            actionIdentifier: nil,
+            requestedTarget: requestedTarget,
+            resolution: nil,
+            reason: reason
+        ))
     }
 }

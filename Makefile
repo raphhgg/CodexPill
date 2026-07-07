@@ -296,6 +296,7 @@ verify-notifications-current-runs-out-action-scenario: generate prepare-result-b
 		'  "events": [' \
 		'    "Current Runs Out fires when a local or remote active account runs out and a fallback is usable",' \
 		'    "The notification payload names the exhausted active target, fallback account, and local or remote direct action",' \
+		'    "Notification action responses emit sanitized response, resolution, and stale-drop workflow events",' \
 		'    "Notification responses re-check current state before switching",' \
 		'    "Stale local actions substitute the current best account with explanatory copy",' \
 		'    "Stale remote actions are dropped when the requested host is no longer actionable",' \
@@ -309,6 +310,7 @@ verify-notifications-current-runs-out-action-scenario: generate prepare-result-b
 		'    "Current Runs Out policy covers local and remote active-account exhaustion",' \
 		'    "Rendered payload copy names the exhausted target and fallback account",' \
 		'    "Rendered payload actions expose local and remote switch targets",' \
+		'    "Notification action routing events record action kind, target kind, substitution, and stale-drop outcomes without account IDs or host destinations",' \
 		'    "Action handling re-checks state, substitutes safer current targets, or drops stale remote requests",' \
 		'    "Runtime validation surfaces switch failure errors instead of silently switching"' \
 		'  ],' \
