@@ -39,14 +39,16 @@ snapshot. Scenario-specific assertions should remain declarative and thin until
 Kite owns them directly. The scenario command adapter boundary is closed for
 structure-contract scenarios: `verify-ui` names the requested proof type,
 requires `ui-structure-contract` plus summary evidence, and treats screenshots
-and UI trees as optional debug evidence. These remaining follow-ups should be
-tackled before promoting more live or workflow-heavy scenarios:
+and UI trees as optional debug evidence. The runtime workflow-event boundary is
+closed for primary `workflow-event-log` scenarios: `MenuBarRuntimeValidation`
+and `MenuBarValidationObserver` emit runtime events only for manifest-backed
+scenarios whose canonical proof layer is `workflow-event-log`; unit,
+contract-fixture, diagnostics, and deterministic UI scenarios may write
+receipts or snapshots but do not imply observer-produced workflow logs. This
+remaining follow-up should be tackled before promoting more live or
+workflow-heavy scenarios:
 
-1. **Runtime workflow-event boundary**: reframe `MenuBarRuntimeValidation` and
-   `MenuBarValidationObserver` as explicit `workflow-event-log` producers,
-   use canonical proof-layer names, and tie runtime hooks only to
-   manifest-backed scenarios.
-2. **Fixture/bootstrap boundary**: keep scenario fixtures in bootstrap or
+1. **Fixture/bootstrap boundary**: keep scenario fixtures in bootstrap or
    injected environment code, not inside SwiftUI views. Production views should
    not branch directly on `CODEXPILL_VALIDATION_SCENARIO`.
 

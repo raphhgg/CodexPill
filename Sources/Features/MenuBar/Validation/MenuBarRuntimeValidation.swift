@@ -3,29 +3,25 @@ import Foundation
 enum MenuBarRuntimeWorkflowScenario {
     static let proofLayer = "workflow-event-log"
 
-    private static let manifestBackedScenarioIDs: Set<String> = [
+    private static let manifestBackedPrimaryProofScenarioIDs: Set<String> = [
         "add-account-isolated-success",
         "add-account-failure-cleanup",
         "switch-account-local-confirmed",
         "switch-account-remote-install-verify",
         "remote-host-install-switch-current-account",
-        "remote-host-verification-failure",
         "remove-account-active-targets-sign-out",
         "remove-account-signout-failure-keeps-control",
-        "notifications-account-available-policy",
         "notifications-current-runs-out-action",
-        "notifications-dedupe-after-delivery",
         "launch-at-login-enable-confirmation",
         "launch-at-login-blocked-opens-settings",
         "status-bar-hover-label",
-        "status-bar-shortcut-reveal",
-        "status-bar-usage-bars-preferences"
+        "status-bar-shortcut-reveal"
     ]
 
     static func normalize(_ scenario: String?) -> String? {
         guard let scenario = scenario?.trimmingCharacters(in: .whitespacesAndNewlines),
               !scenario.isEmpty,
-              manifestBackedScenarioIDs.contains(scenario) else {
+              manifestBackedPrimaryProofScenarioIDs.contains(scenario) else {
             return nil
         }
         return scenario

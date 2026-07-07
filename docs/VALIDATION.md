@@ -469,12 +469,15 @@ The adapter currently includes:
 - `ValidationFixtureBootstrap` for loading product-owned validation fixture
   state into isolated settings;
 - `MenuBarValidationObserver` and `MenuBarValidationConfiguration` as
-  product-owned runtime-event instrumentation for declared workflow scenarios.
+  product-owned `workflow-event-log` instrumentation for manifest scenarios
+  whose canonical primary proof layer is `workflow-event-log`.
 
 The observer/configuration path is disabled unless validation output
-environment variables are set. Runtime events are emitted only for explicit
-manifest-backed workflow scenario ids; other scenarios may still write product
-snapshots but cannot silently imply workflow or live proof.
+environment variables are set. Runtime events are emitted only for
+manifest-backed scenario ids whose `.kite/scenarios.json` proof layer is
+`workflow-event-log`; unit, contract-fixture, diagnostics, and deterministic UI
+scenarios may still write product snapshots or command receipts but cannot
+silently imply observer-produced workflow-event or live proof.
 
 ## Main Local Gate
 

@@ -722,6 +722,39 @@ struct MenuBarRuntimeValidationTests {
     }
 
     @Test
+    func runtimeWorkflowScenarioNormalizationMatchesManifestPrimaryWorkflowProofs() throws {
+        let manifest = try loadScenarioManifest()
+        let scenarioIDs = manifest.scenarios.map(\.id)
+        let primaryWorkflowScenarioIDs = manifest.scenarios
+            .filter { $0.proof.layer == MenuBarRuntimeWorkflowScenario.proofLayer }
+            .map(\.id)
+        let normalizedWorkflowScenarioIDs = scenarioIDs.filter {
+            MenuBarRuntimeWorkflowScenario.normalize($0) != nil
+        }
+
+        #expect(normalizedWorkflowScenarioIDs == primaryWorkflowScenarioIDs)
+    }
+
+    @Test
+    func primaryWorkflowScenariosRequireWorkflowReceiptsAndSummaries() throws {
+        let scenarios = try loadScenarioManifest().scenarios
+            .filter { $0.proof.layer == MenuBarRuntimeWorkflowScenario.proofLayer }
+
+        #expect(!scenarios.isEmpty)
+        #expect(scenarios.allSatisfy {
+            $0.expectedArtifacts.contains(where: { $0.kind == "workflow_event_log" })
+        })
+        #expect(scenarios.allSatisfy {
+            $0.expectedArtifacts.contains(where: { $0.kind == "reconciliation_report" })
+        })
+        #expect(scenarios.allSatisfy {
+            !$0.expectedArtifacts.contains(where: { artifact in
+                artifact.kind == "ui_structure_contract" || artifact.kind == "visual_snapshot"
+            })
+        })
+    }
+
+    @Test
     func configurationReturnsSinkOnlyWhenOutputPathIsPresent() {
         #expect(MenuBarValidationConfiguration.makeSink(environment: [:]) == nil)
         #expect(
@@ -1756,8 +1789,7 @@ struct MenuBarRuntimeValidationTests {
         let refreshedState = try #require(settings.remoteHostState(for: "user@buildbox"))
         #expect(refreshedState.verificationStatus == .verified)
         #expect(refreshedState.activeAccount?.email == "business-2@example.com")
-        #expect(sink.events.contains(where: { $0.event == "remote_host_reverify_started" }))
-        #expect(sink.events.contains(where: { $0.event == "remote_host_reverify_succeeded" }))
+        #expect(sink.events.isEmpty)
     }
 
     @Test
@@ -2082,8 +2114,7 @@ struct MenuBarRuntimeValidationTests {
         #expect(remoteHost.connectionState == "connected")
         #expect(remoteHost.verificationStatus == "failed")
         #expect(remoteHost.lastVerificationError == "cat: .codex/auth.json: Permission denied")
-        #expect(sink.events.contains(where: { $0.event == "remote_host_switch_started" }))
-        #expect(sink.events.contains(where: { $0.event == "remote_host_switch_failed" }))
+        #expect(sink.events.isEmpty)
     }
 
     @Test
@@ -2833,6 +2864,23 @@ struct MenuBarRuntimeValidationTests {
         )
     }
 
+    private func loadScenarioManifest(filePath: String = #filePath) throws -> ScenarioManifest {
+        var directory = URL(fileURLWithPath: filePath).deletingLastPathComponent()
+
+        while directory.path != "/" {
+            let manifestURL = directory
+                .appendingPathComponent(".kite", isDirectory: true)
+                .appendingPathComponent("scenarios.json")
+            if FileManager.default.fileExists(atPath: manifestURL.path) {
+                let data = try Data(contentsOf: manifestURL)
+                return try JSONDecoder().decode(ScenarioManifest.self, from: data)
+            }
+            directory.deleteLastPathComponent()
+        }
+
+        throw ScenarioManifestLoadError.missingManifest
+    }
+
     private func waitUntil(
         timeoutMilliseconds: Int = 1_000,
         condition: () throws -> Bool
@@ -2862,6 +2910,28 @@ struct MenuBarRuntimeValidationTests {
         try authData.write(to: repository.paths.codexAuthFile, options: .atomic)
         return account
     }
+}
+
+private struct ScenarioManifest: Decodable {
+    let scenarios: [ManifestScenario]
+}
+
+private struct ManifestScenario: Decodable {
+    let id: String
+    let expectedArtifacts: [ManifestExpectedArtifact]
+    let proof: ManifestScenarioProof
+}
+
+private struct ManifestScenarioProof: Decodable {
+    let layer: String
+}
+
+private struct ManifestExpectedArtifact: Decodable {
+    let kind: String
+}
+
+private enum ScenarioManifestLoadError: Error {
+    case missingManifest
 }
 
 private final class ValidationSinkProbe: @unchecked Sendable, MenuBarValidationSink {
