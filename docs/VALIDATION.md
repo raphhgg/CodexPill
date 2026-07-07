@@ -19,10 +19,13 @@ unit and integration tests.
 
 ## Kite Scenario Manifest
 
-CodexPill exposes reusable product scenarios for Kite in `.kite/scenarios.json`.
-The manifest is product-owned: CodexPill owns scenario IDs, commands, fixture
-state, and product semantics; Kite owns manifest validation, artifact
-validation, receipts, and reports.
+CodexPill exposes reusable product scenarios for Kite through scenario contract
+JSON. The reviewable product-owned contract for each scenario lives in
+`.kite/scenarios/<scenario-id>.json`; `.kite/scenarios.json` remains the
+aggregate Kite compatibility manifest while Kite consumes a single manifest
+file. CodexPill owns scenario IDs, commands, fixture state, and product
+semantics; Kite owns manifest validation, artifact validation, receipts, and
+reports.
 
 The manifest uses Kite's v2 feature-scenario contract:
 
@@ -34,9 +37,12 @@ The manifest uses Kite's v2 feature-scenario contract:
 Feature-owned proof contracts live near the feature in `docs/features/`.
 [Feature Validation Scenarios](features/validation-scenarios.md) is the
 cross-feature scenario index and promotion tracker. A scenario should move from
-that inventory into `.kite/scenarios.json` only when its owning feature doc has
-concrete acceptance criteria, proof rows, fixtures, command, artifacts, privacy
-rules, non-claims, and degraded-proof rules.
+that inventory into `.kite/scenarios/<scenario-id>.json` only when its owning
+feature doc has concrete acceptance criteria, proof rows, fixtures, command,
+artifacts, privacy rules, non-claims, and degraded-proof rules. The aggregate
+`.kite/scenarios.json` and the dedicated scenario files are guarded by
+`ScenarioContractFileTests`; update both together until the aggregate can be
+generated or Kite can consume the dedicated contract directory directly.
 
 The current clean-main manifest contains thirty-seven deterministic scenarios:
 
@@ -399,7 +405,9 @@ those manifest scenarios runnable. It is not generic Kite Harness code.
 The adapter currently includes:
 
 - `.kite/scenarios.json` for feature, acceptance criteria, Validation Intent,
-  artifact, privacy, and non-regression declarations;
+  artifact, privacy, and non-regression declarations, with dedicated
+  `.kite/scenarios/<scenario-id>.json` files as the reviewable per-scenario
+  contract source;
 - `make verify-ui SCENARIO=<scenario>` for deterministic hosted-menu proof,
   with the command request naming either `ui-structure-contract` or
   `deterministic-ui` as the requested proof type;

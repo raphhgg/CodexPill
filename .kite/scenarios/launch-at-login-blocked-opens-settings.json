@@ -1,0 +1,109 @@
+{
+  "id": "launch-at-login-blocked-opens-settings",
+  "title": "Launch at Login blocked opens settings",
+  "featureId": "launch-at-login-blocked-opens-settings",
+  "acceptanceCriteria": [
+    "blocked-requires-approval-opens-settings",
+    "blocked-unavailable-opens-settings",
+    "blocked-states-do-not-register-or-unregister",
+    "blocked-states-render-truthful-menu-copy"
+  ],
+  "targetSurface": "CodexPill Launch at Login menu projection, fake login-item controller, and fake System Settings launcher",
+  "validationModes": [
+    "unit_only"
+  ],
+  "suites": [
+    "deterministic"
+  ],
+  "validationIntent": {
+    "featureRisk": [
+      "ui_interaction",
+      "failure_path",
+      "privacy"
+    ],
+    "primaryProof": "workflow-event-log",
+    "supportingProof": [
+      "boundary-contract",
+      "privacy-leak-proof"
+    ],
+    "requiredEvidence": [
+      "test-output",
+      "workflow-receipt",
+      "scenario-summary"
+    ],
+    "nonClaims": [
+      "Does not open real System Settings.",
+      "Does not mutate real macOS login-item approval state.",
+      "Does not prove live menu-bar clicks or signed-app Login Items visibility."
+    ],
+    "liveOptIn": {
+      "required": false
+    }
+  },
+  "nonRegression": {
+    "tier": "changed-feature",
+    "runWhen": [
+      "local-handoff",
+      "app-controls-ui-changed",
+      "launch-at-login-state-changed",
+      "login-items-settings-launcher-changed",
+      "menu-builder-changed",
+      "scenario-fixture-changed"
+    ],
+    "blocking": true
+  },
+  "proof": {
+    "layer": "workflow-event-log",
+    "artifactSource": "focused-test-suite",
+    "nonClaims": [
+      "Does not open real System Settings.",
+      "Does not mutate real macOS login-item approval state.",
+      "Does not prove live menu-bar clicks or signed-app Login Items visibility."
+    ]
+  },
+  "command": {
+    "run": "make verify-launch-at-login-blocked-opens-settings-scenario"
+  },
+  "expectedArtifacts": [
+    {
+      "id": "launch-at-login-blocked-opens-settings-result-bundle",
+      "kind": "test_output",
+      "path": "build/results/local/CodexPill.xcresult",
+      "claimScope": [
+        "launch-at-login-blocked-tests"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "launch-at-login-blocked-opens-settings-workflow-receipt",
+      "kind": "workflow_event_log",
+      "path": "build/verification/launch-at-login-blocked-opens-settings/workflow-receipt.json",
+      "claimScope": [
+        "launch-at-login-blocked-routing-events"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "launch-at-login-blocked-opens-settings-summary",
+      "kind": "reconciliation_report",
+      "path": "build/verification/launch-at-login-blocked-opens-settings/scenario-summary.json",
+      "claimScope": [
+        "launch-at-login-blocked-reconciled"
+      ],
+      "redactionStatus": "sanitized"
+    }
+  ],
+  "expectedMetadata": {
+    "scenario": "launch-at-login-blocked-opens-settings"
+  },
+  "privacy": {
+    "fixtureData": "synthetic",
+    "restrictedEvidence": [
+      "account_data",
+      "hostname",
+      "raw_local_path",
+      "private_product_data",
+      "token"
+    ]
+  }
+}

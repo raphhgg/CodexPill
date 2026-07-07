@@ -1,0 +1,110 @@
+{
+  "id": "launch-at-login-enable-confirmation",
+  "title": "Launch at Login enable confirmation",
+  "featureId": "launch-at-login-enable-confirmation",
+  "acceptanceCriteria": [
+    "enable-confirmation-before-register",
+    "enable-cancel-preserves-disabled-state",
+    "disable-unregisters-directly",
+    "enable-failure-remains-truthful"
+  ],
+  "targetSurface": "CodexPill Launch at Login coordinator, confirmation presenter, fake login-item controller, and fake error path",
+  "validationModes": [
+    "unit_only"
+  ],
+  "suites": [
+    "deterministic"
+  ],
+  "validationIntent": {
+    "featureRisk": [
+      "ui_interaction",
+      "system_mutation",
+      "privacy"
+    ],
+    "primaryProof": "workflow-event-log",
+    "supportingProof": [
+      "boundary-contract",
+      "workflow-event-log",
+      "privacy-leak-proof"
+    ],
+    "requiredEvidence": [
+      "test-output",
+      "workflow-receipt",
+      "scenario-summary"
+    ],
+    "nonClaims": [
+      "Does not register or unregister the real macOS login item.",
+      "Does not prove signed app visibility in System Settings Login Items.",
+      "Does not exercise live menu-bar clicks or live System Settings UI."
+    ],
+    "liveOptIn": {
+      "required": false
+    }
+  },
+  "nonRegression": {
+    "tier": "changed-feature",
+    "runWhen": [
+      "local-handoff",
+      "app-controls-ui-changed",
+      "launch-at-login-state-changed",
+      "login-item-controller-changed",
+      "alert-copy-changed",
+      "scenario-fixture-changed"
+    ],
+    "blocking": true
+  },
+  "proof": {
+    "layer": "workflow-event-log",
+    "artifactSource": "focused-test-suite",
+    "nonClaims": [
+      "Does not register or unregister the real macOS login item.",
+      "Does not prove signed app visibility in System Settings Login Items.",
+      "Does not exercise live menu-bar clicks or live System Settings UI."
+    ]
+  },
+  "command": {
+    "run": "make verify-launch-at-login-enable-confirmation-scenario"
+  },
+  "expectedArtifacts": [
+    {
+      "id": "launch-at-login-enable-confirmation-result-bundle",
+      "kind": "test_output",
+      "path": "build/results/local/CodexPill.xcresult",
+      "claimScope": [
+        "launch-at-login-workflow-tests"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "launch-at-login-enable-confirmation-workflow-receipt",
+      "kind": "workflow_event_log",
+      "path": "build/verification/launch-at-login-enable-confirmation/workflow-receipt.json",
+      "claimScope": [
+        "launch-at-login-fake-controller-events"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "launch-at-login-enable-confirmation-summary",
+      "kind": "reconciliation_report",
+      "path": "build/verification/launch-at-login-enable-confirmation/scenario-summary.json",
+      "claimScope": [
+        "launch-at-login-workflow-reconciled"
+      ],
+      "redactionStatus": "sanitized"
+    }
+  ],
+  "expectedMetadata": {
+    "scenario": "launch-at-login-enable-confirmation"
+  },
+  "privacy": {
+    "fixtureData": "synthetic",
+    "restrictedEvidence": [
+      "account_data",
+      "hostname",
+      "raw_local_path",
+      "private_product_data",
+      "token"
+    ]
+  }
+}

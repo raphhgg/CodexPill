@@ -1,0 +1,110 @@
+{
+  "id": "remote-host-rate-limit-fallback",
+  "title": "Remote Host rate-limit fallback",
+  "featureId": "remote-host-rate-limit-display-truth",
+  "acceptanceCriteria": [
+    "remote-rate-limits-prefer-meaningful-verified-remote-values",
+    "remote-rate-limits-fallback-only-for-unusable-remote-data",
+    "remote-rate-limit-fallback-is-scoped-by-canonical-saved-identity"
+  ],
+  "targetSurface": "CodexPill remote rate-limit resolution, account catalog projection, and runtime validation snapshot",
+  "validationModes": [
+    "unit_only"
+  ],
+  "suites": [
+    "deterministic"
+  ],
+  "validationIntent": {
+    "featureRisk": [
+      "state_truth",
+      "parser",
+      "privacy"
+    ],
+    "primaryProof": "boundary-contract",
+    "supportingProof": [
+      "unit",
+      "boundary-contract",
+      "privacy-leak-proof"
+    ],
+    "requiredEvidence": [
+      "test-output",
+      "contract-receipt",
+      "scenario-summary"
+    ],
+    "nonClaims": [
+      "Does not exercise live SSH, live Codex app-server behavior, real remote auth mutation, or a real remote filesystem.",
+      "Does not prove native click automation or live menu-bar interaction.",
+      "Does not prove final native menu pixels for fallback labels.",
+      "Does not prove live macOS menu-bar behavior."
+    ],
+    "liveOptIn": {
+      "required": false
+    }
+  },
+  "nonRegression": {
+    "tier": "changed-feature",
+    "runWhen": [
+      "local-handoff",
+      "remote-rate-limit-resolution-changed",
+      "remote-host-menu-projection-changed",
+      "remote-host-runtime-refresh-changed",
+      "scenario-fixture-changed"
+    ],
+    "blocking": true
+  },
+  "proof": {
+    "layer": "boundary-contract",
+    "artifactSource": "focused-test-suite",
+    "nonClaims": [
+      "Does not exercise live SSH, live Codex app-server behavior, real remote auth mutation, or a real remote filesystem.",
+      "Does not prove native click automation or live menu-bar interaction.",
+      "Does not prove final native menu pixels for fallback labels.",
+      "Does not prove live macOS menu-bar behavior."
+    ]
+  },
+  "command": {
+    "run": "make verify-remote-host-rate-limit-fallback-scenario"
+  },
+  "expectedArtifacts": [
+    {
+      "id": "remote-host-rate-limit-fallback-result-bundle",
+      "kind": "test_output",
+      "path": "build/results/local/CodexPill.xcresult",
+      "claimScope": [
+        "remote-rate-limit-resolution-and-menu-runtime-tests"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "remote-host-rate-limit-fallback-contract-receipt",
+      "kind": "contract_receipt",
+      "path": "build/verification/remote-host-rate-limit-fallback/contract-receipt.json",
+      "claimScope": [
+        "remote-rate-limit-fallback-resolution-events"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "remote-host-rate-limit-fallback-summary",
+      "kind": "reconciliation_report",
+      "path": "build/verification/remote-host-rate-limit-fallback/scenario-summary.json",
+      "claimScope": [
+        "contract-fixture-and-menu-runtime-reconciled"
+      ],
+      "redactionStatus": "sanitized"
+    }
+  ],
+  "expectedMetadata": {
+    "scenario": "remote-host-rate-limit-fallback"
+  },
+  "privacy": {
+    "fixtureData": "synthetic",
+    "restrictedEvidence": [
+      "account_data",
+      "hostname",
+      "raw_local_path",
+      "private_product_data",
+      "token"
+    ]
+  }
+}

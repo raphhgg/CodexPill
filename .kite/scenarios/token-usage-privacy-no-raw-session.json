@@ -1,0 +1,113 @@
+{
+  "id": "token-usage-privacy-no-raw-session",
+  "title": "Token Usage privacy no raw session",
+  "featureId": "token-usage-privacy",
+  "acceptanceCriteria": [
+    "diagnostics-export-omits-raw-session-evidence"
+  ],
+  "targetSurface": "CodexPill diagnostics export fixture boundary",
+  "validationModes": [
+    "unit_only"
+  ],
+  "suites": [
+    "deterministic"
+  ],
+  "validationIntent": {
+    "featureRisk": [
+      "privacy",
+      "diagnostics"
+    ],
+    "primaryProof": "diagnostics-export",
+    "supportingProof": [
+      "privacy-leak-proof"
+    ],
+    "requiredEvidence": [
+      "test-output",
+      "diagnostics-export",
+      "privacy-leak-report",
+      "scenario-summary"
+    ],
+    "nonClaims": [
+      "Does not prove live NSSavePanel confirmation or user-initiated file writing.",
+      "Does not inspect real local Codex history.",
+      "Does not prove Token Usage UI rendering or live macOS menu-bar behavior."
+    ],
+    "liveOptIn": {
+      "required": false
+    }
+  },
+  "nonRegression": {
+    "tier": "changed-feature",
+    "runWhen": [
+      "local-handoff",
+      "token-usage-diagnostics-changed",
+      "diagnostics-export-changed",
+      "scenario-fixture-changed"
+    ],
+    "blocking": true
+  },
+  "proof": {
+    "layer": "diagnostics-export",
+    "artifactSource": "focused-test-suite",
+    "nonClaims": [
+      "Does not prove live NSSavePanel confirmation or user-initiated file writing.",
+      "Does not inspect real local Codex history.",
+      "Does not prove Token Usage UI rendering or live macOS menu-bar behavior."
+    ]
+  },
+  "command": {
+    "run": "make verify-token-usage-privacy-scenario"
+  },
+  "expectedArtifacts": [
+    {
+      "id": "token-usage-privacy-no-raw-session-result-bundle",
+      "kind": "test_output",
+      "path": "build/results/local/CodexPill.xcresult",
+      "claimScope": [
+        "diagnostics-export-tests"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "token-usage-privacy-no-raw-session-diagnostics-export",
+      "kind": "diagnostics_export",
+      "path": "build/verification/token-usage-privacy-no-raw-session/diagnostics-export.json",
+      "claimScope": [
+        "token-usage-aggregate-diagnostics"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "token-usage-privacy-no-raw-session-privacy-leak-report",
+      "kind": "privacy_leak_report",
+      "path": "build/verification/token-usage-privacy-no-raw-session/privacy-leak-report.json",
+      "claimScope": [
+        "token-usage-diagnostics-privacy-leak-proof"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "token-usage-privacy-no-raw-session-summary",
+      "kind": "reconciliation_report",
+      "path": "build/verification/token-usage-privacy-no-raw-session/scenario-summary.json",
+      "claimScope": [
+        "diagnostics-export-reconciled"
+      ],
+      "redactionStatus": "sanitized"
+    }
+  ],
+  "expectedMetadata": {
+    "scenario": "token-usage-privacy-no-raw-session"
+  },
+  "privacy": {
+    "fixtureData": "synthetic",
+    "restrictedEvidence": [
+      "account_data",
+      "hostname",
+      "private_product_data",
+      "raw_local_path",
+      "raw_transcript",
+      "token"
+    ]
+  }
+}

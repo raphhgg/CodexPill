@@ -1,0 +1,106 @@
+{
+  "id": "token-usage-ready-card",
+  "title": "Token Usage ready card",
+  "featureId": "token-usage-menu-card",
+  "acceptanceCriteria": [
+    "ready-card-shows-local-aggregate-without-attribution"
+  ],
+  "targetSurface": "CodexPill hosted menu validation view",
+  "validationModes": [
+    "unit_only"
+  ],
+  "suites": [
+    "deterministic"
+  ],
+  "validationIntent": {
+    "featureRisk": [
+      "ui_visual",
+      "state_truth",
+      "privacy"
+    ],
+    "primaryProof": "boundary-contract",
+    "supportingProof": [
+      "privacy-leak-proof"
+    ],
+    "requiredEvidence": [
+      "screenshot",
+      "ui-tree",
+      "scenario-summary"
+    ],
+    "nonClaims": [
+      "Does not prove live local Codex session scanning.",
+      "Does not prove Token Usage runtime lifecycle or duplicate-scan prevention.",
+      "Does not prove saved-account, workspace, organization, or remote-host usage history.",
+      "Does not prove the live macOS menu bar surface."
+    ],
+    "liveOptIn": {
+      "required": false
+    }
+  },
+  "nonRegression": {
+    "tier": "changed-feature",
+    "runWhen": [
+      "local-handoff",
+      "token-usage-ui-changed",
+      "menubar-ui-changed",
+      "scenario-fixture-changed"
+    ],
+    "blocking": true
+  },
+  "proof": {
+    "layer": "boundary-contract",
+    "artifactSource": "hosted-validation-view",
+    "nonClaims": [
+      "Does not prove live local Codex session scanning.",
+      "Does not prove Token Usage runtime lifecycle or duplicate-scan prevention.",
+      "Does not prove saved-account, workspace, organization, or remote-host usage history.",
+      "Does not prove the live macOS menu bar surface."
+    ]
+  },
+  "command": {
+    "run": "make verify-ui SCENARIO=token-usage-ready-card"
+  },
+  "expectedArtifacts": [
+    {
+      "id": "token-usage-ready-card-screenshot",
+      "kind": "visual_snapshot",
+      "path": "build/verification/token-usage-ready-card/screenshots/token-usage-ready-card.png",
+      "claimScope": [
+        "deterministic-hosted-view"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "token-usage-ready-card-tree",
+      "kind": "semantic_snapshot",
+      "path": "build/verification/token-usage-ready-card/ui-tree.json",
+      "claimScope": [
+        "semantic-ui-tree"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "token-usage-ready-card-summary",
+      "kind": "reconciliation_report",
+      "path": "build/verification/token-usage-ready-card/scenario-summary.json",
+      "claimScope": [
+        "deterministic-reconciled"
+      ],
+      "redactionStatus": "sanitized"
+    }
+  ],
+  "expectedMetadata": {
+    "scenario": "token-usage-ready-card"
+  },
+  "privacy": {
+    "fixtureData": "synthetic",
+    "restrictedEvidence": [
+      "account_data",
+      "hostname",
+      "private_product_data",
+      "raw_local_path",
+      "raw_transcript",
+      "token"
+    ]
+  }
+}

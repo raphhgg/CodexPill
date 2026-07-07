@@ -1,0 +1,100 @@
+{
+  "id": "token-usage-cache-first",
+  "title": "Token Usage cache first",
+  "featureId": "token-usage-incremental-cache",
+  "acceptanceCriteria": [
+    "cached-data-is-used-before-scanning",
+    "refresh-reuses-unchanged-file-contributions"
+  ],
+  "targetSurface": "CodexPill Token Usage cache/runtime fixture boundary",
+  "validationModes": [
+    "unit_only"
+  ],
+  "suites": [
+    "deterministic"
+  ],
+  "validationIntent": {
+    "featureRisk": [
+      "state_truth",
+      "performance",
+      "privacy"
+    ],
+    "primaryProof": "boundary-contract",
+    "supportingProof": [
+      "privacy-leak-proof"
+    ],
+    "requiredEvidence": [
+      "test-output",
+      "scenario-summary"
+    ],
+    "nonClaims": [
+      "Does not prove Token Usage UI rendering.",
+      "Does not prove diagnostics export privacy.",
+      "Does not prove saved-account, workspace, organization, or remote-host usage history.",
+      "Does not prove real local Codex history scanning.",
+      "Does not prove live macOS menu-bar behavior."
+    ],
+    "liveOptIn": {
+      "required": false
+    }
+  },
+  "nonRegression": {
+    "tier": "changed-feature",
+    "runWhen": [
+      "local-handoff",
+      "token-usage-cache-changed",
+      "token-usage-runtime-changed",
+      "token-usage-scanner-changed",
+      "scenario-fixture-changed"
+    ],
+    "blocking": true
+  },
+  "proof": {
+    "layer": "boundary-contract",
+    "artifactSource": "focused-test-suite",
+    "nonClaims": [
+      "Does not prove Token Usage UI rendering.",
+      "Does not prove diagnostics export privacy.",
+      "Does not prove saved-account, workspace, organization, or remote-host usage history.",
+      "Does not prove real local Codex history scanning.",
+      "Does not prove live macOS menu-bar behavior."
+    ]
+  },
+  "command": {
+    "run": "make verify-token-usage-cache-scenario"
+  },
+  "expectedArtifacts": [
+    {
+      "id": "token-usage-cache-first-result-bundle",
+      "kind": "test_output",
+      "path": "build/results/local/CodexPill.xcresult",
+      "claimScope": [
+        "cache-runtime-contract-fixtures"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "token-usage-cache-first-summary",
+      "kind": "reconciliation_report",
+      "path": "build/verification/token-usage-cache-first/scenario-summary.json",
+      "claimScope": [
+        "contract-fixture-reconciled"
+      ],
+      "redactionStatus": "sanitized"
+    }
+  ],
+  "expectedMetadata": {
+    "scenario": "token-usage-cache-first"
+  },
+  "privacy": {
+    "fixtureData": "synthetic",
+    "restrictedEvidence": [
+      "account_data",
+      "hostname",
+      "private_product_data",
+      "raw_local_path",
+      "raw_transcript",
+      "token"
+    ]
+  }
+}

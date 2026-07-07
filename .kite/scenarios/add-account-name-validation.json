@@ -1,0 +1,96 @@
+{
+  "id": "add-account-name-validation",
+  "title": "Add Account name validation",
+  "featureId": "add-account-name",
+  "acceptanceCriteria": [
+    "add-account-invalid-name-blocks-before-sign-in"
+  ],
+  "targetSurface": "CodexPill Add Account workflow unit boundary",
+  "validationModes": [
+    "unit_only"
+  ],
+  "suites": [
+    "deterministic"
+  ],
+  "validationIntent": {
+    "featureRisk": [
+      "workflow_state",
+      "privacy"
+    ],
+    "primaryProof": "unit",
+    "supportingProof": [
+      "privacy-leak-proof"
+    ],
+    "requiredEvidence": [
+      "test-output",
+      "scenario-summary"
+    ],
+    "nonClaims": [
+      "Does not prove native Add Account panel rendering or text entry.",
+      "Does not prove the disabled Continue button state in the native name panel.",
+      "Does not prove browser/device-code sign-in.",
+      "Does not prove live auth mutation or live Codex process state.",
+      "Does not prove live macOS menu-bar behavior."
+    ],
+    "liveOptIn": {
+      "required": false
+    }
+  },
+  "nonRegression": {
+    "tier": "changed-feature",
+    "runWhen": [
+      "local-handoff",
+      "add-account-workflow-changed",
+      "account-catalog-changed",
+      "scenario-fixture-changed"
+    ],
+    "blocking": true
+  },
+  "proof": {
+    "layer": "unit",
+    "artifactSource": "focused-test-suite",
+    "nonClaims": [
+      "Does not prove native Add Account panel rendering or text entry.",
+      "Does not prove the disabled Continue button state in the native name panel.",
+      "Does not prove browser/device-code sign-in.",
+      "Does not prove live auth mutation or live Codex process state.",
+      "Does not prove live macOS menu-bar behavior."
+    ]
+  },
+  "command": {
+    "run": "make verify-add-account-name-scenario"
+  },
+  "expectedArtifacts": [
+    {
+      "id": "add-account-name-validation-result-bundle",
+      "kind": "test_output",
+      "path": "build/results/local/CodexPill.xcresult",
+      "claimScope": [
+        "add-account-name-unit-tests"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "add-account-name-validation-summary",
+      "kind": "reconciliation_report",
+      "path": "build/verification/add-account-name-validation/scenario-summary.json",
+      "claimScope": [
+        "unit-reconciled"
+      ],
+      "redactionStatus": "sanitized"
+    }
+  ],
+  "expectedMetadata": {
+    "scenario": "add-account-name-validation"
+  },
+  "privacy": {
+    "fixtureData": "synthetic",
+    "restrictedEvidence": [
+      "account_data",
+      "hostname",
+      "raw_local_path",
+      "private_product_data",
+      "token"
+    ]
+  }
+}

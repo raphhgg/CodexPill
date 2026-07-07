@@ -1,0 +1,111 @@
+{
+  "id": "remote-host-install-switch-current-account",
+  "title": "Remote Host install and switch current account",
+  "featureId": "remote-host-install-switch",
+  "acceptanceCriteria": [
+    "add-host-confirmation-runs-current-account-remote-switch",
+    "add-host-cancel-leaves-no-pending-host"
+  ],
+  "targetSurface": "CodexPill Add Host follow-up and fake remote switch workflow",
+  "validationModes": [
+    "unit_only"
+  ],
+  "suites": [
+    "deterministic"
+  ],
+  "validationIntent": {
+    "featureRisk": [
+      "remote_mutation",
+      "workflow_state",
+      "privacy"
+    ],
+    "primaryProof": "workflow-event-log",
+    "supportingProof": [
+      "boundary-contract",
+      "privacy-leak-proof"
+    ],
+    "requiredEvidence": [
+      "test-output",
+      "workflow-receipt",
+      "scenario-summary"
+    ],
+    "nonClaims": [
+      "Does not prove native Add Host or confirmation panel rendering.",
+      "Does not prove first responder focus or native click automation.",
+      "Does not exercise live SSH, live Codex app-server behavior, real remote auth mutation, or a real remote filesystem.",
+      "Does not prove remote verification failure presentation.",
+      "Does not prove live macOS menu-bar behavior."
+    ],
+    "liveOptIn": {
+      "required": false
+    }
+  },
+  "nonRegression": {
+    "tier": "changed-feature",
+    "runWhen": [
+      "local-handoff",
+      "remote-host-setup-flow-changed",
+      "remote-host-switch-workflow-changed",
+      "remote-host-settings-changed",
+      "scenario-fixture-changed"
+    ],
+    "blocking": true
+  },
+  "proof": {
+    "layer": "workflow-event-log",
+    "artifactSource": "focused-test-suite",
+    "nonClaims": [
+      "Does not prove native Add Host or confirmation panel rendering.",
+      "Does not prove first responder focus or native click automation.",
+      "Does not exercise live SSH, live Codex app-server behavior, real remote auth mutation, or a real remote filesystem.",
+      "Does not prove remote verification failure presentation.",
+      "Does not prove live macOS menu-bar behavior."
+    ]
+  },
+  "command": {
+    "run": "make verify-remote-host-install-switch-current-account-scenario"
+  },
+  "expectedArtifacts": [
+    {
+      "id": "remote-host-install-switch-current-account-result-bundle",
+      "kind": "test_output",
+      "path": "build/results/local/CodexPill.xcresult",
+      "claimScope": [
+        "remote-host-setup-runtime-tests",
+        "remote-switch-contract-fixtures"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "remote-host-install-switch-current-account-workflow-receipt",
+      "kind": "workflow_event_log",
+      "path": "build/verification/remote-host-install-switch-current-account/workflow-receipt.json",
+      "claimScope": [
+        "add-host-install-switch-workflow-events"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "remote-host-install-switch-current-account-summary",
+      "kind": "reconciliation_report",
+      "path": "build/verification/remote-host-install-switch-current-account/scenario-summary.json",
+      "claimScope": [
+        "workflow-event-reconciled"
+      ],
+      "redactionStatus": "sanitized"
+    }
+  ],
+  "expectedMetadata": {
+    "scenario": "remote-host-install-switch-current-account"
+  },
+  "privacy": {
+    "fixtureData": "synthetic",
+    "restrictedEvidence": [
+      "account_data",
+      "hostname",
+      "raw_local_path",
+      "private_product_data",
+      "token"
+    ]
+  }
+}

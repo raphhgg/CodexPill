@@ -1,0 +1,108 @@
+{
+  "id": "status-bar-usage-bars-preferences",
+  "title": "Status bar usage bar preferences",
+  "featureId": "status-bar-usage-bars-preferences",
+  "acceptanceCriteria": [
+    "usage-preferences-update-presentation-settings",
+    "usage-preferences-render-menu-and-validation-snapshot",
+    "usage-preferences-preserve-account-and-auth-state"
+  ],
+  "targetSurface": "CodexPill status bar settings, AppKit menu projection, hosted validation snapshot, and coordinator preference actions",
+  "validationModes": [
+    "unit_only"
+  ],
+  "suites": [
+    "deterministic"
+  ],
+  "validationIntent": {
+    "featureRisk": [
+      "ui_visual",
+      "state_truth",
+      "privacy"
+    ],
+    "primaryProof": "unit",
+    "supportingProof": [
+      "boundary-contract",
+      "privacy-leak-proof"
+    ],
+    "requiredEvidence": [
+      "test-output",
+      "workflow-receipt",
+      "scenario-summary"
+    ],
+    "nonClaims": [
+      "Does not open the live NSColorPanel color chooser.",
+      "Does not prove native menu-bar clicks, live screen capture, or native hittability.",
+      "Does not use or prove behavior against real account/auth data."
+    ],
+    "liveOptIn": {
+      "required": false
+    }
+  },
+  "nonRegression": {
+    "tier": "changed-feature",
+    "runWhen": [
+      "local-handoff",
+      "status-bar-settings-changed",
+      "menu-builder-changed",
+      "validation-observer-changed",
+      "account-state-changed",
+      "scenario-fixture-changed"
+    ],
+    "blocking": true
+  },
+  "proof": {
+    "layer": "unit",
+    "artifactSource": "focused-test-suite",
+    "nonClaims": [
+      "Does not open the live NSColorPanel color chooser.",
+      "Does not prove native menu-bar clicks, live screen capture, or native hittability.",
+      "Does not use or prove behavior against real account/auth data."
+    ]
+  },
+  "command": {
+    "run": "make verify-status-bar-usage-bars-preferences-scenario"
+  },
+  "expectedArtifacts": [
+    {
+      "id": "status-bar-usage-bars-preferences-result-bundle",
+      "kind": "test_output",
+      "path": "build/results/local/CodexPill.xcresult",
+      "claimScope": [
+        "status-bar-preferences-focused-tests"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "status-bar-usage-bars-preferences-workflow-receipt",
+      "kind": "workflow_event_log",
+      "path": "build/verification/status-bar-usage-bars-preferences/workflow-receipt.json",
+      "claimScope": [
+        "status-bar-preferences-events"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "status-bar-usage-bars-preferences-summary",
+      "kind": "reconciliation_report",
+      "path": "build/verification/status-bar-usage-bars-preferences/scenario-summary.json",
+      "claimScope": [
+        "status-bar-preferences-reconciled"
+      ],
+      "redactionStatus": "sanitized"
+    }
+  ],
+  "expectedMetadata": {
+    "scenario": "status-bar-usage-bars-preferences"
+  },
+  "privacy": {
+    "fixtureData": "synthetic",
+    "restrictedEvidence": [
+      "account_data",
+      "hostname",
+      "raw_local_path",
+      "private_product_data",
+      "token"
+    ]
+  }
+}

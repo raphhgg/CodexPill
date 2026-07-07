@@ -1,0 +1,107 @@
+{
+  "id": "remote-host-verification-failure",
+  "title": "Remote Host verification failure",
+  "featureId": "remote-host-verification-truth",
+  "acceptanceCriteria": [
+    "remote-verification-failure-never-renders-verified-active",
+    "remote-verification-detected-account-is-recoverable-not-catalog-truth"
+  ],
+  "targetSurface": "CodexPill remote host verifier, runtime state, and menu projection",
+  "validationModes": [
+    "unit_only"
+  ],
+  "suites": [
+    "deterministic"
+  ],
+  "validationIntent": {
+    "featureRisk": [
+      "state_truth",
+      "failure_path",
+      "privacy"
+    ],
+    "primaryProof": "unit",
+    "supportingProof": [
+      "privacy-leak-proof"
+    ],
+    "requiredEvidence": [
+      "test-output",
+      "validation-receipt",
+      "scenario-summary"
+    ],
+    "nonClaims": [
+      "Does not exercise live SSH, live Codex app-server behavior, real remote auth mutation, or a real remote filesystem.",
+      "Does not prove native click automation or live menu-bar interaction.",
+      "Does not prove remote rate-limit fallback.",
+      "Does not prove live macOS menu-bar behavior."
+    ],
+    "liveOptIn": {
+      "required": false
+    }
+  },
+  "nonRegression": {
+    "tier": "changed-feature",
+    "runWhen": [
+      "local-handoff",
+      "remote-host-verifier-changed",
+      "remote-host-runtime-state-changed",
+      "remote-host-menu-projection-changed",
+      "scenario-fixture-changed"
+    ],
+    "blocking": true
+  },
+  "proof": {
+    "layer": "unit",
+    "artifactSource": "focused-test-suite",
+    "nonClaims": [
+      "Does not exercise live SSH, live Codex app-server behavior, real remote auth mutation, or a real remote filesystem.",
+      "Does not prove native click automation or live menu-bar interaction.",
+      "Does not prove remote rate-limit fallback.",
+      "Does not prove live macOS menu-bar behavior."
+    ]
+  },
+  "command": {
+    "run": "make verify-remote-host-verification-failure-scenario"
+  },
+  "expectedArtifacts": [
+    {
+      "id": "remote-host-verification-failure-result-bundle",
+      "kind": "test_output",
+      "path": "build/results/local/CodexPill.xcresult",
+      "claimScope": [
+        "remote-host-verifier-runtime-menu-tests"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "remote-host-verification-failure-validation-receipt",
+      "kind": "validation_receipt",
+      "path": "build/verification/remote-host-verification-failure/validation-receipt.json",
+      "claimScope": [
+        "remote-host-verification-failure-receipt"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "remote-host-verification-failure-summary",
+      "kind": "reconciliation_report",
+      "path": "build/verification/remote-host-verification-failure/scenario-summary.json",
+      "claimScope": [
+        "unit-and-menu-projection-reconciled"
+      ],
+      "redactionStatus": "sanitized"
+    }
+  ],
+  "expectedMetadata": {
+    "scenario": "remote-host-verification-failure"
+  },
+  "privacy": {
+    "fixtureData": "synthetic",
+    "restrictedEvidence": [
+      "account_data",
+      "hostname",
+      "raw_local_path",
+      "private_product_data",
+      "token"
+    ]
+  }
+}

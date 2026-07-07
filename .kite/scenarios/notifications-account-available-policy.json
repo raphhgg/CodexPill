@@ -1,0 +1,106 @@
+{
+  "id": "notifications-account-available-policy",
+  "title": "Notifications Account Available policy",
+  "featureId": "notifications-account-available-policy",
+  "acceptanceCriteria": [
+    "account-available-fires-only-for-inactive-fallback-becoming-useful",
+    "account-available-skips-first-only-active-and-weak-accounts",
+    "account-available-delivery-suppresses-repeat-until-activation"
+  ],
+  "targetSurface": "CodexPill notification policy and fake notification workflow delivery",
+  "validationModes": [
+    "unit_only"
+  ],
+  "suites": [
+    "deterministic"
+  ],
+  "validationIntent": {
+    "featureRisk": [
+      "pure_model",
+      "workflow_state"
+    ],
+    "primaryProof": "unit",
+    "supportingProof": [
+      "workflow-event-log",
+      "privacy-leak-proof"
+    ],
+    "requiredEvidence": [
+      "test-output",
+      "workflow-receipt",
+      "scenario-summary"
+    ],
+    "nonClaims": [
+      "Does not exercise live macOS notification delivery.",
+      "Does not prove native notification UI rendering or user clicks.",
+      "Does not prove Current Runs Out action routing."
+    ],
+    "liveOptIn": {
+      "required": false
+    }
+  },
+  "nonRegression": {
+    "tier": "changed-feature",
+    "runWhen": [
+      "local-handoff",
+      "notification-policy-changed",
+      "notification-workflow-changed",
+      "account-availability-ranking-changed",
+      "scenario-fixture-changed"
+    ],
+    "blocking": true
+  },
+  "proof": {
+    "layer": "unit",
+    "artifactSource": "focused-test-suite",
+    "nonClaims": [
+      "Does not exercise live macOS notification delivery.",
+      "Does not prove native notification UI rendering or user clicks.",
+      "Does not prove Current Runs Out action routing."
+    ]
+  },
+  "command": {
+    "run": "make verify-notifications-account-available-policy-scenario"
+  },
+  "expectedArtifacts": [
+    {
+      "id": "notifications-account-available-policy-result-bundle",
+      "kind": "test_output",
+      "path": "build/results/local/CodexPill.xcresult",
+      "claimScope": [
+        "notification-policy-workflow-tests"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "notifications-account-available-policy-workflow-receipt",
+      "kind": "workflow_event_log",
+      "path": "build/verification/notifications-account-available-policy/workflow-receipt.json",
+      "claimScope": [
+        "account-available-policy-events"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "notifications-account-available-policy-summary",
+      "kind": "reconciliation_report",
+      "path": "build/verification/notifications-account-available-policy/scenario-summary.json",
+      "claimScope": [
+        "account-available-policy-reconciled"
+      ],
+      "redactionStatus": "sanitized"
+    }
+  ],
+  "expectedMetadata": {
+    "scenario": "notifications-account-available-policy"
+  },
+  "privacy": {
+    "fixtureData": "synthetic",
+    "restrictedEvidence": [
+      "account_data",
+      "hostname",
+      "raw_local_path",
+      "private_product_data",
+      "token"
+    ]
+  }
+}

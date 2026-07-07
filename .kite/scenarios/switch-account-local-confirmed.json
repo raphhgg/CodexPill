@@ -1,0 +1,109 @@
+{
+  "id": "switch-account-local-confirmed",
+  "title": "Switch Account local confirmed",
+  "featureId": "switch-account-local",
+  "acceptanceCriteria": [
+    "local-switch-confirmation-gates-auth-activation",
+    "confirmed-local-switch-activates-relaunches-and-refreshes",
+    "add-account-success-reuses-local-switch-path"
+  ],
+  "targetSurface": "CodexPill local switch fake-client workflow boundary",
+  "validationModes": [
+    "unit_only"
+  ],
+  "suites": [
+    "deterministic"
+  ],
+  "validationIntent": {
+    "featureRisk": [
+      "auth_mutation",
+      "workflow_state",
+      "privacy"
+    ],
+    "primaryProof": "workflow-event-log",
+    "supportingProof": [
+      "privacy-leak-proof"
+    ],
+    "requiredEvidence": [
+      "test-output",
+      "workflow-receipt",
+      "scenario-summary"
+    ],
+    "nonClaims": [
+      "Does not prove native confirmation panel rendering or click automation.",
+      "Does not prove live Codex process relaunch or live app-server refresh.",
+      "Does not prove remote host switching.",
+      "Does not prove live macOS menu-bar behavior."
+    ],
+    "liveOptIn": {
+      "required": false
+    }
+  },
+  "nonRegression": {
+    "tier": "changed-feature",
+    "runWhen": [
+      "local-handoff",
+      "switch-account-workflow-changed",
+      "menubar-runtime-changed",
+      "account-action-flow-changed",
+      "silent-refresh-changed",
+      "scenario-fixture-changed"
+    ],
+    "blocking": true
+  },
+  "proof": {
+    "layer": "workflow-event-log",
+    "artifactSource": "focused-test-suite",
+    "nonClaims": [
+      "Does not prove native confirmation panel rendering or click automation.",
+      "Does not prove live Codex process relaunch or live app-server refresh.",
+      "Does not prove remote host switching.",
+      "Does not prove live macOS menu-bar behavior."
+    ]
+  },
+  "command": {
+    "run": "make verify-switch-account-local-confirmed-scenario"
+  },
+  "expectedArtifacts": [
+    {
+      "id": "switch-account-local-confirmed-result-bundle",
+      "kind": "test_output",
+      "path": "build/results/local/CodexPill.xcresult",
+      "claimScope": [
+        "switch-account-local-tests"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "switch-account-local-confirmed-workflow-receipt",
+      "kind": "workflow_event_log",
+      "path": "build/verification/switch-account-local-confirmed/workflow-receipt.json",
+      "claimScope": [
+        "fake-client-workflow-events"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "switch-account-local-confirmed-summary",
+      "kind": "reconciliation_report",
+      "path": "build/verification/switch-account-local-confirmed/scenario-summary.json",
+      "claimScope": [
+        "workflow-event-reconciled"
+      ],
+      "redactionStatus": "sanitized"
+    }
+  ],
+  "expectedMetadata": {
+    "scenario": "switch-account-local-confirmed"
+  },
+  "privacy": {
+    "fixtureData": "synthetic",
+    "restrictedEvidence": [
+      "account_data",
+      "hostname",
+      "raw_local_path",
+      "private_product_data",
+      "token"
+    ]
+  }
+}

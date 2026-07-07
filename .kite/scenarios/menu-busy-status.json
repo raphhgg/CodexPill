@@ -1,0 +1,99 @@
+{
+  "id": "menu-busy-status",
+  "title": "Menu busy status",
+  "featureId": "menubar-busy-status",
+  "acceptanceCriteria": [
+    "busy-status-visible-and-conflicting-actions-disabled"
+  ],
+  "targetSurface": "CodexPill hosted menu validation view",
+  "validationModes": [
+    "unit_only"
+  ],
+  "suites": [
+    "deterministic"
+  ],
+  "validationIntent": {
+    "featureRisk": [
+      "workflow_state",
+      "ui_visual",
+      "privacy"
+    ],
+    "primaryProof": "ui-structure-contract",
+    "supportingProof": [
+      "privacy-leak-proof"
+    ],
+    "requiredEvidence": [
+      "ui-structure-contract",
+      "scenario-summary"
+    ],
+    "nonClaims": [
+      "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
+      "Does not prove native menu opening, native click routing, focus, or hittability.",
+      "Does not prove workflow action dispatch or event-log ordering.",
+      "Does not prove busy actions route through confirmation paths.",
+      "Does not prove live Codex workflow state.",
+      "Does not prove the live macOS menu bar surface."
+    ],
+    "liveOptIn": {
+      "required": false
+    }
+  },
+  "nonRegression": {
+    "tier": "changed-feature",
+    "runWhen": [
+      "local-handoff",
+      "workflow-state-ui-changed",
+      "menubar-ui-changed",
+      "scenario-fixture-changed"
+    ],
+    "blocking": true
+  },
+  "proof": {
+    "layer": "ui-structure-contract",
+    "artifactSource": "hosted-menu-structure-exporter",
+    "nonClaims": [
+      "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
+      "Does not prove native menu opening, native click routing, focus, or hittability.",
+      "Does not prove workflow action dispatch or event-log ordering.",
+      "Does not prove busy actions route through confirmation paths.",
+      "Does not prove live Codex workflow state.",
+      "Does not prove the live macOS menu bar surface."
+    ]
+  },
+  "command": {
+    "run": "make verify-ui SCENARIO=menu-busy-status"
+  },
+  "expectedArtifacts": [
+    {
+      "id": "menu-busy-status-ui-structure-contract",
+      "kind": "ui_structure_contract",
+      "path": "build/verification/menu-busy-status/ui-structure-contract.json",
+      "claimScope": [
+        "menu-busy-status-structure"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "menu-busy-status-summary",
+      "kind": "reconciliation_report",
+      "path": "build/verification/menu-busy-status/scenario-summary.json",
+      "claimScope": [
+        "ui-structure-contract-reconciled"
+      ],
+      "redactionStatus": "sanitized"
+    }
+  ],
+  "expectedMetadata": {
+    "scenario": "menu-busy-status"
+  },
+  "privacy": {
+    "fixtureData": "synthetic",
+    "restrictedEvidence": [
+      "account_data",
+      "hostname",
+      "raw_local_path",
+      "private_product_data",
+      "token"
+    ]
+  }
+}

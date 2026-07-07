@@ -1,0 +1,98 @@
+{
+  "id": "menu-unmatched-active-account",
+  "title": "Menu unmatched active account",
+  "featureId": "active-account-truth",
+  "acceptanceCriteria": [
+    "active-account-unmatched-does-not-lie"
+  ],
+  "targetSurface": "CodexPill hosted menu validation view",
+  "validationModes": [
+    "unit_only"
+  ],
+  "suites": [
+    "smoke",
+    "deterministic"
+  ],
+  "validationIntent": {
+    "featureRisk": [
+      "state_truth",
+      "ui_visual",
+      "privacy"
+    ],
+    "primaryProof": "ui-structure-contract",
+    "supportingProof": [
+      "privacy-leak-proof"
+    ],
+    "requiredEvidence": [
+      "ui-structure-contract",
+      "scenario-summary"
+    ],
+    "nonClaims": [
+      "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
+      "Does not prove native menu opening, native click routing, focus, or hittability.",
+      "Does not prove live Codex auth lookup.",
+      "Does not prove account switching.",
+      "Does not prove the live macOS menu bar surface."
+    ],
+    "liveOptIn": {
+      "required": false
+    }
+  },
+  "nonRegression": {
+    "tier": "smoke",
+    "runWhen": [
+      "local-handoff",
+      "account-state-model-changed",
+      "menubar-ui-changed",
+      "scenario-fixture-changed"
+    ],
+    "blocking": true
+  },
+  "proof": {
+    "layer": "ui-structure-contract",
+    "artifactSource": "hosted-menu-structure-exporter",
+    "nonClaims": [
+      "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
+      "Does not prove native menu opening, native click routing, focus, or hittability.",
+      "Does not prove live Codex auth lookup.",
+      "Does not prove account switching.",
+      "Does not prove the live macOS menu bar surface."
+    ]
+  },
+  "command": {
+    "run": "make verify-ui SCENARIO=menu-unmatched-active-account"
+  },
+  "expectedArtifacts": [
+    {
+      "id": "menu-unmatched-active-account-ui-structure-contract",
+      "kind": "ui_structure_contract",
+      "path": "build/verification/menu-unmatched-active-account/ui-structure-contract.json",
+      "claimScope": [
+        "menu-unmatched-active-account-structure"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "menu-unmatched-active-account-summary",
+      "kind": "reconciliation_report",
+      "path": "build/verification/menu-unmatched-active-account/scenario-summary.json",
+      "claimScope": [
+        "ui-structure-contract-reconciled"
+      ],
+      "redactionStatus": "sanitized"
+    }
+  ],
+  "expectedMetadata": {
+    "scenario": "menu-unmatched-active-account"
+  },
+  "privacy": {
+    "fixtureData": "synthetic",
+    "restrictedEvidence": [
+      "account_data",
+      "hostname",
+      "raw_local_path",
+      "private_product_data",
+      "token"
+    ]
+  }
+}

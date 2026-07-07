@@ -1,0 +1,105 @@
+{
+  "id": "notifications-permission-denied-menu-state",
+  "title": "Notifications permission denied menu state",
+  "featureId": "notifications-permission-recovery",
+  "acceptanceCriteria": [
+    "denied-permission-renders-modes-disabled",
+    "denied-permission-routes-to-system-settings"
+  ],
+  "targetSurface": "CodexPill Notifications submenu and fake permission recovery runtime",
+  "validationModes": [
+    "unit_only"
+  ],
+  "suites": [
+    "deterministic"
+  ],
+  "validationIntent": {
+    "featureRisk": [
+      "state_truth",
+      "ui_visual"
+    ],
+    "primaryProof": "unit",
+    "supportingProof": [
+      "boundary-contract",
+      "privacy-leak-proof"
+    ],
+    "requiredEvidence": [
+      "test-output",
+      "workflow-receipt",
+      "scenario-summary"
+    ],
+    "nonClaims": [
+      "Does not open live macOS System Settings.",
+      "Does not exercise live notification permission dialogs.",
+      "Does not prove native click automation or live menu-bar interaction."
+    ],
+    "liveOptIn": {
+      "required": false
+    }
+  },
+  "nonRegression": {
+    "tier": "changed-feature",
+    "runWhen": [
+      "local-handoff",
+      "notification-menu-state-changed",
+      "notification-permission-runtime-changed",
+      "notification-settings-launcher-changed",
+      "scenario-fixture-changed"
+    ],
+    "blocking": true
+  },
+  "proof": {
+    "layer": "unit",
+    "artifactSource": "focused-test-suite",
+    "nonClaims": [
+      "Does not open live macOS System Settings.",
+      "Does not exercise live notification permission dialogs.",
+      "Does not prove native click automation or live menu-bar interaction."
+    ]
+  },
+  "command": {
+    "run": "make verify-notifications-permission-denied-menu-state-scenario"
+  },
+  "expectedArtifacts": [
+    {
+      "id": "notifications-permission-denied-menu-state-result-bundle",
+      "kind": "test_output",
+      "path": "build/results/local/CodexPill.xcresult",
+      "claimScope": [
+        "notification-menu-runtime-tests"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "notifications-permission-denied-menu-state-workflow-receipt",
+      "kind": "workflow_event_log",
+      "path": "build/verification/notifications-permission-denied-menu-state/workflow-receipt.json",
+      "claimScope": [
+        "denied-permission-recovery-events"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "notifications-permission-denied-menu-state-summary",
+      "kind": "reconciliation_report",
+      "path": "build/verification/notifications-permission-denied-menu-state/scenario-summary.json",
+      "claimScope": [
+        "permission-denied-menu-reconciled"
+      ],
+      "redactionStatus": "sanitized"
+    }
+  ],
+  "expectedMetadata": {
+    "scenario": "notifications-permission-denied-menu-state"
+  },
+  "privacy": {
+    "fixtureData": "synthetic",
+    "restrictedEvidence": [
+      "account_data",
+      "hostname",
+      "raw_local_path",
+      "private_product_data",
+      "token"
+    ]
+  }
+}

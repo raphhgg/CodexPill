@@ -112,9 +112,13 @@ kite gate run-checks
 ```
 
 The docs-process checks gate validates `.kite/scenarios.json` through the
-stable `kite` command. Generated run state stays under ignored `.kite/runs/`;
-generated validation reports and scenario evidence stay under ignored `build/`
-paths such as `build/kite/` and `build/verification/`.
+stable `kite` command. Review and edit individual scenario contracts under
+`.kite/scenarios/<scenario-id>.json`; `ScenarioContractFileTests` guards drift
+between those per-scenario files and the aggregate manifest until the aggregate
+can be generated or Kite consumes the directory directly. Generated run state
+stays under ignored `.kite/runs/`; generated validation reports and scenario
+evidence stay under ignored `build/` paths such as `build/kite/` and
+`build/verification/`.
 
 ## Local Assumptions
 

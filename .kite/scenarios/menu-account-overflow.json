@@ -1,0 +1,99 @@
+{
+  "id": "menu-account-overflow",
+  "title": "Menu account overflow",
+  "featureId": "account-catalog-overflow",
+  "acceptanceCriteria": [
+    "overflow-keeps-hidden-accounts-discoverable"
+  ],
+  "targetSurface": "CodexPill hosted menu validation view",
+  "validationModes": [
+    "unit_only"
+  ],
+  "suites": [
+    "deterministic"
+  ],
+  "validationIntent": {
+    "featureRisk": [
+      "ui_visual",
+      "static_ui",
+      "state_truth"
+    ],
+    "primaryProof": "ui-structure-contract",
+    "supportingProof": [
+      "privacy-leak-proof"
+    ],
+    "requiredEvidence": [
+      "ui-structure-contract",
+      "scenario-summary"
+    ],
+    "nonClaims": [
+      "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
+      "Does not prove native menu opening, native click routing, focus, or hittability.",
+      "Does not prove live Codex auth lookup.",
+      "Does not prove account switching.",
+      "Does not prove the live macOS menu bar surface.",
+      "Does not prove runtime menu opening or pointer interaction."
+    ],
+    "liveOptIn": {
+      "required": false
+    }
+  },
+  "nonRegression": {
+    "tier": "changed-feature",
+    "runWhen": [
+      "local-handoff",
+      "account-catalog-ui-changed",
+      "menubar-ui-changed",
+      "scenario-fixture-changed"
+    ],
+    "blocking": true
+  },
+  "proof": {
+    "layer": "ui-structure-contract",
+    "artifactSource": "hosted-menu-structure-exporter",
+    "nonClaims": [
+      "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
+      "Does not prove native menu opening, native click routing, focus, or hittability.",
+      "Does not prove live Codex auth lookup.",
+      "Does not prove account switching.",
+      "Does not prove the live macOS menu bar surface.",
+      "Does not prove runtime menu opening or pointer interaction."
+    ]
+  },
+  "command": {
+    "run": "make verify-ui SCENARIO=menu-account-overflow"
+  },
+  "expectedArtifacts": [
+    {
+      "id": "menu-account-overflow-ui-structure-contract",
+      "kind": "ui_structure_contract",
+      "path": "build/verification/menu-account-overflow/ui-structure-contract.json",
+      "claimScope": [
+        "menu-account-overflow-structure"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "menu-account-overflow-summary",
+      "kind": "reconciliation_report",
+      "path": "build/verification/menu-account-overflow/scenario-summary.json",
+      "claimScope": [
+        "ui-structure-contract-reconciled"
+      ],
+      "redactionStatus": "sanitized"
+    }
+  ],
+  "expectedMetadata": {
+    "scenario": "menu-account-overflow"
+  },
+  "privacy": {
+    "fixtureData": "synthetic",
+    "restrictedEvidence": [
+      "account_data",
+      "hostname",
+      "raw_local_path",
+      "private_product_data",
+      "token"
+    ]
+  }
+}

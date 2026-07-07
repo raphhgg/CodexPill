@@ -1,0 +1,108 @@
+{
+  "id": "add-account-isolated-success",
+  "title": "Add Account isolated success",
+  "featureId": "add-account-isolated-success",
+  "acceptanceCriteria": [
+    "add-account-saves-inactive-account-without-switching-this-mac",
+    "add-account-hydrates-usable-status-after-save",
+    "add-account-cleans-isolated-session-after-success"
+  ],
+  "targetSurface": "CodexPill Add Account fake-client workflow boundary",
+  "validationModes": [
+    "unit_only"
+  ],
+  "suites": [
+    "deterministic"
+  ],
+  "validationIntent": {
+    "featureRisk": [
+      "auth_isolation",
+      "workflow_state",
+      "privacy"
+    ],
+    "primaryProof": "workflow-event-log",
+    "supportingProof": [
+      "privacy-leak-proof"
+    ],
+    "requiredEvidence": [
+      "test-output",
+      "workflow-receipt",
+      "scenario-summary"
+    ],
+    "nonClaims": [
+      "Does not prove native device-code panel rendering or browser sign-in.",
+      "Does not prove live Codex auth, live app-server, or real process relaunch.",
+      "Does not prove terminal failure cleanup paths.",
+      "Does not prove live macOS menu-bar behavior."
+    ],
+    "liveOptIn": {
+      "required": false
+    }
+  },
+  "nonRegression": {
+    "tier": "changed-feature",
+    "runWhen": [
+      "local-handoff",
+      "add-account-workflow-changed",
+      "accounts-controller-changed",
+      "account-hydration-changed",
+      "scenario-fixture-changed"
+    ],
+    "blocking": true
+  },
+  "proof": {
+    "layer": "workflow-event-log",
+    "artifactSource": "focused-test-suite",
+    "nonClaims": [
+      "Does not prove native device-code panel rendering or browser sign-in.",
+      "Does not prove live Codex auth, live app-server, or real process relaunch.",
+      "Does not prove terminal failure cleanup paths.",
+      "Does not prove live macOS menu-bar behavior."
+    ]
+  },
+  "command": {
+    "run": "make verify-add-account-isolated-success-scenario"
+  },
+  "expectedArtifacts": [
+    {
+      "id": "add-account-isolated-success-result-bundle",
+      "kind": "test_output",
+      "path": "build/results/local/CodexPill.xcresult",
+      "claimScope": [
+        "add-account-workflow-tests"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "add-account-isolated-success-workflow-receipt",
+      "kind": "workflow_event_log",
+      "path": "build/verification/add-account-isolated-success/workflow-receipt.json",
+      "claimScope": [
+        "fake-client-workflow-events"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "add-account-isolated-success-summary",
+      "kind": "reconciliation_report",
+      "path": "build/verification/add-account-isolated-success/scenario-summary.json",
+      "claimScope": [
+        "workflow-event-reconciled"
+      ],
+      "redactionStatus": "sanitized"
+    }
+  ],
+  "expectedMetadata": {
+    "scenario": "add-account-isolated-success"
+  },
+  "privacy": {
+    "fixtureData": "synthetic",
+    "restrictedEvidence": [
+      "account_data",
+      "hostname",
+      "raw_local_path",
+      "private_product_data",
+      "token"
+    ]
+  }
+}

@@ -1,0 +1,118 @@
+{
+  "id": "status-bar-icon-text-visible",
+  "title": "Status bar icon and text visible",
+  "featureId": "status-bar-closed-state",
+  "acceptanceCriteria": [
+    "closed-status-item-icon-and-text-visible"
+  ],
+  "targetSurface": "CodexPill status item runtime snapshot",
+  "validationModes": [
+    "unit_only"
+  ],
+  "suites": [
+    "deterministic"
+  ],
+  "validationIntent": {
+    "featureRisk": [
+      "ui_visual",
+      "runtime_state",
+      "privacy"
+    ],
+    "primaryProof": "boundary-contract",
+    "supportingProof": [
+      "boundary-contract",
+      "privacy-leak-proof"
+    ],
+    "requiredEvidence": [
+      "ui-tree",
+      "scenario-summary",
+      "runtime-state-snapshot"
+    ],
+    "nonClaims": [
+      "Does not prove live menubar screen capture.",
+      "Does not prove native status item hittability or screen position.",
+      "Does not prove hover expansion, shortcut reveal, or temporal behavior.",
+      "Does not prove display across multiple screens, notches, or menu-bar layouts.",
+      "Does not prove the live macOS menu bar surface."
+    ],
+    "liveOptIn": {
+      "required": false
+    }
+  },
+  "nonRegression": {
+    "tier": "changed-feature",
+    "runWhen": [
+      "local-handoff",
+      "status-bar-ui-changed",
+      "status-item-runtime-changed",
+      "scenario-fixture-changed"
+    ],
+    "blocking": true
+  },
+  "proof": {
+    "layer": "boundary-contract",
+    "artifactSource": "status-item-runtime-snapshot",
+    "nonClaims": [
+      "Does not prove live menubar screen capture.",
+      "Does not prove native status item hittability or screen position.",
+      "Does not prove hover expansion, shortcut reveal, or temporal behavior.",
+      "Does not prove display across multiple screens, notches, or menu-bar layouts.",
+      "Does not prove the live macOS menu bar surface."
+    ]
+  },
+  "command": {
+    "run": "make verify-ui SCENARIO=status-bar-icon-text-visible"
+  },
+  "expectedArtifacts": [
+    {
+      "id": "status-bar-icon-text-visible-screenshot",
+      "kind": "visual_snapshot",
+      "path": "build/verification/status-bar-icon-text-visible/screenshots/status-bar-icon-text-visible.png",
+      "claimScope": [
+        "deterministic-hosted-view-context"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "status-bar-icon-text-visible-tree",
+      "kind": "semantic_snapshot",
+      "path": "build/verification/status-bar-icon-text-visible/ui-tree.json",
+      "claimScope": [
+        "semantic-ui-tree",
+        "status-item-runtime-state"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "status-bar-icon-text-visible-summary",
+      "kind": "reconciliation_report",
+      "path": "build/verification/status-bar-icon-text-visible/scenario-summary.json",
+      "claimScope": [
+        "deterministic-reconciled"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "status-bar-icon-text-visible-state",
+      "kind": "runtime_state_snapshot",
+      "path": "build/verification/status-bar-icon-text-visible/status-item-state.json",
+      "claimScope": [
+        "status-item-runtime-state"
+      ],
+      "redactionStatus": "sanitized"
+    }
+  ],
+  "expectedMetadata": {
+    "scenario": "status-bar-icon-text-visible"
+  },
+  "privacy": {
+    "fixtureData": "synthetic",
+    "restrictedEvidence": [
+      "account_data",
+      "hostname",
+      "raw_local_path",
+      "private_product_data",
+      "token"
+    ]
+  }
+}

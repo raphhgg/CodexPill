@@ -1,0 +1,97 @@
+{
+  "id": "hosted-menu-default",
+  "title": "Hosted menu default",
+  "featureId": "menubar-default-read-state",
+  "acceptanceCriteria": [
+    "default-menu-shape-does-not-claim-live-state"
+  ],
+  "targetSurface": "CodexPill hosted menu validation view",
+  "validationModes": [
+    "unit_only"
+  ],
+  "suites": [
+    "smoke",
+    "deterministic"
+  ],
+  "validationIntent": {
+    "featureRisk": [
+      "ui_visual",
+      "static_ui",
+      "privacy"
+    ],
+    "primaryProof": "ui-structure-contract",
+    "supportingProof": [
+      "privacy-leak-proof"
+    ],
+    "requiredEvidence": [
+      "ui-structure-contract",
+      "scenario-summary"
+    ],
+    "nonClaims": [
+      "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
+      "Does not prove native menu opening, native click routing, focus, or hittability.",
+      "Does not prove SwiftUI preview rendering.",
+      "Does not prove the live macOS menu bar surface.",
+      "Does not prove live Codex account or app-server state."
+    ],
+    "liveOptIn": {
+      "required": false
+    }
+  },
+  "nonRegression": {
+    "tier": "smoke",
+    "runWhen": [
+      "local-handoff",
+      "menubar-ui-changed",
+      "scenario-fixture-changed"
+    ],
+    "blocking": true
+  },
+  "proof": {
+    "layer": "ui-structure-contract",
+    "artifactSource": "hosted-menu-structure-exporter",
+    "nonClaims": [
+      "Does not prove pixel rendering, typography, spacing, or screenshot visual fidelity.",
+      "Does not prove native menu opening, native click routing, focus, or hittability.",
+      "Does not prove SwiftUI preview rendering.",
+      "Does not prove the live macOS menu bar surface.",
+      "Does not prove live Codex account or app-server state."
+    ]
+  },
+  "command": {
+    "run": "make verify-ui SCENARIO=hosted-menu-default"
+  },
+  "expectedArtifacts": [
+    {
+      "id": "hosted-menu-default-ui-structure-contract",
+      "kind": "ui_structure_contract",
+      "path": "build/verification/hosted-menu-default/ui-structure-contract.json",
+      "claimScope": [
+        "hosted-menu-default-structure"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "hosted-menu-default-summary",
+      "kind": "reconciliation_report",
+      "path": "build/verification/hosted-menu-default/scenario-summary.json",
+      "claimScope": [
+        "ui-structure-contract-reconciled"
+      ],
+      "redactionStatus": "sanitized"
+    }
+  ],
+  "expectedMetadata": {
+    "scenario": "hosted-menu-default"
+  },
+  "privacy": {
+    "fixtureData": "synthetic",
+    "restrictedEvidence": [
+      "account_data",
+      "hostname",
+      "raw_local_path",
+      "private_product_data",
+      "token"
+    ]
+  }
+}

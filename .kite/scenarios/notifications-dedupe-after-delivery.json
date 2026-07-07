@@ -1,0 +1,109 @@
+{
+  "id": "notifications-dedupe-after-delivery",
+  "title": "Notifications dedupe after delivery",
+  "featureId": "notifications-dedupe-after-delivery",
+  "acceptanceCriteria": [
+    "delivered-notification-disarms-repeat-delivery",
+    "delivered-notification-persists-reason-and-window",
+    "delivered-notification-rearms-after-local-or-remote-activation"
+  ],
+  "targetSurface": "CodexPill notification state store, fake delivery workflow, and activation runtime",
+  "validationModes": [
+    "unit_only"
+  ],
+  "suites": [
+    "deterministic"
+  ],
+  "validationIntent": {
+    "featureRisk": [
+      "workflow_state",
+      "state_truth"
+    ],
+    "primaryProof": "unit",
+    "supportingProof": [
+      "workflow-event-log",
+      "boundary-contract",
+      "privacy-leak-proof"
+    ],
+    "requiredEvidence": [
+      "test-output",
+      "workflow-receipt",
+      "scenario-summary"
+    ],
+    "nonClaims": [
+      "Does not exercise live macOS notification delivery.",
+      "Does not prove native Notification Center rendering or real user clicks.",
+      "Does not touch real Codex account data, real remote hosts, or real switching."
+    ],
+    "liveOptIn": {
+      "required": false
+    }
+  },
+  "nonRegression": {
+    "tier": "changed-feature",
+    "runWhen": [
+      "local-handoff",
+      "notification-state-changed",
+      "notification-workflow-changed",
+      "settings-persistence-changed",
+      "local-switch-routing-changed",
+      "remote-switch-routing-changed",
+      "scenario-fixture-changed"
+    ],
+    "blocking": true
+  },
+  "proof": {
+    "layer": "unit",
+    "artifactSource": "focused-test-suite",
+    "nonClaims": [
+      "Does not exercise live macOS notification delivery.",
+      "Does not prove native Notification Center rendering or real user clicks.",
+      "Does not touch real Codex account data, real remote hosts, or real switching."
+    ]
+  },
+  "command": {
+    "run": "make verify-notifications-dedupe-after-delivery-scenario"
+  },
+  "expectedArtifacts": [
+    {
+      "id": "notifications-dedupe-after-delivery-result-bundle",
+      "kind": "test_output",
+      "path": "build/results/local/CodexPill.xcresult",
+      "claimScope": [
+        "notification-dedupe-tests"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "notifications-dedupe-after-delivery-workflow-receipt",
+      "kind": "workflow_event_log",
+      "path": "build/verification/notifications-dedupe-after-delivery/workflow-receipt.json",
+      "claimScope": [
+        "notification-dedupe-events"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "notifications-dedupe-after-delivery-summary",
+      "kind": "reconciliation_report",
+      "path": "build/verification/notifications-dedupe-after-delivery/scenario-summary.json",
+      "claimScope": [
+        "notification-dedupe-reconciled"
+      ],
+      "redactionStatus": "sanitized"
+    }
+  ],
+  "expectedMetadata": {
+    "scenario": "notifications-dedupe-after-delivery"
+  },
+  "privacy": {
+    "fixtureData": "synthetic",
+    "restrictedEvidence": [
+      "account_data",
+      "hostname",
+      "raw_local_path",
+      "private_product_data",
+      "token"
+    ]
+  }
+}

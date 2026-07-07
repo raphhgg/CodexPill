@@ -1,0 +1,106 @@
+{
+  "id": "remove-account-signout-failure-keeps-control",
+  "title": "Remove Account sign-out failure keeps control",
+  "featureId": "remove-account-active-targets",
+  "acceptanceCriteria": [
+    "remove-active-account-signout-failure-keeps-control"
+  ],
+  "targetSurface": "CodexPill remove-account fake local and remote failure workflow boundary",
+  "validationModes": [
+    "unit_only"
+  ],
+  "suites": [
+    "deterministic"
+  ],
+  "validationIntent": {
+    "featureRisk": [
+      "failure_path",
+      "state_truth",
+      "privacy"
+    ],
+    "primaryProof": "workflow-event-log",
+    "supportingProof": [
+      "privacy-leak-proof"
+    ],
+    "requiredEvidence": [
+      "test-output",
+      "workflow-receipt",
+      "scenario-summary"
+    ],
+    "nonClaims": [
+      "Does not prove native confirmation panel rendering or click automation.",
+      "Does not exercise live Codex relaunch, live SSH sign-out, or real remote auth mutation.",
+      "Does not prove remote inactive snapshot deletion.",
+      "Does not prove live macOS menu-bar behavior."
+    ],
+    "liveOptIn": {
+      "required": false
+    }
+  },
+  "nonRegression": {
+    "tier": "changed-feature",
+    "runWhen": [
+      "local-handoff",
+      "remove-account-workflow-changed",
+      "menubar-runtime-changed",
+      "remote-host-signout-changed",
+      "scenario-fixture-changed"
+    ],
+    "blocking": true
+  },
+  "proof": {
+    "layer": "workflow-event-log",
+    "artifactSource": "focused-test-suite",
+    "nonClaims": [
+      "Does not prove native confirmation panel rendering or click automation.",
+      "Does not exercise live Codex relaunch, live SSH sign-out, or real remote auth mutation.",
+      "Does not prove remote inactive snapshot deletion.",
+      "Does not prove live macOS menu-bar behavior."
+    ]
+  },
+  "command": {
+    "run": "make verify-remove-account-signout-failure-keeps-control-scenario"
+  },
+  "expectedArtifacts": [
+    {
+      "id": "remove-account-signout-failure-result-bundle",
+      "kind": "test_output",
+      "path": "build/results/local/CodexPill.xcresult",
+      "claimScope": [
+        "remove-account-signout-failure-tests"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "remove-account-signout-failure-workflow-receipt",
+      "kind": "workflow_event_log",
+      "path": "build/verification/remove-account-signout-failure-keeps-control/workflow-receipt.json",
+      "claimScope": [
+        "fake-local-remote-signout-failure-workflow-events"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "remove-account-signout-failure-summary",
+      "kind": "reconciliation_report",
+      "path": "build/verification/remove-account-signout-failure-keeps-control/scenario-summary.json",
+      "claimScope": [
+        "workflow-event-reconciled"
+      ],
+      "redactionStatus": "sanitized"
+    }
+  ],
+  "expectedMetadata": {
+    "scenario": "remove-account-signout-failure-keeps-control"
+  },
+  "privacy": {
+    "fixtureData": "synthetic",
+    "restrictedEvidence": [
+      "account_data",
+      "hostname",
+      "raw_local_path",
+      "private_product_data",
+      "token"
+    ]
+  }
+}

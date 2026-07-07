@@ -1,0 +1,100 @@
+{
+  "id": "token-usage-parser-aggregation",
+  "title": "Token Usage parser aggregation",
+  "featureId": "token-usage-local-history-parser",
+  "acceptanceCriteria": [
+    "scanner-aggregates-synthetic-token-count-rows"
+  ],
+  "targetSurface": "CodexPill local session scanner fixture boundary",
+  "validationModes": [
+    "unit_only"
+  ],
+  "suites": [
+    "deterministic"
+  ],
+  "validationIntent": {
+    "featureRisk": [
+      "parser",
+      "privacy",
+      "performance"
+    ],
+    "primaryProof": "boundary-contract",
+    "supportingProof": [
+      "privacy-leak-proof"
+    ],
+    "requiredEvidence": [
+      "test-output",
+      "scenario-summary"
+    ],
+    "nonClaims": [
+      "Does not prove Token Usage UI presentation.",
+      "Does not prove diagnostics export privacy.",
+      "Does not prove saved-account, workspace, organization, or remote-host usage history.",
+      "Does not prove real local Codex history scanning.",
+      "Does not prove live Token Usage runtime lifecycle or duplicate-scan prevention.",
+      "Does not prove live macOS menu-bar behavior."
+    ],
+    "liveOptIn": {
+      "required": false
+    }
+  },
+  "nonRegression": {
+    "tier": "changed-feature",
+    "runWhen": [
+      "local-handoff",
+      "token-usage-scanner-changed",
+      "token-usage-cache-changed",
+      "scenario-fixture-changed"
+    ],
+    "blocking": true
+  },
+  "proof": {
+    "layer": "boundary-contract",
+    "artifactSource": "focused-test-suite",
+    "nonClaims": [
+      "Does not prove Token Usage UI presentation.",
+      "Does not prove diagnostics export privacy.",
+      "Does not prove saved-account, workspace, organization, or remote-host usage history.",
+      "Does not prove real local Codex history scanning.",
+      "Does not prove live Token Usage runtime lifecycle or duplicate-scan prevention.",
+      "Does not prove live macOS menu-bar behavior."
+    ]
+  },
+  "command": {
+    "run": "make verify-token-usage-parser-scenario"
+  },
+  "expectedArtifacts": [
+    {
+      "id": "token-usage-parser-aggregation-result-bundle",
+      "kind": "test_output",
+      "path": "build/results/local/CodexPill.xcresult",
+      "claimScope": [
+        "scanner-contract-fixtures"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "token-usage-parser-aggregation-summary",
+      "kind": "reconciliation_report",
+      "path": "build/verification/token-usage-parser-aggregation/scenario-summary.json",
+      "claimScope": [
+        "contract-fixture-reconciled"
+      ],
+      "redactionStatus": "sanitized"
+    }
+  ],
+  "expectedMetadata": {
+    "scenario": "token-usage-parser-aggregation"
+  },
+  "privacy": {
+    "fixtureData": "synthetic",
+    "restrictedEvidence": [
+      "account_data",
+      "hostname",
+      "private_product_data",
+      "raw_local_path",
+      "raw_transcript",
+      "token"
+    ]
+  }
+}

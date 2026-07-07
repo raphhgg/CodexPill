@@ -1,0 +1,111 @@
+{
+  "id": "remote-host-add-panel-validation",
+  "title": "Remote Host Add Panel validation",
+  "featureId": "remote-host-add-panel",
+  "acceptanceCriteria": [
+    "add-host-feedback-and-unlock-require-codex-ready-target",
+    "add-host-validation-uses-noninteractive-codex-readiness-check"
+  ],
+  "targetSurface": "CodexPill Add Host form state and fake SSH/Codex readiness contract",
+  "validationModes": [
+    "unit_only"
+  ],
+  "suites": [
+    "deterministic"
+  ],
+  "validationIntent": {
+    "featureRisk": [
+      "ui_interaction",
+      "remote_contract",
+      "privacy"
+    ],
+    "primaryProof": "boundary-contract",
+    "supportingProof": [
+      "unit",
+      "privacy-leak-proof"
+    ],
+    "requiredEvidence": [
+      "test-output",
+      "contract-receipt",
+      "scenario-summary"
+    ],
+    "nonClaims": [
+      "Does not prove native Add Host panel screenshot rendering.",
+      "Does not prove first responder focus or native click automation.",
+      "Does not exercise live SSH, live Codex app-server behavior, or a real remote filesystem.",
+      "Does not prove install-and-switch follow-up.",
+      "Does not prove live macOS menu-bar behavior."
+    ],
+    "liveOptIn": {
+      "required": false
+    }
+  },
+  "nonRegression": {
+    "tier": "changed-feature",
+    "runWhen": [
+      "local-handoff",
+      "remote-host-add-panel-changed",
+      "remote-host-form-state-changed",
+      "remote-host-client-contract-changed",
+      "scenario-fixture-changed"
+    ],
+    "blocking": true
+  },
+  "proof": {
+    "layer": "boundary-contract",
+    "artifactSource": "focused-test-suite",
+    "nonClaims": [
+      "Does not prove native Add Host panel screenshot rendering.",
+      "Does not prove first responder focus or native click automation.",
+      "Does not exercise live SSH, live Codex app-server behavior, or a real remote filesystem.",
+      "Does not prove install-and-switch follow-up.",
+      "Does not prove live macOS menu-bar behavior."
+    ]
+  },
+  "command": {
+    "run": "make verify-remote-host-add-panel-validation-scenario"
+  },
+  "expectedArtifacts": [
+    {
+      "id": "remote-host-add-panel-validation-result-bundle",
+      "kind": "test_output",
+      "path": "build/results/local/CodexPill.xcresult",
+      "claimScope": [
+        "remote-host-add-panel-tests",
+        "ssh-contract-fixtures"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "remote-host-add-panel-validation-contract-receipt",
+      "kind": "contract_receipt",
+      "path": "build/verification/remote-host-add-panel-validation/contract-receipt.json",
+      "claimScope": [
+        "add-host-validation-contract-events"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "remote-host-add-panel-validation-summary",
+      "kind": "reconciliation_report",
+      "path": "build/verification/remote-host-add-panel-validation/scenario-summary.json",
+      "claimScope": [
+        "contract-fixture-reconciled"
+      ],
+      "redactionStatus": "sanitized"
+    }
+  ],
+  "expectedMetadata": {
+    "scenario": "remote-host-add-panel-validation"
+  },
+  "privacy": {
+    "fixtureData": "synthetic",
+    "restrictedEvidence": [
+      "account_data",
+      "hostname",
+      "raw_local_path",
+      "private_product_data",
+      "token"
+    ]
+  }
+}

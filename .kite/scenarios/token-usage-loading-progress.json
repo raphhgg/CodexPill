@@ -1,0 +1,108 @@
+{
+  "id": "token-usage-loading-progress",
+  "title": "Token Usage loading progress",
+  "featureId": "token-usage-menu-card",
+  "acceptanceCriteria": [
+    "loading-progress-is-honest-and-private"
+  ],
+  "targetSurface": "CodexPill hosted menu validation view",
+  "validationModes": [
+    "unit_only"
+  ],
+  "suites": [
+    "deterministic"
+  ],
+  "validationIntent": {
+    "featureRisk": [
+      "ui_visual",
+      "temporal",
+      "privacy"
+    ],
+    "primaryProof": "boundary-contract",
+    "supportingProof": [
+      "privacy-leak-proof"
+    ],
+    "requiredEvidence": [
+      "screenshot",
+      "ui-tree",
+      "scenario-summary"
+    ],
+    "nonClaims": [
+      "Does not prove live local Codex session scanning.",
+      "Does not prove animation cadence over time.",
+      "Does not prove close-and-reopen scan lifecycle.",
+      "Does not prove reduced-motion runtime behavior.",
+      "Does not prove the live macOS menu bar surface."
+    ],
+    "liveOptIn": {
+      "required": false
+    }
+  },
+  "nonRegression": {
+    "tier": "changed-feature",
+    "runWhen": [
+      "local-handoff",
+      "token-usage-ui-changed",
+      "menubar-ui-changed",
+      "scenario-fixture-changed"
+    ],
+    "blocking": true
+  },
+  "proof": {
+    "layer": "boundary-contract",
+    "artifactSource": "hosted-validation-view",
+    "nonClaims": [
+      "Does not prove live local Codex session scanning.",
+      "Does not prove animation cadence over time.",
+      "Does not prove close-and-reopen scan lifecycle.",
+      "Does not prove reduced-motion runtime behavior.",
+      "Does not prove the live macOS menu bar surface."
+    ]
+  },
+  "command": {
+    "run": "make verify-ui SCENARIO=token-usage-loading-progress"
+  },
+  "expectedArtifacts": [
+    {
+      "id": "token-usage-loading-progress-screenshot",
+      "kind": "visual_snapshot",
+      "path": "build/verification/token-usage-loading-progress/screenshots/token-usage-loading-progress.png",
+      "claimScope": [
+        "deterministic-hosted-view"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "token-usage-loading-progress-tree",
+      "kind": "semantic_snapshot",
+      "path": "build/verification/token-usage-loading-progress/ui-tree.json",
+      "claimScope": [
+        "semantic-ui-tree"
+      ],
+      "redactionStatus": "sanitized"
+    },
+    {
+      "id": "token-usage-loading-progress-summary",
+      "kind": "reconciliation_report",
+      "path": "build/verification/token-usage-loading-progress/scenario-summary.json",
+      "claimScope": [
+        "deterministic-reconciled"
+      ],
+      "redactionStatus": "sanitized"
+    }
+  ],
+  "expectedMetadata": {
+    "scenario": "token-usage-loading-progress"
+  },
+  "privacy": {
+    "fixtureData": "synthetic",
+    "restrictedEvidence": [
+      "account_data",
+      "hostname",
+      "private_product_data",
+      "raw_local_path",
+      "raw_transcript",
+      "token"
+    ]
+  }
+}
