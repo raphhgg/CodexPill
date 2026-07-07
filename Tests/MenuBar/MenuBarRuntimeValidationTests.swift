@@ -2998,15 +2998,50 @@ private struct ManifestScenario: Decodable {
     let validationIntent: ManifestValidationIntent
     let expectedArtifacts: [ManifestExpectedArtifact]
     let proof: ManifestScenarioProof
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case validationIntent
+        case expectedArtifacts
+        case proof
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        validationIntent = try container.decode(ManifestValidationIntent.self, forKey: .validationIntent)
+        expectedArtifacts = try container.decodeIfPresent([ManifestExpectedArtifact].self, forKey: .expectedArtifacts) ?? []
+        proof = try container.decode(ManifestScenarioProof.self, forKey: .proof)
+    }
 }
 
 private struct ManifestValidationIntent: Decodable {
     let requiredEvidence: [String]
     let nonClaims: [String]
+
+    private enum CodingKeys: String, CodingKey {
+        case requiredEvidence
+        case nonClaims
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        requiredEvidence = try container.decodeIfPresent([String].self, forKey: .requiredEvidence) ?? []
+        nonClaims = try container.decodeIfPresent([String].self, forKey: .nonClaims) ?? []
+    }
 }
 
 private struct ManifestScenarioProof: Decodable {
     let layer: String
+
+    private enum CodingKeys: String, CodingKey {
+        case layer
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        layer = try container.decodeIfPresent(String.self, forKey: .layer) ?? ""
+    }
 }
 
 private struct ManifestExpectedArtifact: Decodable {
