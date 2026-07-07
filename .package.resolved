@@ -1,0 +1,15 @@
+{
+  "originHash" : "4f01abf686ce20f0ba7a65297df6eb443f0229abc746e15220b54fa4a536cefa",
+  "pins" : [
+    {
+      "identity" : "kite-validation-contracts-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/raphhgg/kite-validation-contracts-swift.git",
+      "state" : {
+        "revision" : "db3fcdb7cb7556d6dc44306f75f960e91b669e28",
+        "version" : "0.1.0"
+      }
+    }
+  ],
+  "version" : 3
+}

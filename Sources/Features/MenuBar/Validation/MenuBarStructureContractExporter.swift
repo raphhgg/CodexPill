@@ -1,4 +1,5 @@
 import Foundation
+import KiteValidationContracts
 
 @MainActor
 enum MenuBarStructureExporter {
@@ -497,139 +498,11 @@ private struct UiStructureContractSpec {
     let assertions: [UiStructureAssertionArtifact]
     let nonClaims: [String]
 }
-// Product-side payload structs for emitting Kite ui-structure-contract JSON.
-// Kite owns validation semantics; CodexPill only maps menu state into the schema.
-struct UiStructureContractArtifact: Codable, Equatable {
-    let kind: String
-    let schemaVersion: String
-    let id: String
-    let scenario: UiStructureScenarioArtifact
-    let root: UiStructureNodeArtifact
-    let assertions: [UiStructureAssertionArtifact]
-    let nonClaims: [String]
-}
 
-struct UiStructureScenarioArtifact: Codable, Equatable {
-    let id: String
-    let featureId: String
-    let acceptanceCriteria: [String]
-    let targetSurface: String
-    let proofType: String
-}
-
-struct UiStructureNodeArtifact: Codable, Equatable {
-    let id: String
-    let role: String
-    let label: String?
-    let text: String?
-    let visible: Bool?
-    let enabled: Bool?
-    let selected: Bool?
-    let semanticTags: [String]?
-    let actions: [UiStructureActionArtifact]?
-    let children: [UiStructureNodeArtifact]?
-
-    init(
-        id: String,
-        role: String,
-        label: String? = nil,
-        text: String? = nil,
-        visible: Bool? = nil,
-        enabled: Bool? = nil,
-        selected: Bool? = nil,
-        semanticTags: [String]? = nil,
-        actions: [UiStructureActionArtifact]? = nil,
-        children: [UiStructureNodeArtifact]? = nil
-    ) {
-        self.id = id
-        self.role = role
-        self.label = label
-        self.text = text
-        self.visible = visible
-        self.enabled = enabled
-        self.selected = selected
-        self.semanticTags = semanticTags
-        self.actions = actions
-        self.children = children
-    }
-}
-
-struct UiStructureActionArtifact: Codable, Equatable {
-    let id: String
-    let label: String?
-    let enabled: Bool?
-
-    init(id: String, label: String? = nil, enabled: Bool? = nil) {
-        self.id = id
-        self.label = label
-        self.enabled = enabled
-    }
-}
-
-struct UiStructureMatchArtifact: Codable, Equatable {
-    let id: String?
-    let role: String?
-    let label: String?
-    let text: String?
-    let semanticTag: String?
-    let visible: Bool?
-    let enabled: Bool?
-    let selected: Bool?
-
-    init(
-        id: String? = nil,
-        role: String? = nil,
-        label: String? = nil,
-        text: String? = nil,
-        semanticTag: String? = nil,
-        visible: Bool? = nil,
-        enabled: Bool? = nil,
-        selected: Bool? = nil
-    ) {
-        self.id = id
-        self.role = role
-        self.label = label
-        self.text = text
-        self.semanticTag = semanticTag
-        self.visible = visible
-        self.enabled = enabled
-        self.selected = selected
-    }
-}
-
-struct UiStructureActionMatchArtifact: Codable, Equatable {
-    let id: String?
-    let label: String?
-    let enabled: Bool?
-
-    init(id: String? = nil, label: String? = nil, enabled: Bool? = nil) {
-        self.id = id
-        self.label = label
-        self.enabled = enabled
-    }
-}
-
-struct UiStructureAssertionArtifact: Codable, Equatable {
-    let id: String
-    let type: String
-    let match: UiStructureMatchArtifact?
-    let action: UiStructureActionMatchArtifact?
-    let parent: UiStructureMatchArtifact?
-    let orderedChildIds: [String]?
-
-    init(
-        id: String,
-        type: String,
-        match: UiStructureMatchArtifact? = nil,
-        action: UiStructureActionMatchArtifact? = nil,
-        parent: UiStructureMatchArtifact? = nil,
-        orderedChildIds: [String]? = nil
-    ) {
-        self.id = id
-        self.type = type
-        self.match = match
-        self.action = action
-        self.parent = parent
-        self.orderedChildIds = orderedChildIds
-    }
-}
+typealias UiStructureContractArtifact = KiteUiStructureContract
+typealias UiStructureScenarioArtifact = KiteUiStructureContract.Scenario
+typealias UiStructureNodeArtifact = KiteUiStructureContract.Node
+typealias UiStructureActionArtifact = KiteUiStructureContract.Action
+typealias UiStructureMatchArtifact = KiteUiStructureContract.Match
+typealias UiStructureActionMatchArtifact = KiteUiStructureContract.ActionMatch
+typealias UiStructureAssertionArtifact = KiteUiStructureContract.Assertion

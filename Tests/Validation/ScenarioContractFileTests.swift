@@ -9,6 +9,29 @@ private let hostedUiStructureCommonNonClaims = [
 
 struct ScenarioContractFileTests {
     @Test
+    func kiteValidationContractsPackageOwnsGenericStructurePayloads() throws {
+        let root = try repositoryRoot()
+        let project = try String(contentsOf: root.appendingPathComponent("Project.swift"), encoding: .utf8)
+        let exporter = try String(
+            contentsOf: root
+                .appendingPathComponent("Sources", isDirectory: true)
+                .appendingPathComponent("Features", isDirectory: true)
+                .appendingPathComponent("MenuBar", isDirectory: true)
+                .appendingPathComponent("Validation", isDirectory: true)
+                .appendingPathComponent("MenuBarStructureContractExporter.swift"),
+            encoding: .utf8
+        )
+
+        #expect(project.contains("https://github.com/raphhgg/kite-validation-contracts-swift.git"))
+        #expect(project.contains(".package(product: \"KiteValidationContracts\")"))
+        #expect(exporter.contains("import KiteValidationContracts"))
+        #expect(exporter.contains("typealias UiStructureContractArtifact = KiteUiStructureContract"))
+        #expect(!exporter.contains("struct UiStructureContractArtifact"))
+        #expect(!exporter.contains("struct UiStructureNodeArtifact"))
+        #expect(!exporter.contains("struct UiStructureAssertionArtifact"))
+    }
+
+    @Test
     func scenarioPackFilesAreMinimalAndUniquelyAddressed() throws {
         let root = try repositoryRoot()
         let productURL = root

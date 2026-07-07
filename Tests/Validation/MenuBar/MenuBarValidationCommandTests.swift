@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import KiteValidationContracts
 import Testing
 
 @testable import CodexPill
@@ -868,26 +869,11 @@ struct MenuBarValidationCommandTests {
             return nil
         }
 
-        let data = try Data(contentsOf: requestURL)
-        let object = try JSONSerialization.jsonObject(with: data)
-        guard let record = object as? [String: Any] else {
-            throw ValidationError.invalidKiteScenarioRequest
-        }
-        guard record["kind"] as? String == "kite_scenario_command_request",
-              record["schemaVersion"] as? String == "kite.validation.scenario-command-request.v1",
-              let artifactDirectory = record["artifactDirectory"] as? String,
-              let scenario = record["scenario"] as? [String: Any],
-              let scenarioID = scenario["id"] as? String,
-              let proof = scenario["proof"] as? [String: Any],
-              let proofType = proof["layer"] as? String
-        else {
-            throw ValidationError.invalidKiteScenarioRequest
-        }
-
+        let request = try KiteScenarioCommandRequestLoader.load(at: requestURL)
         return ValidationRequest(
-            artifactDirectory: artifactDirectory,
-            scenario: scenarioID,
-            proofType: proofType
+            artifactDirectory: request.artifactDirectory,
+            scenario: request.scenario.id,
+            proofType: request.scenario.proof.layer
         )
     }
 
@@ -1078,7 +1064,6 @@ private struct ValidationRequest: Codable {
 private enum ValidationError: Error {
     case unknownScenario(String)
     case unsupportedProofType(scenario: String, requested: String, expected: String)
-    case invalidKiteScenarioRequest
 }
 
 private struct NullCodexAppProcessClient: CodexAppProcessClient {
