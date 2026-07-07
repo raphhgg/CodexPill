@@ -68,10 +68,9 @@ The only current `make-target` exception is
 product-owned `diagnostics-export.json` and `privacy-leak-report.json`
 artifacts after the focused test run.
 
-CodexPill no longer writes product-local `scenario-summary.json`,
-`workflow-receipt.json`, `contract-receipt.json`, `validation-receipt.json`, or
-`cleanup-receipt.json` artifacts for runnable Kite scenarios. Kite owns the
-generic command request and scenario receipt. CodexPill writes only
+CodexPill no longer writes product-local summary or receipt artifacts for
+runnable Kite scenarios. Kite owns the generic command request and scenario
+receipt. CodexPill writes only
 product-owned evidence under `build/verification/<scenario>/`: result bundles,
 required `ui-structure-contract.json` artifacts, deterministic screenshots and
 `ui-tree.json` where the scenario needs hosted UI proof, state/runtime

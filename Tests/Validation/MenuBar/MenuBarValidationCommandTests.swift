@@ -837,10 +837,6 @@ struct MenuBarValidationCommandTests {
             return try loadKiteValidationRequest(at: URL(fileURLWithPath: requestPath))
         }
 
-        if let requestPath = environment["CODEXPILL_VALIDATION_REQUEST"] {
-            return try loadValidationRequest(at: URL(fileURLWithPath: requestPath))
-        }
-
         if let fallbackURL {
             return try loadValidationRequest(at: fallbackURL)
         }

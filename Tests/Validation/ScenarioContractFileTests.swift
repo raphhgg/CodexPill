@@ -91,6 +91,32 @@ struct ScenarioContractFileTests {
         #expect(contractIDs.count == Set(contractIDs).count)
     }
 
+    @Test
+    func productDocsDoNotReferenceLegacyLocalScenarioReceipts() throws {
+        let root = try repositoryRoot()
+        let docsDirectory = root.appendingPathComponent("docs", isDirectory: true)
+        let legacyReceiptNames = [
+            "scenario-summary.json",
+            "workflow-receipt.json",
+            "contract-receipt.json",
+            "validation-receipt.json",
+            "cleanup-receipt.json"
+        ]
+
+        let offenders = try markdownURLs(in: docsDirectory).flatMap { url in
+            let text = try String(contentsOf: url, encoding: .utf8)
+            let documentOffenders: [String] = legacyReceiptNames.compactMap { receiptName -> String? in
+                guard text.contains(receiptName) else {
+                    return nil
+                }
+                return "\(relativePath(for: url, from: root)) contains \(receiptName)"
+            }
+            return documentOffenders
+        }
+
+        #expect(offenders == [])
+    }
+
     private func assertNoLegacyKiteLocalEvidence(
         in object: JSONObject,
         scenarioID: String
@@ -227,6 +253,29 @@ struct ScenarioContractFileTests {
         }
         .sorted { $0.path < $1.path }
     }
+
+    private func markdownURLs(in directory: URL) throws -> [URL] {
+        guard let enumerator = FileManager.default.enumerator(
+            at: directory,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            throw ScenarioContractFileTestError.missingDocsDirectory(directory.path)
+        }
+
+        return try enumerator.compactMap { entry in
+            guard let url = entry as? URL, url.pathExtension == "md" else {
+                return nil
+            }
+            let values = try url.resourceValues(forKeys: [.isRegularFileKey])
+            return values.isRegularFile == true ? url : nil
+        }
+        .sorted { $0.path < $1.path }
+    }
+
+    private func relativePath(for url: URL, from root: URL) -> String {
+        url.path.replacingOccurrences(of: "\(root.path)/", with: "")
+    }
 }
 
 private enum JSONObject: Equatable {
@@ -354,6 +403,7 @@ private enum JSONObject: Equatable {
 private enum ScenarioContractFileTestError: Error {
     case missingRepositoryRoot
     case missingContractsDirectory(String)
+    case missingDocsDirectory(String)
     case missingJSONObject(String)
     case missingJSONArray(String)
     case missingJSONString(String)

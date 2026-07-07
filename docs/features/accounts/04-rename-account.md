@@ -107,7 +107,7 @@ Product scenarios:
 Required evidence:
 
 - focused test output from `RenameSavedAccountUseCaseTests`;
-- `build/verification/rename-account-label-only/scenario-summary.json`.
+- Kite scenario receipt for `rename-account-label-only`.
 
 Non-claims:
 
@@ -122,9 +122,9 @@ Live opt-in: not required for this scenario.
 
 | Acceptance Criterion | Owning Proof Layer | Command / Method | Artifact | Pass Condition | Privacy / Redaction |
 | --- | --- | --- | --- | --- | --- |
-| Rename changes only the display label. | `unit` | `make verify-rename-scenario` running `RenameSavedAccountUseCaseTests`. | `build/results/local/CodexPill.xcresult` and `build/verification/rename-account-label-only/scenario-summary.json`. | The catalog display label updates while saved auth snapshot filename, Codex identity, plan, and rate-limit data remain unchanged, and no active-auth mutation boundary is involved. This unit scenario does not prove native menu row copy or dialog interaction. | Synthetic account labels and snapshots only; no raw auth, tokens, account identifiers, private paths, emails, or hostnames. |
-| Empty or duplicate names are rejected. | `unit` | `make verify-rename-scenario` running `RenameSavedAccountUseCaseTests`. | `build/results/local/CodexPill.xcresult` and `build/verification/rename-account-label-only/scenario-summary.json`. | Empty/whitespace-only and case-insensitive duplicate names keep the original label and do not mutate catalog or auth state. | Synthetic labels only; no private account data. |
-| Same-name rename is a no-op and successful rename preserves catalog ordering. | `unit` | `make verify-rename-scenario` running `RenameSavedAccountUseCaseTests`. | `build/results/local/CodexPill.xcresult` and `build/verification/rename-account-label-only/scenario-summary.json`. | Same-name confirmation does not create duplicates or change auth state; successful rename reorders the catalog according to display-name sort rules when persisted. | Synthetic labels only; no raw auth, tokens, emails, hostnames, or private paths. |
+| Rename changes only the display label. | `unit` | `make verify-rename-scenario` running `RenameSavedAccountUseCaseTests`. | `build/results/local/CodexPill.xcresult` and Kite scenario receipt. | The catalog display label updates while saved auth snapshot filename, Codex identity, plan, and rate-limit data remain unchanged, and no active-auth mutation boundary is involved. This unit scenario does not prove native menu row copy or dialog interaction. | Synthetic account labels and snapshots only; no raw auth, tokens, account identifiers, private paths, emails, or hostnames. |
+| Empty or duplicate names are rejected. | `unit` | `make verify-rename-scenario` running `RenameSavedAccountUseCaseTests`. | `build/results/local/CodexPill.xcresult` and Kite scenario receipt. | Empty/whitespace-only and case-insensitive duplicate names keep the original label and do not mutate catalog or auth state. | Synthetic labels only; no private account data. |
+| Same-name rename is a no-op and successful rename preserves catalog ordering. | `unit` | `make verify-rename-scenario` running `RenameSavedAccountUseCaseTests`. | `build/results/local/CodexPill.xcresult` and Kite scenario receipt. | Same-name confirmation does not create duplicates or change auth state; successful rename reorders the catalog according to display-name sort rules when persisted. | Synthetic labels only; no raw auth, tokens, emails, hostnames, or private paths. |
 | Busy state blocks rename. | `deterministic-ui` plus `workflow-event-log` | Menu action availability test with fake busy workflow state. | Action-availability receipt plus optional menu projection assertion. | Rename action is disabled while another account operation is active and no rename workflow starts. | Synthetic state only; no raw workflow payloads, auth data, tokens, paths, emails, or hostnames. |
 
 ## Validation Targets
