@@ -6,17 +6,20 @@ struct AccountsFeatureFactory {
     private let authService: CodexAuthSnapshotService
     private let codexAppProcessClient: CodexAppProcessClient
     private let accountStatusClient: CodexAccountStatusClient & SavedCodexAccountStatusClient
+    private let postSwitchRefreshDelay: Duration
 
     init(
         repository: AccountRepository,
         authService: CodexAuthSnapshotService,
         codexAppProcessClient: CodexAppProcessClient,
-        accountStatusClient: CodexAccountStatusClient & SavedCodexAccountStatusClient
+        accountStatusClient: CodexAccountStatusClient & SavedCodexAccountStatusClient,
+        postSwitchRefreshDelay: Duration = .seconds(2)
     ) {
         self.repository = repository
         self.authService = authService
         self.codexAppProcessClient = codexAppProcessClient
         self.accountStatusClient = accountStatusClient
+        self.postSwitchRefreshDelay = postSwitchRefreshDelay
     }
 
     func makeController() -> AccountsController {
@@ -65,7 +68,8 @@ struct AccountsFeatureFactory {
                 authService: authService,
                 repository: repository,
                 identityResolver: identityResolver
-            )
+            ),
+            postSwitchRefreshDelay: postSwitchRefreshDelay
         )
     }
 }

@@ -1,13 +1,11 @@
 import AppKit
 import Foundation
 import Testing
-import UserNotifications
 
 @testable import CodexPill
 
 @MainActor
 struct MenuBarLiveValidationTests {
-
     @Test
     func fileSinkWritesSnapshotJSON() throws {
         let temporaryDirectory = FileManager.default.temporaryDirectory
@@ -169,43 +167,12 @@ struct MenuBarLiveValidationTests {
         #expect(sink.snapshots.last?.statusItem?.isHovered == true)
     }
 
-
     private func makeIsolatedRepository() throws -> AccountRepository {
         let appSupportDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("MenuBarLiveValidationTests-\(UUID().uuidString)", isDirectory: true)
         return try AccountRepository(
             isolatedRootDirectory: appSupportDirectory
         )
-    }
-
-    private func waitUntil(
-        timeoutMilliseconds: Int = 1_000,
-        condition: () throws -> Bool
-    ) async throws {
-        let attempts = max(timeoutMilliseconds / 20, 1)
-        for _ in 0..<attempts {
-            if try condition() {
-                return
-            }
-            try await Task.sleep(for: .milliseconds(20))
-        }
-    }
-
-    private func makeActiveAccount(
-        named name: String,
-        email: String,
-        in repository: AccountRepository
-    ) throws -> CodexAccount {
-        try repository.bootstrapStorage()
-        let authData = Data("auth-\(UUID().uuidString)".utf8)
-        var account = try CodexAuthSnapshotService(repository: repository)
-            .saveAuthSnapshot(authData, named: name)
-        account.email = email
-        account.planType = "team"
-        account.identity.remoteIdentity = CodexRemoteAccountIdentity(emailAddress: email)
-        try repository.saveAccounts([account])
-        try authData.write(to: repository.paths.codexAuthFile, options: .atomic)
-        return account
     }
 }
 
@@ -220,9 +187,4 @@ private final class ValidationSinkProbe: @unchecked Sendable, MenuBarValidationS
     func record(_ event: MenuBarValidationEvent) throws {
         events.append(event)
     }
-}
-
-private struct NullCodexAppProcessClient: CodexAppProcessClient {
-    func assertCodexAvailable() throws {}
-    func relaunchCodex() async throws {}
 }
