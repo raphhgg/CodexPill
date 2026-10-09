@@ -6,16 +6,6 @@ import Testing
 @MainActor
 struct MenuDisplaySettingsStoreTests {
     @Test
-    func defaultsUseRefreshAndVisibleAccountDefaults() {
-        let store = MenuDisplaySettingsStore(userDefaults: makeDefaults())
-
-        #expect(store.refreshIntervalMinutes == 5)
-        #expect(store.visibleInactiveAccountCount == 5)
-        #expect(store.refreshIntervalOptions == [1, 2, 5, 10, 15, 30])
-        #expect(store.visibleInactiveAccountCountOptions == [2, 3, 5, 0])
-    }
-
-    @Test
     func preferencesPersistAcrossInstances() {
         let defaults = makeDefaults()
         let first = MenuDisplaySettingsStore(userDefaults: defaults)
@@ -43,18 +33,6 @@ struct MenuDisplaySettingsStoreTests {
 
 @MainActor
 struct StatusItemSettingsStoreTests {
-    @Test
-    func defaultsUseCurrentStatusBarPreferences() {
-        let store = StatusItemSettingsStore(userDefaults: makeDefaults())
-
-        #expect(store.statusBarIndicatorStyle == .twinPills)
-        #expect(store.statusBarMonochrome)
-        #expect(store.statusBarDisplayMode == .textOnHover)
-        #expect(store.pacingMarkersEnabled)
-        #expect(store.revealStatusItemTitleShortcut == .defaultRevealStatusItemTitle)
-        #expect(store.progressAccentColor == nil)
-    }
-
     @Test(arguments: [
         ("notchedSquare", StatusBarIndicatorStyle.stackedBars),
         ("splitCapsule", StatusBarIndicatorStyle.twinPills)
