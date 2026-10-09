@@ -27,6 +27,7 @@ struct MenuBarMenuState {
     let tokenUsageLoadingAnimationStyle: TokenUsageLoadingAnimationStyle
     let tokenUsagePeakScope: TokenUsagePeakScope
     let tokenUsageCard: TokenUsageMenuCard?
+    let providerUsage: [ProviderUsageState]
 
     init(
         activeAccount: CodexAccount?,
@@ -54,7 +55,8 @@ struct MenuBarMenuState {
         tokenUsageChartStyle: TokenUsageChartStyle = .dailyBars,
         tokenUsageLoadingAnimationStyle: TokenUsageLoadingAnimationStyle = .waves,
         tokenUsagePeakScope: TokenUsagePeakScope = .currentPeriod,
-        tokenUsageCard: TokenUsageMenuCard? = nil
+        tokenUsageCard: TokenUsageMenuCard? = nil,
+        providerUsage: [ProviderUsageState] = []
     ) {
         self.activeAccount = activeAccount
         self.inactiveAccounts = inactiveAccounts
@@ -82,6 +84,7 @@ struct MenuBarMenuState {
         self.tokenUsageLoadingAnimationStyle = tokenUsageLoadingAnimationStyle
         self.tokenUsagePeakScope = tokenUsagePeakScope
         self.tokenUsageCard = tokenUsageCard
+        self.providerUsage = providerUsage
     }
 
     var canAddAccount: Bool {
