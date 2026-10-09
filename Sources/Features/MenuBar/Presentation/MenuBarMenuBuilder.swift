@@ -43,12 +43,10 @@ struct MenuBarMenuBuilder {
                     menu.addItem(activeAccountDividerItem(width: menuContentWidth))
                 }
                 let tokenUsageCard = index == 0 ? state.tokenUsageCard : nil
-                let tokenUsagePrototypeCards = index == 0 ? state.tokenUsagePrototypeCards : []
                 menu.addItem(activeAccountItem(
                     for: activeAccountCard,
                     state: state,
                     tokenUsageCard: tokenUsageCard,
-                    tokenUsagePrototypeCards: tokenUsagePrototypeCards,
                     width: menuContentWidth
                 ))
             }
@@ -104,7 +102,6 @@ struct MenuBarMenuBuilder {
         for card: ActiveAccountCard,
         state: MenuBarMenuState,
         tokenUsageCard: TokenUsageMenuCard?,
-        tokenUsagePrototypeCards: [TokenUsagePrototypeCard],
         width: CGFloat
     ) -> NSMenuItem {
         let item = NSMenuItem()
@@ -117,7 +114,6 @@ struct MenuBarMenuBuilder {
                 progressAccentColor: Color(nsColor: state.progressAccentColor),
                 showsPacingMarkers: state.pacingMarkersEnabled,
                 tokenUsageCard: tokenUsageCard,
-                tokenUsagePrototypeCards: tokenUsagePrototypeCards,
                 now: now
             )
         )
