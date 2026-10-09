@@ -148,12 +148,10 @@ struct MenuBarLiveValidationTests {
             hoverExitDelay: 0,
             hoverPollingInterval: 60
         )
-        let coordinator = MenuBarCoordinator(
+        let coordinator = MenuBarCoordinator.makeForTesting(
             statusItemRuntime: runtime,
             accountsController: accountsController,
-            menuDisplaySettings: settings.menuDisplaySettings,
-            statusItemSettings: settings.statusItemSettings,
-            tokenUsagePreferences: settings.tokenUsagePreferences,
+            settings: settings,
             alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-status-item-hover",

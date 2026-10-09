@@ -16,14 +16,15 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let alertPresenter: AlertPresenter
     private let panelPresenter: PanelPresenter
     private let shortcutCapturePanelPresenter: ShortcutCapturePanelPresenter
-    private let alertFactory: MenuBarAlertFactory
+    private let alertFactory = MenuBarAlertFactory()
     private let loginItemController: LoginItemControlling
     private let loginItemsSettingsLauncher: LoginItemsSettingsLaunching
     private let diagnosticReportPresenter: DiagnosticReportPresenting
-    private let diagnosticEventRecorder: DiagnosticEventRecorder
+    private let diagnosticEventRecorder = DiagnosticEventRecorder()
     private let tokenUsageProvider: TokenUsageMenuProviding
     private let validationObserver: MenuBarValidationObserver
     private let allowsEmptyStatePrompt: Bool
+    private let autoRefreshIntervalOverride: TimeInterval?
     private let accountActionFlow = AccountActionFlow()
     private let menuBuilder = MenuBarMenuBuilder()
     private var autoRefreshTimer: Timer?
@@ -45,47 +46,40 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     init(
         statusItemRuntime: StatusItemRuntime,
-        shortcutRuntime: GlobalShortcutRuntime? = nil,
+        shortcutRuntime: GlobalShortcutRuntime,
         accountsController: MenuBarAccounts,
         menuDisplaySettings: MenuDisplaySettingsStore,
         statusItemSettings: StatusItemSettingsStore,
         tokenUsagePreferences: TokenUsagePreferencesStore,
-        cliProcessInspector: CodexCLIProcessInspector = CodexCLIProcessInspector(),
+        cliProcessInspector: CodexCLIProcessInspector,
         alertPresenter: AlertPresenter,
-        panelPresenter: PanelPresenter? = nil,
-        shortcutCapturePanelPresenter: ShortcutCapturePanelPresenter? = nil,
-        alertFactory: MenuBarAlertFactory = MenuBarAlertFactory(),
-        loginItemController: LoginItemControlling = SystemLoginItemController(),
-        loginItemsSettingsLauncher: LoginItemsSettingsLaunching = SystemLoginItemsSettingsLauncher(),
-        diagnosticReportPresenter: DiagnosticReportPresenting? = nil,
-        diagnosticEventRecorder: DiagnosticEventRecorder? = nil,
-        tokenUsageProvider: TokenUsageMenuProviding = LocalCodexSessionTokenUsageMenuProvider(),
-        validationSink: MenuBarValidationSink? = nil,
-        validationScenario: String? = MenuBarValidationConfiguration.scenario(),
-        validationObserver: MenuBarValidationObserver? = nil,
-        allowsEmptyStatePrompt: Bool = true
+        panelPresenter: PanelPresenter,
+        shortcutCapturePanelPresenter: ShortcutCapturePanelPresenter,
+        loginItemController: LoginItemControlling,
+        loginItemsSettingsLauncher: LoginItemsSettingsLaunching,
+        diagnosticReportPresenter: DiagnosticReportPresenting,
+        tokenUsageProvider: TokenUsageMenuProviding,
+        validationObserver: MenuBarValidationObserver,
+        allowsEmptyStatePrompt: Bool,
+        autoRefreshIntervalOverride: TimeInterval?
     ) {
         self.statusItemRuntime = statusItemRuntime
-        self.shortcutRuntime = shortcutRuntime ?? GlobalShortcutRuntime()
+        self.shortcutRuntime = shortcutRuntime
         self.accountsController = accountsController
         self.menuDisplaySettings = menuDisplaySettings
         self.statusItemSettings = statusItemSettings
         self.tokenUsagePreferences = tokenUsagePreferences
         self.cliProcessInspector = cliProcessInspector
         self.alertPresenter = alertPresenter
-        self.panelPresenter = panelPresenter ?? SystemPanelPresenter()
-        self.shortcutCapturePanelPresenter = shortcutCapturePanelPresenter ?? SystemShortcutCapturePanelPresenter()
-        self.alertFactory = alertFactory
+        self.panelPresenter = panelPresenter
+        self.shortcutCapturePanelPresenter = shortcutCapturePanelPresenter
         self.loginItemController = loginItemController
         self.loginItemsSettingsLauncher = loginItemsSettingsLauncher
-        self.diagnosticReportPresenter = diagnosticReportPresenter ?? SystemDiagnosticReportPresenter()
-        self.diagnosticEventRecorder = diagnosticEventRecorder ?? DiagnosticEventRecorder()
+        self.diagnosticReportPresenter = diagnosticReportPresenter
         self.tokenUsageProvider = tokenUsageProvider
-        self.validationObserver = validationObserver ?? MenuBarValidationObserver(
-            sink: validationSink,
-            scenario: validationScenario
-        )
+        self.validationObserver = validationObserver
         self.allowsEmptyStatePrompt = allowsEmptyStatePrompt
+        self.autoRefreshIntervalOverride = autoRefreshIntervalOverride
     }
 
     func start() {
@@ -741,7 +735,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     private func scheduleAutoRefresh() {
         autoRefreshTimer?.invalidate()
-        let interval = AppRuntimeEnvironment.validationAutoRefreshIntervalSeconds() ?? TimeInterval(menuDisplaySettings.refreshIntervalMinutes * 60)
+        let interval = autoRefreshIntervalOverride ?? TimeInterval(menuDisplaySettings.refreshIntervalMinutes * 60)
         autoRefreshTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.performScheduledRefresh()

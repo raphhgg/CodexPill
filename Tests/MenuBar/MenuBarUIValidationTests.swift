@@ -526,12 +526,10 @@ struct MenuBarUIValidationTests {
         defaults.removePersistentDomain(forName: suiteName)
         let settings = SettingsStores(userDefaults: defaults)
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        return MenuBarCoordinator(
+        return MenuBarCoordinator.makeForTesting(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             accountsController: accountsController,
-            menuDisplaySettings: settings.menuDisplaySettings,
-            statusItemSettings: settings.statusItemSettings,
-            tokenUsagePreferences: settings.tokenUsagePreferences,
+            settings: settings,
             alertPresenter: AlertPresenterProbe()
         )
     }
