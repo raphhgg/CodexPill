@@ -118,43 +118,4 @@ struct AppRuntimeEnvironmentTests {
             )
         )
     }
-
-    @Test
-    func interactiveAlertsAreSuppressedDuringAutomatedTests() {
-        let environment = [
-            AppRuntimeEnvironment.xctestConfigurationFilePathEnvironmentKey: "/tmp/test.xctestconfiguration"
-        ]
-
-        #expect(AppRuntimeEnvironment.shouldSuppressInteractiveAlerts(environment: environment))
-    }
-
-    @Test
-    func validationInteractiveAlertOverrideDoesNotBypassAutomatedTests() {
-        let environment = [
-            AppRuntimeEnvironment.validationAllowInteractiveAlertsEnvironmentKey: "true",
-            AppRuntimeEnvironment.xctestConfigurationFilePathEnvironmentKey: "/tmp/test.xctestconfiguration"
-        ]
-
-        #expect(
-            AppRuntimeEnvironment.shouldSuppressInteractiveAlerts(
-                environment: environment,
-                classLookup: { _ in nil }
-            )
-        )
-    }
-
-    @Test
-    func validationInteractiveAlertOverrideAllowsNonXCTestLiveSmokeLaunches() {
-        let environment = [
-            AppRuntimeEnvironment.validationAllowInteractiveAlertsEnvironmentKey: "true",
-            MenuBarValidationConfiguration.outputPathEnvironmentKey: "/tmp/codexpill-live-menu.json"
-        ]
-
-        #expect(
-            !AppRuntimeEnvironment.shouldSuppressInteractiveAlerts(
-                environment: environment,
-                classLookup: { _ in nil }
-            )
-        )
-    }
 }

@@ -65,7 +65,7 @@ make test
 
 ### Privacy
 
-- Logs and validation artifacts must redact private paths, raw auth material,
+- Logs and diagnostic exports must redact private paths, raw auth material,
   token-like values, and account identifiers unless the value is already a
   synthetic fixture.
 - Diagnostic exports must require explicit user confirmation before a support

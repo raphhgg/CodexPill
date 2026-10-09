@@ -230,20 +230,20 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func tokenUsageCardHiddenWhenDisabled() {
-        let state = makeState(
-            activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
-            inactiveAccounts: [makeAccount(name: "Other", rateLimits: makeRateLimits(resettingAfter: .now))]
-        )
+    func tokenUsageCardHiddenWhenDisabled() throws {
+        let (disabled, disabledStatusItem) = try makeCoordinatorWithStatusItem()
+        let (enabled, enabledStatusItem) = try makeCoordinatorWithStatusItem(configureTokenUsage: { $0.isEnabled = true })
+        defer {
+            NSStatusBar.system.removeStatusItem(disabledStatusItem)
+            NSStatusBar.system.removeStatusItem(enabledStatusItem)
+        }
 
-        let snapshot = MenuBarValidationSupport.makeSnapshot(state: state)
-
-        #expect(snapshot.sections[0].items.count == 1)
-        #expect(!snapshot.sections[0].items.joined().contains("Token Usage"))
+        #expect(disabled.menuState().tokenUsageCard == nil)
+        #expect(enabled.menuState().tokenUsageCard?.period == .last30Days)
     }
 
     @Test
-    func tokenUsageCardVisibleWhenEnabledWithSelectedPeriodCopy() {
+    func tokenUsageCardVisibleWhenEnabledWithSelectedPeriodCopy() throws {
         let state = makeState(
             activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
             inactiveAccounts: [makeAccount(name: "Other", rateLimits: makeRateLimits(resettingAfter: .now))],
@@ -260,8 +260,7 @@ struct MenuBarMenuBuilderTests {
             )
         )
 
-        let snapshot = MenuBarValidationSupport.makeSnapshot(state: state)
-        let tokenUsage = snapshot.sections[0].items[1]
+        let tokenUsage = try #require(state.tokenUsageCard?.accessibilitySummary)
 
         #expect(tokenUsage.contains("Token Usage"))
         #expect(tokenUsage.contains("Last 30 days"))
@@ -490,31 +489,26 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func liveValidationSnapshotCapturesStatusItemContentMetadata() throws {
+    func menuBarLabelOffersOnlyIconOnlyWhenActiveAccountHasNoUsageData() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let state = makeState(activeAccount: makeAccount(name: "Active"))
         let menu = builder.makeMenu(state: state, target: coordinator)
-        let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, menu: menu)
 
-        let display = try #require(snapshot.menuItems.first(where: { $0.title == "Preferences" }))
-        let content = try #require(display.children.first(where: { $0.title == "Menu Bar Label" }))
-        let iconOnly = try #require(content.children.first(where: { $0.title == "Icon Only" }))
-        let iconAndText = try #require(content.children.first(where: { $0.title == "Icon + Text" }))
-        let textOnHover = try #require(content.children.first(where: { $0.title == "Text on Hover" }))
+        let content = try #require(statusItemContentMenu(in: menu))
+        let iconOnly = try #require(content.items.first(where: { $0.title == "Icon Only" }))
+        let iconAndText = try #require(content.items.first(where: { $0.title == "Icon + Text" }))
+        let textOnHover = try #require(content.items.first(where: { $0.title == "Text on Hover" }))
 
         #expect(iconOnly.isEnabled)
-        #expect(iconOnly.hasAction)
-        #expect(iconOnly.actionSelector == "selectStatusBarDisplayMode:")
-        #expect(iconOnly.state == "on")
+        #expect(iconOnly.action == #selector(MenuBarCoordinator.selectStatusBarDisplayMode(_:)))
+        #expect(iconOnly.state == .on)
         #expect(!iconAndText.isEnabled)
-        #expect(!iconAndText.hasAction)
-        #expect(iconAndText.actionSelector == nil)
-        #expect(iconAndText.state == "off")
+        #expect(iconAndText.action == nil)
+        #expect(iconAndText.state == .off)
         #expect(!textOnHover.isEnabled)
-        #expect(!textOnHover.hasAction)
-        #expect(textOnHover.actionSelector == nil)
-        #expect(textOnHover.state == "off")
+        #expect(textOnHover.action == nil)
+        #expect(textOnHover.state == .off)
     }
 
     @Test
@@ -636,15 +630,13 @@ struct MenuBarMenuBuilderTests {
         let active = makeAccount(name: "Personal", rateLimits: makeRateLimits(resettingAfter: .now))
         let state = makeState(activeAccount: active)
         let menu = builder.makeMenu(state: state, target: coordinator)
-        let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, menu: menu)
 
         let accountMenu = try #require(menu.items.first(where: { $0.title == "Account" })?.submenu)
         let addAccount = try #require(accountMenu.items.first(where: { $0.title == "Add Account…" }))
         let rename = try #require(accountMenu.items.first(where: { $0.title == "Rename…" }))
         let remove = try #require(accountMenu.items.first(where: { $0.title == "Remove…" }))
 
-        #expect(snapshot.sections.contains(where: { $0.title == "Accounts" }) == false)
-        #expect(snapshot.sections.contains(where: { $0.title == "Other Accounts" }) == false)
+        #expect(accountRowIDs(in: menu).isEmpty)
         #expect(menu.items.contains(where: { $0.title == "Add Account…" }) == false)
         #expect(addAccount.action == #selector(MenuBarCoordinator.addAccount))
         #expect(rename.action == #selector(MenuBarCoordinator.renameAccount(_:)))
@@ -665,9 +657,7 @@ struct MenuBarMenuBuilderTests {
             inactiveAccounts: [business1, business2]
         )
         let menu = builder.makeMenu(state: state, target: coordinator)
-        let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, menu: menu)
 
-        let accountSection = try #require(snapshot.sections.first(where: { $0.title == "Other Accounts" }))
         let activeRow = menu.items.first(where: { $0.submenu?.title == active.name })
         let accountItem = try #require(menu.items.first(where: { $0.title == "Account" }))
         let accountMenu = try #require(accountItem.submenu)
@@ -675,8 +665,7 @@ struct MenuBarMenuBuilderTests {
         let remove = try #require(accountMenu.items.first(where: { $0.title == "Remove…" }))
         let addAccount = try #require(accountMenu.items.first(where: { $0.title == "Add Account…" }))
 
-        #expect(accountSection.items.count == 2)
-        #expect(accountSection.items.allSatisfy { !$0.contains(active.name) })
+        #expect(Set(accountRowIDs(in: menu)) == [business1.id.uuidString, business2.id.uuidString])
         #expect(activeRow == nil)
         #expect(accountItem.image != nil)
         #expect(addAccount.action == #selector(MenuBarCoordinator.addAccount))
@@ -1261,6 +1250,10 @@ struct MenuBarMenuBuilderTests {
 
         #expect(loginItemController.stateCallCount > stateCallCountBeforeClosedProgress)
         #expect(!menuItems(menu.items, areSameInstancesAs: itemsBeforeClosedProgress))
+    }
+
+    private func accountRowIDs(in menu: NSMenu) -> [String] {
+        menu.items.compactMap { $0.submenu == nil ? nil : $0.representedObject as? String }
     }
 
     private func statusItemContentMenu(in menu: NSMenu) -> NSMenu? {
