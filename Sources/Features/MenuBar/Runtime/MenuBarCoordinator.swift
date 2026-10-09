@@ -29,6 +29,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let menuBuilder = MenuBarMenuBuilder()
     private var autoRefreshTimer: Timer?
     private var wakeRefreshTask: Task<Void, Never>?
+    private let tasks = TrackedTasks()
     private var pendingTokenUsageMenuRebuild = false
     private var deferredTokenUsageMenuRebuild = false
     private var hasPromptedForEmptyState = false
@@ -111,15 +112,17 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         statusItemRuntime.invalidate()
     }
 
+    /// Waits until the tasks started by menu actions and store or settings changes finish, including tasks they started.
+    func waitForPendingWork() async {
+        await tasks.waitUntilIdle()
+    }
+
     func handleSystemDidWake() {
         scheduleAutoRefresh()
         wakeRefreshTask?.cancel()
         wakeRefreshTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(6))
-            await MainActor.run {
-                guard let self else { return }
-                self.performScheduledRefresh()
-            }
+            await self?.performScheduledRefresh()
         }
     }
 
@@ -149,9 +152,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         validationObserver.recordAddAccountPromptConfirmed(enteredName: name)
 
         menuBarCoordinatorLogger.log("Dispatching isolated add-account task to accounts controller")
-        Task { @MainActor [weak self] in
-            await self?.beginIsolatedAddAccount(named: name)
-        }
+        tasks.start { [weak self] in await self?.beginIsolatedAddAccount(named: name) }
     }
 
     @objc
@@ -173,7 +174,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         )
 
         guard alertPresenter.presentConfirmation(request) else { return }
-        Task { @MainActor [weak self] in
+        tasks.start { [weak self] in
             await self?.removeSavedAccount(account, signOutLocalAccount: shouldSignOutLocalAccount)
         }
     }
@@ -191,7 +192,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
         let request = alertFactory.makeRenameAccountRequest(accountName: account.name)
         guard let newName = alertPresenter.presentTextInput(request) else { return }
-        Task { await accountsController.renameSavedAccount(account, to: newName) }
+        tasks.start { [accountsController] in await accountsController.renameSavedAccount(account, to: newName) }
     }
 
     @objc
@@ -490,7 +491,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         recordValidationSnapshot(for: state)
     }
 
-    private func menuState() -> MenuBarMenuState {
+    func menuState() -> MenuBarMenuState {
         MenuBarMenuState(
             activeAccount: accountsController.activeAccount,
             inactiveAccounts: accountsController.sortedInactiveAccounts,
@@ -679,9 +680,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         case .offerSignInRetry(let outcome, let retryName):
             let request = alertFactory.makeAddAccountSignInRetryRequest(outcome: outcome)
             guard alertPresenter.presentConfirmation(request) else { return }
-            Task { @MainActor [weak self] in
-                await self?.beginIsolatedAddAccount(named: retryName)
-            }
+            tasks.start { [weak self] in await self?.beginIsolatedAddAccount(named: retryName) }
         case .showError(let message):
             alertPresenter.presentInfo(alertFactory.makeErrorRequest(message: message))
         case .showEmptyNameAndRetry(let message):
@@ -702,7 +701,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     private func beginLocalSwitch(to account: CodexAccount) {
         validationObserver.recordSwitchWorkflowStarted(targetAccount: account)
-        Task { @MainActor [weak self] in
+        tasks.start { [weak self] in
             guard let self else { return }
             let didRefreshAfterSwitch = await self.accountsController.switchToAccount(account)
             if self.accountsController.activeAccountID == account.id {
@@ -737,46 +736,42 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         autoRefreshTimer?.invalidate()
         let interval = autoRefreshIntervalOverride ?? TimeInterval(menuDisplaySettings.refreshIntervalMinutes * 60)
         autoRefreshTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.performScheduledRefresh()
-            }
+            self?.tasks.start { await self?.performScheduledRefresh() }
         }
     }
 
-    private func performScheduledRefresh() {
+    func performScheduledRefresh() async {
         guard !accountsController.isBusy else { return }
-        Task {
-            if let activeAccount = accountsController.activeAccount {
-                self.validationObserver.recordScheduledRefreshRequested(
-                    accountName: activeAccount.name,
-                    activeAccount: activeAccount,
-                    savedAccounts: self.accountsController.accounts
-                )
-                let outcome = await accountsController.refreshAccountData(for: activeAccount)
-                let error: String?
-                switch outcome {
-                case .refreshed:
-                    error = nil
-                    self.diagnosticEventRecorder.recordRefresh(resultCategory: "refreshed")
-                case .failed(let message):
-                    error = message
-                    self.diagnosticEventRecorder.recordRefresh(resultCategory: "failed")
-                }
-                self.validationObserver.recordScheduledRefreshResult(
-                    accountName: activeAccount.name,
-                    error: error,
-                    activeAccount: self.accountsController.activeAccount,
-                    savedAccounts: self.accountsController.accounts,
-                    menuSnapshot: MenuBarValidationSupport.makeSnapshot(
-                        state: self.menuState(),
-                        menu: self.statusItemRuntime.menu,
-                        statusItemState: self.statusItemRuntime.snapshotState()
-                    )
-                )
+        if let activeAccount = accountsController.activeAccount {
+            validationObserver.recordScheduledRefreshRequested(
+                accountName: activeAccount.name,
+                activeAccount: activeAccount,
+                savedAccounts: accountsController.accounts
+            )
+            let outcome = await accountsController.refreshAccountData(for: activeAccount)
+            let error: String?
+            switch outcome {
+            case .refreshed:
+                error = nil
+                diagnosticEventRecorder.recordRefresh(resultCategory: "refreshed")
+            case .failed(let message):
+                error = message
+                diagnosticEventRecorder.recordRefresh(resultCategory: "failed")
             }
-
-            await self.accountsController.refreshInactiveSavedAccountsMetadata()
+            validationObserver.recordScheduledRefreshResult(
+                accountName: activeAccount.name,
+                error: error,
+                activeAccount: accountsController.activeAccount,
+                savedAccounts: accountsController.accounts,
+                menuSnapshot: MenuBarValidationSupport.makeSnapshot(
+                    state: menuState(),
+                    menu: statusItemRuntime.menu,
+                    statusItemState: statusItemRuntime.snapshotState()
+                )
+            )
         }
+
+        await accountsController.refreshInactiveSavedAccountsMetadata()
     }
 
     private func startObservingStore() {
@@ -793,7 +788,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             _ = accountsController.statusMessage
             _ = accountsController.isBusy
         } onChange: { [weak self] in
-            Task { @MainActor [weak self] in
+            self?.tasks.start { [weak self] in
                 guard let self else { return }
                 self.handleStoreChange()
                 self.observeStoreChanges()
@@ -849,7 +844,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             _ = statusItemSettings.progressAccentColor
             _ = statusItemSettings.pacingMarkersEnabled
         } onChange: { [weak self] in
-            Task { @MainActor [weak self] in
+            self?.tasks.start { [weak self] in
                 guard let self else { return }
                 self.handleSettingsChange()
                 self.observeSettingsChanges()

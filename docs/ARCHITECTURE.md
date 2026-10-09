@@ -163,7 +163,7 @@ App startup builds each store from one `UserDefaults` instance and injects the o
 
 `MenuBarAccountCatalogProjection` owns menu-facing account projection: the active account first, then saved accounts ordered by `InactiveAccountAvailabilityRanking`.
 
-`MenuBarCoordinator` is the menu/application controller. It owns menu rebuilding, selector dispatch, alert/panel presentation, user-response plumbing, validation event recording, wake/timer refresh triggers, and coordination between account and status-item boundaries.
+`MenuBarCoordinator` is the menu/application controller. It owns menu rebuilding, selector dispatch, alert/panel presentation, user-response plumbing, validation event recording, wake/timer refresh triggers, and coordination between account and status-item boundaries. Selector handlers and observation callbacks are synchronous, so the coordinator starts their async work through `TrackedTasks`. Tests call `waitForPendingWork()` instead of sleeping.
 
 `MenuBarValidationObserver` is observer instrumentation for menubar validation. It owns translation from runtime events to validation event names, invariant IDs, payload sanitization, menu snapshot/action-trace recording, and file sink forwarding. Production coordinators should call semantic observer methods only; they should not know validation artifact formats. The observer is disabled/no-op in normal production paths when validation configuration is absent.
 

@@ -382,7 +382,8 @@ struct AccountsControllerTests {
                 identityResolver: identityResolver,
                 isolatedLoginClient: isolatedLoginClient
             ),
-            now: now
+            now: now,
+            postSwitchRefreshDelay: .zero
         )
     }
 
