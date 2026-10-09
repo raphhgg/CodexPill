@@ -125,6 +125,73 @@ struct RemoteHostRuntimeTests {
         #expect(completedSlowState.verifiedAccount?.id == slowAccount.id)
     }
 
+    @Test
+    func concurrentRefreshesForOneHostShareOneRemoteRead() async throws {
+        let account = makeAccount(name: "Business 4", email: "business-4@example.com")
+        let host = RemoteHost(destination: "user@debian-vm", displayName: "debian-vm")
+        let settings = makeSettings()
+        settings.updateRemoteHostState(for: host) { state in
+            state.desiredAccountID = account.id
+            state.verificationStatus = .verified
+        }
+        let client = GatedRemoteHostClient(email: account.email)
+        let runtime = makeRuntime(settings: settings, accountStatusReader: client, accounts: [account])
+        var refreshedCount = 0
+
+        runtime.refreshAll { refreshedCount += 1 }
+        runtime.refreshAll { refreshedCount += 1 }
+        runtime.refreshAll { refreshedCount += 1 }
+        try await client.waitForReads(1)
+        await client.openGate()
+        try await waitUntil { refreshedCount == 3 }
+
+        #expect(await client.readCount == 1)
+        #expect(settings.remoteHostState(for: host.destination)?.verifiedAccount?.id == account.id)
+
+        runtime.refreshAll { refreshedCount += 1 }
+        try await waitUntil { refreshedCount == 4 }
+
+        #expect(await client.readCount == 2)
+    }
+
+    @Test
+    func refreshForAnotherAccountRunsAgainAfterTheInFlightRefresh() async throws {
+        let previousAccount = makeAccount(name: "Business 2", email: "business-2@example.com")
+        let currentAccount = makeAccount(name: "Business 4", email: "business-4@example.com")
+        let host = RemoteHost(destination: "user@debian-vm", displayName: "debian-vm")
+        let settings = makeSettings()
+        let client = GatedRemoteHostClient(email: currentAccount.email)
+        let runtime = makeRuntime(
+            settings: settings,
+            accountStatusReader: client,
+            accounts: [previousAccount, currentAccount]
+        )
+
+        let previousRefresh = Task {
+            await runtime.refresh(host: host, baseAccount: previousAccount, fallbackConnectionState: .disconnected)
+        }
+        try await client.waitForReads(1)
+        let currentRefresh = Task {
+            await runtime.refresh(host: host, baseAccount: currentAccount, fallbackConnectionState: .disconnected)
+        }
+        await client.openGate()
+        await previousRefresh.value
+        await currentRefresh.value
+
+        #expect(await client.readCount == 2)
+        let state = try #require(settings.remoteHostState(for: host.destination))
+        #expect(state.verifiedAccount?.id == currentAccount.id)
+        #expect(state.verificationStatus == .verified)
+    }
+
+    private func waitUntil(_ condition: () -> Bool) async throws {
+        let deadline = ContinuousClock.now.advanced(by: .seconds(1))
+        while !condition() {
+            guard ContinuousClock.now < deadline else { throw GatedRemoteHostClient.TimedOut() }
+            try await Task.sleep(for: .milliseconds(5))
+        }
+    }
+
     private func makeRuntime(
         settings: CodexPillSettingsStore,
         accountStatusReader: RemoteHostAccountStatusReading = RemoteHostClientFixture(),
@@ -183,5 +250,40 @@ private struct RemoteHostClientFixture: RemoteHostAccountStatusReading {
             return status
         }
         return try readStatusResult.get()
+    }
+}
+
+private actor GatedRemoteHostClient: RemoteHostAccountStatusReading {
+    struct TimedOut: Error {}
+
+    private let status: CodexAccountStatus
+    private var isGateOpen = false
+    private var gateWaiters: [CheckedContinuation<Void, Never>] = []
+    private(set) var readCount = 0
+
+    init(email: String?) {
+        status = CodexAccountStatus(email: email, planType: "team", rateLimits: nil)
+    }
+
+    func readCurrentAccountStatus(on host: RemoteHost) async throws -> CodexAccountStatus {
+        readCount += 1
+        if !isGateOpen {
+            await withCheckedContinuation { gateWaiters.append($0) }
+        }
+        return status
+    }
+
+    func openGate() {
+        isGateOpen = true
+        gateWaiters.forEach { $0.resume() }
+        gateWaiters = []
+    }
+
+    func waitForReads(_ count: Int) async throws {
+        let deadline = ContinuousClock.now.advanced(by: .seconds(1))
+        while readCount < count {
+            guard ContinuousClock.now < deadline else { throw TimedOut() }
+            try await Task.sleep(for: .milliseconds(5))
+        }
     }
 }

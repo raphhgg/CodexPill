@@ -11,6 +11,7 @@ final class RemoteHostRuntime {
     private let markAccountActivated: (UUID) -> Void
 
     private var connectionStates: [String: RemoteHostConnectionState] = [:]
+    private var inFlightRefreshes: [String: (accountID: UUID, joiners: [CheckedContinuation<Void, Never>])] = [:]
 
     init(
         settings: RemoteHostSettingsStore,
@@ -167,6 +168,23 @@ final class RemoteHostRuntime {
     }
 
     func refresh(
+        host: RemoteHost,
+        baseAccount: CodexAccount,
+        fallbackConnectionState: RemoteHostConnectionState
+    ) async {
+        if let inFlight = inFlightRefreshes[host.destination] {
+            await withCheckedContinuation { inFlightRefreshes[host.destination]?.joiners.append($0) }
+            guard inFlight.accountID != baseAccount.id else { return }
+            await refresh(host: host, baseAccount: baseAccount, fallbackConnectionState: fallbackConnectionState)
+            return
+        }
+
+        inFlightRefreshes[host.destination] = (baseAccount.id, [])
+        await performRefresh(host: host, baseAccount: baseAccount, fallbackConnectionState: fallbackConnectionState)
+        inFlightRefreshes.removeValue(forKey: host.destination)?.joiners.forEach { $0.resume() }
+    }
+
+    private func performRefresh(
         host: RemoteHost,
         baseAccount: CodexAccount,
         fallbackConnectionState: RemoteHostConnectionState
