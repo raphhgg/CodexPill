@@ -6,7 +6,9 @@ struct AppComposition {
     let coordinator: MenuBarCoordinator
 
     init(environment: [String: String], defaults: UserDefaults) {
-        let repository = try! AccountRepository()
+        let isolatedRootDirectory = AppRuntimeEnvironment.isolatedAppSupportDirectory(environment: environment)
+        let suppressesInteractivePrompts = AppRuntimeEnvironment.shouldSuppressInteractiveAlerts(environment: environment)
+        let repository = try! AccountRepository(isolatedRootDirectory: isolatedRootDirectory)
         let authService = CodexAuthSnapshotService(repository: repository)
         let processClient: CodexAppProcessClient = AppRuntimeEnvironment.shouldUseValidationCodexProcessClient(environment: environment)
             ? ValidationCodexAppProcessClient()
@@ -26,13 +28,15 @@ struct AppComposition {
             statusItemSettings: StatusItemSettingsStore(userDefaults: defaults),
             tokenUsagePreferences: TokenUsagePreferencesStore(userDefaults: defaults),
             cliProcessInspector: CodexCLIProcessInspector(),
-            alertPresenter: SystemAlertPresenter(environment: environment),
-            panelPresenter: SystemPanelPresenter(environment: environment),
-            shortcutCapturePanelPresenter: SystemShortcutCapturePanelPresenter(environment: environment),
+            alertPresenter: SystemAlertPresenter(suppressesInteractivePrompts: suppressesInteractivePrompts),
+            panelPresenter: SystemPanelPresenter(suppressesInteractivePrompts: suppressesInteractivePrompts),
+            shortcutCapturePanelPresenter: SystemShortcutCapturePanelPresenter(suppressesInteractivePrompts: suppressesInteractivePrompts),
             loginItemController: SystemLoginItemController(),
             loginItemsSettingsLauncher: SystemLoginItemsSettingsLauncher(),
             diagnosticReportPresenter: SystemDiagnosticReportPresenter(),
-            tokenUsageProvider: LocalCodexSessionTokenUsageMenuProvider(),
+            tokenUsageProvider: LocalCodexSessionTokenUsageMenuProvider(
+                cacheFile: AppPaths.tokenUsageCacheFile(isolatedRootDirectory: isolatedRootDirectory)
+            ),
             validationObserver: MenuBarValidationObserver(
                 sink: MenuBarValidationConfiguration.makeSink(environment: environment),
                 scenario: MenuBarValidationConfiguration.scenario(environment: environment)

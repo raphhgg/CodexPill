@@ -5,11 +5,11 @@ struct AccountRepository: @unchecked Sendable {
     let paths: AppPaths
 
     init(
-        fileManager: FileManager = .default,
-        environment: [String: String] = ProcessInfo.processInfo.environment
+        isolatedRootDirectory: URL?,
+        fileManager: FileManager = .default
     ) throws {
         self.fileManager = fileManager
-        self.paths = try AppPaths(fileManager: fileManager, environment: environment)
+        self.paths = try AppPaths(isolatedRootDirectory: isolatedRootDirectory, fileManager: fileManager)
     }
 
     func bootstrapStorage() throws {

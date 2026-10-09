@@ -87,6 +87,23 @@ struct AppRuntimeEnvironmentTests {
     }
 
     @Test
+    func isolatedAppSupportDirectoryPrefersValidationOverrideThenAutomatedTestDirectory() {
+        let testDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CodexPillTests-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true)
+
+        #expect(
+            AppRuntimeEnvironment.isolatedAppSupportDirectory(
+                environment: [AppRuntimeEnvironment.validationAppSupportDirectoryEnvironmentKey: "/tmp/codexpill-validation"]
+            )?.path == "/tmp/codexpill-validation"
+        )
+        #expect(
+            AppRuntimeEnvironment.isolatedAppSupportDirectory(
+                environment: [AppRuntimeEnvironment.xctestConfigurationFilePathEnvironmentKey: "/tmp/test.xctestconfiguration"]
+            )?.standardizedFileURL.path == testDirectory.standardizedFileURL.path
+        )
+    }
+
+    @Test
     func appRuntimeDoesNotStartInsideAutomatedTests() {
         #expect(
             !AppRuntimeEnvironment.shouldStartAppRuntime(

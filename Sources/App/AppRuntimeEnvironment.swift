@@ -80,9 +80,12 @@ enum AppRuntimeEnvironment {
         return classLookup("XCTestCase") != nil || classLookup("XCTest") != nil
     }
 
-    static func automatedTestAppSupportDirectory(
+    static func isolatedAppSupportDirectory(
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) -> URL? {
+        if let validationDirectory = validationAppSupportDirectory(environment: environment) {
+            return validationDirectory
+        }
         guard isRunningAutomatedTests(environment: environment) else { return nil }
 
         return FileManager.default.temporaryDirectory

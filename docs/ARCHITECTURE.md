@@ -118,7 +118,7 @@ Local app-server reads enter this session runner through `CodexAppServerClient`,
 - account catalog persistence;
 - auth snapshot storage;
 - isolated `CODEX_HOME` session paths;
-- the token-usage cache file, `TokenUsageCacheFileStore` at `AppPaths.tokenUsageCacheFile()`.
+- the token-usage cache file, `TokenUsageCacheFileStore` at `AppPaths.tokenUsageCacheFile(isolatedRootDirectory:)`.
 
 Platform adapters are the only place where the app should know about live auth files, `codex app-server`, process inspection, or relaunch mechanics.
 
@@ -144,6 +144,8 @@ App startup builds each store from one `UserDefaults` instance and injects the o
 ## Boundary Notes
 
 `AppComposition` is the App composition root. It chooses production or validation adapters, builds the `AccountsController`, and constructs `MenuBarCoordinator` with every collaborator passed in. `MenuBarCoordinator.init` has no production defaults, so a new collaborator is wired in one place. Tests build the coordinator through `Tests/Support/MenuBarCoordinatorTestFactory.swift`.
+
+`AppRuntimeEnvironment` is read only in `Sources/App`. App turns the process environment into plain values and passes them in: the isolated app-support root for `AccountRepository` and the token-usage cache, whether system alerts and panels suppress interactive prompts, the validation auto-refresh interval, and which process client to use. Features and Platform code never read `AppRuntimeEnvironment`.
 
 `AccountsFeatureFactory` is the production composition boundary for the account feature. App startup chooses platform adapters such as `AccountRepository`, `CodexAuthSnapshotService`, `CodexAppProcessClient`, and `CodexAccountStatusClient`, then asks the factory for an `AccountsController`. App hands that controller to `MenuBarCoordinator` as `MenuBarAccounts`; the factory builds no MenuBar types.
 

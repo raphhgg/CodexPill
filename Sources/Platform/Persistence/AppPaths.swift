@@ -13,20 +13,14 @@ struct AppPaths {
     private static let legacyAppSupportFolderName = "CodexSwitchboard"
 
     init(
-        fileManager: FileManager = .default,
-        environment: [String: String] = ProcessInfo.processInfo.environment
+        isolatedRootDirectory: URL?,
+        fileManager: FileManager = .default
     ) throws {
         let targetDirectory: URL
         let legacyDirectory: URL?
-        let isolatedAuthRootDirectory: URL?
-        if let overrideDirectory = AppRuntimeEnvironment.validationAppSupportDirectory(environment: environment) {
-            targetDirectory = overrideDirectory
+        if let isolatedRootDirectory {
+            targetDirectory = isolatedRootDirectory
             legacyDirectory = nil
-            isolatedAuthRootDirectory = overrideDirectory
-        } else if let testDirectory = AppRuntimeEnvironment.automatedTestAppSupportDirectory(environment: environment) {
-            targetDirectory = testDirectory
-            legacyDirectory = nil
-            isolatedAuthRootDirectory = testDirectory
         } else {
             let supportRoot = try fileManager.url(
                 for: .applicationSupportDirectory,
@@ -36,7 +30,6 @@ struct AppPaths {
             )
             targetDirectory = supportRoot.appendingPathComponent(Self.appSupportFolderName, isDirectory: true)
             legacyDirectory = supportRoot.appendingPathComponent(Self.legacyAppSupportFolderName, isDirectory: true)
-            isolatedAuthRootDirectory = nil
         }
 
         if let legacyDirectory,
@@ -49,8 +42,8 @@ struct AppPaths {
         appSupportDirectory = targetDirectory
         accountsFile = appSupportDirectory.appendingPathComponent("accounts.json")
         snapshotsDirectory = appSupportDirectory.appendingPathComponent("snapshots", isDirectory: true)
-        if let isolatedAuthRootDirectory {
-            codexAuthFile = isolatedAuthRootDirectory
+        if let isolatedRootDirectory {
+            codexAuthFile = isolatedRootDirectory
                 .appendingPathComponent("auth.json")
         } else {
             codexAuthFile = fileManager.homeDirectoryForCurrentUser
@@ -69,13 +62,12 @@ struct AppPaths {
     }
 
     static func tokenUsageCacheFile(
-        fileManager: FileManager = .default,
-        environment: [String: String] = ProcessInfo.processInfo.environment
+        isolatedRootDirectory: URL?,
+        fileManager: FileManager = .default
     ) -> URL {
         let cacheDirectory: URL
-        if let isolatedDirectory = AppRuntimeEnvironment.validationAppSupportDirectory(environment: environment)
-            ?? AppRuntimeEnvironment.automatedTestAppSupportDirectory(environment: environment) {
-            cacheDirectory = isolatedDirectory.appendingPathComponent("Caches", isDirectory: true)
+        if let isolatedRootDirectory {
+            cacheDirectory = isolatedRootDirectory.appendingPathComponent("Caches", isDirectory: true)
         } else {
             let cachesRoot = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first
                 ?? fileManager.temporaryDirectory
