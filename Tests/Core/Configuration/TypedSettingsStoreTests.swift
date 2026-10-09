@@ -246,17 +246,3 @@ private func makeDefaults() -> UserDefaults {
     defaults.removePersistentDomain(forName: suiteName)
     return defaults
 }
-
-private func makeAccount() -> CodexAccount {
-    CodexAccount(
-        id: UUID(),
-        name: "Business 2",
-        snapshotFileName: "business-2.json",
-        createdAt: .distantPast,
-        updatedAt: .distantPast,
-        email: "business-2@example.com",
-        planType: "team",
-        rateLimits: nil,
-        identity: .empty
-    )
-}

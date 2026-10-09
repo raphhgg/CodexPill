@@ -106,20 +106,6 @@ struct AccountRepositoryTests {
         )
     }
 
-    private func makeAccount() -> CodexAccount {
-        CodexAccount(
-            id: UUID(),
-            name: "Research",
-            snapshotFileName: "research.json",
-            createdAt: .distantPast,
-            updatedAt: .distantPast,
-            email: nil,
-            planType: nil,
-            rateLimits: nil,
-            identity: .empty
-        )
-    }
-
     private func temporaryDirectory() -> URL {
         FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)

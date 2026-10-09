@@ -629,15 +629,28 @@ struct MenuBarUIValidationTests {
                 name: "Primary",
                 email: "primary@example.com",
                 planType: "pro",
-                sessionUsedPercent: 42,
-                weeklyUsedPercent: 68,
-                now: now
+                rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 42, weeklyUsedPercent: 68)
             )
 
             let others = [
-                makeAccount(name: "Research", email: "research@example.com", planType: "pro", sessionUsedPercent: 8, weeklyUsedPercent: 35, now: now),
-                makeAccount(name: "Sandbox", email: "sandbox@example.com", planType: "plus", sessionUsedPercent: 19, weeklyUsedPercent: 50, now: now),
-                makeAccount(name: "Overflow", email: "overflow@example.com", planType: "plus", sessionUsedPercent: 74, weeklyUsedPercent: 88, now: now)
+                makeAccount(
+                    name: "Research",
+                    email: "research@example.com",
+                    planType: "pro",
+                    rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 8, weeklyUsedPercent: 35)
+                ),
+                makeAccount(
+                    name: "Sandbox",
+                    email: "sandbox@example.com",
+                    planType: "plus",
+                    rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 19, weeklyUsedPercent: 50)
+                ),
+                makeAccount(
+                    name: "Overflow",
+                    email: "overflow@example.com",
+                    planType: "plus",
+                    rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 74, weeklyUsedPercent: 88)
+                )
             ]
 
             return MenuBarMenuState(
@@ -660,23 +673,34 @@ struct MenuBarUIValidationTests {
                 name: "Primary",
                 email: "primary@example.com",
                 planType: "pro",
-                sessionUsedPercent: 42,
-                weeklyUsedPercent: 68,
-                now: now
+                rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 42, weeklyUsedPercent: 68)
             )
 
             let others = [
-                makeAccount(name: "Research", email: "research@example.com", planType: "pro", sessionUsedPercent: 8, weeklyUsedPercent: 35, now: now),
-                makeAccount(name: "Sandbox", email: "sandbox@example.com", planType: "plus", sessionUsedPercent: 19, weeklyUsedPercent: 50, now: now),
-                makeAccount(name: "Overflow", email: "overflow@example.com", planType: "plus", sessionUsedPercent: 74, weeklyUsedPercent: 88, now: now)
+                makeAccount(
+                    name: "Research",
+                    email: "research@example.com",
+                    planType: "pro",
+                    rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 8, weeklyUsedPercent: 35)
+                ),
+                makeAccount(
+                    name: "Sandbox",
+                    email: "sandbox@example.com",
+                    planType: "plus",
+                    rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 19, weeklyUsedPercent: 50)
+                ),
+                makeAccount(
+                    name: "Overflow",
+                    email: "overflow@example.com",
+                    planType: "plus",
+                    rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 74, weeklyUsedPercent: 88)
+                )
             ]
             let remoteActive = makeAccount(
                 name: "Remote Active",
                 email: "remote-active@example.com",
                 planType: "team",
-                sessionUsedPercent: 11,
-                weeklyUsedPercent: 27,
-                now: now
+                rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 11, weeklyUsedPercent: 27)
             )
 
             return MenuBarMenuState(
@@ -704,11 +728,14 @@ struct MenuBarUIValidationTests {
                 name: "Primary",
                 email: "primary@example.com",
                 planType: "pro",
-                sessionUsedPercent: 42,
-                weeklyUsedPercent: 68,
-                now: now
+                rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 42, weeklyUsedPercent: 68)
             )
-            let research = makeAccount(name: "Research", email: "research@example.com", planType: "pro", sessionUsedPercent: 8, weeklyUsedPercent: 35, now: now)
+            let research = makeAccount(
+                name: "Research",
+                email: "research@example.com",
+                planType: "pro",
+                rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 8, weeklyUsedPercent: 35)
+            )
             var remoteActive = active
             remoteActive.updatedAt = active.updatedAt.addingTimeInterval(60)
 
@@ -740,32 +767,46 @@ struct MenuBarUIValidationTests {
                 name: "Primary",
                 email: "primary@example.com",
                 planType: "pro",
-                sessionUsedPercent: 42,
-                weeklyUsedPercent: 68,
-                now: now
+                rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 42, weeklyUsedPercent: 68)
             )
 
             let others = [
-                makeAccount(name: "Research", email: "research@example.com", planType: "pro", sessionUsedPercent: 8, weeklyUsedPercent: 35, now: now),
-                makeAccount(name: "Sandbox", email: "sandbox@example.com", planType: "plus", sessionUsedPercent: 19, weeklyUsedPercent: 50, now: now),
-                makeAccount(name: "Overflow", email: "overflow@example.com", planType: "plus", sessionUsedPercent: 74, weeklyUsedPercent: 88, now: now),
-                makeAccount(name: "Archive", email: "archive@example.com", planType: "team", sessionUsedPercent: 4, weeklyUsedPercent: 11, now: now)
+                makeAccount(
+                    name: "Research",
+                    email: "research@example.com",
+                    planType: "pro",
+                    rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 8, weeklyUsedPercent: 35)
+                ),
+                makeAccount(
+                    name: "Sandbox",
+                    email: "sandbox@example.com",
+                    planType: "plus",
+                    rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 19, weeklyUsedPercent: 50)
+                ),
+                makeAccount(
+                    name: "Overflow",
+                    email: "overflow@example.com",
+                    planType: "plus",
+                    rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 74, weeklyUsedPercent: 88)
+                ),
+                makeAccount(
+                    name: "Archive",
+                    email: "archive@example.com",
+                    planType: "team",
+                    rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 4, weeklyUsedPercent: 11)
+                )
             ]
             let buildboxActive = makeAccount(
                 name: "Buildbox Active",
                 email: "buildbox-active@example.com",
                 planType: "team",
-                sessionUsedPercent: 11,
-                weeklyUsedPercent: 27,
-                now: now
+                rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 11, weeklyUsedPercent: 27)
             )
             let debianActive = makeAccount(
                 name: "Debian Active",
                 email: "debian-active@example.com",
                 planType: "plus",
-                sessionUsedPercent: 33,
-                weeklyUsedPercent: 45,
-                now: now
+                rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 33, weeklyUsedPercent: 45)
             )
 
             return MenuBarMenuState(
@@ -803,14 +844,27 @@ struct MenuBarUIValidationTests {
                 name: "Primary",
                 email: "primary@example.com",
                 planType: "pro",
-                sessionUsedPercent: 42,
-                weeklyUsedPercent: 68,
-                now: now
+                rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 42, weeklyUsedPercent: 68)
             )
 
-            let research = makeAccount(name: "Research", email: "research@example.com", planType: "pro", sessionUsedPercent: 8, weeklyUsedPercent: 35, now: now)
-            let sandbox = makeAccount(name: "Sandbox", email: "sandbox@example.com", planType: "plus", sessionUsedPercent: 19, weeklyUsedPercent: 50, now: now)
-            let overflow = makeAccount(name: "Overflow", email: "overflow@example.com", planType: "plus", sessionUsedPercent: 74, weeklyUsedPercent: 88, now: now)
+            let research = makeAccount(
+                name: "Research",
+                email: "research@example.com",
+                planType: "pro",
+                rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 8, weeklyUsedPercent: 35)
+            )
+            let sandbox = makeAccount(
+                name: "Sandbox",
+                email: "sandbox@example.com",
+                planType: "plus",
+                rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 19, weeklyUsedPercent: 50)
+            )
+            let overflow = makeAccount(
+                name: "Overflow",
+                email: "overflow@example.com",
+                planType: "plus",
+                rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 74, weeklyUsedPercent: 88)
+            )
 
             return MenuBarMenuState(
                 activeAccount: active,
@@ -837,14 +891,27 @@ struct MenuBarUIValidationTests {
                 name: "Primary",
                 email: "primary@example.com",
                 planType: "pro",
-                sessionUsedPercent: 42,
-                weeklyUsedPercent: 68,
-                now: now
+                rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 42, weeklyUsedPercent: 68)
             )
 
-            let research = makeAccount(name: "Research", email: "research@example.com", planType: "pro", sessionUsedPercent: 8, weeklyUsedPercent: 35, now: now)
-            let sandbox = makeAccount(name: "Sandbox", email: "sandbox@example.com", planType: "plus", sessionUsedPercent: 19, weeklyUsedPercent: 50, now: now)
-            let overflow = makeAccount(name: "Overflow", email: "overflow@example.com", planType: "plus", sessionUsedPercent: 74, weeklyUsedPercent: 88, now: now)
+            let research = makeAccount(
+                name: "Research",
+                email: "research@example.com",
+                planType: "pro",
+                rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 8, weeklyUsedPercent: 35)
+            )
+            let sandbox = makeAccount(
+                name: "Sandbox",
+                email: "sandbox@example.com",
+                planType: "plus",
+                rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 19, weeklyUsedPercent: 50)
+            )
+            let overflow = makeAccount(
+                name: "Overflow",
+                email: "overflow@example.com",
+                planType: "plus",
+                rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 74, weeklyUsedPercent: 88)
+            )
 
             return MenuBarMenuState(
                 activeAccount: active,
@@ -857,9 +924,7 @@ struct MenuBarUIValidationTests {
                         name: "Stale Remote",
                         email: "stale-remote@example.com",
                         planType: "team",
-                        sessionUsedPercent: 52,
-                        weeklyUsedPercent: 61,
-                        now: now
+                        rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 52, weeklyUsedPercent: 61)
                     ),
                     deployedAccountIDs: [research.id]
                 )],
@@ -879,9 +944,7 @@ struct MenuBarUIValidationTests {
                 name: "Primary",
                 email: "primary@example.com",
                 planType: "pro",
-                sessionUsedPercent: 57,
-                weeklyUsedPercent: 73,
-                now: now
+                rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 57, weeklyUsedPercent: 73)
             )
 
             return MenuBarMenuState(
@@ -925,7 +988,7 @@ struct MenuBarUIValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: NullCodexAppProcessClient(),
+            codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient()
         )
         let suiteName = "MenuBarUIValidationTests-\(UUID().uuidString)"
@@ -948,46 +1011,6 @@ struct MenuBarUIValidationTests {
             environment: [AppRuntimeEnvironment.validationAppSupportDirectoryEnvironmentKey: appSupportDirectory.path]
         )
     }
-
-    private func makeAccount(
-        name: String,
-        email: String,
-        planType: String,
-        sessionUsedPercent: Int,
-        weeklyUsedPercent: Int,
-        now: Date
-    ) -> CodexAccount {
-        CodexAccount(
-            id: UUID(),
-            name: name,
-            snapshotFileName: "\(UUID().uuidString).json",
-            createdAt: now.addingTimeInterval(-3_600),
-            updatedAt: now.addingTimeInterval(-600),
-            email: email,
-            planType: planType,
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: nil,
-                limitName: nil,
-                planType: planType,
-                primary: CodexRateLimitWindow(
-                    usedPercent: sessionUsedPercent,
-                    resetsAt: now.addingTimeInterval(3_600),
-                    windowDurationMinutes: 300
-                ),
-                secondary: CodexRateLimitWindow(
-                    usedPercent: weeklyUsedPercent,
-                    resetsAt: now.addingTimeInterval(86_400),
-                    windowDurationMinutes: 10_080
-                ),
-                fetchedAt: now.addingTimeInterval(-300)
-            ),
-            identity: CodexAccountIdentity(
-                stableAccountID: nil,
-                snapshotFingerprint: UUID().uuidString,
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: email)
-            )
-        )
-    }
 }
 
 private struct ScenarioSummary: Codable {
@@ -1006,9 +1029,4 @@ private enum ValidationError: Error {
     case failedToCreateBitmap
     case failedToEncodePNG
     case unknownScenario(String)
-}
-
-private struct NullCodexAppProcessClient: CodexAppProcessClient {
-    func assertCodexAvailable() throws {}
-    func relaunchCodex() async throws {}
 }

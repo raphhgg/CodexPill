@@ -11,15 +11,17 @@ struct MenuBarAccountCatalogProjectionTests {
             name: "Business 2",
             email: "user@example.com",
             stableAccountID: "acct-team",
-            sessionUsedPercent: 100,
-            sessionResetsAt: now.addingTimeInterval(25 * 60)
+            rateLimits: makeRateLimits(sessionUsedPercent: 100, sessionResetsAt: now.addingTimeInterval(25 * 60))
         )
         let staleRemote = makeAccount(
             name: "Business 2",
             email: "user@example.com",
             stableAccountID: "stale-team",
-            sessionUsedPercent: 100,
-            sessionResetsAt: now.addingTimeInterval(-45 * 60),
+            rateLimits: makeRateLimits(
+                sessionUsedPercent: 100,
+                sessionResetsAt: now.addingTimeInterval(-45 * 60),
+                fetchedAt: now.addingTimeInterval(-3600)
+            ),
             updatedAt: now.addingTimeInterval(-3600)
         )
 
@@ -46,7 +48,7 @@ struct MenuBarAccountCatalogProjectionTests {
     @Test
     func catalogEntryPrefersRemoteDisplayValuesForRemoteOnlyActiveAccount() {
         let now = Date()
-        let local = makeAccount(name: "Business 4", sessionUsedPercent: 42)
+        let local = makeAccount(name: "Business 4", rateLimits: makeRateLimits(sessionUsedPercent: 42))
         var remote = local
         remote.applyRemoteMetadata(
             email: local.email,
@@ -89,7 +91,7 @@ struct MenuBarAccountCatalogProjectionTests {
 
     @Test
     func availabilitySnapshotsIncludeDisconnectedRemoteTargetsWithoutMarkingCatalogActive() {
-        let local = makeAccount(name: "Business 2", sessionUsedPercent: 25)
+        let local = makeAccount(name: "Business 2", rateLimits: makeRateLimits(sessionUsedPercent: 25))
         let projection = MenuBarAccountCatalogProjection(
             activeAccount: nil,
             inactiveAccounts: [local],
@@ -110,46 +112,5 @@ struct MenuBarAccountCatalogProjectionTests {
         #expect(projection.remoteTargetAvailabilities["user@buildbox"]?.status == .unavailable(reason: .disconnected))
         #expect(projection.accountCatalogEntries.first?.placement == nil)
         #expect(projection.availabilitySnapshots.first?.remoteAvailabilities.first?.status == .unavailable(reason: .disconnected))
-    }
-
-    private func makeAccount(
-        name: String,
-        email: String? = nil,
-        stableAccountID: String? = nil,
-        sessionUsedPercent: Int,
-        sessionResetsAt: Date? = Date().addingTimeInterval(3600),
-        updatedAt: Date = .now
-    ) -> CodexAccount {
-        let emailAddress = email ?? "\(name.lowercased())@example.com"
-        return CodexAccount(
-            id: UUID(),
-            name: name,
-            snapshotFileName: "\(UUID().uuidString).json",
-            createdAt: .distantPast,
-            updatedAt: updatedAt,
-            email: emailAddress,
-            planType: "team",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: nil,
-                limitName: nil,
-                planType: "team",
-                primary: CodexRateLimitWindow(
-                    usedPercent: sessionUsedPercent,
-                    resetsAt: sessionResetsAt,
-                    windowDurationMinutes: 300
-                ),
-                secondary: CodexRateLimitWindow(
-                    usedPercent: 15,
-                    resetsAt: Date().addingTimeInterval(6 * 24 * 60 * 60),
-                    windowDurationMinutes: 10_080
-                ),
-                fetchedAt: updatedAt
-            ),
-            identity: CodexAccountIdentity(
-                stableAccountID: stableAccountID,
-                snapshotFingerprint: UUID().uuidString,
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: emailAddress)
-            )
-        )
     }
 }

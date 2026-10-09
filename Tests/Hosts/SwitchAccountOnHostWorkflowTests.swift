@@ -149,12 +149,12 @@ struct SwitchAccountOnHostWorkflowTests {
         let target = makeAccount(
             name: "Business 2",
             email: "shared@example.com",
-            snapshotFingerprint: "target-fingerprint"
+            fingerprint: "target-fingerprint"
         )
         let duplicate = makeAccount(
             name: "Personal 1",
             email: "shared@example.com",
-            snapshotFingerprint: "other-fingerprint"
+            fingerprint: "other-fingerprint"
         )
         let host = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
         let client = RemoteHostClientProbe(
@@ -248,27 +248,6 @@ struct SwitchAccountOnHostWorkflowTests {
             .refreshRuntime(host.displayName),
             .readStatus(host.displayName)
         ])
-    }
-
-    private func makeAccount(
-        name: String,
-        email: String? = nil,
-        snapshotFingerprint: String = UUID().uuidString
-    ) -> CodexAccount {
-        CodexAccount(
-            id: UUID(),
-            name: name,
-            snapshotFileName: "\(UUID().uuidString).json",
-            createdAt: .distantPast,
-            updatedAt: .distantPast,
-            email: email ?? "\(name.lowercased())@example.com",
-            planType: "pro",
-            rateLimits: nil,
-            identity: CodexAccountIdentity(
-                snapshotFingerprint: snapshotFingerprint,
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: email ?? "\(name.lowercased())@example.com")
-            )
-        )
     }
 }
 

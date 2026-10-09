@@ -822,23 +822,6 @@ struct SSHRemoteHostClientTests {
             _ = try await client.readCurrentAccountStatus(on: RemoteHost(destination: "user@buildbox"))
         }
     }
-
-    private func makeAccount() -> CodexAccount {
-        CodexAccount(
-            id: UUID(),
-            name: "Research",
-            snapshotFileName: "research.json",
-            createdAt: .distantPast,
-            updatedAt: .distantPast,
-            email: "research@example.com",
-            planType: "pro",
-            rateLimits: nil,
-            identity: CodexAccountIdentity(
-                snapshotFingerprint: UUID().uuidString,
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "research@example.com")
-            )
-        )
-    }
 }
 
 private func makeAuthData(

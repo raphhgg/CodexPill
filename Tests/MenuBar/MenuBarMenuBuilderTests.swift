@@ -248,8 +248,8 @@ struct MenuBarMenuBuilderTests {
     @Test
     func tokenUsageCardHiddenWhenDisabled() {
         let state = makeState(
-            activeAccount: makeAccount(name: "Active", withRateLimits: true),
-            inactiveAccounts: [makeAccount(name: "Other", withRateLimits: true)]
+            activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
+            inactiveAccounts: [makeAccount(name: "Other", rateLimits: makeRateLimits(resettingAfter: .now))]
         )
 
         let snapshot = MenuBarValidationSupport.makeSnapshot(state: state)
@@ -261,8 +261,8 @@ struct MenuBarMenuBuilderTests {
     @Test
     func tokenUsageCardVisibleWhenEnabledWithSelectedPeriodCopy() {
         let state = makeState(
-            activeAccount: makeAccount(name: "Active", withRateLimits: true),
-            inactiveAccounts: [makeAccount(name: "Other", withRateLimits: true)],
+            activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
+            inactiveAccounts: [makeAccount(name: "Other", rateLimits: makeRateLimits(resettingAfter: .now))],
             tokenUsageEnabled: true,
             tokenUsagePeriod: .last30Days,
             tokenUsageChartStyle: .heatStrip,
@@ -381,7 +381,7 @@ struct MenuBarMenuBuilderTests {
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 tokenUsageEnabled: true,
                 tokenUsagePeriod: .last30Days,
                 tokenUsageChartStyle: .sparkline,
@@ -413,7 +413,7 @@ struct MenuBarMenuBuilderTests {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", withRateLimits: false)),
+            state: makeState(activeAccount: makeAccount(name: "Active")),
             target: coordinator
         )
 
@@ -437,7 +437,7 @@ struct MenuBarMenuBuilderTests {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", withRateLimits: true)),
+            state: makeState(activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now))),
             target: coordinator
         )
 
@@ -456,7 +456,7 @@ struct MenuBarMenuBuilderTests {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", withRateLimits: true)),
+            state: makeState(activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now))),
             target: coordinator
         )
 
@@ -509,7 +509,7 @@ struct MenuBarMenuBuilderTests {
     func liveValidationSnapshotCapturesStatusItemContentMetadata() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
-        let state = makeState(activeAccount: makeAccount(name: "Active", withRateLimits: false))
+        let state = makeState(activeAccount: makeAccount(name: "Active"))
         let menu = builder.makeMenu(state: state, target: coordinator)
         let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, menu: menu)
 
@@ -538,7 +538,7 @@ struct MenuBarMenuBuilderTests {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", withRateLimits: true)),
+            state: makeState(activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now))),
             target: coordinator
         )
 
@@ -559,7 +559,7 @@ struct MenuBarMenuBuilderTests {
         let shortcut = KeyboardShortcut(keyCode: 11, modifiers: [.control, .shift])
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 revealStatusItemTitleShortcut: shortcut
             ),
             target: coordinator
@@ -580,7 +580,7 @@ struct MenuBarMenuBuilderTests {
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 revealStatusItemTitleShortcut: nil
             ),
             target: coordinator
@@ -599,8 +599,8 @@ struct MenuBarMenuBuilderTests {
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                inactiveAccounts: [makeAccount(name: "Other", withRateLimits: true)],
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
+                inactiveAccounts: [makeAccount(name: "Other", rateLimits: makeRateLimits(resettingAfter: .now))],
                 remoteHosts: [makeRemoteHost(activeAccount: nil)]
             ),
             target: coordinator
@@ -619,7 +619,7 @@ struct MenuBarMenuBuilderTests {
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 notificationsWhenBlockedEnabled: true,
                 notificationsWhenOutEnabled: false
             ),
@@ -643,7 +643,7 @@ struct MenuBarMenuBuilderTests {
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 notificationAuthorizationState: .authorized
             ),
             target: coordinator
@@ -661,7 +661,7 @@ struct MenuBarMenuBuilderTests {
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 notificationAuthorizationState: .unknown
             ),
             target: coordinator
@@ -679,7 +679,7 @@ struct MenuBarMenuBuilderTests {
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 notificationsWhenBlockedEnabled: true,
                 notificationAuthorizationState: .authorized
             ),
@@ -698,7 +698,7 @@ struct MenuBarMenuBuilderTests {
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 notificationsWhenBlockedEnabled: true,
                 notificationAuthorizationState: .denied
             ),
@@ -717,7 +717,7 @@ struct MenuBarMenuBuilderTests {
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 notificationsWhenBlockedEnabled: true,
                 notificationsWhenOutEnabled: true,
                 notificationAuthorizationState: .denied
@@ -739,12 +739,12 @@ struct MenuBarMenuBuilderTests {
     func visibleAccountsUseNativeSubmenusForSwitching() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
-        let business3 = makeAccount(name: "Business 3", withRateLimits: true)
-        let business4 = makeAccount(name: "Business 4", withRateLimits: true)
-        let business2 = makeAccount(name: "Business 2", withRateLimits: true)
+        let business3 = makeAccount(name: "Business 3", rateLimits: makeRateLimits(resettingAfter: .now))
+        let business4 = makeAccount(name: "Business 4", rateLimits: makeRateLimits(resettingAfter: .now))
+        let business2 = makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: .now))
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 inactiveAccounts: [business3, business4, business2]
             ),
             target: coordinator
@@ -791,7 +791,7 @@ struct MenuBarMenuBuilderTests {
     func singleAccountWithoutHostsUsesAccountManagementSubmenu() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
-        let active = makeAccount(name: "Personal", withRateLimits: true)
+        let active = makeAccount(name: "Personal", rateLimits: makeRateLimits(resettingAfter: .now))
         let state = makeState(activeAccount: active)
         let menu = builder.makeMenu(state: state, target: coordinator)
         let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, menu: menu)
@@ -815,9 +815,9 @@ struct MenuBarMenuBuilderTests {
     func multipleAccountsWithoutHostsShowsOtherAccountsAndManagesActiveAccountSeparately() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
-        let active = makeAccount(name: "Personal", withRateLimits: true)
-        let business1 = makeAccount(name: "Business 1", withRateLimits: true)
-        let business2 = makeAccount(name: "Business 2", withRateLimits: true)
+        let active = makeAccount(name: "Personal", rateLimits: makeRateLimits(resettingAfter: .now))
+        let business1 = makeAccount(name: "Business 1", rateLimits: makeRateLimits(resettingAfter: .now))
+        let business2 = makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: .now))
         let state = makeState(
             activeAccount: active,
             inactiveAccounts: [business1, business2]
@@ -847,8 +847,8 @@ struct MenuBarMenuBuilderTests {
     func configuredHostsKeepFullAccountsListForTargetActions() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
-        let active = makeAccount(name: "Personal", withRateLimits: true)
-        let business = makeAccount(name: "Business 1", withRateLimits: true)
+        let active = makeAccount(name: "Personal", rateLimits: makeRateLimits(resettingAfter: .now))
+        let business = makeAccount(name: "Business 1", rateLimits: makeRateLimits(resettingAfter: .now))
         let state = makeState(
             activeAccount: active,
             inactiveAccounts: [business],
@@ -870,11 +870,11 @@ struct MenuBarMenuBuilderTests {
     func inactiveAccountSubmenuShowsNoEmailFallbackBeforeUsage() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
-        var account = makeAccount(name: "Business 3", withRateLimits: true)
+        var account = makeAccount(name: "Business 3", rateLimits: makeRateLimits(resettingAfter: .now))
         account.email = nil
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 inactiveAccounts: [account]
             ),
             target: coordinator
@@ -897,12 +897,12 @@ struct MenuBarMenuBuilderTests {
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 inactiveAccounts: [
-                    makeAccount(name: "Business 3", withRateLimits: true),
-                    makeAccount(name: "Business 4", withRateLimits: true),
-                    makeAccount(name: "Business 2", withRateLimits: true),
-                    makeAccount(name: "Business 1", withRateLimits: true)
+                    makeAccount(name: "Business 3", rateLimits: makeRateLimits(resettingAfter: .now)),
+                    makeAccount(name: "Business 4", rateLimits: makeRateLimits(resettingAfter: .now)),
+                    makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: .now)),
+                    makeAccount(name: "Business 1", rateLimits: makeRateLimits(resettingAfter: .now))
                 ]
             ),
             target: coordinator
@@ -935,13 +935,13 @@ struct MenuBarMenuBuilderTests {
     func inactiveAccountUsesTargetSubmenuWhenRemoteHostIsPresent() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
-        let inactive = makeAccount(name: "Business 3", withRateLimits: true)
+        let inactive = makeAccount(name: "Business 3", rateLimits: makeRateLimits(resettingAfter: .now))
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 inactiveAccounts: [inactive],
                 remoteHosts: [makeRemoteHost(
-                    activeAccount: makeAccount(name: "Remote", withRateLimits: true),
+                    activeAccount: makeAccount(name: "Remote", rateLimits: makeRateLimits(resettingAfter: .now)),
                     deployedAccountIDs: [inactive.id]
                 )]
             ),
@@ -980,11 +980,11 @@ struct MenuBarMenuBuilderTests {
     func inactiveAccountSubmenuShowsPendingAndFailedRemoteUsageStates() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
-        let pending = makeAccount(name: "Business 3", withRateLimits: true)
-        let failed = makeAccount(name: "Business 4", withRateLimits: true)
+        let pending = makeAccount(name: "Business 3", rateLimits: makeRateLimits(resettingAfter: .now))
+        let failed = makeAccount(name: "Business 4", rateLimits: makeRateLimits(resettingAfter: .now))
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 inactiveAccounts: [pending, failed],
                 remoteHosts: [
                     makeRemoteHost(
@@ -1024,8 +1024,8 @@ struct MenuBarMenuBuilderTests {
     func failedHostSubmenuOffersAdoptDetectedAccountAction() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
-        let desired = makeAccount(name: "Business 2", withRateLimits: true)
-        let detected = makeAccount(name: "Business 1", withRateLimits: true)
+        let desired = makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: .now))
+        let detected = makeAccount(name: "Business 1", rateLimits: makeRateLimits(resettingAfter: .now))
         let menu = builder.makeMenu(
             state: makeState(
                 activeAccount: nil,
@@ -1065,23 +1065,23 @@ struct MenuBarMenuBuilderTests {
     func inactiveAccountSubmenuAddsOneHostTargetPerConfiguredHost() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
-        let inactive = makeAccount(name: "Business 3", withRateLimits: true)
+        let inactive = makeAccount(name: "Business 3", rateLimits: makeRateLimits(resettingAfter: .now))
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 inactiveAccounts: [inactive],
                 remoteHosts: [
                     makeRemoteHost(
                         name: "buildbox",
                         destination: "user@buildbox",
-                        activeAccount: makeAccount(name: "Remote 1", withRateLimits: true),
+                        activeAccount: makeAccount(name: "Remote 1", rateLimits: makeRateLimits(resettingAfter: .now)),
                         deployedAccountIDs: [inactive.id]
                     ),
                     makeRemoteHost(
                         name: "debian-vm",
                         destination: "user@debian-vm",
                         connectionState: .disconnected,
-                        activeAccount: makeAccount(name: "Remote 2", withRateLimits: true),
+                        activeAccount: makeAccount(name: "Remote 2", rateLimits: makeRateLimits(resettingAfter: .now)),
                         deployedAccountIDs: []
                     )
                 ]
@@ -1108,7 +1108,7 @@ struct MenuBarMenuBuilderTests {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", withRateLimits: true)),
+            state: makeState(activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now))),
             target: coordinator
         )
 
@@ -1125,7 +1125,7 @@ struct MenuBarMenuBuilderTests {
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 remoteHosts: [makeRemoteHost(activeAccount: nil)]
             ),
             target: coordinator
@@ -1147,10 +1147,10 @@ struct MenuBarMenuBuilderTests {
     func hostsSubmenuOffersReverifyActionWhenHostHasDisplayAccount() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
-        let desired = makeAccount(name: "Business 2", withRateLimits: true)
+        let desired = makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: .now))
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 remoteHosts: [
                     makeRemoteHost(
                         desiredAccount: desired,
@@ -1178,10 +1178,10 @@ struct MenuBarMenuBuilderTests {
     func hostsSubmenuDisablesReverifyActionWhileHostIsAlreadyVerifying() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
-        let desired = makeAccount(name: "Business 2", withRateLimits: true)
+        let desired = makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: .now))
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 remoteHosts: [
                     makeRemoteHost(
                         desiredAccount: desired,
@@ -1207,7 +1207,7 @@ struct MenuBarMenuBuilderTests {
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 remoteHosts: [
                     makeRemoteHost(desiredAccount: nil, activeAccount: nil, verificationStatus: .unverified)
                 ]
@@ -1228,19 +1228,19 @@ struct MenuBarMenuBuilderTests {
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 remoteHosts: [
                     makeRemoteHost(
                         name: "buildbox",
                         destination: "user@buildbox",
                         connectionState: .connected,
-                        activeAccount: makeAccount(name: "Remote 1", withRateLimits: true)
+                        activeAccount: makeAccount(name: "Remote 1", rateLimits: makeRateLimits(resettingAfter: .now))
                     ),
                     makeRemoteHost(
                         name: "debian-vm",
                         destination: "user@debian-vm",
                         connectionState: .disconnected,
-                        activeAccount: makeAccount(name: "Remote 2", withRateLimits: true)
+                        activeAccount: makeAccount(name: "Remote 2", rateLimits: makeRateLimits(resettingAfter: .now))
                     )
                 ]
             ),
@@ -1261,10 +1261,10 @@ struct MenuBarMenuBuilderTests {
     func inactiveAccountSubmenuIncludesAllConfiguredHosts() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
-        let inactive = makeAccount(name: "Business 3", withRateLimits: true)
+        let inactive = makeAccount(name: "Business 3", rateLimits: makeRateLimits(resettingAfter: .now))
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 inactiveAccounts: [inactive],
                 remoteHosts: [
                     makeRemoteHost(activeAccount: nil),
@@ -1293,8 +1293,8 @@ struct MenuBarMenuBuilderTests {
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                remoteHosts: [makeRemoteHost(activeAccount: makeAccount(name: "Business 2", withRateLimits: true))]
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
+                remoteHosts: [makeRemoteHost(activeAccount: makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: .now)))]
             ),
             target: coordinator
         )
@@ -1307,7 +1307,7 @@ struct MenuBarMenuBuilderTests {
     func activeAccountHostedViewFitsWithinConfiguredMenuWidth() {
         let view = NSHostingView(
             rootView: ActiveAccountMenuContent(
-                account: makeAccount(name: "Business 2", withRateLimits: true),
+                account: makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: .now)),
                 locations: [],
                 showsUpdatedTime: true,
                 progressAccentColor: .blue,
@@ -1327,9 +1327,9 @@ struct MenuBarMenuBuilderTests {
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 remoteHosts: [
-                    makeRemoteHost(activeAccount: makeAccount(name: "Business 2", withRateLimits: true))
+                    makeRemoteHost(activeAccount: makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: .now)))
                 ]
             ),
             target: coordinator
@@ -1346,7 +1346,7 @@ struct MenuBarMenuBuilderTests {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", withRateLimits: true)),
+            state: makeState(activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now))),
             target: coordinator
         )
 
@@ -1362,10 +1362,10 @@ struct MenuBarMenuBuilderTests {
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Personal", withRateLimits: true),
+                activeAccount: makeAccount(name: "Personal", rateLimits: makeRateLimits(resettingAfter: .now)),
                 inactiveAccounts: [
-                    makeAccount(name: "Business 1", withRateLimits: true),
-                    makeAccount(name: "Business 2", withRateLimits: true)
+                    makeAccount(name: "Business 1", rateLimits: makeRateLimits(resettingAfter: .now)),
+                    makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: .now))
                 ]
             ),
             target: coordinator
@@ -1411,7 +1411,7 @@ struct MenuBarMenuBuilderTests {
         )
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Personal", withRateLimits: true),
+                activeAccount: makeAccount(name: "Personal", rateLimits: makeRateLimits(resettingAfter: .now)),
                 inactiveAccounts: [wideAccount]
             ),
             target: coordinator
@@ -1441,13 +1441,13 @@ struct MenuBarMenuBuilderTests {
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 remoteHosts: [RemoteHostMenuState(
                     name: "devbox",
                     destination: "user@devbox",
                     connectionState: .disconnected,
-                    desiredAccount: makeAccount(name: "Business 2", withRateLimits: true),
-                    activeAccount: makeAccount(name: "Business 2", withRateLimits: true)
+                    desiredAccount: makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: .now)),
+                    activeAccount: makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: .now))
                 )]
             ),
             target: coordinator
@@ -1464,10 +1464,10 @@ struct MenuBarMenuBuilderTests {
     func disconnectedFailedRemoteHostDoesNotRenderPrimaryRemoteSection() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
-        let desired = makeAccount(name: "Business 2", withRateLimits: true)
+        let desired = makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: .now))
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 remoteHosts: [RemoteHostMenuState(
                     name: "devbox",
                     destination: "user@devbox",
@@ -1492,11 +1492,11 @@ struct MenuBarMenuBuilderTests {
     func remoteMismatchStaysInHostSubmenuAndDoesNotRenderActiveCard() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
-        let desired = makeAccount(name: "Business 2", withRateLimits: true)
-        let detected = makeAccount(name: "Business 1", withRateLimits: true)
+        let desired = makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: .now))
+        let detected = makeAccount(name: "Business 1", rateLimits: makeRateLimits(resettingAfter: .now))
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 remoteHosts: [RemoteHostMenuState(
                     name: "buildbox",
                     destination: "user@buildbox",
@@ -1531,10 +1531,10 @@ struct MenuBarMenuBuilderTests {
     func inactiveAccountUsesInstallAndSwitchCopyWhenMissingOnRemoteHost() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
-        let inactive = makeAccount(name: "Business 3", withRateLimits: true)
+        let inactive = makeAccount(name: "Business 3", rateLimits: makeRateLimits(resettingAfter: .now))
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 inactiveAccounts: [inactive],
                 remoteHosts: [makeRemoteHost(activeAccount: nil, deployedAccountIDs: [])]
             ),
@@ -1556,7 +1556,7 @@ struct MenuBarMenuBuilderTests {
     func activeRemoteAccountCardAndAccountUsageResolveAgainstCanonicalSavedAccountIdentity() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
-        let canonical = makeAccount(name: "Business 2", withRateLimits: true)
+        let canonical = makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: .now))
         let remoteClone = CodexAccount(
             id: UUID(),
             name: canonical.name,
@@ -1608,16 +1608,16 @@ struct MenuBarMenuBuilderTests {
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 remoteHosts: [
                     makeRemoteHost(
-                        activeAccount: makeAccount(name: "Business 2", withRateLimits: true)
+                        activeAccount: makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: .now))
                     ),
                     RemoteHostMenuState(
                         name: "buildbox",
                         destination: "user@buildbox",
                         connectionState: .connected,
-                        activeAccount: makeAccount(name: "Business 3", withRateLimits: true),
+                        activeAccount: makeAccount(name: "Business 3", rateLimits: makeRateLimits(resettingAfter: .now)),
                         deployedAccountIDs: []
                     )
                 ]
@@ -1641,7 +1641,7 @@ struct MenuBarMenuBuilderTests {
     func sameLocalAndVerifiedRemoteAccountCollapsesRemoteCardButKeepsHostSubmenu() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
-        let active = makeAccount(name: "Business 2", withRateLimits: true)
+        let active = makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: .now))
         var remote = active
         remote.updatedAt = active.updatedAt.addingTimeInterval(60)
         let menu = builder.makeMenu(
@@ -1685,7 +1685,7 @@ struct MenuBarMenuBuilderTests {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", withRateLimits: true)),
+            state: makeState(activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now))),
             target: coordinator
         )
 
@@ -1705,7 +1705,7 @@ struct MenuBarMenuBuilderTests {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", withRateLimits: true)),
+            state: makeState(activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now))),
             target: coordinator
         )
 
@@ -1728,7 +1728,7 @@ struct MenuBarMenuBuilderTests {
     func launchAtLoginPreferenceReflectsEnabledState() throws {
         let menu = MenuBarMenuBuilder().makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 loginItemState: .enabled
             ),
             target: try makeCoordinator()
@@ -1746,7 +1746,7 @@ struct MenuBarMenuBuilderTests {
     func launchAtLoginPreferenceReflectsDisabledState() throws {
         let menu = MenuBarMenuBuilder().makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 loginItemState: .disabled
             ),
             target: try makeCoordinator()
@@ -1764,7 +1764,7 @@ struct MenuBarMenuBuilderTests {
     func launchAtLoginPreferenceOpensSettingsWhenApprovalIsRequired() throws {
         let menu = MenuBarMenuBuilder().makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 loginItemState: .requiresApproval
             ),
             target: try makeCoordinator()
@@ -1782,7 +1782,7 @@ struct MenuBarMenuBuilderTests {
     func launchAtLoginPreferenceOpensSettingsWhenUnavailable() throws {
         let menu = MenuBarMenuBuilder().makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 loginItemState: .unavailable
             ),
             target: try makeCoordinator()
@@ -1899,7 +1899,7 @@ struct MenuBarMenuBuilderTests {
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 progressAccentColor: NSColor(deviceRed: 0.12, green: 0.45, blue: 0.78, alpha: 1),
                 hasCustomProgressAccentColor: true
             ),
@@ -1920,8 +1920,8 @@ struct MenuBarMenuBuilderTests {
         let (coordinator, statusItem) = try makeCoordinatorWithStatusItem()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                inactiveAccounts: [makeAccount(name: "Business 3", withRateLimits: true)]
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
+                inactiveAccounts: [makeAccount(name: "Business 3", rateLimits: makeRateLimits(resettingAfter: .now))]
             ),
             target: coordinator
         )
@@ -1936,10 +1936,10 @@ struct MenuBarMenuBuilderTests {
     func openingMenuDoesNotReplaceInactiveAccountRowsDuringOpen() throws {
         let builder = MenuBarMenuBuilder()
         let (coordinator, statusItem) = try makeCoordinatorWithStatusItem()
-        let inactive = makeAccount(name: "Business 3", withRateLimits: true)
+        let inactive = makeAccount(name: "Business 3", rateLimits: makeRateLimits(resettingAfter: .now))
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 inactiveAccounts: [inactive]
             ),
             target: coordinator
@@ -1972,8 +1972,8 @@ struct MenuBarMenuBuilderTests {
         let (coordinator, statusItem) = try makeCoordinatorWithStatusItem()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                inactiveAccounts: [makeAccount(name: "Business 3", withRateLimits: true)]
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
+                inactiveAccounts: [makeAccount(name: "Business 3", rateLimits: makeRateLimits(resettingAfter: .now))]
             ),
             target: coordinator
         )
@@ -2004,7 +2004,7 @@ struct MenuBarMenuBuilderTests {
         )
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 tokenUsageEnabled: true,
                 tokenUsagePeriod: .last30Days,
                 tokenUsageCard: makeTokenUsageCard(loadState: .loading(nil))
@@ -2050,7 +2050,7 @@ struct MenuBarMenuBuilderTests {
         )
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
                 tokenUsageEnabled: true,
                 tokenUsagePeriod: .last30Days,
                 tokenUsageCard: makeTokenUsageCard(loadState: .loading(nil))
@@ -2118,7 +2118,7 @@ struct MenuBarMenuBuilderTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: NullCodexAppProcessClient(),
+            codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient()
         )
         let suiteName = "MenuBarMenuBuilderTests-\(UUID().uuidString)"
@@ -2260,39 +2260,6 @@ struct MenuBarMenuBuilderTests {
         )
     }
 
-    private func makeAccount(name: String, withRateLimits: Bool) -> CodexAccount {
-        let now = Date()
-        return CodexAccount(
-            id: UUID(),
-            name: name,
-            snapshotFileName: "\(UUID().uuidString).json",
-            createdAt: now,
-            updatedAt: now,
-            email: "\(name.lowercased())@example.com",
-            planType: "pro",
-            rateLimits: withRateLimits ? CodexRateLimitSnapshot(
-                limitID: nil,
-                limitName: nil,
-                planType: "pro",
-                primary: CodexRateLimitWindow(
-                    usedPercent: 42,
-                    resetsAt: now.addingTimeInterval(3_600),
-                    windowDurationMinutes: 300
-                ),
-                secondary: CodexRateLimitWindow(
-                    usedPercent: 68,
-                    resetsAt: now.addingTimeInterval(86_400),
-                    windowDurationMinutes: 10_080
-                ),
-                fetchedAt: now
-            ) : nil,
-            identity: CodexAccountIdentity(
-                snapshotFingerprint: UUID().uuidString,
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "\(name.lowercased())@example.com")
-            )
-        )
-    }
-
     private func makeRemoteHost(
         name: String = "devbox",
         destination: String = "user@devbox",
@@ -2316,9 +2283,4 @@ struct MenuBarMenuBuilderTests {
             deployedAccountIDs: deployedAccountIDs
         )
     }
-}
-
-private struct NullCodexAppProcessClient: CodexAppProcessClient {
-    func assertCodexAvailable() throws {}
-    func relaunchCodex() async throws {}
 }

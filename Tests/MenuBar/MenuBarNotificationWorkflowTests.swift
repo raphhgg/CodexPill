@@ -8,12 +8,12 @@ struct MenuBarNotificationWorkflowTests {
     @Test
     func evaluationRendersAndDeliversAvailableAccountPayload() async throws {
         let now = Date()
-        let fallback = makeAccount(name: "Business 2", sessionUsed: 10, weeklyUsed: 20, now: now)
+        let fallback = makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 10, weeklyUsedPercent: 20))
         let harness = makeHarness()
         harness.workflow.whenBlockedEnabled = true
 
         harness.workflow.start(with: makeState(inactiveAccounts: [
-            makeAccount(name: "Blocked", sessionUsed: 100, weeklyUsed: 100, now: now)
+            makeAccount(name: "Blocked", rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 100, weeklyUsedPercent: 100))
         ]))
         harness.workflow.evaluate(using: makeState(inactiveAccounts: [fallback]), now: now)
         await harness.delivery.waitForPayloadCount(1)
@@ -40,14 +40,14 @@ struct MenuBarNotificationWorkflowTests {
     @Test
     func firstRealNotificationRequestsMacPermissionWhenUndetermined() async throws {
         let now = Date()
-        let fallback = makeAccount(name: "Business 2", sessionUsed: 10, weeklyUsed: 20, now: now)
+        let fallback = makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 10, weeklyUsedPercent: 20))
         let harness = makeHarness()
         harness.workflow.whenBlockedEnabled = true
         harness.delivery.authorizationStateValue = .notDetermined
         harness.delivery.authorizationStateAfterRequest = .authorized
 
         harness.workflow.start(with: makeState(inactiveAccounts: [
-            makeAccount(name: "Blocked", sessionUsed: 100, weeklyUsed: 100, now: now)
+            makeAccount(name: "Blocked", rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 100, weeklyUsedPercent: 100))
         ]))
         harness.workflow.evaluate(using: makeState(inactiveAccounts: [fallback]), now: now)
         await harness.delivery.waitForPayloadCount(1)
@@ -60,13 +60,13 @@ struct MenuBarNotificationWorkflowTests {
     @Test
     func deniedMacPermissionSuppressesDeliveryWithoutClearingSavedIntent() async throws {
         let now = Date()
-        let fallback = makeAccount(name: "Business 2", sessionUsed: 10, weeklyUsed: 20, now: now)
+        let fallback = makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 10, weeklyUsedPercent: 20))
         let harness = makeHarness()
         harness.workflow.whenBlockedEnabled = true
         harness.delivery.authorizationStateValue = .denied
 
         harness.workflow.start(with: makeState(inactiveAccounts: [
-            makeAccount(name: "Blocked", sessionUsed: 100, weeklyUsed: 100, now: now)
+            makeAccount(name: "Blocked", rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 100, weeklyUsedPercent: 100))
         ]))
         harness.workflow.evaluate(using: makeState(inactiveAccounts: [fallback]), now: now)
         await harness.delivery.waitForAuthorizationChecks(2)
@@ -80,9 +80,9 @@ struct MenuBarNotificationWorkflowTests {
     @Test
     func staleLocalNotificationClickResolvesCurrentBestAccount() throws {
         let now = Date()
-        let stale = makeAccount(name: "Business 1", sessionUsed: 95, weeklyUsed: 95, now: now)
-        let currentBest = makeAccount(name: "Business 2", sessionUsed: 5, weeklyUsed: 5, now: now)
-        let active = makeAccount(name: "Personal", sessionUsed: 100, weeklyUsed: 100, now: now)
+        let stale = makeAccount(name: "Business 1", rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 95, weeklyUsedPercent: 95))
+        let currentBest = makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 5, weeklyUsedPercent: 5))
+        let active = makeAccount(name: "Personal", rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 100, weeklyUsedPercent: 100))
         let harness = makeHarness()
         harness.workflow.whenOutEnabled = true
 
@@ -105,8 +105,8 @@ struct MenuBarNotificationWorkflowTests {
     @Test
     func staleRemoteNotificationClickDropsWhenRequestedHostIsNoLongerActionable() throws {
         let now = Date()
-        let stale = makeAccount(name: "Business 1", sessionUsed: 5, weeklyUsed: 5, now: now)
-        let active = makeAccount(name: "Personal", sessionUsed: 100, weeklyUsed: 100, now: now)
+        let stale = makeAccount(name: "Business 1", rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 5, weeklyUsedPercent: 5))
+        let active = makeAccount(name: "Personal", rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 100, weeklyUsedPercent: 100))
         let harness = makeHarness()
         harness.workflow.whenOutEnabled = true
 
@@ -148,40 +148,6 @@ struct MenuBarNotificationWorkflowTests {
             statusBarDisplayMode: .iconOnly,
             isBusy: false,
             statusMessage: ""
-        )
-    }
-
-    private func makeAccount(
-        name: String,
-        sessionUsed: Int,
-        weeklyUsed: Int,
-        now: Date
-    ) -> CodexAccount {
-        CodexAccount(
-            id: UUID(),
-            name: name,
-            snapshotFileName: "\(name.lowercased().replacingOccurrences(of: " ", with: "-")).json",
-            createdAt: now,
-            updatedAt: now,
-            email: "\(name.lowercased().replacingOccurrences(of: " ", with: "-"))@example.com",
-            planType: "team",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: nil,
-                limitName: nil,
-                planType: "team",
-                primary: CodexRateLimitWindow(
-                    usedPercent: sessionUsed,
-                    resetsAt: now.addingTimeInterval(3_600),
-                    windowDurationMinutes: 300
-                ),
-                secondary: CodexRateLimitWindow(
-                    usedPercent: weeklyUsed,
-                    resetsAt: now.addingTimeInterval(86_400),
-                    windowDurationMinutes: 10_080
-                ),
-                fetchedAt: now
-            ),
-            identity: .empty
         )
     }
 }

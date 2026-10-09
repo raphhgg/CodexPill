@@ -7,7 +7,7 @@ import Testing
 struct RemoteHostRuntimeTests {
     @Test
     func failedManualSwitchDoesNotRecordAccountAsInstalled() throws {
-        let account = makeAccount(name: "Business 4")
+        let account = makeAccount(name: "Business 4", email: "business@example.com")
         let host = RemoteHost(destination: "user@debian-vm", displayName: "debian-vm")
         let settings = makeSettings()
         settings.updateRemoteHostState(for: host) { state in
@@ -29,7 +29,7 @@ struct RemoteHostRuntimeTests {
 
     @Test
     func failedAddHostInstallFlowRecordsAccountAsInstalled() throws {
-        let account = makeAccount(name: "Business 4")
+        let account = makeAccount(name: "Business 4", email: "business@example.com")
         let host = RemoteHost(destination: "user@debian-vm", displayName: "debian-vm")
         let settings = makeSettings()
         let runtime = makeRuntime(settings: settings, accounts: [account])
@@ -213,25 +213,6 @@ struct RemoteHostRuntimeTests {
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         return CodexPillSettingsStore(userDefaults: defaults)
-    }
-
-    private func makeAccount(
-        name: String,
-        email: String = "business@example.com"
-    ) -> CodexAccount {
-        CodexAccount(
-            id: UUID(),
-            name: name,
-            snapshotFileName: "\(UUID().uuidString).json",
-            createdAt: .distantPast,
-            updatedAt: .distantPast,
-            email: email,
-            planType: "team",
-            rateLimits: nil,
-            identity: CodexAccountIdentity(
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: email)
-            )
-        )
     }
 }
 

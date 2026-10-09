@@ -6,9 +6,9 @@ import Testing
 struct HydrateSavedAccountsMetadataUseCaseTests {
     @Test
     func runBackfillsInactiveAccountsMissingRateLimitsAndRestoresOriginalAuth() async throws {
-        let active = makeAccount(name: "Active", fingerprint: "active", withRateLimits: true)
-        let inactiveMissing = makeAccount(name: "Missing", fingerprint: "missing", withRateLimits: false)
-        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: true)
+        let active = makeAccount(name: "Active", fingerprint: "active", planType: "pro", rateLimits: makeRateLimitsSnapshot())
+        let inactiveMissing = makeAccount(name: "Missing", email: nil, fingerprint: "missing")
+        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", planType: "pro", rateLimits: makeRateLimitsSnapshot())
         let auth = HydrationAuthSnapshotProbe(currentAuthData: Data("active-auth".utf8))
         let repository = HydrationCatalogProbe()
         let useCase = HydrateSavedAccountsMetadataUseCase(
@@ -28,8 +28,8 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
                 )
             ], authService: auth),
             identityResolver: SavedAccountIdentityResolver(
-                liveIdentitySource: HydrationIdentitySource(activeFingerprint: "active"),
-                storedAccountReconciler: HydrationIdentityReconcilerAdapter()
+                liveIdentitySource: LiveIdentityStub(fingerprint: "active"),
+                storedAccountReconciler: PassthroughIdentityReconciler()
             ),
             repository: repository
         )
@@ -54,8 +54,8 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
 
     @Test
     func runSkipsWhenNoInactiveAccountsNeedHydration() async throws {
-        let active = makeAccount(name: "Active", fingerprint: "active", withRateLimits: true)
-        let inactive = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: true)
+        let active = makeAccount(name: "Active", fingerprint: "active", planType: "pro", rateLimits: makeRateLimitsSnapshot())
+        let inactive = makeAccount(name: "Ready", fingerprint: "ready", planType: "pro", rateLimits: makeRateLimitsSnapshot())
         let auth = HydrationAuthSnapshotProbe(currentAuthData: Data("active-auth".utf8))
         let repository = HydrationCatalogProbe()
         let useCase = HydrateSavedAccountsMetadataUseCase(
@@ -63,8 +63,8 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
             accountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: [:], authService: auth),
             savedAccountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: [:], authService: auth),
             identityResolver: SavedAccountIdentityResolver(
-                liveIdentitySource: HydrationIdentitySource(activeFingerprint: "active"),
-                storedAccountReconciler: HydrationIdentityReconcilerAdapter()
+                liveIdentitySource: LiveIdentityStub(fingerprint: "active"),
+                storedAccountReconciler: PassthroughIdentityReconciler()
             ),
             repository: repository
         )
@@ -80,8 +80,8 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
 
     @Test
     func runRefreshesInactiveAccountsThatAlreadyHaveRateLimitsWhenRequested() async throws {
-        let active = makeAccount(name: "Active", fingerprint: "active", withRateLimits: true)
-        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: true)
+        let active = makeAccount(name: "Active", fingerprint: "active", planType: "pro", rateLimits: makeRateLimitsSnapshot())
+        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", planType: "pro", rateLimits: makeRateLimitsSnapshot())
         let auth = HydrationAuthSnapshotProbe(currentAuthData: Data("active-auth".utf8))
         let refreshedRateLimits = CodexRateLimitSnapshot(
             limitID: "codex",
@@ -117,8 +117,8 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
                 )
             ], authService: auth),
             identityResolver: SavedAccountIdentityResolver(
-                liveIdentitySource: HydrationIdentitySource(activeFingerprint: "active"),
-                storedAccountReconciler: HydrationIdentityReconcilerAdapter()
+                liveIdentitySource: LiveIdentityStub(fingerprint: "active"),
+                storedAccountReconciler: PassthroughIdentityReconciler()
             ),
             repository: repository
         )
@@ -144,8 +144,8 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
 
     @Test
     func runBackfillsInactiveAccountsWithWeeklyOnlyRateLimits() async throws {
-        let active = makeAccount(name: "Active", fingerprint: "active", withRateLimits: true)
-        let inactiveMissing = makeAccount(name: "Missing", fingerprint: "missing", withRateLimits: false)
+        let active = makeAccount(name: "Active", fingerprint: "active", planType: "pro", rateLimits: makeRateLimitsSnapshot())
+        let inactiveMissing = makeAccount(name: "Missing", email: nil, fingerprint: "missing")
         let auth = HydrationAuthSnapshotProbe(currentAuthData: Data("active-auth".utf8))
         let primaryOnlyRateLimits = CodexRateLimitSnapshot(
             limitID: "codex",
@@ -171,8 +171,8 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
                 )
             ], authService: auth),
             identityResolver: SavedAccountIdentityResolver(
-                liveIdentitySource: HydrationIdentitySource(activeFingerprint: "active"),
-                storedAccountReconciler: HydrationIdentityReconcilerAdapter()
+                liveIdentitySource: LiveIdentityStub(fingerprint: "active"),
+                storedAccountReconciler: PassthroughIdentityReconciler()
             ),
             repository: repository
         )
@@ -192,8 +192,8 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
 
     @Test
     func runDoesNotMarkPreservedInactiveRateLimitsFreshWhenRefreshReturnsNoRateLimits() async throws {
-        let active = makeAccount(name: "Active", fingerprint: "active", withRateLimits: true)
-        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: true)
+        let active = makeAccount(name: "Active", fingerprint: "active", planType: "pro", rateLimits: makeRateLimitsSnapshot())
+        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", planType: "pro", rateLimits: makeRateLimitsSnapshot())
         let originalUpdatedAt = inactiveReady.updatedAt
         let originalRateLimits = try #require(inactiveReady.rateLimits)
         let auth = HydrationAuthSnapshotProbe(currentAuthData: Data("active-auth".utf8))
@@ -215,8 +215,8 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
                 )
             ], authService: auth),
             identityResolver: SavedAccountIdentityResolver(
-                liveIdentitySource: HydrationIdentitySource(activeFingerprint: "active"),
-                storedAccountReconciler: HydrationIdentityReconcilerAdapter()
+                liveIdentitySource: LiveIdentityStub(fingerprint: "active"),
+                storedAccountReconciler: PassthroughIdentityReconciler()
             ),
             repository: repository
         )
@@ -248,8 +248,8 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
         ))
     ])
     func runPreservesPreviousMeaningfulRateLimitsWhenIsolatedReadIsNotUsable(status: CodexAccountStatus) async throws {
-        let active = makeAccount(name: "Active", fingerprint: "active", withRateLimits: true)
-        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: true)
+        let active = makeAccount(name: "Active", fingerprint: "active", planType: "pro", rateLimits: makeRateLimitsSnapshot())
+        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", planType: "pro", rateLimits: makeRateLimitsSnapshot())
         let originalRateLimits = try #require(inactiveReady.rateLimits)
         let auth = HydrationAuthSnapshotProbe(currentAuthData: Data("active-auth".utf8))
         let repository = HydrationCatalogProbe()
@@ -258,8 +258,8 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
             accountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: [:], authService: auth),
             savedAccountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: ["ready": status], authService: auth),
             identityResolver: SavedAccountIdentityResolver(
-                liveIdentitySource: HydrationIdentitySource(activeFingerprint: "active"),
-                storedAccountReconciler: HydrationIdentityReconcilerAdapter()
+                liveIdentitySource: LiveIdentityStub(fingerprint: "active"),
+                storedAccountReconciler: PassthroughIdentityReconciler()
             ),
             repository: repository
         )
@@ -278,8 +278,8 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
 
     @Test
     func runPreservesPreviousMeaningfulRateLimitsWhenIsolatedReadFails() async throws {
-        let active = makeAccount(name: "Active", fingerprint: "active", withRateLimits: true)
-        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: true)
+        let active = makeAccount(name: "Active", fingerprint: "active", planType: "pro", rateLimits: makeRateLimitsSnapshot())
+        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", planType: "pro", rateLimits: makeRateLimitsSnapshot())
         let originalRateLimits = try #require(inactiveReady.rateLimits)
         let auth = HydrationAuthSnapshotProbe(currentAuthData: Data("active-auth".utf8))
         let repository = HydrationCatalogProbe()
@@ -288,8 +288,8 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
             accountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: [:], authService: auth),
             savedAccountStatusClient: HydrationFailingSavedStatusProbe(),
             identityResolver: SavedAccountIdentityResolver(
-                liveIdentitySource: HydrationIdentitySource(activeFingerprint: "active"),
-                storedAccountReconciler: HydrationIdentityReconcilerAdapter()
+                liveIdentitySource: LiveIdentityStub(fingerprint: "active"),
+                storedAccountReconciler: PassthroughIdentityReconciler()
             ),
             repository: repository
         )
@@ -308,8 +308,8 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
 
     @Test
     func runWritesRotatedAuthBackToTheMatchingSavedAccount() async throws {
-        let active = makeAccount(name: "Active", fingerprint: "active", withRateLimits: true)
-        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: true, stableAccountID: "acct-ready")
+        let active = makeAccount(name: "Active", fingerprint: "active", planType: "pro", rateLimits: makeRateLimitsSnapshot())
+        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", stableAccountID: "acct-ready", planType: "pro", rateLimits: makeRateLimitsSnapshot())
         let rotatedAuthData = Data("ready-rotated".utf8)
         let auth = HydrationAuthSnapshotProbe(
             currentAuthData: Data("active-auth".utf8),
@@ -347,9 +347,9 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
 
     @Test(arguments: ["acct-other", "acct-unknown"])
     func runDiscardsRotatedAuthThatDoesNotResolveToTheReadAccount(rotatedStableAccountID: String) async throws {
-        let active = makeAccount(name: "Active", fingerprint: "active", withRateLimits: true)
-        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: true, stableAccountID: "acct-ready")
-        let inactiveOther = makeAccount(name: "Other", fingerprint: "other", withRateLimits: true, stableAccountID: "acct-other")
+        let active = makeAccount(name: "Active", fingerprint: "active", planType: "pro", rateLimits: makeRateLimitsSnapshot())
+        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", stableAccountID: "acct-ready", planType: "pro", rateLimits: makeRateLimitsSnapshot())
+        let inactiveOther = makeAccount(name: "Other", fingerprint: "other", stableAccountID: "acct-other", planType: "pro", rateLimits: makeRateLimitsSnapshot())
         let rotatedAuthData = Data("ready-rotated".utf8)
         let auth = HydrationAuthSnapshotProbe(
             currentAuthData: Data("active-auth".utf8),
@@ -380,8 +380,8 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
 
     @Test
     func runWritesRotatedAuthBackWhenIsolatedReadFails() async throws {
-        let active = makeAccount(name: "Active", fingerprint: "active", withRateLimits: true)
-        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: true, stableAccountID: "acct-ready")
+        let active = makeAccount(name: "Active", fingerprint: "active", planType: "pro", rateLimits: makeRateLimitsSnapshot())
+        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", stableAccountID: "acct-ready", planType: "pro", rateLimits: makeRateLimitsSnapshot())
         let rotatedAuthData = Data("ready-rotated".utf8)
         let auth = HydrationAuthSnapshotProbe(
             currentAuthData: Data("active-auth".utf8),
@@ -421,34 +421,10 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
             accountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: [:], authService: auth),
             savedAccountStatusClient: savedAccountStatusClient,
             identityResolver: SavedAccountIdentityResolver(
-                liveIdentitySource: HydrationIdentitySource(activeFingerprint: "active"),
-                storedAccountReconciler: HydrationIdentityReconcilerAdapter()
+                liveIdentitySource: LiveIdentityStub(fingerprint: "active"),
+                storedAccountReconciler: PassthroughIdentityReconciler()
             ),
             repository: repository
-        )
-    }
-
-    private func makeAccount(
-        name: String,
-        fingerprint: String,
-        withRateLimits: Bool,
-        stableAccountID: String? = nil
-    ) -> CodexAccount {
-        let now = Date(timeIntervalSince1970: 1_744_195_200)
-        return CodexAccount(
-            id: UUID(),
-            name: name,
-            snapshotFileName: "\(UUID().uuidString).json",
-            createdAt: now,
-            updatedAt: now,
-            email: withRateLimits ? "\(name.lowercased())@example.com" : nil,
-            planType: withRateLimits ? "pro" : nil,
-            rateLimits: withRateLimits ? makeRateLimitsSnapshot() : nil,
-            identity: CodexAccountIdentity(
-                stableAccountID: stableAccountID,
-                snapshotFingerprint: fingerprint,
-                remoteIdentity: withRateLimits ? CodexRemoteAccountIdentity(emailAddress: "\(name.lowercased())@example.com") : nil
-            )
         )
     }
 
@@ -572,19 +548,5 @@ private final class HydrationCatalogProbe: AccountCatalogStore, @unchecked Senda
 
     func saveAccounts(_ accounts: [CodexAccount]) throws {
         savedAccounts = accounts
-    }
-}
-
-private struct HydrationIdentitySource: LiveCodexAccountIdentitySource {
-    let activeFingerprint: String
-
-    func readCurrentLiveAccountIdentity() -> LiveCodexAccountIdentity {
-        LiveCodexAccountIdentity(snapshotFingerprint: activeFingerprint)
-    }
-}
-
-private struct HydrationIdentityReconcilerAdapter: StoredAccountIdentityReconciler {
-    func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {
-        accounts
     }
 }

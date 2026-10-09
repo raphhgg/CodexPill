@@ -73,7 +73,7 @@ struct MenuBarHostActionCoordinatorTests {
     func reverifyHostRefreshesFromRemoteStatus() async throws {
         let account = makeAccount(name: "Business", email: "business@example.com")
         let host = RemoteHost(destination: "user@buildbox", displayName: "Buildbox")
-        let remoteHostClient = RemoteHostClientFixture(status: CodexAccountStatus(email: account.email, planType: "team"))
+        let remoteHostClient = RemoteHostStub(status: CodexAccountStatus(email: account.email, planType: "team"))
         let harness = makeHarness(accounts: [account], remoteHostClient: remoteHostClient)
         harness.settings.remoteHostStates = [
             PersistedRemoteHostState(
@@ -99,7 +99,7 @@ struct MenuBarHostActionCoordinatorTests {
         let desiredAccount = makeAccount(name: "Personal", email: "personal@example.com")
         let detectedAccount = makeAccount(name: "Business", email: "business@example.com")
         let host = RemoteHost(destination: "user@buildbox", displayName: "Buildbox")
-        let remoteHostClient = RemoteHostClientFixture(status: CodexAccountStatus(email: detectedAccount.email, planType: "team"))
+        let remoteHostClient = RemoteHostStub(status: CodexAccountStatus(email: detectedAccount.email, planType: "team"))
         let harness = makeHarness(accounts: [desiredAccount, detectedAccount], remoteHostClient: remoteHostClient)
         harness.settings.remoteHostStates = [
             PersistedRemoteHostState(
@@ -131,7 +131,7 @@ struct MenuBarHostActionCoordinatorTests {
     private func makeHarness(
         accounts: [CodexAccount] = [],
         activeAccount: CodexAccount? = nil,
-        remoteHostClient: RemoteHostConnectionChecking & RemoteHostAccountStatusReading = RemoteHostClientFixture(),
+        remoteHostClient: RemoteHostConnectionChecking & RemoteHostAccountStatusReading = RemoteHostStub(status: CodexAccountStatus(email: "business@example.com", planType: "team")),
         alertPresenter: AlertPresenterProbe? = nil,
         panelPresenter: PanelPresenterProbe? = nil
     ) -> MenuBarHostActionCoordinatorHarness {
@@ -141,20 +141,6 @@ struct MenuBarHostActionCoordinatorTests {
             remoteHostClient: remoteHostClient,
             alertPresenter: alertPresenter ?? AlertPresenterProbe(),
             panelPresenter: panelPresenter ?? PanelPresenterProbe()
-        )
-    }
-
-    private func makeAccount(name: String, email: String) -> CodexAccount {
-        CodexAccount(
-            id: UUID(),
-            name: name,
-            snapshotFileName: "\(name).json",
-            createdAt: Date(timeIntervalSince1970: 1),
-            updatedAt: Date(timeIntervalSince1970: 1),
-            email: email,
-            planType: "team",
-            rateLimits: nil,
-            identity: CodexAccountIdentity(remoteIdentity: CodexRemoteAccountIdentity(emailAddress: email))
         )
     }
 }
@@ -256,15 +242,6 @@ private struct RemoteSwitchCall: Equatable {
 private struct MenuActionRecord: Equatable {
     let name: String
     let payload: [String: String]
-}
-
-private struct RemoteHostClientFixture: RemoteHostConnectionChecking, RemoteHostAccountStatusReading {
-    var status = CodexAccountStatus(email: "business@example.com", planType: "team")
-
-    func testConnection(to host: RemoteHost) async throws {}
-    func readCurrentAccountStatus(on host: RemoteHost) async throws -> CodexAccountStatus {
-        status
-    }
 }
 
 private final class ValidationSinkProbe: @unchecked Sendable, MenuBarValidationSink {

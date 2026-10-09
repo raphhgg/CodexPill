@@ -9,18 +9,17 @@ struct RemoteRateLimitResolutionTests {
         let baseAccount = makeAccount(
             email: "user@example.com",
             stableAccountID: "acct-team",
-            sessionUsedPercent: 0,
-            sessionResetsAt: nil,
-            weeklyUsedPercent: 0,
-            weeklyResetsAt: nil
+            rateLimits: makeRateLimits(sessionUsedPercent: 0, weeklyUsedPercent: 0)
         )
         let savedMatchingAccount = makeAccount(
             email: "user@example.com",
             stableAccountID: "acct-team",
-            sessionUsedPercent: 97,
-            sessionResetsAt: Date().addingTimeInterval(3600),
-            weeklyUsedPercent: 15,
-            weeklyResetsAt: Date().addingTimeInterval(6 * 24 * 60 * 60)
+            rateLimits: makeRateLimits(
+                sessionUsedPercent: 97,
+                sessionResetsAt: Date().addingTimeInterval(3600),
+                weeklyUsedPercent: 15,
+                weeklyResetsAt: Date().addingTimeInterval(6 * 24 * 60 * 60)
+            )
         )
         let remote = CodexRateLimitSnapshot(
             limitID: nil,
@@ -58,18 +57,17 @@ struct RemoteRateLimitResolutionTests {
         let baseAccount = makeAccount(
             email: "user@example.com",
             stableAccountID: "acct-team",
-            sessionUsedPercent: 0,
-            sessionResetsAt: nil,
-            weeklyUsedPercent: 0,
-            weeklyResetsAt: nil
+            rateLimits: makeRateLimits(sessionUsedPercent: 0, weeklyUsedPercent: 0)
         )
         let savedMatchingAccount = makeAccount(
             email: "user@example.com",
             stableAccountID: "acct-team",
-            sessionUsedPercent: 97,
-            sessionResetsAt: Date().addingTimeInterval(3600),
-            weeklyUsedPercent: 15,
-            weeklyResetsAt: Date().addingTimeInterval(6 * 24 * 60 * 60)
+            rateLimits: makeRateLimits(
+                sessionUsedPercent: 97,
+                sessionResetsAt: Date().addingTimeInterval(3600),
+                weeklyUsedPercent: 15,
+                weeklyResetsAt: Date().addingTimeInterval(6 * 24 * 60 * 60)
+            )
         )
         let remote = CodexRateLimitSnapshot(
             limitID: nil,
@@ -102,18 +100,17 @@ struct RemoteRateLimitResolutionTests {
         let baseAccount = makeAccount(
             email: "user@example.com",
             stableAccountID: "acct-team",
-            sessionUsedPercent: 0,
-            sessionResetsAt: nil,
-            weeklyUsedPercent: 0,
-            weeklyResetsAt: nil
+            rateLimits: makeRateLimits(sessionUsedPercent: 0, weeklyUsedPercent: 0)
         )
         let savedMatchingAccount = makeAccount(
             email: "user@example.com",
             stableAccountID: "acct-team",
-            sessionUsedPercent: 81,
-            sessionResetsAt: fallbackReset,
-            weeklyUsedPercent: 15,
-            weeklyResetsAt: Date().addingTimeInterval(6 * 24 * 60 * 60)
+            rateLimits: makeRateLimits(
+                sessionUsedPercent: 81,
+                sessionResetsAt: fallbackReset,
+                weeklyUsedPercent: 15,
+                weeklyResetsAt: Date().addingTimeInterval(6 * 24 * 60 * 60)
+            )
         )
         let remote = CodexRateLimitSnapshot(
             limitID: nil,
@@ -145,10 +142,6 @@ struct RemoteRateLimitResolutionTests {
         let baseAccount = makeAccount(
             email: "user@example.com",
             stableAccountID: "team-stable",
-            sessionUsedPercent: 0,
-            sessionResetsAt: nil,
-            weeklyUsedPercent: 0,
-            weeklyResetsAt: nil,
             authPrincipalIdentity: CodexAuthPrincipalIdentity(
                 subject: "auth0|business-2",
                 chatGPTUserID: "user-business-2"
@@ -156,15 +149,12 @@ struct RemoteRateLimitResolutionTests {
             workspaceIdentity: CodexWorkspaceIdentity(
                 workspaceAccountID: "org-business-2",
                 workspaceLabel: "Personal"
-            )
+            ),
+            rateLimits: makeRateLimits(sessionUsedPercent: 0, weeklyUsedPercent: 0)
         )
         let businessTwo = makeAccount(
             email: "user@example.com",
             stableAccountID: "team-stable",
-            sessionUsedPercent: 100,
-            sessionResetsAt: Date().addingTimeInterval(3600),
-            weeklyUsedPercent: 16,
-            weeklyResetsAt: Date().addingTimeInterval(6 * 24 * 60 * 60),
             authPrincipalIdentity: CodexAuthPrincipalIdentity(
                 subject: "auth0|business-2",
                 chatGPTUserID: "user-business-2"
@@ -172,15 +162,17 @@ struct RemoteRateLimitResolutionTests {
             workspaceIdentity: CodexWorkspaceIdentity(
                 workspaceAccountID: "org-business-2",
                 workspaceLabel: "Personal"
+            ),
+            rateLimits: makeRateLimits(
+                sessionUsedPercent: 100,
+                sessionResetsAt: Date().addingTimeInterval(3600),
+                weeklyUsedPercent: 16,
+                weeklyResetsAt: Date().addingTimeInterval(6 * 24 * 60 * 60)
             )
         )
         let personal = makeAccount(
             email: "user@example.com",
             stableAccountID: "personal-stable",
-            sessionUsedPercent: 44,
-            sessionResetsAt: Date().addingTimeInterval(7200),
-            weeklyUsedPercent: 8,
-            weeklyResetsAt: Date().addingTimeInterval(3 * 24 * 60 * 60),
             authPrincipalIdentity: CodexAuthPrincipalIdentity(
                 subject: "auth0|business-2",
                 chatGPTUserID: "user-business-2"
@@ -188,6 +180,12 @@ struct RemoteRateLimitResolutionTests {
             workspaceIdentity: CodexWorkspaceIdentity(
                 workspaceAccountID: "org-business-2",
                 workspaceLabel: "Personal"
+            ),
+            rateLimits: makeRateLimits(
+                sessionUsedPercent: 44,
+                sessionResetsAt: Date().addingTimeInterval(7200),
+                weeklyUsedPercent: 8,
+                weeklyResetsAt: Date().addingTimeInterval(3 * 24 * 60 * 60)
             )
         )
         let remote = CodexRateLimitSnapshot(
@@ -224,18 +222,17 @@ struct RemoteRateLimitResolutionTests {
         let baseAccount = makeAccount(
             email: "user@example.com",
             stableAccountID: "acct-team",
-            sessionUsedPercent: 0,
-            sessionResetsAt: nil,
-            weeklyUsedPercent: 0,
-            weeklyResetsAt: nil
+            rateLimits: makeRateLimits(sessionUsedPercent: 0, weeklyUsedPercent: 0)
         )
         let savedMatchingAccount = makeAccount(
             email: "user@example.com",
             stableAccountID: "acct-team",
-            sessionUsedPercent: 100,
-            sessionResetsAt: Date().addingTimeInterval(59 * 60),
-            weeklyUsedPercent: 16,
-            weeklyResetsAt: Date().addingTimeInterval(5 * 24 * 60 * 60)
+            rateLimits: makeRateLimits(
+                sessionUsedPercent: 100,
+                sessionResetsAt: Date().addingTimeInterval(59 * 60),
+                weeklyUsedPercent: 16,
+                weeklyResetsAt: Date().addingTimeInterval(5 * 24 * 60 * 60)
+            )
         )
         let remote = CodexRateLimitSnapshot(
             limitID: nil,
@@ -271,10 +268,12 @@ struct RemoteRateLimitResolutionTests {
         let baseAccount = makeAccount(
             email: "user@example.com",
             stableAccountID: "acct-team",
-            sessionUsedPercent: 100,
-            sessionResetsAt: fallbackReset,
-            weeklyUsedPercent: 16,
-            weeklyResetsAt: now.addingTimeInterval(5 * 24 * 60 * 60)
+            rateLimits: makeRateLimits(
+                sessionUsedPercent: 100,
+                sessionResetsAt: fallbackReset,
+                weeklyUsedPercent: 16,
+                weeklyResetsAt: now.addingTimeInterval(5 * 24 * 60 * 60)
+            )
         )
         let remote = CodexRateLimitSnapshot(
             limitID: nil,
@@ -304,49 +303,5 @@ struct RemoteRateLimitResolutionTests {
         #expect(result?.primary?.displayedUsedPercent(at: now) == 100)
         #expect(result?.primary?.resetsAt == fallbackReset)
         #expect(result?.secondary?.usedPercent == 16)
-    }
-
-    private func makeAccount(
-        email: String,
-        stableAccountID: String,
-        sessionUsedPercent: Int,
-        sessionResetsAt: Date?,
-        weeklyUsedPercent: Int,
-        weeklyResetsAt: Date?,
-        authPrincipalIdentity: CodexAuthPrincipalIdentity? = nil,
-        workspaceIdentity: CodexWorkspaceIdentity? = nil
-    ) -> CodexAccount {
-        CodexAccount(
-            id: UUID(),
-            name: "Business 2",
-            snapshotFileName: "business-2.json",
-            createdAt: .distantPast,
-            updatedAt: .now,
-            email: email,
-            planType: "team",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: nil,
-                limitName: nil,
-                planType: "team",
-                primary: CodexRateLimitWindow(
-                    usedPercent: sessionUsedPercent,
-                    resetsAt: sessionResetsAt,
-                    windowDurationMinutes: 300
-                ),
-                secondary: CodexRateLimitWindow(
-                    usedPercent: weeklyUsedPercent,
-                    resetsAt: weeklyResetsAt,
-                    windowDurationMinutes: 10_080
-                ),
-                fetchedAt: .now
-            ),
-            identity: CodexAccountIdentity(
-                stableAccountID: stableAccountID,
-                authPrincipalIdentity: authPrincipalIdentity,
-                workspaceIdentity: workspaceIdentity,
-                snapshotFingerprint: UUID().uuidString,
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: email)
-            )
-        )
     }
 }

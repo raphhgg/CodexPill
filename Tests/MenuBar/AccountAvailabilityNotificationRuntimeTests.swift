@@ -64,18 +64,4 @@ struct AccountAvailabilityNotificationRuntimeTests {
             )
         ])
     }
-
-    private func makeAccount(name: String) -> CodexAccount {
-        CodexAccount(
-            id: UUID(),
-            name: name,
-            snapshotFileName: "\(name.lowercased().replacingOccurrences(of: " ", with: "-")).json",
-            createdAt: .distantPast,
-            updatedAt: .distantPast,
-            email: "\(name.lowercased().replacingOccurrences(of: " ", with: "-"))@example.com",
-            planType: "team",
-            rateLimits: nil,
-            identity: .empty
-        )
-    }
 }

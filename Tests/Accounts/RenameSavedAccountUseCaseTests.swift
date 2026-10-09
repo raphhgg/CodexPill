@@ -108,23 +108,6 @@ struct RenameSavedAccountUseCaseTests {
         #expect(result.accounts == [account])
         #expect(repository.savedAccounts == [account])
     }
-
-    private func makeAccount(name: String) -> CodexAccount {
-        CodexAccount(
-            id: UUID(),
-            name: name,
-            snapshotFileName: "\(UUID().uuidString).json",
-            createdAt: .distantPast,
-            updatedAt: .distantPast,
-            email: "\(name.lowercased())@example.com",
-            planType: nil,
-            rateLimits: nil,
-            identity: CodexAccountIdentity(
-                snapshotFingerprint: UUID().uuidString,
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "\(name.lowercased())@example.com")
-            )
-        )
-    }
 }
 
 private final class RenamingCatalogProbe: AccountCatalogStore, @unchecked Sendable {

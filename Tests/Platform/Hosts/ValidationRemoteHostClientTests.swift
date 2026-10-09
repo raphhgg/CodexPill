@@ -9,7 +9,8 @@ struct ValidationRemoteHostClientTests {
         let account = makeAccount(
             name: "Business 2",
             email: "business-2@example.com",
-            usedPercent: 81
+            planType: "team",
+            rateLimits: makeRateLimits(sessionUsedPercent: 81)
         )
         let host = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
         let client = ValidationRemoteHostClient(
@@ -36,7 +37,8 @@ struct ValidationRemoteHostClientTests {
         let account = makeAccount(
             name: "Business 3",
             email: "business-3@example.com",
-            usedPercent: 44
+            planType: "team",
+            rateLimits: makeRateLimits(sessionUsedPercent: 44)
         )
         let host = RemoteHost(destination: "user@debian-vm", displayName: "debian-vm")
         let client = ValidationRemoteHostClient(
@@ -71,7 +73,8 @@ struct ValidationRemoteHostClientTests {
         let account = makeAccount(
             name: "Business 3",
             email: "business-3@example.com",
-            usedPercent: 44
+            planType: "team",
+            rateLimits: makeRateLimits(sessionUsedPercent: 44)
         )
         let host = RemoteHost(destination: "user@debian-vm", displayName: "debian-vm")
         let client = ValidationRemoteHostClient(
@@ -90,35 +93,5 @@ struct ValidationRemoteHostClientTests {
         await #expect(throws: RemoteHostClientError.commandFailed("Validation host debian-vm has no active account.")) {
             try await client.readCurrentAccountStatus(on: host)
         }
-    }
-
-
-    private func makeAccount(name: String, email: String, usedPercent: Int) -> CodexAccount {
-        CodexAccount(
-            id: UUID(),
-            name: name,
-            snapshotFileName: "\(UUID().uuidString).json",
-            createdAt: .distantPast,
-            updatedAt: .distantPast,
-            email: email,
-            planType: "team",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: nil,
-                limitName: nil,
-                planType: "team",
-                primary: CodexRateLimitWindow(
-                    usedPercent: usedPercent,
-                    resetsAt: Date(timeIntervalSince1970: 2_000_000_000),
-                    windowDurationMinutes: 300
-                ),
-                secondary: CodexRateLimitWindow(
-                    usedPercent: 16,
-                    resetsAt: Date(timeIntervalSince1970: 2_000_500_000),
-                    windowDurationMinutes: 10_080
-                ),
-                fetchedAt: .distantPast
-            ),
-            identity: .empty
-        )
     }
 }

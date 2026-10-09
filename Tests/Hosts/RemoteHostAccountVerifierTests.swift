@@ -59,20 +59,4 @@ struct RemoteHostAccountVerifierTests {
             ) == "buildbox is using Business 2, not Business 4."
         )
     }
-
-    private func makeAccount(name: String, email: String) -> CodexAccount {
-        CodexAccount(
-            id: UUID(),
-            name: name,
-            snapshotFileName: "\(UUID().uuidString).json",
-            createdAt: .distantPast,
-            updatedAt: .distantPast,
-            email: email,
-            planType: "team",
-            rateLimits: nil,
-            identity: CodexAccountIdentity(
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: email)
-            )
-        )
-    }
 }
