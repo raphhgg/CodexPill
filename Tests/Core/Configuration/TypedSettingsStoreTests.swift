@@ -92,6 +92,37 @@ struct StatusItemSettingsStoreTests {
     }
 }
 
+@MainActor
+struct TokenUsagePreferencesStoreTests {
+    @Test
+    func preferencesPersistAcrossInstances() {
+        let defaults = makeDefaults()
+        let first = TokenUsagePreferencesStore(userDefaults: defaults)
+        first.isEnabled = true
+        first.chartStyle = .sparkline
+        first.loadingAnimationStyle = .random
+        first.peakScope = .allTime
+
+        let second = TokenUsagePreferencesStore(userDefaults: defaults)
+
+        #expect(second.isEnabled)
+        #expect(second.chartStyle == .sparkline)
+        #expect(second.loadingAnimationStyle == .random)
+        #expect(second.peakScope == .allTime)
+    }
+
+    @Test
+    func hiddenPeriodsMigrateToThirtyDays() {
+        let defaults = makeDefaults()
+        defaults.set(CodexTokenUsagePeriod.last7Days.rawValue, forKey: "tokenUsagePeriod")
+
+        let store = TokenUsagePreferencesStore(userDefaults: defaults)
+
+        #expect(store.period == .last30Days)
+        #expect(defaults.object(forKey: "tokenUsagePeriod") as? Int == CodexTokenUsagePeriod.last30Days.rawValue)
+    }
+}
+
 private func makeDefaults() -> UserDefaults {
     let suiteName = "TypedSettingsStoreTests-\(UUID().uuidString)"
     let defaults = UserDefaults(suiteName: suiteName)!
