@@ -68,6 +68,47 @@ struct LocalCodexSessionTokenUsageMenuProviderTests {
     }
 
     @Test
+    func loadsCacheFileWrittenByPreviousReleases() async throws {
+        let now = makeDate(2026, 5, 20)
+        let root = try makeSessionRoot(files: [
+            "2026/05/20/session-a.jsonl": """
+            {"type":"event_msg","payload":{"type":"token_count","last_token_usage":{"total_tokens":100}}}
+            """
+        ])
+        let cacheFile = cacheFile(under: root)
+        try FileManager.default.createDirectory(
+            at: cacheFile.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        let days = [800409600, 800496000, 800582400, 800668800, 800755200, 800841600, 800928000]
+        let buckets = days.enumerated().map { index, day in
+            """
+            {"day":\(day),"usage":{"cachedInputTokens":0,"inputTokens":0,"outputTokens":0,"reasoningOutputTokens":0,"totalTokens":\(4000 + index)}}
+            """
+        }.joined(separator: ",")
+        try Data("""
+        {"entries":{"7":{"buckets":[\(buckets)],"generatedAt":800928000,"period":7}},"schemaVersion":1}
+        """.utf8).write(to: cacheFile)
+        let provider = LocalCodexSessionTokenUsageMenuProvider(
+            scanner: CodexSessionTokenUsageScanner(calendar: utcCalendar()),
+            sessionsDirectory: root,
+            cacheFile: cacheFile,
+            now: { now },
+            calendar: utcCalendar()
+        )
+        let progressUpdates = TokenUsageProgressRecorder()
+
+        let load = await provider.load(period: .last7Days) { progressUpdates.append($0) }
+
+        guard case .loaded(let data) = load else {
+            Issue.record("Expected previous-release cache file to load")
+            return
+        }
+        #expect(progressUpdates.isEmpty)
+        #expect(data.buckets.map(\.usage.totalTokens) == [4000, 4001, 4002, 4003, 4004, 4005, 4006])
+    }
+
+    @Test
     func allTimePeakScopeScansHistoricalPeakOutsideSelectedPeriod() async throws {
         let now = makeDate(2026, 5, 20)
         let root = try makeSessionRoot(files: [
