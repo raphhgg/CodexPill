@@ -254,51 +254,6 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func tokenUsagePrototypeProjectionUsesFixtureCardsInsideActiveAccount() {
-        let state = makeState(
-            activeAccount: makeAccount(name: "Active", withRateLimits: true),
-            inactiveAccounts: [makeAccount(name: "Other", withRateLimits: true)],
-            tokenUsagePrototypeCards: TokenUsagePrototype.fixtureCards
-        )
-
-        let snapshot = MenuBarValidationSupport.makeSnapshot(state: state)
-
-        #expect(snapshot.sections.map(\.title).prefix(3) == [
-            "Active Account",
-            "Other Accounts",
-            "Manage Accounts"
-        ])
-        #expect(snapshot.sections[0].items.count == 5)
-        #expect(snapshot.sections[0].items[0].contains("Session"))
-        #expect(snapshot.sections[0].items[0].contains("Weekly"))
-        for item in snapshot.sections[0].items.dropFirst() {
-            #expect(item.contains("Token Usage"))
-            #expect(item.contains("This Mac"))
-            #expect(item.contains("Today: 22,400 tokens"))
-            #expect(item.contains("Last 30 days: 680,200 tokens"))
-        }
-    }
-
-    @Test
-    func tokenUsagePrototypeMenuEmbedsComparableCardsInActiveAccountArea() throws {
-        let state = makeState(
-            activeAccount: makeAccount(name: "Active", withRateLimits: true),
-            inactiveAccounts: [makeAccount(name: "Other", withRateLimits: true)],
-            tokenUsagePrototypeCards: TokenUsagePrototype.fixtureCards
-        )
-        let coordinator = try makeCoordinator()
-
-        let menu = MenuBarMenuBuilder().makeMenu(state: state, target: coordinator)
-        let activeAccountItem = menu.items[1]
-        let activeAccountFrame = try #require(activeAccountItem.view?.frame)
-
-        #expect(Int(activeAccountFrame.width.rounded()) == 372)
-        #expect(activeAccountFrame.height > 500)
-        #expect(menu.items.prefix(2).filter(\.isSeparatorItem).isEmpty)
-        #expect(menu.items[2].isSeparatorItem)
-    }
-
-    @Test
     func tokenUsageCardHiddenWhenDisabled() {
         let state = makeState(
             activeAccount: makeAccount(name: "Active", withRateLimits: true),
@@ -2245,8 +2200,7 @@ struct MenuBarMenuBuilderTests {
         tokenUsageChartStyle: TokenUsageChartStyle = .dailyBars,
         tokenUsageLoadingAnimationStyle: TokenUsageLoadingAnimationStyle = .waves,
         tokenUsagePeakScope: TokenUsagePeakScope = .currentPeriod,
-        tokenUsageCard: TokenUsageMenuCard? = nil,
-        tokenUsagePrototypeCards: [TokenUsagePrototypeCard] = []
+        tokenUsageCard: TokenUsageMenuCard? = nil
     ) -> MenuBarMenuState {
         MenuBarMenuState(
             activeAccount: activeAccount,
@@ -2273,8 +2227,7 @@ struct MenuBarMenuBuilderTests {
             tokenUsageChartStyle: tokenUsageChartStyle,
             tokenUsageLoadingAnimationStyle: tokenUsageLoadingAnimationStyle,
             tokenUsagePeakScope: tokenUsagePeakScope,
-            tokenUsageCard: tokenUsageCard,
-            tokenUsagePrototypeCards: tokenUsagePrototypeCards
+            tokenUsageCard: tokenUsageCard
         )
     }
 
