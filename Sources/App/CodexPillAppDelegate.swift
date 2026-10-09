@@ -4,7 +4,6 @@ import UserNotifications
 @MainActor
 final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     private var coordinator: MenuBarCoordinator?
-    private var settings: CodexPillSettingsStore!
     private var statusItemRuntime: StatusItemRuntime?
     private var wakeObserver: NSObjectProtocol?
 
@@ -15,8 +14,8 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
         let defaults = AppRuntimeEnvironment.validationUserDefaultsSuiteName(environment: environment)
             .flatMap(UserDefaults.init(suiteName:))
             ?? .standard
-        settings = CodexPillSettingsStore(userDefaults: defaults)
-        ValidationAppBootstrap.applyFixtureIfPresent(to: settings, environment: environment)
+        let remoteHostSettings = RemoteHostSettingsStore(userDefaults: defaults)
+        ValidationAppBootstrap.applyFixtureIfPresent(to: remoteHostSettings, environment: environment)
 
         guard AppRuntimeEnvironment.shouldStartAppRuntime(environment: environment) else {
             return
@@ -31,7 +30,7 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
         let remoteHostClient: RemoteHostSwitchWorkflowOperations
             & RemoteHostAccountSigningOut
         if AppRuntimeEnvironment.shouldUseValidationRemoteHostClient(environment: environment) {
-            remoteHostClient = ValidationRemoteHostClient(seedStates: settings.remoteHostStates)
+            remoteHostClient = ValidationRemoteHostClient(seedStates: remoteHostSettings.remoteHostStates)
         } else {
             remoteHostClient = SSHRemoteHostClient(snapshotLocator: repository)
         }
@@ -49,7 +48,12 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
         coordinator = MenuBarCoordinator(
             statusItemRuntime: statusItemRuntime,
             store: store,
-            settings: settings,
+            menuDisplaySettings: MenuDisplaySettingsStore(userDefaults: defaults),
+            statusItemSettings: StatusItemSettingsStore(userDefaults: defaults),
+            remoteHostSettings: remoteHostSettings,
+            notificationPreferences: NotificationPreferencesStore(userDefaults: defaults),
+            notificationState: NotificationStateStore(userDefaults: defaults),
+            tokenUsagePreferences: TokenUsagePreferencesStore(userDefaults: defaults),
             remoteHostConnectionChecker: remoteHostClient,
             remoteHostAccountStatusReader: remoteHostClient,
             remoteHostAccountSignerOut: remoteHostClient,

@@ -193,14 +193,14 @@ struct RemoteHostRuntimeTests {
     }
 
     private func makeRuntime(
-        settings: CodexPillSettingsStore,
+        settings: RemoteHostSettingsStore,
         accountStatusReader: RemoteHostAccountStatusReading = RemoteHostClientFixture(),
         accounts: [CodexAccount],
         persistAccountMetadata: @escaping (CodexAccount) -> Void = { _ in },
         markAccountActivated: @escaping (UUID) -> Void = { _ in }
     ) -> RemoteHostRuntime {
         RemoteHostRuntime(
-            settings: settings.remoteHostSettings,
+            settings: settings,
             accountStatusReader: accountStatusReader,
             accounts: { accounts },
             persistAccountMetadata: persistAccountMetadata,
@@ -208,11 +208,11 @@ struct RemoteHostRuntimeTests {
         )
     }
 
-    private func makeSettings() -> CodexPillSettingsStore {
+    private func makeSettings() -> RemoteHostSettingsStore {
         let suiteName = "RemoteHostRuntimeTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        return CodexPillSettingsStore(userDefaults: defaults)
+        return RemoteHostSettingsStore(userDefaults: defaults)
     }
 }
 

@@ -154,7 +154,7 @@ struct MenuBarNotificationWorkflowTests {
 
 @MainActor
 private final class MenuBarNotificationWorkflowHarness {
-    let settings: CodexPillSettingsStore
+    let settings: SettingsStores
     let delivery = AccountAvailabilityNotifierProbe()
     let activator = ApplicationActivatorProbe()
     let settingsLauncher = NotificationSettingsLauncherProbe()
@@ -170,7 +170,7 @@ private final class MenuBarNotificationWorkflowHarness {
     init() {
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        settings = CodexPillSettingsStore(userDefaults: defaults)
+        settings = SettingsStores(userDefaults: defaults)
         let stateStore = AccountAvailabilityNotificationStore(
             preferences: settings.notificationPreferences,
             stateStore: settings.notificationState

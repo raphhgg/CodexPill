@@ -14,7 +14,7 @@ extension MenuBarAccountsStore: MenuBarHostActionAccountsStore {}
 @MainActor
 final class MenuBarHostActionCoordinator {
     private let store: MenuBarHostActionAccountsStore
-    private let settings: CodexPillSettingsStore
+    private let settings: RemoteHostSettingsStore
     private let connectionChecker: RemoteHostConnectionChecking
     private let remoteHostRuntime: RemoteHostRuntime
     private let alertPresenter: AlertPresenter
@@ -27,7 +27,7 @@ final class MenuBarHostActionCoordinator {
 
     init(
         store: MenuBarHostActionAccountsStore,
-        settings: CodexPillSettingsStore,
+        settings: RemoteHostSettingsStore,
         connectionChecker: RemoteHostConnectionChecking,
         remoteHostRuntime: RemoteHostRuntime,
         alertPresenter: AlertPresenter,

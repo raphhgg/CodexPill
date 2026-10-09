@@ -148,7 +148,7 @@ struct MenuBarHostActionCoordinatorTests {
 @MainActor
 private final class MenuBarHostActionCoordinatorHarness {
     let store: MenuBarHostActionStoreProbe
-    let settings: CodexPillSettingsStore
+    let settings: RemoteHostSettingsStore
     var coordinator: MenuBarHostActionCoordinator!
 
     private(set) var menuActions: [MenuActionRecord] = []
@@ -168,9 +168,9 @@ private final class MenuBarHostActionCoordinatorHarness {
         store = MenuBarHostActionStoreProbe(accounts: accounts, activeAccount: activeAccount)
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        settings = CodexPillSettingsStore(userDefaults: defaults)
+        settings = RemoteHostSettingsStore(userDefaults: defaults)
         let remoteHostRuntime = RemoteHostRuntime(
-            settings: settings.remoteHostSettings,
+            settings: settings,
             accountStatusReader: remoteHostClient,
             accounts: { [self] in store.accounts },
             persistAccountMetadata: { [self] in store.persistedAccounts.append($0) },

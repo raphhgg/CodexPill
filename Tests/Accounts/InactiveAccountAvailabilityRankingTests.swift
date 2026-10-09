@@ -900,7 +900,7 @@ struct AccountAvailabilityNotificationPolicyTests {
             notifiedAt: now
         )
 
-        let persisted = try #require(settings.accountNotificationState(for: accountID))
+        let persisted = try #require(settings.notificationState.accountNotificationState(for: accountID))
         #expect(!persisted.isArmed)
         #expect(persisted.lastNotification?.reason == .whenOut)
         #expect(persisted.lastNotification?.window == PersistedAccountNotificationWindow(
@@ -1023,11 +1023,11 @@ struct InactiveAccountAvailabilityRankingTests {
 }
 
 @MainActor
-private func makeNotificationSettings() -> CodexPillSettingsStore {
+private func makeNotificationSettings() -> SettingsStores {
     let suiteName = "NotificationStateStoreTests-\(UUID().uuidString)"
     let defaults = UserDefaults(suiteName: suiteName)!
     defaults.removePersistentDomain(forName: suiteName)
-    return CodexPillSettingsStore(userDefaults: defaults)
+    return SettingsStores(userDefaults: defaults)
 }
 
 private enum RankingTestFailure: LocalizedError {

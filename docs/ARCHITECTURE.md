@@ -165,8 +165,9 @@ Settings persistence is split by feature boundary:
 - `RemoteHostSettingsStore` owns persisted remote-host state, configured-host compatibility helpers, and legacy remote-host key migration.
 - `NotificationPreferencesStore` owns notification workflow toggles and legacy notification-setting migration.
 - `NotificationStateStore` owns per-account notification delivery state and deterministic update ordering.
+- `TokenUsagePreferencesStore` owns token-usage visibility, chart style, loading animation, peak scope, and the fixed 30-day period.
 
-`CodexPillSettingsStore` remains a compatibility facade that assembles these stores from one `UserDefaults` instance and forwards legacy property names. Feature/runtime boundaries should depend on the typed store they need where practical.
+App startup builds each store from one `UserDefaults` instance and injects the ones each runtime boundary needs. There is no shared settings facade.
 
 ## Boundary Notes
 

@@ -38,8 +38,8 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationRemoveAccount-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
-        settings.remoteHostStates = [
+        let settings = SettingsStores(userDefaults: defaults)
+        settings.remoteHostSettings.remoteHostStates = [
             PersistedRemoteHostState(
                 host: host,
                 installedAccountIDs: [account.id],
@@ -58,8 +58,13 @@ struct MenuBarLiveValidationTests {
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
-            settings: settings,
-            remoteHostMenuOperations: ValidationRemoteHostClient(seedStates: settings.remoteHostStates),
+            menuDisplaySettings: settings.menuDisplaySettings,
+            statusItemSettings: settings.statusItemSettings,
+            remoteHostSettings: settings.remoteHostSettings,
+            notificationPreferences: settings.notificationPreferences,
+            notificationState: settings.notificationState,
+            tokenUsagePreferences: settings.tokenUsagePreferences,
+            remoteHostMenuOperations: ValidationRemoteHostClient(seedStates: settings.remoteHostSettings.remoteHostStates),
             alertPresenter: alertPresenter,
             allowsEmptyStatePrompt: false
         )
@@ -76,8 +81,8 @@ struct MenuBarLiveValidationTests {
         #expect(alertPresenter.confirmationRequests.last?.informativeText == "Sign out on This Mac and debian-vm before removing it?")
         #expect(store.accounts.isEmpty)
         #expect(!FileManager.default.fileExists(atPath: repository.paths.codexAuthFile.path))
-        #expect(settings.remoteHostStates.first?.verifiedAccount == nil)
-        #expect(settings.remoteHostStates.first?.desiredAccountID == nil)
+        #expect(settings.remoteHostSettings.remoteHostStates.first?.verifiedAccount == nil)
+        #expect(settings.remoteHostSettings.remoteHostStates.first?.desiredAccountID == nil)
     }
 
     @Test
@@ -160,9 +165,9 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationNotificationSwitch-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
-        settings.notificationsWhenOutEnabled = true
-        settings.remoteHostStates = [
+        let settings = SettingsStores(userDefaults: defaults)
+        settings.notificationPreferences.notificationsWhenOutEnabled = true
+        settings.remoteHostSettings.remoteHostStates = [
             PersistedRemoteHostState(
                 host: RemoteHost(destination: "user@debian-vm", displayName: "debian-vm"),
                 installedAccountIDs: [notifiedAccount.id],
@@ -182,8 +187,13 @@ struct MenuBarLiveValidationTests {
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
-            settings: settings,
-            remoteHostMenuOperations: ValidationRemoteHostClient(seedStates: settings.remoteHostStates),
+            menuDisplaySettings: settings.menuDisplaySettings,
+            statusItemSettings: settings.statusItemSettings,
+            remoteHostSettings: settings.remoteHostSettings,
+            notificationPreferences: settings.notificationPreferences,
+            notificationState: settings.notificationState,
+            tokenUsagePreferences: settings.tokenUsagePreferences,
+            remoteHostMenuOperations: ValidationRemoteHostClient(seedStates: settings.remoteHostSettings.remoteHostStates),
             alertPresenter: alertPresenter,
             applicationActivator: foregrounder,
             allowsEmptyStatePrompt: false
@@ -204,7 +214,7 @@ struct MenuBarLiveValidationTests {
         #expect(foregrounder.activateCallCount == 1)
         let confirmation = try #require(alertPresenter.confirmationRequests.last)
         #expect(confirmation.informativeText.contains("Business 4 is no longer the best option. Switching to Business 2 instead."))
-        #expect(settings.remoteHostState(for: "user@debian-vm")?.verifiedAccount?.id == betterAccount.id)
+        #expect(settings.remoteHostSettings.remoteHostState(for: "user@debian-vm")?.verifiedAccount?.id == betterAccount.id)
     }
 
     @Test
@@ -286,9 +296,9 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationNotificationFailure-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
-        settings.notificationsWhenOutEnabled = true
-        settings.remoteHostStates = [
+        let settings = SettingsStores(userDefaults: defaults)
+        settings.notificationPreferences.notificationsWhenOutEnabled = true
+        settings.remoteHostSettings.remoteHostStates = [
             PersistedRemoteHostState(
                 host: RemoteHost(destination: "user@debian-vm", displayName: "debian-vm"),
                 installedAccountIDs: [outAccount.id, notifiedAccount.id],
@@ -308,7 +318,12 @@ struct MenuBarLiveValidationTests {
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
-            settings: settings,
+            menuDisplaySettings: settings.menuDisplaySettings,
+            statusItemSettings: settings.statusItemSettings,
+            remoteHostSettings: settings.remoteHostSettings,
+            notificationPreferences: settings.notificationPreferences,
+            notificationState: settings.notificationState,
+            tokenUsagePreferences: settings.tokenUsagePreferences,
             remoteHostMenuOperations: failingHostClient,
             alertPresenter: alertPresenter,
             applicationActivator: foregrounder,
@@ -379,8 +394,8 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationLocalNotificationSwitch-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
-        settings.notificationsWhenBlockedEnabled = true
+        let settings = SettingsStores(userDefaults: defaults)
+        settings.notificationPreferences.notificationsWhenBlockedEnabled = true
         let alertPresenter = AlertPresenterProbe()
         alertPresenter.confirmationResponse = true
         let foregrounder = ApplicationActivatorProbe()
@@ -393,7 +408,12 @@ struct MenuBarLiveValidationTests {
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
-            settings: settings,
+            menuDisplaySettings: settings.menuDisplaySettings,
+            statusItemSettings: settings.statusItemSettings,
+            remoteHostSettings: settings.remoteHostSettings,
+            notificationPreferences: settings.notificationPreferences,
+            notificationState: settings.notificationState,
+            tokenUsagePreferences: settings.tokenUsagePreferences,
             alertPresenter: alertPresenter,
             applicationActivator: foregrounder,
             allowsEmptyStatePrompt: false
@@ -598,7 +618,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationEnableNotifications-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
+        let settings = SettingsStores(userDefaults: defaults)
         let center = UserNotificationCenterProbe()
         center.authorizationStatus = .notDetermined
         let opener = NotificationSettingsLauncherProbe()
@@ -611,7 +631,12 @@ struct MenuBarLiveValidationTests {
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
-            settings: settings,
+            menuDisplaySettings: settings.menuDisplaySettings,
+            statusItemSettings: settings.statusItemSettings,
+            remoteHostSettings: settings.remoteHostSettings,
+            notificationPreferences: settings.notificationPreferences,
+            notificationState: settings.notificationState,
+            tokenUsagePreferences: settings.tokenUsagePreferences,
             alertPresenter: AlertPresenterProbe(),
             notificationDelivery: AccountAvailabilityNotificationCenter(center: center),
             notificationSettingsLauncher: opener,
@@ -621,8 +646,8 @@ struct MenuBarLiveValidationTests {
         coordinator.enableNotifications(NSMenuItem())
         try await Task.sleep(for: .milliseconds(50))
 
-        #expect(!settings.notificationsWhenBlockedEnabled)
-        #expect(!settings.notificationsWhenOutEnabled)
+        #expect(!settings.notificationPreferences.notificationsWhenBlockedEnabled)
+        #expect(!settings.notificationPreferences.notificationsWhenOutEnabled)
         #expect(center.requestAuthorizationCallCount == 0)
         #expect(opener.openCallCount == 0)
     }
@@ -639,8 +664,8 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationDeniedNotifications-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
-        settings.notificationsWhenBlockedEnabled = true
+        let settings = SettingsStores(userDefaults: defaults)
+        settings.notificationPreferences.notificationsWhenBlockedEnabled = true
         let center = UserNotificationCenterProbe()
         center.authorizationStatus = .denied
         let opener = NotificationSettingsLauncherProbe()
@@ -653,7 +678,12 @@ struct MenuBarLiveValidationTests {
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
-            settings: settings,
+            menuDisplaySettings: settings.menuDisplaySettings,
+            statusItemSettings: settings.statusItemSettings,
+            remoteHostSettings: settings.remoteHostSettings,
+            notificationPreferences: settings.notificationPreferences,
+            notificationState: settings.notificationState,
+            tokenUsagePreferences: settings.tokenUsagePreferences,
             alertPresenter: AlertPresenterProbe(),
             notificationDelivery: AccountAvailabilityNotificationCenter(center: center),
             notificationSettingsLauncher: opener,
@@ -663,8 +693,8 @@ struct MenuBarLiveValidationTests {
         coordinator.enableNotifications(NSMenuItem())
         try await Task.sleep(for: .milliseconds(50))
 
-        #expect(settings.notificationsWhenBlockedEnabled)
-        #expect(!settings.notificationsWhenOutEnabled)
+        #expect(settings.notificationPreferences.notificationsWhenBlockedEnabled)
+        #expect(!settings.notificationPreferences.notificationsWhenOutEnabled)
         #expect(center.requestAuthorizationCallCount == 0)
         #expect(opener.openCallCount == 1)
     }
@@ -839,7 +869,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationNotificationPermission-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
+        let settings = SettingsStores(userDefaults: defaults)
         let center = UserNotificationCenterProbe()
         let delivery = AccountAvailabilityNotificationCenter(center: center)
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -851,7 +881,12 @@ struct MenuBarLiveValidationTests {
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
-            settings: settings,
+            menuDisplaySettings: settings.menuDisplaySettings,
+            statusItemSettings: settings.statusItemSettings,
+            remoteHostSettings: settings.remoteHostSettings,
+            notificationPreferences: settings.notificationPreferences,
+            notificationState: settings.notificationState,
+            tokenUsagePreferences: settings.tokenUsagePreferences,
             alertPresenter: AlertPresenterProbe(),
             notificationDelivery: delivery,
             allowsEmptyStatePrompt: false
@@ -863,8 +898,8 @@ struct MenuBarLiveValidationTests {
         try await Task.sleep(for: .milliseconds(25))
 
         #expect(center.requestAuthorizationCallCount == 0)
-        #expect(settings.notificationsWhenBlockedEnabled)
-        #expect(settings.notificationsWhenOutEnabled)
+        #expect(settings.notificationPreferences.notificationsWhenBlockedEnabled)
+        #expect(settings.notificationPreferences.notificationsWhenOutEnabled)
     }
 
     @Test
@@ -885,7 +920,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationAddHostCancel-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
+        let settings = SettingsStores(userDefaults: defaults)
         let alertPresenter = AlertPresenterProbe()
         let panelPresenter = PanelPresenterProbe()
         panelPresenter.hostSetupResponse = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
@@ -899,7 +934,12 @@ struct MenuBarLiveValidationTests {
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
-            settings: settings,
+            menuDisplaySettings: settings.menuDisplaySettings,
+            statusItemSettings: settings.statusItemSettings,
+            remoteHostSettings: settings.remoteHostSettings,
+            notificationPreferences: settings.notificationPreferences,
+            notificationState: settings.notificationState,
+            tokenUsagePreferences: settings.tokenUsagePreferences,
             remoteHostMenuOperations: RemoteHostStub(),
             alertPresenter: alertPresenter,
             panelPresenter: panelPresenter,
@@ -910,7 +950,7 @@ struct MenuBarLiveValidationTests {
         try await Task.sleep(for: .milliseconds(80))
 
         #expect(alertPresenter.confirmationRequests.count == 1)
-        #expect(settings.remoteHostStates.isEmpty)
+        #expect(settings.remoteHostSettings.remoteHostStates.isEmpty)
     }
 
     @Test
@@ -932,7 +972,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationAddHostConfirmed-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
+        let settings = SettingsStores(userDefaults: defaults)
         let alertPresenter = AlertPresenterProbe()
         let panelPresenter = PanelPresenterProbe()
         panelPresenter.hostSetupResponse = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
@@ -946,7 +986,12 @@ struct MenuBarLiveValidationTests {
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
-            settings: settings,
+            menuDisplaySettings: settings.menuDisplaySettings,
+            statusItemSettings: settings.statusItemSettings,
+            remoteHostSettings: settings.remoteHostSettings,
+            notificationPreferences: settings.notificationPreferences,
+            notificationState: settings.notificationState,
+            tokenUsagePreferences: settings.tokenUsagePreferences,
             remoteHostMenuOperations: remoteHostClient,
             alertPresenter: alertPresenter,
             panelPresenter: panelPresenter,
@@ -956,7 +1001,7 @@ struct MenuBarLiveValidationTests {
         coordinator.addHost(NSMenuItem())
         try await Task.sleep(for: .milliseconds(120))
 
-        let hostState = try #require(settings.remoteHostState(for: "user@buildbox"))
+        let hostState = try #require(settings.remoteHostSettings.remoteHostState(for: "user@buildbox"))
         #expect(hostState.desiredAccountID == activeAccount.id)
         #expect(hostState.verifiedAccount?.id == activeAccount.id)
         #expect(hostState.verificationStatus == .verified)
@@ -976,8 +1021,8 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
-        settings.statusBarDisplayMode = .textOnHover
+        let settings = SettingsStores(userDefaults: defaults)
+        settings.statusItemSettings.statusBarDisplayMode = .textOnHover
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         defer {
             NSStatusBar.system.removeStatusItem(statusItem)
@@ -993,7 +1038,12 @@ struct MenuBarLiveValidationTests {
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: runtime,
             store: store,
-            settings: settings,
+            menuDisplaySettings: settings.menuDisplaySettings,
+            statusItemSettings: settings.statusItemSettings,
+            remoteHostSettings: settings.remoteHostSettings,
+            notificationPreferences: settings.notificationPreferences,
+            notificationState: settings.notificationState,
+            tokenUsagePreferences: settings.tokenUsagePreferences,
             alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-status-item-hover",
@@ -1025,9 +1075,9 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationRemoteRestore-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
-        settings.configuredRemoteHost = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
-        settings.remoteHostActiveAccount = CodexAccount(
+        let settings = SettingsStores(userDefaults: defaults)
+        settings.remoteHostSettings.configuredRemoteHost = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
+        settings.remoteHostSettings.remoteHostActiveAccount = CodexAccount(
             id: UUID(),
             name: "Business 2",
             snapshotFileName: "business-2.json",
@@ -1047,7 +1097,12 @@ struct MenuBarLiveValidationTests {
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
-            settings: settings,
+            menuDisplaySettings: settings.menuDisplaySettings,
+            statusItemSettings: settings.statusItemSettings,
+            remoteHostSettings: settings.remoteHostSettings,
+            notificationPreferences: settings.notificationPreferences,
+            notificationState: settings.notificationState,
+            tokenUsagePreferences: settings.tokenUsagePreferences,
             remoteHostMenuOperations: RemoteHostStub(
                 status: CodexAccountStatus(
                     email: "remote@example.com",
@@ -1093,7 +1148,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationRemoteFailure-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
+        let settings = SettingsStores(userDefaults: defaults)
         let persistedAccount = CodexAccount(
             id: UUID(),
             name: "Business 2",
@@ -1105,7 +1160,7 @@ struct MenuBarLiveValidationTests {
             rateLimits: nil,
             identity: .empty
         )
-        settings.remoteHostStates = [
+        settings.remoteHostSettings.remoteHostStates = [
             PersistedRemoteHostState(
                 host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"),
                 activeAccount: persistedAccount
@@ -1120,7 +1175,12 @@ struct MenuBarLiveValidationTests {
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
-            settings: settings,
+            menuDisplaySettings: settings.menuDisplaySettings,
+            statusItemSettings: settings.statusItemSettings,
+            remoteHostSettings: settings.remoteHostSettings,
+            notificationPreferences: settings.notificationPreferences,
+            notificationState: settings.notificationState,
+            tokenUsagePreferences: settings.tokenUsagePreferences,
             remoteHostMenuOperations: RemoteHostStub(
                 readError: RemoteHostClientError.commandFailed("ssh: connection refused")
             ),
@@ -1134,7 +1194,7 @@ struct MenuBarLiveValidationTests {
         coordinator.start()
         try? await Task.sleep(for: .milliseconds(50))
 
-        let persistedHostState = try #require(settings.remoteHostState(for: "user@buildbox"))
+        let persistedHostState = try #require(settings.remoteHostSettings.remoteHostState(for: "user@buildbox"))
         #expect(persistedHostState.desiredAccountID == persistedAccount.id)
         #expect(persistedHostState.activeAccount == nil)
         #expect(persistedHostState.verificationStatus == .failed)
@@ -1155,8 +1215,8 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationMissingDesiredRemote-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
-        settings.remoteHostStates = [
+        let settings = SettingsStores(userDefaults: defaults)
+        settings.remoteHostSettings.remoteHostStates = [
             PersistedRemoteHostState(
                 host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"),
                 desiredAccountID: UUID(),
@@ -1173,7 +1233,12 @@ struct MenuBarLiveValidationTests {
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
-            settings: settings,
+            menuDisplaySettings: settings.menuDisplaySettings,
+            statusItemSettings: settings.statusItemSettings,
+            remoteHostSettings: settings.remoteHostSettings,
+            notificationPreferences: settings.notificationPreferences,
+            notificationState: settings.notificationState,
+            tokenUsagePreferences: settings.tokenUsagePreferences,
             remoteHostMenuOperations: RemoteHostStub(),
             alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
@@ -1185,7 +1250,7 @@ struct MenuBarLiveValidationTests {
         coordinator.start()
         try? await Task.sleep(for: .milliseconds(50))
 
-        let refreshedState = try #require(settings.remoteHostState(for: "user@buildbox"))
+        let refreshedState = try #require(settings.remoteHostSettings.remoteHostState(for: "user@buildbox"))
         #expect(refreshedState.verificationStatus == .failed)
         #expect(refreshedState.lastVerificationError == "Saved account for buildbox is no longer available on this Mac.")
         #expect(sink.snapshots.last?.remoteHosts.isEmpty == true)
@@ -1204,8 +1269,8 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationMultipleRemoteRestore-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
-        settings.remoteHostStates = [
+        let settings = SettingsStores(userDefaults: defaults)
+        settings.remoteHostSettings.remoteHostStates = [
             PersistedRemoteHostState(
                 host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"),
                 activeAccount: CodexAccount(
@@ -1244,7 +1309,12 @@ struct MenuBarLiveValidationTests {
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
-            settings: settings,
+            menuDisplaySettings: settings.menuDisplaySettings,
+            statusItemSettings: settings.statusItemSettings,
+            remoteHostSettings: settings.remoteHostSettings,
+            notificationPreferences: settings.notificationPreferences,
+            notificationState: settings.notificationState,
+            tokenUsagePreferences: settings.tokenUsagePreferences,
             remoteHostMenuOperations: RemoteHostStub(
                 statusesByDestination: [
                     "user@buildbox": CodexAccountStatus(email: "buildbox@example.com", planType: "team", rateLimits: nil),
@@ -1280,8 +1350,8 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationMixedRemoteRestore-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
-        settings.remoteHostStates = [
+        let settings = SettingsStores(userDefaults: defaults)
+        settings.remoteHostSettings.remoteHostStates = [
             PersistedRemoteHostState(
                 host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"),
                 activeAccount: CodexAccount(
@@ -1320,7 +1390,12 @@ struct MenuBarLiveValidationTests {
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
-            settings: settings,
+            menuDisplaySettings: settings.menuDisplaySettings,
+            statusItemSettings: settings.statusItemSettings,
+            remoteHostSettings: settings.remoteHostSettings,
+            notificationPreferences: settings.notificationPreferences,
+            notificationState: settings.notificationState,
+            tokenUsagePreferences: settings.tokenUsagePreferences,
             remoteHostMenuOperations: RemoteHostStub(
                 statusesByDestination: [
                     "user@buildbox": CodexAccountStatus(email: "buildbox@example.com", planType: "team", rateLimits: nil)
@@ -1343,11 +1418,11 @@ struct MenuBarLiveValidationTests {
         #expect(remoteHosts.count == 1)
         #expect(remoteHosts.first?.name == "buildbox")
         #expect(remoteHosts.first?.activeAccount?.email == "buildbox@example.com")
-        #expect(settings.remoteHostStates.count == 2)
-        #expect(settings.remoteHostState(for: "user@buildbox")?.activeAccount?.email == "buildbox@example.com")
-        #expect(settings.remoteHostState(for: "user@debian-vm")?.desiredAccountID != nil)
-        #expect(settings.remoteHostState(for: "user@debian-vm")?.activeAccount == nil)
-        #expect(settings.remoteHostState(for: "user@debian-vm")?.verificationStatus == .failed)
+        #expect(settings.remoteHostSettings.remoteHostStates.count == 2)
+        #expect(settings.remoteHostSettings.remoteHostState(for: "user@buildbox")?.activeAccount?.email == "buildbox@example.com")
+        #expect(settings.remoteHostSettings.remoteHostState(for: "user@debian-vm")?.desiredAccountID != nil)
+        #expect(settings.remoteHostSettings.remoteHostState(for: "user@debian-vm")?.activeAccount == nil)
+        #expect(settings.remoteHostSettings.remoteHostState(for: "user@debian-vm")?.verificationStatus == .failed)
     }
 
     @Test
@@ -1363,7 +1438,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationReverifyRemote-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
+        let settings = SettingsStores(userDefaults: defaults)
         let persistedAccount = CodexAccount(
             id: UUID(),
             name: "Business 2",
@@ -1375,7 +1450,7 @@ struct MenuBarLiveValidationTests {
             rateLimits: nil,
             identity: .empty
         )
-        settings.remoteHostStates = [
+        settings.remoteHostSettings.remoteHostStates = [
             PersistedRemoteHostState(
                 host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"),
                 desiredAccountID: persistedAccount.id,
@@ -1393,7 +1468,12 @@ struct MenuBarLiveValidationTests {
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
-            settings: settings,
+            menuDisplaySettings: settings.menuDisplaySettings,
+            statusItemSettings: settings.statusItemSettings,
+            remoteHostSettings: settings.remoteHostSettings,
+            notificationPreferences: settings.notificationPreferences,
+            notificationState: settings.notificationState,
+            tokenUsagePreferences: settings.tokenUsagePreferences,
             remoteHostMenuOperations: RemoteHostStub(
                 status: CodexAccountStatus(email: "business-2@example.com", planType: "team", rateLimits: nil)
             ),
@@ -1410,7 +1490,7 @@ struct MenuBarLiveValidationTests {
         coordinator.reverifyHost(item)
         try? await Task.sleep(for: .milliseconds(50))
 
-        let refreshedState = try #require(settings.remoteHostState(for: "user@buildbox"))
+        let refreshedState = try #require(settings.remoteHostSettings.remoteHostState(for: "user@buildbox"))
         #expect(refreshedState.verificationStatus == .verified)
         #expect(refreshedState.activeAccount?.email == "business-2@example.com")
         #expect(sink.events.contains(where: { $0.event == "remote_host_reverify_started" }))
@@ -1466,8 +1546,8 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationAdoptDetectedRemote-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
-        settings.remoteHostStates = [
+        let settings = SettingsStores(userDefaults: defaults)
+        settings.remoteHostSettings.remoteHostStates = [
             PersistedRemoteHostState(
                 host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"),
                 desiredAccountID: desiredAccount.id,
@@ -1486,7 +1566,12 @@ struct MenuBarLiveValidationTests {
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
-            settings: settings,
+            menuDisplaySettings: settings.menuDisplaySettings,
+            statusItemSettings: settings.statusItemSettings,
+            remoteHostSettings: settings.remoteHostSettings,
+            notificationPreferences: settings.notificationPreferences,
+            notificationState: settings.notificationState,
+            tokenUsagePreferences: settings.tokenUsagePreferences,
             remoteHostMenuOperations: RemoteHostStub(
                 status: CodexAccountStatus(
                     email: "business-1@example.com",
@@ -1511,11 +1596,11 @@ struct MenuBarLiveValidationTests {
         )
         coordinator.adoptDetectedRemoteAccount(item)
         try await waitUntil {
-            settings.remoteHostState(for: "user@buildbox")?.verificationStatus == .verified
+            settings.remoteHostSettings.remoteHostState(for: "user@buildbox")?.verificationStatus == .verified
                 && sink.snapshots.last?.remoteHosts.first?.activeAccount?.name == "Business 1"
         }
 
-        let refreshedState = try #require(settings.remoteHostState(for: "user@buildbox"))
+        let refreshedState = try #require(settings.remoteHostSettings.remoteHostState(for: "user@buildbox"))
         #expect(refreshedState.desiredAccountID == detectedAccount.id)
         #expect(refreshedState.detectedAccountID == nil)
         #expect(refreshedState.verificationStatus == .verified)
@@ -1536,7 +1621,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationRemoteMismatch-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
+        let settings = SettingsStores(userDefaults: defaults)
         let persistedAccount = CodexAccount(
             id: UUID(),
             name: "Business 2",
@@ -1548,7 +1633,7 @@ struct MenuBarLiveValidationTests {
             rateLimits: nil,
             identity: .empty
         )
-        settings.remoteHostStates = [
+        settings.remoteHostSettings.remoteHostStates = [
             PersistedRemoteHostState(
                 host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"),
                 activeAccount: persistedAccount
@@ -1563,7 +1648,12 @@ struct MenuBarLiveValidationTests {
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
-            settings: settings,
+            menuDisplaySettings: settings.menuDisplaySettings,
+            statusItemSettings: settings.statusItemSettings,
+            remoteHostSettings: settings.remoteHostSettings,
+            notificationPreferences: settings.notificationPreferences,
+            notificationState: settings.notificationState,
+            tokenUsagePreferences: settings.tokenUsagePreferences,
             remoteHostMenuOperations: RemoteHostStub(
                 status: CodexAccountStatus(
                     email: "different@example.com",
@@ -1581,7 +1671,7 @@ struct MenuBarLiveValidationTests {
         coordinator.start()
         try? await Task.sleep(for: .milliseconds(50))
 
-        let refreshedState = try #require(settings.remoteHostState(for: "user@buildbox"))
+        let refreshedState = try #require(settings.remoteHostSettings.remoteHostState(for: "user@buildbox"))
         #expect(refreshedState.desiredAccountID == persistedAccount.id)
         #expect(refreshedState.activeAccount == nil)
         #expect(refreshedState.verificationStatus == .failed)
@@ -1619,8 +1709,8 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationReachableRemoteFailure-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
-        settings.remoteHostStates = [
+        let settings = SettingsStores(userDefaults: defaults)
+        settings.remoteHostSettings.remoteHostStates = [
             PersistedRemoteHostState(
                 host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"),
                 desiredAccountID: account.id,
@@ -1637,7 +1727,12 @@ struct MenuBarLiveValidationTests {
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
-            settings: settings,
+            menuDisplaySettings: settings.menuDisplaySettings,
+            statusItemSettings: settings.statusItemSettings,
+            remoteHostSettings: settings.remoteHostSettings,
+            notificationPreferences: settings.notificationPreferences,
+            notificationState: settings.notificationState,
+            tokenUsagePreferences: settings.tokenUsagePreferences,
             remoteHostMenuOperations: RemoteHostStub(
                 readError: RemoteHostClientError.authReadFailed("cat: .codex/auth.json: Permission denied")
             ),
@@ -1680,8 +1775,8 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationReachableRemoteSwitchFailure-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
-        settings.remoteHostStates = [
+        let settings = SettingsStores(userDefaults: defaults)
+        settings.remoteHostSettings.remoteHostStates = [
             PersistedRemoteHostState(
                 host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"),
                 desiredAccountID: nil,
@@ -1710,7 +1805,12 @@ struct MenuBarLiveValidationTests {
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
-            settings: settings,
+            menuDisplaySettings: settings.menuDisplaySettings,
+            statusItemSettings: settings.statusItemSettings,
+            remoteHostSettings: settings.remoteHostSettings,
+            notificationPreferences: settings.notificationPreferences,
+            notificationState: settings.notificationState,
+            tokenUsagePreferences: settings.tokenUsagePreferences,
             remoteHostMenuOperations: remoteHostClient,
             alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
@@ -1728,7 +1828,7 @@ struct MenuBarLiveValidationTests {
         coordinator.switchAccountOnHost(item)
         try? await Task.sleep(for: .milliseconds(50))
 
-        let persistedState = try #require(settings.remoteHostState(for: "user@buildbox"))
+        let persistedState = try #require(settings.remoteHostSettings.remoteHostState(for: "user@buildbox"))
         #expect(persistedState.desiredAccountID == account.id)
         #expect(persistedState.activeAccount == nil)
         #expect(persistedState.verificationStatus == .failed)
@@ -1802,8 +1902,8 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationRemoteCatalogBackfill-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
-        settings.remoteHostStates = [
+        let settings = SettingsStores(userDefaults: defaults)
+        settings.remoteHostSettings.remoteHostStates = [
             PersistedRemoteHostState(
                 host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"),
                 desiredAccountID: previousSaved.id,
@@ -1843,7 +1943,12 @@ struct MenuBarLiveValidationTests {
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
-            settings: settings,
+            menuDisplaySettings: settings.menuDisplaySettings,
+            statusItemSettings: settings.statusItemSettings,
+            remoteHostSettings: settings.remoteHostSettings,
+            notificationPreferences: settings.notificationPreferences,
+            notificationState: settings.notificationState,
+            tokenUsagePreferences: settings.tokenUsagePreferences,
             remoteHostMenuOperations: remoteHostClient,
             alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
@@ -1860,7 +1965,7 @@ struct MenuBarLiveValidationTests {
         )
         coordinator.switchAccountOnHost(item)
         try await waitUntil {
-            settings.remoteHostState(for: "user@buildbox")?.verifiedAccount?.id == nextAccount.id
+            settings.remoteHostSettings.remoteHostState(for: "user@buildbox")?.verifiedAccount?.id == nextAccount.id
         }
 
         let persistedAccounts = try repository.loadAccounts()
@@ -1868,7 +1973,7 @@ struct MenuBarLiveValidationTests {
         #expect(persistedPrevious.rateLimits?.primary?.displayedUsedPercent(at: now) == 100)
         #expect(persistedPrevious.rateLimits?.secondary?.displayedUsedPercent(at: now) == 16)
 
-        let hostState = try #require(settings.remoteHostState(for: "user@buildbox"))
+        let hostState = try #require(settings.remoteHostSettings.remoteHostState(for: "user@buildbox"))
         #expect(hostState.verifiedAccount?.id == nextAccount.id)
     }
 
@@ -1896,12 +2001,12 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationNotificationRearm-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
-        settings.remoteHostStates = [
+        let settings = SettingsStores(userDefaults: defaults)
+        settings.remoteHostSettings.remoteHostStates = [
             PersistedRemoteHostState(host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"))
         ]
-        settings.notificationsWhenBlockedEnabled = true
-        settings.updateAccountNotificationState(for: account.id) { state in
+        settings.notificationPreferences.notificationsWhenBlockedEnabled = true
+        settings.notificationState.updateAccountNotificationState(for: account.id) { state in
             state.isArmed = false
             state.lastNotification = PersistedAccountNotificationRecord(
                 reason: .whenBlocked,
@@ -1937,7 +2042,12 @@ struct MenuBarLiveValidationTests {
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
-            settings: settings,
+            menuDisplaySettings: settings.menuDisplaySettings,
+            statusItemSettings: settings.statusItemSettings,
+            remoteHostSettings: settings.remoteHostSettings,
+            notificationPreferences: settings.notificationPreferences,
+            notificationState: settings.notificationState,
+            tokenUsagePreferences: settings.tokenUsagePreferences,
             remoteHostMenuOperations: remoteHostClient,
             alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
@@ -1955,7 +2065,7 @@ struct MenuBarLiveValidationTests {
         coordinator.switchAccountOnHost(item)
         try? await Task.sleep(for: .milliseconds(50))
 
-        let persisted = try #require(settings.accountNotificationState(for: account.id))
+        let persisted = try #require(settings.notificationState.accountNotificationState(for: account.id))
         #expect(persisted.isArmed)
         #expect(persisted.lastNotification == nil)
     }
@@ -1973,9 +2083,9 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationRemoteLimitsFallback-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
-        settings.configuredRemoteHost = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
-        settings.remoteHostActiveAccount = CodexAccount(
+        let settings = SettingsStores(userDefaults: defaults)
+        settings.remoteHostSettings.configuredRemoteHost = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
+        settings.remoteHostSettings.remoteHostActiveAccount = CodexAccount(
             id: UUID(),
             name: "Business 2",
             snapshotFileName: "business-2.json",
@@ -2010,7 +2120,12 @@ struct MenuBarLiveValidationTests {
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
-            settings: settings,
+            menuDisplaySettings: settings.menuDisplaySettings,
+            statusItemSettings: settings.statusItemSettings,
+            remoteHostSettings: settings.remoteHostSettings,
+            notificationPreferences: settings.notificationPreferences,
+            notificationState: settings.notificationState,
+            tokenUsagePreferences: settings.tokenUsagePreferences,
             remoteHostMenuOperations: RemoteHostStub(
                 status: CodexAccountStatus(
                     email: "remote@example.com",
@@ -2105,8 +2220,8 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationRemoteInactiveFallback-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
-        settings.remoteHostStates = [
+        let settings = SettingsStores(userDefaults: defaults)
+        settings.remoteHostSettings.remoteHostStates = [
             PersistedRemoteHostState(
                 host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"),
                 desiredAccountID: matchingSavedAccount.id,
@@ -2147,7 +2262,12 @@ struct MenuBarLiveValidationTests {
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
-            settings: settings,
+            menuDisplaySettings: settings.menuDisplaySettings,
+            statusItemSettings: settings.statusItemSettings,
+            remoteHostSettings: settings.remoteHostSettings,
+            notificationPreferences: settings.notificationPreferences,
+            notificationState: settings.notificationState,
+            tokenUsagePreferences: settings.tokenUsagePreferences,
             remoteHostMenuOperations: RemoteHostStub(
                 status: CodexAccountStatus(
                     email: "user@example.com",
@@ -2243,7 +2363,7 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationRelinkedRemoteHost-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
+        let settings = SettingsStores(userDefaults: defaults)
         let staleRemoteAccount = CodexAccount(
             id: UUID(),
             name: "Business 2",
@@ -2282,7 +2402,7 @@ struct MenuBarLiveValidationTests {
                 remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "user@example.com")
             )
         )
-        settings.remoteHostStates = [
+        settings.remoteHostSettings.remoteHostStates = [
             PersistedRemoteHostState(
                 host: RemoteHost(destination: "debian-vm", displayName: "debian-vm"),
                 desiredAccountID: staleRemoteAccount.id,
@@ -2299,7 +2419,12 @@ struct MenuBarLiveValidationTests {
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
-            settings: settings,
+            menuDisplaySettings: settings.menuDisplaySettings,
+            statusItemSettings: settings.statusItemSettings,
+            remoteHostSettings: settings.remoteHostSettings,
+            notificationPreferences: settings.notificationPreferences,
+            notificationState: settings.notificationState,
+            tokenUsagePreferences: settings.tokenUsagePreferences,
             remoteHostMenuOperations: RemoteHostStub(
                 status: CodexAccountStatus(
                     email: "user@example.com",
@@ -2317,7 +2442,7 @@ struct MenuBarLiveValidationTests {
         coordinator.start()
         try? await Task.sleep(for: .milliseconds(50))
 
-        let refreshedHostState = try #require(settings.remoteHostState(for: "debian-vm"))
+        let refreshedHostState = try #require(settings.remoteHostSettings.remoteHostState(for: "debian-vm"))
         #expect(refreshedHostState.desiredAccountID == currentSavedAccount.id)
         #expect(refreshedHostState.activeAccount?.id == currentSavedAccount.id)
         #expect(refreshedHostState.activeAccount?.rateLimits?.primary?.displayedUsedPercent(at: now) == 100)
@@ -2392,8 +2517,8 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationScheduledRemoteRefresh-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
-        settings.remoteHostStates = [
+        let settings = SettingsStores(userDefaults: defaults)
+        settings.remoteHostSettings.remoteHostStates = [
             PersistedRemoteHostState(
                 host: RemoteHost(destination: "user@debian-vm", displayName: "debian-vm"),
                 desiredAccountID: account.id,
@@ -2462,7 +2587,12 @@ struct MenuBarLiveValidationTests {
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
-            settings: settings,
+            menuDisplaySettings: settings.menuDisplaySettings,
+            statusItemSettings: settings.statusItemSettings,
+            remoteHostSettings: settings.remoteHostSettings,
+            notificationPreferences: settings.notificationPreferences,
+            notificationState: settings.notificationState,
+            tokenUsagePreferences: settings.tokenUsagePreferences,
             remoteHostMenuOperations: remoteHostClient,
             alertPresenter: AlertPresenterProbe(),
             validationSink: sink,

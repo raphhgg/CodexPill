@@ -994,12 +994,17 @@ struct MenuBarUIValidationTests {
         let suiteName = "MenuBarUIValidationTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
+        let settings = SettingsStores(userDefaults: defaults)
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         return MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             store: store,
-            settings: settings,
+            menuDisplaySettings: settings.menuDisplaySettings,
+            statusItemSettings: settings.statusItemSettings,
+            remoteHostSettings: settings.remoteHostSettings,
+            notificationPreferences: settings.notificationPreferences,
+            notificationState: settings.notificationState,
+            tokenUsagePreferences: settings.tokenUsagePreferences,
             alertPresenter: AlertPresenterProbe()
         )
     }
