@@ -7,8 +7,8 @@ struct DisabledAccountStatusClient: CodexAccountStatusClient, SavedCodexAccountS
         throw DisabledAccountStatusClientError.unexpectedRead
     }
 
-    func readSavedAccountStatus(authData: Data) async throws -> CodexAccountStatus {
-        throw DisabledAccountStatusClientError.unexpectedRead
+    func readSavedAccountStatus(authData: Data) async -> SavedCodexAccountStatusRead {
+        SavedCodexAccountStatusRead(status: .failure(DisabledAccountStatusClientError.unexpectedRead), rotatedAuthData: nil)
     }
 }
 
