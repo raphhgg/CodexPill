@@ -26,9 +26,15 @@ App -> Features -> Platform
 App -> Core
 Features -> Core
 Platform -> Core
+Platform -> Features (port protocols only)
 ```
 
 `Core` must not depend on `Features`, `Platform`, or `App`.
+
+Platform implements ports declared by Features. A feature declares the protocol it needs next to the code that uses it, and a Platform adapter fulfils it. App injects the adapter. There are two shapes:
+
+- Accounts ports, such as `AccountCatalogStore`, `AccountCatalogLoader`, `CodexAuthActivator`, and `LiveCodexAccountIdentitySource`, are adopted by `AccountRepository` and `CodexAuthSnapshotService` through extensions in the Features file that declares the port. Platform stays unaware of them.
+- Hosts ports in `Features/Hosts/Application/RemoteHostClient.swift`, such as `RemoteHostSwitchWorkflowOperations` and `RemoteHostAccountSigningOut`, are adopted directly by `SSHRemoteHostClient` and `ValidationRemoteHostClient`. This is the only allowed `Platform -> Features` reference: protocol conformance, never feature logic or state.
 
 ## Ownership Rules
 
@@ -64,9 +70,11 @@ Key boundaries:
 Key boundaries:
 
 - `RemoteHostRuntime`
+- `RemoteHostMenuState` and `RemoteHostConnectionState`, the per-host state `RemoteHostRuntime` publishes for the menu
 - `RemoteHostAccountVerifier`
 - `RemoteRateLimitResolution`
 - `SwitchAccountOnHostWorkflow`
+- remote-host operation ports and `RemoteHostClientError` in `RemoteHostClient.swift`
 
 `Features/TokenUsage` owns local token-usage history lifecycle and cache policy.
 
@@ -112,19 +120,19 @@ Key boundaries:
 - Codex app-server JSON-RPC I/O;
 - Codex CLI process inspection;
 - local command execution for SSH-backed operations;
-- Codex app process control.
+- Codex app process control;
+- the default Codex sessions folder read for token usage, `CodexSessionTokenUsageScanner.defaultSessionsDirectory()`.
 
 Reusable Codex app-server access is split into these platform boundaries:
 
-- `CodexAppServerClient` is the production facade used by CodexPill account reads.
+- `CodexAppServerClient` is the production facade used by CodexPill account reads. It turns a local `CodexAppServerConfiguration` into a session command for the shared session runner.
 - `CodexAppServerConfiguration` owns executable path, environment, and timeout policy.
-- `CodexAppServerProcessRunner` adapts local `CodexAppServerConfiguration` into the reusable app-server session runner.
 - `CodexAppServerSession` owns JSON-RPC request construction and response sequencing.
 - `CodexAppServerSessionRunner` owns the reusable app-server session execution loop shared by local and SSH-backed reads: process launch, stdin/stdout/stderr pipe wiring, request writing, output draining, timeout completion, partial-status completion, and finish-once coordination.
 - `CodexAppServerAccountParser` and `CodexAppServerRateLimitParser` map raw app-server payload DTOs into generic app-server DTOs.
 - `CodexPillAccountStatusMapper` maps generic app-server DTOs into CodexPill account and rate-limit models.
 
-Local app-server reads enter this shared session runner through `CodexAppServerProcessRunner`, which keeps local executable, environment, client-info, timeout, and saved-account strict rate-limit requirements in `CodexAppServerConfiguration`. SSH-backed reads enter the same runner from `SSHRemoteHostClient` only after that host adapter has built the remote `ssh ... codex app-server` invocation. `SSHRemoteHostClient` continues to own SSH destination construction, non-interactive SSH options, remote runtime refresh commands, remote auth enrichment reads, and SSH/remote failure classification.
+Local app-server reads enter this shared session runner through `CodexAppServerClient`, which keeps local executable, environment, client-info, timeout, and saved-account strict rate-limit requirements in `CodexAppServerConfiguration`. SSH-backed reads enter the same runner from `SSHRemoteHostClient` only after that host adapter has built the remote `ssh ... codex app-server` invocation. `SSHRemoteHostClient` continues to own SSH destination construction, non-interactive SSH options, remote runtime refresh commands, remote auth enrichment reads, and SSH/remote failure classification.
 
 `Platform/Hosts` owns host-client implementations used by validation or host adapters.
 
@@ -133,7 +141,8 @@ Local app-server reads enter this shared session runner through `CodexAppServerP
 - CodexPill catalog paths;
 - account catalog persistence;
 - auth snapshot storage;
-- isolated `CODEX_HOME` session paths.
+- isolated `CODEX_HOME` session paths;
+- the token-usage cache file, `TokenUsageCacheFileStore` at `AppPaths.tokenUsageCacheFile()`.
 
 Platform adapters are the only place where the app should know about live auth files, `codex app-server`, shell commands, SSH, process inspection, or relaunch mechanics.
 
@@ -143,6 +152,8 @@ Platform adapters are the only place where the app should know about live auth f
 
 - `CodexAccount`
 - `CodexRateLimits`
+- `RemoteHost`, the persisted SSH destination and display name
+- `StatusBarIndicatorStyle` and `StatusBarDisplayMode`, the persisted status-item choices
 - typed `UserDefaults`-backed settings stores
 
 Core models should remain free of process control, storage policy, AppKit, SwiftUI, and Codex protocol mechanics.
@@ -159,9 +170,9 @@ Settings persistence is split by feature boundary:
 
 ## Boundary Notes
 
-`AccountsFeatureFactory` is the production composition boundary for the account feature. App startup chooses platform adapters such as `AccountRepository`, `CodexAuthSnapshotService`, `CodexAppProcessClient`, `CodexAccountStatusClient`, and the remote host operation capabilities implemented by `SSHRemoteHostClient`, then asks the factory for the account feature entry point.
+`AccountsFeatureFactory` is the production composition boundary for the account feature. App startup chooses platform adapters such as `AccountRepository`, `CodexAuthSnapshotService`, `CodexAppProcessClient`, `CodexAccountStatusClient`, and the remote host operation capabilities implemented by `SSHRemoteHostClient`, then asks the factory for an `AccountsController`. App wraps that controller in `MenuBarAccountsStore`; the factory builds no MenuBar types.
 
-`AccountsController` is the account-session and catalog boundary. It coordinates feature-level state transitions, saved-account catalog updates, active-account resolution, mutation result application, and silent refresh policy.
+`AccountsController` is the account-session and catalog boundary. It coordinates feature-level state transitions, saved-account catalog updates, active-account resolution, mutation result application, metadata persistence, and the silent refresh after a local switch.
 
 `AccountActionFlow` owns account action sequencing decisions that do not require AppKit access. It converts workflow outcomes into presentation-neutral next steps. Add Account sign-in failures cross this boundary as account-domain `AddAccountSignInFailureOutcome` values, such as prompt unavailable, expired code, capture failed, and verification failed; MenuBar renders those outcomes into alerts and retry panels without deriving recovery policy from platform login errors.
 
