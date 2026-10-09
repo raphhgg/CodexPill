@@ -32,7 +32,7 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
             codexAppProcessClient: processClient,
             accountStatusClient: accountStatusClient
         )
-        let store = accountsFeatureFactory.makeMenuBarAccountsStore()
+        let store = MenuBarAccountsStore(controller: accountsFeatureFactory.makeController())
 
         let statusItemRuntime = StatusItemRuntime()
         self.statusItemRuntime = statusItemRuntime
