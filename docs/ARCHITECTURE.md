@@ -128,6 +128,7 @@ Platform adapters are the only place where the app should know about live auth f
 
 - `CodexAccount`
 - `CodexRateLimits`
+- `Usage`, the provider-neutral usage model: `UsageSnapshot` holds a provider, an optional plan name, and `UsageWindow` values keyed by `UsageWindowKind` (session, weekly, billing cycle). `CodexAccount.usage` is computed from the saved Codex rate limits, so `accounts.json` keeps its format, and the Codex primary/secondary classification lives only in `CodexRateLimitSnapshot`.
 - `StatusBarIndicatorStyle` and `StatusBarDisplayMode`, the persisted status-item choices
 - typed `UserDefaults`-backed settings stores
 
