@@ -37,6 +37,8 @@ final class AccountsController {
         case failed(String, hostReachable: Bool)
     }
 
+    private static let inactiveSavedAccountsRefreshInterval: TimeInterval = 15 * 60
+
     private let identityResolver: SavedAccountIdentityResolver
     private let inactiveAccountAvailabilityRanking: InactiveAccountAvailabilityRanking
     private let silentPostActionRefresh: SilentPostActionRefresh
@@ -51,9 +53,11 @@ final class AccountsController {
     private let switchAccountOnHostWorkflow: SwitchAccountOnHostWorkflow
     private let remoteHostAccountVerifier: RemoteHostAccountVerifier
     private let addAccountWorkflow: AddAccountWorkflow
+    private let now: () -> Date
 
     private var catalogState = AccountCatalogState()
     private var isHydratingSavedAccountsMetadata = false
+    private var lastInactiveSavedAccountsRefreshAt: Date?
 
     init(
         identityResolver: SavedAccountIdentityResolver,
@@ -71,7 +75,8 @@ final class AccountsController {
             remoteHostSwitchOperations: UnavailableRemoteHostClient()
         ),
         remoteHostAccountVerifier: RemoteHostAccountVerifier = RemoteHostAccountVerifier(),
-        addAccountWorkflow: AddAccountWorkflow
+        addAccountWorkflow: AddAccountWorkflow,
+        now: @escaping () -> Date = Date.init
     ) {
         self.identityResolver = identityResolver
         self.inactiveAccountAvailabilityRanking = inactiveAccountAvailabilityRanking
@@ -89,6 +94,7 @@ final class AccountsController {
         self.switchAccountOnHostWorkflow = switchAccountOnHostWorkflow
         self.remoteHostAccountVerifier = remoteHostAccountVerifier
         self.addAccountWorkflow = addAccountWorkflow
+        self.now = now
     }
 
     func load() {
@@ -327,7 +333,13 @@ final class AccountsController {
 
     func refreshInactiveSavedAccountsMetadata() async {
         guard !isBusy, !isHydratingSavedAccountsMetadata else { return }
+        let startedAt = now()
+        if let lastInactiveSavedAccountsRefreshAt,
+           startedAt.timeIntervalSince(lastInactiveSavedAccountsRefreshAt) < Self.inactiveSavedAccountsRefreshInterval {
+            return
+        }
 
+        lastInactiveSavedAccountsRefreshAt = startedAt
         isHydratingSavedAccountsMetadata = true
         defer { isHydratingSavedAccountsMetadata = false }
 
