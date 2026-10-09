@@ -48,12 +48,12 @@ struct RefreshActiveAccountUseCase: Sendable {
             throw RefreshActiveAccountUseCaseError.targetMissing
         }
 
-        let hasFreshRateLimits = remote.rateLimits != nil
+        let hasFreshRateLimits = remote.usage != nil
         var refreshedAccount = accounts[matchedIndex]
         refreshedAccount.applyRemoteMetadata(
             email: remote.email,
             planType: remote.planType,
-            rateLimits: remote.rateLimits ?? refreshedAccount.rateLimits,
+            usage: remote.usage ?? refreshedAccount.usage,
             preferRateLimitPlan: hasFreshRateLimits
         )
         if hasFreshRateLimits {

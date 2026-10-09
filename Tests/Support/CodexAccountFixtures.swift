@@ -11,7 +11,7 @@ func makeAccount(
     authPrincipalIdentity: CodexAuthPrincipalIdentity? = nil,
     workspaceIdentity: CodexWorkspaceIdentity? = nil,
     planType: String? = nil,
-    rateLimits: CodexRateLimitSnapshot? = nil,
+    usage: UsageSnapshot? = nil,
     updatedAt: Date = .distantPast
 ) -> CodexAccount {
     makeAccount(
@@ -23,7 +23,7 @@ func makeAccount(
         authPrincipalIdentity: authPrincipalIdentity,
         workspaceIdentity: workspaceIdentity,
         planType: planType,
-        rateLimits: rateLimits,
+        usage: usage,
         updatedAt: updatedAt
     )
 }
@@ -38,7 +38,7 @@ func makeAccount(
     authPrincipalIdentity: CodexAuthPrincipalIdentity? = nil,
     workspaceIdentity: CodexWorkspaceIdentity? = nil,
     planType: String? = nil,
-    rateLimits: CodexRateLimitSnapshot? = nil,
+    usage: UsageSnapshot? = nil,
     updatedAt: Date = .distantPast
 ) -> CodexAccount {
     CodexAccount(
@@ -49,7 +49,7 @@ func makeAccount(
         updatedAt: updatedAt,
         email: email,
         planType: planType,
-        rateLimits: rateLimits,
+        usage: usage,
         identity: CodexAccountIdentity(
             stableAccountID: stableAccountID,
             authPrincipalIdentity: authPrincipalIdentity,
@@ -60,41 +60,34 @@ func makeAccount(
     )
 }
 
-/// Builds a five-hour session window and a weekly window.
-func makeRateLimits(
+/// Builds Codex usage with a five-hour session window and a weekly window.
+func makeUsage(
     planType: String? = nil,
     sessionUsedPercent: Int = 42,
     sessionResetsAt: Date? = nil,
     weeklyUsedPercent: Int = 68,
     weeklyResetsAt: Date? = nil,
     fetchedAt: Date = .now
-) -> CodexRateLimitSnapshot {
-    CodexRateLimitSnapshot(
-        limitID: nil,
-        limitName: nil,
-        planType: planType,
-        primary: CodexRateLimitWindow(
-            usedPercent: sessionUsedPercent,
-            resetsAt: sessionResetsAt,
-            windowDurationMinutes: 300
-        ),
-        secondary: CodexRateLimitWindow(
-            usedPercent: weeklyUsedPercent,
-            resetsAt: weeklyResetsAt,
-            windowDurationMinutes: 10_080
-        ),
+) -> UsageSnapshot {
+    UsageSnapshot(
+        provider: .codex,
+        planName: planType,
+        windows: [
+            UsageWindow(kind: .session, usedPercent: sessionUsedPercent, resetsAt: sessionResetsAt, durationMinutes: 300),
+            UsageWindow(kind: .weekly, usedPercent: weeklyUsedPercent, resetsAt: weeklyResetsAt, durationMinutes: 10_080),
+        ],
         fetchedAt: fetchedAt
     )
 }
 
-/// Builds rate limits fetched at `now` whose session window resets an hour later and weekly window a day later.
-func makeRateLimits(
+/// Builds Codex usage fetched at `now` whose session window resets an hour later and weekly window a day later.
+func makeUsage(
     resettingAfter now: Date,
     planType: String? = nil,
     sessionUsedPercent: Int = 42,
     weeklyUsedPercent: Int = 68
-) -> CodexRateLimitSnapshot {
-    makeRateLimits(
+) -> UsageSnapshot {
+    makeUsage(
         planType: planType,
         sessionUsedPercent: sessionUsedPercent,
         sessionResetsAt: now.addingTimeInterval(3_600),

@@ -19,7 +19,7 @@ struct StatusItemRuntimeTests {
         )
         runtime.start(
             presentation: .init(
-                activeAccount: makeAccount(name: "Primary", rateLimits: makeRateLimits()),
+                activeAccount: makeAccount(name: "Primary", usage: makeUsage()),
                 indicatorStyle: .dualArcBadge,
                 monochrome: false,
                 displayMode: .iconAndText
@@ -46,7 +46,7 @@ struct StatusItemRuntimeTests {
         )
         runtime.start(
             presentation: .init(
-                activeAccount: makeAccount(name: "Primary", rateLimits: makeRateLimits()),
+                activeAccount: makeAccount(name: "Primary", usage: makeUsage()),
                 indicatorStyle: .dualArcBadge,
                 monochrome: false,
                 displayMode: .iconOnly
@@ -57,7 +57,7 @@ struct StatusItemRuntimeTests {
 
         runtime.update(
             presentation: .init(
-                activeAccount: makeAccount(name: "Primary", rateLimits: makeRateLimits()),
+                activeAccount: makeAccount(name: "Primary", usage: makeUsage()),
                 indicatorStyle: .dualArcBadge,
                 monochrome: false,
                 displayMode: .iconAndText
@@ -67,7 +67,7 @@ struct StatusItemRuntimeTests {
 
         runtime.update(
             presentation: .init(
-                activeAccount: makeAccount(name: "Primary", rateLimits: makeRateLimits()),
+                activeAccount: makeAccount(name: "Primary", usage: makeUsage()),
                 indicatorStyle: .dualArcBadge,
                 monochrome: false,
                 displayMode: .textOnHover
@@ -77,7 +77,7 @@ struct StatusItemRuntimeTests {
 
         runtime.update(
             presentation: .init(
-                activeAccount: makeAccount(name: "Primary", rateLimits: makeRateLimits()),
+                activeAccount: makeAccount(name: "Primary", usage: makeUsage()),
                 indicatorStyle: .dualArcBadge,
                 monochrome: false,
                 displayMode: .iconOnly
@@ -101,7 +101,7 @@ struct StatusItemRuntimeTests {
         runtime.onEvent = { events.append($0) }
         runtime.start(
             presentation: .init(
-                activeAccount: makeAccount(name: "Primary", rateLimits: makeRateLimits()),
+                activeAccount: makeAccount(name: "Primary", usage: makeUsage()),
                 indicatorStyle: .dualArcBadge,
                 monochrome: false,
                 displayMode: .textOnHover
@@ -131,7 +131,7 @@ struct StatusItemRuntimeTests {
         )
         runtime.start(
             presentation: .init(
-                activeAccount: makeAccount(name: "Primary", rateLimits: makeRateLimits()),
+                activeAccount: makeAccount(name: "Primary", usage: makeUsage()),
                 indicatorStyle: .dualArcBadge,
                 monochrome: false,
                 displayMode: .iconOnly
@@ -162,7 +162,7 @@ struct StatusItemRuntimeTests {
         runtime.onEvent = { events.append($0) }
         runtime.start(
             presentation: .init(
-                activeAccount: makeAccount(name: "Primary", rateLimits: makeRateLimits()),
+                activeAccount: makeAccount(name: "Primary", usage: makeUsage()),
                 indicatorStyle: .dualArcBadge,
                 monochrome: false,
                 displayMode: .iconOnly

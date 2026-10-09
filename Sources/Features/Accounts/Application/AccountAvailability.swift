@@ -10,11 +10,11 @@ struct AccountTargetAvailability: Equatable {
 
 struct AccountAvailabilityService {
     func availability(for account: CodexAccount, now: Date = .now) -> AccountTargetAvailability {
-        let rateLimits = account.rateLimits
+        let usage = account.usage
         // An account that was never read counts as used up, so it sorts last.
-        let missingWindowUsedPercent = rateLimits == nil ? 100 : 0
-        let sessionWindow = rateLimits?.sessionWindow
-        let weeklyWindow = rateLimits?.weeklyWindow
+        let missingWindowUsedPercent = usage == nil ? 100 : 0
+        let sessionWindow = usage?.window(.session)
+        let weeklyWindow = usage?.window(.weekly)
         return AccountTargetAvailability(
             sessionUsedPercent: sessionWindow?.displayedUsedPercent(at: now) ?? missingWindowUsedPercent,
             weeklyUsedPercent: weeklyWindow?.displayedUsedPercent(at: now) ?? missingWindowUsedPercent,

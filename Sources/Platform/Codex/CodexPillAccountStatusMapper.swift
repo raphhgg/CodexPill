@@ -5,7 +5,7 @@ struct CodexPillAccountStatusMapper {
         CodexAccountStatus(
             email: appServerStatus.account.email,
             planType: appServerStatus.account.planType,
-            rateLimits: appServerStatus.rateLimits.map(rateLimitSnapshot),
+            usage: appServerStatus.rateLimits.map(usage),
             stableAccountID: appServerStatus.account.stableAccountID,
             authPrincipalIdentity: appServerStatus.account.authPrincipalIdentity,
             workspaceIdentity: appServerStatus.account.workspaceIdentity,
@@ -13,22 +13,16 @@ struct CodexPillAccountStatusMapper {
         )
     }
 
-    func rateLimitSnapshot(from appServerRateLimits: CodexAppServerRateLimits) -> CodexRateLimitSnapshot {
-        CodexRateLimitSnapshot(
-            limitID: appServerRateLimits.limitID,
-            limitName: appServerRateLimits.limitName,
-            planType: appServerRateLimits.planType,
-            primary: appServerRateLimits.primary.map(rateLimitWindow),
-            secondary: appServerRateLimits.secondary.map(rateLimitWindow),
+    func usage(from appServerRateLimits: CodexAppServerRateLimits) -> UsageSnapshot {
+        UsageSnapshot.codex(
+            planName: appServerRateLimits.planType,
+            primary: appServerRateLimits.primary.map(reportedWindow),
+            secondary: appServerRateLimits.secondary.map(reportedWindow),
             fetchedAt: appServerRateLimits.fetchedAt
         )
     }
 
-    private func rateLimitWindow(from window: CodexAppServerRateLimitWindow) -> CodexRateLimitWindow {
-        CodexRateLimitWindow(
-            usedPercent: window.usedPercent,
-            resetsAt: window.resetsAt,
-            windowDurationMinutes: window.windowDurationMinutes
-        )
+    private func reportedWindow(from window: CodexAppServerRateLimitWindow) -> UsageSnapshot.CodexReportedWindow {
+        (window.usedPercent, window.resetsAt, window.windowDurationMinutes)
     }
 }

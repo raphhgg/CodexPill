@@ -231,7 +231,7 @@ final class AccountsController {
     }
 
     func hydrateSavedAccountsMetadataIfNeeded() async {
-        guard accounts.contains(where: { $0.id != activeAccountID && $0.rateLimits == nil }) else { return }
+        guard accounts.contains(where: { $0.id != activeAccountID && $0.usage == nil }) else { return }
         await runSavedAccountsRefresh(refreshExistingMetadata: false)
     }
 
