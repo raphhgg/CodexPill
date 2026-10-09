@@ -194,17 +194,15 @@ struct LocalCodexSessionTokenUsageMenuProvider: TokenUsageMenuProviding {
 
     init(
         scanner: CodexSessionTokenUsageScanner = CodexSessionTokenUsageScanner(),
-        sessionsDirectory: URL = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".codex", isDirectory: true)
-            .appendingPathComponent("sessions", isDirectory: true),
-        cacheFile: URL = LocalCodexSessionTokenUsageDiskCache.defaultCacheFile(),
+        sessionsDirectory: URL = CodexSessionTokenUsageScanner.defaultSessionsDirectory(),
+        cacheFile: URL = AppPaths.tokenUsageCacheFile(),
         now: @escaping @Sendable () -> Date = Date.init,
         calendar: Calendar = .current
     ) {
         cache = LocalCodexSessionTokenUsageCache(
             scanner: scanner,
             sessionsDirectory: sessionsDirectory,
-            diskCache: LocalCodexSessionTokenUsageDiskCache(cacheFile: cacheFile),
+            cacheStore: TokenUsageCacheFileStore(cacheFile: cacheFile, schemaVersion: 1),
             now: now,
             calendar: calendar
         )
@@ -223,7 +221,7 @@ struct LocalCodexSessionTokenUsageMenuProvider: TokenUsageMenuProviding {
 private actor LocalCodexSessionTokenUsageCache {
     private let scanner: CodexSessionTokenUsageScanner
     private let sessionsDirectory: URL
-    private let diskCache: LocalCodexSessionTokenUsageDiskCaching
+    private let cacheStore: TokenUsageCacheFileStore<TokenUsageCacheEntry>
     private let refreshPolicy: TokenUsageCacheBackedRefreshPolicy
     private let now: @Sendable () -> Date
     private let calendar: Calendar
@@ -232,13 +230,13 @@ private actor LocalCodexSessionTokenUsageCache {
     init(
         scanner: CodexSessionTokenUsageScanner,
         sessionsDirectory: URL,
-        diskCache: LocalCodexSessionTokenUsageDiskCaching,
+        cacheStore: TokenUsageCacheFileStore<TokenUsageCacheEntry>,
         now: @escaping @Sendable () -> Date,
         calendar: Calendar
     ) {
         self.scanner = scanner
         self.sessionsDirectory = sessionsDirectory
-        self.diskCache = diskCache
+        self.cacheStore = cacheStore
         refreshPolicy = TokenUsageCacheBackedRefreshPolicy(calendar: calendar)
         self.now = now
         self.calendar = calendar
@@ -260,10 +258,11 @@ private actor LocalCodexSessionTokenUsageCache {
             return .loaded(loadedData(from: entry, for: period))
         }
 
-        if !forceRefresh, let entry = diskCache.readEntry(
+        if !forceRefresh, let entry = refreshPolicy.displayEntry(
+            from: cacheStore.readEntries(),
             covering: period,
             peakScope: peakScope,
-            isUsable: { refreshPolicy.canDisplay($0, for: period, peakScope: peakScope, now: referenceDate) }
+            now: referenceDate
         ) {
             cachedEntriesByPeriod[entry.period] = entry
             return .loaded(loadedData(from: entry, for: period))
@@ -303,7 +302,8 @@ private actor LocalCodexSessionTokenUsageCache {
                 allTimePeakCoversAllHistory: allTimePeak != nil
             )
             cachedEntriesByPeriod[period] = entry
-            diskCache.writeEntry(entry)
+            // Token usage cache is derived data; failed writes should not affect the menu.
+            try? cacheStore.writeEntry(entry, forKey: String(entry.period.rawValue))
             return .loaded(loadedData(from: entry, for: period))
         } catch is CancellationError {
             return .loading(nil)
@@ -344,10 +344,11 @@ private actor LocalCodexSessionTokenUsageCache {
     }
 
     private func persistedAllTimePeak(for period: CodexTokenUsagePeriod, now: Date) -> CodexDailyTokenUsage? {
-        guard let entry = diskCache.readEntry(
+        guard let entry = refreshPolicy.displayEntry(
+            from: cacheStore.readEntries(),
             covering: period,
             peakScope: .allTime,
-            isUsable: { refreshPolicy.canDisplay($0, for: period, peakScope: .allTime, now: now) }
+            now: now
         ) else {
             return nil
         }
@@ -370,10 +371,11 @@ private actor LocalCodexSessionTokenUsageCache {
             return entry
         }
 
-        guard let entry = diskCache.readEntry(
+        guard let entry = refreshPolicy.refreshSeedEntry(
+            from: cacheStore.readEntries(),
             covering: period,
             peakScope: peakScope,
-            isUsable: { refreshPolicy.canSeedRefresh($0, for: period, peakScope: peakScope, now: now) }
+            now: now
         ) else {
             return nil
         }
@@ -389,83 +391,4 @@ private actor LocalCodexSessionTokenUsageCache {
         )
     }
 
-}
-
-private protocol LocalCodexSessionTokenUsageDiskCaching: Sendable {
-    func readEntry(
-        covering period: CodexTokenUsagePeriod,
-        peakScope: TokenUsagePeakScope,
-        isUsable: (TokenUsageCacheEntry) -> Bool
-    ) -> TokenUsageCacheEntry?
-    func writeEntry(_ entry: TokenUsageCacheEntry)
-}
-
-private struct LocalCodexSessionTokenUsageDiskCache: LocalCodexSessionTokenUsageDiskCaching, @unchecked Sendable {
-    private static let schemaVersion = 1
-
-    let cacheFile: URL
-    private let fileManager: FileManager
-
-    init(cacheFile: URL, fileManager: FileManager = .default) {
-        self.cacheFile = cacheFile
-        self.fileManager = fileManager
-    }
-
-    static func defaultCacheFile(fileManager: FileManager = .default) -> URL {
-        let cachesRoot = (try? fileManager.url(
-            for: .cachesDirectory,
-            in: .userDomainMask,
-            appropriateFor: nil,
-            create: true
-        )) ?? fileManager.temporaryDirectory
-        return cachesRoot
-            .appendingPathComponent("CodexPill", isDirectory: true)
-            .appendingPathComponent("token-usage-cache.json")
-    }
-
-    func readEntry(
-        covering period: CodexTokenUsagePeriod,
-        peakScope: TokenUsagePeakScope,
-        isUsable: (TokenUsageCacheEntry) -> Bool
-    ) -> TokenUsageCacheEntry? {
-        readPayload()?.entries.values
-            .filter { $0.period.dayCount >= period.dayCount }
-            .filter { peakScope == .currentPeriod || $0.hasAllTimePeak }
-            .filter(isUsable)
-            .sorted { $0.period.dayCount < $1.period.dayCount }
-            .first
-    }
-
-    func writeEntry(_ entry: TokenUsageCacheEntry) {
-        do {
-            try fileManager.createDirectory(
-                at: cacheFile.deletingLastPathComponent(),
-                withIntermediateDirectories: true
-            )
-
-            var payload = readPayload() ?? CachePayload(schemaVersion: Self.schemaVersion, entries: [:])
-            payload.entries[String(entry.period.rawValue)] = entry
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = [.sortedKeys]
-            let data = try encoder.encode(payload)
-            try data.write(to: cacheFile, options: [.atomic])
-        } catch {
-            // Token usage cache is derived data; failed writes should not affect the menu.
-        }
-    }
-
-    private func readPayload() -> CachePayload? {
-        guard let data = try? Data(contentsOf: cacheFile),
-              let payload = try? JSONDecoder().decode(CachePayload.self, from: data),
-              payload.schemaVersion == Self.schemaVersion
-        else {
-            return nil
-        }
-        return payload
-    }
-
-    private struct CachePayload: Codable {
-        var schemaVersion: Int
-        var entries: [String: TokenUsageCacheEntry]
-    }
 }

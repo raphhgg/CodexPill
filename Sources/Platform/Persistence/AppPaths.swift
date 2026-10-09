@@ -67,6 +67,22 @@ struct AppPaths {
         appPathsLogger.log("Resolved snapshots directory: \(resolvedSnapshotsPath, privacy: .public)")
         appPathsLogger.log("Resolved auth file: \(resolvedAuthPath, privacy: .public)")
     }
+
+    static func tokenUsageCacheFile(
+        fileManager: FileManager = .default,
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> URL {
+        let cacheDirectory: URL
+        if let isolatedDirectory = AppRuntimeEnvironment.validationAppSupportDirectory(environment: environment)
+            ?? AppRuntimeEnvironment.automatedTestAppSupportDirectory(environment: environment) {
+            cacheDirectory = isolatedDirectory.appendingPathComponent("Caches", isDirectory: true)
+        } else {
+            let cachesRoot = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first
+                ?? fileManager.temporaryDirectory
+            cacheDirectory = cachesRoot.appendingPathComponent(appSupportFolderName, isDirectory: true)
+        }
+        return cacheDirectory.appendingPathComponent("token-usage-cache.json")
+    }
 }
 
 struct IsolatedCodexHomeSession {

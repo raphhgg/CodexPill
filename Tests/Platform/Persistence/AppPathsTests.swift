@@ -69,6 +69,28 @@ struct AppPathsTests {
     }
 
     @Test
+    func tokenUsageCacheStaysInsideIsolatedValidationAndTestDirectories() {
+        let overrideDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let testDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CodexPillTests-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true)
+
+        let validationCacheFile = AppPaths.tokenUsageCacheFile(
+            environment: [AppRuntimeEnvironment.validationAppSupportDirectoryEnvironmentKey: overrideDirectory.path]
+        )
+        let testCacheFile = AppPaths.tokenUsageCacheFile(environment: [:])
+
+        #expect(
+            validationCacheFile.standardizedFileURL.path
+                == overrideDirectory.appendingPathComponent("Caches/token-usage-cache.json").standardizedFileURL.path
+        )
+        #expect(
+            testCacheFile.standardizedFileURL.path
+                == testDirectory.appendingPathComponent("Caches/token-usage-cache.json").standardizedFileURL.path
+        )
+    }
+
+    @Test
     func isolatedCodexHomeSessionUsesRootLevelAuthPathAndCreatesMinimalLayout() throws {
         let parentDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
