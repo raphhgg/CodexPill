@@ -79,20 +79,20 @@ On-demand copy appears only when on-demand usage is enabled. With no cap, it sho
 
 ## Mapping To Shared Usage Types
 
-The planned Core `UsageSnapshot` holds percent windows. Cursor maps onto it like this:
+Cursor maps onto the shared `UsageSnapshot` like this:
 
 - `provider`: Cursor.
 - `planName`: `membershipType`.
 - One window of kind `billingCycle`, with `usedPercent` from `totalPercentUsed`, `resetsAt` from `billingCycleEnd`, and `durationMinutes` from the cycle length.
 - `fetchedAt`: the read time.
 
-On-demand spend does not fit a percent window. It is a dollar amount with an optional dollar cap and no percent when uncapped. The shared model needs a separate spend field, or Cursor keeps it as a provider-specific extra.
+- `spend`: on-demand spend as a `UsageSpend` with `usedUSD` and an optional `limitUSD`, present only when on-demand usage is enabled.
 
-## Proposed Privacy Paragraph
+Spend is not a percent window. It is a dollar amount with an optional dollar cap and no percent when uncapped, so it has its own field.
 
-To add to [PRIVACY.md](../PRIVACY.md) when the menu UI ships:
+## Privacy
 
-> **Cursor usage (optional).** When you turn on Cursor Usage, CodexPill reads Cursor's sign-in token from Cursor's local settings database on this Mac (`~/Library/Application Support/Cursor/User/globalStorage/state.vscdb`). It opens that database read-only, reads only the token, and never changes Cursor's files. CodexPill sends the token only to cursor.com to fetch your plan usage, on-demand spend, and billing-cycle dates. It does not store, log, or display the token, does not refresh it, and does not read browser cookies. Turning the feature off stops all reads.
+The user-facing summary lives in [PRIVACY.md](../PRIVACY.md).
 
 ## Out Of Scope
 

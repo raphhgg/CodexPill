@@ -7,7 +7,8 @@ The product replaces manual auth-file swapping and repeated app restarts with a 
 - save Codex accounts as reusable local snapshots;
 - switch the active Codex account from the menubar;
 - see current session and weekly Codex usage before choosing which account to use;
-- use the same saved accounts on configured remote hosts.
+- use the same saved accounts on configured remote hosts;
+- optionally see Claude Code and Cursor usage next to Codex.
 
 Detailed product behavior and UX contracts live in [features](features/README.md).
 
@@ -36,7 +37,7 @@ Secondary user:
 ## Product Principles
 
 - Menubar-first, not settings-first.
-- Local-first, no cloud dependency.
+- Local-first, no CodexPill cloud service.
 - Fast account switching over broad account administration.
 - Explicit boundaries around file I/O, process control, and Codex integration.
 - Do not expose raw auth payloads, tokens, or secrets in UI or logs.
@@ -60,6 +61,10 @@ A stored copy of Codex auth state used for later re-activation. A snapshot is no
 
 The most recently fetched local or remote view of Codex session and weekly availability.
 
+### Display-Only Provider
+
+A non-Codex tool whose usage CodexPill shows but never manages. Claude Code and Cursor are display-only providers. Each one is opt-in and has its own menu section below the saved accounts. CodexPill does not switch, sign in to, or save accounts for them. Their usage never affects Codex account availability, ranking, or notifications.
+
 ### Remote Host
 
 A user-configured SSH target where CodexPill can install saved account snapshots, switch remote Codex auth, and verify the remote active account.
@@ -67,6 +72,7 @@ A user-configured SSH target where CodexPill can install saved account snapshots
 ## Non-Goals
 
 - Browser-based ChatGPT account switching.
+- Account switching, sign-in, or session refresh for Claude Code, Cursor, or other non-Codex tools.
 - Cloud sync or multi-device account storage.
 - Team/shared account management.
 - Background telemetry pipeline.

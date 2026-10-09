@@ -89,9 +89,7 @@ Known effects the consent view must state:
 
 Only the two limit windows leave Claude Code. The relay never writes the working directory, transcript path, session ID, session name, model, cost, repository, pull request, prompt cache, or spend-limit fields. The relay holds the full payload in memory only long enough to extract four numbers and pass stdin to the previous command.
 
-Proposed `docs/PRIVACY.md` paragraph, to add when the menu feature ships:
-
-> **Claude Code usage (optional).** If you connect Claude Code, CodexPill sets Claude Code's status line command in `~/.claude/settings.json` to a CodexPill relay, after showing you the change and asking for consent. The relay saves only your 5-hour and weekly used percentages, their reset times, and a capture time to `~/Library/Application Support/CodexPill/claude-usage.json` with owner-only permissions. It then runs your previous status line command unchanged. CodexPill does not read Claude credentials, Keychain items, browser cookies, or Claude conversation data, and it does not contact Anthropic. Disconnecting restores your previous status line.
+The user-facing summary lives in [PRIVACY.md](../PRIVACY.md).
 
 ## Validation
 
@@ -103,5 +101,4 @@ Proposed `docs/PRIVACY.md` paragraph, to add when the menu feature ships:
 
 ## Follow-Ups
 
-- Add the privacy paragraph above to `docs/PRIVACY.md`.
 - The relay writes to the real app-support path. An isolated validation run reads its own folder, so it must use a fixture snapshot file instead of the relay.

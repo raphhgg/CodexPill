@@ -16,7 +16,9 @@ The source tree is organized by responsibility:
 - `Sources/Features/Usage/`
 - `Sources/Core/Configuration/`
 - `Sources/Core/Models/`
+- `Sources/Platform/Claude/`
 - `Sources/Platform/Codex/`
+- `Sources/Platform/Cursor/`
 - `Sources/Platform/Hosts/`
 - `Sources/Platform/Persistence/`
 
@@ -91,8 +93,9 @@ It coordinates cache-first loading, scan-task identity, duplicate-scan preventio
 
 Key boundaries:
 
-- `UsageProviderSource`, the port a Platform adapter implements for one provider. It returns a `UsageProviderReading`: not connected, unavailable (sign-in expired or read failed), awaiting usage, or a `UsageSnapshot`.
-- `ProviderUsageRuntime`, which reads each registered source at most once every 5 minutes, however often the menu opens, and publishes `ProviderUsageState` values. A snapshot older than the source's `staleAfter` is published as `.stale`.
+- `UsageProviderSource`, the port for one provider. It returns a `UsageProviderReading`: not connected, unavailable (not installed, signed out, sign-in expired, or read failed), awaiting usage, or a `UsageSnapshot`.
+- `ClaudeCodeUsage` and `CursorUsage`, the two sources. Each wraps its `Platform` adapter, maps the adapter's values onto `UsageSnapshot`, and owns its connect and disconnect steps.
+- `ProviderUsageRuntime`, which reads each source at most once per the source's `refreshInterval`, however often the menu opens, and publishes `ProviderUsageState` values. The default interval is 5 minutes. Claude Code uses 0 because it reads two small local files. A snapshot older than the source's `staleAfter` is published as `.stale`. When a source is unavailable for a reason that keeps the same account, such as an expired sign-in or a failed read, the runtime keeps the last good snapshot next to the reason.
 
 Provider states only feed menu sections. They never reach `AccountAvailability`, `InactiveAccountAvailabilityRanking`, or notifications: those read `CodexAccount.usage`, and the runtime reports changes through a menu-rebuild callback instead of the account store that drives notification evaluation. The runtime refuses a source for `.codex`.
 
@@ -145,6 +148,10 @@ Reusable Codex app-server access is split into these platform boundaries:
 
 Local app-server reads enter this shared session runner through `CodexAppServerClient`, which keeps local executable, environment, client-info, timeout, and saved-account strict rate-limit requirements in `CodexAppServerConfiguration`. SSH-backed reads enter the same runner from `SSHRemoteHostClient` only after that host adapter has built the remote `ssh ... codex app-server` invocation. `SSHRemoteHostClient` continues to own SSH destination construction, non-interactive SSH options, remote runtime refresh commands, remote auth enrichment reads, and SSH/remote failure classification.
 
+`Platform/Claude` owns everything CodexPill knows about Claude Code: planning and applying the `statusLine` change in `settings.json`, installing the relay script, and reading the relay's `claude-usage.json` snapshot.
+
+`Platform/Cursor` owns everything CodexPill knows about Cursor: the read-only token lookup in Cursor's `state.vscdb`, the `cursor.com/api/usage-summary` request, and parsing its response. The token never leaves this module except as the request's cookie.
+
 `Platform/Hosts` owns host-client implementations used by validation or host adapters.
 
 `Platform/Persistence` owns:
@@ -178,6 +185,7 @@ Settings persistence is split by feature boundary:
 - `NotificationPreferencesStore` owns notification workflow toggles and legacy notification-setting migration.
 - `NotificationStateStore` owns per-account notification delivery state and deterministic update ordering.
 - `TokenUsagePreferencesStore` owns token-usage visibility, chart style, loading animation, peak scope, and the fixed 30-day period.
+- `CursorUsageSettingsStore` owns whether Cursor usage is on. It is off by default.
 
 App startup builds each store from one `UserDefaults` instance and injects the ones each runtime boundary needs. There is no shared settings facade.
 
@@ -231,7 +239,9 @@ The current truth sources are split by concern:
 - CodexPill catalog and saved snapshots: `~/Library/Application Support/CodexPill`;
 - local account metadata and rate limits: local `codex app-server`;
 - remote account metadata and rate limits: remote `codex app-server` through the host adapter;
-- running CLI session observation: local process table inspection.
+- running CLI session observation: local process table inspection;
+- Claude Code usage: the snapshot the relay writes from Claude Code's status line input;
+- Cursor usage: `cursor.com/api/usage-summary`, authenticated with Cursor's local sign-in token.
 
 Rules:
 
@@ -281,7 +291,9 @@ Tests should mirror stable source ownership boundaries once those boundaries exi
 - `Tests/MenuBar/`
 - `Tests/TokenUsage/`
 - `Tests/Usage/`
+- `Tests/Platform/Claude/`
 - `Tests/Platform/Codex/`
+- `Tests/Platform/Cursor/`
 - `Tests/Platform/Hosts/`
 - `Tests/Platform/Persistence/`
 - `Tests/Core/Models/`
