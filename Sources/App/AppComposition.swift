@@ -28,6 +28,8 @@ struct AppComposition {
         ).makeController()
 
         let claudeCodeUsage = Self.makeClaudeCodeUsage(environment: environment, isolatedRootDirectory: isolatedRootDirectory)
+        let cursorUsage = Self.makeCursorUsage(environment: environment, defaults: defaults, isolatedRootDirectory: isolatedRootDirectory)
+        let providerUsageSources: [any UsageProviderSource] = (claudeCodeUsage.map { [$0] } ?? []) + [cursorUsage]
         coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(),
             shortcutRuntime: GlobalShortcutRuntime(),
@@ -52,8 +54,9 @@ struct AppComposition {
             tokenUsageProvider: LocalCodexSessionTokenUsageMenuProvider(
                 cacheFile: AppPaths.tokenUsageCacheFile(isolatedRootDirectory: isolatedRootDirectory)
             ),
-            providerUsageSources: claudeCodeUsage.map { [$0] } ?? [],
+            providerUsageSources: providerUsageSources,
             claudeCodeUsage: claudeCodeUsage,
+            cursorUsage: cursorUsage,
             allowsEmptyStatePrompt: !AppRuntimeEnvironment.shouldSuppressEmptyStatePrompt(environment: environment),
             autoRefreshIntervalOverride: AppRuntimeEnvironment.validationAutoRefreshIntervalSeconds(environment: environment)
         )
@@ -84,6 +87,34 @@ struct AppComposition {
                     .appendingPathComponent(ClaudeStatusLineInstallPlanner.relayFileName)
             ),
             reader: ClaudeUsageReader(fileURL: usageFileURL)
+        )
+    }
+
+    /// An isolated run never reads the real Cursor sign-in or calls cursor.com: it reads a fixture database
+    /// and a fixture usage summary inside the isolated root.
+    private static func makeCursorUsage(
+        environment: [String: String],
+        defaults: UserDefaults,
+        isolatedRootDirectory: URL?
+    ) -> CursorUsage {
+        let tokenSource: CursorStateDatabaseTokenSource
+        let webClient: any CursorUsageWebClient
+        if let isolatedRootDirectory {
+            tokenSource = CursorStateDatabaseTokenSource(
+                databaseURL: isolatedRootDirectory.appendingPathComponent("Cursor/state.vscdb")
+            )
+            webClient = ValidationCursorUsageWebClient(
+                fileURL: isolatedRootDirectory.appendingPathComponent(ValidationCursorUsageWebClient.fileName)
+            )
+        } else {
+            tokenSource = CursorStateDatabaseTokenSource()
+            webClient = URLSessionCursorUsageWebClient()
+        }
+        return CursorUsage(
+            settings: CursorUsageSettingsStore(userDefaults: defaults),
+            client: CursorUsageClient(tokenSource: tokenSource, webClient: webClient),
+            refreshInterval: AppRuntimeEnvironment.validationAutoRefreshIntervalSeconds(environment: environment)
+                ?? ProviderUsageRuntime.refreshInterval
         )
     }
 }

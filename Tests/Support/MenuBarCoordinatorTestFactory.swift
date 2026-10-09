@@ -23,6 +23,7 @@ extension MenuBarCoordinator {
         ),
         providerUsageSources: [any UsageProviderSource] = [],
         claudeCodeUsage: ClaudeCodeUsage? = nil,
+        cursorUsage: CursorUsage? = nil,
         allowsEmptyStatePrompt: Bool = true,
         autoRefreshIntervalOverride: TimeInterval? = nil
     ) -> MenuBarCoordinator {
@@ -50,6 +51,7 @@ extension MenuBarCoordinator {
             tokenUsageProvider: tokenUsageProvider,
             providerUsageSources: providerUsageSources,
             claudeCodeUsage: claudeCodeUsage,
+            cursorUsage: cursorUsage,
             allowsEmptyStatePrompt: allowsEmptyStatePrompt,
             autoRefreshIntervalOverride: autoRefreshIntervalOverride
         )

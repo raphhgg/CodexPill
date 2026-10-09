@@ -92,6 +92,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     )
     private let providerUsageSources: [any UsageProviderSource]
     private let claudeCodeUsage: ClaudeCodeUsage?
+    private let cursorUsage: CursorUsage?
     private lazy var providerUsageRuntime = ProviderUsageRuntime(
         sources: providerUsageSources,
         onChange: { [weak self] in
@@ -141,6 +142,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         tokenUsageProvider: TokenUsageMenuProviding,
         providerUsageSources: [any UsageProviderSource],
         claudeCodeUsage: ClaudeCodeUsage?,
+        cursorUsage: CursorUsage?,
         allowsEmptyStatePrompt: Bool,
         autoRefreshIntervalOverride: TimeInterval?
     ) {
@@ -170,6 +172,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.tokenUsageProvider = tokenUsageProvider
         self.providerUsageSources = providerUsageSources
         self.claudeCodeUsage = claudeCodeUsage
+        self.cursorUsage = cursorUsage
         self.allowsEmptyStatePrompt = allowsEmptyStatePrompt
         self.autoRefreshIntervalOverride = autoRefreshIntervalOverride
         self.remoteHostRuntime = RemoteHostRuntime(
@@ -611,6 +614,22 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     @objc
+    func connectCursor() {
+        recordMenuAction("connectCursor")
+        guard let cursorUsage, alertPresenter.presentConfirmation(alertFactory.makeConnectCursorRequest()) else { return }
+        cursorUsage.connect()
+        refreshProviderUsageIfDue(forcing: .cursor)
+    }
+
+    @objc
+    func disconnectCursor() {
+        recordMenuAction("disconnectCursor")
+        guard let cursorUsage else { return }
+        cursorUsage.disconnect()
+        refreshProviderUsageIfDue(forcing: .cursor)
+    }
+
+    @objc
     func showAbout() {
         recordMenuAction("showAbout")
         alertPresenter.presentInfo(alertFactory.makeAboutRequest())
@@ -779,8 +798,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         tokenUsageRuntime.refreshIfNeeded(period: tokenUsagePreferences.period, peakScope: tokenUsagePreferences.peakScope)
     }
 
-    private func refreshProviderUsageIfDue() {
-        tasks.start { [weak self] in await self?.providerUsageRuntime.refreshIfDue() }
+    private func refreshProviderUsageIfDue(forcing forcedProvider: UsageProvider? = nil) {
+        tasks.start { [weak self] in await self?.providerUsageRuntime.refreshIfDue(forcing: forcedProvider) }
     }
 
     /// Rebuilding an open menu makes it jump, so menu-only content rebuilds after the menu closes, or right before it next opens.

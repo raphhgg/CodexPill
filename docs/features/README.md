@@ -10,6 +10,7 @@ Feature docs are organized by product feature area. Each area can contain behavi
 - [Remote Hosts](remote-hosts.md): host setup, remote account install/switch, verification, and remote account presentation.
 - [Notifications](notifications.md): notification modes, permission recovery, delivery copy, actions, and dedupe behavior.
 - [Claude Usage](claude-usage.md): opt-in, read-only Claude Code 5-hour and weekly limits from Claude Code's status line.
+- [Cursor Usage](cursor-usage.md): opt-in, read-only Cursor plan usage, on-demand spend, and billing-cycle reset.
 - [Token Usage History](token-usage.md): opt-in local Codex token usage card and its source contract.
 - [Token Usage Incremental Cache](token-usage-cache.md): persistent cache and background scanner contract for large local Codex histories.
 - [Token Usage Loading Progress](token-usage-loading-progress.md): honest animated loading feedback while first local scans are still running.

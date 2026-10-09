@@ -538,12 +538,16 @@ struct MenuBarMenuBuilder {
         submenu.addItem(tokenUsagePreferencesMenuItem(state: state, target: target))
         submenu.addItem(.separator())
         submenu.addItem(launchAtLoginMenuItem(state: state, target: target))
-        if state.providerUsage.contains(where: { $0.provider == .claude && $0.status != .notConnected }) {
-            submenu.addItem(.separator())
-            let disconnect = NSMenuItem(title: "Disconnect Claude Code…", action: #selector(MenuBarCoordinator.disconnectClaudeCode), keyEquivalent: "")
+        let disconnectItems = state.providerUsage.compactMap { providerUsage -> NSMenuItem? in
+            guard providerUsage.status != .notConnected, let action = providerUsage.provider.disconnectAction else { return nil }
+            let disconnect = NSMenuItem(title: "Disconnect \(providerUsage.provider.menuTitle)…", action: action, keyEquivalent: "")
             disconnect.target = target
             disconnect.isEnabled = !state.isBusy
-            submenu.addItem(disconnect)
+            return disconnect
+        }
+        if !disconnectItems.isEmpty {
+            submenu.addItem(.separator())
+            disconnectItems.forEach(submenu.addItem)
         }
 
         item.submenu = submenu
@@ -559,11 +563,11 @@ struct MenuBarMenuBuilder {
     ) {
         let content: NSMenuItem
         if providerUsage.status == .notConnected {
-            guard providerUsage.provider == .claude else { return }
+            guard let action = providerUsage.provider.connectAction else { return }
             content = actionItem(
-                title: "Connect Claude Code…",
+                title: "Connect \(providerUsage.provider.menuTitle)…",
                 systemImage: "link",
-                action: #selector(MenuBarCoordinator.connectClaudeCode),
+                action: action,
                 state: state,
                 target: target
             )
@@ -811,5 +815,23 @@ private struct SectionHeaderLabel: View {
         .padding(.horizontal, 10)
         .padding(.top, 2)
         .padding(.bottom, bottomPadding)
+    }
+}
+
+private extension UsageProvider {
+    var connectAction: Selector? {
+        switch self {
+        case .codex: nil
+        case .claude: #selector(MenuBarCoordinator.connectClaudeCode)
+        case .cursor: #selector(MenuBarCoordinator.connectCursor)
+        }
+    }
+
+    var disconnectAction: Selector? {
+        switch self {
+        case .codex: nil
+        case .claude: #selector(MenuBarCoordinator.disconnectClaudeCode)
+        case .cursor: #selector(MenuBarCoordinator.disconnectCursor)
+        }
     }
 }
