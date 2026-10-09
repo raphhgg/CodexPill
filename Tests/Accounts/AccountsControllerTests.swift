@@ -864,13 +864,13 @@ private final class SavedAccountStatusFixture: SavedCodexAccountStatusClient, @u
         self.statusBySnapshot = statusBySnapshot
     }
 
-    func readSavedAccountStatus(authData: Data) async throws -> CodexAccountStatus {
+    func readSavedAccountStatus(authData: Data) async -> SavedCodexAccountStatusRead {
         readSnapshots.append(authData)
         let snapshot = String(decoding: authData, as: UTF8.self)
         guard let status = statusBySnapshot[snapshot] else {
-            throw NSError(domain: "SavedAccountStatusFixture", code: 1)
+            return SavedCodexAccountStatusRead(status: .failure(NSError(domain: "SavedAccountStatusFixture", code: 1)), rotatedAuthData: nil)
         }
-        return status
+        return SavedCodexAccountStatusRead(status: .success(status), rotatedAuthData: nil)
     }
 }
 
