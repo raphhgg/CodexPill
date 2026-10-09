@@ -56,8 +56,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private var wakeRefreshTask: Task<Void, Never>?
     private var notificationWaitTask: Task<Void, Never>?
     private let tasks = TrackedTasks()
-    private var pendingTokenUsageMenuRebuild = false
-    private var deferredTokenUsageMenuRebuild = false
+    private var rebuildsMenuAfterClose = false
+    private var rebuildsMenuBeforeOpen = false
     private var hasPromptedForEmptyState = false
     private var isObservingSettings = false
     private var isObservingStore = false
@@ -87,7 +87,14 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private lazy var tokenUsageRuntime = TokenUsageMenuRuntime(
         provider: tokenUsageProvider,
         onStateChange: { [weak self] _ in
-            self?.rebuildTokenUsageMenuWhenSafe()
+            self?.rebuildMenuWhenSafe()
+        }
+    )
+    private let providerUsageSources: [any UsageProviderSource]
+    private lazy var providerUsageRuntime = ProviderUsageRuntime(
+        sources: providerUsageSources,
+        onChange: { [weak self] in
+            self?.rebuildMenuWhenSafe()
         }
     )
     private lazy var hostActionCoordinator = MenuBarHostActionCoordinator(
@@ -131,6 +138,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         loginItemsSettingsLauncher: LoginItemsSettingsLaunching,
         diagnosticReportPresenter: DiagnosticReportPresenting,
         tokenUsageProvider: TokenUsageMenuProviding,
+        providerUsageSources: [any UsageProviderSource],
         allowsEmptyStatePrompt: Bool,
         autoRefreshIntervalOverride: TimeInterval?
     ) {
@@ -158,6 +166,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.loginItemsSettingsLauncher = loginItemsSettingsLauncher
         self.diagnosticReportPresenter = diagnosticReportPresenter
         self.tokenUsageProvider = tokenUsageProvider
+        self.providerUsageSources = providerUsageSources
         self.allowsEmptyStatePrompt = allowsEmptyStatePrompt
         self.autoRefreshIntervalOverride = autoRefreshIntervalOverride
         self.remoteHostRuntime = RemoteHostRuntime(
@@ -187,7 +196,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         syncBackgroundState()
         tasks.start { [weak self] in await self?.refreshRemoteHostStateIfNeeded() }
         registerRevealShortcutFromSettings()
-        refreshTokenUsageIfNeeded()
+        refreshMenuUsageIfNeeded()
     }
 
     func invalidate() {
@@ -633,9 +642,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     func menuWillOpen(_ menu: NSMenu) {
-        rebuildDeferredTokenUsageMenuIfNeeded()
+        rebuildDeferredMenuIfNeeded()
         statusItemRuntime.handleMenuWillOpen()
-        refreshTokenUsageIfNeeded()
+        refreshMenuUsageIfNeeded()
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
@@ -646,8 +655,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     func menuDidClose(_ menu: NSMenu) {
         statusItemRuntime.handleMenuDidClose()
-        if pendingTokenUsageMenuRebuild {
-            pendingTokenUsageMenuRebuild = false
+        if rebuildsMenuAfterClose {
+            rebuildsMenuAfterClose = false
             rebuildMenu()
         }
     }
@@ -710,7 +719,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             tokenUsageChartStyle: tokenUsagePreferences.chartStyle,
             tokenUsageLoadingAnimationStyle: tokenUsagePreferences.loadingAnimationStyle,
             tokenUsagePeakScope: tokenUsagePreferences.peakScope,
-            tokenUsageCard: makeTokenUsageCard()
+            tokenUsageCard: makeTokenUsageCard(),
+            providerUsage: providerUsageRuntime.states
         )
     }
 
@@ -725,7 +735,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         )
     }
 
-    private func refreshTokenUsageIfNeeded() {
+    /// Token usage and provider usage only appear inside the menu, so opening it is the moment to bring them up to date.
+    private func refreshMenuUsageIfNeeded() {
+        refreshProviderUsageIfDue()
         guard tokenUsagePreferences.isEnabled else {
             tokenUsageRuntime.cancel()
             return
@@ -734,17 +746,22 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         tokenUsageRuntime.refreshIfNeeded(period: tokenUsagePreferences.period, peakScope: tokenUsagePreferences.peakScope)
     }
 
-    private func rebuildTokenUsageMenuWhenSafe() {
-        guard !statusItemRuntime.isMenuTrackingOpen else {
-            pendingTokenUsageMenuRebuild = true
-            return
-        }
-        deferredTokenUsageMenuRebuild = true
+    private func refreshProviderUsageIfDue() {
+        tasks.start { [weak self] in await self?.providerUsageRuntime.refreshIfDue() }
     }
 
-    private func rebuildDeferredTokenUsageMenuIfNeeded() {
-        guard deferredTokenUsageMenuRebuild else { return }
-        deferredTokenUsageMenuRebuild = false
+    /// Rebuilding an open menu makes it jump, so menu-only content rebuilds after the menu closes, or right before it next opens.
+    private func rebuildMenuWhenSafe() {
+        guard !statusItemRuntime.isMenuTrackingOpen else {
+            rebuildsMenuAfterClose = true
+            return
+        }
+        rebuildsMenuBeforeOpen = true
+    }
+
+    private func rebuildDeferredMenuIfNeeded() {
+        guard rebuildsMenuBeforeOpen else { return }
+        rebuildsMenuBeforeOpen = false
         rebuildMenu()
     }
 
@@ -918,6 +935,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     func performScheduledRefresh() async {
+        refreshProviderUsageIfDue()
         guard !accountsController.isBusy else { return }
         if let activeAccount = accountsController.activeAccount {
             switch await accountsController.refreshAccountData(for: activeAccount) {

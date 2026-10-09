@@ -51,6 +51,7 @@ struct AppComposition {
             tokenUsageProvider: LocalCodexSessionTokenUsageMenuProvider(
                 cacheFile: AppPaths.tokenUsageCacheFile(isolatedRootDirectory: isolatedRootDirectory)
             ),
+            providerUsageSources: [],
             allowsEmptyStatePrompt: !AppRuntimeEnvironment.shouldSuppressEmptyStatePrompt(environment: environment),
             autoRefreshIntervalOverride: AppRuntimeEnvironment.validationAutoRefreshIntervalSeconds(environment: environment)
         )

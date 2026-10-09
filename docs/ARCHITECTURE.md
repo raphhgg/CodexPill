@@ -13,6 +13,7 @@ The source tree is organized by responsibility:
 - `Sources/Features/Hosts/`
 - `Sources/Features/MenuBar/`
 - `Sources/Features/TokenUsage/`
+- `Sources/Features/Usage/`
 - `Sources/Core/Configuration/`
 - `Sources/Core/Models/`
 - `Sources/Platform/Codex/`
@@ -85,6 +86,15 @@ Key boundaries:
 - local token-usage aggregate cache
 
 It coordinates cache-first loading, scan-task identity, duplicate-scan prevention, progress throttling, and cancellation when Token Usage is disabled. It depends on `Platform/Codex` scanner adapters for local Codex session records, but must not know AppKit menu construction or raw JSONL/session-path details.
+
+`Features/Usage` owns usage reading for providers other than Codex, such as Claude and Cursor.
+
+Key boundaries:
+
+- `UsageProviderSource`, the port a Platform adapter implements for one provider. It returns a `UsageProviderReading`: not connected, unavailable (sign-in expired or read failed), awaiting usage, or a `UsageSnapshot`.
+- `ProviderUsageRuntime`, which reads each registered source at most once every 5 minutes, however often the menu opens, and publishes `ProviderUsageState` values. A snapshot older than the source's `staleAfter` is published as `.stale`.
+
+Provider states only feed menu sections. They never reach `AccountAvailability`, `InactiveAccountAvailabilityRanking`, or notifications: those read `CodexAccount.usage`, and the runtime reports changes through a menu-rebuild callback instead of the account store that drives notification evaluation. The runtime refuses a source for `.codex`.
 
 `Features/MenuBar` owns menubar runtime, menu-state projection, menu rendering, native alert/panel presentation, status-item behavior, and notification delivery mechanics.
 
@@ -195,6 +205,8 @@ App startup builds each store from one `UserDefaults` instance and injects the o
 
 `TokenUsageMenuRuntime` is the token-usage feature boundary used by MenuBar. It owns background scan lifecycle, cache-first load state, duplicate-scan prevention, progress throttling, and disable-time cancellation. `MenuBarCoordinator` should only mutate Token Usage preferences, ask the runtime for current load state, and decide whether AppKit menu rebuilds are safe while a menu is being tracked.
 
+`MenuBarCoordinator` owns the `ProviderUsageRuntime` and exposes its states as `MenuBarMenuState.providerUsage`. Token usage and provider usage share one path: startup and opening the menu ask both to refresh if due, the scheduled refresh also refreshes providers, and both report changes through `rebuildMenuWhenSafe()`, which waits until the menu is closed.
+
 `MenuBarAccounts` is the port MenuBar declares for account state and intents. It lists only the members the menu reads or calls, and `AccountsController` conforms to it directly. MenuBar never sees the account use cases or Platform adapters behind the controller.
 
 `MenuBarAccountCatalogProjection` owns menu-facing account projection: relinking remote snapshots to saved accounts, resolving display metadata, building availability snapshots, and ordering catalog entries before rendering.
@@ -268,6 +280,7 @@ Tests should mirror stable source ownership boundaries once those boundaries exi
 - `Tests/Hosts/`
 - `Tests/MenuBar/`
 - `Tests/TokenUsage/`
+- `Tests/Usage/`
 - `Tests/Platform/Codex/`
 - `Tests/Platform/Hosts/`
 - `Tests/Platform/Persistence/`

@@ -39,6 +39,52 @@ struct MenuBarCoordinatorTests {
     }
 
     @Test
+    func fullyUsedProviderChangesNeitherAvailabilityRankingNorNotifications() async throws {
+        let harness = try MenuBarCoordinatorHarness()
+        defer { harness.tearDown() }
+        let now = Date()
+        var personal = try harness.makeActiveAccount(named: "Personal", email: "personal@example.com")
+        personal.usage = makeUsage(resettingAfter: now, sessionUsedPercent: 20, weeklyUsedPercent: 20)
+        let busier = makeAccount(name: "Business 1", usage: makeUsage(resettingAfter: now, sessionUsedPercent: 30, weeklyUsedPercent: 30))
+        let quieter = makeAccount(name: "Business 2", usage: makeUsage(resettingAfter: now, sessionUsedPercent: 10, weeklyUsedPercent: 10))
+        try harness.repository.saveAccounts([personal, busier, quieter])
+        harness.settings.notificationPreferences.notificationsWhenBlockedEnabled = true
+        harness.settings.notificationPreferences.notificationsWhenOutEnabled = true
+        let center = UserNotificationCenterProbe()
+        center.authorizationStatus = .authorized
+        let claudeUsage = UsageSnapshot(
+            provider: .claude,
+            planName: nil,
+            windows: [
+                UsageWindow(kind: .session, usedPercent: 100, resetsAt: now.addingTimeInterval(3_600), durationMinutes: 300),
+                UsageWindow(kind: .weekly, usedPercent: 100, resetsAt: now.addingTimeInterval(86_400), durationMinutes: 10_080)
+            ],
+            fetchedAt: now
+        )
+        let coordinator = harness.makeCoordinator(
+            notificationDelivery: AccountAvailabilityNotificationCenter(center: center),
+            providerUsageSources: [UsageProviderSourceProbe(provider: .claude, reading: .snapshot(claudeUsage))]
+        )
+
+        coordinator.start()
+        await coordinator.waitForPendingWork()
+
+        let state = coordinator.menuState()
+        #expect(state.providerUsage == [ProviderUsageState(provider: .claude, status: .current(claudeUsage))])
+        #expect(state.activeAccount?.name == "Personal")
+        #expect(state.inactiveAccounts.map(\.name) == ["Business 2", "Business 1"])
+        #expect(state.availabilitySnapshots.map(\.localAvailability.status) == [.availableNow, .availableNow, .availableNow])
+        #expect(center.addedRequests.isEmpty)
+
+        personal.usage = makeUsage(resettingAfter: now, sessionUsedPercent: 100, weeklyUsedPercent: 20)
+        harness.accountsController.persistAccountMetadata(personal)
+        await coordinator.waitForPendingWork()
+
+        #expect(center.addedRequests.map(\.content.title) == ["Personal is out on This Mac"])
+        #expect(center.addedRequests.map(\.content.body) == ["Session limit reached. Business 2 is ready."])
+    }
+
+    @Test
     func notificationResponseSubstitutesBetterRemoteAccountAndExplainsIt() async throws {
         let harness = try MenuBarCoordinatorHarness()
         defer { harness.tearDown() }
@@ -1051,7 +1097,8 @@ private final class MenuBarCoordinatorHarness {
     func makeCoordinator(
         accountsRemoteHostClient: RemoteHostSwitchWorkflowOperations = UnavailableRemoteHostClient(),
         remoteHostOperations: MenuBarRemoteHostOperations = UnavailableRemoteHostClient(),
-        notificationDelivery: AccountAvailabilityNotifier = DisabledAccountAvailabilityNotifier()
+        notificationDelivery: AccountAvailabilityNotifier = DisabledAccountAvailabilityNotifier(),
+        providerUsageSources: [any UsageProviderSource] = []
     ) -> MenuBarCoordinator {
         accountsController = AccountsFeatureFactory(
             repository: repository,
@@ -1072,6 +1119,7 @@ private final class MenuBarCoordinatorHarness {
             notificationDelivery: notificationDelivery,
             applicationActivator: applicationActivator,
             notificationSettingsLauncher: notificationSettingsLauncher,
+            providerUsageSources: providerUsageSources,
             allowsEmptyStatePrompt: false
         )
         self.coordinator = coordinator
