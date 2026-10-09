@@ -75,6 +75,12 @@ struct CodexSessionTokenUsageScanner: Sendable {
         fileParser = CodexSessionTokenUsageFileParser(maximumLineByteCount: maximumLineByteCount)
     }
 
+    static func defaultSessionsDirectory(fileManager: FileManager = .default) -> URL {
+        fileManager.homeDirectoryForCurrentUser
+            .appendingPathComponent(".codex", isDirectory: true)
+            .appendingPathComponent("sessions", isDirectory: true)
+    }
+
     func scan(
         sessionsDirectory: URL,
         period: CodexTokenUsagePeriod,
