@@ -12,10 +12,9 @@ final class CodexAppServerClient {
 
     init(environment: [String: String] = ProcessInfo.processInfo.environment) {
         let configuration = CodexAppServerConfiguration.live(environment: environment)
-        let runner = CodexAppServerProcessRunner()
         self.configuration = configuration
         statusSource = { refreshToken in
-            try await runner.readAccountStatus(
+            try await Self.readAppServerStatus(
                 configuration: configuration,
                 refreshToken: refreshToken,
                 requireRateLimitResponse: false
@@ -134,7 +133,7 @@ final class CodexAppServerClient {
 
         let status: Result<CodexAccountStatus, Error>
         do {
-            let appServerStatus = try await CodexAppServerProcessRunner().readAccountStatus(
+            let appServerStatus = try await Self.readAppServerStatus(
                 configuration: CodexAppServerConfiguration(
                     command: configuration.command,
                     environment: Self.isolatedAppServerEnvironment(command: configuration.command, session: session),
@@ -153,6 +152,25 @@ final class CodexAppServerClient {
             status: status,
             rotatedAuthData: Self.rotatedAuthData(in: session, original: authData)
         )
+    }
+
+    private static func readAppServerStatus(
+        configuration: CodexAppServerConfiguration,
+        refreshToken: Bool,
+        requireRateLimitResponse: Bool
+    ) async throws -> CodexAppServerStatus {
+        try await CodexAppServerSessionRunner().readAccountStatus(command: CodexAppServerSessionCommand(
+            executableURL: configuration.command.executableURL,
+            arguments: configuration.command.arguments,
+            environment: configuration.environment,
+            timeout: configuration.responseTimeout,
+            refreshToken: refreshToken,
+            clientInfo: configuration.clientInfo,
+            requireRateLimitResponse: requireRateLimitResponse,
+            failure: { stderr, terminationStatus, timedOut in
+                appServerFailure(stderr: stderr, terminationStatus: terminationStatus, timedOut: timedOut)
+            }
+        ))
     }
 
     // Codex may rotate the single-use refresh token while reading and persists it into the isolated home.
