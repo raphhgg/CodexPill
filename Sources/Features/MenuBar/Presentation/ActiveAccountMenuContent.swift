@@ -4,7 +4,10 @@ struct ActiveAccountMenuContent: View {
     let account: CodexAccount
     let locations: [String]
     let showsUpdatedTime: Bool
-    let progressAccentColor: Color
+    let sessionAccentColor: Color
+    let weeklyAccentColor: Color
+    let percentMode: UsagePercentMode
+    let meterLayout: UsageMeterLayout
     let showsPacingMarkers: Bool
     let tokenUsageCard: TokenUsageMenuCard?
     let now: Date
@@ -13,7 +16,10 @@ struct ActiveAccountMenuContent: View {
         account: CodexAccount,
         locations: [String],
         showsUpdatedTime: Bool,
-        progressAccentColor: Color,
+        sessionAccentColor: Color,
+        weeklyAccentColor: Color,
+        percentMode: UsagePercentMode,
+        meterLayout: UsageMeterLayout,
         showsPacingMarkers: Bool,
         tokenUsageCard: TokenUsageMenuCard? = nil,
         now: Date = .now
@@ -21,7 +27,10 @@ struct ActiveAccountMenuContent: View {
         self.account = account
         self.locations = locations
         self.showsUpdatedTime = showsUpdatedTime
-        self.progressAccentColor = progressAccentColor
+        self.sessionAccentColor = sessionAccentColor
+        self.weeklyAccentColor = weeklyAccentColor
+        self.percentMode = percentMode
+        self.meterLayout = meterLayout
         self.showsPacingMarkers = showsPacingMarkers
         self.tokenUsageCard = tokenUsageCard
         self.now = now
@@ -45,20 +54,17 @@ struct ActiveAccountMenuContent: View {
                 .foregroundStyle(.secondary)
                 .padding(.top, -2)
 
-            UsageMeterRow(
-                title: "Session",
-                window: account.usage?.window(.session),
-                tintColor: progressAccentColor,
+            UsageMeters(
+                meters: [
+                    UsageMeter(title: "Session", window: account.usage?.window(.session), tintColor: sessionAccentColor),
+                    UsageMeter(title: "Weekly", window: account.usage?.window(.weekly), tintColor: weeklyAccentColor)
+                ],
+                layout: meterLayout,
+                percentMode: percentMode,
                 showsPacingMarkers: showsPacingMarkers,
                 now: now
             )
-            UsageMeterRow(
-                title: "Weekly",
-                window: account.usage?.window(.weekly),
-                tintColor: progressAccentColor,
-                showsPacingMarkers: showsPacingMarkers,
-                now: now
-            )
+            .padding(.top, meterLayout == .compact ? 3 : 0)
 
             if let tokenUsageCard {
                 ActiveAccountCardDivider()
