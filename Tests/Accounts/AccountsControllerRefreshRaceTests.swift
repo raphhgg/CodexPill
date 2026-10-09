@@ -219,10 +219,6 @@ private final class RefreshRaceFixture {
             identityResolver: identityResolver,
             loadAccountsUseCase: LoadAccountsUseCase(repository: catalog, identityResolver: identityResolver),
             refreshActiveAccountUseCase: refreshActiveAccountUseCase,
-            silentPostActionRefresh: SilentPostActionRefresh(
-                refreshActiveAccountUseCase: refreshActiveAccountUseCase,
-                delay: .zero
-            ),
             hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
                 authService: authStore,
                 savedAccountStatusClient: statusClient,
@@ -230,7 +226,7 @@ private final class RefreshRaceFixture {
             ),
             deleteSavedAccountUseCase: DeleteSavedAccountUseCase(repository: catalog, identityResolver: identityResolver),
             renameSavedAccountUseCase: RenameSavedAccountUseCase(repository: catalog),
-            persistSavedAccountMetadataUseCase: PersistSavedAccountMetadataUseCase(repository: catalog),
+            accountCatalogStore: catalog,
             switchAccountWorkflow: SwitchAccountWorkflow(
                 authService: authStore,
                 repository: catalog,
@@ -241,7 +237,8 @@ private final class RefreshRaceFixture {
                 authService: authStore,
                 repository: catalog,
                 identityResolver: identityResolver
-            )
+            ),
+            postSwitchRefreshDelay: .zero
         )
     }
 }
