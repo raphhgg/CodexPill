@@ -255,25 +255,6 @@ final class MenuBarValidationObserver {
         }
     }
 
-    private func menuSnapshotWithActionTrace(_ snapshot: MenuBarValidationSnapshot) -> MenuBarValidationSnapshot {
-        MenuBarValidationSnapshot(
-            sections: snapshot.sections,
-            statusMessage: snapshot.statusMessage,
-            currentAccount: snapshot.currentAccount,
-            remoteHosts: snapshot.remoteHosts,
-            hasStatusItemContentData: snapshot.hasStatusItemContentData,
-            effectiveStatusBarDisplayMode: snapshot.effectiveStatusBarDisplayMode,
-            statusItem: snapshot.statusItem,
-            actionTrace: .init(
-                lastMenuAction: lastMenuAction,
-                lastSwitchTargetName: lastSwitchTargetName,
-                lastConfirmationRequest: lastConfirmationRequest,
-                lastConfirmationAccepted: lastConfirmationAccepted
-            ),
-            menuItems: snapshot.menuItems
-        )
-    }
-
     func recordStatusItemRuntimeEvent(_ event: StatusItemRuntime.Event) {
         switch event {
         case .hoverEntered:

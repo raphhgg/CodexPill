@@ -21,16 +21,6 @@ struct LiveCodexAccountIdentity: Equatable {
         self.remoteIdentity = remoteIdentity
     }
 
-    init(account: CodexAccount) {
-        self.init(
-            stableAccountID: account.identity.stableAccountID,
-            authPrincipalIdentity: account.identity.authPrincipalIdentity,
-            workspaceIdentity: account.identity.workspaceIdentity,
-            snapshotFingerprint: account.identity.snapshotFingerprint,
-            remoteIdentity: account.resolvedRemoteIdentity
-        )
-    }
-
     static let empty = Self()
 }
 
@@ -106,18 +96,6 @@ struct SavedAccountIdentityResolver: Sendable {
         liveRemoteIdentity: CodexRemoteAccountIdentity? = nil
     ) -> UUID? {
         resolve(
-            accounts: accounts,
-            liveRemoteIdentity: liveRemoteIdentity
-        ).matchedAccountID
-    }
-
-    func resolveSavedAccountID(
-        for account: CodexAccount,
-        among accounts: [CodexAccount],
-        liveRemoteIdentity: CodexRemoteAccountIdentity? = nil
-    ) -> UUID? {
-        resolve(
-            liveIdentity: LiveCodexAccountIdentity(account: account),
             accounts: accounts,
             liveRemoteIdentity: liveRemoteIdentity
         ).matchedAccountID
