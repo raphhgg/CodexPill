@@ -117,24 +117,53 @@ final class CodexAppServerClient {
         throw latestError ?? CocoaError(.coderReadCorrupt)
     }
 
-    func readSavedAccountStatus(authData: Data) async throws -> CodexAccountStatus {
-        let session = try IsolatedCodexHomeSession.create()
+    func readSavedAccountStatus(authData: Data) async -> SavedCodexAccountStatusRead {
+        let session: IsolatedCodexHomeSession
+        do {
+            session = try IsolatedCodexHomeSession.create()
+        } catch {
+            return SavedCodexAccountStatusRead(status: .failure(error), rotatedAuthData: nil)
+        }
         defer { try? session.cleanup() }
 
-        try authData.write(to: session.authFile, options: .atomic)
+        do {
+            try authData.write(to: session.authFile, options: .atomic)
+        } catch {
+            return SavedCodexAccountStatusRead(status: .failure(error), rotatedAuthData: nil)
+        }
 
-        let runner = CodexAppServerProcessRunner()
-        let status = try await runner.readAccountStatus(
-            configuration: CodexAppServerConfiguration(
-                command: configuration.command,
-                environment: Self.isolatedAppServerEnvironment(command: configuration.command, session: session),
-                responseTimeout: configuration.responseTimeout,
-                clientInfo: configuration.clientInfo
-            ),
-            refreshToken: true,
-            requireRateLimitResponse: true
+        let status: Result<CodexAccountStatus, Error>
+        do {
+            let appServerStatus = try await CodexAppServerProcessRunner().readAccountStatus(
+                configuration: CodexAppServerConfiguration(
+                    command: configuration.command,
+                    environment: Self.isolatedAppServerEnvironment(command: configuration.command, session: session),
+                    responseTimeout: configuration.responseTimeout,
+                    clientInfo: configuration.clientInfo
+                ),
+                refreshToken: false,
+                requireRateLimitResponse: true
+            )
+            status = .success(mapper.status(from: appServerStatus))
+        } catch {
+            status = .failure(error)
+        }
+
+        return SavedCodexAccountStatusRead(
+            status: status,
+            rotatedAuthData: Self.rotatedAuthData(in: session, original: authData)
         )
-        return mapper.status(from: status)
+    }
+
+    // Codex may rotate the single-use refresh token while reading and persists it into the isolated home.
+    private static func rotatedAuthData(in session: IsolatedCodexHomeSession, original: Data) -> Data? {
+        guard let current = try? Data(contentsOf: session.authFile),
+              !current.isEmpty,
+              current != original
+        else {
+            return nil
+        }
+        return current
     }
 
     private func shouldRetry(status: CodexAccountStatus?, attemptIndex: Int, totalAttempts: Int) -> Bool {
