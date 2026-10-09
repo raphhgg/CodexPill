@@ -70,6 +70,10 @@ struct MenuBarMenuBuilder {
             menu.addItem(moreAccountsMenuItem(accounts: state.overflowDisplayAccountEntries, state: state, target: target))
         }
 
+        for providerUsage in state.providerUsage {
+            addProviderUsageSection(providerUsage, to: menu, state: state, target: target, width: menuContentWidth)
+        }
+
         menu.addItem(.separator())
         if state.shouldShowSingleAccountManagementMenu {
             menu.addItem(accountManagementMenuItem(state: state, target: target, includesAddAccount: true))
@@ -534,9 +538,56 @@ struct MenuBarMenuBuilder {
         submenu.addItem(tokenUsagePreferencesMenuItem(state: state, target: target))
         submenu.addItem(.separator())
         submenu.addItem(launchAtLoginMenuItem(state: state, target: target))
+        if state.providerUsage.contains(where: { $0.provider == .claude && $0.status != .notConnected }) {
+            submenu.addItem(.separator())
+            let disconnect = NSMenuItem(title: "Disconnect Claude Code…", action: #selector(MenuBarCoordinator.disconnectClaudeCode), keyEquivalent: "")
+            disconnect.target = target
+            disconnect.isEnabled = !state.isBusy
+            submenu.addItem(disconnect)
+        }
 
         item.submenu = submenu
         return item
+    }
+
+    private func addProviderUsageSection(
+        _ providerUsage: ProviderUsageState,
+        to menu: NSMenu,
+        state: MenuBarMenuState,
+        target: MenuBarCoordinator,
+        width: CGFloat
+    ) {
+        let content: NSMenuItem
+        if providerUsage.status == .notConnected {
+            guard providerUsage.provider == .claude else { return }
+            content = actionItem(
+                title: "Connect Claude Code…",
+                systemImage: "link",
+                action: #selector(MenuBarCoordinator.connectClaudeCode),
+                state: state,
+                target: target
+            )
+        } else {
+            content = NSMenuItem()
+            content.view = configuredHostedMenuView(
+                NSHostingView(rootView: ProviderUsageMenuContent(
+                    provider: providerUsage.provider,
+                    status: providerUsage.status,
+                    sessionAccentColor: Color(nsColor: state.sessionAccentColor),
+                    weeklyAccentColor: Color(nsColor: state.weeklyAccentColor),
+                    percentMode: state.usagePercentMode,
+                    meterLayout: state.usageMeterLayout,
+                    showsPacingMarkers: state.pacingMarkersEnabled,
+                    now: Date()
+                )
+                // A fixed width lets wrapped text report its real height to the fitting size.
+                .frame(width: width)),
+                width: width
+            )
+        }
+        menu.addItem(.separator())
+        menu.addItem(sectionHeaderItem(providerUsage.provider.menuTitle, width: width, bottomPadding: 4))
+        menu.addItem(content)
     }
 
     private func launchAtLoginMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {

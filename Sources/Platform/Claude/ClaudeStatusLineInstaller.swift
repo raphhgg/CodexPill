@@ -6,29 +6,37 @@ enum ClaudeStatusLineInstallError: Error, Equatable, Sendable {
     case invalidSettings(ClaudeStatusLinePlanError)
     case backupFailed
     case settingsWriteFailed
+    /// `settings.json` changed between the consent preview and the write.
+    case settingsChanged
+}
+
+/// The `statusLine` entry before and after a planned write, as pretty JSON, for the consent view.
+/// Only this entry is shown because the rest of `settings.json` can hold secrets.
+struct ClaudeStatusLineChange: Equatable, Sendable {
+    let settingsPath: String
+    let before: String?
+    let after: String?
 }
 
 /// Applies `ClaudeStatusLineInstallPlanner` plans to Claude Code's real
 /// `settings.json` and keeps the relay script at a stable app-support path, so
 /// the user's status line survives CodexPill being moved or deleted.
-struct ClaudeStatusLineInstaller {
+struct ClaudeStatusLineInstaller: Sendable {
     static let backupSuffix = ".codexpill-backup"
 
     let relaySourceURL: URL
     let claudeConfigDirectory: URL
     let relayInstallURL: URL
-    private let fileManager: FileManager
+    private var fileManager: FileManager { .default }
 
     init(
         relaySourceURL: URL,
         claudeConfigDirectory: URL = Self.defaultClaudeConfigDirectory(),
-        relayInstallURL: URL = Self.defaultRelayInstallURL(),
-        fileManager: FileManager = .default
+        relayInstallURL: URL = Self.defaultRelayInstallURL()
     ) {
         self.relaySourceURL = relaySourceURL
         self.claudeConfigDirectory = claudeConfigDirectory
         self.relayInstallURL = relayInstallURL
-        self.fileManager = fileManager
     }
 
     static func defaultClaudeConfigDirectory(
@@ -56,18 +64,15 @@ struct ClaudeStatusLineInstaller {
         claudeConfigDirectory.appendingPathComponent("settings.json" + Self.backupSuffix)
     }
 
+    /// True when `settings.json` runs a CodexPill relay. Unreadable or invalid settings count as not installed.
+    var isInstalled: Bool {
+        (try? previewUninstall()) != nil
+    }
+
     @discardableResult
     func install() throws(ClaudeStatusLineInstallError) -> ClaudeStatusLinePlan {
         let existing = try readSettings()
-        let plan: ClaudeStatusLinePlan
-        do {
-            plan = try ClaudeStatusLineInstallPlanner.planInstall(
-                settings: existing?.data,
-                relayPath: relayInstallURL.path
-            )
-        } catch {
-            throw .invalidSettings(error)
-        }
+        let plan = try planInstall(over: existing)
         try copyRelay()
         try apply(plan, over: existing)
         return plan
@@ -76,17 +81,76 @@ struct ClaudeStatusLineInstaller {
     @discardableResult
     func uninstall() throws(ClaudeStatusLineInstallError) -> ClaudeStatusLinePlan {
         let existing = try readSettings()
-        let plan: ClaudeStatusLinePlan
+        let plan = try planUninstall(over: existing)
+        try applyUninstall(plan, over: existing)
+        return plan
+    }
+
+    /// The change `install(confirming:)` would make, or nil when the relay is already installed.
+    func previewInstall() throws(ClaudeStatusLineInstallError) -> ClaudeStatusLineChange? {
+        let existing = try readSettings()
+        return change(for: try planInstall(over: existing), over: existing)
+    }
+
+    /// The change `uninstall(confirming:)` would make, or nil when no relay is installed.
+    func previewUninstall() throws(ClaudeStatusLineInstallError) -> ClaudeStatusLineChange? {
+        let existing = try readSettings()
+        return change(for: try planUninstall(over: existing), over: existing)
+    }
+
+    /// Installs only if the planned change still matches the one the user agreed to.
+    func install(confirming expected: ClaudeStatusLineChange) throws(ClaudeStatusLineInstallError) {
+        let existing = try readSettings()
+        let plan = try planInstall(over: existing)
+        guard change(for: plan, over: existing) == expected else { throw .settingsChanged }
+        try copyRelay()
+        try apply(plan, over: existing)
+    }
+
+    /// Uninstalls only if the planned change still matches the one the user agreed to.
+    func uninstall(confirming expected: ClaudeStatusLineChange) throws(ClaudeStatusLineInstallError) {
+        let existing = try readSettings()
+        let plan = try planUninstall(over: existing)
+        guard change(for: plan, over: existing) == expected else { throw .settingsChanged }
+        try applyUninstall(plan, over: existing)
+    }
+
+    private func planInstall(over existing: ExistingSettings?) throws(ClaudeStatusLineInstallError) -> ClaudeStatusLinePlan {
         do {
-            plan = try ClaudeStatusLineInstallPlanner.planUninstall(settings: existing?.data)
+            return try ClaudeStatusLineInstallPlanner.planInstall(
+                settings: existing?.data,
+                relayPath: relayInstallURL.path
+            )
         } catch {
             throw .invalidSettings(error)
         }
+    }
+
+    private func planUninstall(over existing: ExistingSettings?) throws(ClaudeStatusLineInstallError) -> ClaudeStatusLinePlan {
+        do {
+            return try ClaudeStatusLineInstallPlanner.planUninstall(settings: existing?.data)
+        } catch {
+            throw .invalidSettings(error)
+        }
+    }
+
+    private func applyUninstall(
+        _ plan: ClaudeStatusLinePlan,
+        over existing: ExistingSettings?
+    ) throws(ClaudeStatusLineInstallError) {
         try apply(plan, over: existing)
         if case .write = plan {
             try? fileManager.removeItem(at: relayInstallURL)
         }
-        return plan
+    }
+
+    private func change(for plan: ClaudeStatusLinePlan, over existing: ExistingSettings?) -> ClaudeStatusLineChange? {
+        guard case let .write(settings, _) = plan else { return nil }
+        return ClaudeStatusLineChange(
+            settingsPath: settingsURL.path,
+            before: ClaudeStatusLineInstallPlanner.statusLineJSON(in: existing?.data),
+            after: ClaudeStatusLineInstallPlanner.statusLineJSON(in: settings)
+        )
     }
 
     private struct ExistingSettings {

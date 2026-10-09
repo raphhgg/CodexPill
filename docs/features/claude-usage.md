@@ -10,7 +10,7 @@ Claude Usage is an optional, read-only, local-first feature. CodexPill shows the
 
 The feature has one setup step that changes a file outside CodexPill: it points Claude Code's `statusLine.command` at a small relay script. CodexPill must show the exact change and ask for consent before it writes, and it must offer an uninstall that restores the previous status line.
 
-This contract covers the data layer that exists today: the relay, the snapshot reader, and the settings planner. The menu presentation lands after the provider-neutral usage model.
+Claude usage is display-only. It never feeds account availability, ranking, or notifications, which stay Codex-only.
 
 ## Source Contract
 
@@ -30,7 +30,8 @@ All knowledge of the status line payload and of `~/.claude/settings.json` lives 
 1. Claude Code runs `codexpill-claude-usage-relay.sh` as its status line command, with the user's previous command as the relay's only argument.
 2. The relay copies the two window values into `~/Library/Application Support/CodexPill/claude-usage.json` with a capture timestamp. It writes a temporary file and renames it, with owner-only permissions.
 3. The relay passes the unchanged stdin to the previous command and prints its output and exit status unchanged. If the CodexPill write fails, the status line still behaves as before.
-4. CodexPill reads the snapshot file and evaluates it against the current time.
+4. CodexPill reads the snapshot file and evaluates it against the current time. It treats Claude Code as connected only while `statusLine.command` runs the CodexPill relay.
+5. `ClaudeCodeUsage` maps the snapshot onto the shared usage model: the 5-hour window becomes `Session`, the 7-day window becomes `Weekly`, and the capture time becomes the fetch time. Claude has no plan name. Because both files are small and local, CodexPill reads them on every menu refresh instead of on the 5-minute provider cadence.
 
 The relay is a POSIX `sh` script that uses `/usr/bin/plutil` to read JSON. Both ship with macOS, so the relay needs no `jq`, Python, or Node. `/usr/bin/python3` was rejected because on a Mac without the Command Line Tools it opens an install prompt. A Swift helper binary was rejected for now because it needs a new build target and adds a signed executable for a job that takes four field reads.
 
@@ -50,13 +51,15 @@ When several Claude Code sessions run at once, the last one to update wins. They
 
 ## States And Copy
 
-The reader returns one of these states. Copy is proposed for the menu PR.
+The menu shows a `Claude Code` section below the saved accounts. It has no switching actions.
 
-- **Not connected.** No snapshot file. The relay has never run. Copy: `Claude` / `Connect Claude Code…`.
-- **Waiting for usage.** The file exists but has no windows. The user is not on Pro or Max, or no Claude Code session has received an API response since setup. Copy: `Usage appears after your next Claude Code message.`
-- **Current.** Windows present and captured within the freshness limit. Rows match Codex: `Session` (5-hour) and `Weekly` (7-day), each with the used percentage and reset time.
-- **Stale.** Windows present but captured more than one hour ago. Rows render as in Current, plus `Updated <relative time>`.
-- **Unreadable.** The file exists but does not parse. CodexPill shows `Claude usage unavailable` and keeps the file untouched. Error messages never include file contents.
+- **Not connected.** The status line does not run the relay. The section shows one `Connect Claude Code…` action.
+- **Waiting for usage.** The relay is set up, but no snapshot exists yet or it has no windows. The user is not on Pro or Max, or no Claude Code session has received an API response since setup. Copy: `Waiting for Claude Code…` / `Usage appears after your next Claude Code message on a Pro or Max plan.`
+- **Current.** Windows present and captured within the freshness limit. `Session` and `Weekly` rows use the same meters, percent mode, layout, colors, and pacing markers as the Codex card, with `As of <time>` above them.
+- **Stale.** Windows present but captured more than one hour ago. The rows are dimmed and the label reads `Stale, as of <time>`.
+- **Unreadable.** The file exists but does not parse. Copy: `Claude Code usage unavailable` / `CodexPill could not read the saved usage.` CodexPill keeps the file untouched. Error messages never include file contents.
+
+`<time>` is the time alone for today, otherwise the date and time. When connected, `Preferences` > `Disconnect Claude Code…` undoes the setup.
 
 ## Freshness Rules
 
@@ -66,15 +69,15 @@ The reader returns one of these states. Copy is proposed for the menu PR.
 
 ## Consent, Install, And Uninstall
 
-Setup follows "a human step is one guided command": one `Connect Claude Code…` action shows the exact `statusLine` change (before and after) and asks for consent. On consent, CodexPill:
+Setup follows "a human step is one guided command": one `Connect Claude Code…` action shows the exact `statusLine` entry before and after the change, as the planner computes it, and asks for consent in one alert. It shows only that entry, never the rest of `settings.json`, because the file can hold secrets in `env`. If `settings.json` changes between the alert and the write, CodexPill writes nothing and asks the user to try again. On consent, CodexPill:
 
 1. Copies the relay into its app-support `bin` folder with owner-only permissions.
 2. Writes a one-time backup, `settings.json.codexpill-backup`, next to the settings file.
 3. Sets `statusLine.type` to `command` and `statusLine.command` to the quoted relay path followed by the quoted previous command. Other keys, including `padding` and `refreshInterval`, stay as they were.
 
-CodexPill honors `CLAUDE_CONFIG_DIR`, and it writes through a symlinked `settings.json` instead of replacing the link. The settings file is rewritten with sorted keys, so key order can change. The consent view shows the full result.
+CodexPill honors `CLAUDE_CONFIG_DIR` from its own environment, and it writes through a symlinked `settings.json` instead of replacing the link. The settings file is rewritten with sorted keys, so key order can change. An isolated validation run (`CODEXPILL_VALIDATION_APP_SUPPORT_DIR`) uses `<isolated root>/.claude` unless `CLAUDE_CONFIG_DIR` is set, so it never edits the real `~/.claude`.
 
-Uninstall restores the previous command, or removes the `statusLine` entry when there was none, then removes the relay copy. If the user changed `statusLine.command` after setup, uninstall leaves it alone.
+`Disconnect Claude Code…` shows the same before and after view, then restores the previous command, or removes the `statusLine` entry when there was none. It removes the relay copy and the saved `claude-usage.json`. If the user changed `statusLine.command` after setup, CodexPill no longer treats Claude Code as connected and leaves the setting alone.
 
 Known effects the consent view must state:
 
@@ -95,10 +98,10 @@ Proposed `docs/PRIVACY.md` paragraph, to add when the menu feature ships:
 - Relay tests run the real script with literal payloads and prove that no field other than the two windows is written, that stdin, stdout, and exit status pass through, and that a failed write does not change the status line.
 - Reader tests cover every state above and the typed parse errors.
 - Planner and installer tests cover install, re-install, uninstall round trips, preserved keys, symlinked settings, and refusal on invalid settings. They run against fixtures and temp directories, never the real `~/.claude/settings.json`.
+- `ClaudeCodeUsageTests` map literal relay JSON to the shared usage model and run connect and disconnect against a temp `settings.json` with an existing status line, with none, and after the settings change under an open consent alert.
+- A coordinator test walks the menu from `Connect Claude Code…` through declined consent, waiting, current, stale, and disconnect, reading the built `NSMenu`.
 
 ## Follow-Ups
 
-- Bundle the relay as an app resource in `Project.swift`.
-- Map `ClaudeUsageSnapshot` onto the provider-neutral Core usage model.
-- Menu rows, Connect and Disconnect actions, and the consent view.
-- Add this page to `docs/features/README.md` and the privacy paragraph to `docs/PRIVACY.md`.
+- Add the privacy paragraph above to `docs/PRIVACY.md`.
+- The relay writes to the real app-support path. An isolated validation run reads its own folder, so it must use a fixture snapshot file instead of the relay.

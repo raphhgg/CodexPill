@@ -1060,6 +1060,82 @@ struct MenuBarCoordinatorTests {
         #expect(await remoteHostClient.readCount(for: "user@debian-vm") == 2)
     }
 
+    @Test
+    func claudeSectionMovesFromConnectThroughWaitingCurrentAndStaleBackToConnect() async throws {
+        let harness = try MenuBarCoordinatorHarness()
+        let fixture = try ClaudeCodeFixture()
+        defer {
+            harness.tearDown()
+            fixture.remove()
+        }
+        let originalSettings = #"{"statusLine": {"command": "~/.claude/statusline.sh", "type": "command"}}"#
+        try fixture.writeSettings(originalSettings)
+        let coordinator = harness.makeCoordinator(providerUsageSources: [fixture.usage], claudeCodeUsage: fixture.usage)
+        coordinator.start()
+        await coordinator.waitForPendingWork()
+
+        #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .claude, status: .notConnected)])
+        #expect(claudeMenuTitles(coordinator) == ["Connect Claude Code…"])
+
+        coordinator.connectClaudeCode()
+        await coordinator.waitForPendingWork()
+
+        #expect(harness.alertPresenter.confirmationRequests.map(\.messageText) == ["Connect Claude Code?"])
+        #expect(try String(contentsOf: fixture.settingsURL, encoding: .utf8) == originalSettings)
+        #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .claude, status: .notConnected)])
+
+        harness.alertPresenter.confirmationResponse = true
+        coordinator.connectClaudeCode()
+        await coordinator.waitForPendingWork()
+
+        #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .claude, status: .awaitingUsage)])
+        #expect(claudeMenuTitles(coordinator) == ["Disconnect Claude Code…"])
+
+        let now = Int(Date().timeIntervalSince1970)
+        try fixture.writeRelayOutput(#"{"schema":1,"captured_at":\#(now - 60),"rate_limits":{"five_hour":{"used_percentage":64,"resets_at":\#(now + 3_600)},"seven_day":{"used_percentage":21,"resets_at":\#(now + 86_400)}}}"#)
+        await coordinator.performScheduledRefresh()
+        await coordinator.waitForPendingWork()
+
+        let current = UsageSnapshot(
+            provider: .claude,
+            planName: nil,
+            windows: [
+                UsageWindow(kind: .session, usedPercent: 64, resetsAt: Date(timeIntervalSince1970: TimeInterval(now + 3_600)), durationMinutes: 300),
+                UsageWindow(kind: .weekly, usedPercent: 21, resetsAt: Date(timeIntervalSince1970: TimeInterval(now + 86_400)), durationMinutes: 10_080)
+            ],
+            fetchedAt: Date(timeIntervalSince1970: TimeInterval(now - 60))
+        )
+        #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .claude, status: .current(current))])
+
+        try fixture.writeRelayOutput(#"{"schema":1,"captured_at":\#(now - 7_200),"rate_limits":{"seven_day":{"used_percentage":21,"resets_at":\#(now + 86_400)}}}"#)
+        await coordinator.performScheduledRefresh()
+        await coordinator.waitForPendingWork()
+
+        let stale = UsageSnapshot(
+            provider: .claude,
+            planName: nil,
+            windows: [UsageWindow(kind: .weekly, usedPercent: 21, resetsAt: Date(timeIntervalSince1970: TimeInterval(now + 86_400)), durationMinutes: 10_080)],
+            fetchedAt: Date(timeIntervalSince1970: TimeInterval(now - 7_200))
+        )
+        #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .claude, status: .stale(stale))])
+        #expect(coordinator.menuState().availabilitySnapshots.isEmpty)
+
+        coordinator.disconnectClaudeCode()
+        await coordinator.waitForPendingWork()
+
+        #expect(harness.alertPresenter.confirmationRequests.map(\.messageText).last == "Disconnect Claude Code?")
+        #expect(try fixture.settingsObject() == ["statusLine": ["command": "~/.claude/statusline.sh", "type": "command"]])
+        #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .claude, status: .notConnected)])
+        #expect(claudeMenuTitles(coordinator) == ["Connect Claude Code…"])
+    }
+
+    /// Claude rows in the main menu and the Preferences submenu, read from the built `NSMenu`.
+    private func claudeMenuTitles(_ coordinator: MenuBarCoordinator) -> [String] {
+        let menu = MenuBarMenuBuilder().makeMenu(state: coordinator.menuState(), target: coordinator)
+        let preferences = menu.items.first { $0.title == "Preferences" }?.submenu?.items ?? []
+        return (menu.items + preferences).map(\.title).filter { $0.contains("Claude") }
+    }
+
     private func remoteStatus(for account: CodexAccount, usage: UsageSnapshot?) -> CodexAccountStatus {
         CodexAccountStatus(
             email: account.email,
@@ -1098,7 +1174,8 @@ private final class MenuBarCoordinatorHarness {
         accountsRemoteHostClient: RemoteHostSwitchWorkflowOperations = UnavailableRemoteHostClient(),
         remoteHostOperations: MenuBarRemoteHostOperations = UnavailableRemoteHostClient(),
         notificationDelivery: AccountAvailabilityNotifier = DisabledAccountAvailabilityNotifier(),
-        providerUsageSources: [any UsageProviderSource] = []
+        providerUsageSources: [any UsageProviderSource] = [],
+        claudeCodeUsage: ClaudeCodeUsage? = nil
     ) -> MenuBarCoordinator {
         accountsController = AccountsFeatureFactory(
             repository: repository,
@@ -1120,6 +1197,7 @@ private final class MenuBarCoordinatorHarness {
             applicationActivator: applicationActivator,
             notificationSettingsLauncher: notificationSettingsLauncher,
             providerUsageSources: providerUsageSources,
+            claudeCodeUsage: claudeCodeUsage,
             allowsEmptyStatePrompt: false
         )
         self.coordinator = coordinator

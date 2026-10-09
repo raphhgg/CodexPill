@@ -27,6 +27,7 @@ struct AppComposition {
             remoteHostSwitchOperations: remoteHostClient
         ).makeController()
 
+        let claudeCodeUsage = Self.makeClaudeCodeUsage(environment: environment, isolatedRootDirectory: isolatedRootDirectory)
         coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(),
             shortcutRuntime: GlobalShortcutRuntime(),
@@ -51,9 +52,38 @@ struct AppComposition {
             tokenUsageProvider: LocalCodexSessionTokenUsageMenuProvider(
                 cacheFile: AppPaths.tokenUsageCacheFile(isolatedRootDirectory: isolatedRootDirectory)
             ),
-            providerUsageSources: [],
+            providerUsageSources: claudeCodeUsage.map { [$0] } ?? [],
+            claudeCodeUsage: claudeCodeUsage,
             allowsEmptyStatePrompt: !AppRuntimeEnvironment.shouldSuppressEmptyStatePrompt(environment: environment),
             autoRefreshIntervalOverride: AppRuntimeEnvironment.validationAutoRefreshIntervalSeconds(environment: environment)
+        )
+    }
+
+    /// An isolated run never touches the real `~/.claude`: it uses `CLAUDE_CONFIG_DIR` or a folder inside the isolated root.
+    private static func makeClaudeCodeUsage(
+        environment: [String: String],
+        isolatedRootDirectory: URL?
+    ) -> ClaudeCodeUsage? {
+        guard let relaySourceURL = Bundle.main.url(forResource: "codexpill-claude-usage-relay", withExtension: "sh") else {
+            return nil
+        }
+        let usageFileURL = isolatedRootDirectory?.appendingPathComponent(ClaudeUsageReader.fileName)
+            ?? ClaudeUsageReader.defaultFileURL()
+        let claudeConfigDirectory: URL
+        if let isolatedRootDirectory, environment["CLAUDE_CONFIG_DIR"]?.isEmpty ?? true {
+            claudeConfigDirectory = isolatedRootDirectory.appendingPathComponent(".claude", isDirectory: true)
+        } else {
+            claudeConfigDirectory = ClaudeStatusLineInstaller.defaultClaudeConfigDirectory(environment: environment)
+        }
+        return ClaudeCodeUsage(
+            installer: ClaudeStatusLineInstaller(
+                relaySourceURL: relaySourceURL,
+                claudeConfigDirectory: claudeConfigDirectory,
+                relayInstallURL: usageFileURL.deletingLastPathComponent()
+                    .appendingPathComponent("bin", isDirectory: true)
+                    .appendingPathComponent(ClaudeStatusLineInstallPlanner.relayFileName)
+            ),
+            reader: ClaudeUsageReader(fileURL: usageFileURL)
         )
     }
 }

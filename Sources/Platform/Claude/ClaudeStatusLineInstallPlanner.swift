@@ -72,6 +72,19 @@ enum ClaudeStatusLineInstallPlanner {
         return .write(settings: try serialize(root), previousCommand: installed.previousCommand)
     }
 
+    /// The `statusLine` entry as sorted, pretty JSON, or nil when there is none.
+    static func statusLineJSON(in settings: Data?) -> String? {
+        guard let root = try? parseSettings(settings),
+              let statusLine = root["statusLine"],
+              let data = try? JSONSerialization.data(
+                  withJSONObject: statusLine,
+                  options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes, .fragmentsAllowed]
+              ) else {
+            return nil
+        }
+        return String(decoding: data, as: UTF8.self)
+    }
+
     static func shellQuote(_ value: String) -> String {
         "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }

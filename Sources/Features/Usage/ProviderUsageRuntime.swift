@@ -1,9 +1,9 @@
 import Foundation
 
-/// Reads non-Codex providers at most once per `refreshInterval` each and keeps their latest reading for the menu.
+/// Reads non-Codex providers at most once per their `refreshInterval` each and keeps their latest reading for the menu.
 @MainActor
 final class ProviderUsageRuntime {
-    static let refreshInterval: TimeInterval = 5 * 60
+    nonisolated static let refreshInterval: TimeInterval = 5 * 60
 
     private let sources: [any UsageProviderSource]
     private let now: () -> Date
@@ -39,7 +39,7 @@ final class ProviderUsageRuntime {
         let startedAt = now()
         let dueSources = sources.filter { source in
             guard let last = lastRefreshStartedAt[source.provider] else { return true }
-            return startedAt.timeIntervalSince(last) >= Self.refreshInterval
+            return startedAt.timeIntervalSince(last) >= source.refreshInterval
         }
         guard !dueSources.isEmpty else { return }
 

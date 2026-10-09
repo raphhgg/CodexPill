@@ -5,8 +5,14 @@ protocol UsageProviderSource: Sendable {
     var provider: UsageProvider { get }
     /// How old a snapshot may be before the menu shows it as stale.
     var staleAfter: TimeInterval { get }
+    /// The shortest time between two reads.
+    var refreshInterval: TimeInterval { get }
 
     func readUsage(now: Date) async -> UsageProviderReading
+}
+
+extension UsageProviderSource {
+    var refreshInterval: TimeInterval { ProviderUsageRuntime.refreshInterval }
 }
 
 enum UsageProviderReading: Equatable, Sendable {

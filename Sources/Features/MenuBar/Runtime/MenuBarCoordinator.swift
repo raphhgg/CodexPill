@@ -91,6 +91,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         }
     )
     private let providerUsageSources: [any UsageProviderSource]
+    private let claudeCodeUsage: ClaudeCodeUsage?
     private lazy var providerUsageRuntime = ProviderUsageRuntime(
         sources: providerUsageSources,
         onChange: { [weak self] in
@@ -139,6 +140,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         diagnosticReportPresenter: DiagnosticReportPresenting,
         tokenUsageProvider: TokenUsageMenuProviding,
         providerUsageSources: [any UsageProviderSource],
+        claudeCodeUsage: ClaudeCodeUsage?,
         allowsEmptyStatePrompt: Bool,
         autoRefreshIntervalOverride: TimeInterval?
     ) {
@@ -167,6 +169,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.diagnosticReportPresenter = diagnosticReportPresenter
         self.tokenUsageProvider = tokenUsageProvider
         self.providerUsageSources = providerUsageSources
+        self.claudeCodeUsage = claudeCodeUsage
         self.allowsEmptyStatePrompt = allowsEmptyStatePrompt
         self.autoRefreshIntervalOverride = autoRefreshIntervalOverride
         self.remoteHostRuntime = RemoteHostRuntime(
@@ -575,6 +578,36 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
                 accountID: accountID
             )
         }
+    }
+
+    @objc
+    func connectClaudeCode() {
+        recordMenuAction("connectClaudeCode")
+        guard let claudeCodeUsage else { return }
+        do {
+            if let change = try claudeCodeUsage.connectionChange() {
+                guard alertPresenter.presentConfirmation(alertFactory.makeConnectClaudeCodeRequest(change: change)) else { return }
+                try claudeCodeUsage.connect(confirming: change)
+            }
+        } catch {
+            alertPresenter.presentInfo(alertFactory.makeClaudeCodeSettingsFailureRequest(error))
+        }
+        refreshProviderUsageIfDue()
+    }
+
+    @objc
+    func disconnectClaudeCode() {
+        recordMenuAction("disconnectClaudeCode")
+        guard let claudeCodeUsage else { return }
+        do {
+            if let change = try claudeCodeUsage.disconnectionChange() {
+                guard alertPresenter.presentConfirmation(alertFactory.makeDisconnectClaudeCodeRequest(change: change)) else { return }
+                try claudeCodeUsage.disconnect(confirming: change)
+            }
+        } catch {
+            alertPresenter.presentInfo(alertFactory.makeClaudeCodeSettingsFailureRequest(error))
+        }
+        refreshProviderUsageIfDue()
     }
 
     @objc
