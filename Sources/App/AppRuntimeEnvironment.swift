@@ -5,23 +5,19 @@ enum AppRuntimeEnvironment {
     static let validationAutoRefreshIntervalSecondsEnvironmentKey = "CODEXPILL_VALIDATION_AUTO_REFRESH_INTERVAL_SECONDS"
     static let validationAppSupportDirectoryEnvironmentKey = "CODEXPILL_VALIDATION_APP_SUPPORT_DIR"
     static let validationUserDefaultsSuiteEnvironmentKey = "CODEXPILL_VALIDATION_USER_DEFAULTS_SUITE"
-    static let validationSettingsFixtureEnvironmentKey = "CODEXPILL_VALIDATION_SETTINGS_FIXTURE"
     static let validationRemoteHostClientEnvironmentKey = "CODEXPILL_VALIDATION_REMOTE_HOST_CLIENT"
     static let validationCodexProcessClientEnvironmentKey = "CODEXPILL_VALIDATION_CODEX_PROCESS_CLIENT"
-    static let validationAllowInteractiveAlertsEnvironmentKey = "CODEXPILL_VALIDATION_ALLOW_INTERACTIVE_ALERTS"
     static let xctestConfigurationFilePathEnvironmentKey = "XCTestConfigurationFilePath"
 
     static func shouldSuppressEmptyStatePrompt(
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) -> Bool {
-        if let rawValue = environment[suppressEmptyStatePromptEnvironmentKey]?
+        guard let rawValue = environment[suppressEmptyStatePromptEnvironmentKey]?
             .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased(),
-           ["1", "true", "yes"].contains(rawValue) {
-            return true
+            .lowercased() else {
+            return false
         }
-
-        return MenuBarValidationConfiguration.makeSink(environment: environment) != nil
+        return ["1", "true", "yes"].contains(rawValue)
     }
 
     static func validationAutoRefreshIntervalSeconds(
@@ -48,13 +44,6 @@ enum AppRuntimeEnvironment {
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) -> String? {
         trimmedURLValue(for: validationUserDefaultsSuiteEnvironmentKey, environment: environment)
-    }
-
-    static func validationSettingsFixtureURL(
-        environment: [String: String] = ProcessInfo.processInfo.environment
-    ) -> URL? {
-        trimmedURLValue(for: validationSettingsFixtureEnvironmentKey, environment: environment)
-            .map(URL.init(fileURLWithPath:))
     }
 
     static func shouldUseValidationRemoteHostClient(
@@ -112,27 +101,6 @@ enum AppRuntimeEnvironment {
         classLookup: (String) -> AnyClass? = NSClassFromString
     ) -> Bool {
         !isRunningAutomatedTests(environment: environment, classLookup: classLookup)
-    }
-
-    static func shouldSuppressInteractiveAlerts(
-        environment: [String: String] = ProcessInfo.processInfo.environment,
-        classLookup: (String) -> AnyClass? = NSClassFromString
-    ) -> Bool {
-        if isRunningAutomatedTests(environment: environment, classLookup: classLookup) {
-            return true
-        }
-
-        let hasValidationSink = MenuBarValidationConfiguration.makeSink(environment: environment) != nil
-
-        if let rawValue = environment[validationAllowInteractiveAlertsEnvironmentKey]?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased(),
-           ["1", "true", "yes"].contains(rawValue),
-           hasValidationSink {
-            return false
-        }
-
-        return hasValidationSink
     }
 
     private static func trimmedURLValue(

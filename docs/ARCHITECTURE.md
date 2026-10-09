@@ -86,7 +86,7 @@ Key boundaries:
 
 It coordinates cache-first loading, scan-task identity, duplicate-scan prevention, progress throttling, and cancellation when Token Usage is disabled. It depends on `Platform/Codex` scanner adapters for local Codex session records, but must not know AppKit menu construction or raw JSONL/session-path details.
 
-`Features/MenuBar` owns menubar runtime, menu-state projection, menu rendering, native alert/panel presentation, status-item behavior, notification delivery mechanics, and validation snapshots.
+`Features/MenuBar` owns menubar runtime, menu-state projection, menu rendering, native alert/panel presentation, status-item behavior, and notification delivery mechanics.
 
 Key boundaries:
 
@@ -197,11 +197,9 @@ App startup builds each store from one `UserDefaults` instance and injects the o
 
 `MenuBarAccountCatalogProjection` owns menu-facing account projection: relinking remote snapshots to saved accounts, resolving display metadata, building availability snapshots, and ordering catalog entries before rendering.
 
-`MenuBarCoordinator` is the menu/application controller. It owns menu rebuilding, selector dispatch, alert/panel presentation, user-response plumbing, validation event recording, wake/timer refresh triggers, and coordination between account, host, notification, and status-item boundaries. Selector handlers and observation callbacks are synchronous, so the coordinator starts their async work through `TrackedTasks`; `MenuBarHostActionCoordinator`, `MenuBarNotificationWorkflow`, and `RemoteHostRuntime.refreshAll` stay `async` and never start detached work of their own. Tests call `waitForPendingWork()` instead of sleeping.
+`MenuBarCoordinator` is the menu/application controller. It owns menu rebuilding, selector dispatch, alert/panel presentation, user-response plumbing, wake/timer refresh triggers, and coordination between account, host, notification, and status-item boundaries. Selector handlers and observation callbacks are synchronous, so the coordinator starts their async work through `TrackedTasks`; `MenuBarHostActionCoordinator`, `MenuBarNotificationWorkflow`, and `RemoteHostRuntime.refreshAll` stay `async` and never start detached work of their own. Tests call `waitForPendingWork()` instead of sleeping.
 
 `MenuBarHostActionCoordinator` is the menubar runtime boundary for host-specific user actions. It owns add-host, remove-host, reverify-host, adopt-detected-account, and switch-account-on-host sequencing while `MenuBarCoordinator` keeps AppKit selector entry points and menu rebuild callbacks.
-
-`MenuBarValidationObserver` is observer instrumentation for menubar validation. It owns translation from runtime events to validation event names, invariant IDs, payload sanitization, menu snapshot/action-trace recording, and file sink forwarding. Production coordinators should call semantic observer methods only; they should not know validation artifact formats. The observer is disabled/no-op in normal production paths when validation configuration is absent.
 
 `MenuBarNotificationWorkflow` is the menubar runtime boundary for account-availability notification orchestration. It owns previous availability snapshot tracking, authorization-state refresh interaction, policy evaluation, payload/action rendering, stale notification response resolution, dedupe state updates, and re-evaluation scheduling callbacks. It delegates local account switching, remote host switching, alert presentation, app activation, and refresh execution back to coordinator-owned runtime collaborators; it uses `AccountAvailabilityNotifications` for account-centric policy and `AccountAvailabilityNotificationRuntime` for macOS delivery mechanics.
 

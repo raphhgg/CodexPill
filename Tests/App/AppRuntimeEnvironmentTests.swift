@@ -32,13 +32,11 @@ struct AppRuntimeEnvironmentTests {
     func validationOverridesReadTrimmedPathsAndSuiteNames() {
         let environment = [
             AppRuntimeEnvironment.validationAppSupportDirectoryEnvironmentKey: " /tmp/codexpill-validation ",
-            AppRuntimeEnvironment.validationUserDefaultsSuiteEnvironmentKey: " validation-suite ",
-            AppRuntimeEnvironment.validationSettingsFixtureEnvironmentKey: " /tmp/settings.json "
+            AppRuntimeEnvironment.validationUserDefaultsSuiteEnvironmentKey: " validation-suite "
         ]
 
         #expect(AppRuntimeEnvironment.validationAppSupportDirectory(environment: environment)?.path == "/tmp/codexpill-validation")
         #expect(AppRuntimeEnvironment.validationUserDefaultsSuiteName(environment: environment) == "validation-suite")
-        #expect(AppRuntimeEnvironment.validationSettingsFixtureURL(environment: environment)?.path == "/tmp/settings.json")
     }
 
     @Test
@@ -135,45 +133,6 @@ struct AppRuntimeEnvironmentTests {
         #expect(
             AppRuntimeEnvironment.shouldStartAppRuntime(
                 environment: [:],
-                classLookup: { _ in nil }
-            )
-        )
-    }
-
-    @Test
-    func interactiveAlertsAreSuppressedDuringAutomatedTests() {
-        let environment = [
-            AppRuntimeEnvironment.xctestConfigurationFilePathEnvironmentKey: "/tmp/test.xctestconfiguration"
-        ]
-
-        #expect(AppRuntimeEnvironment.shouldSuppressInteractiveAlerts(environment: environment))
-    }
-
-    @Test
-    func validationInteractiveAlertOverrideDoesNotBypassAutomatedTests() {
-        let environment = [
-            AppRuntimeEnvironment.validationAllowInteractiveAlertsEnvironmentKey: "true",
-            AppRuntimeEnvironment.xctestConfigurationFilePathEnvironmentKey: "/tmp/test.xctestconfiguration"
-        ]
-
-        #expect(
-            AppRuntimeEnvironment.shouldSuppressInteractiveAlerts(
-                environment: environment,
-                classLookup: { _ in nil }
-            )
-        )
-    }
-
-    @Test
-    func validationInteractiveAlertOverrideAllowsNonXCTestLiveSmokeLaunches() {
-        let environment = [
-            AppRuntimeEnvironment.validationAllowInteractiveAlertsEnvironmentKey: "true",
-            MenuBarValidationConfiguration.outputPathEnvironmentKey: "/tmp/codexpill-live-menu.json"
-        ]
-
-        #expect(
-            !AppRuntimeEnvironment.shouldSuppressInteractiveAlerts(
-                environment: environment,
                 classLookup: { _ in nil }
             )
         )

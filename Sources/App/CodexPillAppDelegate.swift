@@ -14,7 +14,6 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
             .flatMap(UserDefaults.init(suiteName:))
             ?? .standard
         let remoteHostSettings = RemoteHostSettingsStore(userDefaults: defaults)
-        ValidationAppBootstrap.applyFixtureIfPresent(to: remoteHostSettings, environment: environment)
 
         guard AppRuntimeEnvironment.shouldStartAppRuntime(environment: environment) else {
             return

@@ -21,8 +21,6 @@ extension MenuBarCoordinator {
             cacheFile: FileManager.default.temporaryDirectory
                 .appendingPathComponent("CodexPillTests-\(ProcessInfo.processInfo.processIdentifier)/Caches/token-usage-cache.json")
         ),
-        validationSink: MenuBarValidationSink? = nil,
-        validationScenario: String? = MenuBarValidationConfiguration.scenario(),
         allowsEmptyStatePrompt: Bool = true,
         autoRefreshIntervalOverride: TimeInterval? = nil
     ) -> MenuBarCoordinator {
@@ -48,7 +46,6 @@ extension MenuBarCoordinator {
             loginItemsSettingsLauncher: loginItemsSettingsLauncher,
             diagnosticReportPresenter: diagnosticReportPresenter,
             tokenUsageProvider: tokenUsageProvider,
-            validationObserver: MenuBarValidationObserver(sink: validationSink, scenario: validationScenario),
             allowsEmptyStatePrompt: allowsEmptyStatePrompt,
             autoRefreshIntervalOverride: autoRefreshIntervalOverride
         )

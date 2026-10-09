@@ -18,8 +18,7 @@ final class MenuBarHostActionCoordinator {
     private let alertPresenter: AlertPresenter
     private let panelPresenter: PanelPresenter
     private let alertFactory: MenuBarAlertFactory
-    private let validationObserver: MenuBarValidationObserver
-    private let recordMenuAction: (String, [String: String]) -> Void
+    private let recordMenuAction: (String) -> Void
     private let rebuildMenu: () -> Void
     private let cancelMenuTracking: () -> Void
 
@@ -31,8 +30,7 @@ final class MenuBarHostActionCoordinator {
         alertPresenter: AlertPresenter,
         panelPresenter: PanelPresenter,
         alertFactory: MenuBarAlertFactory,
-        validationObserver: MenuBarValidationObserver,
-        recordMenuAction: @escaping (String, [String: String]) -> Void,
+        recordMenuAction: @escaping (String) -> Void,
         rebuildMenu: @escaping () -> Void,
         cancelMenuTracking: @escaping () -> Void
     ) {
@@ -43,7 +41,6 @@ final class MenuBarHostActionCoordinator {
         self.alertPresenter = alertPresenter
         self.panelPresenter = panelPresenter
         self.alertFactory = alertFactory
-        self.validationObserver = validationObserver
         self.recordMenuAction = recordMenuAction
         self.rebuildMenu = rebuildMenu
         self.cancelMenuTracking = cancelMenuTracking
@@ -57,25 +54,16 @@ final class MenuBarHostActionCoordinator {
             return
         }
 
-        recordMenuAction("switchAccountOnHost", [
-            "targetName": account.name,
-            "hostName": remoteHost.displayName
-        ])
-        validationObserver.recordRemoteHostSwitchMenuAction(
-            targetName: account.name,
-            hostName: remoteHost.displayName
-        )
+        recordMenuAction("switchAccountOnHost")
         remoteHostRuntime.beginHostSwitch(to: account, on: remoteHost)
         rebuildMenu()
         let result = await store.switchToAccountOnHost(account, on: remoteHost)
         remoteHostRuntime.applySwitchOutcome(result, account: account, host: remoteHost)
-        recordSwitchResult(result, account: account, host: remoteHost)
         rebuildMenu()
     }
 
     func addHost() async {
-        recordMenuAction("addHost", [:])
-        validationObserver.recordAddHostMenuAction()
+        recordMenuAction("addHost")
         guard let remoteHost = await panelPresenter.presentHostSetup(
             alertFactory.makeAddHostRequest(),
             testConnection: { [weak self] host in
@@ -88,18 +76,6 @@ final class MenuBarHostActionCoordinator {
                 } catch {
                     return .failure(error)
                 }
-            },
-            onPresented: { [weak self] in
-                self?.validationObserver.recordAddHostSetupPresented()
-            },
-            onCancelled: { [weak self] in
-                self?.validationObserver.recordAddHostSetupCancelled()
-            },
-            onValidationStarted: { [weak self] host in
-                self?.validationObserver.recordAddHostValidationStarted(host: host)
-            },
-            onValidationFinished: { [weak self] host, result in
-                self?.validationObserver.recordAddHostValidationFinished(host: host, result: result)
             }
         ) else {
             return
@@ -111,7 +87,7 @@ final class MenuBarHostActionCoordinator {
     func removeHost(hostDestination: String) {
         guard let hostState = settings.remoteHostState(for: hostDestination) else { return }
         let remoteHost = hostState.host
-        recordMenuAction("removeHost", ["hostName": remoteHost.displayName])
+        recordMenuAction("removeHost")
         guard alertPresenter.presentConfirmation(alertFactory.makeRemoveHostRequest(hostName: remoteHost.displayName)) else {
             return
         }
@@ -134,28 +110,13 @@ final class MenuBarHostActionCoordinator {
         guard let baseAccount = remoteHostRuntime.beginReverification(hostState: hostState) else { return }
         cancelMenuTracking()
 
-        recordMenuAction("reverifyHost", [
-            "hostName": hostState.host.displayName,
-            "accountName": baseAccount.name
-        ])
-        validationObserver.recordRemoteHostReverifyStarted(
-            hostName: hostState.host.displayName,
-            accountName: baseAccount.name
-        )
-
+        recordMenuAction("reverifyHost")
         rebuildMenu()
 
         await remoteHostRuntime.refresh(
             host: hostState.host,
             baseAccount: baseAccount,
             fallbackConnectionState: .disconnected
-        )
-
-        let refreshedState = settings.remoteHostState(for: hostState.host.destination)
-        validationObserver.recordRemoteHostReverifyResult(
-            succeeded: refreshedState?.verificationStatus == .verified,
-            hostName: hostState.host.displayName,
-            accountName: baseAccount.name
         )
         rebuildMenu()
     }
@@ -169,10 +130,7 @@ final class MenuBarHostActionCoordinator {
         }
         cancelMenuTracking()
 
-        recordMenuAction("adoptDetectedRemoteAccount", [
-            "hostName": hostState.host.displayName,
-            "accountName": detectedAccount.name
-        ])
+        recordMenuAction("adoptDetectedRemoteAccount")
         rebuildMenu()
 
         await remoteHostRuntime.refresh(
@@ -185,9 +143,6 @@ final class MenuBarHostActionCoordinator {
 
     private func installActiveAccountOnNewHost(_ remoteHost: RemoteHost) async {
         guard let activeAccount = store.activeAccount else {
-            validationObserver.recordAddHostAccountSetupUnavailable(
-                hostName: remoteHost.displayName
-            )
             rebuildMenu()
             return
         }
@@ -200,9 +155,6 @@ final class MenuBarHostActionCoordinator {
         )
 
         guard shouldInstallCurrentAccount else {
-            validationObserver.recordAddHostAccountSetupCancelled(
-                hostName: remoteHost.displayName
-            )
             rebuildMenu()
             return
         }
@@ -222,13 +174,5 @@ final class MenuBarHostActionCoordinator {
             recordsInstalledAccountOnFailure: true
         )
         rebuildMenu()
-    }
-
-    private func recordSwitchResult(
-        _ result: AccountsController.RemoteHostSwitchOutcome,
-        account: CodexAccount,
-        host remoteHost: RemoteHost
-    ) {
-        validationObserver.recordRemoteHostSwitchResult(result, account: account, host: remoteHost)
     }
 }

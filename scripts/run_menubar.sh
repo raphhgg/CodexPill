@@ -9,14 +9,10 @@ APP_NAME="CodexPill"
 AGENT_NAME="${AGENT_NAME:-local}"
 DERIVED_DATA="build/DerivedData/${AGENT_NAME}"
 APP_PATH="${DERIVED_DATA}/Build/Products/Debug/${APP_NAME}.app"
-APP_EXECUTABLE="${APP_PATH}/Contents/MacOS/${APP_NAME}"
 PROJECT_PATH="${APP_NAME}.xcodeproj"
 LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
 BUILD_VERSION="$(date +%Y%m%d%H%M%S)"
 BUNDLE_ID_OVERRIDE="${CODEXPILL_BUNDLE_ID:-com.raphhgg.codexpill.dev}"
-VALIDATION_OUTPUT="${CODEXPILL_VALIDATION_OUTPUT:-}"
-VALIDATION_EVENTS_OUTPUT="${CODEXPILL_VALIDATION_EVENTS_OUTPUT:-}"
-VALIDATION_SCENARIO="${CODEXPILL_VALIDATION_SCENARIO:-}"
 
 command -v tuist >/dev/null || {
   echo "Tuist is not installed. Install it first."
@@ -84,15 +80,6 @@ if [[ -x "${LSREGISTER}" ]]; then
   # Notification Center resolves sender icons through LaunchServices. Force the
   # freshly built bundle to win over stale debug builds with the same bundle id.
   "${LSREGISTER}" -f "${APP_PATH}" >/dev/null 2>&1 || true
-fi
-
-if [[ -n "${VALIDATION_OUTPUT}" ]]; then
-  CODEXPILL_VALIDATION_OUTPUT="${VALIDATION_OUTPUT}" \
-  CODEXPILL_VALIDATION_EVENTS_OUTPUT="${VALIDATION_EVENTS_OUTPUT}" \
-  CODEXPILL_VALIDATION_SCENARIO="${VALIDATION_SCENARIO}" \
-  CODEXPILL_SUPPRESS_EMPTY_STATE_PROMPT=1 \
-  "${APP_EXECUTABLE}" &
-  exit 0
 fi
 
 open "${APP_PATH}"

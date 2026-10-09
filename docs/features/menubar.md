@@ -65,4 +65,4 @@ If `statusMessage` is visible, it appears below App Controls and above `Quit`.
 
 ## Validation Notes
 
-Menu UI validation should assert section ordering, direct-row versus submenu placement, action wiring, disabled states during busy work, and the presence or absence of optional sections.
+Menu tests build the `NSMenu` with `MenuBarMenuBuilder` and assert section ordering, direct-row versus submenu placement, action wiring, disabled states during busy work, and the presence or absence of optional sections. Coordinator flow tests live in `MenuBarCoordinatorTests`.

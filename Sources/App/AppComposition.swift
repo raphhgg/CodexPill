@@ -7,7 +7,7 @@ struct AppComposition {
 
     init(environment: [String: String], defaults: UserDefaults, remoteHostSettings: RemoteHostSettingsStore) {
         let isolatedRootDirectory = AppRuntimeEnvironment.isolatedAppSupportDirectory(environment: environment)
-        let suppressesInteractivePrompts = AppRuntimeEnvironment.shouldSuppressInteractiveAlerts(environment: environment)
+        let suppressesInteractivePrompts = AppRuntimeEnvironment.isRunningAutomatedTests(environment: environment)
         let repository = try! AccountRepository(isolatedRootDirectory: isolatedRootDirectory)
         let authService = CodexAuthSnapshotService(repository: repository)
         let processClient: CodexAppProcessClient = AppRuntimeEnvironment.shouldUseValidationCodexProcessClient(environment: environment)
@@ -50,10 +50,6 @@ struct AppComposition {
             diagnosticReportPresenter: SystemDiagnosticReportPresenter(),
             tokenUsageProvider: LocalCodexSessionTokenUsageMenuProvider(
                 cacheFile: AppPaths.tokenUsageCacheFile(isolatedRootDirectory: isolatedRootDirectory)
-            ),
-            validationObserver: MenuBarValidationObserver(
-                sink: MenuBarValidationConfiguration.makeSink(environment: environment),
-                scenario: MenuBarValidationConfiguration.scenario(environment: environment)
             ),
             allowsEmptyStatePrompt: !AppRuntimeEnvironment.shouldSuppressEmptyStatePrompt(environment: environment),
             autoRefreshIntervalOverride: AppRuntimeEnvironment.validationAutoRefreshIntervalSeconds(environment: environment)

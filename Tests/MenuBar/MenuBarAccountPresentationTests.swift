@@ -327,6 +327,11 @@ struct MenuBarAccountPresentationTests {
     }
 
     @Test
+    func compactMenuRowUsageSummaryShowsDashesWhenRateLimitsAreMissing() {
+        #expect(compactMenuRowUsageSummary(for: makeAccount(name: "Research", rateLimits: nil)) == "S --  W --")
+    }
+
+    @Test
     func compactMenuRowUsageSummaryOmitsResetCountdownsForUnusedLimits() {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
         let account = CodexAccount(

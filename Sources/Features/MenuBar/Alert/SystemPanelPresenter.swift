@@ -17,25 +17,14 @@ final class SystemPanelPresenter {
 extension SystemPanelPresenter: PanelPresenter {
     func presentHostSetup(
         _ request: MenuBarHostSetupPanelRequest,
-        testConnection: @escaping (RemoteHost) async -> Result<Void, Error>,
-        onPresented: @escaping () -> Void = {},
-        onCancelled: @escaping () -> Void = {},
-        onValidationStarted: @escaping (RemoteHost) -> Void = { _ in },
-        onValidationFinished: @escaping (RemoteHost, Result<Void, Error>) -> Void = { _, _ in }
+        testConnection: @escaping (RemoteHost) async -> Result<Void, Error>
     ) async -> RemoteHost? {
-        guard !suppressesInteractivePrompts else {
-            onCancelled()
-            return nil
-        }
+        guard !suppressesInteractivePrompts else { return nil }
 
         let controller = AddHostPanelController(
             request: request,
             panelWindowFactory: panelWindowFactory,
-            testConnection: testConnection,
-            onPresented: onPresented,
-            onCancelled: onCancelled,
-            onValidationStarted: onValidationStarted,
-            onValidationFinished: onValidationFinished
+            testConnection: testConnection
         )
         let result = await controller.runModal()
         // Give AppKit one pass to remove the setup panel before a follow-up

@@ -20,8 +20,7 @@ struct MenuBarHostActionCoordinatorTests {
         #expect(hostState.desiredAccountID == account.id)
         #expect(hostState.verifiedAccount?.id == account.id)
         #expect(hostState.verificationStatus == .verified)
-        #expect(harness.menuActions.map(\.name) == ["switchAccountOnHost"])
-        #expect(harness.validationSink.events.contains { $0.event == "remote_host_active_account_changed" })
+        #expect(harness.menuActions == ["switchAccountOnHost"])
     }
 
     @Test
@@ -64,7 +63,7 @@ struct MenuBarHostActionCoordinatorTests {
         #expect(alertPresenter.confirmationRequests.count == 1)
         #expect(harness.settings.remoteHostState(for: host.destination) == nil)
         #expect(harness.rebuildCount == 1)
-        #expect(harness.menuActions.map(\.name) == ["removeHost"])
+        #expect(harness.menuActions == ["removeHost"])
     }
 
     @Test
@@ -88,7 +87,6 @@ struct MenuBarHostActionCoordinatorTests {
         #expect(hostState.verificationStatus == .verified)
         #expect(hostState.verifiedAccount?.id == account.id)
         #expect(harness.cancelMenuTrackingCount == 1)
-        #expect(harness.validationSink.events.contains { $0.event == "remote_host_reverify_succeeded" })
     }
 
     @Test
@@ -121,7 +119,7 @@ struct MenuBarHostActionCoordinatorTests {
         #expect(hostState.detectedAccountID == nil)
         #expect(hostState.verificationStatus == .verified)
         #expect(harness.cancelMenuTrackingCount == 1)
-        #expect(harness.menuActions.map(\.name) == ["adoptDetectedRemoteAccount"])
+        #expect(harness.menuActions == ["adoptDetectedRemoteAccount"])
     }
 
     private func makeHarness(
@@ -147,10 +145,9 @@ private final class MenuBarHostActionCoordinatorHarness {
     let settings: RemoteHostSettingsStore
     var coordinator: MenuBarHostActionCoordinator!
 
-    private(set) var menuActions: [MenuActionRecord] = []
+    private(set) var menuActions: [String] = []
     private(set) var rebuildCount = 0
     private(set) var cancelMenuTrackingCount = 0
-    let validationSink = ValidationSinkProbe()
 
     private let suiteName = "MenuBarHostActionCoordinatorTests-\(UUID().uuidString)"
 
@@ -180,12 +177,8 @@ private final class MenuBarHostActionCoordinatorHarness {
             alertPresenter: alertPresenter,
             panelPresenter: panelPresenter,
             alertFactory: MenuBarAlertFactory(),
-            validationObserver: MenuBarValidationObserver(
-                sink: validationSink,
-                scenario: "host-action-coordinator-tests"
-            ),
-            recordMenuAction: { [weak self] name, payload in
-                self?.menuActions.append(MenuActionRecord(name: name, payload: payload))
+            recordMenuAction: { [weak self] name in
+                self?.menuActions.append(name)
             },
             rebuildMenu: { [weak self] in
                 self?.rebuildCount += 1
@@ -227,22 +220,4 @@ private final class MenuBarHostActionStoreProbe: MenuBarHostActionAccountsStore 
 private struct RemoteSwitchCall: Equatable {
     let account: CodexAccount
     let host: RemoteHost
-}
-
-private struct MenuActionRecord: Equatable {
-    let name: String
-    let payload: [String: String]
-}
-
-private final class ValidationSinkProbe: @unchecked Sendable, MenuBarValidationSink {
-    private(set) var snapshots: [MenuBarValidationSnapshot] = []
-    private(set) var events: [MenuBarValidationEvent] = []
-
-    func record(_ snapshot: MenuBarValidationSnapshot) throws {
-        snapshots.append(snapshot)
-    }
-
-    func record(_ event: MenuBarValidationEvent) throws {
-        events.append(event)
-    }
 }

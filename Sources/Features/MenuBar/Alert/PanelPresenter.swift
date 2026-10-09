@@ -4,11 +4,7 @@ import Foundation
 protocol PanelPresenter {
     func presentHostSetup(
         _ request: MenuBarHostSetupPanelRequest,
-        testConnection: @escaping (RemoteHost) async -> Result<Void, Error>,
-        onPresented: @escaping () -> Void,
-        onCancelled: @escaping () -> Void,
-        onValidationStarted: @escaping (RemoteHost) -> Void,
-        onValidationFinished: @escaping (RemoteHost, Result<Void, Error>) -> Void
+        testConnection: @escaping (RemoteHost) async -> Result<Void, Error>
     ) async -> RemoteHost?
     func presentAddAccountSignIn(
         _ request: MenuBarAddAccountSignInPanelRequest,

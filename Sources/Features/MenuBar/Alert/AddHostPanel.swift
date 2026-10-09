@@ -7,8 +7,6 @@ final class AddHostPanelController: NSObject, NSWindowDelegate {
     private let request: MenuBarHostSetupPanelRequest
     private let panelWindowFactory: PanelWindowFactory
     private let model: AddHostPanelModel
-    private let onPresented: () -> Void
-    private let onCancelled: () -> Void
 
     private var completion: CheckedContinuation<RemoteHost?, Never>?
     private var isFinishing = false
@@ -26,22 +24,11 @@ final class AddHostPanelController: NSObject, NSWindowDelegate {
     init(
         request: MenuBarHostSetupPanelRequest,
         panelWindowFactory: PanelWindowFactory,
-        testConnection: @escaping (RemoteHost) async -> Result<Void, Error>,
-        onPresented: @escaping () -> Void,
-        onCancelled: @escaping () -> Void,
-        onValidationStarted: @escaping (RemoteHost) -> Void,
-        onValidationFinished: @escaping (RemoteHost, Result<Void, Error>) -> Void
+        testConnection: @escaping (RemoteHost) async -> Result<Void, Error>
     ) {
         self.request = request
         self.panelWindowFactory = panelWindowFactory
-        self.model = AddHostPanelModel(
-            request: request,
-            testConnection: testConnection,
-            onValidationStarted: onValidationStarted,
-            onValidationFinished: onValidationFinished
-        )
-        self.onPresented = onPresented
-        self.onCancelled = onCancelled
+        self.model = AddHostPanelModel(request: request, testConnection: testConnection)
         super.init()
     }
 
@@ -51,14 +38,12 @@ final class AddHostPanelController: NSObject, NSWindowDelegate {
             NSApp.activate(ignoringOtherApps: true)
             panel.center()
             panel.makeKeyAndOrderFront(nil)
-            onPresented()
         }
     }
 
     func windowWillClose(_ notification: Notification) {
         guard !isFinishing, completion != nil else { return }
         model.cancelValidation()
-        onCancelled()
         finish(with: nil)
     }
 
@@ -73,7 +58,6 @@ final class AddHostPanelController: NSObject, NSWindowDelegate {
 
     private func cancel() {
         model.cancelValidation()
-        onCancelled()
         finish(with: nil)
     }
 
@@ -105,22 +89,16 @@ private final class AddHostPanelModel: ObservableObject {
     @Published private(set) var formState: MenuBarHostSetupFormState
 
     private let testConnection: (RemoteHost) async -> Result<Void, Error>
-    private let onValidationStarted: (RemoteHost) -> Void
-    private let onValidationFinished: (RemoteHost, Result<Void, Error>) -> Void
     private let validationDelay: Duration = .milliseconds(600)
     private var validationTask: Task<Void, Never>?
     private var validationGeneration = 0
 
     init(
         request: MenuBarHostSetupPanelRequest,
-        testConnection: @escaping (RemoteHost) async -> Result<Void, Error>,
-        onValidationStarted: @escaping (RemoteHost) -> Void,
-        onValidationFinished: @escaping (RemoteHost, Result<Void, Error>) -> Void
+        testConnection: @escaping (RemoteHost) async -> Result<Void, Error>
     ) {
         self.formState = MenuBarHostSetupFormState(destination: "", idleStatusText: request.idleStatusText)
         self.testConnection = testConnection
-        self.onValidationStarted = onValidationStarted
-        self.onValidationFinished = onValidationFinished
     }
 
     var canSubmit: Bool {
@@ -187,7 +165,6 @@ private final class AddHostPanelModel: ObservableObject {
                 guard generation == self.validationGeneration else { return }
                 guard self.formState.trimmedDestination == host.destination else { return }
                 self.formState.beginTesting()
-                self.onValidationStarted(host)
             }
 
             let result = await self.testConnection(host).map { host }
@@ -197,7 +174,6 @@ private final class AddHostPanelModel: ObservableObject {
                 guard generation == self.validationGeneration else { return }
                 guard self.formState.trimmedDestination == host.destination else { return }
                 self.formState.finishTesting(with: result)
-                self.onValidationFinished(host, result.map { _ in () })
             }
         }
     }
@@ -283,9 +259,6 @@ private struct AddHostPanel: View {
         .frame(width: 520)
         .onAppear {
             focusedField = .destination
-            if ProcessInfo.processInfo.environment["CODEXPILL_VALIDATION_SCENARIO"] == "live-add-host-destination-validation-failed" {
-                model.destination = "codexpill-validation.invalid"
-            }
         }
     }
 
