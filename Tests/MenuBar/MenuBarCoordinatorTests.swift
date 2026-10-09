@@ -24,6 +24,38 @@ struct MenuBarCoordinatorTests {
         #expect(harness.accountsController.accounts.isEmpty)
         #expect(!FileManager.default.fileExists(atPath: harness.repository.paths.codexAuthFile.path))
     }
+
+    @Test
+    func fullyUsedProviderDoesNotChangeAccountRanking() async throws {
+        let harness = try MenuBarCoordinatorHarness()
+        defer { harness.tearDown() }
+        let now = Date()
+        var personal = try harness.makeActiveAccount(named: "Personal", email: "personal@example.com")
+        personal.usage = makeUsage(resettingAfter: now, sessionUsedPercent: 20, weeklyUsedPercent: 20)
+        let busier = makeAccount(name: "Business 1", usage: makeUsage(resettingAfter: now, sessionUsedPercent: 30, weeklyUsedPercent: 30))
+        let quieter = makeAccount(name: "Business 2", usage: makeUsage(resettingAfter: now, sessionUsedPercent: 10, weeklyUsedPercent: 10))
+        try harness.repository.saveAccounts([personal, busier, quieter])
+        let claudeUsage = UsageSnapshot(
+            provider: .claude,
+            planName: nil,
+            windows: [
+                UsageWindow(kind: .session, usedPercent: 100, resetsAt: now.addingTimeInterval(3_600), durationMinutes: 300),
+                UsageWindow(kind: .weekly, usedPercent: 100, resetsAt: now.addingTimeInterval(86_400), durationMinutes: 10_080)
+            ],
+            fetchedAt: now
+        )
+        let coordinator = harness.makeCoordinator(
+            providerUsageSources: [UsageProviderSourceProbe(provider: .claude, reading: .snapshot(claudeUsage))]
+        )
+
+        coordinator.start()
+        await coordinator.waitForPendingWork()
+
+        let state = coordinator.menuState()
+        #expect(state.providerUsage == [ProviderUsageState(provider: .claude, status: .current(claudeUsage))])
+        #expect(state.activeAccount?.name == "Personal")
+        #expect(state.inactiveAccounts.map(\.name) == ["Business 2", "Business 1"])
+    }
 }
 
 @MainActor
@@ -45,7 +77,7 @@ private final class MenuBarCoordinatorHarness {
         settings = SettingsStores(userDefaults: UserDefaults(suiteName: suiteName)!)
     }
 
-    func makeCoordinator() -> MenuBarCoordinator {
+    func makeCoordinator(providerUsageSources: [any UsageProviderSource] = []) -> MenuBarCoordinator {
         accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
@@ -60,6 +92,7 @@ private final class MenuBarCoordinatorHarness {
             settings: settings,
             alertPresenter: alertPresenter,
             panelPresenter: panelPresenter,
+            providerUsageSources: providerUsageSources,
             allowsEmptyStatePrompt: false
         )
         self.coordinator = coordinator
