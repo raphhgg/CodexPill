@@ -167,6 +167,94 @@ struct AccountsControllerTests {
     }
 
     @Test
+    func refreshInactiveSavedAccountsMetadataRefreshesExistingRateLimits() async throws {
+        let active = makeAccount(name: "Personal", fingerprint: "live-fingerprint")
+        var inactive = makeAccount(name: "Backup", fingerprint: "backup-fingerprint")
+        inactive.rateLimits = makeRateLimitsSnapshot()
+        let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [active, inactive])
+        let identityResolver = SavedAccountIdentityResolver(
+            liveIdentitySource: CurrentIdentityFixture(fingerprint: "live-fingerprint"),
+            storedAccountReconciler: StoredIdentityAdapter()
+        )
+        let authService = IsolatedAddAccountAuthProbe(
+            currentFingerprint: "live-fingerprint",
+            capturedFingerprint: "unused"
+        )
+        let refreshedRateLimits = CodexRateLimitSnapshot(
+            limitID: "codex",
+            limitName: nil,
+            planType: "pro",
+            primary: CodexRateLimitWindow(
+                usedPercent: 70,
+                resetsAt: Date(timeIntervalSince1970: 1_776_256_138),
+                windowDurationMinutes: 300
+            ),
+            secondary: CodexRateLimitWindow(
+                usedPercent: 30,
+                resetsAt: Date(timeIntervalSince1970: 1_776_842_938),
+                windowDurationMinutes: 10_080
+            ),
+            fetchedAt: Date(timeIntervalSince1970: 1_776_300_000)
+        )
+        let savedStatusClient = SavedAccountStatusFixture(statusBySnapshot: [
+            "backup-fingerprint": CodexAccountStatus(
+                email: "backup@example.com",
+                planType: "pro",
+                rateLimits: refreshedRateLimits
+            )
+        ])
+        let controller = makeController(
+            repository: repository,
+            identityResolver: identityResolver,
+            authService: authService,
+            savedAccountStatusClient: savedStatusClient
+        )
+
+        controller.load()
+        await controller.refreshInactiveSavedAccountsMetadata()
+
+        let refreshedBackup = try #require(controller.accounts.first(where: { $0.id == inactive.id }))
+        #expect(savedStatusClient.readSnapshots == [Data("backup-fingerprint".utf8)])
+        #expect(refreshedBackup.rateLimits == refreshedRateLimits)
+        #expect(refreshedBackup.email == "backup@example.com")
+        #expect(refreshedBackup.planType == "pro")
+    }
+
+    @Test
+    func refreshInactiveSavedAccountsMetadataRunsAtMostEveryFifteenMinutes() async throws {
+        let active = makeAccount(name: "Personal", fingerprint: "live-fingerprint")
+        var inactive = makeAccount(name: "Backup", fingerprint: "backup-fingerprint")
+        inactive.rateLimits = makeRateLimitsSnapshot()
+        let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [active, inactive])
+        let identityResolver = SavedAccountIdentityResolver(
+            liveIdentitySource: CurrentIdentityFixture(fingerprint: "live-fingerprint"),
+            storedAccountReconciler: StoredIdentityAdapter()
+        )
+        let savedStatusClient = SavedAccountStatusFixture(statusBySnapshot: [:])
+        var now = Date(timeIntervalSince1970: 1_776_300_000)
+        let controller = makeController(
+            repository: repository,
+            identityResolver: identityResolver,
+            authService: IsolatedAddAccountAuthProbe(currentFingerprint: "live-fingerprint", capturedFingerprint: "unused"),
+            savedAccountStatusClient: savedStatusClient,
+            now: { now }
+        )
+        let backupSnapshot = Data("backup-fingerprint".utf8)
+
+        controller.load()
+        await controller.refreshInactiveSavedAccountsMetadata()
+        now += 14 * 60
+        await controller.refreshInactiveSavedAccountsMetadata()
+
+        #expect(savedStatusClient.readSnapshots == [backupSnapshot])
+
+        now += 60
+        await controller.refreshInactiveSavedAccountsMetadata()
+
+        #expect(savedStatusClient.readSnapshots == [backupSnapshot, backupSnapshot])
+    }
+
+    @Test
     func switchToAccountOnHostReportsVerificationMismatchAsPendingError() async {
         let target = CodexAccount(
             id: UUID(),
@@ -492,7 +580,8 @@ struct AccountsControllerTests {
         savedAccountStatusClient: SavedCodexAccountStatusClient = DisabledAccountStatusClient(),
         isolatedLoginClient: IsolatedCodexLoginClient = IsolatedAddAccountLoginClientProbe(
             session: IsolatedAddAccountLoginSessionProbe(authData: Data())
-        )
+        ),
+        now: @escaping () -> Date = Date.init
     ) -> AccountsController {
         AccountsController(
             identityResolver: identityResolver,
@@ -529,7 +618,8 @@ struct AccountsControllerTests {
                 repository: repository,
                 identityResolver: identityResolver,
                 isolatedLoginClient: isolatedLoginClient
-            )
+            ),
+            now: now
         )
     }
 
@@ -810,13 +900,13 @@ private final class SavedAccountStatusFixture: SavedCodexAccountStatusClient, @u
         self.statusBySnapshot = statusBySnapshot
     }
 
-    func readSavedAccountStatus(authData: Data) async throws -> CodexAccountStatus {
+    func readSavedAccountStatus(authData: Data) async -> SavedCodexAccountStatusRead {
         readSnapshots.append(authData)
         let snapshot = String(decoding: authData, as: UTF8.self)
         guard let status = statusBySnapshot[snapshot] else {
-            throw NSError(domain: "SavedAccountStatusFixture", code: 1)
+            return SavedCodexAccountStatusRead(status: .failure(NSError(domain: "SavedAccountStatusFixture", code: 1)), rotatedAuthData: nil)
         }
-        return status
+        return SavedCodexAccountStatusRead(status: .success(status), rotatedAuthData: nil)
     }
 }
 
