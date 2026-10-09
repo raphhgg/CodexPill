@@ -221,6 +221,40 @@ struct AccountsControllerTests {
     }
 
     @Test
+    func refreshInactiveSavedAccountsMetadataRunsAtMostEveryFifteenMinutes() async throws {
+        let active = makeAccount(name: "Personal", fingerprint: "live-fingerprint")
+        var inactive = makeAccount(name: "Backup", fingerprint: "backup-fingerprint")
+        inactive.rateLimits = makeRateLimitsSnapshot()
+        let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [active, inactive])
+        let identityResolver = SavedAccountIdentityResolver(
+            liveIdentitySource: CurrentIdentityFixture(fingerprint: "live-fingerprint"),
+            storedAccountReconciler: StoredIdentityAdapter()
+        )
+        let savedStatusClient = SavedAccountStatusFixture(statusBySnapshot: [:])
+        var now = Date(timeIntervalSince1970: 1_776_300_000)
+        let controller = makeController(
+            repository: repository,
+            identityResolver: identityResolver,
+            authService: IsolatedAddAccountAuthProbe(currentFingerprint: "live-fingerprint", capturedFingerprint: "unused"),
+            savedAccountStatusClient: savedStatusClient,
+            now: { now }
+        )
+        let backupSnapshot = Data("backup-fingerprint".utf8)
+
+        controller.load()
+        await controller.refreshInactiveSavedAccountsMetadata()
+        now += 14 * 60
+        await controller.refreshInactiveSavedAccountsMetadata()
+
+        #expect(savedStatusClient.readSnapshots == [backupSnapshot])
+
+        now += 60
+        await controller.refreshInactiveSavedAccountsMetadata()
+
+        #expect(savedStatusClient.readSnapshots == [backupSnapshot, backupSnapshot])
+    }
+
+    @Test
     func switchToAccountOnHostReportsVerificationMismatchAsPendingError() async {
         let target = CodexAccount(
             id: UUID(),
@@ -546,7 +580,8 @@ struct AccountsControllerTests {
         savedAccountStatusClient: SavedCodexAccountStatusClient = DisabledAccountStatusClient(),
         isolatedLoginClient: IsolatedCodexLoginClient = IsolatedAddAccountLoginClientProbe(
             session: IsolatedAddAccountLoginSessionProbe(authData: Data())
-        )
+        ),
+        now: @escaping () -> Date = Date.init
     ) -> AccountsController {
         AccountsController(
             identityResolver: identityResolver,
@@ -583,7 +618,8 @@ struct AccountsControllerTests {
                 repository: repository,
                 identityResolver: identityResolver,
                 isolatedLoginClient: isolatedLoginClient
-            )
+            ),
+            now: now
         )
     }
 
