@@ -515,12 +515,12 @@ struct MenuBarUIValidationTests {
 
     private func makeCoordinator() throws -> MenuBarCoordinator {
         let repository = try makeIsolatedRepository()
-        let store = MenuBarAccountsStore(
+        let accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient()
-        )
+        ).makeController()
         let suiteName = "MenuBarUIValidationTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
@@ -528,7 +528,7 @@ struct MenuBarUIValidationTests {
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         return MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
-            store: store,
+            accountsController: accountsController,
             menuDisplaySettings: settings.menuDisplaySettings,
             statusItemSettings: settings.statusItemSettings,
             tokenUsagePreferences: settings.tokenUsagePreferences,

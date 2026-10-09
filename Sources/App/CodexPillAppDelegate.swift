@@ -30,13 +30,13 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
             codexAppProcessClient: processClient,
             accountStatusClient: accountStatusClient
         )
-        let store = MenuBarAccountsStore(controller: accountsFeatureFactory.makeController())
+        let accountsController = accountsFeatureFactory.makeController()
 
         let statusItemRuntime = StatusItemRuntime()
         self.statusItemRuntime = statusItemRuntime
         coordinator = MenuBarCoordinator(
             statusItemRuntime: statusItemRuntime,
-            store: store,
+            accountsController: accountsController,
             menuDisplaySettings: MenuDisplaySettingsStore(userDefaults: defaults),
             statusItemSettings: StatusItemSettingsStore(userDefaults: defaults),
             tokenUsagePreferences: TokenUsagePreferencesStore(userDefaults: defaults),
@@ -55,11 +55,11 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
-        store.load()
+        accountsController.load()
         coordinator?.start()
         Task { @MainActor in
-            if let activeAccount = store.activeAccount {
-                _ = await store.refreshAccountData(for: activeAccount)
+            if let activeAccount = accountsController.activeAccount {
+                _ = await accountsController.refreshAccountData(for: activeAccount)
             }
         }
     }

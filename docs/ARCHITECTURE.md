@@ -74,7 +74,7 @@ It coordinates cache-first loading, scan-task identity, duplicate-scan preventio
 Key boundaries:
 
 - `MenuBarCoordinator`
-- `MenuBarAccountsStore`
+- `MenuBarAccounts`
 - `MenuBarAccountCatalogProjection`
 - `MenuBarMenuBuilder`
 - `MenuBarAlertFactory`
@@ -143,7 +143,7 @@ App startup builds each store from one `UserDefaults` instance and injects the o
 
 ## Boundary Notes
 
-`AccountsFeatureFactory` is the production composition boundary for the account feature. App startup chooses platform adapters such as `AccountRepository`, `CodexAuthSnapshotService`, `CodexAppProcessClient`, and `CodexAccountStatusClient`, then asks the factory for an `AccountsController`. App wraps that controller in `MenuBarAccountsStore`; the factory builds no MenuBar types.
+`AccountsFeatureFactory` is the production composition boundary for the account feature. App startup chooses platform adapters such as `AccountRepository`, `CodexAuthSnapshotService`, `CodexAppProcessClient`, and `CodexAccountStatusClient`, then asks the factory for an `AccountsController`. App hands that controller to `MenuBarCoordinator` as `MenuBarAccounts`; the factory builds no MenuBar types.
 
 `AccountsController` is the account-session and catalog boundary. It coordinates feature-level state transitions, saved-account catalog updates, active-account resolution, mutation result application, metadata persistence, and the silent refresh after a local switch.
 
@@ -155,7 +155,7 @@ App startup builds each store from one `UserDefaults` instance and injects the o
 
 `TokenUsageMenuRuntime` is the token-usage feature boundary used by MenuBar. It owns background scan lifecycle, cache-first load state, duplicate-scan prevention, progress throttling, and disable-time cancellation. `MenuBarCoordinator` should only mutate Token Usage preferences, ask the runtime for current load state, and decide whether AppKit menu rebuilds are safe while a menu is being tracked.
 
-`MenuBarAccountsStore` is a thin observable adapter for the menu layer. It forwards menu intents into `AccountsController` and should not grow business logic or production dependency assembly.
+`MenuBarAccounts` is the port MenuBar declares for account state and intents. It lists only the members the menu reads or calls, and `AccountsController` conforms to it directly. MenuBar never sees the account use cases or Platform adapters behind the controller.
 
 `MenuBarAccountCatalogProjection` owns menu-facing account projection: the active account first, then saved accounts ordered by `InactiveAccountAvailabilityRanking`.
 
