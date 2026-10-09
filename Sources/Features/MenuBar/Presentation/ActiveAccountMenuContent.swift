@@ -107,42 +107,6 @@ private struct ActiveAccountPlanPill: View {
     }
 }
 
-struct InactiveAccountMenuContent: View {
-    let account: CodexAccount
-    let placement: MenuBarAccountPlacement?
-    let onSelect: () -> Void
-
-    var body: some View {
-        Button(action: onSelect) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(account.name)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-
-                Text(compactMenuRowUsageSummary(for: account))
-                    .font(.system(size: 11, weight: .regular, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-
-                Spacer(minLength: 8)
-
-                if let placement {
-                    Text(placement.badgeText)
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 6)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-}
-
 struct ActiveAccountCardDivider: View {
     var body: some View {
         VStack(spacing: 0) {

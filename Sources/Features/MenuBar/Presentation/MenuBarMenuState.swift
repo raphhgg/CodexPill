@@ -61,10 +61,6 @@ struct RemoteHostMenuState: Codable, Equatable {
         deployedAccountIDs.contains(account.id)
     }
 
-    var shouldShowRemoteAccountCard: Bool {
-        connectionState != .disconnected && displayAccount != nil
-    }
-
     var displayAccount: CodexAccount? {
         activeAccount ?? detectedAccount ?? desiredAccount
     }
