@@ -36,10 +36,8 @@ struct RenameSavedAccountUseCaseTests {
             updatedAt: updatedAt,
             email: "business@example.com",
             planType: "team",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: nil,
-                limitName: nil,
-                planType: "team",
+            usage: UsageSnapshot.codex(
+                planName: "team",
                 primary: nil,
                 secondary: nil,
                 fetchedAt: fetchedAt

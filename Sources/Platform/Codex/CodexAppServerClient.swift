@@ -48,26 +48,28 @@ final class CodexAppServerClient {
                     workspaceIdentity: status.workspaceIdentity,
                     snapshotFingerprint: status.snapshotFingerprint
                 ),
-                rateLimits: status.rateLimits.map { CodexAppServerRateLimits(
-                    limitID: $0.limitID,
-                    limitName: $0.limitName,
-                    planType: $0.planType,
-                    primary: $0.primary.map { CodexAppServerRateLimitWindow(
-                        usedPercent: $0.usedPercent,
-                        resetsAt: $0.resetsAt,
-                        windowDurationMinutes: $0.windowDurationMinutes
-                    ) },
-                    secondary: $0.secondary.map { CodexAppServerRateLimitWindow(
-                        usedPercent: $0.usedPercent,
-                        resetsAt: $0.resetsAt,
-                        windowDurationMinutes: $0.windowDurationMinutes
-                    ) },
-                    fetchedAt: $0.fetchedAt
-                ) }
+                rateLimits: status.usage.map { usage in
+                    CodexAppServerRateLimits(
+                        limitID: nil,
+                        limitName: nil,
+                        planType: usage.planName,
+                        primary: usage.window(.session).map(Self.appServerWindow),
+                        secondary: usage.window(.weekly).map(Self.appServerWindow),
+                        fetchedAt: usage.fetchedAt
+                    )
+                }
             )
         }
         self.sleeper = sleeper
         mapper = CodexPillAccountStatusMapper()
+    }
+
+    private static func appServerWindow(from window: UsageWindow) -> CodexAppServerRateLimitWindow {
+        CodexAppServerRateLimitWindow(
+            usedPercent: window.usedPercent,
+            resetsAt: window.resetsAt,
+            windowDurationMinutes: window.durationMinutes
+        )
     }
 
     func readCurrentAccountStatus() async throws -> CodexAccountStatus {

@@ -37,7 +37,7 @@ struct AccountsControllerRefreshRaceTests {
 
         let backup = try #require(controller.accounts.first(where: { $0.id == fixture.backup.id }))
         #expect(backup.name == "Side project")
-        #expect(backup.rateLimits?.primary?.usedPercent == 70)
+        #expect(backup.usage?.window(.session)?.usedPercent == 70)
         #expect(fixture.catalog.savedAccounts.map(\.name) == ["Personal", "Side project"])
     }
 
@@ -94,7 +94,7 @@ struct AccountsControllerRefreshRaceTests {
         let personal = try #require(controller.accounts.first(where: { $0.id == fixture.personal.id }))
         #expect(controller.accounts.map(\.name) == ["Personal"])
         #expect(fixture.catalog.savedAccounts.map(\.name) == ["Personal"])
-        #expect(personal.rateLimits?.primary?.usedPercent == 70)
+        #expect(personal.usage?.window(.session)?.usedPercent == 70)
         #expect(controller.activeAccountID == fixture.personal.id)
     }
 
@@ -114,7 +114,7 @@ struct AccountsControllerRefreshRaceTests {
         let personal = try #require(controller.accounts.first(where: { $0.id == fixture.personal.id }))
         #expect(controller.accounts.map(\.name) == ["Personal", "Side project"])
         #expect(fixture.catalog.savedAccounts.map(\.name) == ["Personal", "Side project"])
-        #expect(personal.rateLimits?.primary?.usedPercent == 70)
+        #expect(personal.usage?.window(.session)?.usedPercent == 70)
         #expect(controller.activeAccountID == fixture.personal.id)
     }
 
@@ -139,8 +139,8 @@ struct AccountsControllerRefreshRaceTests {
         #expect(controller.activeAccountID == fixture.backup.id)
         #expect(fixture.authStore.liveAuth == "backup:1")
         #expect(fixture.authStore.snapshots == [fixture.personal.id: "personal:1", fixture.backup.id: "backup:1"])
-        #expect(personal.rateLimits?.primary?.usedPercent == 20)
-        #expect(backup.rateLimits?.primary?.usedPercent == 70)
+        #expect(personal.usage?.window(.session)?.usedPercent == 20)
+        #expect(backup.usage?.window(.session)?.usedPercent == 70)
     }
 
     @Test
@@ -253,7 +253,7 @@ private func makeRaceAccount(name: String, stableAccountID: String) -> CodexAcco
         updatedAt: .distantPast,
         email: nil,
         planType: nil,
-        rateLimits: nil,
+        usage: nil,
         identity: CodexAccountIdentity(
             stableAccountID: stableAccountID,
             snapshotFingerprint: "\(stableAccountID):1"
@@ -265,20 +265,10 @@ private func makeRaceStatus(email: String, primaryUsedPercent: Int) -> CodexAcco
     CodexAccountStatus(
         email: email,
         planType: "pro",
-        rateLimits: CodexRateLimitSnapshot(
-            limitID: "codex",
-            limitName: nil,
-            planType: "pro",
-            primary: CodexRateLimitWindow(
-                usedPercent: primaryUsedPercent,
-                resetsAt: Date(timeIntervalSince1970: 1_776_256_138),
-                windowDurationMinutes: 300
-            ),
-            secondary: CodexRateLimitWindow(
-                usedPercent: 30,
-                resetsAt: Date(timeIntervalSince1970: 1_776_842_938),
-                windowDurationMinutes: 10_080
-            ),
+        usage: UsageSnapshot.codex(
+            planName: "pro",
+            primary: (usedPercent: primaryUsedPercent, resetsAt: Date(timeIntervalSince1970: 1_776_256_138), durationMinutes: 300),
+            secondary: (usedPercent: 30, resetsAt: Date(timeIntervalSince1970: 1_776_842_938), durationMinutes: 10_080),
             fetchedAt: Date(timeIntervalSince1970: 1_776_300_000)
         )
     )

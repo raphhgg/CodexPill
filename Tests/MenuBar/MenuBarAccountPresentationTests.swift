@@ -31,10 +31,11 @@ struct MenuBarAccountPresentationTests {
     @Test
     func resetStatusTextKeepsRelativeTextWhenWindowIsFull() {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
-        let window = CodexRateLimitWindow(
+        let window = UsageWindow(
+            kind: .session,
             usedPercent: 100,
             resetsAt: now.addingTimeInterval((4 * 60 + 7) * 60),
-            windowDurationMinutes: 300
+            durationMinutes: 300
         )
 
         #expect(resetStatusText(for: window, now: now) == "Resets in 4h07")
@@ -43,10 +44,11 @@ struct MenuBarAccountPresentationTests {
     @Test
     func resetStatusTextKeepsRelativeTextWhenWindowIsNotFull() {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
-        let window = CodexRateLimitWindow(
+        let window = UsageWindow(
+            kind: .session,
             usedPercent: 42,
             resetsAt: now.addingTimeInterval(4 * 60 * 60),
-            windowDurationMinutes: 300
+            durationMinutes: 300
         )
 
         #expect(resetStatusText(for: window, now: now) == "Resets in 4h")
@@ -55,10 +57,11 @@ struct MenuBarAccountPresentationTests {
     @Test
     func resetStatusTextUsesHourMinuteCountdownForSubHourWindows() {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
-        let window = CodexRateLimitWindow(
+        let window = UsageWindow(
+            kind: .session,
             usedPercent: 100,
             resetsAt: now.addingTimeInterval(28 * 60),
-            windowDurationMinutes: 300
+            durationMinutes: 300
         )
 
         #expect(resetStatusText(for: window, now: now) == "Resets in 28min")
@@ -67,10 +70,11 @@ struct MenuBarAccountPresentationTests {
     @Test
     func resetStatusTextUsesDaysForMultiDayWindows() {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
-        let window = CodexRateLimitWindow(
+        let window = UsageWindow(
+            kind: .session,
             usedPercent: 94,
             resetsAt: now.addingTimeInterval((4 * 24 + 8) * 60 * 60),
-            windowDurationMinutes: 10_080
+            durationMinutes: 10_080
         )
 
         #expect(resetStatusText(for: window, now: now) == "Resets in 4d")
@@ -79,10 +83,11 @@ struct MenuBarAccountPresentationTests {
     @Test
     func expectedRateLimitUsagePercentUsesElapsedWindowShare() throws {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
-        let window = CodexRateLimitWindow(
+        let window = UsageWindow(
+            kind: .session,
             usedPercent: 70,
             resetsAt: now.addingTimeInterval(150 * 60),
-            windowDurationMinutes: 300
+            durationMinutes: 300
         )
 
         #expect(expectedRateLimitUsagePercent(for: window, now: now) == 50)
@@ -91,20 +96,23 @@ struct MenuBarAccountPresentationTests {
     @Test
     func expectedRateLimitUsagePercentRequiresFutureResetAndDuration() {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
-        let missingReset = CodexRateLimitWindow(
+        let missingReset = UsageWindow(
+            kind: .session,
             usedPercent: 40,
             resetsAt: nil,
-            windowDurationMinutes: 300
+            durationMinutes: 300
         )
-        let missingDuration = CodexRateLimitWindow(
+        let missingDuration = UsageWindow(
+            kind: .session,
             usedPercent: 40,
             resetsAt: now.addingTimeInterval(150 * 60),
-            windowDurationMinutes: nil
+            durationMinutes: nil
         )
-        let expired = CodexRateLimitWindow(
+        let expired = UsageWindow(
+            kind: .session,
             usedPercent: 40,
             resetsAt: now.addingTimeInterval(-60),
-            windowDurationMinutes: 300
+            durationMinutes: 300
         )
 
         #expect(expectedRateLimitUsagePercent(for: missingReset, now: now) == nil)
@@ -115,10 +123,11 @@ struct MenuBarAccountPresentationTests {
     @Test
     func expectedPaceMarkerPercentRequiresEnabledPreferenceAndWindowData() {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
-        let window = CodexRateLimitWindow(
+        let window = UsageWindow(
+            kind: .session,
             usedPercent: 70,
             resetsAt: now.addingTimeInterval(150 * 60),
-            windowDurationMinutes: 300
+            durationMinutes: 300
         )
 
         #expect(expectedPaceMarkerPercent(for: window, showsPacingMarkers: true, now: now) == 50)
@@ -137,20 +146,10 @@ struct MenuBarAccountPresentationTests {
             updatedAt: now,
             email: "user@example.com",
             planType: "team",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: "codex",
-                limitName: nil,
-                planType: "team",
-                primary: CodexRateLimitWindow(
-                    usedPercent: 100,
-                    resetsAt: now.addingTimeInterval((3 * 60 + 12) * 60),
-                    windowDurationMinutes: 300
-                ),
-                secondary: CodexRateLimitWindow(
-                    usedPercent: 100,
-                    resetsAt: now.addingTimeInterval((27 * 60 + 5) * 60),
-                    windowDurationMinutes: 10_080
-                ),
+            usage: UsageSnapshot.codex(
+                planName: "team",
+                primary: (usedPercent: 100, resetsAt: now.addingTimeInterval((3 * 60 + 12) * 60), durationMinutes: 300),
+                secondary: (usedPercent: 100, resetsAt: now.addingTimeInterval((27 * 60 + 5) * 60), durationMinutes: 10_080),
                 fetchedAt: now
             )
         )
@@ -176,15 +175,9 @@ struct MenuBarAccountPresentationTests {
             updatedAt: now,
             email: "backup@example.com",
             planType: "free",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: "codex",
-                limitName: nil,
-                planType: "free",
-                primary: CodexRateLimitWindow(
-                    usedPercent: 0,
-                    resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60),
-                    windowDurationMinutes: 10_080
-                ),
+            usage: UsageSnapshot.codex(
+                planName: "free",
+                primary: (usedPercent: 0, resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60), durationMinutes: 10_080),
                 secondary: nil,
                 fetchedAt: now
             )
@@ -204,15 +197,9 @@ struct MenuBarAccountPresentationTests {
             updatedAt: now,
             email: "user@example.com",
             planType: "team",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: "codex",
-                limitName: nil,
-                planType: "team",
-                primary: CodexRateLimitWindow(
-                    usedPercent: 100,
-                    resetsAt: now.addingTimeInterval(4 * 60 * 60),
-                    windowDurationMinutes: 300
-                ),
+            usage: UsageSnapshot.codex(
+                planName: "team",
+                primary: (usedPercent: 100, resetsAt: now.addingTimeInterval(4 * 60 * 60), durationMinutes: 300),
                 secondary: nil,
                 fetchedAt: now
             )
@@ -220,7 +207,7 @@ struct MenuBarAccountPresentationTests {
 
         let tooltip = try! #require(statusItemTooltipText(for: account, now: now))
 
-        #expect(resetStatusText(for: try! #require(account.rateLimits?.primary), now: now) == "Resets in 4h")
+        #expect(resetStatusText(for: try! #require(account.usage?.window(.session)), now: now) == "Resets in 4h")
         #expect(tooltip.contains("Session resets in 4h00"))
         #expect(!tooltip.contains("Session resets in 4h\n"))
     }
@@ -241,20 +228,10 @@ struct MenuBarAccountPresentationTests {
             updatedAt: now,
             email: "user@example.com",
             planType: "plus",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: "codex",
-                limitName: nil,
-                planType: "plus",
-                primary: CodexRateLimitWindow(
-                    usedPercent: 100,
-                    resetsAt: now.addingTimeInterval((2 * 60 + 5) * 60),
-                    windowDurationMinutes: 300
-                ),
-                secondary: CodexRateLimitWindow(
-                    usedPercent: 68,
-                    resetsAt: now.addingTimeInterval(4 * 24 * 60 * 60),
-                    windowDurationMinutes: 10_080
-                ),
+            usage: UsageSnapshot.codex(
+                planName: "plus",
+                primary: (usedPercent: 100, resetsAt: now.addingTimeInterval((2 * 60 + 5) * 60), durationMinutes: 300),
+                secondary: (usedPercent: 68, resetsAt: now.addingTimeInterval(4 * 24 * 60 * 60), durationMinutes: 10_080),
                 fetchedAt: now
             )
         )
@@ -273,20 +250,10 @@ struct MenuBarAccountPresentationTests {
             updatedAt: now,
             email: "admin@example.com",
             planType: "team",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: "codex",
-                limitName: nil,
-                planType: "team",
-                primary: CodexRateLimitWindow(
-                    usedPercent: 42,
-                    resetsAt: now.addingTimeInterval(2 * 60 * 60),
-                    windowDurationMinutes: 300
-                ),
-                secondary: CodexRateLimitWindow(
-                    usedPercent: 68,
-                    resetsAt: now.addingTimeInterval(4 * 24 * 60 * 60),
-                    windowDurationMinutes: 10_080
-                ),
+            usage: UsageSnapshot.codex(
+                planName: "team",
+                primary: (usedPercent: 42, resetsAt: now.addingTimeInterval(2 * 60 * 60), durationMinutes: 300),
+                secondary: (usedPercent: 68, resetsAt: now.addingTimeInterval(4 * 24 * 60 * 60), durationMinutes: 10_080),
                 fetchedAt: now
             )
         )
@@ -305,20 +272,10 @@ struct MenuBarAccountPresentationTests {
             updatedAt: now,
             email: "user@example.com",
             planType: "team",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: "codex",
-                limitName: nil,
-                planType: "team",
-                primary: CodexRateLimitWindow(
-                    usedPercent: 100,
-                    resetsAt: now.addingTimeInterval((1 * 60 + 42) * 60),
-                    windowDurationMinutes: 300
-                ),
-                secondary: CodexRateLimitWindow(
-                    usedPercent: 94,
-                    resetsAt: now.addingTimeInterval(4 * 24 * 60 * 60),
-                    windowDurationMinutes: 10_080
-                ),
+            usage: UsageSnapshot.codex(
+                planName: "team",
+                primary: (usedPercent: 100, resetsAt: now.addingTimeInterval((1 * 60 + 42) * 60), durationMinutes: 300),
+                secondary: (usedPercent: 94, resetsAt: now.addingTimeInterval(4 * 24 * 60 * 60), durationMinutes: 10_080),
                 fetchedAt: now
             )
         )
@@ -328,7 +285,7 @@ struct MenuBarAccountPresentationTests {
 
     @Test
     func compactMenuRowUsageSummaryShowsDashesWhenRateLimitsAreMissing() {
-        #expect(compactMenuRowUsageSummary(for: makeAccount(name: "Research", rateLimits: nil)) == "S --  W --")
+        #expect(compactMenuRowUsageSummary(for: makeAccount(name: "Research", usage: nil)) == "S --  W --")
     }
 
     @Test
@@ -342,20 +299,10 @@ struct MenuBarAccountPresentationTests {
             updatedAt: now,
             email: "user@example.com",
             planType: "team",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: "codex",
-                limitName: nil,
-                planType: "team",
-                primary: CodexRateLimitWindow(
-                    usedPercent: 0,
-                    resetsAt: now.addingTimeInterval((4 * 60 + 59) * 60),
-                    windowDurationMinutes: 300
-                ),
-                secondary: CodexRateLimitWindow(
-                    usedPercent: 91,
-                    resetsAt: now.addingTimeInterval(4 * 24 * 60 * 60),
-                    windowDurationMinutes: 10_080
-                ),
+            usage: UsageSnapshot.codex(
+                planName: "team",
+                primary: (usedPercent: 0, resetsAt: now.addingTimeInterval((4 * 60 + 59) * 60), durationMinutes: 300),
+                secondary: (usedPercent: 91, resetsAt: now.addingTimeInterval(4 * 24 * 60 * 60), durationMinutes: 10_080),
                 fetchedAt: now
             )
         )
@@ -384,20 +331,10 @@ struct MenuBarAccountPresentationTests {
             updatedAt: now,
             email: "user@example.com",
             planType: "team",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: "codex",
-                limitName: nil,
-                planType: "team",
-                primary: CodexRateLimitWindow(
-                    usedPercent: 10,
-                    resetsAt: now.addingTimeInterval((1 * 60 + 23) * 60),
-                    windowDurationMinutes: 300
-                ),
-                secondary: CodexRateLimitWindow(
-                    usedPercent: 78,
-                    resetsAt: now.addingTimeInterval(3 * 24 * 60 * 60),
-                    windowDurationMinutes: 10_080
-                ),
+            usage: UsageSnapshot.codex(
+                planName: "team",
+                primary: (usedPercent: 10, resetsAt: now.addingTimeInterval((1 * 60 + 23) * 60), durationMinutes: 300),
+                secondary: (usedPercent: 78, resetsAt: now.addingTimeInterval(3 * 24 * 60 * 60), durationMinutes: 10_080),
                 fetchedAt: now
             )
         )

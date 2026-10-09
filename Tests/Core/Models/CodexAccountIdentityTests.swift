@@ -14,7 +14,7 @@ struct CodexAccountIdentityTests {
             updatedAt: .distantPast,
             email: "old@example.com",
             planType: nil,
-            rateLimits: nil,
+            usage: nil,
             identity: CodexAccountIdentity(
                 snapshotFingerprint: "fingerprint",
                 remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "old@example.com")
@@ -24,7 +24,7 @@ struct CodexAccountIdentityTests {
         account.applyRemoteMetadata(
             email: "new@example.com",
             planType: "pro",
-            rateLimits: nil
+            usage: nil
         )
 
         #expect(account.email == "new@example.com")

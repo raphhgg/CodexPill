@@ -41,7 +41,7 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
                 "missing": CodexAccountStatus(
                     email: "missing@example.com",
                     planType: "pro",
-                    rateLimits: makeRateLimitsSnapshot()
+                    usage: makeUsageSnapshot()
                 )
             ]),
             repository: HydrationCatalogProbe()
@@ -50,7 +50,7 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
         let update = try #require(await useCase.refresh(missing, among: [missing]))
 
         #expect(update.accountID == missing.id)
-        #expect(update.rateLimits?.primary?.usedPercent == 46)
+        #expect(update.usage?.window(.session)?.usedPercent == 46)
         #expect(update.email == "missing@example.com")
         #expect(update.planType == "pro")
         #expect(auth.currentAuthDataString() == "active-auth")
@@ -60,20 +60,10 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
     func refreshReplacesExistingRateLimitsWithFreshOnes() async throws {
         let ready = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: true)
         let auth = HydrationAuthSnapshotProbe(currentAuthData: Data("active-auth".utf8))
-        let refreshedRateLimits = CodexRateLimitSnapshot(
-            limitID: "codex",
-            limitName: nil,
-            planType: "team",
-            primary: CodexRateLimitWindow(
-                usedPercent: 12,
-                resetsAt: Date(timeIntervalSince1970: 1_776_256_138),
-                windowDurationMinutes: 300
-            ),
-            secondary: CodexRateLimitWindow(
-                usedPercent: 3,
-                resetsAt: Date(timeIntervalSince1970: 1_776_842_938),
-                windowDurationMinutes: 10_080
-            ),
+        let refreshedRateLimits = UsageSnapshot.codex(
+            planName: "team",
+            primary: (usedPercent: 12, resetsAt: Date(timeIntervalSince1970: 1_776_256_138), durationMinutes: 300),
+            secondary: (usedPercent: 3, resetsAt: Date(timeIntervalSince1970: 1_776_842_938), durationMinutes: 10_080),
             fetchedAt: Date(timeIntervalSince1970: 1_776_300_000)
         )
         let useCase = makeUseCase(
@@ -82,7 +72,7 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
                 "ready": CodexAccountStatus(
                     email: "fresh-ready@example.com",
                     planType: "team",
-                    rateLimits: refreshedRateLimits
+                    usage: refreshedRateLimits
                 )
             ]),
             repository: HydrationCatalogProbe()
@@ -90,7 +80,7 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
 
         let update = try #require(await useCase.refresh(ready, among: [ready]))
 
-        #expect(update.rateLimits == refreshedRateLimits)
+        #expect(update.usage == refreshedRateLimits)
         #expect(update.email == "fresh-ready@example.com")
         #expect(update.planType == "team")
         #expect(update.identity.snapshotFingerprint == "ready")
@@ -102,15 +92,9 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
     func refreshBackfillsWeeklyOnlyRateLimits() async throws {
         let missing = makeAccount(name: "Missing", fingerprint: "missing", withRateLimits: false)
         let auth = HydrationAuthSnapshotProbe(currentAuthData: Data("active-auth".utf8))
-        let primaryOnlyRateLimits = CodexRateLimitSnapshot(
-            limitID: "codex",
-            limitName: nil,
-            planType: "free",
-            primary: CodexRateLimitWindow(
-                usedPercent: 9,
-                resetsAt: Date(timeIntervalSince1970: 1_776_256_138),
-                windowDurationMinutes: 10_080
-            ),
+        let primaryOnlyRateLimits = UsageSnapshot.codex(
+            planName: "free",
+            primary: (usedPercent: 9, resetsAt: Date(timeIntervalSince1970: 1_776_256_138), durationMinutes: 10_080),
             secondary: nil,
             fetchedAt: Date(timeIntervalSince1970: 1_776_200_000)
         )
@@ -120,7 +104,7 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
                 "missing": CodexAccountStatus(
                     email: "missing@example.com",
                     planType: "free",
-                    rateLimits: primaryOnlyRateLimits
+                    usage: primaryOnlyRateLimits
                 )
             ]),
             repository: HydrationCatalogProbe()
@@ -128,19 +112,17 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
 
         let update = try #require(await useCase.refresh(missing, among: [missing]))
 
-        #expect(update.rateLimits == primaryOnlyRateLimits)
+        #expect(update.usage == primaryOnlyRateLimits)
         #expect(update.email == "missing@example.com")
         #expect(update.planType == "free")
     }
 
     @Test(arguments: [
-        CodexAccountStatus(email: "ready@example.com", planType: "pro", rateLimits: nil),
-        CodexAccountStatus(email: "ready@example.com", planType: "pro", rateLimits: CodexRateLimitSnapshot(
-            limitID: "codex",
-            limitName: nil,
-            planType: "pro",
-            primary: CodexRateLimitWindow(usedPercent: 0, resetsAt: .now.addingTimeInterval(60 * 60), windowDurationMinutes: 300),
-            secondary: CodexRateLimitWindow(usedPercent: 0, resetsAt: .now.addingTimeInterval(7 * 24 * 60 * 60), windowDurationMinutes: 10_080),
+        CodexAccountStatus(email: "ready@example.com", planType: "pro", usage: nil),
+        CodexAccountStatus(email: "ready@example.com", planType: "pro", usage: UsageSnapshot.codex(
+            planName: "pro",
+            primary: (usedPercent: 0, resetsAt: .now.addingTimeInterval(60 * 60), durationMinutes: 300),
+            secondary: (usedPercent: 0, resetsAt: .now.addingTimeInterval(7 * 24 * 60 * 60), durationMinutes: 10_080),
             fetchedAt: .now
         ))
     ])
@@ -192,7 +174,7 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
                 statusByFingerprint: ["ready": CodexAccountStatus(
                     email: "ready@example.com",
                     planType: "pro",
-                    rateLimits: makeRateLimitsSnapshot()
+                    usage: makeUsageSnapshot()
                 )],
                 rotatedAuthDataByFingerprint: ["ready": rotatedAuthData]
             ),
@@ -203,7 +185,7 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
 
         #expect(auth.storedSnapshot(for: ready.id) == rotatedAuthData)
         #expect(update.identity.snapshotFingerprint == "ready-rotated")
-        #expect(update.rateLimits == makeRateLimitsSnapshot())
+        #expect(update.usage == makeUsageSnapshot())
     }
 
     @Test(arguments: ["acct-other", "acct-unknown"])
@@ -254,7 +236,7 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
 
         #expect(auth.storedSnapshot(for: ready.id) == rotatedAuthData)
         #expect(update.identity.snapshotFingerprint == "ready-rotated")
-        #expect(update.rateLimits == ready.rateLimits)
+        #expect(update.usage == ready.usage)
         #expect(update.updatedAt == ready.updatedAt)
     }
 
@@ -349,7 +331,7 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
             updatedAt: now,
             email: withRateLimits ? "\(name.lowercased())@example.com" : nil,
             planType: withRateLimits ? "pro" : nil,
-            rateLimits: withRateLimits ? makeRateLimitsSnapshot() : nil,
+            usage: withRateLimits ? makeUsageSnapshot() : nil,
             identity: CodexAccountIdentity(
                 stableAccountID: stableAccountID,
                 snapshotFingerprint: fingerprint,
@@ -358,21 +340,11 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
         )
     }
 
-    private func makeRateLimitsSnapshot() -> CodexRateLimitSnapshot {
-        CodexRateLimitSnapshot(
-            limitID: "codex",
-            limitName: nil,
-            planType: "pro",
-            primary: CodexRateLimitWindow(
-                usedPercent: 46,
-                resetsAt: Date(timeIntervalSince1970: 1_776_256_138),
-                windowDurationMinutes: 300
-            ),
-            secondary: CodexRateLimitWindow(
-                usedPercent: 7,
-                resetsAt: Date(timeIntervalSince1970: 1_776_842_938),
-                windowDurationMinutes: 10_080
-            ),
+    private func makeUsageSnapshot() -> UsageSnapshot {
+        UsageSnapshot.codex(
+            planName: "pro",
+            primary: (usedPercent: 46, resetsAt: Date(timeIntervalSince1970: 1_776_256_138), durationMinutes: 300),
+            secondary: (usedPercent: 7, resetsAt: Date(timeIntervalSince1970: 1_776_842_938), durationMinutes: 10_080),
             fetchedAt: Date(timeIntervalSince1970: 1_776_200_000)
         )
     }

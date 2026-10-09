@@ -186,8 +186,8 @@ final class StatusItemRuntime {
 
     private func updateAppearance() {
         guard let button = statusItem.button else { return }
-        let primary = presentation.activeAccount?.rateLimits?.sessionWindow?.displayedUsedPercent()
-        let secondary = presentation.activeAccount?.rateLimits?.weeklyWindow?.displayedUsedPercent()
+        let primary = presentation.activeAccount?.usage?.window(.session)?.displayedUsedPercent()
+        let secondary = presentation.activeAccount?.usage?.window(.weekly)?.displayedUsedPercent()
 
         button.image = iconRenderer.makeImage(
             style: presentation.indicatorStyle,

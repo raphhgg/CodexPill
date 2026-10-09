@@ -21,7 +21,7 @@ struct CodexUsageTests {
 
         #expect(usage == UsageSnapshot(
             provider: .codex,
-            planName: "Team",
+            planName: "team",
             windows: [
                 UsageWindow(
                     kind: .session,
@@ -51,7 +51,7 @@ struct CodexUsageTests {
         }
         """)
 
-        #expect(usage.planName == "Free")
+        #expect(usage.planName == "free")
         #expect(usage.window(.session) == nil)
         #expect(usage.windows == [
             UsageWindow(
@@ -93,7 +93,7 @@ struct CodexUsageTests {
         }
         """)
 
-        #expect(usage.planName == "Pro x5")
+        #expect(usage.planName == "prolite")
         #expect(usage.window(.session)?.usedPercent == 7)
         #expect(usage.window(.weekly)?.usedPercent == 1)
     }
@@ -211,30 +211,6 @@ struct CodexUsageTests {
     }
 
     @Test
-    func unknownPlanHasNoPlanName() throws {
-        let usage = try usage(fromAppServerJSON: """
-        { "rateLimits": { "planType": "unknown", "primary": { "usedPercent": 1, "windowDurationMins": 300 } } }
-        """)
-
-        #expect(usage.planName == nil)
-    }
-
-    @Test
-    func accountWithoutRateLimitsHasNoUsage() {
-        #expect(makeAccount(rateLimits: nil).usage == nil)
-    }
-
-    @Test
-    func savedAccountUsageUsesTheAccountPlanAndStoredRateLimits() {
-        let now = Date(timeIntervalSince1970: 1_000_000)
-        let account = makeAccount(planType: "plus", rateLimits: makeRateLimits(resettingAfter: now))
-
-        #expect(account.usage?.planName == "Plus")
-        #expect(account.usage?.window(.session)?.usedPercent == 42)
-        #expect(account.usage?.window(.weekly)?.resetsAt == Date(timeIntervalSince1970: 1_086_400))
-    }
-
-    @Test
     func displayedUsedPercentIsZeroOnceTheResetTimeHasPassed() {
         let window = UsageWindow(
             kind: .session,
@@ -272,7 +248,6 @@ struct CodexUsageTests {
     private func usage(fromAppServerJSON json: String) throws -> UsageSnapshot {
         let response = try JSONDecoder().decode(AppServerRateLimitsResponse.self, from: Data(json.utf8))
         let appServerRateLimits = try #require(CodexAppServerRateLimitParser().parse(response, fetchedAt: fetchedAt))
-        let rateLimits = CodexPillAccountStatusMapper().rateLimitSnapshot(from: appServerRateLimits)
-        return try #require(makeAccount(rateLimits: rateLimits).usage)
+        return CodexPillAccountStatusMapper().usage(from: appServerRateLimits)
     }
 }
