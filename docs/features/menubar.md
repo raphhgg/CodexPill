@@ -27,6 +27,7 @@ UX responsibility here:
 
 - Use `Active Account` for the one active account card.
 - Show enough plan and session/weekly usage information to answer "what am I using right now?"
+- Session and weekly meters follow the `Usage Bars` preferences owned by [Status Bar](status-bar.md): percent used or left, session and weekly colors, and layout. `Classic Layout` stacks title, bar, then percent and reset text for each window. `Compact Layout` puts both windows in one grid with the columns label, bar, percent, and reset, so both bars have the same width and the percent and reset text line up between rows. The account name and plan header keeps the same spacing in both layouts.
 - If no saved account matches any live active account, show a clear empty state instead of pretending an account is active.
 
 ## Accounts Section
@@ -36,7 +37,7 @@ Owned behavior: [Accounts](accounts/00-accounts.md).
 UX responsibility here:
 
 - Show saved catalog rows below the active account card.
-- Keep rows compact: account display name plus session/weekly summary.
+- Keep rows compact: account display name plus session/weekly summary. The summary percentages follow the `Show % Used` / `Show % Left` preference.
 - Use a submenu per row for switching and account management.
 - Use `More Accounts…` when the visible-account limit hides additional saved accounts.
 
