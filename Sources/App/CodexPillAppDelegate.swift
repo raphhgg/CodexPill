@@ -54,10 +54,7 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
             notificationPreferences: NotificationPreferencesStore(userDefaults: defaults),
             notificationState: NotificationStateStore(userDefaults: defaults),
             tokenUsagePreferences: TokenUsagePreferencesStore(userDefaults: defaults),
-            remoteHostConnectionChecker: remoteHostClient,
-            remoteHostAccountStatusReader: remoteHostClient,
-            remoteHostAccountSignerOut: remoteHostClient,
-            remoteHostAppServerRefresher: remoteHostClient,
+            remoteHostOperations: remoteHostClient,
             alertPresenter: SystemAlertPresenter(),
             validationSink: MenuBarValidationConfiguration.makeSink(),
             allowsEmptyStatePrompt: !AppRuntimeEnvironment.shouldSuppressEmptyStatePrompt()

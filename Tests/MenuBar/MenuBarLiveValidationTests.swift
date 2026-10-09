@@ -64,7 +64,7 @@ struct MenuBarLiveValidationTests {
             notificationPreferences: settings.notificationPreferences,
             notificationState: settings.notificationState,
             tokenUsagePreferences: settings.tokenUsagePreferences,
-            remoteHostMenuOperations: ValidationRemoteHostClient(seedStates: settings.remoteHostSettings.remoteHostStates),
+            remoteHostOperations: ValidationRemoteHostClient(seedStates: settings.remoteHostSettings.remoteHostStates),
             alertPresenter: alertPresenter,
             allowsEmptyStatePrompt: false
         )
@@ -193,7 +193,7 @@ struct MenuBarLiveValidationTests {
             notificationPreferences: settings.notificationPreferences,
             notificationState: settings.notificationState,
             tokenUsagePreferences: settings.tokenUsagePreferences,
-            remoteHostMenuOperations: ValidationRemoteHostClient(seedStates: settings.remoteHostSettings.remoteHostStates),
+            remoteHostOperations: ValidationRemoteHostClient(seedStates: settings.remoteHostSettings.remoteHostStates),
             alertPresenter: alertPresenter,
             applicationActivator: foregrounder,
             allowsEmptyStatePrompt: false
@@ -324,7 +324,7 @@ struct MenuBarLiveValidationTests {
             notificationPreferences: settings.notificationPreferences,
             notificationState: settings.notificationState,
             tokenUsagePreferences: settings.tokenUsagePreferences,
-            remoteHostMenuOperations: failingHostClient,
+            remoteHostOperations: failingHostClient,
             alertPresenter: alertPresenter,
             applicationActivator: foregrounder,
             allowsEmptyStatePrompt: false
@@ -940,7 +940,7 @@ struct MenuBarLiveValidationTests {
             notificationPreferences: settings.notificationPreferences,
             notificationState: settings.notificationState,
             tokenUsagePreferences: settings.tokenUsagePreferences,
-            remoteHostMenuOperations: RemoteHostStub(),
+            remoteHostOperations: RemoteHostStub(),
             alertPresenter: alertPresenter,
             panelPresenter: panelPresenter,
             allowsEmptyStatePrompt: false
@@ -992,7 +992,7 @@ struct MenuBarLiveValidationTests {
             notificationPreferences: settings.notificationPreferences,
             notificationState: settings.notificationState,
             tokenUsagePreferences: settings.tokenUsagePreferences,
-            remoteHostMenuOperations: remoteHostClient,
+            remoteHostOperations: remoteHostClient,
             alertPresenter: alertPresenter,
             panelPresenter: panelPresenter,
             allowsEmptyStatePrompt: false
@@ -1103,7 +1103,7 @@ struct MenuBarLiveValidationTests {
             notificationPreferences: settings.notificationPreferences,
             notificationState: settings.notificationState,
             tokenUsagePreferences: settings.tokenUsagePreferences,
-            remoteHostMenuOperations: RemoteHostStub(
+            remoteHostOperations: RemoteHostStub(
                 status: CodexAccountStatus(
                     email: "remote@example.com",
                     planType: "team",
@@ -1181,7 +1181,7 @@ struct MenuBarLiveValidationTests {
             notificationPreferences: settings.notificationPreferences,
             notificationState: settings.notificationState,
             tokenUsagePreferences: settings.tokenUsagePreferences,
-            remoteHostMenuOperations: RemoteHostStub(
+            remoteHostOperations: RemoteHostStub(
                 readError: RemoteHostClientError.commandFailed("ssh: connection refused")
             ),
             alertPresenter: AlertPresenterProbe(),
@@ -1239,7 +1239,7 @@ struct MenuBarLiveValidationTests {
             notificationPreferences: settings.notificationPreferences,
             notificationState: settings.notificationState,
             tokenUsagePreferences: settings.tokenUsagePreferences,
-            remoteHostMenuOperations: RemoteHostStub(),
+            remoteHostOperations: RemoteHostStub(),
             alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
@@ -1315,7 +1315,7 @@ struct MenuBarLiveValidationTests {
             notificationPreferences: settings.notificationPreferences,
             notificationState: settings.notificationState,
             tokenUsagePreferences: settings.tokenUsagePreferences,
-            remoteHostMenuOperations: RemoteHostStub(
+            remoteHostOperations: RemoteHostStub(
                 statusesByDestination: [
                     "user@buildbox": CodexAccountStatus(email: "buildbox@example.com", planType: "team", rateLimits: nil),
                     "user@debian-vm": CodexAccountStatus(email: "debian@example.com", planType: "team", rateLimits: nil)
@@ -1396,7 +1396,7 @@ struct MenuBarLiveValidationTests {
             notificationPreferences: settings.notificationPreferences,
             notificationState: settings.notificationState,
             tokenUsagePreferences: settings.tokenUsagePreferences,
-            remoteHostMenuOperations: RemoteHostStub(
+            remoteHostOperations: RemoteHostStub(
                 statusesByDestination: [
                     "user@buildbox": CodexAccountStatus(email: "buildbox@example.com", planType: "team", rateLimits: nil)
                 ],
@@ -1474,7 +1474,7 @@ struct MenuBarLiveValidationTests {
             notificationPreferences: settings.notificationPreferences,
             notificationState: settings.notificationState,
             tokenUsagePreferences: settings.tokenUsagePreferences,
-            remoteHostMenuOperations: RemoteHostStub(
+            remoteHostOperations: RemoteHostStub(
                 status: CodexAccountStatus(email: "business-2@example.com", planType: "team", rateLimits: nil)
             ),
             alertPresenter: AlertPresenterProbe(),
@@ -1572,7 +1572,7 @@ struct MenuBarLiveValidationTests {
             notificationPreferences: settings.notificationPreferences,
             notificationState: settings.notificationState,
             tokenUsagePreferences: settings.tokenUsagePreferences,
-            remoteHostMenuOperations: RemoteHostStub(
+            remoteHostOperations: RemoteHostStub(
                 status: CodexAccountStatus(
                     email: "business-1@example.com",
                     planType: "team",
@@ -1654,7 +1654,7 @@ struct MenuBarLiveValidationTests {
             notificationPreferences: settings.notificationPreferences,
             notificationState: settings.notificationState,
             tokenUsagePreferences: settings.tokenUsagePreferences,
-            remoteHostMenuOperations: RemoteHostStub(
+            remoteHostOperations: RemoteHostStub(
                 status: CodexAccountStatus(
                     email: "different@example.com",
                     planType: "team",
@@ -1733,7 +1733,7 @@ struct MenuBarLiveValidationTests {
             notificationPreferences: settings.notificationPreferences,
             notificationState: settings.notificationState,
             tokenUsagePreferences: settings.tokenUsagePreferences,
-            remoteHostMenuOperations: RemoteHostStub(
+            remoteHostOperations: RemoteHostStub(
                 readError: RemoteHostClientError.authReadFailed("cat: .codex/auth.json: Permission denied")
             ),
             alertPresenter: alertPresenter,
@@ -1811,7 +1811,7 @@ struct MenuBarLiveValidationTests {
             notificationPreferences: settings.notificationPreferences,
             notificationState: settings.notificationState,
             tokenUsagePreferences: settings.tokenUsagePreferences,
-            remoteHostMenuOperations: remoteHostClient,
+            remoteHostOperations: remoteHostClient,
             alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
@@ -1949,7 +1949,7 @@ struct MenuBarLiveValidationTests {
             notificationPreferences: settings.notificationPreferences,
             notificationState: settings.notificationState,
             tokenUsagePreferences: settings.tokenUsagePreferences,
-            remoteHostMenuOperations: remoteHostClient,
+            remoteHostOperations: remoteHostClient,
             alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
@@ -2048,7 +2048,7 @@ struct MenuBarLiveValidationTests {
             notificationPreferences: settings.notificationPreferences,
             notificationState: settings.notificationState,
             tokenUsagePreferences: settings.tokenUsagePreferences,
-            remoteHostMenuOperations: remoteHostClient,
+            remoteHostOperations: remoteHostClient,
             alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
@@ -2126,7 +2126,7 @@ struct MenuBarLiveValidationTests {
             notificationPreferences: settings.notificationPreferences,
             notificationState: settings.notificationState,
             tokenUsagePreferences: settings.tokenUsagePreferences,
-            remoteHostMenuOperations: RemoteHostStub(
+            remoteHostOperations: RemoteHostStub(
                 status: CodexAccountStatus(
                     email: "remote@example.com",
                     planType: "team",
@@ -2268,7 +2268,7 @@ struct MenuBarLiveValidationTests {
             notificationPreferences: settings.notificationPreferences,
             notificationState: settings.notificationState,
             tokenUsagePreferences: settings.tokenUsagePreferences,
-            remoteHostMenuOperations: RemoteHostStub(
+            remoteHostOperations: RemoteHostStub(
                 status: CodexAccountStatus(
                     email: "user@example.com",
                     planType: "team",
@@ -2425,7 +2425,7 @@ struct MenuBarLiveValidationTests {
             notificationPreferences: settings.notificationPreferences,
             notificationState: settings.notificationState,
             tokenUsagePreferences: settings.tokenUsagePreferences,
-            remoteHostMenuOperations: RemoteHostStub(
+            remoteHostOperations: RemoteHostStub(
                 status: CodexAccountStatus(
                     email: "user@example.com",
                     planType: "team",
@@ -2593,7 +2593,7 @@ struct MenuBarLiveValidationTests {
             notificationPreferences: settings.notificationPreferences,
             notificationState: settings.notificationState,
             tokenUsagePreferences: settings.tokenUsagePreferences,
-            remoteHostMenuOperations: remoteHostClient,
+            remoteHostOperations: remoteHostClient,
             alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",

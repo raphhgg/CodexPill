@@ -4,6 +4,12 @@ import OSLog
 
 private let menuBarCoordinatorLogger = Logger(subsystem: "com.raphhgg.codexpill", category: "MenuBarCoordinator")
 
+typealias MenuBarRemoteHostOperations =
+    RemoteHostConnectionChecking
+    & RemoteHostAccountStatusReading
+    & RemoteHostAccountSigningOut
+    & RemoteHostCodexAppServerRefreshing
+
 @MainActor
 protocol ApplicationActivator {
     func activate()
@@ -25,9 +31,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let remoteHostSettings: RemoteHostSettingsStore
     private let notificationPreferences: NotificationPreferencesStore
     private let tokenUsagePreferences: TokenUsagePreferencesStore
-    private let remoteHostConnectionChecker: RemoteHostConnectionChecking
-    private let remoteHostAccountSignerOut: RemoteHostAccountSigningOut
-    private let remoteHostAppServerRefresher: RemoteHostCodexAppServerRefreshing
+    private let remoteHostOperations: MenuBarRemoteHostOperations
     private let cliProcessInspector: CodexCLIProcessInspector
     private let alertPresenter: AlertPresenter
     private let panelPresenter: PanelPresenter
@@ -88,7 +92,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private lazy var hostActionCoordinator = MenuBarHostActionCoordinator(
         store: accountsController,
         settings: remoteHostSettings,
-        connectionChecker: remoteHostConnectionChecker,
+        connectionChecker: remoteHostOperations,
         remoteHostRuntime: remoteHostRuntime,
         alertPresenter: alertPresenter,
         panelPresenter: panelPresenter,
@@ -115,16 +119,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         notificationPreferences: NotificationPreferencesStore,
         notificationState: NotificationStateStore,
         tokenUsagePreferences: TokenUsagePreferencesStore,
-        remoteHostMenuOperations: (
-            RemoteHostConnectionChecking
-            & RemoteHostAccountStatusReading
-            & RemoteHostAccountSigningOut
-            & RemoteHostCodexAppServerRefreshing
-        )? = nil,
-        remoteHostConnectionChecker: RemoteHostConnectionChecking = UnavailableRemoteHostClient(),
-        remoteHostAccountStatusReader: RemoteHostAccountStatusReading = UnavailableRemoteHostClient(),
-        remoteHostAccountSignerOut: RemoteHostAccountSigningOut = UnavailableRemoteHostClient(),
-        remoteHostAppServerRefresher: RemoteHostCodexAppServerRefreshing = UnavailableRemoteHostClient(),
+        remoteHostOperations: MenuBarRemoteHostOperations = UnavailableRemoteHostClient(),
         cliProcessInspector: CodexCLIProcessInspector = CodexCLIProcessInspector(),
         alertPresenter: AlertPresenter,
         panelPresenter: PanelPresenter? = nil,
@@ -151,10 +146,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.remoteHostSettings = remoteHostSettings
         self.notificationPreferences = notificationPreferences
         self.tokenUsagePreferences = tokenUsagePreferences
-        self.remoteHostConnectionChecker = remoteHostMenuOperations ?? remoteHostConnectionChecker
-        let remoteHostAccountStatusReader = remoteHostMenuOperations ?? remoteHostAccountStatusReader
-        self.remoteHostAccountSignerOut = remoteHostMenuOperations ?? remoteHostAccountSignerOut
-        self.remoteHostAppServerRefresher = remoteHostMenuOperations ?? remoteHostAppServerRefresher
+        self.remoteHostOperations = remoteHostOperations
         self.cliProcessInspector = cliProcessInspector
         self.alertPresenter = alertPresenter
         self.panelPresenter = panelPresenter ?? SystemPanelPresenter()
@@ -179,7 +171,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.allowsEmptyStatePrompt = allowsEmptyStatePrompt
         self.remoteHostRuntime = RemoteHostRuntime(
             settings: remoteHostSettings,
-            accountStatusReader: remoteHostAccountStatusReader,
+            accountStatusReader: remoteHostOperations,
             accounts: { accountsController.accounts },
             persistAccountMetadata: { accountsController.persistAccountMetadata($0) },
             markAccountActivated: { [notificationStateStore] accountID in
@@ -1155,8 +1147,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             guard let remoteHost = remoteHostSettings.remoteHostState(for: remoteHostState.destination)?.host else {
                 throw RemoteHostClientError.commandFailed("Remote host \(remoteHostState.name) is no longer configured.")
             }
-            try await remoteHostAccountSignerOut.signOut(on: remoteHost)
-            try await remoteHostAppServerRefresher.refreshCodexAppServer(on: remoteHost)
+            try await remoteHostOperations.signOut(on: remoteHost)
+            try await remoteHostOperations.refreshCodexAppServer(on: remoteHost)
             remoteHostRuntime.applySignOut(on: remoteHost)
         }
     }
