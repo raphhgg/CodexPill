@@ -36,7 +36,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let alertPresenter: AlertPresenter
     private let panelPresenter: PanelPresenter
     private let shortcutCapturePanelPresenter: ShortcutCapturePanelPresenter
-    private let alertFactory: MenuBarAlertFactory
+    private let alertFactory = MenuBarAlertFactory()
     private let notificationStateStore: AccountAvailabilityNotificationStore
     private let notificationDelivery: AccountAvailabilityNotifier
     private let applicationActivator: ApplicationActivator
@@ -44,10 +44,11 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let loginItemController: LoginItemControlling
     private let loginItemsSettingsLauncher: LoginItemsSettingsLaunching
     private let diagnosticReportPresenter: DiagnosticReportPresenting
-    private let diagnosticEventRecorder: DiagnosticEventRecorder
+    private let diagnosticEventRecorder = DiagnosticEventRecorder()
     private let tokenUsageProvider: TokenUsageMenuProviding
     private let validationObserver: MenuBarValidationObserver
     private let allowsEmptyStatePrompt: Bool
+    private let autoRefreshIntervalOverride: TimeInterval?
     private let remoteHostRuntime: RemoteHostRuntime
     private let accountActionFlow = AccountActionFlow()
     private let menuBuilder = MenuBarMenuBuilder()
@@ -111,7 +112,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     init(
         statusItemRuntime: StatusItemRuntime,
-        shortcutRuntime: GlobalShortcutRuntime? = nil,
+        shortcutRuntime: GlobalShortcutRuntime,
         accountsController: MenuBarAccounts,
         menuDisplaySettings: MenuDisplaySettingsStore,
         statusItemSettings: StatusItemSettingsStore,
@@ -119,27 +120,24 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         notificationPreferences: NotificationPreferencesStore,
         notificationState: NotificationStateStore,
         tokenUsagePreferences: TokenUsagePreferencesStore,
-        remoteHostOperations: MenuBarRemoteHostOperations = UnavailableRemoteHostClient(),
-        cliProcessInspector: CodexCLIProcessInspector = CodexCLIProcessInspector(),
+        remoteHostOperations: MenuBarRemoteHostOperations,
+        cliProcessInspector: CodexCLIProcessInspector,
         alertPresenter: AlertPresenter,
-        panelPresenter: PanelPresenter? = nil,
-        shortcutCapturePanelPresenter: ShortcutCapturePanelPresenter? = nil,
-        alertFactory: MenuBarAlertFactory = MenuBarAlertFactory(),
-        notificationDelivery: AccountAvailabilityNotifier? = nil,
-        applicationActivator: ApplicationActivator = NSApplicationActivator(),
-        notificationSettingsLauncher: NotificationSettingsLauncher = SystemNotificationSettingsLauncher(),
-        loginItemController: LoginItemControlling = SystemLoginItemController(),
-        loginItemsSettingsLauncher: LoginItemsSettingsLaunching = SystemLoginItemsSettingsLauncher(),
-        diagnosticReportPresenter: DiagnosticReportPresenting? = nil,
-        diagnosticEventRecorder: DiagnosticEventRecorder? = nil,
-        tokenUsageProvider: TokenUsageMenuProviding = LocalCodexSessionTokenUsageMenuProvider(),
-        validationSink: MenuBarValidationSink? = nil,
-        validationScenario: String? = MenuBarValidationConfiguration.scenario(),
-        validationObserver: MenuBarValidationObserver? = nil,
-        allowsEmptyStatePrompt: Bool = true
+        panelPresenter: PanelPresenter,
+        shortcutCapturePanelPresenter: ShortcutCapturePanelPresenter,
+        notificationDelivery: AccountAvailabilityNotifier,
+        applicationActivator: ApplicationActivator,
+        notificationSettingsLauncher: NotificationSettingsLauncher,
+        loginItemController: LoginItemControlling,
+        loginItemsSettingsLauncher: LoginItemsSettingsLaunching,
+        diagnosticReportPresenter: DiagnosticReportPresenting,
+        tokenUsageProvider: TokenUsageMenuProviding,
+        validationObserver: MenuBarValidationObserver,
+        allowsEmptyStatePrompt: Bool,
+        autoRefreshIntervalOverride: TimeInterval?
     ) {
         self.statusItemRuntime = statusItemRuntime
-        self.shortcutRuntime = shortcutRuntime ?? GlobalShortcutRuntime()
+        self.shortcutRuntime = shortcutRuntime
         self.accountsController = accountsController
         self.menuDisplaySettings = menuDisplaySettings
         self.statusItemSettings = statusItemSettings
@@ -149,26 +147,22 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.remoteHostOperations = remoteHostOperations
         self.cliProcessInspector = cliProcessInspector
         self.alertPresenter = alertPresenter
-        self.panelPresenter = panelPresenter ?? SystemPanelPresenter()
-        self.shortcutCapturePanelPresenter = shortcutCapturePanelPresenter ?? SystemShortcutCapturePanelPresenter()
-        self.alertFactory = alertFactory
+        self.panelPresenter = panelPresenter
+        self.shortcutCapturePanelPresenter = shortcutCapturePanelPresenter
         self.notificationStateStore = AccountAvailabilityNotificationStore(
             preferences: notificationPreferences,
             stateStore: notificationState
         )
-        self.notificationDelivery = notificationDelivery ?? Self.makeDefaultNotificationDelivery()
+        self.notificationDelivery = notificationDelivery
         self.applicationActivator = applicationActivator
         self.notificationSettingsLauncher = notificationSettingsLauncher
         self.loginItemController = loginItemController
         self.loginItemsSettingsLauncher = loginItemsSettingsLauncher
-        self.diagnosticReportPresenter = diagnosticReportPresenter ?? SystemDiagnosticReportPresenter()
-        self.diagnosticEventRecorder = diagnosticEventRecorder ?? DiagnosticEventRecorder()
+        self.diagnosticReportPresenter = diagnosticReportPresenter
         self.tokenUsageProvider = tokenUsageProvider
-        self.validationObserver = validationObserver ?? MenuBarValidationObserver(
-            sink: validationSink,
-            scenario: validationScenario
-        )
+        self.validationObserver = validationObserver
         self.allowsEmptyStatePrompt = allowsEmptyStatePrompt
+        self.autoRefreshIntervalOverride = autoRefreshIntervalOverride
         self.remoteHostRuntime = RemoteHostRuntime(
             settings: remoteHostSettings,
             accountStatusReader: remoteHostOperations,
@@ -178,14 +172,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
                 notificationStateStore.markAccountActivated(accountID)
             }
         )
-    }
-
-    private static func makeDefaultNotificationDelivery() -> AccountAvailabilityNotifier {
-        if AppRuntimeEnvironment.isRunningAutomatedTests() {
-            return DisabledAccountAvailabilityNotifier()
-        }
-
-        return AccountAvailabilityNotificationCenter()
     }
 
     func start() {
@@ -936,7 +922,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     private func scheduleAutoRefresh() {
         autoRefreshTimer?.invalidate()
-        let interval = AppRuntimeEnvironment.validationAutoRefreshIntervalSeconds() ?? TimeInterval(menuDisplaySettings.refreshIntervalMinutes * 60)
+        let interval = autoRefreshIntervalOverride ?? TimeInterval(menuDisplaySettings.refreshIntervalMinutes * 60)
         autoRefreshTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.performScheduledRefresh()

@@ -55,15 +55,10 @@ struct MenuBarLiveValidationTests {
             defaults.removePersistentDomain(forName: suiteName)
         }
 
-        let coordinator = MenuBarCoordinator(
+        let coordinator = MenuBarCoordinator.makeForTesting(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             accountsController: accountsController,
-            menuDisplaySettings: settings.menuDisplaySettings,
-            statusItemSettings: settings.statusItemSettings,
-            remoteHostSettings: settings.remoteHostSettings,
-            notificationPreferences: settings.notificationPreferences,
-            notificationState: settings.notificationState,
-            tokenUsagePreferences: settings.tokenUsagePreferences,
+            settings: settings,
             remoteHostOperations: ValidationRemoteHostClient(seedStates: settings.remoteHostSettings.remoteHostStates),
             alertPresenter: alertPresenter,
             allowsEmptyStatePrompt: false
@@ -184,15 +179,10 @@ struct MenuBarLiveValidationTests {
             defaults.removePersistentDomain(forName: suiteName)
         }
 
-        let coordinator = MenuBarCoordinator(
+        let coordinator = MenuBarCoordinator.makeForTesting(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             accountsController: accountsController,
-            menuDisplaySettings: settings.menuDisplaySettings,
-            statusItemSettings: settings.statusItemSettings,
-            remoteHostSettings: settings.remoteHostSettings,
-            notificationPreferences: settings.notificationPreferences,
-            notificationState: settings.notificationState,
-            tokenUsagePreferences: settings.tokenUsagePreferences,
+            settings: settings,
             remoteHostOperations: ValidationRemoteHostClient(seedStates: settings.remoteHostSettings.remoteHostStates),
             alertPresenter: alertPresenter,
             applicationActivator: foregrounder,
@@ -315,15 +305,10 @@ struct MenuBarLiveValidationTests {
             defaults.removePersistentDomain(forName: suiteName)
         }
 
-        let coordinator = MenuBarCoordinator(
+        let coordinator = MenuBarCoordinator.makeForTesting(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             accountsController: accountsController,
-            menuDisplaySettings: settings.menuDisplaySettings,
-            statusItemSettings: settings.statusItemSettings,
-            remoteHostSettings: settings.remoteHostSettings,
-            notificationPreferences: settings.notificationPreferences,
-            notificationState: settings.notificationState,
-            tokenUsagePreferences: settings.tokenUsagePreferences,
+            settings: settings,
             remoteHostOperations: failingHostClient,
             alertPresenter: alertPresenter,
             applicationActivator: foregrounder,
@@ -405,15 +390,10 @@ struct MenuBarLiveValidationTests {
             defaults.removePersistentDomain(forName: suiteName)
         }
 
-        let coordinator = MenuBarCoordinator(
+        let coordinator = MenuBarCoordinator.makeForTesting(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             accountsController: accountsController,
-            menuDisplaySettings: settings.menuDisplaySettings,
-            statusItemSettings: settings.statusItemSettings,
-            remoteHostSettings: settings.remoteHostSettings,
-            notificationPreferences: settings.notificationPreferences,
-            notificationState: settings.notificationState,
-            tokenUsagePreferences: settings.tokenUsagePreferences,
+            settings: settings,
             alertPresenter: alertPresenter,
             applicationActivator: foregrounder,
             allowsEmptyStatePrompt: false
@@ -628,15 +608,10 @@ struct MenuBarLiveValidationTests {
             defaults.removePersistentDomain(forName: suiteName)
         }
 
-        let coordinator = MenuBarCoordinator(
+        let coordinator = MenuBarCoordinator.makeForTesting(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             accountsController: accountsController,
-            menuDisplaySettings: settings.menuDisplaySettings,
-            statusItemSettings: settings.statusItemSettings,
-            remoteHostSettings: settings.remoteHostSettings,
-            notificationPreferences: settings.notificationPreferences,
-            notificationState: settings.notificationState,
-            tokenUsagePreferences: settings.tokenUsagePreferences,
+            settings: settings,
             alertPresenter: AlertPresenterProbe(),
             notificationDelivery: AccountAvailabilityNotificationCenter(center: center),
             notificationSettingsLauncher: opener,
@@ -675,15 +650,10 @@ struct MenuBarLiveValidationTests {
             defaults.removePersistentDomain(forName: suiteName)
         }
 
-        let coordinator = MenuBarCoordinator(
+        let coordinator = MenuBarCoordinator.makeForTesting(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             accountsController: accountsController,
-            menuDisplaySettings: settings.menuDisplaySettings,
-            statusItemSettings: settings.statusItemSettings,
-            remoteHostSettings: settings.remoteHostSettings,
-            notificationPreferences: settings.notificationPreferences,
-            notificationState: settings.notificationState,
-            tokenUsagePreferences: settings.tokenUsagePreferences,
+            settings: settings,
             alertPresenter: AlertPresenterProbe(),
             notificationDelivery: AccountAvailabilityNotificationCenter(center: center),
             notificationSettingsLauncher: opener,
@@ -878,15 +848,10 @@ struct MenuBarLiveValidationTests {
             defaults.removePersistentDomain(forName: suiteName)
         }
 
-        let coordinator = MenuBarCoordinator(
+        let coordinator = MenuBarCoordinator.makeForTesting(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             accountsController: accountsController,
-            menuDisplaySettings: settings.menuDisplaySettings,
-            statusItemSettings: settings.statusItemSettings,
-            remoteHostSettings: settings.remoteHostSettings,
-            notificationPreferences: settings.notificationPreferences,
-            notificationState: settings.notificationState,
-            tokenUsagePreferences: settings.tokenUsagePreferences,
+            settings: settings,
             alertPresenter: AlertPresenterProbe(),
             notificationDelivery: delivery,
             allowsEmptyStatePrompt: false
@@ -931,15 +896,10 @@ struct MenuBarLiveValidationTests {
             defaults.removePersistentDomain(forName: suiteName)
         }
 
-        let coordinator = MenuBarCoordinator(
+        let coordinator = MenuBarCoordinator.makeForTesting(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             accountsController: accountsController,
-            menuDisplaySettings: settings.menuDisplaySettings,
-            statusItemSettings: settings.statusItemSettings,
-            remoteHostSettings: settings.remoteHostSettings,
-            notificationPreferences: settings.notificationPreferences,
-            notificationState: settings.notificationState,
-            tokenUsagePreferences: settings.tokenUsagePreferences,
+            settings: settings,
             remoteHostOperations: RemoteHostStub(),
             alertPresenter: alertPresenter,
             panelPresenter: panelPresenter,
@@ -983,15 +943,10 @@ struct MenuBarLiveValidationTests {
             defaults.removePersistentDomain(forName: suiteName)
         }
 
-        let coordinator = MenuBarCoordinator(
+        let coordinator = MenuBarCoordinator.makeForTesting(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             accountsController: accountsController,
-            menuDisplaySettings: settings.menuDisplaySettings,
-            statusItemSettings: settings.statusItemSettings,
-            remoteHostSettings: settings.remoteHostSettings,
-            notificationPreferences: settings.notificationPreferences,
-            notificationState: settings.notificationState,
-            tokenUsagePreferences: settings.tokenUsagePreferences,
+            settings: settings,
             remoteHostOperations: remoteHostClient,
             alertPresenter: alertPresenter,
             panelPresenter: panelPresenter,
@@ -1035,15 +990,10 @@ struct MenuBarLiveValidationTests {
             hoverExitDelay: 0,
             hoverPollingInterval: 60
         )
-        let coordinator = MenuBarCoordinator(
+        let coordinator = MenuBarCoordinator.makeForTesting(
             statusItemRuntime: runtime,
             accountsController: accountsController,
-            menuDisplaySettings: settings.menuDisplaySettings,
-            statusItemSettings: settings.statusItemSettings,
-            remoteHostSettings: settings.remoteHostSettings,
-            notificationPreferences: settings.notificationPreferences,
-            notificationState: settings.notificationState,
-            tokenUsagePreferences: settings.tokenUsagePreferences,
+            settings: settings,
             alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-status-item-hover",
@@ -1094,15 +1044,10 @@ struct MenuBarLiveValidationTests {
             defaults.removePersistentDomain(forName: suiteName)
         }
 
-        let coordinator = MenuBarCoordinator(
+        let coordinator = MenuBarCoordinator.makeForTesting(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             accountsController: accountsController,
-            menuDisplaySettings: settings.menuDisplaySettings,
-            statusItemSettings: settings.statusItemSettings,
-            remoteHostSettings: settings.remoteHostSettings,
-            notificationPreferences: settings.notificationPreferences,
-            notificationState: settings.notificationState,
-            tokenUsagePreferences: settings.tokenUsagePreferences,
+            settings: settings,
             remoteHostOperations: RemoteHostStub(
                 status: CodexAccountStatus(
                     email: "remote@example.com",
@@ -1172,15 +1117,10 @@ struct MenuBarLiveValidationTests {
             defaults.removePersistentDomain(forName: suiteName)
         }
 
-        let coordinator = MenuBarCoordinator(
+        let coordinator = MenuBarCoordinator.makeForTesting(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             accountsController: accountsController,
-            menuDisplaySettings: settings.menuDisplaySettings,
-            statusItemSettings: settings.statusItemSettings,
-            remoteHostSettings: settings.remoteHostSettings,
-            notificationPreferences: settings.notificationPreferences,
-            notificationState: settings.notificationState,
-            tokenUsagePreferences: settings.tokenUsagePreferences,
+            settings: settings,
             remoteHostOperations: RemoteHostStub(
                 readError: RemoteHostClientError.commandFailed("ssh: connection refused")
             ),
@@ -1230,15 +1170,10 @@ struct MenuBarLiveValidationTests {
             defaults.removePersistentDomain(forName: suiteName)
         }
 
-        let coordinator = MenuBarCoordinator(
+        let coordinator = MenuBarCoordinator.makeForTesting(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             accountsController: accountsController,
-            menuDisplaySettings: settings.menuDisplaySettings,
-            statusItemSettings: settings.statusItemSettings,
-            remoteHostSettings: settings.remoteHostSettings,
-            notificationPreferences: settings.notificationPreferences,
-            notificationState: settings.notificationState,
-            tokenUsagePreferences: settings.tokenUsagePreferences,
+            settings: settings,
             remoteHostOperations: RemoteHostStub(),
             alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
@@ -1306,15 +1241,10 @@ struct MenuBarLiveValidationTests {
             defaults.removePersistentDomain(forName: suiteName)
         }
 
-        let coordinator = MenuBarCoordinator(
+        let coordinator = MenuBarCoordinator.makeForTesting(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             accountsController: accountsController,
-            menuDisplaySettings: settings.menuDisplaySettings,
-            statusItemSettings: settings.statusItemSettings,
-            remoteHostSettings: settings.remoteHostSettings,
-            notificationPreferences: settings.notificationPreferences,
-            notificationState: settings.notificationState,
-            tokenUsagePreferences: settings.tokenUsagePreferences,
+            settings: settings,
             remoteHostOperations: RemoteHostStub(
                 statusesByDestination: [
                     "user@buildbox": CodexAccountStatus(email: "buildbox@example.com", planType: "team", rateLimits: nil),
@@ -1387,15 +1317,10 @@ struct MenuBarLiveValidationTests {
             defaults.removePersistentDomain(forName: suiteName)
         }
 
-        let coordinator = MenuBarCoordinator(
+        let coordinator = MenuBarCoordinator.makeForTesting(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             accountsController: accountsController,
-            menuDisplaySettings: settings.menuDisplaySettings,
-            statusItemSettings: settings.statusItemSettings,
-            remoteHostSettings: settings.remoteHostSettings,
-            notificationPreferences: settings.notificationPreferences,
-            notificationState: settings.notificationState,
-            tokenUsagePreferences: settings.tokenUsagePreferences,
+            settings: settings,
             remoteHostOperations: RemoteHostStub(
                 statusesByDestination: [
                     "user@buildbox": CodexAccountStatus(email: "buildbox@example.com", planType: "team", rateLimits: nil)
@@ -1465,15 +1390,10 @@ struct MenuBarLiveValidationTests {
             defaults.removePersistentDomain(forName: suiteName)
         }
 
-        let coordinator = MenuBarCoordinator(
+        let coordinator = MenuBarCoordinator.makeForTesting(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             accountsController: accountsController,
-            menuDisplaySettings: settings.menuDisplaySettings,
-            statusItemSettings: settings.statusItemSettings,
-            remoteHostSettings: settings.remoteHostSettings,
-            notificationPreferences: settings.notificationPreferences,
-            notificationState: settings.notificationState,
-            tokenUsagePreferences: settings.tokenUsagePreferences,
+            settings: settings,
             remoteHostOperations: RemoteHostStub(
                 status: CodexAccountStatus(email: "business-2@example.com", planType: "team", rateLimits: nil)
             ),
@@ -1563,15 +1483,10 @@ struct MenuBarLiveValidationTests {
             defaults.removePersistentDomain(forName: suiteName)
         }
 
-        let coordinator = MenuBarCoordinator(
+        let coordinator = MenuBarCoordinator.makeForTesting(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             accountsController: accountsController,
-            menuDisplaySettings: settings.menuDisplaySettings,
-            statusItemSettings: settings.statusItemSettings,
-            remoteHostSettings: settings.remoteHostSettings,
-            notificationPreferences: settings.notificationPreferences,
-            notificationState: settings.notificationState,
-            tokenUsagePreferences: settings.tokenUsagePreferences,
+            settings: settings,
             remoteHostOperations: RemoteHostStub(
                 status: CodexAccountStatus(
                     email: "business-1@example.com",
@@ -1645,15 +1560,10 @@ struct MenuBarLiveValidationTests {
             defaults.removePersistentDomain(forName: suiteName)
         }
 
-        let coordinator = MenuBarCoordinator(
+        let coordinator = MenuBarCoordinator.makeForTesting(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             accountsController: accountsController,
-            menuDisplaySettings: settings.menuDisplaySettings,
-            statusItemSettings: settings.statusItemSettings,
-            remoteHostSettings: settings.remoteHostSettings,
-            notificationPreferences: settings.notificationPreferences,
-            notificationState: settings.notificationState,
-            tokenUsagePreferences: settings.tokenUsagePreferences,
+            settings: settings,
             remoteHostOperations: RemoteHostStub(
                 status: CodexAccountStatus(
                     email: "different@example.com",
@@ -1724,15 +1634,10 @@ struct MenuBarLiveValidationTests {
             defaults.removePersistentDomain(forName: suiteName)
         }
 
-        let coordinator = MenuBarCoordinator(
+        let coordinator = MenuBarCoordinator.makeForTesting(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             accountsController: accountsController,
-            menuDisplaySettings: settings.menuDisplaySettings,
-            statusItemSettings: settings.statusItemSettings,
-            remoteHostSettings: settings.remoteHostSettings,
-            notificationPreferences: settings.notificationPreferences,
-            notificationState: settings.notificationState,
-            tokenUsagePreferences: settings.tokenUsagePreferences,
+            settings: settings,
             remoteHostOperations: RemoteHostStub(
                 readError: RemoteHostClientError.authReadFailed("cat: .codex/auth.json: Permission denied")
             ),
@@ -1802,15 +1707,10 @@ struct MenuBarLiveValidationTests {
         ).makeController()
         accountsController.load()
 
-        let coordinator = MenuBarCoordinator(
+        let coordinator = MenuBarCoordinator.makeForTesting(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             accountsController: accountsController,
-            menuDisplaySettings: settings.menuDisplaySettings,
-            statusItemSettings: settings.statusItemSettings,
-            remoteHostSettings: settings.remoteHostSettings,
-            notificationPreferences: settings.notificationPreferences,
-            notificationState: settings.notificationState,
-            tokenUsagePreferences: settings.tokenUsagePreferences,
+            settings: settings,
             remoteHostOperations: remoteHostClient,
             alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
@@ -1940,15 +1840,10 @@ struct MenuBarLiveValidationTests {
         ).makeController()
         accountsController.load()
 
-        let coordinator = MenuBarCoordinator(
+        let coordinator = MenuBarCoordinator.makeForTesting(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             accountsController: accountsController,
-            menuDisplaySettings: settings.menuDisplaySettings,
-            statusItemSettings: settings.statusItemSettings,
-            remoteHostSettings: settings.remoteHostSettings,
-            notificationPreferences: settings.notificationPreferences,
-            notificationState: settings.notificationState,
-            tokenUsagePreferences: settings.tokenUsagePreferences,
+            settings: settings,
             remoteHostOperations: remoteHostClient,
             alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
@@ -2039,15 +1934,10 @@ struct MenuBarLiveValidationTests {
         ).makeController()
         accountsController.load()
 
-        let coordinator = MenuBarCoordinator(
+        let coordinator = MenuBarCoordinator.makeForTesting(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             accountsController: accountsController,
-            menuDisplaySettings: settings.menuDisplaySettings,
-            statusItemSettings: settings.statusItemSettings,
-            remoteHostSettings: settings.remoteHostSettings,
-            notificationPreferences: settings.notificationPreferences,
-            notificationState: settings.notificationState,
-            tokenUsagePreferences: settings.tokenUsagePreferences,
+            settings: settings,
             remoteHostOperations: remoteHostClient,
             alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
@@ -2117,15 +2007,10 @@ struct MenuBarLiveValidationTests {
             defaults.removePersistentDomain(forName: suiteName)
         }
 
-        let coordinator = MenuBarCoordinator(
+        let coordinator = MenuBarCoordinator.makeForTesting(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             accountsController: accountsController,
-            menuDisplaySettings: settings.menuDisplaySettings,
-            statusItemSettings: settings.statusItemSettings,
-            remoteHostSettings: settings.remoteHostSettings,
-            notificationPreferences: settings.notificationPreferences,
-            notificationState: settings.notificationState,
-            tokenUsagePreferences: settings.tokenUsagePreferences,
+            settings: settings,
             remoteHostOperations: RemoteHostStub(
                 status: CodexAccountStatus(
                     email: "remote@example.com",
@@ -2259,15 +2144,10 @@ struct MenuBarLiveValidationTests {
             defaults.removePersistentDomain(forName: suiteName)
         }
 
-        let coordinator = MenuBarCoordinator(
+        let coordinator = MenuBarCoordinator.makeForTesting(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             accountsController: accountsController,
-            menuDisplaySettings: settings.menuDisplaySettings,
-            statusItemSettings: settings.statusItemSettings,
-            remoteHostSettings: settings.remoteHostSettings,
-            notificationPreferences: settings.notificationPreferences,
-            notificationState: settings.notificationState,
-            tokenUsagePreferences: settings.tokenUsagePreferences,
+            settings: settings,
             remoteHostOperations: RemoteHostStub(
                 status: CodexAccountStatus(
                     email: "user@example.com",
@@ -2416,15 +2296,10 @@ struct MenuBarLiveValidationTests {
             defaults.removePersistentDomain(forName: suiteName)
         }
 
-        let coordinator = MenuBarCoordinator(
+        let coordinator = MenuBarCoordinator.makeForTesting(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             accountsController: accountsController,
-            menuDisplaySettings: settings.menuDisplaySettings,
-            statusItemSettings: settings.statusItemSettings,
-            remoteHostSettings: settings.remoteHostSettings,
-            notificationPreferences: settings.notificationPreferences,
-            notificationState: settings.notificationState,
-            tokenUsagePreferences: settings.tokenUsagePreferences,
+            settings: settings,
             remoteHostOperations: RemoteHostStub(
                 status: CodexAccountStatus(
                     email: "user@example.com",
@@ -2459,9 +2334,6 @@ struct MenuBarLiveValidationTests {
 
     @Test
     func scheduledRefreshUpdatesVerifiedRemoteHostUsage() async throws {
-        setenv(AppRuntimeEnvironment.validationAutoRefreshIntervalSecondsEnvironmentKey, "0.05", 1)
-        defer { unsetenv(AppRuntimeEnvironment.validationAutoRefreshIntervalSecondsEnvironmentKey) }
-
         let sink = ValidationSinkProbe()
         let repository = try makeIsolatedRepository()
         let now = Date.now
@@ -2584,20 +2456,16 @@ struct MenuBarLiveValidationTests {
             ]
         ])
 
-        let coordinator = MenuBarCoordinator(
+        let coordinator = MenuBarCoordinator.makeForTesting(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
             accountsController: accountsController,
-            menuDisplaySettings: settings.menuDisplaySettings,
-            statusItemSettings: settings.statusItemSettings,
-            remoteHostSettings: settings.remoteHostSettings,
-            notificationPreferences: settings.notificationPreferences,
-            notificationState: settings.notificationState,
-            tokenUsagePreferences: settings.tokenUsagePreferences,
+            settings: settings,
             remoteHostOperations: remoteHostClient,
             alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-menu-open",
-            allowsEmptyStatePrompt: false
+            allowsEmptyStatePrompt: false,
+            autoRefreshIntervalOverride: 0.05
         )
 
         defer { coordinator.invalidate() }

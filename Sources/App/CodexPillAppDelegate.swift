@@ -4,7 +4,6 @@ import UserNotifications
 @MainActor
 final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     private var coordinator: MenuBarCoordinator?
-    private var statusItemRuntime: StatusItemRuntime?
     private var wakeObserver: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -21,44 +20,13 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
             return
         }
 
-        let repository = try! AccountRepository()
-        let authService = CodexAuthSnapshotService(repository: repository)
-        let processClient: CodexAppProcessClient = AppRuntimeEnvironment.shouldUseValidationCodexProcessClient(environment: environment)
-            ? ValidationCodexAppProcessClient()
-            : SystemCodexAppProcessClient()
-        let accountStatusClient = CodexAppServerClient()
-        let remoteHostClient: RemoteHostSwitchWorkflowOperations
-            & RemoteHostAccountSigningOut
-        if AppRuntimeEnvironment.shouldUseValidationRemoteHostClient(environment: environment) {
-            remoteHostClient = ValidationRemoteHostClient(seedStates: remoteHostSettings.remoteHostStates)
-        } else {
-            remoteHostClient = SSHRemoteHostClient(snapshotLocator: repository)
-        }
-        let accountsFeatureFactory = AccountsFeatureFactory(
-            repository: repository,
-            authService: authService,
-            codexAppProcessClient: processClient,
-            accountStatusClient: accountStatusClient,
-            remoteHostSwitchOperations: remoteHostClient
+        let composition = AppComposition(
+            environment: environment,
+            defaults: defaults,
+            remoteHostSettings: remoteHostSettings
         )
-        let accountsController = accountsFeatureFactory.makeController()
-
-        let statusItemRuntime = StatusItemRuntime()
-        self.statusItemRuntime = statusItemRuntime
-        coordinator = MenuBarCoordinator(
-            statusItemRuntime: statusItemRuntime,
-            accountsController: accountsController,
-            menuDisplaySettings: MenuDisplaySettingsStore(userDefaults: defaults),
-            statusItemSettings: StatusItemSettingsStore(userDefaults: defaults),
-            remoteHostSettings: remoteHostSettings,
-            notificationPreferences: NotificationPreferencesStore(userDefaults: defaults),
-            notificationState: NotificationStateStore(userDefaults: defaults),
-            tokenUsagePreferences: TokenUsagePreferencesStore(userDefaults: defaults),
-            remoteHostOperations: remoteHostClient,
-            alertPresenter: SystemAlertPresenter(),
-            validationSink: MenuBarValidationConfiguration.makeSink(),
-            allowsEmptyStatePrompt: !AppRuntimeEnvironment.shouldSuppressEmptyStatePrompt()
-        )
+        let accountsController = composition.accountsController
+        coordinator = composition.coordinator
 
         UNUserNotificationCenter.current().delegate = self
 
