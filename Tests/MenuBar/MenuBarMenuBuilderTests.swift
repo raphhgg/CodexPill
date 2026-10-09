@@ -186,22 +186,6 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func realAlertPresenterSuppressesInfoAlertsDuringAutomatedTests() {
-        let presenter = SystemAlertPresenter(
-            environment: [AppRuntimeEnvironment.xctestConfigurationFilePathEnvironmentKey: "/tmp/test.xctestconfiguration"]
-        )
-
-        presenter.presentInfo(
-            MenuBarInfoAlertRequest(
-                messageText: "CodexPill Error",
-                informativeText: "Permission denied",
-                style: .warning,
-                buttonTitle: "OK"
-            )
-        )
-    }
-
-    @Test
     func realPresentersCancelInteractivePromptsDuringAutomatedTests() async {
         let alertPresenter = SystemAlertPresenter(
             environment: [AppRuntimeEnvironment.xctestConfigurationFilePathEnvironmentKey: "/tmp/test.xctestconfiguration"]
@@ -227,6 +211,14 @@ struct MenuBarMenuBuilderTests {
                 informativeText: "Delete account",
                 confirmTitle: "Remove",
                 cancelTitle: "Cancel"
+            )
+        )
+        alertPresenter.presentInfo(
+            MenuBarInfoAlertRequest(
+                messageText: "CodexPill Error",
+                informativeText: "Permission denied",
+                style: .warning,
+                buttonTitle: "OK"
             )
         )
         var cancelled = false
