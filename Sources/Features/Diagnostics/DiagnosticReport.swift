@@ -276,9 +276,9 @@ struct DiagnosticReportBuilder {
                 alias: aliases.accountAlias(for: account.id),
                 roles: roles,
                 planCategory: normalizedCodexPlanType(account.effectivePlanType) ?? "unknown",
-                hasRateLimitSnapshot: account.rateLimits != nil,
-                sessionUsageCategory: usageCategory(for: account.rateLimits?.sessionWindow),
-                weeklyUsageCategory: usageCategory(for: account.rateLimits?.weeklyWindow)
+                hasRateLimitSnapshot: account.usage != nil,
+                sessionUsageCategory: usageCategory(for: account.usage?.window(.session)),
+                weeklyUsageCategory: usageCategory(for: account.usage?.window(.weekly))
             )
         }
     }
@@ -306,7 +306,7 @@ struct DiagnosticReportBuilder {
             freshnessState(
                 subjectAlias: aliases.accountAlias(for: account.id),
                 subjectKind: "account",
-                fetchedAt: account.rateLimits?.fetchedAt
+                fetchedAt: account.usage?.fetchedAt
             )
         }
 
@@ -401,7 +401,7 @@ struct DiagnosticReportBuilder {
             ))
         }
 
-        for account in state.allSavedAccounts where account.rateLimits == nil {
+        for account in state.allSavedAccounts where account.usage == nil {
             traces.append(.init(
                 subjectAlias: aliases.accountAlias(for: account.id),
                 subjectKind: "account",
@@ -432,7 +432,7 @@ struct DiagnosticReportBuilder {
         return traces
     }
 
-    private func usageCategory(for window: CodexRateLimitWindow?) -> String {
+    private func usageCategory(for window: UsageWindow?) -> String {
         guard let window else { return "unknown" }
         switch window.displayedUsedPercent(at: systemMetadata.exportTimestamp) {
         case 0..<50:

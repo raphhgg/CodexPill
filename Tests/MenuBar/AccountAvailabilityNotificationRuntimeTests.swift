@@ -95,7 +95,7 @@ struct AccountAvailabilityNotificationRuntimeTests {
                     updatedAt: .distantPast,
                     email: "business-5@example.com",
                     planType: "team",
-                    rateLimits: nil,
+                    usage: nil,
                     identity: .empty
                 ),
                 reason: .whenOut,
@@ -142,7 +142,7 @@ struct AccountAvailabilityNotificationRuntimeTests {
                     updatedAt: .distantPast,
                     email: "business-5@example.com",
                     planType: "team",
-                    rateLimits: nil,
+                    usage: nil,
                     identity: .empty
                 ),
                 reason: .whenOut,

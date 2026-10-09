@@ -295,7 +295,7 @@ final class AccountsController {
 
     func hydrateSavedAccountsMetadataIfNeeded() async {
         guard !isBusy, !isHydratingSavedAccountsMetadata else { return }
-        guard accounts.contains(where: { $0.id != activeAccountID && $0.rateLimits == nil }) else { return }
+        guard accounts.contains(where: { $0.id != activeAccountID && $0.usage == nil }) else { return }
 
         isHydratingSavedAccountsMetadata = true
         defer { isHydratingSavedAccountsMetadata = false }
@@ -387,7 +387,7 @@ final class AccountsController {
 
     private func hydrateSavedAccountsMetadataAfterAddingAccount() async {
         guard !isHydratingSavedAccountsMetadata else { return }
-        guard accounts.contains(where: { $0.id != activeAccountID && $0.rateLimits == nil }) else { return }
+        guard accounts.contains(where: { $0.id != activeAccountID && $0.usage == nil }) else { return }
 
         isHydratingSavedAccountsMetadata = true
         defer { isHydratingSavedAccountsMetadata = false }

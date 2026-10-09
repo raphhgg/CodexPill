@@ -239,7 +239,7 @@ struct MenuBarMenuState {
 
     var hasStatusItemContentData: Bool {
         guard let activeAccount else { return false }
-        return activeAccount.rateLimits?.sessionWindow != nil || activeAccount.rateLimits?.weeklyWindow != nil
+        return activeAccount.usage?.window(.session) != nil || activeAccount.usage?.window(.weekly) != nil
     }
 
     var availabilitySnapshots: [AccountAvailabilitySnapshot] {

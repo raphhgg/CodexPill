@@ -44,7 +44,7 @@ struct HydrateSavedAccountsMetadataUseCase: Sendable {
         let candidateAccountIDs = accounts
             .filter { account in
                 account.id != activeAccountID &&
-                    (refreshExistingMetadata || account.rateLimits == nil)
+                    (refreshExistingMetadata || account.usage == nil)
             }
             .map(\.id)
 
@@ -75,13 +75,13 @@ struct HydrateSavedAccountsMetadataUseCase: Sendable {
             }
 
             guard case .success(let remote) = read.status else { continue }
-            let hasFreshRateLimits = appServerRateLimitsHaveUsableWindow(remote.rateLimits)
-                && !appServerRateLimitsLookSuspiciouslyZeroed(remote.rateLimits)
+            let hasFreshRateLimits = appServerUsageHasUsableWindow(remote.usage)
+                && !appServerUsageLooksSuspiciouslyZeroed(remote.usage)
 
             updatedAccounts[index].applyRemoteMetadata(
                 email: remote.email ?? updatedAccounts[index].email,
                 planType: remote.planType ?? updatedAccounts[index].planType,
-                rateLimits: hasFreshRateLimits ? remote.rateLimits : updatedAccounts[index].rateLimits,
+                usage: hasFreshRateLimits ? remote.usage : updatedAccounts[index].usage,
                 preferRateLimitPlan: hasFreshRateLimits
             )
 

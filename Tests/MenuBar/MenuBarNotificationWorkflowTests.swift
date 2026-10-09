@@ -8,12 +8,12 @@ struct MenuBarNotificationWorkflowTests {
     @Test
     func evaluationRendersAndDeliversAvailableAccountPayload() async throws {
         let now = Date()
-        let fallback = makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 10, weeklyUsedPercent: 20))
+        let fallback = makeAccount(name: "Business 2", usage: makeUsage(resettingAfter: now, sessionUsedPercent: 10, weeklyUsedPercent: 20))
         let harness = makeHarness()
         harness.workflow.whenBlockedEnabled = true
 
         harness.workflow.start(with: makeState(inactiveAccounts: [
-            makeAccount(name: "Blocked", rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 100, weeklyUsedPercent: 100))
+            makeAccount(name: "Blocked", usage: makeUsage(resettingAfter: now, sessionUsedPercent: 100, weeklyUsedPercent: 100))
         ]))
         await harness.workflow.evaluate(using: makeState(inactiveAccounts: [fallback]), now: now)
 
@@ -39,14 +39,14 @@ struct MenuBarNotificationWorkflowTests {
     @Test
     func firstRealNotificationRequestsMacPermissionWhenUndetermined() async throws {
         let now = Date()
-        let fallback = makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 10, weeklyUsedPercent: 20))
+        let fallback = makeAccount(name: "Business 2", usage: makeUsage(resettingAfter: now, sessionUsedPercent: 10, weeklyUsedPercent: 20))
         let harness = makeHarness()
         harness.workflow.whenBlockedEnabled = true
         harness.delivery.authorizationStateValue = .notDetermined
         harness.delivery.authorizationStateAfterRequest = .authorized
 
         harness.workflow.start(with: makeState(inactiveAccounts: [
-            makeAccount(name: "Blocked", rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 100, weeklyUsedPercent: 100))
+            makeAccount(name: "Blocked", usage: makeUsage(resettingAfter: now, sessionUsedPercent: 100, weeklyUsedPercent: 100))
         ]))
         await harness.workflow.evaluate(using: makeState(inactiveAccounts: [fallback]), now: now)
 
@@ -58,13 +58,13 @@ struct MenuBarNotificationWorkflowTests {
     @Test
     func deniedMacPermissionSuppressesDeliveryWithoutClearingSavedIntent() async throws {
         let now = Date()
-        let fallback = makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 10, weeklyUsedPercent: 20))
+        let fallback = makeAccount(name: "Business 2", usage: makeUsage(resettingAfter: now, sessionUsedPercent: 10, weeklyUsedPercent: 20))
         let harness = makeHarness()
         harness.workflow.whenBlockedEnabled = true
         harness.delivery.authorizationStateValue = .denied
 
         harness.workflow.start(with: makeState(inactiveAccounts: [
-            makeAccount(name: "Blocked", rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 100, weeklyUsedPercent: 100))
+            makeAccount(name: "Blocked", usage: makeUsage(resettingAfter: now, sessionUsedPercent: 100, weeklyUsedPercent: 100))
         ]))
         await harness.workflow.evaluate(using: makeState(inactiveAccounts: [fallback]), now: now)
 
@@ -77,9 +77,9 @@ struct MenuBarNotificationWorkflowTests {
     @Test
     func staleLocalNotificationClickResolvesCurrentBestAccount() throws {
         let now = Date()
-        let stale = makeAccount(name: "Business 1", rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 95, weeklyUsedPercent: 95))
-        let currentBest = makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 5, weeklyUsedPercent: 5))
-        let active = makeAccount(name: "Personal", rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 100, weeklyUsedPercent: 100))
+        let stale = makeAccount(name: "Business 1", usage: makeUsage(resettingAfter: now, sessionUsedPercent: 95, weeklyUsedPercent: 95))
+        let currentBest = makeAccount(name: "Business 2", usage: makeUsage(resettingAfter: now, sessionUsedPercent: 5, weeklyUsedPercent: 5))
+        let active = makeAccount(name: "Personal", usage: makeUsage(resettingAfter: now, sessionUsedPercent: 100, weeklyUsedPercent: 100))
         let harness = makeHarness()
         harness.workflow.whenOutEnabled = true
 
@@ -102,8 +102,8 @@ struct MenuBarNotificationWorkflowTests {
     @Test
     func staleRemoteNotificationClickDropsWhenRequestedHostIsNoLongerActionable() throws {
         let now = Date()
-        let stale = makeAccount(name: "Business 1", rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 5, weeklyUsedPercent: 5))
-        let active = makeAccount(name: "Personal", rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 100, weeklyUsedPercent: 100))
+        let stale = makeAccount(name: "Business 1", usage: makeUsage(resettingAfter: now, sessionUsedPercent: 5, weeklyUsedPercent: 5))
+        let active = makeAccount(name: "Personal", usage: makeUsage(resettingAfter: now, sessionUsedPercent: 100, weeklyUsedPercent: 100))
         let harness = makeHarness()
         harness.workflow.whenOutEnabled = true
 

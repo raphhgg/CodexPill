@@ -7,15 +7,8 @@ enum AccountAvailabilityTarget: Hashable {
 
 enum AccountAvailabilityStatus: Equatable {
     case availableNow
-    case blocked(until: Date?, reason: AccountAvailabilityBlockingReason)
+    case blocked(by: Set<UsageWindowKind>, until: Date?)
     case unavailable(reason: AccountAvailabilityUnavailableReason)
-}
-
-enum AccountAvailabilityBlockingReason: Equatable {
-    case session
-    case weekly
-    case sessionAndWeekly
-    case unknown
 }
 
 enum AccountAvailabilityUnavailableReason: Equatable {
@@ -86,20 +79,20 @@ struct AccountAvailabilityService {
         on target: AccountAvailabilityTarget = .local,
         now: Date = .now
     ) -> AccountTargetAvailability {
-        let (sessionUsedPercent, weeklyUsedPercent, sessionResetAt, weeklyResetAt) = usageWindows(of: account.rateLimits, now: now)
+        let (sessionUsedPercent, weeklyUsedPercent, sessionResetAt, weeklyResetAt) = usageWindows(of: account.usage, now: now)
 
         let status: AccountAvailabilityStatus
         switch (sessionUsedPercent >= 100, weeklyUsedPercent >= 100) {
         case (false, false):
             status = .availableNow
         case (true, false):
-            status = .blocked(until: sessionResetAt, reason: .session)
+            status = .blocked(by: [.session], until: sessionResetAt)
         case (false, true):
-            status = .blocked(until: weeklyResetAt, reason: .weekly)
+            status = .blocked(by: [.weekly], until: weeklyResetAt)
         case (true, true):
             status = .blocked(
-                until: earliestMeaningfulDate(sessionResetAt, weeklyResetAt),
-                reason: .sessionAndWeekly
+                by: [.session, .weekly],
+                until: earliestMeaningfulDate(sessionResetAt, weeklyResetAt)
             )
         }
 
@@ -119,7 +112,7 @@ struct AccountAvailabilityService {
     ) -> AccountTargetAvailability {
         let target = AccountAvailabilityTarget.remote(hostDestination: remoteTarget.hostDestination)
         let displayAccount = remoteTarget.displayAccount
-        let (sessionUsedPercent, weeklyUsedPercent, sessionResetAt, weeklyResetAt) = usageWindows(of: displayAccount?.rateLimits, now: now)
+        let (sessionUsedPercent, weeklyUsedPercent, sessionResetAt, weeklyResetAt) = usageWindows(of: displayAccount?.usage, now: now)
 
         let status: AccountAvailabilityStatus
         switch remoteTarget.connectionState {
@@ -180,12 +173,12 @@ struct AccountAvailabilityService {
     }
 
     private func usageWindows(
-        of rateLimits: CodexRateLimitSnapshot?,
+        of usage: UsageSnapshot?,
         now: Date
     ) -> (sessionUsedPercent: Int, weeklyUsedPercent: Int, sessionResetAt: Date?, weeklyResetAt: Date?) {
-        let missingWindowUsedPercent = rateLimits == nil ? 100 : 0
-        let sessionWindow = rateLimits?.sessionWindow
-        let weeklyWindow = rateLimits?.weeklyWindow
+        let missingWindowUsedPercent = usage == nil ? 100 : 0
+        let sessionWindow = usage?.window(.session)
+        let weeklyWindow = usage?.window(.weekly)
         return (
             sessionWindow?.displayedUsedPercent(at: now) ?? missingWindowUsedPercent,
             weeklyWindow?.displayedUsedPercent(at: now) ?? missingWindowUsedPercent,

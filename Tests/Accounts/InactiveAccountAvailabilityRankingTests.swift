@@ -7,7 +7,7 @@ struct AccountAvailabilityTests {
     @Test
     func availabilityServiceMarksAccountAvailableWhenBothWindowsHaveHeadroom() {
         let service = AccountAvailabilityService()
-        let account = makeAccount(name: "Ready", rateLimits: makeRateLimits(sessionUsedPercent: 35, weeklyUsedPercent: 40))
+        let account = makeAccount(name: "Ready", usage: makeUsage(sessionUsedPercent: 35, weeklyUsedPercent: 40))
 
         let availability = service.availability(for: account)
 
@@ -26,15 +26,9 @@ struct AccountAvailabilityTests {
             updatedAt: .now,
             email: "free@example.com",
             planType: "free",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: "codex",
-                limitName: nil,
-                planType: "free",
-                primary: CodexRateLimitWindow(
-                    usedPercent: 0,
-                    resetsAt: Date().addingTimeInterval(6 * 24 * 60 * 60),
-                    windowDurationMinutes: 10_080
-                ),
+            usage: UsageSnapshot.codex(
+                planName: "free",
+                primary: (usedPercent: 0, resetsAt: Date().addingTimeInterval(6 * 24 * 60 * 60), durationMinutes: 10_080),
                 secondary: nil,
                 fetchedAt: .now
             )
@@ -54,12 +48,12 @@ struct AccountAvailabilityTests {
         let resetAt = now.addingTimeInterval(1800)
         let account = makeAccount(
             name: "Session Blocked",
-            rateLimits: makeRateLimits(sessionUsedPercent: 100, sessionResetsAt: resetAt, weeklyUsedPercent: 10)
+            usage: makeUsage(sessionUsedPercent: 100, sessionResetsAt: resetAt, weeklyUsedPercent: 10)
         )
 
         let availability = service.availability(for: account, now: now)
 
-        #expect(availability.status == .blocked(until: resetAt, reason: .session))
+        #expect(availability.status == .blocked(by: [.session], until: resetAt))
     }
 
     @Test
@@ -70,7 +64,7 @@ struct AccountAvailabilityTests {
         let weeklyResetAt = now.addingTimeInterval(7200)
         let account = makeAccount(
             name: "Fully Blocked",
-            rateLimits: makeRateLimits(
+            usage: makeUsage(
                 sessionUsedPercent: 100,
                 sessionResetsAt: sessionResetAt,
                 weeklyUsedPercent: 100,
@@ -80,13 +74,13 @@ struct AccountAvailabilityTests {
 
         let availability = service.availability(for: account, now: now)
 
-        #expect(availability.status == .blocked(until: sessionResetAt, reason: .sessionAndWeekly))
+        #expect(availability.status == .blocked(by: [.session, .weekly], until: sessionResetAt))
     }
 
     @Test
     func availabilityServiceMarksRemoteTargetDisconnectedWhenHostIsDisconnected() {
         let service = AccountAvailabilityService()
-        let account = makeAccount(name: "Remote", rateLimits: makeRateLimits(sessionUsedPercent: 10, weeklyUsedPercent: 20))
+        let account = makeAccount(name: "Remote", usage: makeUsage(sessionUsedPercent: 10, weeklyUsedPercent: 20))
 
         let availability = service.availability(
             for: RemoteAccountTargetContext(
@@ -105,7 +99,7 @@ struct AccountAvailabilityTests {
     @Test
     func availabilityServiceMarksRemoteTargetVerificationFailureWhenHostIsReachableButUnverified() {
         let service = AccountAvailabilityService()
-        let account = makeAccount(name: "Remote", rateLimits: makeRateLimits(sessionUsedPercent: 10, weeklyUsedPercent: 20))
+        let account = makeAccount(name: "Remote", usage: makeUsage(sessionUsedPercent: 10, weeklyUsedPercent: 20))
 
         let availability = service.availability(
             for: RemoteAccountTargetContext(
@@ -125,7 +119,7 @@ struct AccountAvailabilityTests {
         let service = AccountAvailabilityService()
         let account = makeAccount(
             name: "Remote",
-            rateLimits: makeRateLimits(
+            usage: makeUsage(
                 sessionUsedPercent: 35,
                 sessionResetsAt: Date(timeIntervalSince1970: 1_800_001_800),
                 weeklyUsedPercent: 60,
@@ -159,7 +153,7 @@ struct AccountAvailabilityTests {
         let service = AccountAvailabilityService()
         let account = makeAccount(
             name: "Remote",
-            rateLimits: makeRateLimits(
+            usage: makeUsage(
                 sessionUsedPercent: 100,
                 sessionResetsAt: Date().addingTimeInterval(1800),
                 weeklyUsedPercent: 20
@@ -189,11 +183,11 @@ struct AccountAvailabilityTests {
         let remoteResetAt = now.addingTimeInterval(1800)
         let account = makeAccount(
             name: "Snapshot",
-            rateLimits: makeRateLimits(sessionUsedPercent: 100, sessionResetsAt: localResetAt, weeklyUsedPercent: 20)
+            usage: makeUsage(sessionUsedPercent: 100, sessionResetsAt: localResetAt, weeklyUsedPercent: 20)
         )
         let remoteAccount = makeAccount(
             name: "Snapshot",
-            rateLimits: makeRateLimits(sessionUsedPercent: 100, sessionResetsAt: remoteResetAt, weeklyUsedPercent: 20)
+            usage: makeUsage(sessionUsedPercent: 100, sessionResetsAt: remoteResetAt, weeklyUsedPercent: 20)
         )
 
         let snapshot = service.snapshot(
@@ -212,7 +206,7 @@ struct AccountAvailabilityTests {
 
         #expect(snapshot.localAvailability.target == .local)
         #expect(snapshot.remoteAvailabilities.count == 1)
-        #expect(snapshot.availability(for: .remote(hostDestination: "user@buildbox"))?.status == .blocked(until: remoteResetAt, reason: .session))
+        #expect(snapshot.availability(for: .remote(hostDestination: "user@buildbox"))?.status == .blocked(by: [.session], until: remoteResetAt))
     }
 }
 
@@ -226,7 +220,7 @@ struct AccountAvailabilityNotificationPolicyTests {
             service.snapshot(
                 for: makeAccount(
                     name: "Business 2",
-                    rateLimits: makeRateLimits(
+                    usage: makeUsage(
                         sessionUsedPercent: 100,
                         sessionResetsAt: now.addingTimeInterval(1800),
                         weeklyUsedPercent: 100,
@@ -238,7 +232,7 @@ struct AccountAvailabilityNotificationPolicyTests {
             service.snapshot(
                 for: makeAccount(
                     name: "Business 4",
-                    rateLimits: makeRateLimits(
+                    usage: makeUsage(
                         sessionUsedPercent: 100,
                         sessionResetsAt: now.addingTimeInterval(1200),
                         weeklyUsedPercent: 20
@@ -248,8 +242,8 @@ struct AccountAvailabilityNotificationPolicyTests {
             )
         ]
         let current = [
-            service.snapshot(for: makeAccount(name: "Business 2", rateLimits: makeRateLimits(sessionUsedPercent: 80, weeklyUsedPercent: 20)), now: now),
-            service.snapshot(for: makeAccount(name: "Business 4", rateLimits: makeRateLimits(sessionUsedPercent: 0, weeklyUsedPercent: 20)), now: now)
+            service.snapshot(for: makeAccount(name: "Business 2", usage: makeUsage(sessionUsedPercent: 80, weeklyUsedPercent: 20)), now: now),
+            service.snapshot(for: makeAccount(name: "Business 4", usage: makeUsage(sessionUsedPercent: 0, weeklyUsedPercent: 20)), now: now)
         ]
 
         let decision = policy.decision(
@@ -271,7 +265,7 @@ struct AccountAvailabilityNotificationPolicyTests {
         let service = AccountAvailabilityService()
         let policy = AccountAvailabilityNotificationPolicy()
         let now = Date()
-        let personal = makeAccount(name: "Personal", rateLimits: makeRateLimits(sessionUsedPercent: 0, weeklyUsedPercent: 20))
+        let personal = makeAccount(name: "Personal", usage: makeUsage(sessionUsedPercent: 0, weeklyUsedPercent: 20))
 
         let decision = policy.decision(
             previousSnapshots: [],
@@ -291,13 +285,13 @@ struct AccountAvailabilityNotificationPolicyTests {
         let service = AccountAvailabilityService()
         let policy = AccountAvailabilityNotificationPolicy()
         let now = Date()
-        let active = makeAccount(name: "Personal", rateLimits: makeRateLimits(sessionUsedPercent: 0, weeklyUsedPercent: 20))
+        let active = makeAccount(name: "Personal", usage: makeUsage(sessionUsedPercent: 0, weeklyUsedPercent: 20))
         let previous = [
             service.snapshot(
                 for: makeAccount(
                     id: active.id,
                     name: "Personal",
-                    rateLimits: makeRateLimits(
+                    usage: makeUsage(
                         sessionUsedPercent: 100,
                         sessionResetsAt: now.addingTimeInterval(1800),
                         weeklyUsedPercent: 20
@@ -329,7 +323,7 @@ struct AccountAvailabilityNotificationPolicyTests {
             service.snapshot(
                 for: makeAccount(
                     name: "Blocked",
-                    rateLimits: makeRateLimits(
+                    usage: makeUsage(
                         sessionUsedPercent: 100,
                         sessionResetsAt: now.addingTimeInterval(1800),
                         weeklyUsedPercent: 100,
@@ -340,7 +334,7 @@ struct AccountAvailabilityNotificationPolicyTests {
             )
         ]
         let current = [
-            service.snapshot(for: makeAccount(name: "Weak", rateLimits: makeRateLimits(sessionUsedPercent: 0, weeklyUsedPercent: 97)), now: now)
+            service.snapshot(for: makeAccount(name: "Weak", usage: makeUsage(sessionUsedPercent: 0, weeklyUsedPercent: 97)), now: now)
         ]
 
         let decision = policy.decision(
@@ -364,7 +358,7 @@ struct AccountAvailabilityNotificationPolicyTests {
             service.snapshot(
                 for: makeAccount(
                     name: "Business 2",
-                    rateLimits: makeRateLimits(
+                    usage: makeUsage(
                         sessionUsedPercent: 100,
                         sessionResetsAt: now.addingTimeInterval(3600),
                         weeklyUsedPercent: 20
@@ -375,7 +369,7 @@ struct AccountAvailabilityNotificationPolicyTests {
             service.snapshot(
                 for: makeAccount(
                     name: "Business 4",
-                    rateLimits: makeRateLimits(
+                    usage: makeUsage(
                         sessionUsedPercent: 100,
                         sessionResetsAt: betterResetAt,
                         weeklyUsedPercent: 20
@@ -385,11 +379,11 @@ struct AccountAvailabilityNotificationPolicyTests {
             )
         ]
         let current = [
-            service.snapshot(for: makeAccount(name: "Business 2", rateLimits: makeRateLimits(sessionUsedPercent: 80, weeklyUsedPercent: 20)), now: now),
+            service.snapshot(for: makeAccount(name: "Business 2", usage: makeUsage(sessionUsedPercent: 80, weeklyUsedPercent: 20)), now: now),
             service.snapshot(
                 for: makeAccount(
                     name: "Business 4",
-                    rateLimits: makeRateLimits(
+                    usage: makeUsage(
                         sessionUsedPercent: 100,
                         sessionResetsAt: betterResetAt,
                         weeklyUsedPercent: 20
@@ -420,7 +414,7 @@ struct AccountAvailabilityNotificationPolicyTests {
         let active = makeAccount(
             name: "Active",
             fingerprint: "active",
-            rateLimits: makeRateLimits(
+            usage: makeUsage(
                 sessionUsedPercent: 100,
                 sessionResetsAt: now.addingTimeInterval(1800),
                 weeklyUsedPercent: 20
@@ -428,13 +422,13 @@ struct AccountAvailabilityNotificationPolicyTests {
         )
         let previousAlternative = makeAccount(
             name: "Business 4",
-            rateLimits: makeRateLimits(
+            usage: makeUsage(
                 sessionUsedPercent: 100,
                 sessionResetsAt: now.addingTimeInterval(1800),
                 weeklyUsedPercent: 20
             )
         )
-        let currentAlternative = makeAccount(name: "Business 4", rateLimits: makeRateLimits(sessionUsedPercent: 0, weeklyUsedPercent: 20))
+        let currentAlternative = makeAccount(name: "Business 4", usage: makeUsage(sessionUsedPercent: 0, weeklyUsedPercent: 20))
 
         let decision = policy.decision(
             previousSnapshots: [
@@ -470,8 +464,8 @@ struct AccountAvailabilityNotificationPolicyTests {
         let service = AccountAvailabilityService()
         let policy = AccountAvailabilityNotificationPolicy()
         let now = Date()
-        let active = makeAccount(name: "Active", fingerprint: "active", rateLimits: makeRateLimits(sessionUsedPercent: 95, weeklyUsedPercent: 20))
-        let alreadyAvailableAlternative = makeAccount(name: "Business 4", rateLimits: makeRateLimits(sessionUsedPercent: 0, weeklyUsedPercent: 20))
+        let active = makeAccount(name: "Active", fingerprint: "active", usage: makeUsage(sessionUsedPercent: 95, weeklyUsedPercent: 20))
+        let alreadyAvailableAlternative = makeAccount(name: "Business 4", usage: makeUsage(sessionUsedPercent: 0, weeklyUsedPercent: 20))
 
         let decision = policy.decision(
             previousSnapshots: [
@@ -495,10 +489,10 @@ struct AccountAvailabilityNotificationPolicyTests {
         let service = AccountAvailabilityService()
         let policy = AccountAvailabilityNotificationPolicy()
         let now = Date()
-        let active = makeAccount(name: "Active Remote", rateLimits: makeRateLimits(sessionUsedPercent: 20, weeklyUsedPercent: 20))
+        let active = makeAccount(name: "Active Remote", usage: makeUsage(sessionUsedPercent: 20, weeklyUsedPercent: 20))
         let outRemote = makeAccount(
             name: "Active Remote",
-            rateLimits: makeRateLimits(
+            usage: makeUsage(
                 sessionUsedPercent: 100,
                 sessionResetsAt: now.addingTimeInterval(1800),
                 weeklyUsedPercent: 20
@@ -506,13 +500,13 @@ struct AccountAvailabilityNotificationPolicyTests {
         )
         let previousAlternative = makeAccount(
             name: "Business 5",
-            rateLimits: makeRateLimits(
+            usage: makeUsage(
                 sessionUsedPercent: 100,
                 sessionResetsAt: now.addingTimeInterval(1800),
                 weeklyUsedPercent: 20
             )
         )
-        let currentAlternative = makeAccount(name: "Business 5", rateLimits: makeRateLimits(sessionUsedPercent: 0, weeklyUsedPercent: 20))
+        let currentAlternative = makeAccount(name: "Business 5", usage: makeUsage(sessionUsedPercent: 0, weeklyUsedPercent: 20))
 
         let previous = [
             service.snapshot(
@@ -581,18 +575,18 @@ struct AccountAvailabilityNotificationPolicyTests {
         let policy = AccountAvailabilityNotificationPolicy()
         let now = Date()
         let activeID = UUID()
-        let previouslyHealthyActive = makeAccount(id: activeID, name: "Active", fingerprint: "active", rateLimits: makeRateLimits(sessionUsedPercent: 70, weeklyUsedPercent: 20))
+        let previouslyHealthyActive = makeAccount(id: activeID, name: "Active", fingerprint: "active", usage: makeUsage(sessionUsedPercent: 70, weeklyUsedPercent: 20))
         let currentlyBlockedActive = makeAccount(
             id: activeID,
             name: "Active",
             fingerprint: "active",
-            rateLimits: makeRateLimits(
+            usage: makeUsage(
                 sessionUsedPercent: 100,
                 sessionResetsAt: now.addingTimeInterval(90 * 60),
                 weeklyUsedPercent: 20
             )
         )
-        let alreadyAvailableAlternative = makeAccount(name: "Business 4", rateLimits: makeRateLimits(sessionUsedPercent: 0, weeklyUsedPercent: 20))
+        let alreadyAvailableAlternative = makeAccount(name: "Business 4", usage: makeUsage(sessionUsedPercent: 0, weeklyUsedPercent: 20))
 
         let decision = policy.decision(
             previousSnapshots: [
@@ -620,17 +614,17 @@ struct AccountAvailabilityNotificationPolicyTests {
         let policy = AccountAvailabilityNotificationPolicy()
         let now = Date()
         let activeID = UUID()
-        let previousRemote = makeAccount(id: activeID, name: "Business 4", rateLimits: makeRateLimits(sessionUsedPercent: 70, weeklyUsedPercent: 20))
+        let previousRemote = makeAccount(id: activeID, name: "Business 4", usage: makeUsage(sessionUsedPercent: 70, weeklyUsedPercent: 20))
         let blockedRemote = makeAccount(
             id: activeID,
             name: "Business 4",
-            rateLimits: makeRateLimits(
+            usage: makeUsage(
                 sessionUsedPercent: 100,
                 sessionResetsAt: now.addingTimeInterval(3 * 60 * 60),
                 weeklyUsedPercent: 20
             )
         )
-        let alreadyAvailableAlternative = makeAccount(name: "Business 2", rateLimits: makeRateLimits(sessionUsedPercent: 0, weeklyUsedPercent: 20))
+        let alreadyAvailableAlternative = makeAccount(name: "Business 2", usage: makeUsage(sessionUsedPercent: 0, weeklyUsedPercent: 20))
 
         let previous = [
             service.snapshot(
@@ -689,8 +683,8 @@ struct AccountAvailabilityNotificationPolicyTests {
         let service = AccountAvailabilityService()
         let resolver = AccountAvailabilityNotificationActionResolver()
         let now = Date()
-        let staleBest = makeAccount(name: "Business 4", rateLimits: makeRateLimits(sessionUsedPercent: 95, weeklyUsedPercent: 20))
-        let betterCurrent = makeAccount(name: "Business 2", rateLimits: makeRateLimits(sessionUsedPercent: 0, weeklyUsedPercent: 20))
+        let staleBest = makeAccount(name: "Business 4", usage: makeUsage(sessionUsedPercent: 95, weeklyUsedPercent: 20))
+        let betterCurrent = makeAccount(name: "Business 2", usage: makeUsage(sessionUsedPercent: 0, weeklyUsedPercent: 20))
 
         let resolution = resolver.resolve(
             notifiedAccountID: staleBest.id,
@@ -716,13 +710,13 @@ struct AccountAvailabilityNotificationPolicyTests {
         let now = Date()
         let outAccount = makeAccount(
             name: "Business 4",
-            rateLimits: makeRateLimits(
+            usage: makeUsage(
                 sessionUsedPercent: 100,
                 sessionResetsAt: now.addingTimeInterval(1800),
                 weeklyUsedPercent: 20
             )
         )
-        let ready = makeAccount(name: "Business 2", rateLimits: makeRateLimits(sessionUsedPercent: 0, weeklyUsedPercent: 20))
+        let ready = makeAccount(name: "Business 2", usage: makeUsage(sessionUsedPercent: 0, weeklyUsedPercent: 20))
 
         let resolution = resolver.resolve(
             notifiedAccountID: ready.id,
@@ -764,9 +758,9 @@ struct AccountAvailabilityNotificationPolicyTests {
         let now = Date()
         let noLongerOut = makeAccount(
             name: "Business 4",
-            rateLimits: makeRateLimits(sessionUsedPercent: 20, weeklyUsedPercent: 20)
+            usage: makeUsage(sessionUsedPercent: 20, weeklyUsedPercent: 20)
         )
-        let ready = makeAccount(name: "Business 2", rateLimits: makeRateLimits(sessionUsedPercent: 0, weeklyUsedPercent: 20))
+        let ready = makeAccount(name: "Business 2", usage: makeUsage(sessionUsedPercent: 0, weeklyUsedPercent: 20))
 
         let resolution = resolver.resolve(
             notifiedAccountID: ready.id,
@@ -807,7 +801,7 @@ struct AccountAvailabilityNotificationPolicyTests {
         let now = Date()
         let blocked = makeAccount(
             name: "Business 4",
-            rateLimits: makeRateLimits(
+            usage: makeUsage(
                 sessionUsedPercent: 100,
                 sessionResetsAt: now.addingTimeInterval(1800),
                 weeklyUsedPercent: 20
@@ -916,11 +910,11 @@ struct InactiveAccountAvailabilityRankingTests {
         let ranking = InactiveAccountAvailabilityRanking()
         let weeklyHealthy = makeAccount(
             name: "Weekly Healthy",
-            rateLimits: makeRateLimits(sessionUsedPercent: 35, weeklyUsedPercent: 40)
+            usage: makeUsage(sessionUsedPercent: 35, weeklyUsedPercent: 40)
         )
         let weeklyConstrained = makeAccount(
             name: "Weekly Constrained",
-            rateLimits: makeRateLimits(sessionUsedPercent: 0, weeklyUsedPercent: 96)
+            usage: makeUsage(sessionUsedPercent: 0, weeklyUsedPercent: 96)
         )
 
         let sorted = ranking.sort([weeklyConstrained, weeklyHealthy])
@@ -936,23 +930,23 @@ struct InactiveAccountAvailabilityRankingTests {
         let earlierReset = now.addingTimeInterval(3_600)
         let earlierAvailable = makeAccount(
             name: "Earlier",
-            rateLimits: makeRateLimits(sessionUsedPercent: 60, sessionResetsAt: earlierReset, weeklyUsedPercent: 60)
+            usage: makeUsage(sessionUsedPercent: 60, sessionResetsAt: earlierReset, weeklyUsedPercent: 60)
         )
         let laterAvailable = makeAccount(
             name: "Later",
-            rateLimits: makeRateLimits(sessionUsedPercent: 60, sessionResetsAt: laterReset, weeklyUsedPercent: 60)
+            usage: makeUsage(sessionUsedPercent: 60, sessionResetsAt: laterReset, weeklyUsedPercent: 60)
         )
         let sameAvailabilityHigherUsage = makeAccount(
             name: "Higher Usage",
-            rateLimits: makeRateLimits(sessionUsedPercent: 60, sessionResetsAt: earlierReset, weeklyUsedPercent: 90)
+            usage: makeUsage(sessionUsedPercent: 60, sessionResetsAt: earlierReset, weeklyUsedPercent: 90)
         )
         let sameMetricsNameB = makeAccount(
             name: "Zulu",
-            rateLimits: makeRateLimits(sessionUsedPercent: 60, sessionResetsAt: earlierReset, weeklyUsedPercent: 80)
+            usage: makeUsage(sessionUsedPercent: 60, sessionResetsAt: earlierReset, weeklyUsedPercent: 80)
         )
         let sameMetricsNameA = makeAccount(
             name: "Alpha",
-            rateLimits: makeRateLimits(sessionUsedPercent: 60, sessionResetsAt: earlierReset, weeklyUsedPercent: 80)
+            usage: makeUsage(sessionUsedPercent: 60, sessionResetsAt: earlierReset, weeklyUsedPercent: 80)
         )
 
         let sorted = ranking.sort([
@@ -969,9 +963,9 @@ struct InactiveAccountAvailabilityRankingTests {
     @MainActor
     @Test
     func accountsControllerDelegatesInactiveSortingToRankingPolicy() async {
-        let preferred = makeAccount(name: "Preferred", rateLimits: makeRateLimits(sessionUsedPercent: 0, weeklyUsedPercent: 10))
-        let constrained = makeAccount(name: "Constrained", rateLimits: makeRateLimits(sessionUsedPercent: 90, weeklyUsedPercent: 100))
-        let active = makeAccount(name: "Active", fingerprint: "active", rateLimits: makeRateLimits(sessionUsedPercent: 20, weeklyUsedPercent: 20))
+        let preferred = makeAccount(name: "Preferred", usage: makeUsage(sessionUsedPercent: 0, weeklyUsedPercent: 10))
+        let constrained = makeAccount(name: "Constrained", usage: makeUsage(sessionUsedPercent: 90, weeklyUsedPercent: 100))
+        let active = makeAccount(name: "Active", fingerprint: "active", usage: makeUsage(sessionUsedPercent: 20, weeklyUsedPercent: 20))
         let repository = RankingLoadingPersistingAccountCatalogProbe(accountsToLoad: [constrained, active, preferred])
         let identityResolver = SavedAccountIdentityResolver(
             liveIdentitySource: LiveIdentityStub(fingerprint: "active"),
@@ -1076,7 +1070,7 @@ private struct RankingNullAuthService: CodexAuthSessionStore, CodexSignInAuthSto
             updatedAt: .distantPast,
             email: nil,
             planType: nil,
-            rateLimits: nil,
+            usage: nil,
             identity: .empty
         )
     }

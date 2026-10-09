@@ -6,44 +6,28 @@ import Testing
 struct RefreshActiveAccountUseCaseTests {
     @Test
     func runRefreshesMatchedAccountAndPersistsUpdatedState() async throws {
-        let refreshedRateLimits = CodexRateLimitSnapshot(
-            limitID: "codex",
-            limitName: nil,
-            planType: "prolite",
-            primary: CodexRateLimitWindow(
-                usedPercent: 40,
-                resetsAt: .now.addingTimeInterval(5400),
-                windowDurationMinutes: 300
-            ),
-            secondary: CodexRateLimitWindow(
-                usedPercent: 6,
-                resetsAt: .now.addingTimeInterval(86_400),
-                windowDurationMinutes: 10_080
-            ),
+        let refreshedRateLimits = UsageSnapshot.codex(
+            planName: "prolite",
+            primary: (usedPercent: 40, resetsAt: .now.addingTimeInterval(5400), durationMinutes: 300),
+            secondary: (usedPercent: 6, resetsAt: .now.addingTimeInterval(86_400), durationMinutes: 10_080),
             fetchedAt: .now
         )
-        let existingRateLimits = CodexRateLimitSnapshot(
-            limitID: "codex",
-            limitName: nil,
-            planType: "plus",
-            primary: CodexRateLimitWindow(
-                usedPercent: 25,
-                resetsAt: .now.addingTimeInterval(3600),
-                windowDurationMinutes: 300
-            ),
+        let existingRateLimits = UsageSnapshot.codex(
+            planName: "plus",
+            primary: (usedPercent: 25, resetsAt: .now.addingTimeInterval(3600), durationMinutes: 300),
             secondary: nil,
             fetchedAt: .distantPast
         )
         let account = makeAccount(name: "Work", email: "old@example.com", fingerprint: "live")
         var accountWithRateLimits = account
-        accountWithRateLimits.rateLimits = existingRateLimits
+        accountWithRateLimits.usage = existingRateLimits
         let repository = PersistingAccountCatalogProbe()
         let useCase = RefreshActiveAccountUseCase(
             accountStatusClient: StubAccountStatusClient(
                 status: CodexAccountStatus(
                     email: "new@example.com",
                     planType: "plus",
-                    rateLimits: refreshedRateLimits
+                    usage: refreshedRateLimits
                 )
             ),
             identityResolver: SavedAccountIdentityResolver(
@@ -58,7 +42,7 @@ struct RefreshActiveAccountUseCaseTests {
         #expect(result.refreshedAccountID == account.id)
         #expect(result.accounts.first?.email == "new@example.com")
         #expect(result.accounts.first?.planType == "prolite")
-        #expect(result.accounts.first?.rateLimits == refreshedRateLimits)
+        #expect(result.accounts.first?.usage == refreshedRateLimits)
         #expect(repository.savedAccounts == result.accounts)
         #expect(result.accounts.first?.updatedAt != .distantPast)
     }
@@ -83,7 +67,7 @@ struct RefreshActiveAccountUseCaseTests {
                 status: CodexAccountStatus(
                     email: "personal@example.com",
                     planType: "prolite",
-                    rateLimits: nil,
+                    usage: nil,
                     stableAccountID: "acct_personal",
                     snapshotFingerprint: "fresh-fingerprint"
                 )
@@ -112,28 +96,22 @@ struct RefreshActiveAccountUseCaseTests {
     @Test
     func runDoesNotMarkPreservedRateLimitsFreshWhenAppServerReturnsNoRateLimits() async throws {
         let existingUpdatedAt = Date(timeIntervalSince1970: 1_744_195_200)
-        let existingRateLimits = CodexRateLimitSnapshot(
-            limitID: "codex",
-            limitName: nil,
-            planType: "plus",
-            primary: CodexRateLimitWindow(
-                usedPercent: 25,
-                resetsAt: .now.addingTimeInterval(3600),
-                windowDurationMinutes: 300
-            ),
+        let existingRateLimits = UsageSnapshot.codex(
+            planName: "plus",
+            primary: (usedPercent: 25, resetsAt: .now.addingTimeInterval(3600), durationMinutes: 300),
             secondary: nil,
             fetchedAt: Date(timeIntervalSince1970: 1_744_195_100)
         )
         var account = makeAccount(name: "Work", email: "old@example.com", fingerprint: "live")
         account.updatedAt = existingUpdatedAt
-        account.rateLimits = existingRateLimits
+        account.usage = existingRateLimits
         let repository = PersistingAccountCatalogProbe()
         let useCase = RefreshActiveAccountUseCase(
             accountStatusClient: StubAccountStatusClient(
                 status: CodexAccountStatus(
                     email: "new@example.com",
                     planType: "pro",
-                    rateLimits: nil
+                    usage: nil
                 )
             ),
             identityResolver: SavedAccountIdentityResolver(
@@ -147,7 +125,7 @@ struct RefreshActiveAccountUseCaseTests {
 
         #expect(result.accounts.first?.email == "new@example.com")
         #expect(result.accounts.first?.planType == "pro")
-        #expect(result.accounts.first?.rateLimits == existingRateLimits)
+        #expect(result.accounts.first?.usage == existingRateLimits)
         #expect(result.accounts.first?.updatedAt == existingUpdatedAt)
         #expect(repository.savedAccounts == result.accounts)
     }
@@ -160,7 +138,7 @@ struct RefreshActiveAccountUseCaseTests {
                 status: CodexAccountStatus(
                     email: "other@example.com",
                     planType: nil,
-                    rateLimits: nil
+                    usage: nil
                 )
             ),
             identityResolver: SavedAccountIdentityResolver(

@@ -60,7 +60,7 @@ actor ValidationRemoteHostClient: RemoteHostSwitchWorkflowOperations, RemoteHost
         return CodexAccountStatus(
             email: account.email,
             planType: account.planType,
-            rateLimits: account.rateLimits
+            usage: account.usage
         )
     }
 

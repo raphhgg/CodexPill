@@ -612,9 +612,9 @@ struct SSHRemoteHostClientTests {
 
         #expect(status.email == "remote@example.com")
         #expect(status.planType == "team")
-        #expect(status.rateLimits?.primary?.usedPercent == 69)
-        #expect(status.rateLimits?.primary?.resetsAt == Date(timeIntervalSince1970: 2_000_000_000))
-        #expect(status.rateLimits?.secondary?.usedPercent == 38)
+        #expect(status.usage?.window(.session)?.usedPercent == 69)
+        #expect(status.usage?.window(.session)?.resetsAt == Date(timeIntervalSince1970: 2_000_000_000))
+        #expect(status.usage?.window(.weekly)?.usedPercent == 38)
         #expect(status.stableAccountID == "acct-remote")
         #expect(status.authPrincipalIdentity == CodexAuthPrincipalIdentity(subject: "auth0|remote", chatGPTUserID: "user-remote"))
         #expect(status.workspaceIdentity == CodexWorkspaceIdentity(workspaceAccountID: "org-remote", workspaceLabel: "Remote Team"))
@@ -658,7 +658,7 @@ struct SSHRemoteHostClientTests {
 
         #expect(status.email == "remote@example.com")
         #expect(status.planType == "team")
-        #expect(status.rateLimits == nil)
+        #expect(status.usage == nil)
     }
 
     @Test
@@ -686,8 +686,8 @@ struct SSHRemoteHostClientTests {
 
         let status = try await client.readCurrentAccountStatus(on: RemoteHost(destination: "user@buildbox"))
 
-        #expect(status.rateLimits?.primary?.usedPercent == 69)
-        #expect(status.rateLimits?.secondary?.usedPercent == 38)
+        #expect(status.usage?.window(.session)?.usedPercent == 69)
+        #expect(status.usage?.window(.weekly)?.usedPercent == 38)
     }
 
     @Test
@@ -708,8 +708,8 @@ struct SSHRemoteHostClientTests {
         let status = try await client.readCurrentAccountStatus(on: RemoteHost(destination: "user@buildbox"))
 
         #expect(status.email == "remote@example.com")
-        #expect(status.rateLimits?.primary?.usedPercent == 69)
-        #expect(status.rateLimits?.secondary?.usedPercent == 38)
+        #expect(status.usage?.window(.session)?.usedPercent == 69)
+        #expect(status.usage?.window(.weekly)?.usedPercent == 38)
     }
 
     @Test
@@ -737,8 +737,8 @@ struct SSHRemoteHostClientTests {
 
         let status = try await client.readCurrentAccountStatus(on: RemoteHost(destination: "user@buildbox"))
 
-        #expect(status.rateLimits?.primary?.usedPercent == 69)
-        #expect(status.rateLimits?.secondary?.usedPercent == 38)
+        #expect(status.usage?.window(.session)?.usedPercent == 69)
+        #expect(status.usage?.window(.weekly)?.usedPercent == 38)
     }
 
     @Test

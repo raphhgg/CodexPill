@@ -32,6 +32,6 @@ struct RemoteHostStub: RemoteHostSwitchWorkflowOperations, RemoteHostAccountSign
         if let status {
             return status
         }
-        return CodexAccountStatus(email: nil, planType: nil, rateLimits: nil)
+        return CodexAccountStatus(email: nil, planType: nil, usage: nil)
     }
 }

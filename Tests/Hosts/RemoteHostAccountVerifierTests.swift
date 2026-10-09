@@ -15,7 +15,7 @@ struct RemoteHostAccountVerifierTests {
         let status = CodexAccountStatus(
             email: "business-2@example.com",
             planType: "team",
-            rateLimits: nil
+            usage: nil
         )
 
         let result = verifier.verify(
@@ -40,7 +40,7 @@ struct RemoteHostAccountVerifierTests {
         let status = CodexAccountStatus(
             email: "business-2@example.com",
             planType: "team",
-            rateLimits: nil
+            usage: nil
         )
 
         let result = verifier.verify(

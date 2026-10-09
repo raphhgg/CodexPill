@@ -46,7 +46,7 @@ struct MenuBarCoordinatorTests {
         let notifiedAccount = makeAccount(
             name: "Business 4",
             planType: "team",
-            rateLimits: makeRateLimits(
+            usage: makeUsage(
                 planType: "team",
                 sessionUsedPercent: 100,
                 sessionResetsAt: now.addingTimeInterval(60 * 60),
@@ -58,7 +58,7 @@ struct MenuBarCoordinatorTests {
         let betterAccount = makeAccount(
             name: "Business 2",
             planType: "team",
-            rateLimits: makeRateLimits(
+            usage: makeUsage(
                 planType: "team",
                 sessionUsedPercent: 0,
                 sessionResetsAt: now.addingTimeInterval(3 * 60 * 60),
@@ -107,7 +107,7 @@ struct MenuBarCoordinatorTests {
         let outAccount = makeAccount(
             name: "Business 4",
             planType: "team",
-            rateLimits: makeRateLimits(
+            usage: makeUsage(
                 planType: "team",
                 sessionUsedPercent: 100,
                 sessionResetsAt: now.addingTimeInterval(60 * 60),
@@ -119,7 +119,7 @@ struct MenuBarCoordinatorTests {
         let notifiedAccount = makeAccount(
             name: "Business 2",
             planType: "team",
-            rateLimits: makeRateLimits(
+            usage: makeUsage(
                 planType: "team",
                 sessionUsedPercent: 0,
                 sessionResetsAt: now.addingTimeInterval(3 * 60 * 60),
@@ -143,7 +143,7 @@ struct MenuBarCoordinatorTests {
             status: CodexAccountStatus(
                 email: outAccount.email,
                 planType: outAccount.planType,
-                rateLimits: outAccount.rateLimits
+                usage: outAccount.usage
             ),
             switchError: RemoteHostClientError.commandFailed("ssh failure")
         )
@@ -176,7 +176,7 @@ struct MenuBarCoordinatorTests {
         let account = makeAccount(
             name: "Business 3",
             planType: "team",
-            rateLimits: makeRateLimits(
+            usage: makeUsage(
                 planType: "team",
                 sessionUsedPercent: 0,
                 sessionResetsAt: now.addingTimeInterval(3 * 60 * 60),
@@ -270,7 +270,7 @@ struct MenuBarCoordinatorTests {
         harness.alertPresenter.confirmationResponse = false
         let coordinator = harness.makeCoordinator(
             accountsRemoteHostClient: RemoteHostStub(
-                status: CodexAccountStatus(email: activeAccount.email, planType: activeAccount.planType, rateLimits: nil)
+                status: CodexAccountStatus(email: activeAccount.email, planType: activeAccount.planType, usage: nil)
             ),
             remoteHostOperations: RemoteHostStub()
         )
@@ -288,7 +288,7 @@ struct MenuBarCoordinatorTests {
         defer { harness.tearDown() }
         let activeAccount = try harness.makeActiveAccount(named: "Business 1", email: "business-1@example.com")
         let remoteHostClient = RemoteHostStub(
-            status: CodexAccountStatus(email: activeAccount.email, planType: activeAccount.planType, rateLimits: nil)
+            status: CodexAccountStatus(email: activeAccount.email, planType: activeAccount.planType, usage: nil)
         )
         harness.panelPresenter.hostSetupResponse = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
         harness.alertPresenter.confirmationResponse = true
@@ -322,7 +322,7 @@ struct MenuBarCoordinatorTests {
                 status: CodexAccountStatus(
                     email: "remote@example.com",
                     planType: "team",
-                    rateLimits: makeRateLimits(
+                    usage: makeUsage(
                         planType: "team",
                         sessionUsedPercent: 69,
                         sessionResetsAt: Date(timeIntervalSince1970: 2_000_000_000)
@@ -406,8 +406,8 @@ struct MenuBarCoordinatorTests {
         let coordinator = harness.makeCoordinator(
             remoteHostOperations: RemoteHostStub(
                 statusesByDestination: [
-                    "user@buildbox": CodexAccountStatus(email: "buildbox@example.com", planType: "team", rateLimits: nil),
-                    "user@debian-vm": CodexAccountStatus(email: "debian@example.com", planType: "team", rateLimits: nil)
+                    "user@buildbox": CodexAccountStatus(email: "buildbox@example.com", planType: "team", usage: nil),
+                    "user@debian-vm": CodexAccountStatus(email: "debian@example.com", planType: "team", usage: nil)
                 ]
             )
         )
@@ -438,7 +438,7 @@ struct MenuBarCoordinatorTests {
         let coordinator = harness.makeCoordinator(
             remoteHostOperations: RemoteHostStub(
                 statusesByDestination: [
-                    "user@buildbox": CodexAccountStatus(email: "buildbox@example.com", planType: "team", rateLimits: nil)
+                    "user@buildbox": CodexAccountStatus(email: "buildbox@example.com", planType: "team", usage: nil)
                 ],
                 readErrorsByDestination: [
                     "user@debian-vm": RemoteHostClientError.commandFailed("ssh: connection refused")
@@ -477,7 +477,7 @@ struct MenuBarCoordinatorTests {
         ]
         let coordinator = harness.makeCoordinator(
             remoteHostOperations: RemoteHostStub(
-                status: CodexAccountStatus(email: "business-2@example.com", planType: "team", rateLimits: nil)
+                status: CodexAccountStatus(email: "business-2@example.com", planType: "team", usage: nil)
             )
         )
         coordinator.start()
@@ -527,7 +527,7 @@ struct MenuBarCoordinatorTests {
                 status: CodexAccountStatus(
                     email: "business-1@example.com",
                     planType: "team",
-                    rateLimits: nil,
+                    usage: nil,
                     stableAccountID: "acct-business-1",
                     snapshotFingerprint: "snapshot-business-1"
                 )
@@ -565,7 +565,7 @@ struct MenuBarCoordinatorTests {
         ]
         let coordinator = harness.makeCoordinator(
             remoteHostOperations: RemoteHostStub(
-                status: CodexAccountStatus(email: "different@example.com", planType: "team", rateLimits: nil)
+                status: CodexAccountStatus(email: "different@example.com", planType: "team", usage: nil)
             )
         )
 
@@ -661,7 +661,7 @@ struct MenuBarCoordinatorTests {
             email: "business-4@example.com",
             fingerprint: "business-4",
             planType: "team",
-            rateLimits: makeRateLimits(
+            usage: makeUsage(
                 planType: "team",
                 sessionUsedPercent: 0,
                 sessionResetsAt: now.addingTimeInterval(2 * 60 * 60),
@@ -674,7 +674,7 @@ struct MenuBarCoordinatorTests {
         previousVerified.applyRemoteMetadata(
             email: previousSaved.email,
             planType: "team",
-            rateLimits: makeRateLimits(
+            usage: makeUsage(
                 planType: "team",
                 sessionUsedPercent: 100,
                 sessionResetsAt: now.addingTimeInterval(3 * 60 * 60),
@@ -702,7 +702,7 @@ struct MenuBarCoordinatorTests {
             status: CodexAccountStatus(
                 email: nextAccount.email,
                 planType: "team",
-                rateLimits: makeRateLimits(
+                usage: makeUsage(
                     planType: "team",
                     sessionUsedPercent: 92,
                     sessionResetsAt: now.addingTimeInterval(4 * 60 * 60),
@@ -727,8 +727,8 @@ struct MenuBarCoordinatorTests {
 
         let persistedAccounts = try harness.repository.loadAccounts()
         let persistedPrevious = try #require(persistedAccounts.first(where: { $0.id == previousSaved.id }))
-        #expect(persistedPrevious.rateLimits?.primary?.displayedUsedPercent(at: now) == 100)
-        #expect(persistedPrevious.rateLimits?.secondary?.displayedUsedPercent(at: now) == 16)
+        #expect(persistedPrevious.usage?.window(.session)?.displayedUsedPercent(at: now) == 100)
+        #expect(persistedPrevious.usage?.window(.weekly)?.displayedUsedPercent(at: now) == 16)
         let hostState = try #require(harness.settings.remoteHostSettings.remoteHostState(for: "user@buildbox"))
         #expect(hostState.verifiedAccount?.id == nextAccount.id)
     }
@@ -760,7 +760,7 @@ struct MenuBarCoordinatorTests {
             )
         }
         let remoteHostClient = RemoteHostStub(
-            status: CodexAccountStatus(email: account.email, planType: account.planType, rateLimits: account.rateLimits)
+            status: CodexAccountStatus(email: account.email, planType: account.planType, usage: account.usage)
         )
         let coordinator = harness.makeCoordinator(
             accountsRemoteHostClient: remoteHostClient,
@@ -789,7 +789,7 @@ struct MenuBarCoordinatorTests {
             name: "Business 2",
             email: "remote@example.com",
             planType: "team",
-            rateLimits: makeRateLimits(
+            usage: makeUsage(
                 planType: "team",
                 sessionUsedPercent: 97,
                 sessionResetsAt: Date().addingTimeInterval(3600),
@@ -802,7 +802,7 @@ struct MenuBarCoordinatorTests {
                 status: CodexAccountStatus(
                     email: "remote@example.com",
                     planType: "team",
-                    rateLimits: makeRateLimits(planType: "team", sessionUsedPercent: 0, weeklyUsedPercent: 0)
+                    usage: makeUsage(planType: "team", sessionUsedPercent: 0, weeklyUsedPercent: 0)
                 )
             )
         )
@@ -810,9 +810,9 @@ struct MenuBarCoordinatorTests {
         coordinator.start()
         await coordinator.waitForPendingWork()
 
-        let remoteLimits = try #require(coordinator.menuState().activeAccountCards.first?.account.rateLimits)
-        #expect(remoteLimits.sessionWindow?.displayedUsedPercent() == 97)
-        #expect(remoteLimits.weeklyWindow?.displayedUsedPercent() == 15)
+        let remoteLimits = try #require(coordinator.menuState().activeAccountCards.first?.account.usage)
+        #expect(remoteLimits.window(.session)?.displayedUsedPercent() == 97)
+        #expect(remoteLimits.window(.weekly)?.displayedUsedPercent() == 15)
     }
 
     @Test
@@ -832,7 +832,7 @@ struct MenuBarCoordinatorTests {
                 workspaceLabel: "Personal"
             ),
             planType: "team",
-            rateLimits: makeRateLimits(
+            usage: makeUsage(
                 planType: "team",
                 sessionUsedPercent: 100,
                 sessionResetsAt: Date().addingTimeInterval(3600),
@@ -842,7 +842,7 @@ struct MenuBarCoordinatorTests {
         )
         try harness.repository.saveAccounts([matchingSavedAccount])
         var zeroedRemoteAccount = matchingSavedAccount
-        zeroedRemoteAccount.rateLimits = makeRateLimits(planType: "team", sessionUsedPercent: 0, weeklyUsedPercent: 0)
+        zeroedRemoteAccount.usage = makeUsage(planType: "team", sessionUsedPercent: 0, weeklyUsedPercent: 0)
         harness.settings.remoteHostSettings.remoteHostStates = [
             PersistedRemoteHostState(
                 host: RemoteHost(destination: "user@buildbox", displayName: "buildbox"),
@@ -855,7 +855,7 @@ struct MenuBarCoordinatorTests {
                 status: CodexAccountStatus(
                     email: "user@example.com",
                     planType: "team",
-                    rateLimits: makeRateLimits(planType: "team", sessionUsedPercent: 0, weeklyUsedPercent: 0)
+                    usage: makeUsage(planType: "team", sessionUsedPercent: 0, weeklyUsedPercent: 0)
                 )
             )
         )
@@ -863,9 +863,9 @@ struct MenuBarCoordinatorTests {
         coordinator.start()
         await coordinator.waitForPendingWork()
 
-        let remoteLimits = try #require(coordinator.menuState().activeAccountCards.first?.account.rateLimits)
-        #expect(remoteLimits.sessionWindow?.displayedUsedPercent() == 100)
-        #expect(remoteLimits.weeklyWindow?.displayedUsedPercent() == 16)
+        let remoteLimits = try #require(coordinator.menuState().activeAccountCards.first?.account.usage)
+        #expect(remoteLimits.window(.session)?.displayedUsedPercent() == 100)
+        #expect(remoteLimits.window(.weekly)?.displayedUsedPercent() == 16)
     }
 
     @Test
@@ -886,7 +886,7 @@ struct MenuBarCoordinatorTests {
                 workspaceLabel: "Personal"
             ),
             planType: "team",
-            rateLimits: makeRateLimits(
+            usage: makeUsage(
                 planType: "team",
                 sessionUsedPercent: 100,
                 sessionResetsAt: now.addingTimeInterval(21 * 60),
@@ -910,7 +910,7 @@ struct MenuBarCoordinatorTests {
                 workspaceLabel: "Personal"
             ),
             planType: "team",
-            rateLimits: makeRateLimits(
+            usage: makeUsage(
                 planType: "team",
                 sessionUsedPercent: 100,
                 sessionResetsAt: now.addingTimeInterval(-45 * 60),
@@ -930,7 +930,7 @@ struct MenuBarCoordinatorTests {
         ]
         let coordinator = harness.makeCoordinator(
             remoteHostOperations: RemoteHostStub(
-                status: CodexAccountStatus(email: "user@example.com", planType: "team", rateLimits: nil)
+                status: CodexAccountStatus(email: "user@example.com", planType: "team", usage: nil)
             )
         )
 
@@ -940,13 +940,13 @@ struct MenuBarCoordinatorTests {
         let refreshedHostState = try #require(harness.settings.remoteHostSettings.remoteHostState(for: "debian-vm"))
         #expect(refreshedHostState.desiredAccountID == currentSavedAccount.id)
         #expect(refreshedHostState.activeAccount?.id == currentSavedAccount.id)
-        #expect(refreshedHostState.activeAccount?.rateLimits?.primary?.displayedUsedPercent(at: now) == 100)
-        let actualPrimaryReset = try #require(refreshedHostState.activeAccount?.rateLimits?.primary?.resetsAt)
-        let expectedPrimaryReset = try #require(currentSavedAccount.rateLimits?.primary?.resetsAt)
+        #expect(refreshedHostState.activeAccount?.usage?.window(.session)?.displayedUsedPercent(at: now) == 100)
+        let actualPrimaryReset = try #require(refreshedHostState.activeAccount?.usage?.window(.session)?.resetsAt)
+        let expectedPrimaryReset = try #require(currentSavedAccount.usage?.window(.session)?.resetsAt)
         #expect(abs(actualPrimaryReset.timeIntervalSince(expectedPrimaryReset)) < 1)
-        let remoteLimits = try #require(coordinator.menuState().activeAccountCards.first?.account.rateLimits)
-        #expect(remoteLimits.sessionWindow?.displayedUsedPercent() == 100)
-        #expect(remoteLimits.weeklyWindow?.displayedUsedPercent() == 16)
+        let remoteLimits = try #require(coordinator.menuState().activeAccountCards.first?.account.usage)
+        #expect(remoteLimits.window(.session)?.displayedUsedPercent() == 100)
+        #expect(remoteLimits.window(.weekly)?.displayedUsedPercent() == 16)
     }
 
     @Test
@@ -967,7 +967,7 @@ struct MenuBarCoordinatorTests {
                 workspaceLabel: "Team"
             ),
             planType: "team",
-            rateLimits: makeRateLimits(
+            usage: makeUsage(
                 planType: "team",
                 sessionUsedPercent: 0,
                 sessionResetsAt: now.addingTimeInterval(5 * 60 * 60),
@@ -987,10 +987,10 @@ struct MenuBarCoordinatorTests {
         ]
         let remoteHostClient = RemoteHostSequenceProbe(statusesByDestination: [
             "user@debian-vm": [
-                remoteStatus(for: account, rateLimits: account.rateLimits),
+                remoteStatus(for: account, usage: account.usage),
                 remoteStatus(
                     for: account,
-                    rateLimits: makeRateLimits(
+                    usage: makeUsage(
                         planType: "team",
                         sessionUsedPercent: 39,
                         sessionResetsAt: now.addingTimeInterval(4 * 60 * 60),
@@ -1008,17 +1008,17 @@ struct MenuBarCoordinatorTests {
         await coordinator.performScheduledRefresh()
         await coordinator.waitForPendingWork()
 
-        let remoteLimits = try #require(coordinator.menuState().activeAccountCards.first?.account.rateLimits)
-        #expect(remoteLimits.sessionWindow?.displayedUsedPercent() == 39)
-        #expect(remoteLimits.weeklyWindow?.displayedUsedPercent() == 6)
+        let remoteLimits = try #require(coordinator.menuState().activeAccountCards.first?.account.usage)
+        #expect(remoteLimits.window(.session)?.displayedUsedPercent() == 39)
+        #expect(remoteLimits.window(.weekly)?.displayedUsedPercent() == 6)
         #expect(await remoteHostClient.readCount(for: "user@debian-vm") == 2)
     }
 
-    private func remoteStatus(for account: CodexAccount, rateLimits: CodexRateLimitSnapshot?) -> CodexAccountStatus {
+    private func remoteStatus(for account: CodexAccount, usage: UsageSnapshot?) -> CodexAccountStatus {
         CodexAccountStatus(
             email: account.email,
             planType: account.planType,
-            rateLimits: rateLimits,
+            usage: usage,
             stableAccountID: account.identity.stableAccountID,
             authPrincipalIdentity: account.identity.authPrincipalIdentity,
             workspaceIdentity: account.identity.workspaceIdentity,
@@ -1139,7 +1139,7 @@ private actor RemoteHostSequenceProbe:
     func readCurrentAccountStatus(on host: RemoteHost) async throws -> CodexAccountStatus {
         readCounts[host.destination, default: 0] += 1
         guard var statuses = statusesByDestination[host.destination], let first = statuses.first else {
-            return CodexAccountStatus(email: nil, planType: nil, rateLimits: nil)
+            return CodexAccountStatus(email: nil, planType: nil, usage: nil)
         }
         if statuses.count > 1 {
             statuses.removeFirst()

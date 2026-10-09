@@ -14,10 +14,8 @@ struct CodexAccountTests {
             updatedAt: Date(timeIntervalSince1970: 1_000),
             email: "personal@example.com",
             planType: "plus",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: "codex",
-                limitName: nil,
-                planType: "prolite",
+            usage: UsageSnapshot.codex(
+                planName: "prolite",
                 primary: nil,
                 secondary: nil,
                 fetchedAt: Date(timeIntervalSince1970: 2_000)
@@ -38,17 +36,15 @@ struct CodexAccountTests {
             updatedAt: Date(timeIntervalSince1970: 1_000),
             email: "personal@example.com",
             planType: "plus",
-            rateLimits: nil,
+            usage: nil,
             identity: .empty
         )
 
         account.applyRemoteMetadata(
             email: "personal@example.com",
             planType: "plus",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: "codex",
-                limitName: nil,
-                planType: "prolite",
+            usage: UsageSnapshot.codex(
+                planName: "prolite",
                 primary: nil,
                 secondary: nil,
                 fetchedAt: Date(timeIntervalSince1970: 2_000)
@@ -69,10 +65,8 @@ struct CodexAccountTests {
             updatedAt: Date(timeIntervalSince1970: 2_000),
             email: "work@example.com",
             planType: "plus",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: "codex",
-                limitName: nil,
-                planType: "plus",
+            usage: UsageSnapshot.codex(
+                planName: "plus",
                 primary: nil,
                 secondary: nil,
                 fetchedAt: Date(timeIntervalSince1970: 1_000)
@@ -93,10 +87,8 @@ struct CodexAccountTests {
             updatedAt: Date(timeIntervalSince1970: 1_000),
             email: "work@example.com",
             planType: "plus",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: "codex",
-                limitName: nil,
-                planType: "plus",
+            usage: UsageSnapshot.codex(
+                planName: "plus",
                 primary: nil,
                 secondary: nil,
                 fetchedAt: Date(timeIntervalSince1970: 2_000)

@@ -298,8 +298,8 @@ final class RemoteHostRuntime {
     private func mergedRemoteAccount(_ baseAccount: CodexAccount, status: CodexAccountStatus) -> CodexAccount {
         var account = baseAccount
         let mergedRateLimits = RemoteRateLimitResolution().preferredRateLimits(
-            remote: status.rateLimits,
-            fallback: baseAccount.rateLimits,
+            remote: status.usage,
+            fallback: baseAccount.usage,
             candidateAccounts: accounts(),
             baseAccount: baseAccount,
             remoteEmail: status.email
@@ -307,7 +307,7 @@ final class RemoteHostRuntime {
         account.applyRemoteMetadata(
             email: status.email ?? baseAccount.email,
             planType: status.planType ?? baseAccount.planType,
-            rateLimits: mergedRateLimits
+            usage: mergedRateLimits
         )
         account.updatedAt = .now
         return account

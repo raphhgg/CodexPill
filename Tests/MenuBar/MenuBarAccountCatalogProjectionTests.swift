@@ -11,13 +11,13 @@ struct MenuBarAccountCatalogProjectionTests {
             name: "Business 2",
             email: "user@example.com",
             stableAccountID: "acct-team",
-            rateLimits: makeRateLimits(sessionUsedPercent: 100, sessionResetsAt: now.addingTimeInterval(25 * 60))
+            usage: makeUsage(sessionUsedPercent: 100, sessionResetsAt: now.addingTimeInterval(25 * 60))
         )
         let staleRemote = makeAccount(
             name: "Business 2",
             email: "user@example.com",
             stableAccountID: "stale-team",
-            rateLimits: makeRateLimits(
+            usage: makeUsage(
                 sessionUsedPercent: 100,
                 sessionResetsAt: now.addingTimeInterval(-45 * 60),
                 fetchedAt: now.addingTimeInterval(-3600)
@@ -42,26 +42,20 @@ struct MenuBarAccountCatalogProjectionTests {
 
         let resolved = try! #require(projection.connectedRemoteHosts.first?.activeAccount)
         #expect(resolved.id == saved.id)
-        #expect(resolved.rateLimits?.primary?.resetsAt == saved.rateLimits?.primary?.resetsAt)
+        #expect(resolved.usage?.window(.session)?.resetsAt == saved.usage?.window(.session)?.resetsAt)
     }
 
     @Test
     func catalogEntryPrefersRemoteDisplayValuesForRemoteOnlyActiveAccount() {
         let now = Date()
-        let local = makeAccount(name: "Business 4", rateLimits: makeRateLimits(sessionUsedPercent: 42))
+        let local = makeAccount(name: "Business 4", usage: makeUsage(sessionUsedPercent: 42))
         var remote = local
         remote.applyRemoteMetadata(
             email: local.email,
             planType: local.planType,
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: nil,
-                limitName: nil,
-                planType: "team",
-                primary: CodexRateLimitWindow(
-                    usedPercent: 100,
-                    resetsAt: now.addingTimeInterval(3 * 60 * 60),
-                    windowDurationMinutes: 300
-                ),
+            usage: UsageSnapshot.codex(
+                planName: "team",
+                primary: (usedPercent: 100, resetsAt: now.addingTimeInterval(3 * 60 * 60), durationMinutes: 300),
                 secondary: nil,
                 fetchedAt: now
             )
@@ -85,13 +79,13 @@ struct MenuBarAccountCatalogProjectionTests {
 
         let entry = try! #require(projection.accountCatalogEntries.first)
         #expect(entry.account.id == local.id)
-        #expect(entry.displayAccount.rateLimits?.primary?.displayedUsedPercent(at: now) == 100)
+        #expect(entry.displayAccount.usage?.window(.session)?.displayedUsedPercent(at: now) == 100)
         #expect(entry.placement == .remote)
     }
 
     @Test
     func availabilitySnapshotsIncludeDisconnectedRemoteTargetsWithoutMarkingCatalogActive() {
-        let local = makeAccount(name: "Business 2", rateLimits: makeRateLimits(sessionUsedPercent: 25))
+        let local = makeAccount(name: "Business 2", usage: makeUsage(sessionUsedPercent: 25))
         let projection = MenuBarAccountCatalogProjection(
             activeAccount: nil,
             inactiveAccounts: [local],

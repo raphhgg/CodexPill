@@ -6,9 +6,9 @@ import Testing
 struct HydrateSavedAccountsMetadataUseCaseTests {
     @Test
     func runBackfillsInactiveAccountsMissingRateLimitsAndRestoresOriginalAuth() async throws {
-        let active = makeAccount(name: "Active", fingerprint: "active", planType: "pro", rateLimits: makeRateLimitsSnapshot())
+        let active = makeAccount(name: "Active", fingerprint: "active", planType: "pro", usage: makeUsageSnapshot())
         let inactiveMissing = makeAccount(name: "Missing", email: nil, fingerprint: "missing")
-        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", planType: "pro", rateLimits: makeRateLimitsSnapshot())
+        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", planType: "pro", usage: makeUsageSnapshot())
         let auth = HydrationAuthSnapshotProbe(currentAuthData: Data("active-auth".utf8))
         let repository = HydrationCatalogProbe()
         let useCase = HydrateSavedAccountsMetadataUseCase(
@@ -17,14 +17,14 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
                 "missing": CodexAccountStatus(
                     email: "missing@example.com",
                     planType: "pro",
-                    rateLimits: makeRateLimitsSnapshot()
+                    usage: makeUsageSnapshot()
                 )
             ], authService: auth),
             savedAccountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: [
                 "missing": CodexAccountStatus(
                     email: "missing@example.com",
                     planType: "pro",
-                    rateLimits: makeRateLimitsSnapshot()
+                    usage: makeUsageSnapshot()
                 )
             ], authService: auth),
             identityResolver: SavedAccountIdentityResolver(
@@ -42,9 +42,9 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
         let hydratedMissing = try #require(result.accounts.first(where: { $0.id == inactiveMissing.id }))
         let preservedReady = try #require(result.accounts.first(where: { $0.id == inactiveReady.id }))
 
-        #expect(hydratedMissing.rateLimits?.primary?.usedPercent == 46)
+        #expect(hydratedMissing.usage?.window(.session)?.usedPercent == 46)
         #expect(hydratedMissing.email == "missing@example.com")
-        #expect(preservedReady.rateLimits != nil)
+        #expect(preservedReady.usage != nil)
         #expect(auth.recordedSnapshotReads() == [inactiveMissing.id])
         #expect(auth.currentAuthDataString() == "active-auth")
         #expect(result.activeAccountID == active.id)
@@ -54,8 +54,8 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
 
     @Test
     func runSkipsWhenNoInactiveAccountsNeedHydration() async throws {
-        let active = makeAccount(name: "Active", fingerprint: "active", planType: "pro", rateLimits: makeRateLimitsSnapshot())
-        let inactive = makeAccount(name: "Ready", fingerprint: "ready", planType: "pro", rateLimits: makeRateLimitsSnapshot())
+        let active = makeAccount(name: "Active", fingerprint: "active", planType: "pro", usage: makeUsageSnapshot())
+        let inactive = makeAccount(name: "Ready", fingerprint: "ready", planType: "pro", usage: makeUsageSnapshot())
         let auth = HydrationAuthSnapshotProbe(currentAuthData: Data("active-auth".utf8))
         let repository = HydrationCatalogProbe()
         let useCase = HydrateSavedAccountsMetadataUseCase(
@@ -80,23 +80,13 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
 
     @Test
     func runRefreshesInactiveAccountsThatAlreadyHaveRateLimitsWhenRequested() async throws {
-        let active = makeAccount(name: "Active", fingerprint: "active", planType: "pro", rateLimits: makeRateLimitsSnapshot())
-        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", planType: "pro", rateLimits: makeRateLimitsSnapshot())
+        let active = makeAccount(name: "Active", fingerprint: "active", planType: "pro", usage: makeUsageSnapshot())
+        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", planType: "pro", usage: makeUsageSnapshot())
         let auth = HydrationAuthSnapshotProbe(currentAuthData: Data("active-auth".utf8))
-        let refreshedRateLimits = CodexRateLimitSnapshot(
-            limitID: "codex",
-            limitName: nil,
-            planType: "team",
-            primary: CodexRateLimitWindow(
-                usedPercent: 12,
-                resetsAt: Date(timeIntervalSince1970: 1_776_256_138),
-                windowDurationMinutes: 300
-            ),
-            secondary: CodexRateLimitWindow(
-                usedPercent: 3,
-                resetsAt: Date(timeIntervalSince1970: 1_776_842_938),
-                windowDurationMinutes: 10_080
-            ),
+        let refreshedRateLimits = UsageSnapshot.codex(
+            planName: "team",
+            primary: (usedPercent: 12, resetsAt: Date(timeIntervalSince1970: 1_776_256_138), durationMinutes: 300),
+            secondary: (usedPercent: 3, resetsAt: Date(timeIntervalSince1970: 1_776_842_938), durationMinutes: 10_080),
             fetchedAt: Date(timeIntervalSince1970: 1_776_300_000)
         )
         let repository = HydrationCatalogProbe()
@@ -106,14 +96,14 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
                 "ready": CodexAccountStatus(
                     email: "fresh-ready@example.com",
                     planType: "team",
-                    rateLimits: refreshedRateLimits
+                    usage: refreshedRateLimits
                 )
             ], authService: auth),
             savedAccountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: [
                 "ready": CodexAccountStatus(
                     email: "fresh-ready@example.com",
                     planType: "team",
-                    rateLimits: refreshedRateLimits
+                    usage: refreshedRateLimits
                 )
             ], authService: auth),
             identityResolver: SavedAccountIdentityResolver(
@@ -130,7 +120,7 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
         )
 
         let refreshedReady = try #require(result.accounts.first(where: { $0.id == inactiveReady.id }))
-        #expect(refreshedReady.rateLimits == refreshedRateLimits)
+        #expect(refreshedReady.usage == refreshedRateLimits)
         #expect(refreshedReady.email == "fresh-ready@example.com")
         #expect(refreshedReady.planType == "team")
         #expect(refreshedReady.identity.snapshotFingerprint == "ready")
@@ -144,18 +134,12 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
 
     @Test
     func runBackfillsInactiveAccountsWithWeeklyOnlyRateLimits() async throws {
-        let active = makeAccount(name: "Active", fingerprint: "active", planType: "pro", rateLimits: makeRateLimitsSnapshot())
+        let active = makeAccount(name: "Active", fingerprint: "active", planType: "pro", usage: makeUsageSnapshot())
         let inactiveMissing = makeAccount(name: "Missing", email: nil, fingerprint: "missing")
         let auth = HydrationAuthSnapshotProbe(currentAuthData: Data("active-auth".utf8))
-        let primaryOnlyRateLimits = CodexRateLimitSnapshot(
-            limitID: "codex",
-            limitName: nil,
-            planType: "free",
-            primary: CodexRateLimitWindow(
-                usedPercent: 9,
-                resetsAt: Date(timeIntervalSince1970: 1_776_256_138),
-                windowDurationMinutes: 10_080
-            ),
+        let primaryOnlyRateLimits = UsageSnapshot.codex(
+            planName: "free",
+            primary: (usedPercent: 9, resetsAt: Date(timeIntervalSince1970: 1_776_256_138), durationMinutes: 10_080),
             secondary: nil,
             fetchedAt: Date(timeIntervalSince1970: 1_776_200_000)
         )
@@ -167,7 +151,7 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
                 "missing": CodexAccountStatus(
                     email: "missing@example.com",
                     planType: "free",
-                    rateLimits: primaryOnlyRateLimits
+                    usage: primaryOnlyRateLimits
                 )
             ], authService: auth),
             identityResolver: SavedAccountIdentityResolver(
@@ -183,7 +167,7 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
         )
 
         let hydratedMissing = try #require(result.accounts.first(where: { $0.id == inactiveMissing.id }))
-        #expect(hydratedMissing.rateLimits == primaryOnlyRateLimits)
+        #expect(hydratedMissing.usage == primaryOnlyRateLimits)
         #expect(hydratedMissing.email == "missing@example.com")
         #expect(hydratedMissing.planType == "free")
         #expect(result.hydratedAccountIDs == [inactiveMissing.id])
@@ -192,10 +176,10 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
 
     @Test
     func runDoesNotMarkPreservedInactiveRateLimitsFreshWhenRefreshReturnsNoRateLimits() async throws {
-        let active = makeAccount(name: "Active", fingerprint: "active", planType: "pro", rateLimits: makeRateLimitsSnapshot())
-        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", planType: "pro", rateLimits: makeRateLimitsSnapshot())
+        let active = makeAccount(name: "Active", fingerprint: "active", planType: "pro", usage: makeUsageSnapshot())
+        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", planType: "pro", usage: makeUsageSnapshot())
         let originalUpdatedAt = inactiveReady.updatedAt
-        let originalRateLimits = try #require(inactiveReady.rateLimits)
+        let originalRateLimits = try #require(inactiveReady.usage)
         let auth = HydrationAuthSnapshotProbe(currentAuthData: Data("active-auth".utf8))
         let repository = HydrationCatalogProbe()
         let useCase = HydrateSavedAccountsMetadataUseCase(
@@ -204,14 +188,14 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
                 "ready": CodexAccountStatus(
                     email: inactiveReady.email,
                     planType: inactiveReady.planType,
-                    rateLimits: nil
+                    usage: nil
                 )
             ], authService: auth),
             savedAccountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: [
                 "ready": CodexAccountStatus(
                     email: inactiveReady.email,
                     planType: inactiveReady.planType,
-                    rateLimits: nil
+                    usage: nil
                 )
             ], authService: auth),
             identityResolver: SavedAccountIdentityResolver(
@@ -228,7 +212,7 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
         )
 
         let refreshedReady = try #require(result.accounts.first(where: { $0.id == inactiveReady.id }))
-        #expect(refreshedReady.rateLimits == originalRateLimits)
+        #expect(refreshedReady.usage == originalRateLimits)
         #expect(refreshedReady.updatedAt == originalUpdatedAt)
         #expect(auth.recordedSnapshotReads() == [inactiveReady.id])
         #expect(auth.currentAuthDataString() == "active-auth")
@@ -237,20 +221,18 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
     }
 
     @Test(arguments: [
-        CodexAccountStatus(email: "ready@example.com", planType: "pro", rateLimits: nil),
-        CodexAccountStatus(email: "ready@example.com", planType: "pro", rateLimits: CodexRateLimitSnapshot(
-            limitID: "codex",
-            limitName: nil,
-            planType: "pro",
-            primary: CodexRateLimitWindow(usedPercent: 0, resetsAt: .now.addingTimeInterval(60 * 60), windowDurationMinutes: 300),
-            secondary: CodexRateLimitWindow(usedPercent: 0, resetsAt: .now.addingTimeInterval(7 * 24 * 60 * 60), windowDurationMinutes: 10_080),
+        CodexAccountStatus(email: "ready@example.com", planType: "pro", usage: nil),
+        CodexAccountStatus(email: "ready@example.com", planType: "pro", usage: UsageSnapshot.codex(
+            planName: "pro",
+            primary: (usedPercent: 0, resetsAt: .now.addingTimeInterval(60 * 60), durationMinutes: 300),
+            secondary: (usedPercent: 0, resetsAt: .now.addingTimeInterval(7 * 24 * 60 * 60), durationMinutes: 10_080),
             fetchedAt: .now
         ))
     ])
     func runPreservesPreviousMeaningfulRateLimitsWhenIsolatedReadIsNotUsable(status: CodexAccountStatus) async throws {
-        let active = makeAccount(name: "Active", fingerprint: "active", planType: "pro", rateLimits: makeRateLimitsSnapshot())
-        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", planType: "pro", rateLimits: makeRateLimitsSnapshot())
-        let originalRateLimits = try #require(inactiveReady.rateLimits)
+        let active = makeAccount(name: "Active", fingerprint: "active", planType: "pro", usage: makeUsageSnapshot())
+        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", planType: "pro", usage: makeUsageSnapshot())
+        let originalRateLimits = try #require(inactiveReady.usage)
         let auth = HydrationAuthSnapshotProbe(currentAuthData: Data("active-auth".utf8))
         let repository = HydrationCatalogProbe()
         let useCase = HydrateSavedAccountsMetadataUseCase(
@@ -271,16 +253,16 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
         )
 
         let refreshedReady = try #require(result.accounts.first(where: { $0.id == inactiveReady.id }))
-        #expect(refreshedReady.rateLimits == originalRateLimits)
+        #expect(refreshedReady.usage == originalRateLimits)
         #expect(auth.currentAuthDataString() == "active-auth")
         #expect(result.hydratedAccountIDs.isEmpty)
     }
 
     @Test
     func runPreservesPreviousMeaningfulRateLimitsWhenIsolatedReadFails() async throws {
-        let active = makeAccount(name: "Active", fingerprint: "active", planType: "pro", rateLimits: makeRateLimitsSnapshot())
-        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", planType: "pro", rateLimits: makeRateLimitsSnapshot())
-        let originalRateLimits = try #require(inactiveReady.rateLimits)
+        let active = makeAccount(name: "Active", fingerprint: "active", planType: "pro", usage: makeUsageSnapshot())
+        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", planType: "pro", usage: makeUsageSnapshot())
+        let originalRateLimits = try #require(inactiveReady.usage)
         let auth = HydrationAuthSnapshotProbe(currentAuthData: Data("active-auth".utf8))
         let repository = HydrationCatalogProbe()
         let useCase = HydrateSavedAccountsMetadataUseCase(
@@ -301,15 +283,15 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
         )
 
         let refreshedReady = try #require(result.accounts.first(where: { $0.id == inactiveReady.id }))
-        #expect(refreshedReady.rateLimits == originalRateLimits)
+        #expect(refreshedReady.usage == originalRateLimits)
         #expect(auth.currentAuthDataString() == "active-auth")
         #expect(result.hydratedAccountIDs.isEmpty)
     }
 
     @Test
     func runWritesRotatedAuthBackToTheMatchingSavedAccount() async throws {
-        let active = makeAccount(name: "Active", fingerprint: "active", planType: "pro", rateLimits: makeRateLimitsSnapshot())
-        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", stableAccountID: "acct-ready", planType: "pro", rateLimits: makeRateLimitsSnapshot())
+        let active = makeAccount(name: "Active", fingerprint: "active", planType: "pro", usage: makeUsageSnapshot())
+        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", stableAccountID: "acct-ready", planType: "pro", usage: makeUsageSnapshot())
         let rotatedAuthData = Data("ready-rotated".utf8)
         let auth = HydrationAuthSnapshotProbe(
             currentAuthData: Data("active-auth".utf8),
@@ -324,7 +306,7 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
                 statusByFingerprint: ["ready": CodexAccountStatus(
                     email: "ready@example.com",
                     planType: "pro",
-                    rateLimits: makeRateLimitsSnapshot()
+                    usage: makeUsageSnapshot()
                 )],
                 authService: auth,
                 rotatedAuthDataByFingerprint: ["ready": rotatedAuthData]
@@ -341,15 +323,15 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
         let refreshedReady = try #require(result.accounts.first(where: { $0.id == inactiveReady.id }))
         #expect(auth.storedSnapshot(for: inactiveReady.id) == rotatedAuthData)
         #expect(refreshedReady.identity.snapshotFingerprint == "ready-rotated")
-        #expect(refreshedReady.rateLimits == makeRateLimitsSnapshot())
+        #expect(refreshedReady.usage == makeUsageSnapshot())
         #expect(repository.savedAccounts == result.accounts)
     }
 
     @Test(arguments: ["acct-other", "acct-unknown"])
     func runDiscardsRotatedAuthThatDoesNotResolveToTheReadAccount(rotatedStableAccountID: String) async throws {
-        let active = makeAccount(name: "Active", fingerprint: "active", planType: "pro", rateLimits: makeRateLimitsSnapshot())
-        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", stableAccountID: "acct-ready", planType: "pro", rateLimits: makeRateLimitsSnapshot())
-        let inactiveOther = makeAccount(name: "Other", fingerprint: "other", stableAccountID: "acct-other", planType: "pro", rateLimits: makeRateLimitsSnapshot())
+        let active = makeAccount(name: "Active", fingerprint: "active", planType: "pro", usage: makeUsageSnapshot())
+        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", stableAccountID: "acct-ready", planType: "pro", usage: makeUsageSnapshot())
+        let inactiveOther = makeAccount(name: "Other", fingerprint: "other", stableAccountID: "acct-other", planType: "pro", usage: makeUsageSnapshot())
         let rotatedAuthData = Data("ready-rotated".utf8)
         let auth = HydrationAuthSnapshotProbe(
             currentAuthData: Data("active-auth".utf8),
@@ -380,8 +362,8 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
 
     @Test
     func runWritesRotatedAuthBackWhenIsolatedReadFails() async throws {
-        let active = makeAccount(name: "Active", fingerprint: "active", planType: "pro", rateLimits: makeRateLimitsSnapshot())
-        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", stableAccountID: "acct-ready", planType: "pro", rateLimits: makeRateLimitsSnapshot())
+        let active = makeAccount(name: "Active", fingerprint: "active", planType: "pro", usage: makeUsageSnapshot())
+        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", stableAccountID: "acct-ready", planType: "pro", usage: makeUsageSnapshot())
         let rotatedAuthData = Data("ready-rotated".utf8)
         let auth = HydrationAuthSnapshotProbe(
             currentAuthData: Data("active-auth".utf8),
@@ -405,7 +387,7 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
         let refreshedReady = try #require(result.accounts.first(where: { $0.id == inactiveReady.id }))
         #expect(auth.storedSnapshot(for: inactiveReady.id) == rotatedAuthData)
         #expect(refreshedReady.identity.snapshotFingerprint == "ready-rotated")
-        #expect(refreshedReady.rateLimits == inactiveReady.rateLimits)
+        #expect(refreshedReady.usage == inactiveReady.usage)
         #expect(refreshedReady.updatedAt == inactiveReady.updatedAt)
         #expect(result.hydratedAccountIDs.isEmpty)
         #expect(repository.savedAccounts == result.accounts)
@@ -428,21 +410,11 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
         )
     }
 
-    private func makeRateLimitsSnapshot() -> CodexRateLimitSnapshot {
-        CodexRateLimitSnapshot(
-            limitID: "codex",
-            limitName: nil,
-            planType: "pro",
-            primary: CodexRateLimitWindow(
-                usedPercent: 46,
-                resetsAt: Date(timeIntervalSince1970: 1_776_256_138),
-                windowDurationMinutes: 300
-            ),
-            secondary: CodexRateLimitWindow(
-                usedPercent: 7,
-                resetsAt: Date(timeIntervalSince1970: 1_776_842_938),
-                windowDurationMinutes: 10_080
-            ),
+    private func makeUsageSnapshot() -> UsageSnapshot {
+        UsageSnapshot.codex(
+            planName: "pro",
+            primary: (usedPercent: 46, resetsAt: Date(timeIntervalSince1970: 1_776_256_138), durationMinutes: 300),
+            secondary: (usedPercent: 7, resetsAt: Date(timeIntervalSince1970: 1_776_842_938), durationMinutes: 10_080),
             fetchedAt: Date(timeIntervalSince1970: 1_776_200_000)
         )
     }

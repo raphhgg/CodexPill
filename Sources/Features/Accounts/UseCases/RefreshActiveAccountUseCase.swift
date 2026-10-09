@@ -46,7 +46,7 @@ struct RefreshActiveAccountUseCase: Sendable {
             throw RefreshActiveAccountUseCaseError.targetMissing
         }
 
-        let hasFreshRateLimits = remote.rateLimits != nil
+        let hasFreshRateLimits = remote.usage != nil
         var updatedAccounts = accounts
         if activeAuthSnapshotRelinker?.currentAuthFingerprint() != updatedAccounts[matchedIndex].identity.snapshotFingerprint,
            let relinkedAccount = try? relinkActiveAuthSnapshot(for: updatedAccounts[matchedIndex]) {
@@ -56,7 +56,7 @@ struct RefreshActiveAccountUseCase: Sendable {
         updatedAccounts[matchedIndex].applyRemoteMetadata(
             email: remote.email,
             planType: remote.planType,
-            rateLimits: remote.rateLimits ?? updatedAccounts[matchedIndex].rateLimits,
+            usage: remote.usage ?? updatedAccounts[matchedIndex].usage,
             preferRateLimitPlan: hasFreshRateLimits
         )
         if hasFreshRateLimits {

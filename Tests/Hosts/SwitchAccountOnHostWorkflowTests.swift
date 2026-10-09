@@ -10,7 +10,7 @@ struct SwitchAccountOnHostWorkflowTests {
         let host = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
         let client = RemoteHostClientProbe(
             installationState: .missing,
-            status: CodexAccountStatus(email: account.email, planType: account.planType, rateLimits: nil)
+            status: CodexAccountStatus(email: account.email, planType: account.planType, usage: nil)
         )
         let workflow = SwitchAccountOnHostWorkflow(remoteHostSwitchOperations: client)
 
@@ -23,7 +23,7 @@ struct SwitchAccountOnHostWorkflowTests {
             .refreshRuntime(host.displayName),
             .readStatus(host.displayName)
         ])
-        #expect(result == .verified(CodexAccountStatus(email: account.email, planType: account.planType, rateLimits: nil)))
+        #expect(result == .verified(CodexAccountStatus(email: account.email, planType: account.planType, usage: nil)))
     }
 
     @Test
@@ -32,7 +32,7 @@ struct SwitchAccountOnHostWorkflowTests {
         let host = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
         let client = RemoteHostClientProbe(
             installationState: .installed,
-            status: CodexAccountStatus(email: account.email, planType: account.planType, rateLimits: nil)
+            status: CodexAccountStatus(email: account.email, planType: account.planType, usage: nil)
         )
         let workflow = SwitchAccountOnHostWorkflow(remoteHostSwitchOperations: client)
 
@@ -44,7 +44,7 @@ struct SwitchAccountOnHostWorkflowTests {
             .refreshRuntime(host.displayName),
             .readStatus(host.displayName)
         ])
-        #expect(result == .verified(CodexAccountStatus(email: account.email, planType: account.planType, rateLimits: nil)))
+        #expect(result == .verified(CodexAccountStatus(email: account.email, planType: account.planType, usage: nil)))
     }
 
     @Test
@@ -106,7 +106,7 @@ struct SwitchAccountOnHostWorkflowTests {
         let host = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
         let client = RemoteHostClientProbe(
             installationState: .installed,
-            status: CodexAccountStatus(email: other.email, planType: other.planType, rateLimits: nil)
+            status: CodexAccountStatus(email: other.email, planType: other.planType, usage: nil)
         )
         let workflow = SwitchAccountOnHostWorkflow(
             remoteHostSwitchOperations: client,
@@ -132,7 +132,7 @@ struct SwitchAccountOnHostWorkflowTests {
         let host = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
         let client = RemoteHostClientProbe(
             installationState: .installed,
-            status: CodexAccountStatus(email: "shared@example.com", planType: target.planType, rateLimits: nil)
+            status: CodexAccountStatus(email: "shared@example.com", planType: target.planType, usage: nil)
         )
         let workflow = SwitchAccountOnHostWorkflow(
             remoteHostSwitchOperations: client,
@@ -162,7 +162,7 @@ struct SwitchAccountOnHostWorkflowTests {
             status: CodexAccountStatus(
                 email: "shared@example.com",
                 planType: target.planType,
-                rateLimits: nil,
+                usage: nil,
                 snapshotFingerprint: "target-fingerprint"
             )
         )
@@ -173,7 +173,7 @@ struct SwitchAccountOnHostWorkflowTests {
         #expect(result == .verified(CodexAccountStatus(
             email: "shared@example.com",
             planType: target.planType,
-            rateLimits: nil,
+            usage: nil,
             snapshotFingerprint: "target-fingerprint"
         )))
     }
@@ -186,8 +186,8 @@ struct SwitchAccountOnHostWorkflowTests {
         let client = RemoteHostClientProbe(
             installationState: .installed,
             statuses: [
-                CodexAccountStatus(email: previous.email, planType: previous.planType, rateLimits: nil),
-                CodexAccountStatus(email: target.email, planType: target.planType, rateLimits: nil)
+                CodexAccountStatus(email: previous.email, planType: previous.planType, usage: nil),
+                CodexAccountStatus(email: target.email, planType: target.planType, usage: nil)
             ]
         )
         let workflow = SwitchAccountOnHostWorkflow(
@@ -197,7 +197,7 @@ struct SwitchAccountOnHostWorkflowTests {
 
         let result = try await workflow.run(account: target, on: host, among: [target, previous])
 
-        #expect(result == .verified(CodexAccountStatus(email: target.email, planType: target.planType, rateLimits: nil)))
+        #expect(result == .verified(CodexAccountStatus(email: target.email, planType: target.planType, usage: nil)))
         #expect(client.events == [
             .installationState(target.id, host.displayName),
             .switchAccount(target.id, host.displayName),
@@ -281,7 +281,7 @@ private final class RemoteHostClientProbe: RemoteHostSwitchWorkflowOperations, @
         statusError: Error? = nil
     ) {
         self.installationState = installationState
-        self.statuses = statuses.isEmpty ? [status ?? CodexAccountStatus(email: nil, planType: nil, rateLimits: nil)] : statuses
+        self.statuses = statuses.isEmpty ? [status ?? CodexAccountStatus(email: nil, planType: nil, usage: nil)] : statuses
         self.installError = installError
         self.switchError = switchError
         self.refreshError = refreshError

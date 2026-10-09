@@ -3,7 +3,7 @@ import Foundation
 struct CodexAccountStatus: Equatable {
     var email: String?
     var planType: String?
-    var rateLimits: CodexRateLimitSnapshot?
+    var usage: UsageSnapshot?
     var stableAccountID: String? = nil
     var authPrincipalIdentity: CodexAuthPrincipalIdentity? = nil
     var workspaceIdentity: CodexWorkspaceIdentity? = nil

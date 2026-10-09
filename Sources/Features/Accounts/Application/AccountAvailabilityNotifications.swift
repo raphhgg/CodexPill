@@ -482,11 +482,14 @@ struct AccountAvailabilityNotificationPolicy {
             case (false, false):
                 return .availableNow
             case (true, false):
-                return .blocked(until: availability.sessionResetAt, reason: .session)
+                return .blocked(by: [.session], until: availability.sessionResetAt)
             case (false, true):
-                return .blocked(until: availability.weeklyResetAt, reason: .weekly)
+                return .blocked(by: [.weekly], until: availability.weeklyResetAt)
             case (true, true):
-                return .blocked(until: max(availability.sessionResetAt ?? .distantPast, availability.weeklyResetAt ?? .distantPast), reason: .sessionAndWeekly)
+                return .blocked(
+                    by: [.session, .weekly],
+                    until: max(availability.sessionResetAt ?? .distantPast, availability.weeklyResetAt ?? .distantPast)
+                )
             }
         }
     }

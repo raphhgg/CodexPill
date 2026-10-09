@@ -2,12 +2,12 @@ import Foundation
 
 struct RemoteRateLimitResolution {
     func preferredRateLimits(
-        remote: CodexRateLimitSnapshot?,
-        fallback: CodexRateLimitSnapshot?,
+        remote: UsageSnapshot?,
+        fallback: UsageSnapshot?,
         candidateAccounts: [CodexAccount],
         baseAccount: CodexAccount,
         remoteEmail: String?
-    ) -> CodexRateLimitSnapshot? {
+    ) -> UsageSnapshot? {
         let resolvedFallback = bestFallback(
             fallback: fallback,
             candidateAccounts: candidateAccounts,
@@ -18,12 +18,12 @@ struct RemoteRateLimitResolution {
         guard let remote else { return resolvedFallback }
         guard let resolvedFallback else { return remote }
 
-        return CodexRateLimitSnapshot(
-            limitID: preferredMetadataValue(remote.limitID, fallback: resolvedFallback.limitID),
-            limitName: preferredMetadataValue(remote.limitName, fallback: resolvedFallback.limitName),
-            planType: preferredMetadataValue(remote.planType, fallback: resolvedFallback.planType),
-            primary: preferredWindow(remote.primary, fallback: resolvedFallback.primary),
-            secondary: preferredWindow(remote.secondary, fallback: resolvedFallback.secondary),
+        return UsageSnapshot(
+            provider: remote.provider,
+            planName: preferredMetadataValue(remote.planName, fallback: resolvedFallback.planName),
+            windows: [UsageWindowKind.session, .weekly].compactMap { kind in
+                preferredWindow(remote.window(kind), fallback: resolvedFallback.window(kind))
+            },
             fetchedAt: max(remote.fetchedAt, resolvedFallback.fetchedAt)
         )
     }
@@ -40,11 +40,11 @@ struct RemoteRateLimitResolution {
     }
 
     private func bestFallback(
-        fallback: CodexRateLimitSnapshot?,
+        fallback: UsageSnapshot?,
         candidateAccounts: [CodexAccount],
         baseAccount: CodexAccount,
         remoteEmail: String?
-    ) -> CodexRateLimitSnapshot? {
+    ) -> UsageSnapshot? {
         let matchOutcome = CodexAccountMatcher().match(
             liveStableAccountID: baseAccount.identity.stableAccountID,
             liveAuthPrincipalIdentity: baseAccount.identity.authPrincipalIdentity,
@@ -56,21 +56,19 @@ struct RemoteRateLimitResolution {
 
         if let matchedID = matchOutcome.matchedAccountID,
            let matchedAccount = candidateAccounts.first(where: { $0.id == matchedID }),
-           containsMeaningfulData(matchedAccount.rateLimits) {
-            return matchedAccount.rateLimits
+           containsMeaningfulData(matchedAccount.usage) {
+            return matchedAccount.usage
         }
 
         return fallback
     }
 
-    private func containsMeaningfulData(_ snapshot: CodexRateLimitSnapshot?) -> Bool {
+    private func containsMeaningfulData(_ snapshot: UsageSnapshot?) -> Bool {
         guard let snapshot else { return false }
-        return windowContainsMeaningfulData(snapshot.primary)
-            || windowContainsMeaningfulData(snapshot.secondary)
+        return snapshot.windows.contains(where: windowContainsMeaningfulData)
     }
 
-    private func windowContainsMeaningfulData(_ window: CodexRateLimitWindow?) -> Bool {
-        guard let window else { return false }
+    private func windowContainsMeaningfulData(_ window: UsageWindow) -> Bool {
         if let resetsAt = window.resetsAt {
             guard resetsAt > .now else { return false }
             return true
@@ -79,17 +77,18 @@ struct RemoteRateLimitResolution {
     }
 
     private func preferredWindow(
-        _ remote: CodexRateLimitWindow?,
-        fallback: CodexRateLimitWindow?
-    ) -> CodexRateLimitWindow? {
+        _ remote: UsageWindow?,
+        fallback: UsageWindow?
+    ) -> UsageWindow? {
         guard let remote else { return fallback }
         guard let fallback else { return remote }
 
         if windowContainsMeaningfulData(remote) {
-            return CodexRateLimitWindow(
+            return UsageWindow(
+                kind: remote.kind,
                 usedPercent: remote.usedPercent,
                 resetsAt: remote.resetsAt ?? fallback.resetsAt,
-                windowDurationMinutes: remote.windowDurationMinutes ?? fallback.windowDurationMinutes
+                durationMinutes: remote.durationMinutes ?? fallback.durationMinutes
             )
         }
         return fallback

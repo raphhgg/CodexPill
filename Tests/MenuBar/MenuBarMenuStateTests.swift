@@ -55,12 +55,10 @@ struct MenuBarMenuStateTests {
             updatedAt: now,
             email: "constrained@example.com",
             planType: "team",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: nil,
-                limitName: nil,
-                planType: "team",
-                primary: CodexRateLimitWindow(usedPercent: 90, resetsAt: now.addingTimeInterval(7200), windowDurationMinutes: 300),
-                secondary: CodexRateLimitWindow(usedPercent: 100, resetsAt: now.addingTimeInterval(172800), windowDurationMinutes: 10_080),
+            usage: UsageSnapshot.codex(
+                planName: "team",
+                primary: (usedPercent: 90, resetsAt: now.addingTimeInterval(7200), durationMinutes: 300),
+                secondary: (usedPercent: 100, resetsAt: now.addingTimeInterval(172800), durationMinutes: 10_080),
                 fetchedAt: now
             ),
             identity: .empty
@@ -73,12 +71,10 @@ struct MenuBarMenuStateTests {
             updatedAt: now,
             email: "preferred@example.com",
             planType: "team",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: nil,
-                limitName: nil,
-                planType: "team",
-                primary: CodexRateLimitWindow(usedPercent: 0, resetsAt: now.addingTimeInterval(3600), windowDurationMinutes: 300),
-                secondary: CodexRateLimitWindow(usedPercent: 10, resetsAt: now.addingTimeInterval(86400), windowDurationMinutes: 10_080),
+            usage: UsageSnapshot.codex(
+                planName: "team",
+                primary: (usedPercent: 0, resetsAt: now.addingTimeInterval(3600), durationMinutes: 300),
+                secondary: (usedPercent: 10, resetsAt: now.addingTimeInterval(86400), durationMinutes: 10_080),
                 fetchedAt: now
             ),
             identity: .empty
@@ -144,7 +140,7 @@ struct MenuBarMenuStateTests {
 
     @Test
     func unverifiedRemoteHostDoesNotMarkAccountAsRemoteActive() {
-        let local = makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: .now))
+        let local = makeAccount(name: "Business 2", usage: makeUsage(resettingAfter: .now))
         let state = makeState(
             activeAccount: nil,
             inactiveAccounts: [local],
@@ -171,8 +167,8 @@ struct MenuBarMenuStateTests {
 
     @Test
     func disconnectedFailedRemoteHostDoesNotShowPrimaryCardOrMarkAccountActive() {
-        let local = makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: .now))
-        let detected = makeAccount(name: "Business 1", rateLimits: makeRateLimits(resettingAfter: .now))
+        let local = makeAccount(name: "Business 2", usage: makeUsage(resettingAfter: .now))
+        let detected = makeAccount(name: "Business 1", usage: makeUsage(resettingAfter: .now))
         let state = makeState(
             activeAccount: nil,
             inactiveAccounts: [local],
@@ -199,8 +195,8 @@ struct MenuBarMenuStateTests {
 
     @Test
     func detectedRemoteAccountDoesNotReplaceSavedAccountCatalog() {
-        let desired = makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: .now))
-        let detected = makeAccount(name: "Business 1", rateLimits: makeRateLimits(resettingAfter: .now))
+        let desired = makeAccount(name: "Business 2", usage: makeUsage(resettingAfter: .now))
+        let detected = makeAccount(name: "Business 1", usage: makeUsage(resettingAfter: .now))
         let state = makeState(
             activeAccount: nil,
             inactiveAccounts: [desired],
@@ -236,20 +232,10 @@ struct MenuBarMenuStateTests {
             updatedAt: now,
             email: "user@example.com",
             planType: "team",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: nil,
-                limitName: nil,
-                planType: "team",
-                primary: CodexRateLimitWindow(
-                    usedPercent: 100,
-                    resetsAt: now.addingTimeInterval(25 * 60),
-                    windowDurationMinutes: 300
-                ),
-                secondary: CodexRateLimitWindow(
-                    usedPercent: 16,
-                    resetsAt: now.addingTimeInterval(5 * 24 * 60 * 60),
-                    windowDurationMinutes: 10_080
-                ),
+            usage: UsageSnapshot.codex(
+                planName: "team",
+                primary: (usedPercent: 100, resetsAt: now.addingTimeInterval(25 * 60), durationMinutes: 300),
+                secondary: (usedPercent: 16, resetsAt: now.addingTimeInterval(5 * 24 * 60 * 60), durationMinutes: 10_080),
                 fetchedAt: now
             ),
             identity: CodexAccountIdentity(
@@ -274,20 +260,10 @@ struct MenuBarMenuStateTests {
             updatedAt: now.addingTimeInterval(-3600),
             email: "user@example.com",
             planType: "team",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: nil,
-                limitName: nil,
-                planType: "team",
-                primary: CodexRateLimitWindow(
-                    usedPercent: 100,
-                    resetsAt: now.addingTimeInterval(-45 * 60),
-                    windowDurationMinutes: 300
-                ),
-                secondary: CodexRateLimitWindow(
-                    usedPercent: 16,
-                    resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60),
-                    windowDurationMinutes: 10_080
-                ),
+            usage: UsageSnapshot.codex(
+                planName: "team",
+                primary: (usedPercent: 100, resetsAt: now.addingTimeInterval(-45 * 60), durationMinutes: 300),
+                secondary: (usedPercent: 16, resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60), durationMinutes: 10_080),
                 fetchedAt: now.addingTimeInterval(-3600)
             ),
             identity: CodexAccountIdentity(
@@ -323,32 +299,22 @@ struct MenuBarMenuStateTests {
 
         let resolvedRemoteAccount = try! #require(state.connectedRemoteHosts.first?.activeAccount)
         #expect(resolvedRemoteAccount.id == currentSavedAccount.id)
-        #expect(resolvedRemoteAccount.rateLimits?.primary?.displayedUsedPercent(at: now) == 100)
-        #expect(resolvedRemoteAccount.rateLimits?.primary?.resetsAt == currentSavedAccount.rateLimits?.primary?.resetsAt)
+        #expect(resolvedRemoteAccount.usage?.window(.session)?.displayedUsedPercent(at: now) == 100)
+        #expect(resolvedRemoteAccount.usage?.window(.session)?.resetsAt == currentSavedAccount.usage?.window(.session)?.resetsAt)
     }
 
     @Test
     func accountCatalogEntryPrefersLiveRemoteDisplayValuesForRemoteActiveAccount() {
-        let local = makeAccount(name: "Business 4", rateLimits: makeRateLimits(resettingAfter: .now))
+        let local = makeAccount(name: "Business 4", usage: makeUsage(resettingAfter: .now))
         var remote = local
         let now = Date()
         remote.applyRemoteMetadata(
             email: local.email,
             planType: "team",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: nil,
-                limitName: nil,
-                planType: "team",
-                primary: CodexRateLimitWindow(
-                    usedPercent: 100,
-                    resetsAt: now.addingTimeInterval(3 * 60 * 60),
-                    windowDurationMinutes: 300
-                ),
-                secondary: CodexRateLimitWindow(
-                    usedPercent: 16,
-                    resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60),
-                    windowDurationMinutes: 10_080
-                ),
+            usage: UsageSnapshot.codex(
+                planName: "team",
+                primary: (usedPercent: 100, resetsAt: now.addingTimeInterval(3 * 60 * 60), durationMinutes: 300),
+                secondary: (usedPercent: 16, resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60), durationMinutes: 10_080),
                 fetchedAt: now
             )
         )
@@ -371,33 +337,23 @@ struct MenuBarMenuStateTests {
 
         let entry = try! #require(state.accountCatalogEntries.first)
         #expect(entry.account.id == local.id)
-        #expect(entry.displayAccount.rateLimits?.primary?.displayedUsedPercent(at: now) == 100)
-        #expect(entry.displayAccount.rateLimits?.secondary?.displayedUsedPercent(at: now) == 16)
+        #expect(entry.displayAccount.usage?.window(.session)?.displayedUsedPercent(at: now) == 100)
+        #expect(entry.displayAccount.usage?.window(.weekly)?.displayedUsedPercent(at: now) == 16)
         #expect(entry.placement == .remote)
     }
 
     @Test
     func accountCatalogEntryPrefersLocalDisplayValuesWhenAccountIsActiveLocallyAndRemotely() {
         let now = Date()
-        let local = makeAccount(name: "Business 4", rateLimits: makeRateLimits(resettingAfter: .now))
+        let local = makeAccount(name: "Business 4", usage: makeUsage(resettingAfter: .now))
         var remote = local
         remote.applyRemoteMetadata(
             email: local.email,
             planType: "team",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: nil,
-                limitName: nil,
-                planType: "team",
-                primary: CodexRateLimitWindow(
-                    usedPercent: 100,
-                    resetsAt: now.addingTimeInterval(3 * 60 * 60),
-                    windowDurationMinutes: 300
-                ),
-                secondary: CodexRateLimitWindow(
-                    usedPercent: 16,
-                    resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60),
-                    windowDurationMinutes: 10_080
-                ),
+            usage: UsageSnapshot.codex(
+                planName: "team",
+                primary: (usedPercent: 100, resetsAt: now.addingTimeInterval(3 * 60 * 60), durationMinutes: 300),
+                secondary: (usedPercent: 16, resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60), durationMinutes: 10_080),
                 fetchedAt: now
             )
         )
@@ -420,14 +376,14 @@ struct MenuBarMenuStateTests {
 
         let entry = try! #require(state.accountCatalogEntries.first)
         #expect(entry.account.id == local.id)
-        #expect(entry.displayAccount.rateLimits?.primary?.displayedUsedPercent(at: now) == local.rateLimits?.primary?.displayedUsedPercent(at: now))
-        #expect(entry.displayAccount.rateLimits?.secondary?.displayedUsedPercent(at: now) == local.rateLimits?.secondary?.displayedUsedPercent(at: now))
+        #expect(entry.displayAccount.usage?.window(.session)?.displayedUsedPercent(at: now) == local.usage?.window(.session)?.displayedUsedPercent(at: now))
+        #expect(entry.displayAccount.usage?.window(.weekly)?.displayedUsedPercent(at: now) == local.usage?.window(.weekly)?.displayedUsedPercent(at: now))
         #expect(entry.placement == .localAndRemote)
     }
 
     @Test
     func sameVerifiedLocalAndRemoteAccountGroupsIntoOneActiveCard() {
-        let local = makeAccount(name: "Business 4", rateLimits: makeRateLimits(resettingAfter: .now))
+        let local = makeAccount(name: "Business 4", usage: makeUsage(resettingAfter: .now))
         var remote = local
         remote.updatedAt = local.updatedAt.addingTimeInterval(60)
         let state = makeState(
@@ -457,8 +413,8 @@ struct MenuBarMenuStateTests {
 
     @Test
     func activeRemoteHostsForRemovalIncludesActiveAccountEvenWhenDesiredMetadataIsStale() {
-        let local = makeAccount(name: "Business 4", rateLimits: makeRateLimits(resettingAfter: .now))
-        let staleDesired = makeAccount(name: "Business 5", rateLimits: makeRateLimits(resettingAfter: .now))
+        let local = makeAccount(name: "Business 4", usage: makeUsage(resettingAfter: .now))
+        let staleDesired = makeAccount(name: "Business 5", usage: makeUsage(resettingAfter: .now))
         let state = makeState(
             activeAccount: local,
             inactiveAccounts: [staleDesired],
@@ -481,7 +437,7 @@ struct MenuBarMenuStateTests {
     @Test
     func sameVerifiedLocalAndRemoteAccountWithDifferentIDsGroupsIntoOneActiveCard() {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
-        let local = makeAccount(name: "Personal", rateLimits: makeRateLimits(resettingAfter: .now))
+        let local = makeAccount(name: "Personal", usage: makeUsage(resettingAfter: .now))
         let remote = CodexAccount(
             id: UUID(),
             name: local.name,
@@ -490,20 +446,10 @@ struct MenuBarMenuStateTests {
             updatedAt: local.updatedAt.addingTimeInterval(60),
             email: local.email,
             planType: local.planType,
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: nil,
-                limitName: nil,
-                planType: "pro",
-                primary: CodexRateLimitWindow(
-                    usedPercent: 9,
-                    resetsAt: now.addingTimeInterval(3 * 60 * 60),
-                    windowDurationMinutes: 300
-                ),
-                secondary: CodexRateLimitWindow(
-                    usedPercent: 11,
-                    resetsAt: now.addingTimeInterval(3 * 24 * 60 * 60),
-                    windowDurationMinutes: 10_080
-                ),
+            usage: UsageSnapshot.codex(
+                planName: "pro",
+                primary: (usedPercent: 9, resetsAt: now.addingTimeInterval(3 * 60 * 60), durationMinutes: 300),
+                secondary: (usedPercent: 11, resetsAt: now.addingTimeInterval(3 * 24 * 60 * 60), durationMinutes: 10_080),
                 fetchedAt: now.addingTimeInterval(60)
             ),
             identity: CodexAccountIdentity(
@@ -539,7 +485,7 @@ struct MenuBarMenuStateTests {
     @Test
     func sameVerifiedRemoteAccountWithDifferentInspectableDataRendersSeparateActiveCard() {
         let now = Date()
-        let local = makeAccount(name: "Business 4", rateLimits: makeRateLimits(resettingAfter: .now))
+        let local = makeAccount(name: "Business 4", usage: makeUsage(resettingAfter: .now))
         let remote = CodexAccount(
             id: UUID(),
             name: local.name,
@@ -548,20 +494,10 @@ struct MenuBarMenuStateTests {
             updatedAt: local.updatedAt.addingTimeInterval(60),
             email: "remote-business@example.com",
             planType: "team",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: nil,
-                limitName: nil,
-                planType: "team",
-                primary: CodexRateLimitWindow(
-                    usedPercent: 82,
-                    resetsAt: now.addingTimeInterval(2 * 60 * 60),
-                    windowDurationMinutes: 300
-                ),
-                secondary: CodexRateLimitWindow(
-                    usedPercent: 44,
-                    resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60),
-                    windowDurationMinutes: 10_080
-                ),
+            usage: UsageSnapshot.codex(
+                planName: "team",
+                primary: (usedPercent: 82, resetsAt: now.addingTimeInterval(2 * 60 * 60), durationMinutes: 300),
+                secondary: (usedPercent: 44, resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60), durationMinutes: 10_080),
                 fetchedAt: now
             ),
             identity: CodexAccountIdentity(
@@ -593,8 +529,8 @@ struct MenuBarMenuStateTests {
 
     @Test
     func differentVerifiedRemoteAccountRendersSeparateActiveCard() {
-        let local = makeAccount(name: "Business 4", rateLimits: makeRateLimits(resettingAfter: .now))
-        let remote = makeAccount(name: "Business 5", rateLimits: makeRateLimits(resettingAfter: .now))
+        let local = makeAccount(name: "Business 4", usage: makeUsage(resettingAfter: .now))
+        let remote = makeAccount(name: "Business 5", usage: makeUsage(resettingAfter: .now))
         let state = makeState(
             activeAccount: local,
             inactiveAccounts: [remote],
@@ -618,7 +554,7 @@ struct MenuBarMenuStateTests {
 
     @Test
     func sameRemoteAccountOnMultipleHostsGroupsIntoOneActiveCard() {
-        let remote = makeAccount(name: "Business 5", rateLimits: makeRateLimits(resettingAfter: .now))
+        let remote = makeAccount(name: "Business 5", usage: makeUsage(resettingAfter: .now))
         let state = makeState(
             activeAccount: nil,
             inactiveAccounts: [remote],
@@ -653,7 +589,7 @@ struct MenuBarMenuStateTests {
 
     @Test
     func failedSameRemoteAccountStaysOutOfActiveCardsForRecovery() {
-        let local = makeAccount(name: "Business 4", rateLimits: makeRateLimits(resettingAfter: .now))
+        let local = makeAccount(name: "Business 4", usage: makeUsage(resettingAfter: .now))
         let state = makeState(
             activeAccount: local,
             inactiveAccounts: [],
@@ -711,7 +647,7 @@ struct MenuBarMenuStateTests {
     @Test
     func activeAccountUsesStoredStatusItemContentMode() {
         let state = makeState(
-            activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
+            activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
             inactiveAccounts: [],
             isBusy: false
         )

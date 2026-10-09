@@ -195,7 +195,7 @@ struct SSHRemoteHostClient: RemoteHostSwitchWorkflowOperations, RemoteHostAccoun
             }
 
             guard shouldRetry(status: latestPartialStatus, attemptIndex: index, totalAttempts: attempts.count) else {
-                return try await enrichStatusWithRemoteAuthDataIfAvailable(latestPartialStatus ?? CodexAccountStatus(email: nil, planType: nil, rateLimits: nil), on: host)
+                return try await enrichStatusWithRemoteAuthDataIfAvailable(latestPartialStatus ?? CodexAccountStatus(email: nil, planType: nil, usage: nil), on: host)
             }
         }
 
@@ -371,7 +371,7 @@ struct SSHRemoteHostClient: RemoteHostSwitchWorkflowOperations, RemoteHostAccoun
         if appServerStatusNeedsRetry(status) {
             return true
         }
-        return appServerRateLimitsLookSuspiciouslyZeroed(status?.rateLimits)
+        return appServerUsageLooksSuspiciouslyZeroed(status?.usage)
     }
 
     private func mergeStatuses(previous: CodexAccountStatus?, current: CodexAccountStatus) -> CodexAccountStatus {
@@ -391,7 +391,7 @@ struct SSHRemoteHostClient: RemoteHostSwitchWorkflowOperations, RemoteHostAccoun
             current: CodexAccountStatus(
                 email: CodexAuthDataParser.email(from: authData),
                 planType: CodexAuthDataParser.planType(from: authData),
-                rateLimits: nil,
+                usage: nil,
                 stableAccountID: CodexAuthDataParser.stableAccountID(from: authData),
                 authPrincipalIdentity: CodexAuthDataParser.authPrincipalIdentity(from: authData),
                 workspaceIdentity: CodexAuthDataParser.workspaceIdentity(from: authData),

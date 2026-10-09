@@ -10,7 +10,7 @@ struct ValidationRemoteHostClientTests {
             name: "Business 2",
             email: "business-2@example.com",
             planType: "team",
-            rateLimits: makeRateLimits(sessionUsedPercent: 81)
+            usage: makeUsage(sessionUsedPercent: 81)
         )
         let host = RemoteHost(destination: "user@buildbox", displayName: "buildbox")
         let client = ValidationRemoteHostClient(
@@ -29,7 +29,7 @@ struct ValidationRemoteHostClientTests {
 
         #expect(status.email == "business-2@example.com")
         #expect(status.planType == "team")
-        #expect(status.rateLimits?.primary?.usedPercent == 81)
+        #expect(status.usage?.window(.session)?.usedPercent == 81)
     }
 
     @Test
@@ -38,7 +38,7 @@ struct ValidationRemoteHostClientTests {
             name: "Business 3",
             email: "business-3@example.com",
             planType: "team",
-            rateLimits: makeRateLimits(sessionUsedPercent: 44)
+            usage: makeUsage(sessionUsedPercent: 44)
         )
         let host = RemoteHost(destination: "user@debian-vm", displayName: "debian-vm")
         let client = ValidationRemoteHostClient(
@@ -55,7 +55,7 @@ struct ValidationRemoteHostClientTests {
 
         let status = try await client.readCurrentAccountStatus(on: host)
         #expect(status.email == "business-3@example.com")
-        #expect(status.rateLimits?.primary?.usedPercent == 44)
+        #expect(status.usage?.window(.session)?.usedPercent == 44)
     }
 
     @Test
@@ -74,7 +74,7 @@ struct ValidationRemoteHostClientTests {
             name: "Business 3",
             email: "business-3@example.com",
             planType: "team",
-            rateLimits: makeRateLimits(sessionUsedPercent: 44)
+            usage: makeUsage(sessionUsedPercent: 44)
         )
         let host = RemoteHost(destination: "user@debian-vm", displayName: "debian-vm")
         let client = ValidationRemoteHostClient(

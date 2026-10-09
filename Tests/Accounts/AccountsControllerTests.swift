@@ -18,12 +18,12 @@ struct AccountsControllerTests {
             currentFingerprint: "live-fingerprint",
             capturedFingerprint: "backup-fingerprint"
         )
-        let hydratedRateLimits = makeRateLimitsSnapshot()
+        let hydratedRateLimits = makeUsageSnapshot()
         let savedStatusClient = SavedAccountStatusFixture(statusBySnapshot: [
             "backup-fingerprint": CodexAccountStatus(
                 email: "backup@example.com",
                 planType: "free",
-                rateLimits: hydratedRateLimits
+                usage: hydratedRateLimits
             )
         ])
         let loginSession = IsolatedAddAccountLoginSessionProbe(authData: Data("captured-auth".utf8))
@@ -42,7 +42,7 @@ struct AccountsControllerTests {
         let hydratedBackup = try #require(controller.accounts.first(where: { $0.id == savedAccount.id }))
         #expect(hydratedBackup.email == "backup@example.com")
         #expect(hydratedBackup.planType == "free")
-        #expect(hydratedBackup.rateLimits == hydratedRateLimits)
+        #expect(hydratedBackup.usage == hydratedRateLimits)
         #expect(savedStatusClient.readSnapshots == [Data("backup-fingerprint".utf8)])
         #expect(controller.activeAccountID == active.id)
         #expect(controller.isBusy == false)
@@ -170,7 +170,7 @@ struct AccountsControllerTests {
     func refreshInactiveSavedAccountsMetadataRefreshesExistingRateLimits() async throws {
         let active = makeAccount(name: "Personal", fingerprint: "live-fingerprint")
         var inactive = makeAccount(name: "Backup", fingerprint: "backup-fingerprint")
-        inactive.rateLimits = makeRateLimitsSnapshot()
+        inactive.usage = makeUsageSnapshot()
         let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [active, inactive])
         let identityResolver = SavedAccountIdentityResolver(
             liveIdentitySource: LiveIdentityStub(fingerprint: "live-fingerprint"),
@@ -180,27 +180,17 @@ struct AccountsControllerTests {
             currentFingerprint: "live-fingerprint",
             capturedFingerprint: "unused"
         )
-        let refreshedRateLimits = CodexRateLimitSnapshot(
-            limitID: "codex",
-            limitName: nil,
-            planType: "pro",
-            primary: CodexRateLimitWindow(
-                usedPercent: 70,
-                resetsAt: Date(timeIntervalSince1970: 1_776_256_138),
-                windowDurationMinutes: 300
-            ),
-            secondary: CodexRateLimitWindow(
-                usedPercent: 30,
-                resetsAt: Date(timeIntervalSince1970: 1_776_842_938),
-                windowDurationMinutes: 10_080
-            ),
+        let refreshedRateLimits = UsageSnapshot.codex(
+            planName: "pro",
+            primary: (usedPercent: 70, resetsAt: Date(timeIntervalSince1970: 1_776_256_138), durationMinutes: 300),
+            secondary: (usedPercent: 30, resetsAt: Date(timeIntervalSince1970: 1_776_842_938), durationMinutes: 10_080),
             fetchedAt: Date(timeIntervalSince1970: 1_776_300_000)
         )
         let savedStatusClient = SavedAccountStatusFixture(statusBySnapshot: [
             "backup-fingerprint": CodexAccountStatus(
                 email: "backup@example.com",
                 planType: "pro",
-                rateLimits: refreshedRateLimits
+                usage: refreshedRateLimits
             )
         ])
         let controller = makeController(
@@ -215,7 +205,7 @@ struct AccountsControllerTests {
 
         let refreshedBackup = try #require(controller.accounts.first(where: { $0.id == inactive.id }))
         #expect(savedStatusClient.readSnapshots == [Data("backup-fingerprint".utf8)])
-        #expect(refreshedBackup.rateLimits == refreshedRateLimits)
+        #expect(refreshedBackup.usage == refreshedRateLimits)
         #expect(refreshedBackup.email == "backup@example.com")
         #expect(refreshedBackup.planType == "pro")
     }
@@ -224,7 +214,7 @@ struct AccountsControllerTests {
     func refreshInactiveSavedAccountsMetadataRunsAtMostEveryFifteenMinutes() async throws {
         let active = makeAccount(name: "Personal", fingerprint: "live-fingerprint")
         var inactive = makeAccount(name: "Backup", fingerprint: "backup-fingerprint")
-        inactive.rateLimits = makeRateLimitsSnapshot()
+        inactive.usage = makeUsageSnapshot()
         let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [active, inactive])
         let identityResolver = SavedAccountIdentityResolver(
             liveIdentitySource: LiveIdentityStub(fingerprint: "live-fingerprint"),
@@ -264,7 +254,7 @@ struct AccountsControllerTests {
             updatedAt: .distantPast,
             email: "business-4@example.com",
             planType: nil,
-            rateLimits: nil,
+            usage: nil,
             identity: CodexAccountIdentity(
                 snapshotFingerprint: "target",
                 remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "business-4@example.com")
@@ -278,7 +268,7 @@ struct AccountsControllerTests {
             updatedAt: .distantPast,
             email: "business-2@example.com",
             planType: nil,
-            rateLimits: nil,
+            usage: nil,
             identity: CodexAccountIdentity(
                 snapshotFingerprint: "other",
                 remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "business-2@example.com")
@@ -324,7 +314,7 @@ struct AccountsControllerTests {
                     status: CodexAccountStatus(
                         email: other.email,
                         planType: other.planType,
-                        rateLimits: nil
+                        usage: nil
                     )
                 ),
                 verificationProbeDelays: [.zero, .zero, .zero]
@@ -366,7 +356,7 @@ struct AccountsControllerTests {
             status: CodexAccountStatus(
                 email: account.email,
                 planType: account.planType,
-                rateLimits: nil,
+                usage: nil,
                 stableAccountID: "acct_personal",
                 snapshotFingerprint: "fresh-fingerprint"
             )
@@ -382,7 +372,7 @@ struct AccountsControllerTests {
                     status: CodexAccountStatus(
                         email: account.email,
                         planType: "prolite",
-                        rateLimits: nil,
+                        usage: nil,
                         stableAccountID: "acct_personal",
                         snapshotFingerprint: "fresh-fingerprint"
                     )
@@ -450,7 +440,7 @@ struct AccountsControllerTests {
             status: CodexAccountStatus(
                 email: account.email,
                 planType: account.planType,
-                rateLimits: nil,
+                usage: nil,
                 stableAccountID: "acct_personal",
                 snapshotFingerprint: "fresh-fingerprint"
             )
@@ -610,7 +600,7 @@ struct AccountsControllerTests {
     func switchToAccountAppliesSilentRefreshResult() async {
         let account = makeAccount(name: "Business 4", email: "business@example.com", fingerprint: "live")
         let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [account])
-        let refreshedRateLimits = makeRateLimitsSnapshot()
+        let refreshedRateLimits = makeUsageSnapshot()
         let controller = makeController(
             repository: repository,
             identityResolver: SavedAccountIdentityResolver(
@@ -622,7 +612,7 @@ struct AccountsControllerTests {
                 status: CodexAccountStatus(
                     email: "business@example.com",
                     planType: "pro",
-                    rateLimits: refreshedRateLimits
+                    usage: refreshedRateLimits
                 )
             )
         )
@@ -633,7 +623,7 @@ struct AccountsControllerTests {
         #expect(didRefresh == true)
         #expect(controller.accounts.count == 1)
         #expect(controller.accounts[0].planType == "pro")
-        #expect(controller.accounts[0].rateLimits == refreshedRateLimits)
+        #expect(controller.accounts[0].usage == refreshedRateLimits)
         #expect(repository.savedAccounts == controller.accounts)
     }
 
@@ -700,16 +690,10 @@ struct AccountsControllerTests {
         )
     }
 
-    private func makeRateLimitsSnapshot() -> CodexRateLimitSnapshot {
-        CodexRateLimitSnapshot(
-            limitID: "codex",
-            limitName: nil,
-            planType: "free",
-            primary: CodexRateLimitWindow(
-                usedPercent: 11,
-                resetsAt: Date(timeIntervalSince1970: 1_776_256_138),
-                windowDurationMinutes: 300
-            ),
+    private func makeUsageSnapshot() -> UsageSnapshot {
+        UsageSnapshot.codex(
+            planName: "free",
+            primary: (usedPercent: 11, resetsAt: Date(timeIntervalSince1970: 1_776_256_138), durationMinutes: 300),
             secondary: nil,
             fetchedAt: Date(timeIntervalSince1970: 1_776_200_000)
         )
@@ -777,7 +761,7 @@ private final class ActiveSnapshotRelinkerProbe: ActiveAuthSnapshotRelinking {
             updatedAt: .distantPast,
             email: nil,
             planType: nil,
-            rateLimits: nil,
+            usage: nil,
             identity: .empty
         )
         account.identity.snapshotFingerprint = relinkedFingerprint
@@ -809,7 +793,7 @@ private final class NullAuthService: CodexAuthSessionStore, CodexSignInAuthStore
             updatedAt: .distantPast,
             email: nil,
             planType: nil,
-            rateLimits: nil,
+            usage: nil,
             identity: .empty
         )
     }
@@ -867,7 +851,7 @@ private final class IsolatedAddAccountAuthProbe: CodexAuthSessionStore, CodexSig
             updatedAt: .distantPast,
             email: nil,
             planType: nil,
-            rateLimits: nil,
+            usage: nil,
             identity: CodexAccountIdentity(snapshotFingerprint: capturedFingerprint)
         )
     }

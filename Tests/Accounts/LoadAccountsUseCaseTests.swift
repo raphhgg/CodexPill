@@ -67,7 +67,7 @@ struct LoadAccountsUseCaseTests {
             updatedAt: .distantPast,
             email: "work@example.com",
             planType: nil,
-            rateLimits: nil,
+            usage: nil,
             identity: CodexAccountIdentity(
                 stableAccountID: nil,
                 snapshotFingerprint: "legacy-fingerprint",
@@ -82,7 +82,7 @@ struct LoadAccountsUseCaseTests {
             updatedAt: .distantPast,
             email: "work@example.com",
             planType: nil,
-            rateLimits: nil,
+            usage: nil,
             identity: CodexAccountIdentity(
                 stableAccountID: "acct-123",
                 snapshotFingerprint: "legacy-fingerprint",
@@ -120,7 +120,7 @@ struct LoadAccountsUseCaseTests {
             updatedAt: .distantPast,
             email: "admin@example.com",
             planType: "team",
-            rateLimits: nil,
+            usage: nil,
             identity: CodexAccountIdentity(
                 stableAccountID: nil,
                 snapshotFingerprint: "business-one-fingerprint",
@@ -135,7 +135,7 @@ struct LoadAccountsUseCaseTests {
             updatedAt: .distantPast,
             email: "user@example.com",
             planType: "team",
-            rateLimits: nil,
+            usage: nil,
             identity: CodexAccountIdentity(
                 stableAccountID: nil,
                 snapshotFingerprint: "business-two-fingerprint",
@@ -151,7 +151,7 @@ struct LoadAccountsUseCaseTests {
             updatedAt: .distantPast,
             email: "admin@example.com",
             planType: "team",
-            rateLimits: nil,
+            usage: nil,
             identity: CodexAccountIdentity(
                 stableAccountID: "acct-team",
                 authPrincipalIdentity: CodexAuthPrincipalIdentity(
@@ -174,7 +174,7 @@ struct LoadAccountsUseCaseTests {
             updatedAt: .distantPast,
             email: "user@example.com",
             planType: "team",
-            rateLimits: nil,
+            usage: nil,
             identity: CodexAccountIdentity(
                 stableAccountID: "acct-team",
                 authPrincipalIdentity: CodexAuthPrincipalIdentity(
@@ -225,7 +225,7 @@ struct LoadAccountsUseCaseTests {
             updatedAt: .distantPast,
             email: "admin@example.com",
             planType: "plus",
-            rateLimits: nil,
+            usage: nil,
             identity: CodexAccountIdentity(
                 stableAccountID: "acct-shared",
                 authPrincipalIdentity: CodexAuthPrincipalIdentity(subject: "auth0|personal", chatGPTUserID: "user-personal"),
@@ -242,7 +242,7 @@ struct LoadAccountsUseCaseTests {
             updatedAt: .distantPast,
             email: "user@example.com",
             planType: "team",
-            rateLimits: nil,
+            usage: nil,
             identity: CodexAccountIdentity(
                 stableAccountID: "acct-shared",
                 authPrincipalIdentity: CodexAuthPrincipalIdentity(subject: "auth0|business", chatGPTUserID: "user-business"),

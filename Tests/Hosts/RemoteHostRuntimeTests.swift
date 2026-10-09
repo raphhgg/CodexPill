@@ -94,8 +94,8 @@ struct RemoteHostRuntimeTests {
         }
         let client = RemoteHostClientFixture(
             statuses: [
-                slowHost.destination: CodexAccountStatus(email: slowAccount.email, planType: "team", rateLimits: nil),
-                fastHost.destination: CodexAccountStatus(email: fastAccount.email, planType: "team", rateLimits: nil)
+                slowHost.destination: CodexAccountStatus(email: slowAccount.email, planType: "team", usage: nil),
+                fastHost.destination: CodexAccountStatus(email: fastAccount.email, planType: "team", usage: nil)
             ],
             delayedDestinations: [slowHost.destination]
         )
@@ -215,7 +215,7 @@ struct RemoteHostRuntimeTests {
 
 private struct RemoteHostClientFixture: RemoteHostAccountStatusReading {
     var readStatusResult: Result<CodexAccountStatus, Error> = .success(
-        CodexAccountStatus(email: "business@example.com", planType: "team", rateLimits: nil)
+        CodexAccountStatus(email: "business@example.com", planType: "team", usage: nil)
     )
     var statuses: [String: CodexAccountStatus] = [:]
     var delayedDestinations: Set<String> = []
@@ -240,7 +240,7 @@ private actor GatedRemoteHostClient: RemoteHostAccountStatusReading {
     private(set) var readCount = 0
 
     init(email: String?) {
-        status = CodexAccountStatus(email: email, planType: "team", rateLimits: nil)
+        status = CodexAccountStatus(email: email, planType: "team", usage: nil)
     }
 
     func readCurrentAccountStatus(on host: RemoteHost) async throws -> CodexAccountStatus {

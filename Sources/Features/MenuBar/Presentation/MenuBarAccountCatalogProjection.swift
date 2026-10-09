@@ -137,9 +137,9 @@ struct MenuBarAccountCatalogProjection {
         resolvedAccount.applyRemoteMetadata(
             email: remoteAccount.email ?? matchedAccount.email,
             planType: remoteAccount.planType ?? matchedAccount.planType,
-            rateLimits: RemoteRateLimitResolution().preferredRateLimits(
-                remote: remoteAccount.rateLimits,
-                fallback: matchedAccount.rateLimits,
+            usage: RemoteRateLimitResolution().preferredRateLimits(
+                remote: remoteAccount.usage,
+                fallback: matchedAccount.usage,
                 candidateAccounts: allSavedAccounts,
                 baseAccount: matchedAccount,
                 remoteEmail: remoteAccount.email
