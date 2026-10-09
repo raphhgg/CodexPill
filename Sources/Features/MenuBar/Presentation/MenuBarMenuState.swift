@@ -11,9 +11,13 @@ struct MenuBarMenuState {
     let statusBarIndicatorStyle: StatusBarIndicatorStyle
     let statusBarDisplayMode: StatusBarDisplayMode
     let revealStatusItemTitleShortcut: KeyboardShortcut?
-    let progressAccentColor: NSColor
+    let sessionAccentColor: NSColor
+    let weeklyAccentColor: NSColor
+    let usesOneUsageColor: Bool
+    let hasCustomUsageColors: Bool
+    let usagePercentMode: UsagePercentMode
+    let usageMeterLayout: UsageMeterLayout
     let pacingMarkersEnabled: Bool
-    let hasCustomProgressAccentColor: Bool
     let isBusy: Bool
     let statusMessage: String
     let loginItemState: LoginItemState
@@ -35,9 +39,13 @@ struct MenuBarMenuState {
         statusBarIndicatorStyle: StatusBarIndicatorStyle,
         statusBarDisplayMode: StatusBarDisplayMode,
         revealStatusItemTitleShortcut: KeyboardShortcut? = .defaultRevealStatusItemTitle,
-        progressAccentColor: NSColor = StatusBarProgressColorDefaults.accent,
+        sessionAccentColor: NSColor = StatusBarProgressColorDefaults.accent,
+        weeklyAccentColor: NSColor = StatusBarProgressColorDefaults.accent,
+        usesOneUsageColor: Bool = true,
+        hasCustomUsageColors: Bool = false,
+        usagePercentMode: UsagePercentMode = .used,
+        usageMeterLayout: UsageMeterLayout = .classic,
         pacingMarkersEnabled: Bool = true,
-        hasCustomProgressAccentColor: Bool = false,
         isBusy: Bool,
         statusMessage: String,
         loginItemState: LoginItemState = .unavailable,
@@ -58,9 +66,13 @@ struct MenuBarMenuState {
         self.statusBarIndicatorStyle = statusBarIndicatorStyle
         self.statusBarDisplayMode = statusBarDisplayMode
         self.revealStatusItemTitleShortcut = revealStatusItemTitleShortcut
-        self.progressAccentColor = progressAccentColor
+        self.sessionAccentColor = sessionAccentColor
+        self.weeklyAccentColor = weeklyAccentColor
+        self.usesOneUsageColor = usesOneUsageColor
+        self.hasCustomUsageColors = hasCustomUsageColors
+        self.usagePercentMode = usagePercentMode
+        self.usageMeterLayout = usageMeterLayout
         self.pacingMarkersEnabled = pacingMarkersEnabled
-        self.hasCustomProgressAccentColor = hasCustomProgressAccentColor
         self.isBusy = isBusy
         self.statusMessage = statusMessage
         self.loginItemState = loginItemState

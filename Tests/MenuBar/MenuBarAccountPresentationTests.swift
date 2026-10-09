@@ -262,6 +262,37 @@ struct MenuBarAccountPresentationTests {
     }
 
     @Test
+    func percentLeftModeInvertsTextBarsAndPaceMarkers() {
+        let now = Date(timeIntervalSince1970: 1_744_195_200)
+        let account = makeAccount(
+            name: "Business 1",
+            usage: UsageSnapshot.codex(
+                planName: "team",
+                primary: (usedPercent: 42, resetsAt: now.addingTimeInterval(4 * 60 * 60), durationMinutes: 300),
+                secondary: (usedPercent: 100, resetsAt: now.addingTimeInterval(2 * 24 * 60 * 60), durationMinutes: 10_080),
+                fetchedAt: now
+            )
+        )
+        let session = account.usage?.window(.session)
+
+        #expect(usageMeterPercentText(for: session, mode: .used, now: now) == "42% used")
+        #expect(usageMeterPercentText(for: session, mode: .left, now: now) == "58% left")
+        #expect(usageMeterPercentText(for: nil, mode: .left, now: now) == "--")
+        #expect(statusItemHoverTitle(for: account, percentMode: .left, now: now) == "S 58% W 2d")
+        #expect(compactMenuRowUsageSummary(for: account, percentMode: .left, now: now) == "S 58% (4h00)  W 0% (2d)")
+        #expect(expectedPaceMarkerPercent(for: session, showsPacingMarkers: true, percentMode: .used, now: now) == 20)
+        #expect(expectedPaceMarkerPercent(for: session, showsPacingMarkers: true, percentMode: .left, now: now) == 80)
+
+        let usedBars = statusItemBarPercents(for: account, mode: .used, now: now)
+        let leftBars = statusItemBarPercents(for: account, mode: .left, now: now)
+        #expect(usedBars.session == 42)
+        #expect(usedBars.weekly == 100)
+        #expect(leftBars.session == 58)
+        #expect(leftBars.weekly == 0)
+        #expect(statusItemBarPercents(for: nil, mode: .left, now: now).session == nil)
+    }
+
+    @Test
     func compactMenuRowUsageSummaryShowsResetCountdownsForUsedLimits() {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
         let account = CodexAccount(

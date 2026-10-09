@@ -37,3 +37,47 @@ enum StatusBarIndicatorStyle: String, CaseIterable, Identifiable {
         }
     }
 }
+
+enum UsagePercentMode: String, CaseIterable, Identifiable {
+    case used
+    case left
+
+    var id: String { rawValue }
+
+    var menuTitle: String {
+        switch self {
+        case .used:
+            "Show % Used"
+        case .left:
+            "Show % Left"
+        }
+    }
+
+    var label: String { rawValue }
+
+    func percent(forUsedPercent usedPercent: Int) -> Int {
+        let used = min(max(usedPercent, 0), 100)
+        switch self {
+        case .used:
+            return used
+        case .left:
+            return 100 - used
+        }
+    }
+}
+
+enum UsageMeterLayout: String, CaseIterable, Identifiable {
+    case classic
+    case compact
+
+    var id: String { rawValue }
+
+    var menuTitle: String {
+        switch self {
+        case .classic:
+            "Classic Layout"
+        case .compact:
+            "Compact Layout"
+        }
+    }
+}
