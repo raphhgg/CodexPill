@@ -10,14 +10,17 @@ extension MenuBarCoordinator {
         settings: SettingsStores,
         remoteHostOperations: MenuBarRemoteHostOperations = UnavailableRemoteHostClient(),
         alertPresenter: AlertPresenter,
-        panelPresenter: PanelPresenter = SystemPanelPresenter(),
+        panelPresenter: PanelPresenter = SystemPanelPresenter(suppressesInteractivePrompts: true),
         notificationDelivery: AccountAvailabilityNotifier = DisabledAccountAvailabilityNotifier(),
         applicationActivator: ApplicationActivator = NSApplicationActivator(),
         notificationSettingsLauncher: NotificationSettingsLauncher = SystemNotificationSettingsLauncher(),
         loginItemController: LoginItemControlling = SystemLoginItemController(),
         loginItemsSettingsLauncher: LoginItemsSettingsLaunching = SystemLoginItemsSettingsLauncher(),
         diagnosticReportPresenter: DiagnosticReportPresenting = SystemDiagnosticReportPresenter(),
-        tokenUsageProvider: TokenUsageMenuProviding = LocalCodexSessionTokenUsageMenuProvider(),
+        tokenUsageProvider: TokenUsageMenuProviding = LocalCodexSessionTokenUsageMenuProvider(
+            cacheFile: FileManager.default.temporaryDirectory
+                .appendingPathComponent("CodexPillTests-\(ProcessInfo.processInfo.processIdentifier)/Caches/token-usage-cache.json")
+        ),
         validationSink: MenuBarValidationSink? = nil,
         validationScenario: String? = MenuBarValidationConfiguration.scenario(),
         allowsEmptyStatePrompt: Bool = true,
@@ -37,7 +40,7 @@ extension MenuBarCoordinator {
             cliProcessInspector: CodexCLIProcessInspector(),
             alertPresenter: alertPresenter,
             panelPresenter: panelPresenter,
-            shortcutCapturePanelPresenter: SystemShortcutCapturePanelPresenter(),
+            shortcutCapturePanelPresenter: SystemShortcutCapturePanelPresenter(suppressesInteractivePrompts: true),
             notificationDelivery: notificationDelivery,
             applicationActivator: applicationActivator,
             notificationSettingsLauncher: notificationSettingsLauncher,

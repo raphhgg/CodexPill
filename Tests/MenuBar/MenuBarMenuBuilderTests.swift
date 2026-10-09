@@ -186,13 +186,9 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func realPresentersCancelInteractivePromptsDuringAutomatedTests() async {
-        let alertPresenter = SystemAlertPresenter(
-            environment: [AppRuntimeEnvironment.xctestConfigurationFilePathEnvironmentKey: "/tmp/test.xctestconfiguration"]
-        )
-        let panelPresenter = SystemPanelPresenter(
-            environment: [AppRuntimeEnvironment.xctestConfigurationFilePathEnvironmentKey: "/tmp/test.xctestconfiguration"]
-        )
+    func realPresentersCancelInteractivePromptsWhenSuppressed() async {
+        let alertPresenter = SystemAlertPresenter(suppressesInteractivePrompts: true)
+        let panelPresenter = SystemPanelPresenter(suppressesInteractivePrompts: true)
 
         let textValue = alertPresenter.presentTextInput(
             MenuBarTextInputAlertRequest(
@@ -2111,7 +2107,10 @@ struct MenuBarMenuBuilderTests {
         loginItemController: LoginItemControlling = LoginItemControllerProbe(),
         loginItemsSettingsLauncher: LoginItemsSettingsLaunching = LoginItemsSettingsLauncherProbe(),
         diagnosticReportPresenter: DiagnosticReportPresenting? = nil,
-        tokenUsageProvider: TokenUsageMenuProviding = LocalCodexSessionTokenUsageMenuProvider(),
+        tokenUsageProvider: TokenUsageMenuProviding = LocalCodexSessionTokenUsageMenuProvider(
+            cacheFile: FileManager.default.temporaryDirectory
+                .appendingPathComponent("MenuBarMenuBuilderTests-\(UUID().uuidString)/token-usage-cache.json")
+        ),
         configureTokenUsage: (TokenUsagePreferencesStore) -> Void = { _ in }
     ) throws -> (MenuBarCoordinator, NSStatusItem) {
         let repository = try makeIsolatedRepository()
@@ -2146,7 +2145,7 @@ struct MenuBarMenuBuilderTests {
         let appSupportDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("MenuBarMenuBuilderTests-\(UUID().uuidString)", isDirectory: true)
         return try AccountRepository(
-            environment: [AppRuntimeEnvironment.validationAppSupportDirectoryEnvironmentKey: appSupportDirectory.path]
+            isolatedRootDirectory: appSupportDirectory
         )
     }
 

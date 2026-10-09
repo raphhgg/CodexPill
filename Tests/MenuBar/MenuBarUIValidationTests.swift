@@ -1008,7 +1008,7 @@ struct MenuBarUIValidationTests {
         let appSupportDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("MenuBarUIValidationTests-\(UUID().uuidString)", isDirectory: true)
         return try AccountRepository(
-            environment: [AppRuntimeEnvironment.validationAppSupportDirectoryEnvironmentKey: appSupportDirectory.path]
+            isolatedRootDirectory: appSupportDirectory
         )
     }
 }
