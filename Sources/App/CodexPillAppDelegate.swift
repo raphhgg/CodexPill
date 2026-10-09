@@ -3,7 +3,6 @@ import AppKit
 @MainActor
 final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
     private var coordinator: MenuBarCoordinator?
-    private var settings: CodexPillSettingsStore!
     private var statusItemRuntime: StatusItemRuntime?
     private var wakeObserver: NSObjectProtocol?
 
@@ -14,7 +13,6 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
         let defaults = AppRuntimeEnvironment.validationUserDefaultsSuiteName(environment: environment)
             .flatMap(UserDefaults.init(suiteName:))
             ?? .standard
-        settings = CodexPillSettingsStore(userDefaults: defaults)
 
         guard AppRuntimeEnvironment.shouldStartAppRuntime(environment: environment) else {
             return
@@ -39,7 +37,9 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
         coordinator = MenuBarCoordinator(
             statusItemRuntime: statusItemRuntime,
             store: store,
-            settings: settings,
+            menuDisplaySettings: MenuDisplaySettingsStore(userDefaults: defaults),
+            statusItemSettings: StatusItemSettingsStore(userDefaults: defaults),
+            tokenUsagePreferences: TokenUsagePreferencesStore(userDefaults: defaults),
             alertPresenter: SystemAlertPresenter(),
             validationSink: MenuBarValidationConfiguration.makeSink(),
             allowsEmptyStatePrompt: !AppRuntimeEnvironment.shouldSuppressEmptyStatePrompt()
