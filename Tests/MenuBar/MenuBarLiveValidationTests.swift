@@ -125,12 +125,12 @@ struct MenuBarLiveValidationTests {
     func coordinatorRefreshesLiveSnapshotWhenStatusItemRuntimeStateChanges() throws {
         let sink = ValidationSinkProbe()
         let repository = try makeIsolatedRepository()
-        let store = MenuBarAccountsStore(
+        let accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient()
-        )
+        ).makeController()
         let suiteName = "MenuBarLiveValidationTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
@@ -150,7 +150,7 @@ struct MenuBarLiveValidationTests {
         )
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: runtime,
-            store: store,
+            accountsController: accountsController,
             menuDisplaySettings: settings.menuDisplaySettings,
             statusItemSettings: settings.statusItemSettings,
             tokenUsagePreferences: settings.tokenUsagePreferences,

@@ -1294,12 +1294,12 @@ struct MenuBarMenuBuilderTests {
         configureTokenUsage: (TokenUsagePreferencesStore) -> Void = { _ in }
     ) throws -> (MenuBarCoordinator, NSStatusItem) {
         let repository = try makeIsolatedRepository()
-        let store = MenuBarAccountsStore(
+        let accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient()
-        )
+        ).makeController()
         let suiteName = "MenuBarMenuBuilderTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
@@ -1309,7 +1309,7 @@ struct MenuBarMenuBuilderTests {
         let statusItemRuntime = StatusItemRuntime(statusItem: statusItem)
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: statusItemRuntime,
-            store: store,
+            accountsController: accountsController,
             menuDisplaySettings: settings.menuDisplaySettings,
             statusItemSettings: settings.statusItemSettings,
             tokenUsagePreferences: settings.tokenUsagePreferences,
