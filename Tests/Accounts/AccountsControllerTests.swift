@@ -9,10 +9,10 @@ struct AccountsControllerTests {
     func completeIsolatedAddAccountHydratesNewInactiveAccountMetadata() async throws {
         let active = makeAccount(name: "Personal", fingerprint: "live-fingerprint")
         let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [active])
-        let liveIdentity = CurrentIdentityHarness(fingerprint: "live-fingerprint")
+        let liveIdentity = LiveIdentityStub(fingerprint: "live-fingerprint")
         let identityResolver = SavedAccountIdentityResolver(
             liveIdentitySource: liveIdentity,
-            storedAccountReconciler: StoredIdentityAdapter()
+            storedAccountReconciler: PassthroughIdentityReconciler()
         )
         let authService = IsolatedAddAccountAuthProbe(
             currentFingerprint: "live-fingerprint",
@@ -52,10 +52,10 @@ struct AccountsControllerTests {
     func startIsolatedAddAccountRejectsOverlapWithoutClearingActiveOperation() async throws {
         let active = makeAccount(name: "Personal", fingerprint: "live-fingerprint")
         let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [active])
-        let liveIdentity = CurrentIdentityHarness(fingerprint: "live-fingerprint")
+        let liveIdentity = LiveIdentityStub(fingerprint: "live-fingerprint")
         let identityResolver = SavedAccountIdentityResolver(
             liveIdentitySource: liveIdentity,
-            storedAccountReconciler: StoredIdentityAdapter()
+            storedAccountReconciler: PassthroughIdentityReconciler()
         )
         let authService = IsolatedAddAccountAuthProbe(
             currentFingerprint: "live-fingerprint",
@@ -83,10 +83,10 @@ struct AccountsControllerTests {
     func completeIsolatedAddAccountAlreadySavedDoesNotQueueSecondPendingError() async throws {
         let existing = makeAccount(name: "Business 1", fingerprint: "captured-fingerprint")
         let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [existing])
-        let liveIdentity = CurrentIdentityHarness(fingerprint: "live-fingerprint")
+        let liveIdentity = LiveIdentityStub(fingerprint: "live-fingerprint")
         let identityResolver = SavedAccountIdentityResolver(
             liveIdentitySource: liveIdentity,
-            storedAccountReconciler: StoredIdentityAdapter()
+            storedAccountReconciler: PassthroughIdentityReconciler()
         )
         let authService = IsolatedAddAccountAuthProbe(
             currentFingerprint: "live-fingerprint",
@@ -117,8 +117,8 @@ struct AccountsControllerTests {
         let account = makeAccount(name: "Business 4", fingerprint: "live")
         let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [account])
         let identityResolver = SavedAccountIdentityResolver(
-            liveIdentitySource: CurrentIdentityFixture(fingerprint: "live"),
-            storedAccountReconciler: StoredIdentityAdapter()
+            liveIdentitySource: LiveIdentityStub(fingerprint: "live"),
+            storedAccountReconciler: PassthroughIdentityReconciler()
         )
         let controller = AccountsController(
             identityResolver: identityResolver,
@@ -127,7 +127,7 @@ struct AccountsControllerTests {
                 identityResolver: identityResolver
             ),
             refreshActiveAccountUseCase: RefreshActiveAccountUseCase(
-                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
+                accountStatusClient: StubAccountStatusClient(error: TestFailure.backgroundRefreshFailed),
                 identityResolver: identityResolver,
                 repository: repository
             ),
@@ -145,7 +145,7 @@ struct AccountsControllerTests {
             switchAccountWorkflow: SwitchAccountWorkflow(
                 authService: NullAuthService(),
                 repository: repository,
-                codexAppProcessClient: NullCodexAppProcessClient(),
+                codexAppProcessClient: CodexAppProcessProbe(),
                 identityResolver: identityResolver
             ),
             addAccountWorkflow: makeAddAccountWorkflow(
@@ -171,8 +171,8 @@ struct AccountsControllerTests {
         inactive.rateLimits = makeRateLimitsSnapshot()
         let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [active, inactive])
         let identityResolver = SavedAccountIdentityResolver(
-            liveIdentitySource: CurrentIdentityFixture(fingerprint: "live-fingerprint"),
-            storedAccountReconciler: StoredIdentityAdapter()
+            liveIdentitySource: LiveIdentityStub(fingerprint: "live-fingerprint"),
+            storedAccountReconciler: PassthroughIdentityReconciler()
         )
         let authService = IsolatedAddAccountAuthProbe(
             currentFingerprint: "live-fingerprint",
@@ -225,8 +225,8 @@ struct AccountsControllerTests {
         inactive.rateLimits = makeRateLimitsSnapshot()
         let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [active, inactive])
         let identityResolver = SavedAccountIdentityResolver(
-            liveIdentitySource: CurrentIdentityFixture(fingerprint: "live-fingerprint"),
-            storedAccountReconciler: StoredIdentityAdapter()
+            liveIdentitySource: LiveIdentityStub(fingerprint: "live-fingerprint"),
+            storedAccountReconciler: PassthroughIdentityReconciler()
         )
         let savedStatusClient = SavedAccountStatusFixture(statusBySnapshot: [:])
         var now = Date(timeIntervalSince1970: 1_776_300_000)
@@ -259,8 +259,8 @@ struct AccountsControllerTests {
         let controller = makeController(
             repository: repository,
             identityResolver: SavedAccountIdentityResolver(
-                liveIdentitySource: CurrentIdentityFixture(fingerprint: "other"),
-                storedAccountReconciler: StoredIdentityAdapter()
+                liveIdentitySource: LiveIdentityStub(fingerprint: "other"),
+                storedAccountReconciler: PassthroughIdentityReconciler()
             ),
             authService: NullAuthService()
         )
@@ -280,8 +280,8 @@ struct AccountsControllerTests {
         let controller = makeController(
             repository: repository,
             identityResolver: SavedAccountIdentityResolver(
-                liveIdentitySource: CurrentIdentityFixture(fingerprint: "live"),
-                storedAccountReconciler: StoredIdentityAdapter()
+                liveIdentitySource: LiveIdentityStub(fingerprint: "live"),
+                storedAccountReconciler: PassthroughIdentityReconciler()
             ),
             authService: NullAuthService()
         )
@@ -297,17 +297,17 @@ struct AccountsControllerTests {
 
     @Test
     func switchToAccountAppliesSilentRefreshResult() async {
-        let account = makeAccount(name: "Business 4", fingerprint: "live")
+        let account = makeAccount(name: "Business 4", email: "business@example.com", fingerprint: "live")
         let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [account])
         let refreshedRateLimits = makeRateLimitsSnapshot()
         let controller = makeController(
             repository: repository,
             identityResolver: SavedAccountIdentityResolver(
-                liveIdentitySource: CurrentIdentityFixture(fingerprint: "live"),
-                storedAccountReconciler: StoredIdentityAdapter()
+                liveIdentitySource: LiveIdentityStub(fingerprint: "live"),
+                storedAccountReconciler: PassthroughIdentityReconciler()
             ),
             authService: NullAuthService(),
-            accountStatusClient: AccountStatusSuccessCase(
+            accountStatusClient: StubAccountStatusClient(
                 status: CodexAccountStatus(
                     email: "business@example.com",
                     planType: "pro",
@@ -341,7 +341,7 @@ struct AccountsControllerTests {
         repository: LoadingPersistingAccountCatalogProbe,
         identityResolver: SavedAccountIdentityResolver,
         authService: some CodexAuthSessionStore & CodexSignInAuthStore,
-        accountStatusClient: CodexAccountStatusClient = AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
+        accountStatusClient: CodexAccountStatusClient = StubAccountStatusClient(error: TestFailure.backgroundRefreshFailed),
         savedAccountStatusClient: SavedCodexAccountStatusClient = DisabledAccountStatusClient(),
         isolatedLoginClient: IsolatedCodexLoginClient = IsolatedAddAccountLoginClientProbe(
             session: IsolatedAddAccountLoginSessionProbe(authData: Data())
@@ -373,7 +373,7 @@ struct AccountsControllerTests {
             switchAccountWorkflow: SwitchAccountWorkflow(
                 authService: authService,
                 repository: repository,
-                codexAppProcessClient: NullCodexAppProcessClient(),
+                codexAppProcessClient: CodexAppProcessProbe(),
                 identityResolver: identityResolver
             ),
             addAccountWorkflow: AddAccountWorkflow(
@@ -383,24 +383,6 @@ struct AccountsControllerTests {
                 isolatedLoginClient: isolatedLoginClient
             ),
             now: now
-        )
-    }
-
-    private func makeAccount(name: String, fingerprint: String) -> CodexAccount {
-        let id = UUID()
-        return CodexAccount(
-            id: id,
-            name: name,
-            snapshotFileName: "\(id.uuidString).json",
-            createdAt: .distantPast,
-            updatedAt: .distantPast,
-            email: "business@example.com",
-            planType: nil,
-            rateLimits: nil,
-            identity: CodexAccountIdentity(
-                snapshotFingerprint: fingerprint,
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "business@example.com")
-            )
         )
     }
 
@@ -431,30 +413,6 @@ private enum TestFailure: LocalizedError {
     }
 }
 
-private final class AccountStatusErrorCase: CodexAccountStatusClient {
-    let error: Error
-
-    init(error: Error) {
-        self.error = error
-    }
-
-    func readCurrentAccountStatus() async throws -> CodexAccountStatus {
-        throw error
-    }
-}
-
-private final class AccountStatusSuccessCase: CodexAccountStatusClient {
-    let status: CodexAccountStatus
-
-    init(status: CodexAccountStatus) {
-        self.status = status
-    }
-
-    func readCurrentAccountStatus() async throws -> CodexAccountStatus {
-        status
-    }
-}
-
 private final class LoadingPersistingAccountCatalogProbe: AccountCatalogLoader, AccountSnapshotRemover, @unchecked Sendable {
     let accountsToLoad: [CodexAccount]
     private(set) var savedAccounts: [CodexAccount]?
@@ -477,23 +435,6 @@ private final class LoadingPersistingAccountCatalogProbe: AccountCatalogLoader, 
     }
 
     func deleteSnapshot(for account: CodexAccount) throws {}
-}
-
-private final class CurrentIdentityFixture: LiveCodexAccountIdentitySource {
-    let stableAccountID: String?
-    let fingerprint: String?
-
-    init(stableAccountID: String? = nil, fingerprint: String?) {
-        self.stableAccountID = stableAccountID
-        self.fingerprint = fingerprint
-    }
-
-    func readCurrentLiveAccountIdentity() -> LiveCodexAccountIdentity {
-        LiveCodexAccountIdentity(
-            stableAccountID: stableAccountID,
-            snapshotFingerprint: fingerprint
-        )
-    }
 }
 
 private final class ActiveSnapshotRelinkerProbe: ActiveAuthSnapshotRelinking {
@@ -527,42 +468,6 @@ private final class ActiveSnapshotRelinkerProbe: ActiveAuthSnapshotRelinking {
         )
         account.identity.snapshotFingerprint = relinkedFingerprint
         return account
-    }
-}
-
-private final class CurrentIdentityHarness: LiveCodexAccountIdentitySource, @unchecked Sendable {
-    var fingerprint: String?
-
-    init(fingerprint: String?) {
-        self.fingerprint = fingerprint
-    }
-
-    func readCurrentLiveAccountIdentity() -> LiveCodexAccountIdentity {
-        LiveCodexAccountIdentity(snapshotFingerprint: fingerprint)
-    }
-}
-
-private struct StoredIdentityAdapter: StoredAccountIdentityReconciler {
-    func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {
-        accounts
-    }
-}
-
-private struct NullCodexAppProcessClient: CodexAppProcessClient {
-    func assertCodexAvailable() throws {}
-    func relaunchCodex() async throws {}
-}
-
-private final class CodexAppProcessProbe: CodexAppProcessClient, @unchecked Sendable {
-    private(set) var availabilityCheckCount = 0
-    private(set) var relaunchCount = 0
-
-    func assertCodexAvailable() throws {
-        availabilityCheckCount += 1
-    }
-
-    func relaunchCodex() async throws {
-        relaunchCount += 1
     }
 }
 

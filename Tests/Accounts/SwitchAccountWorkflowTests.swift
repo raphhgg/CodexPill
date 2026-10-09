@@ -70,24 +70,6 @@ struct SwitchAccountWorkflowTests {
         #expect(activeID == nil)
         #expect(codexAppProcessClient.relaunchCount == 1)
     }
-
-    private func makeAccount(name: String, fingerprint: String) -> CodexAccount {
-        CodexAccount(
-            id: UUID(),
-            name: name,
-            snapshotFileName: "\(UUID().uuidString).json",
-            createdAt: .distantPast,
-            updatedAt: .distantPast,
-            email: "\(name.lowercased())@example.com",
-            planType: nil,
-            rateLimits: nil,
-            identity: CodexAccountIdentity(
-                stableAccountID: nil,
-                snapshotFingerprint: fingerprint,
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "\(name.lowercased())@example.com")
-            )
-        )
-    }
 }
 
 private final class AuthSnapshotProbe: CodexAuthActivator, LiveCodexAccountIdentitySource, @unchecked Sendable {
@@ -131,32 +113,9 @@ private final class AccountCatalogProbe: AccountCatalogStore, @unchecked Sendabl
     }
 }
 
-private final class CodexAppProcessProbe: CodexAppProcessClient, @unchecked Sendable {
-    var relaunchCount = 0
-    var availabilityCheckCount = 0
-    var availabilityError: Error?
-
-    func assertCodexAvailable() throws {
-        availabilityCheckCount += 1
-        if let availabilityError {
-            throw availabilityError
-        }
-    }
-
-    func relaunchCodex() async throws {
-        relaunchCount += 1
-    }
-}
-
 private func makeResolver(auth: AuthSnapshotProbe) -> SavedAccountIdentityResolver {
     SavedAccountIdentityResolver(
         liveIdentitySource: auth,
-        storedAccountReconciler: IdentityReconcilerAdapter()
+        storedAccountReconciler: PassthroughIdentityReconciler()
     )
-}
-
-private struct IdentityReconcilerAdapter: StoredAccountIdentityReconciler {
-    func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {
-        accounts
-    }
 }

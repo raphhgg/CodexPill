@@ -6,7 +6,7 @@ import Testing
 struct AccountAvailabilityTests {
     @Test
     func availabilityReadsSessionAndWeeklyUsage() {
-        let account = makeAccount(name: "Ready", sessionUsedPercent: 35, weeklyUsedPercent: 40)
+        let account = makeAccount(name: "Ready", rateLimits: makeRateLimits(sessionUsedPercent: 35, weeklyUsedPercent: 40))
 
         let availability = AccountAvailabilityService().availability(for: account)
 
@@ -51,9 +51,7 @@ struct AccountAvailabilityTests {
         let resetAt = now.addingTimeInterval(1800)
         let account = makeAccount(
             name: "Session Blocked",
-            sessionUsedPercent: 100,
-            sessionResetAt: resetAt,
-            weeklyUsedPercent: 10
+            rateLimits: makeRateLimits(sessionUsedPercent: 100, sessionResetsAt: resetAt, weeklyUsedPercent: 10)
         )
 
         let availability = AccountAvailabilityService().availability(for: account, now: now)
@@ -89,13 +87,11 @@ struct InactiveAccountAvailabilityRankingTests {
         let ranking = InactiveAccountAvailabilityRanking()
         let weeklyHealthy = makeAccount(
             name: "Weekly Healthy",
-            sessionUsedPercent: 35,
-            weeklyUsedPercent: 40
+            rateLimits: makeRateLimits(sessionUsedPercent: 35, weeklyUsedPercent: 40)
         )
         let weeklyConstrained = makeAccount(
             name: "Weekly Constrained",
-            sessionUsedPercent: 0,
-            weeklyUsedPercent: 96
+            rateLimits: makeRateLimits(sessionUsedPercent: 0, weeklyUsedPercent: 96)
         )
 
         let sorted = ranking.sort([weeklyConstrained, weeklyHealthy])
@@ -111,33 +107,23 @@ struct InactiveAccountAvailabilityRankingTests {
         let earlierReset = now.addingTimeInterval(3_600)
         let earlierAvailable = makeAccount(
             name: "Earlier",
-            sessionUsedPercent: 60,
-            sessionResetAt: earlierReset,
-            weeklyUsedPercent: 60
+            rateLimits: makeRateLimits(sessionUsedPercent: 60, sessionResetsAt: earlierReset, weeklyUsedPercent: 60)
         )
         let laterAvailable = makeAccount(
             name: "Later",
-            sessionUsedPercent: 60,
-            sessionResetAt: laterReset,
-            weeklyUsedPercent: 60
+            rateLimits: makeRateLimits(sessionUsedPercent: 60, sessionResetsAt: laterReset, weeklyUsedPercent: 60)
         )
         let sameAvailabilityHigherUsage = makeAccount(
             name: "Higher Usage",
-            sessionUsedPercent: 60,
-            sessionResetAt: earlierReset,
-            weeklyUsedPercent: 90
+            rateLimits: makeRateLimits(sessionUsedPercent: 60, sessionResetsAt: earlierReset, weeklyUsedPercent: 90)
         )
         let sameMetricsNameB = makeAccount(
             name: "Zulu",
-            sessionUsedPercent: 60,
-            sessionResetAt: earlierReset,
-            weeklyUsedPercent: 80
+            rateLimits: makeRateLimits(sessionUsedPercent: 60, sessionResetsAt: earlierReset, weeklyUsedPercent: 80)
         )
         let sameMetricsNameA = makeAccount(
             name: "Alpha",
-            sessionUsedPercent: 60,
-            sessionResetAt: earlierReset,
-            weeklyUsedPercent: 80
+            rateLimits: makeRateLimits(sessionUsedPercent: 60, sessionResetsAt: earlierReset, weeklyUsedPercent: 80)
         )
 
         let sorted = ranking.sort([
@@ -154,13 +140,13 @@ struct InactiveAccountAvailabilityRankingTests {
     @MainActor
     @Test
     func accountsControllerDelegatesInactiveSortingToRankingPolicy() async {
-        let preferred = makeAccount(name: "Preferred", sessionUsedPercent: 0, weeklyUsedPercent: 10)
-        let constrained = makeAccount(name: "Constrained", sessionUsedPercent: 90, weeklyUsedPercent: 100)
-        let active = makeAccount(name: "Active", sessionUsedPercent: 20, weeklyUsedPercent: 20)
+        let preferred = makeAccount(name: "Preferred", rateLimits: makeRateLimits(sessionUsedPercent: 0, weeklyUsedPercent: 10))
+        let constrained = makeAccount(name: "Constrained", rateLimits: makeRateLimits(sessionUsedPercent: 90, weeklyUsedPercent: 100))
+        let active = makeAccount(name: "Active", fingerprint: "active", rateLimits: makeRateLimits(sessionUsedPercent: 20, weeklyUsedPercent: 20))
         let repository = RankingLoadingPersistingAccountCatalogProbe(accountsToLoad: [constrained, active, preferred])
         let identityResolver = SavedAccountIdentityResolver(
-            liveIdentitySource: RankingCurrentIdentityFixture(fingerprint: "active"),
-            storedAccountReconciler: RankingStoredIdentityAdapter()
+            liveIdentitySource: LiveIdentityStub(fingerprint: "active"),
+            storedAccountReconciler: PassthroughIdentityReconciler()
         )
         let controller = AccountsController(
             identityResolver: identityResolver,
@@ -170,7 +156,7 @@ struct InactiveAccountAvailabilityRankingTests {
                 identityResolver: identityResolver
             ),
             refreshActiveAccountUseCase: RefreshActiveAccountUseCase(
-                accountStatusClient: RankingAccountStatusErrorCase(error: RankingTestFailure.backgroundRefreshFailed),
+                accountStatusClient: StubAccountStatusClient(error: RankingTestFailure.backgroundRefreshFailed),
                 identityResolver: identityResolver,
                 repository: repository
             ),
@@ -188,7 +174,7 @@ struct InactiveAccountAvailabilityRankingTests {
             switchAccountWorkflow: SwitchAccountWorkflow(
                 authService: RankingNullAuthService(),
                 repository: repository,
-                codexAppProcessClient: NullCodexAppProcessClient(),
+                codexAppProcessClient: CodexAppProcessProbe(),
                 identityResolver: identityResolver
             ),
             addAccountWorkflow: AddAccountWorkflow(
@@ -205,46 +191,6 @@ struct InactiveAccountAvailabilityRankingTests {
     }
 }
 
-private func makeAccount(
-    id: UUID = UUID(),
-    name: String,
-    sessionUsedPercent: Int,
-    sessionResetAt: Date? = nil,
-    weeklyUsedPercent: Int,
-    weeklyResetAt: Date? = nil
-) -> CodexAccount {
-    let now = Date()
-    return CodexAccount(
-        id: id,
-        name: name,
-        snapshotFileName: "\(id.uuidString).json",
-        createdAt: now,
-        updatedAt: now,
-        email: "\(name.lowercased())@example.com",
-        planType: "pro",
-        rateLimits: CodexRateLimitSnapshot(
-            limitID: nil,
-            limitName: nil,
-            planType: "pro",
-            primary: CodexRateLimitWindow(
-                usedPercent: sessionUsedPercent,
-                resetsAt: sessionResetAt,
-                windowDurationMinutes: 300
-            ),
-            secondary: CodexRateLimitWindow(
-                usedPercent: weeklyUsedPercent,
-                resetsAt: weeklyResetAt,
-                windowDurationMinutes: 10_080
-            ),
-            fetchedAt: now
-        ),
-        identity: CodexAccountIdentity(
-            snapshotFingerprint: name == "Active" ? "active" : UUID().uuidString,
-            remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "\(name.lowercased())@example.com")
-        )
-    )
-}
-
 private enum RankingTestFailure: LocalizedError {
     case backgroundRefreshFailed
 
@@ -253,18 +199,6 @@ private enum RankingTestFailure: LocalizedError {
         case .backgroundRefreshFailed:
             "Background refresh failed."
         }
-    }
-}
-
-private final class RankingAccountStatusErrorCase: CodexAccountStatusClient {
-    let error: Error
-
-    init(error: Error) {
-        self.error = error
-    }
-
-    func readCurrentAccountStatus() async throws -> CodexAccountStatus {
-        throw error
     }
 }
 
@@ -284,25 +218,6 @@ private final class RankingLoadingPersistingAccountCatalogProbe: AccountCatalogL
     func saveAccounts(_: [CodexAccount]) throws {}
 
     func deleteSnapshot(for _: CodexAccount) throws {}
-}
-
-private struct RankingCurrentIdentityFixture: LiveCodexAccountIdentitySource {
-    let fingerprint: String?
-
-    func readCurrentLiveAccountIdentity() -> LiveCodexAccountIdentity {
-        LiveCodexAccountIdentity(snapshotFingerprint: fingerprint)
-    }
-}
-
-private struct RankingStoredIdentityAdapter: StoredAccountIdentityReconciler {
-    func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {
-        accounts
-    }
-}
-
-private struct NullCodexAppProcessClient: CodexAppProcessClient {
-    func assertCodexAvailable() throws {}
-    func relaunchCodex() async throws {}
 }
 
 private struct RankingNullAuthService: CodexAuthSessionStore, CodexSignInAuthStore {

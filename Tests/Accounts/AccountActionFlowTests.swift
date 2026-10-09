@@ -146,19 +146,4 @@ struct AccountActionFlowTests {
 
         #expect(step == .showAccountAlreadySaved(accountName: "Business 1"))
     }
-
-    private func makeAccount(name: String) -> CodexAccount {
-        let id = UUID()
-        return CodexAccount(
-            id: id,
-            name: name,
-            snapshotFileName: "\(id.uuidString).json",
-            createdAt: .distantPast,
-            updatedAt: .distantPast,
-            email: nil,
-            planType: nil,
-            rateLimits: nil,
-            identity: CodexAccountIdentity(snapshotFingerprint: "fingerprint-\(name)")
-        )
-    }
 }
