@@ -141,7 +141,7 @@ struct AccountsControllerTests {
                 identityResolver: identityResolver
             ),
             renameSavedAccountUseCase: RenameSavedAccountUseCase(repository: repository),
-            persistSavedAccountMetadataUseCase: PersistSavedAccountMetadataUseCase(repository: repository),
+            accountCatalogStore: repository,
             switchAccountWorkflow: SwitchAccountWorkflow(
                 authService: NullAuthService(),
                 repository: repository,
@@ -252,6 +252,80 @@ struct AccountsControllerTests {
         #expect(savedStatusClient.readSnapshots == [backupSnapshot, backupSnapshot])
     }
 
+    @Test
+    func switchToAccountSkipsSilentRefreshWhenNoActiveAccountResolves() async {
+        let account = makeAccount(name: "Business 4", fingerprint: "live")
+        let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [account])
+        let controller = makeController(
+            repository: repository,
+            identityResolver: SavedAccountIdentityResolver(
+                liveIdentitySource: CurrentIdentityFixture(fingerprint: "other"),
+                storedAccountReconciler: StoredIdentityAdapter()
+            ),
+            authService: NullAuthService()
+        )
+        controller.load()
+
+        let didRefresh = await controller.switchToAccount(account)
+
+        #expect(didRefresh == false)
+        #expect(controller.activeAccountID == nil)
+        #expect(controller.accounts == [account])
+    }
+
+    @Test
+    func switchToAccountKeepsAccountsWhenSilentRefreshFails() async {
+        let account = makeAccount(name: "Business 4", fingerprint: "live")
+        let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [account])
+        let controller = makeController(
+            repository: repository,
+            identityResolver: SavedAccountIdentityResolver(
+                liveIdentitySource: CurrentIdentityFixture(fingerprint: "live"),
+                storedAccountReconciler: StoredIdentityAdapter()
+            ),
+            authService: NullAuthService()
+        )
+        controller.load()
+
+        let didRefresh = await controller.switchToAccount(account)
+
+        #expect(didRefresh == false)
+        #expect(controller.activeAccountID == account.id)
+        #expect(controller.accounts == [account])
+        #expect(controller.pendingErrorMessage == nil)
+    }
+
+    @Test
+    func switchToAccountAppliesSilentRefreshResult() async {
+        let account = makeAccount(name: "Business 4", fingerprint: "live")
+        let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [account])
+        let refreshedRateLimits = makeRateLimitsSnapshot()
+        let controller = makeController(
+            repository: repository,
+            identityResolver: SavedAccountIdentityResolver(
+                liveIdentitySource: CurrentIdentityFixture(fingerprint: "live"),
+                storedAccountReconciler: StoredIdentityAdapter()
+            ),
+            authService: NullAuthService(),
+            accountStatusClient: AccountStatusSuccessCase(
+                status: CodexAccountStatus(
+                    email: "business@example.com",
+                    planType: "pro",
+                    rateLimits: refreshedRateLimits
+                )
+            )
+        )
+        controller.load()
+
+        let didRefresh = await controller.switchToAccount(account)
+
+        #expect(didRefresh == true)
+        #expect(controller.accounts.count == 1)
+        #expect(controller.accounts[0].planType == "pro")
+        #expect(controller.accounts[0].rateLimits == refreshedRateLimits)
+        #expect(repository.savedAccounts == controller.accounts)
+    }
+
     private func makeAddAccountWorkflow(
         repository: AccountCatalogStore,
         identityResolver: SavedAccountIdentityResolver
@@ -267,6 +341,7 @@ struct AccountsControllerTests {
         repository: LoadingPersistingAccountCatalogProbe,
         identityResolver: SavedAccountIdentityResolver,
         authService: some CodexAuthSessionStore & CodexSignInAuthStore,
+        accountStatusClient: CodexAccountStatusClient = AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
         savedAccountStatusClient: SavedCodexAccountStatusClient = DisabledAccountStatusClient(),
         isolatedLoginClient: IsolatedCodexLoginClient = IsolatedAddAccountLoginClientProbe(
             session: IsolatedAddAccountLoginSessionProbe(authData: Data())
@@ -280,7 +355,7 @@ struct AccountsControllerTests {
                 identityResolver: identityResolver
             ),
             refreshActiveAccountUseCase: RefreshActiveAccountUseCase(
-                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
+                accountStatusClient: accountStatusClient,
                 identityResolver: identityResolver,
                 repository: repository
             ),
@@ -294,7 +369,7 @@ struct AccountsControllerTests {
                 identityResolver: identityResolver
             ),
             renameSavedAccountUseCase: RenameSavedAccountUseCase(repository: repository),
-            persistSavedAccountMetadataUseCase: PersistSavedAccountMetadataUseCase(repository: repository),
+            accountCatalogStore: repository,
             switchAccountWorkflow: SwitchAccountWorkflow(
                 authService: authService,
                 repository: repository,
