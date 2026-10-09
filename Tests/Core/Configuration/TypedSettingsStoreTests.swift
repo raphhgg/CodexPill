@@ -52,19 +52,62 @@ struct StatusItemSettingsStoreTests {
         let accent = StatusItemAccentColor(red: 0.14, green: 0.55, blue: 0.31, alpha: 1)
 
         let first = StatusItemSettingsStore(userDefaults: defaults)
-        first.progressAccentColor = accent
+        first.sessionAccentColor = accent
         first.pacingMarkersEnabled = false
 
         let second = StatusItemSettingsStore(userDefaults: defaults)
-        #expect(second.progressAccentColor == accent)
-        #expect(second.hasCustomProgressAccentColor)
+        #expect(second.sessionAccentColor == accent)
+        #expect(second.hasCustomUsageColors)
         #expect(!second.pacingMarkersEnabled)
 
-        second.resetProgressAccentColor()
+        second.resetUsageColors()
 
         let reset = StatusItemSettingsStore(userDefaults: defaults)
-        #expect(reset.progressAccentColor == nil)
-        #expect(!reset.hasCustomProgressAccentColor)
+        #expect(reset.sessionAccentColor == nil)
+        #expect(!reset.hasCustomUsageColors)
+    }
+
+    @Test
+    func existingAccentColorBecomesSessionAndWeeklyColor() throws {
+        let defaults = makeDefaults()
+        let accent = StatusItemAccentColor(red: 0.14, green: 0.55, blue: 0.31, alpha: 1)
+        defaults.set(try JSONEncoder().encode(accent), forKey: "progressAccentColor")
+
+        let store = StatusItemSettingsStore(userDefaults: defaults)
+
+        #expect(store.sessionAccentColor == accent)
+        #expect(store.effectiveWeeklyAccentColor == accent)
+        #expect(store.usesOneUsageColor)
+        #expect(store.usagePercentMode == .used)
+        #expect(store.usageMeterLayout == .classic)
+    }
+
+    @Test
+    func separateWeeklyColorPersistsAndSameColorOptionOverridesIt() {
+        let defaults = makeDefaults()
+        let session = StatusItemAccentColor(red: 0.14, green: 0.55, blue: 0.31, alpha: 1)
+        let weekly = StatusItemAccentColor(red: 0.8, green: 0.2, blue: 0.1, alpha: 1)
+
+        let first = StatusItemSettingsStore(userDefaults: defaults)
+        first.sessionAccentColor = session
+        first.weeklyAccentColor = weekly
+        first.usesOneUsageColor = false
+        first.usagePercentMode = .left
+        first.usageMeterLayout = .compact
+
+        let second = StatusItemSettingsStore(userDefaults: defaults)
+        #expect(second.effectiveWeeklyAccentColor == weekly)
+        #expect(second.usagePercentMode == .left)
+        #expect(second.usageMeterLayout == .compact)
+
+        second.usesOneUsageColor = true
+        #expect(StatusItemSettingsStore(userDefaults: defaults).effectiveWeeklyAccentColor == session)
+
+        second.resetUsageColors()
+        let reset = StatusItemSettingsStore(userDefaults: defaults)
+        #expect(reset.weeklyAccentColor == nil)
+        #expect(reset.usesOneUsageColor)
+        #expect(!reset.hasCustomUsageColors)
     }
 
     @Test

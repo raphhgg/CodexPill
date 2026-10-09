@@ -5,20 +5,26 @@ struct StatusItemRuntimePresentation {
     let indicatorStyle: StatusBarIndicatorStyle
     let monochrome: Bool
     let displayMode: StatusBarDisplayMode
-    let progressAccentColor: NSColor
+    let percentMode: UsagePercentMode
+    let sessionAccentColor: NSColor
+    let weeklyAccentColor: NSColor
 
     init(
         activeAccount: CodexAccount?,
         indicatorStyle: StatusBarIndicatorStyle,
         monochrome: Bool,
         displayMode: StatusBarDisplayMode,
-        progressAccentColor: NSColor = StatusBarProgressColorDefaults.accent
+        percentMode: UsagePercentMode = .used,
+        sessionAccentColor: NSColor = StatusBarProgressColorDefaults.accent,
+        weeklyAccentColor: NSColor = StatusBarProgressColorDefaults.accent
     ) {
         self.activeAccount = activeAccount
         self.indicatorStyle = indicatorStyle
         self.monochrome = monochrome
         self.displayMode = displayMode
-        self.progressAccentColor = progressAccentColor
+        self.percentMode = percentMode
+        self.sessionAccentColor = sessionAccentColor
+        self.weeklyAccentColor = weeklyAccentColor
     }
 }
 
@@ -186,21 +192,20 @@ final class StatusItemRuntime {
 
     private func updateAppearance() {
         guard let button = statusItem.button else { return }
-        let primary = presentation.activeAccount?.usage?.window(.session)?.displayedUsedPercent()
-        let secondary = presentation.activeAccount?.usage?.window(.weekly)?.displayedUsedPercent()
+        let barPercents = statusItemBarPercents(for: presentation.activeAccount, mode: presentation.percentMode)
 
         button.image = iconRenderer.makeImage(
             style: presentation.indicatorStyle,
-            primaryPercent: primary,
-            secondaryPercent: secondary,
+            primaryPercent: barPercents.session,
+            secondaryPercent: barPercents.weekly,
             monochrome: presentation.monochrome,
-            primaryColor: presentation.progressAccentColor,
-            secondaryColor: presentation.progressAccentColor
+            primaryColor: presentation.sessionAccentColor,
+            secondaryColor: presentation.weeklyAccentColor
         )
         button.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .medium)
 
         if shouldShowStatusTitle {
-            let title = statusItemHoverTitle(for: presentation.activeAccount)
+            let title = statusItemHoverTitle(for: presentation.activeAccount, percentMode: presentation.percentMode)
             button.imagePosition = .imageLeading
             button.title = title
             button.attributedTitle = NSAttributedString(
