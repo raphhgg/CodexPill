@@ -833,6 +833,30 @@ struct MenuBarMenuStateTests {
         #expect(!idle.shouldShowTitle)
     }
 
+    @Test
+    func connectedRemoteHostsIncludeSyncingHostWithDesiredUnverifiedAccount() {
+        let localAccount = makeAccount(name: "Business 2", planType: "team")
+        let state = makeState(
+            inactiveAccounts: [localAccount],
+            remoteHosts: [
+                RemoteHostMenuState(
+                    name: "buildbox",
+                    destination: "user@buildbox",
+                    connectionState: .syncing,
+                    desiredAccount: localAccount,
+                    activeAccount: nil,
+                    verificationStatus: .verifying,
+                    deployedAccountIDs: [localAccount.id]
+                )
+            ]
+        )
+
+        #expect(state.connectedRemoteHosts.count == 1)
+        #expect(state.connectedRemoteHosts.first?.desiredAccount?.name == "Business 2")
+        #expect(state.connectedRemoteHosts.first?.activeAccount == nil)
+        #expect(state.connectedRemoteHosts.first?.verificationStatus == .verifying)
+    }
+
     private func makeState(
         activeAccount: CodexAccount? = nil,
         inactiveAccounts: [CodexAccount],

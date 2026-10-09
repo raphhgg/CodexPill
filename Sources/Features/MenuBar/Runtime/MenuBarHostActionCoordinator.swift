@@ -49,7 +49,7 @@ final class MenuBarHostActionCoordinator {
         self.cancelMenuTracking = cancelMenuTracking
     }
 
-    func switchAccountOnHost(accountID: UUID, hostDestination: String) {
+    func switchAccountOnHost(accountID: UUID, hostDestination: String) async {
         guard
             let remoteHost = settings.remoteHostState(for: hostDestination)?.host,
             let account = store.accounts.first(where: { $0.id == accountID })
@@ -67,51 +67,45 @@ final class MenuBarHostActionCoordinator {
         )
         remoteHostRuntime.beginHostSwitch(to: account, on: remoteHost)
         rebuildMenu()
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            let result = await self.store.switchToAccountOnHost(account, on: remoteHost)
-            self.remoteHostRuntime.applySwitchOutcome(result, account: account, host: remoteHost)
-            self.recordSwitchResult(result, account: account, host: remoteHost)
-            self.rebuildMenu()
-        }
+        let result = await store.switchToAccountOnHost(account, on: remoteHost)
+        remoteHostRuntime.applySwitchOutcome(result, account: account, host: remoteHost)
+        recordSwitchResult(result, account: account, host: remoteHost)
+        rebuildMenu()
     }
 
-    func addHost() {
+    func addHost() async {
         recordMenuAction("addHost", [:])
         validationObserver.recordAddHostMenuAction()
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            guard let remoteHost = await self.panelPresenter.presentHostSetup(
-                self.alertFactory.makeAddHostRequest(),
-                testConnection: { [weak self] host in
-                    guard let self else {
-                        return .failure(RemoteHostClientError.unavailable)
-                    }
-                    do {
-                        try await self.connectionChecker.testConnection(to: host)
-                        return .success(())
-                    } catch {
-                        return .failure(error)
-                    }
-                },
-                onPresented: { [weak self] in
-                    self?.validationObserver.recordAddHostSetupPresented()
-                },
-                onCancelled: { [weak self] in
-                    self?.validationObserver.recordAddHostSetupCancelled()
-                },
-                onValidationStarted: { [weak self] host in
-                    self?.validationObserver.recordAddHostValidationStarted(host: host)
-                },
-                onValidationFinished: { [weak self] host, result in
-                    self?.validationObserver.recordAddHostValidationFinished(host: host, result: result)
+        guard let remoteHost = await panelPresenter.presentHostSetup(
+            alertFactory.makeAddHostRequest(),
+            testConnection: { [weak self] host in
+                guard let self else {
+                    return .failure(RemoteHostClientError.unavailable)
                 }
-            ) else {
-                return
+                do {
+                    try await self.connectionChecker.testConnection(to: host)
+                    return .success(())
+                } catch {
+                    return .failure(error)
+                }
+            },
+            onPresented: { [weak self] in
+                self?.validationObserver.recordAddHostSetupPresented()
+            },
+            onCancelled: { [weak self] in
+                self?.validationObserver.recordAddHostSetupCancelled()
+            },
+            onValidationStarted: { [weak self] host in
+                self?.validationObserver.recordAddHostValidationStarted(host: host)
+            },
+            onValidationFinished: { [weak self] host, result in
+                self?.validationObserver.recordAddHostValidationFinished(host: host, result: result)
             }
-
-            await self.installActiveAccountOnNewHost(remoteHost)
+        ) else {
+            return
         }
+
+        await installActiveAccountOnNewHost(remoteHost)
     }
 
     func removeHost(hostDestination: String) {
@@ -126,17 +120,17 @@ final class MenuBarHostActionCoordinator {
         rebuildMenu()
     }
 
-    func reverifyHost(hostDestination: String) {
+    func reverifyHost(hostDestination: String) async {
         guard let hostState = settings.remoteHostState(for: hostDestination) else { return }
-        reverifyHost(hostState: hostState)
+        await reverifyHost(hostState: hostState)
     }
 
-    func adoptDetectedRemoteAccount(hostDestination: String, accountID: UUID) {
+    func adoptDetectedRemoteAccount(hostDestination: String, accountID: UUID) async {
         guard let hostState = settings.remoteHostState(for: hostDestination) else { return }
-        adoptDetectedRemoteAccount(hostState: hostState, accountID: accountID)
+        await adoptDetectedRemoteAccount(hostState: hostState, accountID: accountID)
     }
 
-    private func reverifyHost(hostState: PersistedRemoteHostState) {
+    private func reverifyHost(hostState: PersistedRemoteHostState) async {
         guard let baseAccount = remoteHostRuntime.beginReverification(hostState: hostState) else { return }
         cancelMenuTracking()
 
@@ -151,25 +145,22 @@ final class MenuBarHostActionCoordinator {
 
         rebuildMenu()
 
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            await self.remoteHostRuntime.refresh(
-                host: hostState.host,
-                baseAccount: baseAccount,
-                fallbackConnectionState: .disconnected
-            )
+        await remoteHostRuntime.refresh(
+            host: hostState.host,
+            baseAccount: baseAccount,
+            fallbackConnectionState: .disconnected
+        )
 
-            let refreshedState = self.settings.remoteHostState(for: hostState.host.destination)
-            self.validationObserver.recordRemoteHostReverifyResult(
-                succeeded: refreshedState?.verificationStatus == .verified,
-                hostName: hostState.host.displayName,
-                accountName: baseAccount.name
-            )
-            self.rebuildMenu()
-        }
+        let refreshedState = settings.remoteHostState(for: hostState.host.destination)
+        validationObserver.recordRemoteHostReverifyResult(
+            succeeded: refreshedState?.verificationStatus == .verified,
+            hostName: hostState.host.displayName,
+            accountName: baseAccount.name
+        )
+        rebuildMenu()
     }
 
-    private func adoptDetectedRemoteAccount(hostState: PersistedRemoteHostState, accountID: UUID) {
+    private func adoptDetectedRemoteAccount(hostState: PersistedRemoteHostState, accountID: UUID) async {
         guard let detectedAccount = remoteHostRuntime.beginAdoptingDetectedAccount(
             hostState: hostState,
             accountID: accountID
@@ -184,15 +175,12 @@ final class MenuBarHostActionCoordinator {
         ])
         rebuildMenu()
 
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            await self.remoteHostRuntime.refresh(
-                host: hostState.host,
-                baseAccount: detectedAccount,
-                fallbackConnectionState: .connected
-            )
-            self.rebuildMenu()
-        }
+        await remoteHostRuntime.refresh(
+            host: hostState.host,
+            baseAccount: detectedAccount,
+            fallbackConnectionState: .connected
+        )
+        rebuildMenu()
     }
 
     private func installActiveAccountOnNewHost(_ remoteHost: RemoteHost) async {

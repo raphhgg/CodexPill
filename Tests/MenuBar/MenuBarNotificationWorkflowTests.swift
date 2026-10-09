@@ -15,8 +15,7 @@ struct MenuBarNotificationWorkflowTests {
         harness.workflow.start(with: makeState(inactiveAccounts: [
             makeAccount(name: "Blocked", rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 100, weeklyUsedPercent: 100))
         ]))
-        harness.workflow.evaluate(using: makeState(inactiveAccounts: [fallback]), now: now)
-        await harness.delivery.waitForPayloadCount(1)
+        await harness.workflow.evaluate(using: makeState(inactiveAccounts: [fallback]), now: now)
 
         let payload = try #require(harness.delivery.payloads.first)
         #expect(payload.accountID == fallback.id)
@@ -49,8 +48,7 @@ struct MenuBarNotificationWorkflowTests {
         harness.workflow.start(with: makeState(inactiveAccounts: [
             makeAccount(name: "Blocked", rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 100, weeklyUsedPercent: 100))
         ]))
-        harness.workflow.evaluate(using: makeState(inactiveAccounts: [fallback]), now: now)
-        await harness.delivery.waitForPayloadCount(1)
+        await harness.workflow.evaluate(using: makeState(inactiveAccounts: [fallback]), now: now)
 
         #expect(harness.delivery.requestAuthorizationCount == 1)
         #expect(harness.delivery.payloads.count == 1)
@@ -68,8 +66,7 @@ struct MenuBarNotificationWorkflowTests {
         harness.workflow.start(with: makeState(inactiveAccounts: [
             makeAccount(name: "Blocked", rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 100, weeklyUsedPercent: 100))
         ]))
-        harness.workflow.evaluate(using: makeState(inactiveAccounts: [fallback]), now: now)
-        await harness.delivery.waitForAuthorizationChecks(2)
+        await harness.workflow.evaluate(using: makeState(inactiveAccounts: [fallback]), now: now)
 
         #expect(harness.workflow.whenBlockedEnabled)
         #expect(harness.delivery.requestAuthorizationCount == 0)
@@ -202,11 +199,9 @@ private final class AccountAvailabilityNotifierProbe: AccountAvailabilityNotifie
     var authorizationStateValue: NotificationAuthorizationState = .authorized
     var authorizationStateAfterRequest: NotificationAuthorizationState?
     private(set) var requestAuthorizationCount = 0
-    private(set) var authorizationStateCount = 0
 
     func authorizationState() async -> NotificationAuthorizationState {
-        authorizationStateCount += 1
-        return authorizationStateValue
+        authorizationStateValue
     }
 
     func requestAuthorizationIfNeeded() async {
@@ -219,25 +214,6 @@ private final class AccountAvailabilityNotifierProbe: AccountAvailabilityNotifie
     func deliver(_ payload: AccountAvailabilityNotificationPayload) async -> Bool {
         payloads.append(payload)
         return true
-    }
-
-    func waitForPayloadCount(_ count: Int) async {
-        for _ in 0..<50 {
-            let hasPayloads = payloads.count >= count
-            if hasPayloads {
-                return
-            }
-            try? await Task.sleep(for: .milliseconds(20))
-        }
-    }
-
-    func waitForAuthorizationChecks(_ count: Int) async {
-        for _ in 0..<50 {
-            if authorizationStateCount >= count {
-                return
-            }
-            try? await Task.sleep(for: .milliseconds(20))
-        }
     }
 }
 

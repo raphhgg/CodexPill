@@ -34,6 +34,7 @@ final class AccountsController {
     private let remoteHostAccountVerifier: RemoteHostAccountVerifier
     private let addAccountWorkflow: AddAccountWorkflow
     private let now: () -> Date
+    private let postSwitchRefreshDelay: Duration
 
     private var catalogState = AccountCatalogState()
     private var isHydratingSavedAccountsMetadata = false
@@ -55,7 +56,8 @@ final class AccountsController {
         ),
         remoteHostAccountVerifier: RemoteHostAccountVerifier = RemoteHostAccountVerifier(),
         addAccountWorkflow: AddAccountWorkflow,
-        now: @escaping () -> Date = Date.init
+        now: @escaping () -> Date = Date.init,
+        postSwitchRefreshDelay: Duration = .seconds(2)
     ) {
         self.identityResolver = identityResolver
         self.inactiveAccountAvailabilityRanking = inactiveAccountAvailabilityRanking
@@ -71,6 +73,7 @@ final class AccountsController {
         self.remoteHostAccountVerifier = remoteHostAccountVerifier
         self.addAccountWorkflow = addAccountWorkflow
         self.now = now
+        self.postSwitchRefreshDelay = postSwitchRefreshDelay
     }
 
     func load() {
@@ -94,7 +97,7 @@ final class AccountsController {
                     accounts: accounts
                 )
             )
-            didRefreshAfterSwitch = await applySilentPostActionRefresh(after: .seconds(2))
+            didRefreshAfterSwitch = await applySilentPostActionRefresh(after: postSwitchRefreshDelay)
         }
         return didRefreshAfterSwitch
     }

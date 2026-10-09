@@ -13,8 +13,7 @@ struct MenuBarHostActionCoordinatorTests {
         harness.settings.remoteHostStates = [PersistedRemoteHostState(host: host)]
         harness.store.remoteSwitchOutcome = .verified(CodexAccountStatus(email: account.email, planType: "team"))
 
-        harness.coordinator.switchAccountOnHost(accountID: account.id, hostDestination: host.destination)
-        await harness.waitForRebuildCount(atLeast: 2)
+        await harness.coordinator.switchAccountOnHost(accountID: account.id, hostDestination: host.destination)
 
         #expect(harness.store.switchCalls == [RemoteSwitchCall(account: account, host: host)])
         let hostState = try #require(harness.settings.remoteHostState(for: host.destination))
@@ -41,8 +40,7 @@ struct MenuBarHostActionCoordinatorTests {
         )
         harness.store.remoteSwitchOutcome = .verified(CodexAccountStatus(email: account.email, planType: "team"))
 
-        harness.coordinator.addHost()
-        await harness.waitForRebuildCount(atLeast: 2)
+        await harness.coordinator.addHost()
 
         #expect(panelPresenter.hostSetupRequests.count == 1)
         #expect(alertPresenter.confirmationRequests.count == 1)
@@ -84,8 +82,7 @@ struct MenuBarHostActionCoordinatorTests {
             )
         ]
 
-        harness.coordinator.reverifyHost(hostDestination: host.destination)
-        await harness.waitForRebuildCount(atLeast: 2)
+        await harness.coordinator.reverifyHost(hostDestination: host.destination)
 
         let hostState = try #require(harness.settings.remoteHostState(for: host.destination))
         #expect(hostState.verificationStatus == .verified)
@@ -113,11 +110,10 @@ struct MenuBarHostActionCoordinatorTests {
             )
         ]
 
-        harness.coordinator.adoptDetectedRemoteAccount(
+        await harness.coordinator.adoptDetectedRemoteAccount(
             hostDestination: host.destination,
             accountID: detectedAccount.id
         )
-        await harness.waitForRebuildCount(atLeast: 2)
 
         let hostState = try #require(harness.settings.remoteHostState(for: host.destination))
         #expect(hostState.desiredAccountID == detectedAccount.id)
@@ -202,12 +198,6 @@ private final class MenuBarHostActionCoordinatorHarness {
 
     deinit {
         UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName)
-    }
-
-    func waitForRebuildCount(atLeast expectedCount: Int) async {
-        for _ in 0..<100 where rebuildCount < expectedCount {
-            try? await Task.sleep(for: .milliseconds(10))
-        }
     }
 }
 

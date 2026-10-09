@@ -150,7 +150,8 @@ final class RemoteHostRuntime {
         return detectedAccount
     }
 
-    func refreshAll(markSyncing: Bool = true, onHostRefreshed: @escaping @MainActor () -> Void) {
+    func refreshAll(markSyncing: Bool = true, onHostRefreshed: @escaping @MainActor () -> Void) async {
+        var refreshes: [Task<Void, Never>] = []
         for hostState in settings.remoteHostStates {
             guard let baseAccount = baseAccountForRemoteRefresh(hostState: hostState) else {
                 markMissingBaseAccountIfNeeded(hostState)
@@ -159,11 +160,13 @@ final class RemoteHostRuntime {
             if markSyncing {
                 setConnectionState(.syncing, for: hostState.host.destination)
             }
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                await self.refresh(host: hostState.host, baseAccount: baseAccount, fallbackConnectionState: .disconnected)
+            refreshes.append(Task {
+                await refresh(host: hostState.host, baseAccount: baseAccount, fallbackConnectionState: .disconnected)
                 onHostRefreshed()
-            }
+            })
+        }
+        for refresh in refreshes {
+            await refresh.value
         }
     }
 

@@ -106,8 +106,10 @@ struct RemoteHostRuntimeTests {
         )
         var refreshedCount = 0
 
-        runtime.refreshAll {
-            refreshedCount += 1
+        let refresh = Task {
+            await runtime.refreshAll {
+                refreshedCount += 1
+            }
         }
 
         try await Task.sleep(for: .milliseconds(60))
@@ -118,7 +120,7 @@ struct RemoteHostRuntimeTests {
         #expect(fastState.verifiedAccount?.id == fastAccount.id)
         #expect(slowState.verifiedAccount == nil)
 
-        try await Task.sleep(for: .milliseconds(220))
+        await refresh.value
 
         let completedSlowState = try #require(settings.remoteHostState(for: slowHost.destination))
         #expect(refreshedCount == 2)
@@ -138,19 +140,22 @@ struct RemoteHostRuntimeTests {
         let runtime = makeRuntime(settings: settings, accountStatusReader: client, accounts: [account])
         var refreshedCount = 0
 
-        runtime.refreshAll { refreshedCount += 1 }
-        runtime.refreshAll { refreshedCount += 1 }
-        runtime.refreshAll { refreshedCount += 1 }
+        let refreshes = (0..<3).map { _ in
+            Task { await runtime.refreshAll { refreshedCount += 1 } }
+        }
         try await client.waitForReads(1)
         await client.openGate()
-        try await waitUntil { refreshedCount == 3 }
+        for refresh in refreshes {
+            await refresh.value
+        }
 
+        #expect(refreshedCount == 3)
         #expect(await client.readCount == 1)
         #expect(settings.remoteHostState(for: host.destination)?.verifiedAccount?.id == account.id)
 
-        runtime.refreshAll { refreshedCount += 1 }
-        try await waitUntil { refreshedCount == 4 }
+        await runtime.refreshAll { refreshedCount += 1 }
 
+        #expect(refreshedCount == 4)
         #expect(await client.readCount == 2)
     }
 
@@ -182,14 +187,6 @@ struct RemoteHostRuntimeTests {
         let state = try #require(settings.remoteHostState(for: host.destination))
         #expect(state.verifiedAccount?.id == currentAccount.id)
         #expect(state.verificationStatus == .verified)
-    }
-
-    private func waitUntil(_ condition: () -> Bool) async throws {
-        let deadline = ContinuousClock.now.advanced(by: .seconds(1))
-        while !condition() {
-            guard ContinuousClock.now < deadline else { throw GatedRemoteHostClient.TimedOut() }
-            try await Task.sleep(for: .milliseconds(5))
-        }
     }
 
     private func makeRuntime(

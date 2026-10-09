@@ -55,7 +55,6 @@ final class MenuBarNotificationWorkflow {
 
     func start(with state: MenuBarMenuState) {
         previousSnapshots = snapshotMap(for: state)
-        refreshAuthorizationState()
     }
 
     func markAccountActivated(_ accountID: UUID) {
@@ -67,33 +66,26 @@ final class MenuBarNotificationWorkflow {
         rebuildMenu()
     }
 
-    func enableNotifications() {
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            let state = await self.delivery.authorizationState()
-            switch state {
-            case .denied:
-                self.settingsLauncher.openNotificationSettings()
-            case .notDetermined, .unknown, .authorized:
-                break
-            }
-            self.updateAuthorizationState(state)
+    func enableNotifications() async {
+        let state = await delivery.authorizationState()
+        switch state {
+        case .denied:
+            settingsLauncher.openNotificationSettings()
+        case .notDetermined, .unknown, .authorized:
+            break
         }
+        updateAuthorizationState(state)
     }
 
-    func evaluate(using state: MenuBarMenuState, now: Date = .now) {
-        let currentSnapshots = state.availabilitySnapshots
-        defer {
-            previousSnapshots = snapshotMap(for: state)
-        }
-
+    func evaluate(using state: MenuBarMenuState, now: Date = .now) async {
         let decision = policy.decision(
             previousSnapshots: Array(previousSnapshots.values),
-            currentSnapshots: currentSnapshots,
+            currentSnapshots: state.availabilitySnapshots,
             activeAccounts: activeContexts(from: state),
             settings: settings,
             now: now
         )
+        previousSnapshots = snapshotMap(for: state)
         scheduleRefresh(decision?.waitUntil)
 
         guard let decision, decision.shouldNotify else { return }
@@ -106,19 +98,16 @@ final class MenuBarNotificationWorkflow {
         }
         guard let payload = payloadRenderer.payload(for: decision, state: state) else { return }
 
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            let isAuthorized = await self.ensureNotificationAuthorizationForDelivery()
-            guard isAuthorized else { return }
-            let delivered = await self.delivery.deliver(payload)
-            guard delivered else { return }
-            self.stateStore.recordNotification(
-                for: decision.account.id,
-                reason: decision.reason,
-                window: decision.window,
-                notifiedAt: now
-            )
-        }
+        let isAuthorized = await ensureNotificationAuthorizationForDelivery()
+        guard isAuthorized else { return }
+        let delivered = await delivery.deliver(payload)
+        guard delivered else { return }
+        stateStore.recordNotification(
+            for: decision.account.id,
+            reason: decision.reason,
+            window: decision.window,
+            notifiedAt: now
+        )
     }
 
     private func ensureNotificationAuthorizationForDelivery() async -> Bool {
@@ -175,12 +164,8 @@ final class MenuBarNotificationWorkflow {
         }
     }
 
-    func refreshAuthorizationState() {
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            let state = await self.delivery.authorizationState()
-            self.updateAuthorizationState(state)
-        }
+    func refreshAuthorizationState() async {
+        updateAuthorizationState(await delivery.authorizationState())
     }
 
     private func updateAuthorizationState(_ state: NotificationAuthorizationState) {

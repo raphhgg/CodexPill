@@ -326,7 +326,8 @@ struct AccountsControllerTests {
                         planType: other.planType,
                         rateLimits: nil
                     )
-                )
+                ),
+                verificationProbeDelays: [.zero, .zero, .zero]
             ),
             addAccountWorkflow: makeAddAccountWorkflow(
                 repository: repository,
@@ -694,7 +695,8 @@ struct AccountsControllerTests {
                 identityResolver: identityResolver,
                 isolatedLoginClient: isolatedLoginClient
             ),
-            now: now
+            now: now,
+            postSwitchRefreshDelay: .zero
         )
     }
 
