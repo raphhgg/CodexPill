@@ -137,8 +137,9 @@ Settings persistence is split by feature boundary:
 
 - `MenuDisplaySettingsStore` owns menu refresh cadence and visible inactive-account count options.
 - `StatusItemSettingsStore` owns status-item indicator style, monochrome mode, display mode, pacing marker visibility, progress accent color helpers, and persisted reveal-shortcut values.
+- `TokenUsagePreferencesStore` owns token-usage visibility, chart style, loading animation, peak scope, and the fixed 30-day period.
 
-`CodexPillSettingsStore` remains a compatibility facade that assembles these stores from one `UserDefaults` instance and forwards legacy property names. Feature/runtime boundaries should depend on the typed store they need where practical.
+App startup builds each store from one `UserDefaults` instance and injects the ones each runtime boundary needs. There is no shared settings facade.
 
 ## Boundary Notes
 

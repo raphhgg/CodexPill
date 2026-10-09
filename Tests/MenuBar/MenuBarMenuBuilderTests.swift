@@ -1181,9 +1181,9 @@ struct MenuBarMenuBuilderTests {
         let provider = TokenUsageMenuProviderProbe()
         let (coordinator, statusItem) = try makeCoordinatorWithStatusItem(
             tokenUsageProvider: provider,
-            configureSettings: {
-                $0.tokenUsageEnabled = true
-                $0.tokenUsagePeriod = .last30Days
+            configureTokenUsage: {
+                $0.isEnabled = true
+                $0.period = .last30Days
             }
         )
         let menu = builder.makeMenu(
@@ -1227,9 +1227,9 @@ struct MenuBarMenuBuilderTests {
         let (coordinator, statusItem) = try makeCoordinatorWithStatusItem(
             loginItemController: loginItemController,
             tokenUsageProvider: provider,
-            configureSettings: {
-                $0.tokenUsageEnabled = true
-                $0.tokenUsagePeriod = .last30Days
+            configureTokenUsage: {
+                $0.isEnabled = true
+                $0.period = .last30Days
             }
         )
         let menu = builder.makeMenu(
@@ -1291,7 +1291,7 @@ struct MenuBarMenuBuilderTests {
         loginItemsSettingsLauncher: LoginItemsSettingsLaunching = LoginItemsSettingsLauncherProbe(),
         diagnosticReportPresenter: DiagnosticReportPresenting? = nil,
         tokenUsageProvider: TokenUsageMenuProviding = LocalCodexSessionTokenUsageMenuProvider(),
-        configureSettings: (CodexPillSettingsStore) -> Void = { _ in }
+        configureTokenUsage: (TokenUsagePreferencesStore) -> Void = { _ in }
     ) throws -> (MenuBarCoordinator, NSStatusItem) {
         let repository = try makeIsolatedRepository()
         let store = MenuBarAccountsStore(
@@ -1303,14 +1303,16 @@ struct MenuBarMenuBuilderTests {
         let suiteName = "MenuBarMenuBuilderTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
-        configureSettings(settings)
+        let settings = SettingsStores(userDefaults: defaults)
+        configureTokenUsage(settings.tokenUsagePreferences)
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         let statusItemRuntime = StatusItemRuntime(statusItem: statusItem)
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: statusItemRuntime,
             store: store,
-            settings: settings,
+            menuDisplaySettings: settings.menuDisplaySettings,
+            statusItemSettings: settings.statusItemSettings,
+            tokenUsagePreferences: settings.tokenUsagePreferences,
             alertPresenter: alertPresenter ?? AlertPresenterProbe(),
             panelPresenter: PanelPresenterProbe(),
             loginItemController: loginItemController,

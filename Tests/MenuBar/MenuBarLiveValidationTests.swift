@@ -134,8 +134,8 @@ struct MenuBarLiveValidationTests {
         let suiteName = "MenuBarLiveValidationTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
-        settings.statusBarDisplayMode = .textOnHover
+        let settings = SettingsStores(userDefaults: defaults)
+        settings.statusItemSettings.statusBarDisplayMode = .textOnHover
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         defer {
             NSStatusBar.system.removeStatusItem(statusItem)
@@ -151,7 +151,9 @@ struct MenuBarLiveValidationTests {
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: runtime,
             store: store,
-            settings: settings,
+            menuDisplaySettings: settings.menuDisplaySettings,
+            statusItemSettings: settings.statusItemSettings,
+            tokenUsagePreferences: settings.tokenUsagePreferences,
             alertPresenter: AlertPresenterProbe(),
             validationSink: sink,
             validationScenario: "live-status-item-hover",

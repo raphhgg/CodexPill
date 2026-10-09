@@ -9,9 +9,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let statusItemRuntime: StatusItemRuntime
     private let shortcutRuntime: GlobalShortcutRuntime
     private let store: MenuBarAccountsStore
-    private let settings: CodexPillSettingsStore
     private let menuDisplaySettings: MenuDisplaySettingsStore
     private let statusItemSettings: StatusItemSettingsStore
+    private let tokenUsagePreferences: TokenUsagePreferencesStore
     private let cliProcessInspector: CodexCLIProcessInspector
     private let alertPresenter: AlertPresenter
     private let panelPresenter: PanelPresenter
@@ -47,7 +47,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         statusItemRuntime: StatusItemRuntime,
         shortcutRuntime: GlobalShortcutRuntime? = nil,
         store: MenuBarAccountsStore,
-        settings: CodexPillSettingsStore,
+        menuDisplaySettings: MenuDisplaySettingsStore,
+        statusItemSettings: StatusItemSettingsStore,
+        tokenUsagePreferences: TokenUsagePreferencesStore,
         cliProcessInspector: CodexCLIProcessInspector = CodexCLIProcessInspector(),
         alertPresenter: AlertPresenter,
         panelPresenter: PanelPresenter? = nil,
@@ -66,9 +68,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.statusItemRuntime = statusItemRuntime
         self.shortcutRuntime = shortcutRuntime ?? GlobalShortcutRuntime()
         self.store = store
-        self.settings = settings
-        self.menuDisplaySettings = settings.menuDisplaySettings
-        self.statusItemSettings = settings.statusItemSettings
+        self.menuDisplaySettings = menuDisplaySettings
+        self.statusItemSettings = statusItemSettings
+        self.tokenUsagePreferences = tokenUsagePreferences
         self.cliProcessInspector = cliProcessInspector
         self.alertPresenter = alertPresenter
         self.panelPresenter = panelPresenter ?? SystemPanelPresenter()
@@ -249,11 +251,11 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     @objc
     func toggleTokenUsage(_ sender: NSMenuItem) {
         recordMenuAction("toggleTokenUsage")
-        settings.tokenUsageEnabled.toggle()
+        tokenUsagePreferences.isEnabled.toggle()
         tokenUsageRuntime.handleEnabledChange(
-            isEnabled: settings.tokenUsageEnabled,
-            period: settings.tokenUsagePeriod,
-            peakScope: settings.tokenUsagePeakScope
+            isEnabled: tokenUsagePreferences.isEnabled,
+            period: tokenUsagePreferences.period,
+            peakScope: tokenUsagePreferences.peakScope
         )
         rebuildMenu()
     }
@@ -267,8 +269,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         else {
             return
         }
-        settings.tokenUsagePeriod = period
-        tokenUsageRuntime.handlePeriodChange(period: period, peakScope: settings.tokenUsagePeakScope)
+        tokenUsagePreferences.period = period
+        tokenUsageRuntime.handlePeriodChange(period: period, peakScope: tokenUsagePreferences.peakScope)
         rebuildMenu()
     }
 
@@ -281,8 +283,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         else {
             return
         }
-        settings.tokenUsagePeakScope = peakScope
-        tokenUsageRuntime.handlePeriodChange(period: settings.tokenUsagePeriod, peakScope: peakScope)
+        tokenUsagePreferences.peakScope = peakScope
+        tokenUsageRuntime.handlePeriodChange(period: tokenUsagePreferences.period, peakScope: peakScope)
         rebuildMenu()
     }
 
@@ -295,7 +297,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         else {
             return
         }
-        settings.tokenUsageChartStyle = style
+        tokenUsagePreferences.chartStyle = style
         rebuildMenu()
     }
 
@@ -308,7 +310,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         else {
             return
         }
-        settings.tokenUsageLoadingAnimationStyle = style
+        tokenUsagePreferences.loadingAnimationStyle = style
         rebuildMenu()
     }
 
@@ -321,7 +323,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     @objc
     func resetProgressAccentColor(_ sender: NSMenuItem) {
         recordMenuAction("resetProgressAccentColor")
-        settings.resetProgressAccentColor()
+        statusItemSettings.resetProgressAccentColor()
         NSColorPanel.shared.color = statusItemSettings.progressAccentColor.resolvedStatusItemAccentColor
     }
 
@@ -501,44 +503,44 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             visibleInactiveAccountCount: menuDisplaySettings.visibleInactiveAccountCount,
             visibleInactiveAccountCountOptions: menuDisplaySettings.visibleInactiveAccountCountOptions,
             refreshIntervalMinutes: menuDisplaySettings.refreshIntervalMinutes,
-            refreshIntervalOptions: settings.refreshIntervalOptions,
+            refreshIntervalOptions: menuDisplaySettings.refreshIntervalOptions,
             statusBarMonochrome: statusItemSettings.statusBarMonochrome,
             statusBarIndicatorStyle: statusItemSettings.statusBarIndicatorStyle,
             statusBarDisplayMode: statusItemSettings.statusBarDisplayMode,
             revealStatusItemTitleShortcut: statusItemSettings.revealStatusItemTitleShortcut,
             progressAccentColor: statusItemSettings.progressAccentColor.resolvedStatusItemAccentColor,
             pacingMarkersEnabled: statusItemSettings.pacingMarkersEnabled,
-            hasCustomProgressAccentColor: settings.hasCustomProgressAccentColor,
+            hasCustomProgressAccentColor: statusItemSettings.hasCustomProgressAccentColor,
             isBusy: store.isBusy,
             statusMessage: store.statusMessage,
             loginItemState: loginItemController.state(),
-            tokenUsageEnabled: settings.tokenUsageEnabled,
-            tokenUsagePeriod: settings.tokenUsagePeriod,
-            tokenUsageChartStyle: settings.tokenUsageChartStyle,
-            tokenUsageLoadingAnimationStyle: settings.tokenUsageLoadingAnimationStyle,
-            tokenUsagePeakScope: settings.tokenUsagePeakScope,
+            tokenUsageEnabled: tokenUsagePreferences.isEnabled,
+            tokenUsagePeriod: tokenUsagePreferences.period,
+            tokenUsageChartStyle: tokenUsagePreferences.chartStyle,
+            tokenUsageLoadingAnimationStyle: tokenUsagePreferences.loadingAnimationStyle,
+            tokenUsagePeakScope: tokenUsagePreferences.peakScope,
             tokenUsageCard: makeTokenUsageCard()
         )
     }
 
     private func makeTokenUsageCard() -> TokenUsageMenuCard? {
-        guard settings.tokenUsageEnabled else { return nil }
+        guard tokenUsagePreferences.isEnabled else { return nil }
         return TokenUsageMenuCard.make(
-            style: settings.tokenUsageChartStyle,
-            loadingAnimationStyle: settings.tokenUsageLoadingAnimationStyle,
-            peakScope: settings.tokenUsagePeakScope,
-            period: settings.tokenUsagePeriod,
+            style: tokenUsagePreferences.chartStyle,
+            loadingAnimationStyle: tokenUsagePreferences.loadingAnimationStyle,
+            peakScope: tokenUsagePreferences.peakScope,
+            period: tokenUsagePreferences.period,
             loadState: tokenUsageRuntime.loadState
         )
     }
 
     private func refreshTokenUsageIfNeeded() {
-        guard settings.tokenUsageEnabled else {
+        guard tokenUsagePreferences.isEnabled else {
             tokenUsageRuntime.cancel()
             return
         }
 
-        tokenUsageRuntime.refreshIfNeeded(period: settings.tokenUsagePeriod, peakScope: settings.tokenUsagePeakScope)
+        tokenUsageRuntime.refreshIfNeeded(period: tokenUsagePreferences.period, peakScope: tokenUsagePreferences.peakScope)
     }
 
     private func rebuildTokenUsageMenuWhenSafe() {
