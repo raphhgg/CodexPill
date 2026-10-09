@@ -121,6 +121,38 @@ struct AccountAvailabilityTests {
     }
 
     @Test
+    func availabilityServiceKeepsDisplayAccountUsageWhenRemoteTargetIsUnverified() {
+        let service = AccountAvailabilityService()
+        let account = makeAccount(
+            name: "Remote",
+            sessionUsedPercent: 35,
+            sessionResetAt: Date(timeIntervalSince1970: 1_800_001_800),
+            weeklyUsedPercent: 60,
+            weeklyResetAt: Date(timeIntervalSince1970: 1_800_100_000)
+        )
+
+        let availability = service.availability(
+            for: RemoteAccountTargetContext(
+                hostDestination: "user@buildbox",
+                connectionState: .connected,
+                verificationState: .unverified,
+                activeAccount: nil,
+                displayAccount: account
+            ),
+            now: Date(timeIntervalSince1970: 1_800_000_000)
+        )
+
+        #expect(availability == AccountTargetAvailability(
+            target: .remote(hostDestination: "user@buildbox"),
+            status: .unavailable(reason: .unverified),
+            sessionUsedPercent: 35,
+            weeklyUsedPercent: 60,
+            sessionResetAt: Date(timeIntervalSince1970: 1_800_001_800),
+            weeklyResetAt: Date(timeIntervalSince1970: 1_800_100_000)
+        ))
+    }
+
+    @Test
     func availabilityServiceUsesVerifiedRemoteAccountRateLimitsWhenHostIsVerified() {
         let service = AccountAvailabilityService()
         let account = makeAccount(name: "Remote", sessionUsedPercent: 100, sessionResetAt: Date().addingTimeInterval(1800), weeklyUsedPercent: 20)
