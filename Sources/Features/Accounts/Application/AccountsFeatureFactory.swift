@@ -19,10 +19,6 @@ struct AccountsFeatureFactory {
         self.accountStatusClient = accountStatusClient
     }
 
-    func makeMenuBarAccountsStore() -> MenuBarAccountsStore {
-        MenuBarAccountsStore(controller: makeController())
-    }
-
     func makeController() -> AccountsController {
         let identityResolver = SavedAccountIdentityResolver(
             liveIdentitySource: authService,
