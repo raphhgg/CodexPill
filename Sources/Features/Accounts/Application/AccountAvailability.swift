@@ -86,13 +86,7 @@ struct AccountAvailabilityService {
         on target: AccountAvailabilityTarget = .local,
         now: Date = .now
     ) -> AccountTargetAvailability {
-        let rateLimits = account.rateLimits
-        let sessionWindow = rateLimits?.sessionWindow
-        let weeklyWindow = rateLimits?.weeklyWindow
-        let sessionUsedPercent = sessionWindow?.displayedUsedPercent(at: now) ?? missingWindowUsedPercent(for: rateLimits)
-        let weeklyUsedPercent = weeklyWindow?.displayedUsedPercent(at: now) ?? missingWindowUsedPercent(for: rateLimits)
-        let sessionResetAt = sessionWindow?.resetsAt
-        let weeklyResetAt = weeklyWindow?.resetsAt
+        let (sessionUsedPercent, weeklyUsedPercent, sessionResetAt, weeklyResetAt) = usageWindows(of: account.rateLimits, now: now)
 
         let status: AccountAvailabilityStatus
         switch (sessionUsedPercent >= 100, weeklyUsedPercent >= 100) {
@@ -125,11 +119,7 @@ struct AccountAvailabilityService {
     ) -> AccountTargetAvailability {
         let target = AccountAvailabilityTarget.remote(hostDestination: remoteTarget.hostDestination)
         let displayAccount = remoteTarget.displayAccount
-        let rateLimits = displayAccount?.rateLimits
-        let sessionUsedPercent = rateLimits?.sessionWindow?.displayedUsedPercent(at: now) ?? missingWindowUsedPercent(for: rateLimits)
-        let weeklyUsedPercent = rateLimits?.weeklyWindow?.displayedUsedPercent(at: now) ?? missingWindowUsedPercent(for: rateLimits)
-        let sessionResetAt = rateLimits?.sessionWindow?.resetsAt
-        let weeklyResetAt = rateLimits?.weeklyWindow?.resetsAt
+        let (sessionUsedPercent, weeklyUsedPercent, sessionResetAt, weeklyResetAt) = usageWindows(of: displayAccount?.rateLimits, now: now)
 
         let status: AccountAvailabilityStatus
         switch remoteTarget.connectionState {
@@ -189,7 +179,18 @@ struct AccountAvailabilityService {
         }
     }
 
-    private func missingWindowUsedPercent(for rateLimits: CodexRateLimitSnapshot?) -> Int {
-        rateLimits == nil ? 100 : 0
+    private func usageWindows(
+        of rateLimits: CodexRateLimitSnapshot?,
+        now: Date
+    ) -> (sessionUsedPercent: Int, weeklyUsedPercent: Int, sessionResetAt: Date?, weeklyResetAt: Date?) {
+        let missingWindowUsedPercent = rateLimits == nil ? 100 : 0
+        let sessionWindow = rateLimits?.sessionWindow
+        let weeklyWindow = rateLimits?.weeklyWindow
+        return (
+            sessionWindow?.displayedUsedPercent(at: now) ?? missingWindowUsedPercent,
+            weeklyWindow?.displayedUsedPercent(at: now) ?? missingWindowUsedPercent,
+            sessionWindow?.resetsAt,
+            weeklyWindow?.resetsAt
+        )
     }
 }
