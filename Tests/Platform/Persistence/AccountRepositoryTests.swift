@@ -101,8 +101,7 @@ struct AccountRepositoryTests {
 
     private func makeRepository(root: URL) throws -> AccountRepository {
         try AccountRepository(
-            fileManager: .default,
-            environment: [AppRuntimeEnvironment.validationAppSupportDirectoryEnvironmentKey: root.path]
+            isolatedRootDirectory: root
         )
     }
 

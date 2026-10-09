@@ -71,19 +71,19 @@ protocol ShortcutCapturePanelPresenter {
 
 @MainActor
 final class SystemShortcutCapturePanelPresenter: ShortcutCapturePanelPresenter {
-    private let environment: [String: String]
+    private let suppressesInteractivePrompts: Bool
     private let panelWindowFactory: PanelWindowFactory
 
     init(
-        environment: [String: String] = ProcessInfo.processInfo.environment,
+        suppressesInteractivePrompts: Bool,
         appIconSource: AppIconSource? = nil
     ) {
-        self.environment = environment
+        self.suppressesInteractivePrompts = suppressesInteractivePrompts
         self.panelWindowFactory = PanelWindowFactory(appIconSource: appIconSource ?? BundleAppIconSource())
     }
 
     func presentShortcutCapture(currentShortcut: KeyboardShortcut?) -> ShortcutCapturePanelResult {
-        guard !AppRuntimeEnvironment.shouldSuppressInteractiveAlerts(environment: environment) else {
+        guard !suppressesInteractivePrompts else {
             return .cancelled
         }
 

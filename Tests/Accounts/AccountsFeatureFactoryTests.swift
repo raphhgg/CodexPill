@@ -42,7 +42,7 @@ struct AccountsFeatureFactoryTests {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("AccountsFeatureFactoryTests-\(UUID().uuidString)", isDirectory: true)
         return try AccountRepository(
-            environment: [AppRuntimeEnvironment.validationAppSupportDirectoryEnvironmentKey: directory.path]
+            isolatedRootDirectory: directory
         )
     }
 }

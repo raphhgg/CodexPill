@@ -9,11 +9,14 @@ extension MenuBarCoordinator {
         accountsController: MenuBarAccounts,
         settings: SettingsStores,
         alertPresenter: AlertPresenter,
-        panelPresenter: PanelPresenter = SystemPanelPresenter(),
+        panelPresenter: PanelPresenter = SystemPanelPresenter(suppressesInteractivePrompts: true),
         loginItemController: LoginItemControlling = SystemLoginItemController(),
         loginItemsSettingsLauncher: LoginItemsSettingsLaunching = SystemLoginItemsSettingsLauncher(),
         diagnosticReportPresenter: DiagnosticReportPresenting = SystemDiagnosticReportPresenter(),
-        tokenUsageProvider: TokenUsageMenuProviding = LocalCodexSessionTokenUsageMenuProvider(),
+        tokenUsageProvider: TokenUsageMenuProviding = LocalCodexSessionTokenUsageMenuProvider(
+            cacheFile: FileManager.default.temporaryDirectory
+                .appendingPathComponent("CodexPillTests-\(ProcessInfo.processInfo.processIdentifier)/Caches/token-usage-cache.json")
+        ),
         validationSink: MenuBarValidationSink? = nil,
         validationScenario: String? = MenuBarValidationConfiguration.scenario(),
         allowsEmptyStatePrompt: Bool = true,
@@ -29,7 +32,7 @@ extension MenuBarCoordinator {
             cliProcessInspector: CodexCLIProcessInspector(),
             alertPresenter: alertPresenter,
             panelPresenter: panelPresenter,
-            shortcutCapturePanelPresenter: SystemShortcutCapturePanelPresenter(),
+            shortcutCapturePanelPresenter: SystemShortcutCapturePanelPresenter(suppressesInteractivePrompts: true),
             loginItemController: loginItemController,
             loginItemsSettingsLauncher: loginItemsSettingsLauncher,
             diagnosticReportPresenter: diagnosticReportPresenter,

@@ -195,7 +195,7 @@ struct LocalCodexSessionTokenUsageMenuProvider: TokenUsageMenuProviding {
     init(
         scanner: CodexSessionTokenUsageScanner = CodexSessionTokenUsageScanner(),
         sessionsDirectory: URL = CodexSessionTokenUsageScanner.defaultSessionsDirectory(),
-        cacheFile: URL = AppPaths.tokenUsageCacheFile(),
+        cacheFile: URL,
         now: @escaping @Sendable () -> Date = Date.init,
         calendar: Calendar = .current
     ) {

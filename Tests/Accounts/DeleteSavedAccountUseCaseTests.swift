@@ -91,7 +91,7 @@ struct DeleteSavedAccountUseCaseTests {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("DeleteSavedAccountUseCaseTests-\(UUID().uuidString)", isDirectory: true)
         return try AccountRepository(
-            environment: [AppRuntimeEnvironment.validationAppSupportDirectoryEnvironmentKey: directory.path]
+            isolatedRootDirectory: directory
         )
     }
 }
