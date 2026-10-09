@@ -16,7 +16,7 @@ extension UsageProviderSource {
 }
 
 enum UsageProviderReading: Equatable, Sendable {
-    /// The provider is not set up on this Mac: no relay file, not signed in, or not installed.
+    /// CodexPill is not connected to the provider, so the menu offers to connect it.
     case notConnected
     case unavailable(UsageUnavailableReason)
     /// Connected, but the provider has not reported any usage windows yet.
@@ -25,6 +25,16 @@ enum UsageProviderReading: Equatable, Sendable {
 }
 
 enum UsageUnavailableReason: Equatable, Sendable {
+    case notInstalled
+    case signedOut
     case signInExpired
     case readFailed
+
+    /// The last good numbers stay on screen only while they still belong to the same signed-in account.
+    var keepsLastSnapshot: Bool {
+        switch self {
+        case .notInstalled, .signedOut: false
+        case .signInExpired, .readFailed: true
+        }
+    }
 }

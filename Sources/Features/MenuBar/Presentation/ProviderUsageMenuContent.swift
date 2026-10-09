@@ -21,11 +21,13 @@ struct ProviderUsageMenuContent: View {
                     title: "Waiting for \(provider.menuTitle)…",
                     detail: provider.awaitingUsageDetail
                 )
-            case .unavailable:
-                message(
-                    title: "\(provider.menuTitle) usage unavailable",
-                    detail: "CodexPill could not read the saved usage."
-                )
+            case let .unavailable(reason, lastSnapshot):
+                let text = provider.unavailableMessage(for: reason)
+                message(title: text.title, detail: text.detail)
+                if let lastSnapshot {
+                    meters(for: lastSnapshot, freshness: "As of \(usageAsOfText(lastSnapshot.fetchedAt, now: now))")
+                        .opacity(0.55)
+                }
             case let .current(snapshot):
                 meters(for: snapshot, freshness: "As of \(usageAsOfText(snapshot.fetchedAt, now: now))")
             case let .stale(snapshot):
@@ -52,22 +54,50 @@ struct ProviderUsageMenuContent: View {
 
     private func meters(for snapshot: UsageSnapshot, freshness: String) -> some View {
         VStack(alignment: .leading, spacing: 9) {
-            Text(freshness)
+            Text([snapshot.planName.map(planLabel), freshness].compactMap(\.self).joined(separator: " · "))
                 .font(.caption)
                 .foregroundStyle(.secondary)
             UsageMeters(
-                meters: [
-                    UsageMeter(title: "Session", window: snapshot.window(.session), tintColor: sessionAccentColor),
-                    UsageMeter(title: "Weekly", window: snapshot.window(.weekly), tintColor: weeklyAccentColor)
-                ],
+                meters: meters(for: snapshot),
                 layout: meterLayout,
                 percentMode: percentMode,
                 showsPacingMarkers: showsPacingMarkers,
                 now: now
             )
             .padding(.top, meterLayout == .compact ? 3 : 0)
+            if let spend = snapshot.spend {
+                Text(onDemandSpendText(spend))
+                    .font(.caption)
+                    .monospacedDigit()
+            }
         }
     }
+
+    private func meters(for snapshot: UsageSnapshot) -> [UsageMeter] {
+        switch provider {
+        case .codex, .claude:
+            [
+                UsageMeter(title: "Session", window: snapshot.window(.session), tintColor: sessionAccentColor),
+                UsageMeter(title: "Weekly", window: snapshot.window(.weekly), tintColor: weeklyAccentColor)
+            ]
+        case .cursor:
+            snapshot.window(.billingCycle).map {
+                [UsageMeter(title: "Billing cycle", window: $0, tintColor: weeklyAccentColor)]
+            } ?? []
+        }
+    }
+
+    private func planLabel(_ planName: String) -> String {
+        planName.replacingOccurrences(of: "_", with: " ").capitalized + " plan"
+    }
+}
+
+/// Spend is a dollar amount, never a percent: "On-demand: $12.34 of $50.00", or the amount alone when uncapped.
+func onDemandSpendText(_ spend: UsageSpend, locale: Locale = .current) -> String {
+    let currency = Decimal.FormatStyle.Currency(code: "USD", locale: locale)
+    let used = spend.usedUSD.formatted(currency)
+    guard let limit = spend.limitUSD else { return "On-demand: \(used)" }
+    return "On-demand: \(used) of \(limit.formatted(currency))"
 }
 
 extension UsageProvider {
@@ -76,6 +106,26 @@ extension UsageProvider {
         case .codex: "Codex"
         case .claude: "Claude Code"
         case .cursor: "Cursor"
+        }
+    }
+
+    fileprivate func unavailableMessage(for reason: UsageUnavailableReason) -> (title: String, detail: String) {
+        switch reason {
+        case .notInstalled:
+            ("\(menuTitle) isn't installed", "Install \(menuTitle) and sign in to see your plan usage.")
+        case .signedOut:
+            ("Not signed in to \(menuTitle)", "Sign in to \(menuTitle) on this Mac to see your plan usage.")
+        case .signInExpired:
+            ("Sign in to \(menuTitle) again", "\(menuTitle)'s sign-in expired. Open \(menuTitle) to renew it.")
+        case .readFailed:
+            ("\(menuTitle) usage unavailable", readFailedDetail)
+        }
+    }
+
+    private var readFailedDetail: String {
+        switch self {
+        case .cursor: "CodexPill could not get usage from cursor.com. It tries again in a few minutes."
+        case .codex, .claude: "CodexPill could not read the saved usage."
         }
     }
 

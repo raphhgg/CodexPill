@@ -30,6 +30,7 @@ struct UsageSnapshot: Hashable {
     var planName: String?
     var windows: [UsageWindow]
     var fetchedAt: Date
+    var spend: UsageSpend? = nil
 
     func window(_ kind: UsageWindowKind) -> UsageWindow? {
         windows.first { $0.kind == kind }
@@ -38,6 +39,12 @@ struct UsageSnapshot: Hashable {
     func freshness(at now: Date, staleAfter: TimeInterval) -> UsageFreshness {
         now.timeIntervalSince(fetchedAt) > staleAfter ? .stale : .fresh
     }
+}
+
+/// Pay-as-you-go spend beyond the plan's included usage. It has no percent when no cap is set.
+struct UsageSpend: Hashable {
+    var usedUSD: Decimal
+    var limitUSD: Decimal?
 }
 
 enum UsageFreshness: Hashable {
