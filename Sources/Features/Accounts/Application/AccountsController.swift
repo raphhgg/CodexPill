@@ -359,18 +359,6 @@ final class AccountsController {
         inactiveAccountAvailabilityRanking.sort(inactiveAccounts)
     }
 
-    func compareForMenu(_ lhs: CodexAccount, _ rhs: CodexAccount) -> Bool {
-        if lhs.id == activeAccountID, rhs.id != activeAccountID {
-            return true
-        }
-
-        if rhs.id == activeAccountID, lhs.id != activeAccountID {
-            return false
-        }
-
-        return inactiveAccountAvailabilityRanking.compare(lhs, rhs)
-    }
-
     func consumePendingErrorMessage() -> String? {
         operationState.consumePendingErrorMessage()
     }

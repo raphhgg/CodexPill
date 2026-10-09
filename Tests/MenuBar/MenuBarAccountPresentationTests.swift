@@ -295,7 +295,7 @@ struct MenuBarAccountPresentationTests {
     }
 
     @Test
-    func compactAccountUsageSummaryUsesOneLineFormat() {
+    func compactMenuRowUsageSummaryShowsResetCountdownsForUsedLimits() {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
         let account = CodexAccount(
             id: UUID(),
@@ -323,7 +323,7 @@ struct MenuBarAccountPresentationTests {
             )
         )
 
-        #expect(compactAccountUsageSummary(for: account, now: now) == "S 100% (1h42) • W 94% (4d)")
+        #expect(compactMenuRowUsageSummary(for: account, now: now) == "S 100% (1h42)  W 94% (4d)")
     }
 
     @Test

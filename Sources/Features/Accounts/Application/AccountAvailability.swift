@@ -54,24 +54,6 @@ struct AccountTargetAvailability: Equatable {
     let weeklyUsedPercent: Int
     let sessionResetAt: Date?
     let weeklyResetAt: Date?
-
-    var isAvailableNow: Bool {
-        if case .availableNow = status {
-            return true
-        }
-        return false
-    }
-
-    var nextAvailableAt: Date? {
-        switch status {
-        case .availableNow:
-            return nil
-        case .blocked(let until, _):
-            return until
-        case .unavailable:
-            return nil
-        }
-    }
 }
 
 struct AccountAvailabilitySnapshot: Equatable {
@@ -90,27 +72,6 @@ struct AccountAvailabilitySnapshot: Equatable {
         case .remote:
             return remoteAvailabilities.first { $0.target == target }
         }
-    }
-
-    var nextAvailabilityAt: Date? {
-        targetAvailabilities
-            .compactMap(\.nextAvailableAt)
-            .min()
-    }
-}
-
-struct AccountAvailabilityTransition: Equatable {
-    let target: AccountAvailabilityTarget
-    let from: AccountAvailabilityStatus?
-    let to: AccountAvailabilityStatus
-
-    var becameAvailable: Bool {
-        guard case .availableNow = to else { return false }
-        guard let from else { return false }
-        if case .availableNow = from {
-            return false
-        }
-        return true
     }
 }
 
@@ -213,24 +174,6 @@ struct AccountAvailabilityService {
             localAvailability: availability(for: account, on: .local, now: now),
             remoteAvailabilities: remoteTargets.map { availability(for: $0, now: now) }
         )
-    }
-
-    func transitions(
-        from previous: AccountAvailabilitySnapshot?,
-        to current: AccountAvailabilitySnapshot
-    ) -> [AccountAvailabilityTransition] {
-        let previousStatuses = Dictionary(
-            uniqueKeysWithValues: previous?.targetAvailabilities.map { ($0.target, $0.status) } ?? []
-        )
-
-        return current.targetAvailabilities.compactMap { availability in
-            let transition = AccountAvailabilityTransition(
-                target: availability.target,
-                from: previousStatuses[availability.target],
-                to: availability.status
-            )
-            return transition.becameAvailable ? transition : nil
-        }
     }
 
     private func earliestMeaningfulDate(_ lhs: Date?, _ rhs: Date?) -> Date? {

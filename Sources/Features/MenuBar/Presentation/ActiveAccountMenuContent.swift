@@ -7,7 +7,6 @@ struct ActiveAccountMenuContent: View {
     let progressAccentColor: Color
     let showsPacingMarkers: Bool
     let tokenUsageCard: TokenUsageMenuCard?
-    let tokenUsagePrototypeCards: [TokenUsagePrototypeCard]
     let now: Date
 
     init(
@@ -17,7 +16,6 @@ struct ActiveAccountMenuContent: View {
         progressAccentColor: Color,
         showsPacingMarkers: Bool,
         tokenUsageCard: TokenUsageMenuCard? = nil,
-        tokenUsagePrototypeCards: [TokenUsagePrototypeCard] = [],
         now: Date = .now
     ) {
         self.account = account
@@ -26,7 +24,6 @@ struct ActiveAccountMenuContent: View {
         self.progressAccentColor = progressAccentColor
         self.showsPacingMarkers = showsPacingMarkers
         self.tokenUsageCard = tokenUsageCard
-        self.tokenUsagePrototypeCards = tokenUsagePrototypeCards
         self.now = now
     }
 
@@ -72,13 +69,6 @@ struct ActiveAccountMenuContent: View {
                     .padding(.bottom, -2)
             }
 
-            ForEach(Array(tokenUsagePrototypeCards.enumerated()), id: \.element.id) { index, card in
-                ActiveAccountCardDivider()
-                    .padding(.horizontal, -14)
-                TokenUsagePrototypeMenuContent(card: card)
-                    .padding(.horizontal, -14)
-                    .padding(.bottom, index == tokenUsagePrototypeCards.count - 1 ? -2 : 0)
-            }
         }
         .padding(.horizontal, 14)
         .padding(.top, 4)
@@ -114,42 +104,6 @@ private struct ActiveAccountPlanPill: View {
                 Capsule()
                     .stroke(Color.secondary.opacity(0.12), lineWidth: 0.5)
             )
-    }
-}
-
-struct InactiveAccountMenuContent: View {
-    let account: CodexAccount
-    let placement: MenuBarAccountPlacement?
-    let onSelect: () -> Void
-
-    var body: some View {
-        Button(action: onSelect) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(account.name)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-
-                Text(compactMenuRowUsageSummary(for: account))
-                    .font(.system(size: 11, weight: .regular, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-
-                Spacer(minLength: 8)
-
-                if let placement {
-                    Text(placement.badgeText)
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 6)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
     }
 }
 

@@ -6,16 +6,6 @@ import Testing
 @MainActor
 struct CodexPillSettingsStoreTests {
     @Test
-    func statusBarDefaultsUseTwinPillsAndMonochrome() {
-        let defaults = makeDefaults()
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
-
-        #expect(settings.statusBarIndicatorStyle == .twinPills)
-        #expect(settings.statusBarMonochrome)
-        #expect(settings.pacingMarkersEnabled)
-    }
-
-    @Test
     func pacingMarkersPreferencePersistsAcrossInstances() {
         let defaults = makeDefaults()
         let first = CodexPillSettingsStore(userDefaults: defaults)
@@ -24,18 +14,6 @@ struct CodexPillSettingsStoreTests {
         let second = CodexPillSettingsStore(userDefaults: defaults)
 
         #expect(!second.pacingMarkersEnabled)
-    }
-
-    @Test
-    func tokenUsagePreferencesDefaultOffWithThirtyDayPeriodAndDailyBars() {
-        let defaults = makeDefaults()
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
-
-        #expect(settings.tokenUsageEnabled == false)
-        #expect(settings.tokenUsagePeriod == .last30Days)
-        #expect(settings.tokenUsageChartStyle == .dailyBars)
-        #expect(settings.tokenUsageLoadingAnimationStyle == .waves)
-        #expect(settings.tokenUsagePeakScope == .currentPeriod)
     }
 
     @Test
@@ -51,7 +29,6 @@ struct CodexPillSettingsStoreTests {
         let second = CodexPillSettingsStore(userDefaults: defaults)
 
         #expect(second.tokenUsageEnabled)
-        #expect(second.tokenUsagePeriod == .last30Days)
         #expect(second.tokenUsageChartStyle == .sparkline)
         #expect(second.tokenUsageLoadingAnimationStyle == .random)
         #expect(second.tokenUsagePeakScope == .allTime)

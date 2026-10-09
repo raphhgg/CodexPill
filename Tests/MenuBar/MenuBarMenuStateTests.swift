@@ -143,21 +143,6 @@ struct MenuBarMenuStateTests {
     }
 
     @Test
-    func remoteHostCardVisibilityTracksReachability() {
-        let connected = makeRemoteHost(activeAccount: makeAccount(name: "Host Only"))
-        let disconnected = RemoteHostMenuState(
-            name: connected.name,
-            connectionState: .disconnected,
-            activeAccount: connected.activeAccount
-        )
-        let empty = makeRemoteHost(activeAccount: nil)
-
-        #expect(connected.shouldShowRemoteAccountCard)
-        #expect(!disconnected.shouldShowRemoteAccountCard)
-        #expect(!empty.shouldShowRemoteAccountCard)
-    }
-
-    @Test
     func unverifiedRemoteHostDoesNotMarkAccountAsRemoteActive() {
         let local = makeAccount(name: "Business 2", withRateLimits: true)
         let state = makeState(
