@@ -165,6 +165,127 @@ struct RemoteHostSettingsStoreTests {
         #expect(defaults.object(forKey: "remoteHostInstalledAccountIDs") == nil)
         #expect(defaults.object(forKey: "remoteHostActiveAccount") == nil)
     }
+
+    @Test
+    func fullVerificationStatePersistsAcrossInstances() throws {
+        let defaults = makeDefaults()
+        let account = makeAccount(name: "Business 2")
+        let detectedID = UUID()
+        let first = RemoteHostSettingsStore(userDefaults: defaults)
+        first.remoteHostStates = [
+            PersistedRemoteHostState(
+                host: RemoteHost(destination: "user@buildbox", displayName: "Build Box"),
+                installedAccountIDs: [account.id],
+                desiredAccountID: account.id,
+                verifiedAccount: account,
+                verificationStatus: .verified
+            ),
+            PersistedRemoteHostState(
+                host: RemoteHost(destination: "user@debian-vm", displayName: "Debian VM"),
+                desiredAccountID: account.id,
+                detectedAccountID: detectedID,
+                verificationStatus: .failed,
+                lastVerificationError: "Debian VM is using Business 1, not Business 2."
+            )
+        ]
+
+        let second = RemoteHostSettingsStore(userDefaults: defaults)
+
+        let buildbox = try #require(second.remoteHostState(for: "user@buildbox"))
+        #expect(buildbox.installedAccountIDs == [account.id])
+        #expect(buildbox.verifiedAccount == account)
+        #expect(buildbox.verificationStatus == .verified)
+        let debian = try #require(second.remoteHostState(for: "user@debian-vm"))
+        #expect(debian.desiredAccountID == account.id)
+        #expect(debian.detectedAccountID == detectedID)
+        #expect(debian.verificationStatus == .failed)
+        #expect(debian.lastVerificationError == "Debian VM is using Business 1, not Business 2.")
+    }
+
+    @Test
+    func upsertingExistingHostKeepsItsAccountState() throws {
+        let store = RemoteHostSettingsStore(userDefaults: makeDefaults())
+        let account = makeAccount(name: "Business 2")
+        store.remoteHostStates = [
+            PersistedRemoteHostState(
+                host: RemoteHost(destination: "user@buildbox", displayName: "Build Box"),
+                installedAccountIDs: [account.id],
+                desiredAccountID: account.id,
+                verifiedAccount: account,
+                verificationStatus: .verified
+            )
+        ]
+
+        store.upsertRemoteHost(RemoteHost(destination: "user@buildbox", displayName: "Primary Build Box"))
+
+        let persisted = try #require(store.remoteHostState(for: "user@buildbox"))
+        #expect(persisted.host.displayName == "Primary Build Box")
+        #expect(persisted.installedAccountIDs == [account.id])
+        #expect(persisted.desiredAccountID == account.id)
+        #expect(persisted.verifiedAccount == account)
+        #expect(persisted.verificationStatus == .verified)
+    }
+
+    @Test
+    func singleHostActiveAccountMarksHostVerified() {
+        let defaults = makeDefaults()
+        let account = makeAccount(name: "Business 2")
+        let first = RemoteHostSettingsStore(userDefaults: defaults)
+        first.configuredRemoteHost = RemoteHost(destination: "user@buildbox", displayName: "Build Box")
+        first.remoteHostActiveAccount = account
+
+        let second = RemoteHostSettingsStore(userDefaults: defaults)
+
+        #expect(second.remoteHostActiveAccount == account)
+        #expect(second.remoteHostDesiredAccountID == account.id)
+        #expect(second.remoteHostState(for: "user@buildbox")?.verificationStatus == .verified)
+    }
+
+    @Test
+    func singleHostDesiredAccountLeavesHostUnverified() {
+        let defaults = makeDefaults()
+        let accountID = UUID()
+        let first = RemoteHostSettingsStore(userDefaults: defaults)
+        first.configuredRemoteHost = RemoteHost(destination: "user@buildbox", displayName: "Build Box")
+        first.remoteHostDesiredAccountID = accountID
+
+        let second = RemoteHostSettingsStore(userDefaults: defaults)
+
+        #expect(second.remoteHostDesiredAccountID == accountID)
+        #expect(second.remoteHostActiveAccount == nil)
+        #expect(second.remoteHostState(for: "user@buildbox")?.verificationStatus == .unverified)
+    }
+
+    @Test
+    func legacyRemoteHostsPayloadMigratesAsDesiredButUnverified() throws {
+        struct LegacyRemoteHostState: Codable {
+            let installedAccountIDs: [UUID]
+            let host: RemoteHost
+            let activeAccount: CodexAccount
+        }
+
+        let defaults = makeDefaults()
+        let host = RemoteHost(destination: "user@buildbox", displayName: "Build Box")
+        let account = makeAccount(name: "Business 2")
+        defaults.set(
+            try JSONEncoder().encode([
+                LegacyRemoteHostState(installedAccountIDs: [account.id], host: host, activeAccount: account)
+            ]),
+            forKey: "remoteHosts"
+        )
+
+        let store = RemoteHostSettingsStore(userDefaults: defaults)
+
+        #expect(store.remoteHostStates == [
+            PersistedRemoteHostState(
+                host: host,
+                installedAccountIDs: [account.id],
+                desiredAccountID: account.id,
+                verifiedAccount: nil,
+                verificationStatus: .unverified
+            )
+        ])
+    }
 }
 
 @MainActor
@@ -237,6 +358,37 @@ struct NotificationStateStoreTests {
 
         #expect(store.accountNotificationStates.map(\.accountID) == [earlierID, laterID])
         #expect(try #require(store.accountNotificationState(for: laterID)).isArmed)
+    }
+}
+
+@MainActor
+struct TokenUsagePreferencesStoreTests {
+    @Test
+    func preferencesPersistAcrossInstances() {
+        let defaults = makeDefaults()
+        let first = TokenUsagePreferencesStore(userDefaults: defaults)
+        first.isEnabled = true
+        first.chartStyle = .sparkline
+        first.loadingAnimationStyle = .random
+        first.peakScope = .allTime
+
+        let second = TokenUsagePreferencesStore(userDefaults: defaults)
+
+        #expect(second.isEnabled)
+        #expect(second.chartStyle == .sparkline)
+        #expect(second.loadingAnimationStyle == .random)
+        #expect(second.peakScope == .allTime)
+    }
+
+    @Test
+    func hiddenPeriodsMigrateToThirtyDays() {
+        let defaults = makeDefaults()
+        defaults.set(CodexTokenUsagePeriod.last7Days.rawValue, forKey: "tokenUsagePeriod")
+
+        let store = TokenUsagePreferencesStore(userDefaults: defaults)
+
+        #expect(store.period == .last30Days)
+        #expect(defaults.object(forKey: "tokenUsagePeriod") as? Int == CodexTokenUsagePeriod.last30Days.rawValue)
     }
 }
 
