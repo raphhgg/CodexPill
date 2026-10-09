@@ -159,6 +159,16 @@ struct CodexAccount: Identifiable, Codable, Hashable {
         )
     }
 
+    var usage: UsageSnapshot? {
+        guard let rateLimits else { return nil }
+        return UsageSnapshot(
+            provider: .codex,
+            planName: effectivePlanType.map(displayNameForCodexPlanType),
+            windows: rateLimits.usageWindows,
+            fetchedAt: rateLimits.fetchedAt
+        )
+    }
+
     mutating func applyRemoteMetadata(
         email: String?,
         planType: String?,
