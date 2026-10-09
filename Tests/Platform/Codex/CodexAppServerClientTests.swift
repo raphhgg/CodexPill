@@ -509,7 +509,7 @@ struct CodexAppServerClientTests {
     }
 
     @Test
-    func processRunnerKeepsLocalFailureClassificationWhenSharedSessionExitsNonZero() async throws {
+    func savedAccountReadKeepsLocalFailureClassificationWhenSharedSessionExitsNonZero() async throws {
         let fileManager = FileManager.default
         let directory = fileManager.temporaryDirectory
             .appendingPathComponent("CodexPill-AppServerClientTests-\(UUID().uuidString)", isDirectory: true)
@@ -524,18 +524,12 @@ struct CodexAppServerClientTests {
         """
         try Data(scriptBody.utf8).write(to: script)
         try fileManager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
-        let runner = CodexAppServerProcessRunner()
+        let client = CodexAppServerClient(environment: ["CODEX_CLI_PATH": script.path])
 
-        await #expect(throws: CodexAppServerError.server("local app-server failure")) {
-            _ = try await runner.readAccountStatus(
-                configuration: CodexAppServerConfiguration(
-                    command: CodexCLICommand(executableURL: script, arguments: ["app-server"]),
-                    environment: nil,
-                    responseTimeout: .seconds(1)
-                ),
-                refreshToken: false,
-                requireRateLimitResponse: false
-            )
+        let read = await client.readSavedAccountStatus(authData: Data(#"{"tokens":"original"}"#.utf8))
+
+        #expect(throws: CodexAppServerError.server("local app-server failure")) {
+            _ = try read.status.get()
         }
     }
 
