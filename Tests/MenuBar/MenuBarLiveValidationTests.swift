@@ -17,7 +17,7 @@ struct MenuBarLiveValidationTests {
         )
         let host = RemoteHost(destination: "user@debian-vm", displayName: "debian-vm")
 
-        let store = MenuBarAccountsStore(
+        let accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
@@ -32,8 +32,8 @@ struct MenuBarLiveValidationTests {
                     )
                 ]
             )
-        )
-        store.load()
+        ).makeController()
+        accountsController.load()
 
         let suiteName = "MenuBarLiveValidationRemoveAccount-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -57,7 +57,7 @@ struct MenuBarLiveValidationTests {
 
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
-            store: store,
+            accountsController: accountsController,
             menuDisplaySettings: settings.menuDisplaySettings,
             statusItemSettings: settings.statusItemSettings,
             remoteHostSettings: settings.remoteHostSettings,
@@ -79,7 +79,7 @@ struct MenuBarLiveValidationTests {
 
         #expect(alertPresenter.confirmationRequests.last?.messageText == "Business 4 is in use")
         #expect(alertPresenter.confirmationRequests.last?.informativeText == "Sign out on This Mac and debian-vm before removing it?")
-        #expect(store.accounts.isEmpty)
+        #expect(accountsController.accounts.isEmpty)
         #expect(!FileManager.default.fileExists(atPath: repository.paths.codexAuthFile.path))
         #expect(settings.remoteHostSettings.remoteHostStates.first?.verifiedAccount == nil)
         #expect(settings.remoteHostSettings.remoteHostStates.first?.desiredAccountID == nil)
@@ -144,7 +144,7 @@ struct MenuBarLiveValidationTests {
         try repository.bootstrapStorage()
         try repository.saveAccounts([notifiedAccount, betterAccount])
 
-        let store = MenuBarAccountsStore(
+        let accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
@@ -159,8 +159,8 @@ struct MenuBarLiveValidationTests {
                     )
                 ]
             )
-        )
-        store.load()
+        ).makeController()
+        accountsController.load()
 
         let suiteName = "MenuBarLiveValidationNotificationSwitch-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -186,7 +186,7 @@ struct MenuBarLiveValidationTests {
 
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
-            store: store,
+            accountsController: accountsController,
             menuDisplaySettings: settings.menuDisplaySettings,
             statusItemSettings: settings.statusItemSettings,
             remoteHostSettings: settings.remoteHostSettings,
@@ -284,14 +284,14 @@ struct MenuBarLiveValidationTests {
             ),
             switchError: RemoteHostClientError.commandFailed("ssh failure")
         )
-        let store = MenuBarAccountsStore(
+        let accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient(),
             remoteHostSwitchOperations: failingHostClient
-        )
-        store.load()
+        ).makeController()
+        accountsController.load()
 
         let suiteName = "MenuBarLiveValidationNotificationFailure-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -317,7 +317,7 @@ struct MenuBarLiveValidationTests {
 
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
-            store: store,
+            accountsController: accountsController,
             menuDisplaySettings: settings.menuDisplaySettings,
             statusItemSettings: settings.statusItemSettings,
             remoteHostSettings: settings.remoteHostSettings,
@@ -383,13 +383,13 @@ struct MenuBarLiveValidationTests {
         try repository.writeSnapshot(data: Data("{}".utf8), for: account)
         try repository.saveAccounts([account])
 
-        let store = MenuBarAccountsStore(
+        let accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient()
-        )
-        store.load()
+        ).makeController()
+        accountsController.load()
 
         let suiteName = "MenuBarLiveValidationLocalNotificationSwitch-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -407,7 +407,7 @@ struct MenuBarLiveValidationTests {
 
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
-            store: store,
+            accountsController: accountsController,
             menuDisplaySettings: settings.menuDisplaySettings,
             statusItemSettings: settings.statusItemSettings,
             remoteHostSettings: settings.remoteHostSettings,
@@ -609,12 +609,12 @@ struct MenuBarLiveValidationTests {
     @Test
     func enableNotificationsDoesNotRequestAuthorizationWhenUndetermined() async throws {
         let repository = try makeIsolatedRepository()
-        let store = MenuBarAccountsStore(
+        let accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient()
-        )
+        ).makeController()
         let suiteName = "MenuBarLiveValidationEnableNotifications-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
@@ -630,7 +630,7 @@ struct MenuBarLiveValidationTests {
 
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
-            store: store,
+            accountsController: accountsController,
             menuDisplaySettings: settings.menuDisplaySettings,
             statusItemSettings: settings.statusItemSettings,
             remoteHostSettings: settings.remoteHostSettings,
@@ -655,12 +655,12 @@ struct MenuBarLiveValidationTests {
     @Test
     func enableNotificationsOpensSystemSettingsWhenAuthorizationWasDenied() async throws {
         let repository = try makeIsolatedRepository()
-        let store = MenuBarAccountsStore(
+        let accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient()
-        )
+        ).makeController()
         let suiteName = "MenuBarLiveValidationDeniedNotifications-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
@@ -677,7 +677,7 @@ struct MenuBarLiveValidationTests {
 
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
-            store: store,
+            accountsController: accountsController,
             menuDisplaySettings: settings.menuDisplaySettings,
             statusItemSettings: settings.statusItemSettings,
             remoteHostSettings: settings.remoteHostSettings,
@@ -860,12 +860,12 @@ struct MenuBarLiveValidationTests {
     @Test
     func enablingNotificationTogglesStoresIntentWithoutRequestingPermission() async throws {
         let repository = try makeIsolatedRepository()
-        let store = MenuBarAccountsStore(
+        let accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient()
-        )
+        ).makeController()
         let suiteName = "MenuBarLiveValidationNotificationPermission-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
@@ -880,7 +880,7 @@ struct MenuBarLiveValidationTests {
 
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
-            store: store,
+            accountsController: accountsController,
             menuDisplaySettings: settings.menuDisplaySettings,
             statusItemSettings: settings.statusItemSettings,
             remoteHostSettings: settings.remoteHostSettings,
@@ -906,7 +906,7 @@ struct MenuBarLiveValidationTests {
     func addHostCancellationAfterValidationDoesNotPersistPendingHost() async throws {
         let repository = try makeIsolatedRepository()
         let activeAccount = try makeActiveAccount(named: "Business 1", email: "business-1@example.com", in: repository)
-        let store = MenuBarAccountsStore(
+        let accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
@@ -914,8 +914,8 @@ struct MenuBarLiveValidationTests {
             remoteHostSwitchOperations: RemoteHostStub(
                 status: CodexAccountStatus(email: activeAccount.email, planType: activeAccount.planType, rateLimits: nil)
             )
-        )
-        store.load()
+        ).makeController()
+        accountsController.load()
 
         let suiteName = "MenuBarLiveValidationAddHostCancel-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -933,7 +933,7 @@ struct MenuBarLiveValidationTests {
 
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
-            store: store,
+            accountsController: accountsController,
             menuDisplaySettings: settings.menuDisplaySettings,
             statusItemSettings: settings.statusItemSettings,
             remoteHostSettings: settings.remoteHostSettings,
@@ -960,14 +960,14 @@ struct MenuBarLiveValidationTests {
         let remoteHostClient = RemoteHostStub(
             status: CodexAccountStatus(email: activeAccount.email, planType: activeAccount.planType, rateLimits: nil)
         )
-        let store = MenuBarAccountsStore(
+        let accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient(),
             remoteHostSwitchOperations: remoteHostClient
-        )
-        store.load()
+        ).makeController()
+        accountsController.load()
 
         let suiteName = "MenuBarLiveValidationAddHostConfirmed-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -985,7 +985,7 @@ struct MenuBarLiveValidationTests {
 
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
-            store: store,
+            accountsController: accountsController,
             menuDisplaySettings: settings.menuDisplaySettings,
             statusItemSettings: settings.statusItemSettings,
             remoteHostSettings: settings.remoteHostSettings,
@@ -1012,12 +1012,12 @@ struct MenuBarLiveValidationTests {
     func coordinatorRefreshesLiveSnapshotWhenStatusItemRuntimeStateChanges() throws {
         let sink = ValidationSinkProbe()
         let repository = try makeIsolatedRepository()
-        let store = MenuBarAccountsStore(
+        let accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient()
-        )
+        ).makeController()
         let suiteName = "MenuBarLiveValidationTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
@@ -1037,7 +1037,7 @@ struct MenuBarLiveValidationTests {
         )
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: runtime,
-            store: store,
+            accountsController: accountsController,
             menuDisplaySettings: settings.menuDisplaySettings,
             statusItemSettings: settings.statusItemSettings,
             remoteHostSettings: settings.remoteHostSettings,
@@ -1066,12 +1066,12 @@ struct MenuBarLiveValidationTests {
     func coordinatorRestoresPersistedRemoteHostAccountOnStart() async throws {
         let sink = ValidationSinkProbe()
         let repository = try makeIsolatedRepository()
-        let store = MenuBarAccountsStore(
+        let accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient()
-        )
+        ).makeController()
         let suiteName = "MenuBarLiveValidationRemoteRestore-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
@@ -1096,7 +1096,7 @@ struct MenuBarLiveValidationTests {
 
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
-            store: store,
+            accountsController: accountsController,
             menuDisplaySettings: settings.menuDisplaySettings,
             statusItemSettings: settings.statusItemSettings,
             remoteHostSettings: settings.remoteHostSettings,
@@ -1139,12 +1139,12 @@ struct MenuBarLiveValidationTests {
     func coordinatorMarksPersistedRemoteHostDisconnectedWhenRefreshFails() async throws {
         let sink = ValidationSinkProbe()
         let repository = try makeIsolatedRepository()
-        let store = MenuBarAccountsStore(
+        let accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient()
-        )
+        ).makeController()
         let suiteName = "MenuBarLiveValidationRemoteFailure-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
@@ -1174,7 +1174,7 @@ struct MenuBarLiveValidationTests {
 
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
-            store: store,
+            accountsController: accountsController,
             menuDisplaySettings: settings.menuDisplaySettings,
             statusItemSettings: settings.statusItemSettings,
             remoteHostSettings: settings.remoteHostSettings,
@@ -1206,12 +1206,12 @@ struct MenuBarLiveValidationTests {
     func coordinatorMarksPersistedRemoteHostFailedWhenDesiredAccountIsMissingLocally() async throws {
         let sink = ValidationSinkProbe()
         let repository = try makeIsolatedRepository()
-        let store = MenuBarAccountsStore(
+        let accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient()
-        )
+        ).makeController()
         let suiteName = "MenuBarLiveValidationMissingDesiredRemote-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
@@ -1232,7 +1232,7 @@ struct MenuBarLiveValidationTests {
 
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
-            store: store,
+            accountsController: accountsController,
             menuDisplaySettings: settings.menuDisplaySettings,
             statusItemSettings: settings.statusItemSettings,
             remoteHostSettings: settings.remoteHostSettings,
@@ -1260,12 +1260,12 @@ struct MenuBarLiveValidationTests {
     func coordinatorRestoresAllPersistedRemoteHostAccountsOnStart() async throws {
         let sink = ValidationSinkProbe()
         let repository = try makeIsolatedRepository()
-        let store = MenuBarAccountsStore(
+        let accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient()
-        )
+        ).makeController()
         let suiteName = "MenuBarLiveValidationMultipleRemoteRestore-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
@@ -1308,7 +1308,7 @@ struct MenuBarLiveValidationTests {
 
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
-            store: store,
+            accountsController: accountsController,
             menuDisplaySettings: settings.menuDisplaySettings,
             statusItemSettings: settings.statusItemSettings,
             remoteHostSettings: settings.remoteHostSettings,
@@ -1341,12 +1341,12 @@ struct MenuBarLiveValidationTests {
     func coordinatorShowsOnlyReachableRemoteHostsInPrimarySectionWhenRestoreIsMixed() async throws {
         let sink = ValidationSinkProbe()
         let repository = try makeIsolatedRepository()
-        let store = MenuBarAccountsStore(
+        let accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient()
-        )
+        ).makeController()
         let suiteName = "MenuBarLiveValidationMixedRemoteRestore-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
@@ -1389,7 +1389,7 @@ struct MenuBarLiveValidationTests {
 
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
-            store: store,
+            accountsController: accountsController,
             menuDisplaySettings: settings.menuDisplaySettings,
             statusItemSettings: settings.statusItemSettings,
             remoteHostSettings: settings.remoteHostSettings,
@@ -1429,12 +1429,12 @@ struct MenuBarLiveValidationTests {
     func reverifyHostActionPromotesFailedHostBackToVerified() async throws {
         let sink = ValidationSinkProbe()
         let repository = try makeIsolatedRepository()
-        let store = MenuBarAccountsStore(
+        let accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient()
-        )
+        ).makeController()
         let suiteName = "MenuBarLiveValidationReverifyRemote-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
@@ -1467,7 +1467,7 @@ struct MenuBarLiveValidationTests {
 
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
-            store: store,
+            accountsController: accountsController,
             menuDisplaySettings: settings.menuDisplaySettings,
             statusItemSettings: settings.statusItemSettings,
             remoteHostSettings: settings.remoteHostSettings,
@@ -1535,13 +1535,13 @@ struct MenuBarLiveValidationTests {
         )
         try repository.saveAccounts([desiredAccount, detectedAccount])
 
-        let store = MenuBarAccountsStore(
+        let accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient()
-        )
-        store.load()
+        ).makeController()
+        accountsController.load()
 
         let suiteName = "MenuBarLiveValidationAdoptDetectedRemote-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -1565,7 +1565,7 @@ struct MenuBarLiveValidationTests {
 
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
-            store: store,
+            accountsController: accountsController,
             menuDisplaySettings: settings.menuDisplaySettings,
             statusItemSettings: settings.statusItemSettings,
             remoteHostSettings: settings.remoteHostSettings,
@@ -1612,12 +1612,12 @@ struct MenuBarLiveValidationTests {
     func coordinatorMarksRemoteHostFailedWhenStartupRefreshNoLongerMatchesDesiredAccount() async throws {
         let sink = ValidationSinkProbe()
         let repository = try makeIsolatedRepository()
-        let store = MenuBarAccountsStore(
+        let accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient()
-        )
+        ).makeController()
         let suiteName = "MenuBarLiveValidationRemoteMismatch-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
@@ -1647,7 +1647,7 @@ struct MenuBarLiveValidationTests {
 
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
-            store: store,
+            accountsController: accountsController,
             menuDisplaySettings: settings.menuDisplaySettings,
             statusItemSettings: settings.statusItemSettings,
             remoteHostSettings: settings.remoteHostSettings,
@@ -1698,13 +1698,13 @@ struct MenuBarLiveValidationTests {
         )
         try repository.saveAccounts([account])
 
-        let store = MenuBarAccountsStore(
+        let accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient()
-        )
-        store.load()
+        ).makeController()
+        accountsController.load()
 
         let suiteName = "MenuBarLiveValidationReachableRemoteFailure-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -1726,7 +1726,7 @@ struct MenuBarLiveValidationTests {
 
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
-            store: store,
+            accountsController: accountsController,
             menuDisplaySettings: settings.menuDisplaySettings,
             statusItemSettings: settings.statusItemSettings,
             remoteHostSettings: settings.remoteHostSettings,
@@ -1793,18 +1793,18 @@ struct MenuBarLiveValidationTests {
         let remoteHostClient = RemoteHostStub(
             readError: RemoteHostClientError.authReadFailed("cat: .codex/auth.json: Permission denied")
         )
-        let store = MenuBarAccountsStore(
+        let accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient(),
             remoteHostSwitchOperations: remoteHostClient
-        )
-        store.load()
+        ).makeController()
+        accountsController.load()
 
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
-            store: store,
+            accountsController: accountsController,
             menuDisplaySettings: settings.menuDisplaySettings,
             statusItemSettings: settings.statusItemSettings,
             remoteHostSettings: settings.remoteHostSettings,
@@ -1931,18 +1931,18 @@ struct MenuBarLiveValidationTests {
                 )
             )
         )
-        let store = MenuBarAccountsStore(
+        let accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient(),
             remoteHostSwitchOperations: remoteHostClient
-        )
-        store.load()
+        ).makeController()
+        accountsController.load()
 
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
-            store: store,
+            accountsController: accountsController,
             menuDisplaySettings: settings.menuDisplaySettings,
             statusItemSettings: settings.statusItemSettings,
             remoteHostSettings: settings.remoteHostSettings,
@@ -2030,18 +2030,18 @@ struct MenuBarLiveValidationTests {
                 rateLimits: account.rateLimits
             )
         )
-        let store = MenuBarAccountsStore(
+        let accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient(),
             remoteHostSwitchOperations: remoteHostClient
-        )
-        store.load()
+        ).makeController()
+        accountsController.load()
 
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
-            store: store,
+            accountsController: accountsController,
             menuDisplaySettings: settings.menuDisplaySettings,
             statusItemSettings: settings.statusItemSettings,
             remoteHostSettings: settings.remoteHostSettings,
@@ -2074,12 +2074,12 @@ struct MenuBarLiveValidationTests {
     func coordinatorPreservesMeaningfulSavedLimitsWhenRemoteRefreshReturnsZeroedWindows() async throws {
         let sink = ValidationSinkProbe()
         let repository = try makeIsolatedRepository()
-        let store = MenuBarAccountsStore(
+        let accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient()
-        )
+        ).makeController()
         let suiteName = "MenuBarLiveValidationRemoteLimitsFallback-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
@@ -2119,7 +2119,7 @@ struct MenuBarLiveValidationTests {
 
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
-            store: store,
+            accountsController: accountsController,
             menuDisplaySettings: settings.menuDisplaySettings,
             statusItemSettings: settings.statusItemSettings,
             remoteHostSettings: settings.remoteHostSettings,
@@ -2209,13 +2209,13 @@ struct MenuBarLiveValidationTests {
         )
         try repository.bootstrapStorage()
         try repository.saveAccounts([matchingSavedAccount])
-        let store = MenuBarAccountsStore(
+        let accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient()
-        )
-        store.load()
+        ).makeController()
+        accountsController.load()
 
         let suiteName = "MenuBarLiveValidationRemoteInactiveFallback-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -2261,7 +2261,7 @@ struct MenuBarLiveValidationTests {
 
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
-            store: store,
+            accountsController: accountsController,
             menuDisplaySettings: settings.menuDisplaySettings,
             statusItemSettings: settings.statusItemSettings,
             remoteHostSettings: settings.remoteHostSettings,
@@ -2352,13 +2352,13 @@ struct MenuBarLiveValidationTests {
         )
         try repository.bootstrapStorage()
         try repository.saveAccounts([currentSavedAccount])
-        let store = MenuBarAccountsStore(
+        let accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient()
-        )
-        store.load()
+        ).makeController()
+        accountsController.load()
 
         let suiteName = "MenuBarLiveValidationRelinkedRemoteHost-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -2418,7 +2418,7 @@ struct MenuBarLiveValidationTests {
 
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
-            store: store,
+            accountsController: accountsController,
             menuDisplaySettings: settings.menuDisplaySettings,
             statusItemSettings: settings.statusItemSettings,
             remoteHostSettings: settings.remoteHostSettings,
@@ -2506,13 +2506,13 @@ struct MenuBarLiveValidationTests {
         try repository.bootstrapStorage()
         try repository.saveAccounts([account])
 
-        let store = MenuBarAccountsStore(
+        let accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient()
-        )
-        store.load()
+        ).makeController()
+        accountsController.load()
 
         let suiteName = "MenuBarLiveValidationScheduledRemoteRefresh-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -2586,7 +2586,7 @@ struct MenuBarLiveValidationTests {
 
         let coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
-            store: store,
+            accountsController: accountsController,
             menuDisplaySettings: settings.menuDisplaySettings,
             statusItemSettings: settings.statusItemSettings,
             remoteHostSettings: settings.remoteHostSettings,

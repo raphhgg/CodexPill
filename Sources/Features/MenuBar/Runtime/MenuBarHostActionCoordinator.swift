@@ -9,8 +9,6 @@ protocol MenuBarHostActionAccountsStore: AnyObject {
     func switchToAccountOnHost(_ account: CodexAccount, on host: RemoteHost) async -> AccountsController.RemoteHostSwitchOutcome
 }
 
-extension MenuBarAccountsStore: MenuBarHostActionAccountsStore {}
-
 @MainActor
 final class MenuBarHostActionCoordinator {
     private let store: MenuBarHostActionAccountsStore
