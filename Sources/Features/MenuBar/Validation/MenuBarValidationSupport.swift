@@ -137,7 +137,6 @@ enum MenuBarValidationSupport {
                 if let tokenUsageCard = state.tokenUsageCard {
                     activeAccountItems.insert(tokenUsageCard.accessibilitySummary, at: 1)
                 }
-                activeAccountItems.insert(contentsOf: state.tokenUsagePrototypeCards.map(\.accessibilitySummary), at: 1)
             }
             sections.append(.init(
                 title: state.activeAccountsSectionTitle,
