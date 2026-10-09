@@ -1307,12 +1307,10 @@ struct MenuBarMenuBuilderTests {
         configureTokenUsage(settings.tokenUsagePreferences)
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         let statusItemRuntime = StatusItemRuntime(statusItem: statusItem)
-        let coordinator = MenuBarCoordinator(
+        let coordinator = MenuBarCoordinator.makeForTesting(
             statusItemRuntime: statusItemRuntime,
             accountsController: accountsController,
-            menuDisplaySettings: settings.menuDisplaySettings,
-            statusItemSettings: settings.statusItemSettings,
-            tokenUsagePreferences: settings.tokenUsagePreferences,
+            settings: settings,
             alertPresenter: alertPresenter ?? AlertPresenterProbe(),
             panelPresenter: PanelPresenterProbe(),
             loginItemController: loginItemController,

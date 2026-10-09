@@ -3,7 +3,6 @@ import AppKit
 @MainActor
 final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
     private var coordinator: MenuBarCoordinator?
-    private var statusItemRuntime: StatusItemRuntime?
     private var wakeObserver: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -18,32 +17,9 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        let repository = try! AccountRepository()
-        let authService = CodexAuthSnapshotService(repository: repository)
-        let processClient: CodexAppProcessClient = AppRuntimeEnvironment.shouldUseValidationCodexProcessClient(environment: environment)
-            ? ValidationCodexAppProcessClient()
-            : SystemCodexAppProcessClient()
-        let accountStatusClient = CodexAppServerClient()
-        let accountsFeatureFactory = AccountsFeatureFactory(
-            repository: repository,
-            authService: authService,
-            codexAppProcessClient: processClient,
-            accountStatusClient: accountStatusClient
-        )
-        let accountsController = accountsFeatureFactory.makeController()
-
-        let statusItemRuntime = StatusItemRuntime()
-        self.statusItemRuntime = statusItemRuntime
-        coordinator = MenuBarCoordinator(
-            statusItemRuntime: statusItemRuntime,
-            accountsController: accountsController,
-            menuDisplaySettings: MenuDisplaySettingsStore(userDefaults: defaults),
-            statusItemSettings: StatusItemSettingsStore(userDefaults: defaults),
-            tokenUsagePreferences: TokenUsagePreferencesStore(userDefaults: defaults),
-            alertPresenter: SystemAlertPresenter(),
-            validationSink: MenuBarValidationConfiguration.makeSink(),
-            allowsEmptyStatePrompt: !AppRuntimeEnvironment.shouldSuppressEmptyStatePrompt()
-        )
+        let composition = AppComposition(environment: environment, defaults: defaults)
+        let accountsController = composition.accountsController
+        coordinator = composition.coordinator
 
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didWakeNotification,
