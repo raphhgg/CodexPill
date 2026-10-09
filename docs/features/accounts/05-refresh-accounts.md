@@ -14,6 +14,10 @@ For each inactive saved account, CodexPill creates a temporary isolated `CODEX_H
 
 Meaningful previous rate-limit data remains authoritative when the isolated read fails or returns partial, missing, zeroed, or otherwise suspicious rate-limit data. CodexPill must not introduce background live-auth switch-and-restore for this refresh path.
 
+Inactive reads send `account/read` with `refreshToken: false`. Codex can still rotate tokens during the read when the access token is near expiry. Refresh tokens are single-use, so CodexPill reads the isolated `auth.json` back before cleanup. If it changed, CodexPill writes it to that account's saved snapshot only when its identity resolves exactly, by stable or scoped account id, to the same saved account. Otherwise it discards the rotated auth. The write-back also runs when the status read fails.
+
+Inactive refresh runs on the scheduled refresh tick after the active refresh, at most once every 15 minutes. Accounts are read one at a time. The refresh is skipped while another account operation is busy.
+
 ### Evidence
 
 Sanitized manual probe:
@@ -33,6 +37,12 @@ Sanitized manual probe:
 - Temporary state cleanup: the isolated root was removed after the probe.
 - Secret handling: no auth payloads, tokens, device codes, raw snapshots, account identifiers, or email addresses were printed or committed.
 
+Token rotation, from codex-rs at `rust-v0.161.0` (`login/src/auth/manager.rs`, app-server `account_processor.rs`):
+
+- `account/read` with `refreshToken: true` calls `refresh_token()` on every read, so every read rotates the refresh token.
+- With `refreshToken: false`, `AuthManager::auth()` still refreshes when the access token expires within 5 minutes or the last refresh is older than 8 days.
+- `persist_tokens` writes rotated tokens to `auth.json` in `CODEX_HOME`, which is the isolated home for inactive reads.
+
 Control probe:
 
 - The original probe produced `complete_response_ids: [1, 2]` and never received the `account/rateLimits/read` response id before the process exited after about 1.18 seconds.
@@ -45,7 +55,9 @@ For inactive saved catalog accounts:
 
 - read each saved snapshot from the local catalog and seed a temporary isolated `CODEX_HOME/auth.json`;
 - send `initialize`, `initialized`, `account/read`, and `account/rateLimits/read`;
+- send `account/read` with `refreshToken: false`;
 - keep stdin/session open until rate limits arrive or a timeout fires;
+- write rotated isolated auth back to the same saved account only on an exact stable or scoped account id match;
 - prefer complete `result.rateLimitsByLimitId["codex"]` values over `result.rateLimits`;
 - preserve previous meaningful rate-limit windows on failed, missing, partial, zeroed, or suspicious isolated reads;
 - never mutate the live local `~/.codex/auth.json`;
@@ -79,4 +91,4 @@ For the active local account:
 - preserve the saved account id, display name, and catalog position;
 - then apply returned email, plan, and rate-limit metadata as normal.
 
-For inactive saved accounts, CodexPill must keep using isolated saved-account status reads and must not rotate inactive snapshots through the real local auth file.
+For inactive saved accounts, CodexPill must keep using isolated saved-account status reads with `refreshToken: false` and must not rotate inactive snapshots through the real local auth file. When Codex rotates tokens inside the isolated home anyway, CodexPill writes them back to that account's snapshot only on an exact stable or scoped account id match, and discards them otherwise.
