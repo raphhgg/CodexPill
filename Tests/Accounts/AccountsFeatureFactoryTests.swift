@@ -25,7 +25,7 @@ struct AccountsFeatureFactoryTests {
         let factory = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: FactoryCodexAppProcessProbe(),
+            codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient()
         )
 
@@ -45,9 +45,4 @@ struct AccountsFeatureFactoryTests {
             environment: [AppRuntimeEnvironment.validationAppSupportDirectoryEnvironmentKey: directory.path]
         )
     }
-}
-
-private struct FactoryCodexAppProcessProbe: CodexAppProcessClient {
-    func assertCodexAvailable() throws {}
-    func relaunchCodex() async throws {}
 }

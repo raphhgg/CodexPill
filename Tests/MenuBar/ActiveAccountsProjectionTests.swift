@@ -18,22 +18,4 @@ struct ActiveAccountsProjectionTests {
     private func makeProjection(activeAccount: CodexAccount? = nil) -> ActiveAccountsProjection {
         ActiveAccountsProjection(activeAccount: activeAccount)
     }
-
-    private func makeAccount(name: String) -> CodexAccount {
-        let now = Date(timeIntervalSince1970: 1_744_195_200)
-        return CodexAccount(
-            id: UUID(),
-            name: name,
-            snapshotFileName: "\(UUID().uuidString).json",
-            createdAt: now,
-            updatedAt: now,
-            email: "\(name.lowercased())@example.com",
-            planType: "pro",
-            rateLimits: nil,
-            identity: CodexAccountIdentity(
-                snapshotFingerprint: UUID().uuidString,
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "\(name.lowercased())@example.com")
-            )
-        )
-    }
 }

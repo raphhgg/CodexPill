@@ -161,7 +161,7 @@ struct MenuBarMenuStateTests {
     @Test
     func activeAccountUsesStoredStatusItemContentMode() {
         let state = makeState(
-            activeAccount: makeAccount(name: "Active", withRateLimits: true),
+            activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
             inactiveAccounts: [],
             isBusy: false
         )
@@ -302,39 +302,6 @@ struct MenuBarMenuStateTests {
             statusBarDisplayMode: .textOnHover,
             isBusy: isBusy,
             statusMessage: statusMessage
-        )
-    }
-
-    private func makeAccount(name: String, withRateLimits: Bool = false) -> CodexAccount {
-        let now = Date(timeIntervalSince1970: 1_744_195_200)
-        return CodexAccount(
-            id: UUID(),
-            name: name,
-            snapshotFileName: "\(UUID().uuidString).json",
-            createdAt: now,
-            updatedAt: now,
-            email: "\(name.lowercased())@example.com",
-            planType: nil,
-            rateLimits: withRateLimits ? CodexRateLimitSnapshot(
-                limitID: nil,
-                limitName: nil,
-                planType: "pro",
-                primary: CodexRateLimitWindow(
-                    usedPercent: 42,
-                    resetsAt: now.addingTimeInterval(3_600),
-                    windowDurationMinutes: 300
-                ),
-                secondary: CodexRateLimitWindow(
-                    usedPercent: 68,
-                    resetsAt: now.addingTimeInterval(86_400),
-                    windowDurationMinutes: 10_080
-                ),
-                fetchedAt: now
-            ) : nil,
-            identity: CodexAccountIdentity(
-                snapshotFingerprint: UUID().uuidString,
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "\(name.lowercased())@example.com")
-            )
         )
     }
 }

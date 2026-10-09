@@ -128,7 +128,7 @@ struct MenuBarLiveValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: NullCodexAppProcessClient(),
+            codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient()
         )
         let suiteName = "MenuBarLiveValidationTests-\(UUID().uuidString)"

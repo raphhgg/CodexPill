@@ -433,15 +433,28 @@ struct MenuBarUIValidationTests {
                 name: "Primary",
                 email: "primary@example.com",
                 planType: "pro",
-                sessionUsedPercent: 42,
-                weeklyUsedPercent: 68,
-                now: now
+                rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 42, weeklyUsedPercent: 68)
             )
 
             let others = [
-                makeAccount(name: "Research", email: "research@example.com", planType: "pro", sessionUsedPercent: 8, weeklyUsedPercent: 35, now: now),
-                makeAccount(name: "Sandbox", email: "sandbox@example.com", planType: "plus", sessionUsedPercent: 19, weeklyUsedPercent: 50, now: now),
-                makeAccount(name: "Overflow", email: "overflow@example.com", planType: "plus", sessionUsedPercent: 74, weeklyUsedPercent: 88, now: now)
+                makeAccount(
+                    name: "Research",
+                    email: "research@example.com",
+                    planType: "pro",
+                    rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 8, weeklyUsedPercent: 35)
+                ),
+                makeAccount(
+                    name: "Sandbox",
+                    email: "sandbox@example.com",
+                    planType: "plus",
+                    rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 19, weeklyUsedPercent: 50)
+                ),
+                makeAccount(
+                    name: "Overflow",
+                    email: "overflow@example.com",
+                    planType: "plus",
+                    rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 74, weeklyUsedPercent: 88)
+                )
             ]
 
             return MenuBarMenuState(
@@ -463,9 +476,7 @@ struct MenuBarUIValidationTests {
                 name: "Primary",
                 email: "primary@example.com",
                 planType: "pro",
-                sessionUsedPercent: 57,
-                weeklyUsedPercent: 73,
-                now: now
+                rateLimits: makeRateLimits(resettingAfter: now, sessionUsedPercent: 57, weeklyUsedPercent: 73)
             )
 
             return MenuBarMenuState(
@@ -507,7 +518,7 @@ struct MenuBarUIValidationTests {
         let store = MenuBarAccountsStore(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: NullCodexAppProcessClient(),
+            codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient()
         )
         let suiteName = "MenuBarUIValidationTests-\(UUID().uuidString)"
@@ -530,46 +541,6 @@ struct MenuBarUIValidationTests {
             environment: [AppRuntimeEnvironment.validationAppSupportDirectoryEnvironmentKey: appSupportDirectory.path]
         )
     }
-
-    private func makeAccount(
-        name: String,
-        email: String,
-        planType: String,
-        sessionUsedPercent: Int,
-        weeklyUsedPercent: Int,
-        now: Date
-    ) -> CodexAccount {
-        CodexAccount(
-            id: UUID(),
-            name: name,
-            snapshotFileName: "\(UUID().uuidString).json",
-            createdAt: now.addingTimeInterval(-3_600),
-            updatedAt: now.addingTimeInterval(-600),
-            email: email,
-            planType: planType,
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: nil,
-                limitName: nil,
-                planType: planType,
-                primary: CodexRateLimitWindow(
-                    usedPercent: sessionUsedPercent,
-                    resetsAt: now.addingTimeInterval(3_600),
-                    windowDurationMinutes: 300
-                ),
-                secondary: CodexRateLimitWindow(
-                    usedPercent: weeklyUsedPercent,
-                    resetsAt: now.addingTimeInterval(86_400),
-                    windowDurationMinutes: 10_080
-                ),
-                fetchedAt: now.addingTimeInterval(-300)
-            ),
-            identity: CodexAccountIdentity(
-                stableAccountID: nil,
-                snapshotFingerprint: UUID().uuidString,
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: email)
-            )
-        )
-    }
 }
 
 private struct ScenarioSummary: Codable {
@@ -588,9 +559,4 @@ private enum ValidationError: Error {
     case failedToCreateBitmap
     case failedToEncodePNG
     case unknownScenario(String)
-}
-
-private struct NullCodexAppProcessClient: CodexAppProcessClient {
-    func assertCodexAvailable() throws {}
-    func relaunchCodex() async throws {}
 }

@@ -95,20 +95,6 @@ struct MenuBarValidationObserverTests {
             statusMessage: ""
         )
     }
-
-    private func makeAccount(name: String, email: String) -> CodexAccount {
-        CodexAccount(
-            id: UUID(),
-            name: name,
-            snapshotFileName: "\(name).json",
-            createdAt: Date(timeIntervalSince1970: 1),
-            updatedAt: Date(timeIntervalSince1970: 1),
-            email: email,
-            planType: "team",
-            rateLimits: nil,
-            identity: CodexAccountIdentity(remoteIdentity: CodexRemoteAccountIdentity(emailAddress: email))
-        )
-    }
 }
 
 private final class ValidationSinkProbe: @unchecked Sendable, MenuBarValidationSink {
