@@ -28,9 +28,6 @@ extension MenuBarAccountsStore {
                     identityResolver: identityResolver
                 ),
                 refreshActiveAccountUseCase: refreshActiveAccountUseCase,
-                silentPostActionRefresh: SilentPostActionRefresh(
-                    refreshActiveAccountUseCase: refreshActiveAccountUseCase
-                ),
                 hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
                     authService: authService,
                     accountStatusClient: accountStatusClient,
@@ -47,7 +44,7 @@ extension MenuBarAccountsStore {
                     )
                 ),
                 renameSavedAccountUseCase: RenameSavedAccountUseCase(repository: repository),
-                persistSavedAccountMetadataUseCase: PersistSavedAccountMetadataUseCase(repository: repository),
+                accountCatalogStore: repository,
                 switchAccountWorkflow: SwitchAccountWorkflow(
                     authService: authService,
                     repository: repository,
