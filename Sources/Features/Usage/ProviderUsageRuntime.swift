@@ -132,14 +132,20 @@ final class ProviderUsageRuntime {
         onChange()
     }
 
-    /// Runs the tool's browser sign-in, one at a time. The card shows it while it waits for the user.
+    /// Runs the tool's browser sign-in, one at a time. The card shows it while it waits for the user. A sign-in that
+    /// fails may still have signed in, for example when its sign-in could not be saved, so a failure drops the reading too.
     private func signIn(on connection: any ProviderConnection) async throws(ProviderNotice) {
         let provider = connection.provider
         guard let signIn = connection.signIn, signingIn.insert(provider).inserted else { return }
         onChange()
         defer { signingIn.remove(provider) }
-        if try await signIn.run() {
+        do {
+            if try await signIn.run() {
+                discardReading(for: provider)
+            }
+        } catch {
             discardReading(for: provider)
+            throw error
         }
     }
 

@@ -203,6 +203,34 @@ struct MenuBarCoordinatorTests {
     }
 
     @Test
+    func aClaudeSignInTheKeychainRefusesShowsAShortAlertAndStillShowsUsage() async throws {
+        let harness = try MenuBarCoordinatorHarness()
+        let fixture = ClaudeUsageFixture(refreshInterval: 0)
+        defer {
+            harness.tearDown()
+            fixture.remove()
+        }
+        fixture.response = .success(Data(ClaudeUsageFixture.usageResponse.utf8))
+        fixture.failSaves()
+        let coordinator = harness.makeCoordinator(providerConnections: [fixture.usage])
+        coordinator.start()
+        await coordinator.waitForPendingWork()
+
+        harness.alertPresenter.confirmationResponse = true
+        harness.click("Claude…")
+        await fixture.waitUntilSignInStarted()
+        fixture.finishSignIn(with: .success(ClaudeUsageFixture.ownSignIn(expiresAt: Date().addingTimeInterval(3_600))))
+        await coordinator.waitForPendingWork()
+
+        #expect(harness.alertPresenter.infoRequests.map(\.messageText) == ["Claude sign-in not saved"])
+        #expect(harness.alertPresenter.infoRequests.map(\.informativeText) == ["It lasts until CodexPill quits."])
+        guard case .current = coordinator.menuState().providerUsage.first?.status else {
+            Issue.record("Expected current Claude usage with the sign-in kept in memory")
+            return
+        }
+    }
+
+    @Test
     func claudeCodesSignInAsksForKeychainAccessOnlyAfterTheUserChoosesIt() async throws {
         let harness = try MenuBarCoordinatorHarness()
         let fixture = ClaudeUsageFixture(refreshInterval: 0)

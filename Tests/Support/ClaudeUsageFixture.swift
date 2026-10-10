@@ -34,6 +34,7 @@ final class ClaudeUsageFixture: ClaudeKeychainReading, ClaudeUsageWebClient, Cla
     private var sentTokens: [String] = []
     private var rejectedTokens: Set<String> = []
     private var keepsOwnItemOnDelete = false
+    private var refusesSaves = false
     private var ownItem: Data?
     private var currentRefreshResult: Result<ClaudeSignIn, ClaudeTokenError> = .failure(.transport)
     private var refreshedTokens: [String] = []
@@ -105,6 +106,10 @@ final class ClaudeUsageFixture: ClaudeKeychainReading, ClaudeUsageWebClient, Cla
     }
 
     /// Makes deleting CodexPill's own sign-in item fail, like a Keychain that refuses the change.
+    func failSaves() {
+        lock.withLock { refusesSaves = true }
+    }
+
     func failDeletes() {
         lock.withLock { keepsOwnItemOnDelete = true }
     }
@@ -169,8 +174,11 @@ final class ClaudeUsageFixture: ClaudeKeychainReading, ClaudeUsageWebClient, Cla
     }
 
     func save(_ signIn: ClaudeSignIn, allowingPrompt _: Bool) -> Bool {
-        lock.withLock { ownItem = signIn.keychainData }
-        return true
+        lock.withLock {
+            guard !refusesSaves else { return false }
+            ownItem = signIn.keychainData
+            return true
+        }
     }
 
     func delete() -> Bool {

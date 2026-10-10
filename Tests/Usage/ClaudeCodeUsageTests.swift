@@ -81,6 +81,27 @@ struct ClaudeCodeUsageTests {
     }
 
     @Test
+    func aSignInTheKeychainRefusesSaysSoAndStillReadsUntilCodexPillQuits() async {
+        let fixture = ClaudeUsageFixture()
+        defer { fixture.remove() }
+        fixture.response = .success(Data(ClaudeUsageFixture.usageResponse.utf8))
+        fixture.failSaves()
+
+        async let notice = signInNotice(fixture.usage)
+        await fixture.waitUntilSignInStarted()
+        fixture.finishSignIn(with: .success(ClaudeUsageFixture.ownSignIn(expiresAt: now.addingTimeInterval(3_600))))
+
+        #expect(await notice == ProviderNotice(title: "Claude sign-in not saved", detail: "It lasts until CodexPill quits."))
+        #expect(fixture.settings.connection == .codexPill)
+        #expect(fixture.ownSignIn == nil)
+        guard case .snapshot = await fixture.usage.readUsage(now: now) else {
+            Issue.record("Expected usage with the sign-in kept in memory")
+            return
+        }
+        #expect(fixture.usageRequestTokens == [ClaudeUsageFixture.fakeOwnAccessToken])
+    }
+
+    @Test
     func eachConnectionReadsOnlyTheSignInTheUserChose() async {
         let fixture = ClaudeUsageFixture()
         defer { fixture.remove() }

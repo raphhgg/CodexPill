@@ -158,8 +158,11 @@ actor ClaudeUsageSignIn: ProviderSignIn {
             return false
         }
         guard !task.isCancelled else { return false }
-        await client.store(signIn)
+        let saved = await client.store(signIn)
         settings.connection = .codexPill
+        guard saved else {
+            throw ProviderNotice(title: "Claude sign-in not saved", detail: "It lasts until CodexPill quits.")
+        }
         return true
     }
 
