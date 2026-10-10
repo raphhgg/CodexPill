@@ -52,7 +52,7 @@ All knowledge of Claude's OAuth, both sign-ins, and Anthropic's usage endpoint l
 
 - Client id `9d1c250a-e61b-44d9-88ed-5944d1962f5e`.
 - Authorize page `https://claude.com/cai/oauth/authorize` with `code=true`, `client_id`, `response_type=code`, `redirect_uri`, `scope=user:profile`, `code_challenge`, `code_challenge_method=S256`, and `state`, in that order. `user:profile` is the scope `api/oauth/usage` needs. CodexPill asks for nothing else.
-- Redirect `http://localhost:<port>/callback`. A one-shot `NWListener` on the loopback interface, both IPv4 and IPv6, picks a free port. It answers the callback with a short "You can close this tab" page, answers any other path with `404`, and stops after the first callback.
+- Redirect `http://localhost:<port>/callback`. A one-shot `NWListener` on the loopback interface, both IPv4 and IPv6, picks a free port. It answers the callback with a short "Signed in to Claude" page, answers any other path with `404`, and stops after the first callback.
 - The callback must carry the `state` this sign-in sent, otherwise the code is never exchanged. `error=access_denied` ends the sign-in.
 - Token endpoint `https://platform.claude.com/v1/oauth/token`, JSON bodies. Exchange: `grant_type=authorization_code`, `code`, `redirect_uri`, `client_id`, `code_verifier`, `state`. Refresh: `grant_type=refresh_token`, `refresh_token`, `client_id`, `scope`. The answer has `access_token`, `refresh_token`, and `expires_in` in seconds. A refresh that omits `refresh_token` keeps the current one.
 - Revoke `https://platform.claude.com/v1/oauth/token/revoke` with `token`, `token_type_hint=refresh_token`, and `client_id`, best effort on disconnect.

@@ -208,7 +208,7 @@ struct ClaudeBrowserSignInTests {
 
         let (page, callback) = try await session.data(from: URL(string: "http://[::1]:\(port)/callback?code=fake-code&state=fixed-state-123")!)
         #expect((callback as? HTTPURLResponse)?.statusCode == 200)
-        #expect(String(decoding: page, as: UTF8.self).contains("You can close this tab and return to CodexPill."))
+        #expect(String(decoding: page, as: UTF8.self).contains("Signed in to Claude"))
         #expect(try await receiver.nextCallback() == .authorized(code: "fake-code", state: "fixed-state-123"))
     }
 
