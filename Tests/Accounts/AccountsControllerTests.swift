@@ -133,9 +133,7 @@ struct AccountsControllerTests {
             ),
             hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
                 authService: NullAuthService(),
-                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
                 savedAccountStatusClient: DisabledAccountStatusClient(),
-                identityResolver: identityResolver,
                 repository: repository
             ),
             deleteSavedAccountUseCase: DeleteSavedAccountUseCase(
@@ -302,9 +300,7 @@ struct AccountsControllerTests {
             ),
             hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
                 authService: NullAuthService(),
-                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
                 savedAccountStatusClient: DisabledAccountStatusClient(),
-                identityResolver: identityResolver,
                 repository: repository
             ),
             deleteSavedAccountUseCase: DeleteSavedAccountUseCase(
@@ -392,9 +388,7 @@ struct AccountsControllerTests {
             ),
             hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
                 authService: NullAuthService(),
-                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
                 savedAccountStatusClient: DisabledAccountStatusClient(),
-                identityResolver: identityResolver,
                 repository: repository
             ),
             deleteSavedAccountUseCase: DeleteSavedAccountUseCase(
@@ -468,9 +462,7 @@ struct AccountsControllerTests {
             ),
             hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
                 authService: NullAuthService(),
-                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
                 savedAccountStatusClient: DisabledAccountStatusClient(),
-                identityResolver: identityResolver,
                 repository: repository
             ),
             deleteSavedAccountUseCase: DeleteSavedAccountUseCase(
@@ -526,9 +518,7 @@ struct AccountsControllerTests {
             ),
             hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
                 authService: NullAuthService(),
-                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
                 savedAccountStatusClient: DisabledAccountStatusClient(),
-                identityResolver: identityResolver,
                 repository: repository
             ),
             deleteSavedAccountUseCase: DeleteSavedAccountUseCase(
@@ -596,9 +586,7 @@ struct AccountsControllerTests {
             ),
             hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
                 authService: authService,
-                accountStatusClient: AccountStatusErrorCase(error: TestFailure.backgroundRefreshFailed),
                 savedAccountStatusClient: savedAccountStatusClient,
-                identityResolver: identityResolver,
                 repository: repository
             ),
             deleteSavedAccountUseCase: DeleteSavedAccountUseCase(
@@ -832,6 +820,7 @@ private final class NullAuthService: CodexAuthSessionStore, CodexSignInAuthStore
         )
     }
 
+    func replaceAuthSnapshot(_ authData: Data, ifUnchangedFrom expected: Data, for account: CodexAccount) throws -> CodexAccount? { nil }
     func deleteAuthSnapshot(for account: CodexAccount) throws {}
 }
 
@@ -853,6 +842,9 @@ private final class SignInAuthErrorCase: CodexAuthSessionStore, CodexSignInAuthS
         throw error
     }
 
+    func replaceAuthSnapshot(_ authData: Data, ifUnchangedFrom expected: Data, for account: CodexAccount) throws -> CodexAccount? {
+        throw error
+    }
     func deleteAuthSnapshot(for account: CodexAccount) throws {}
 }
 
@@ -889,6 +881,7 @@ private final class IsolatedAddAccountAuthProbe: CodexAuthSessionStore, CodexSig
             identity: CodexAccountIdentity(snapshotFingerprint: capturedFingerprint)
         )
     }
+    func replaceAuthSnapshot(_ authData: Data, ifUnchangedFrom expected: Data, for account: CodexAccount) throws -> CodexAccount? { nil }
     func deleteAuthSnapshot(for account: CodexAccount) throws {}
 }
 

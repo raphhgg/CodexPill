@@ -36,7 +36,7 @@ struct RenameSavedAccountUseCase {
             throw RenameSavedAccountUseCaseError.duplicateAccountName
         }
 
-        var renamedAccount = account
+        var renamedAccount = accounts.first(where: { $0.id == account.id }) ?? account
         renamedAccount.name = resolvedName
 
         let updatedAccounts = accounts

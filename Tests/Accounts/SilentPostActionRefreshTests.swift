@@ -11,10 +11,9 @@ struct SilentPostActionRefreshTests {
             accountStatusClient: SilentRefreshStatusErrorCase(error: SilentRefreshTestFailure.refreshFailed),
             repository: repository
         )
-        let refresh = SilentPostActionRefresh(refreshActiveAccountUseCase: useCase)
+        let refresh = SilentPostActionRefresh(refreshActiveAccountUseCase: useCase, delay: .zero)
 
         let result = await refresh.run(
-            after: Duration.zero,
             activeAccountID: nil,
             accounts: [makeAccount(name: "Business 4", fingerprint: "live")]
         )
@@ -30,11 +29,10 @@ struct SilentPostActionRefreshTests {
             accountStatusClient: SilentRefreshStatusErrorCase(error: SilentRefreshTestFailure.refreshFailed),
             repository: repository
         )
-        let refresh = SilentPostActionRefresh(refreshActiveAccountUseCase: useCase)
+        let refresh = SilentPostActionRefresh(refreshActiveAccountUseCase: useCase, delay: .zero)
         let account = makeAccount(name: "Business 4", fingerprint: "live")
 
         let result = await refresh.run(
-            after: Duration.zero,
             activeAccountID: account.id,
             accounts: [account]
         )
@@ -65,12 +63,11 @@ struct SilentPostActionRefreshTests {
             ),
             repository: repository
         )
-        let refresh = SilentPostActionRefresh(refreshActiveAccountUseCase: useCase)
+        let refresh = SilentPostActionRefresh(refreshActiveAccountUseCase: useCase, delay: .zero)
 
         let result = try #require(
             await refresh.run(
-                after: Duration.zero,
-                activeAccountID: account.id,
+                    activeAccountID: account.id,
                 accounts: [account]
             )
         )
