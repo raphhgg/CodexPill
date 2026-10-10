@@ -119,6 +119,31 @@ struct AccountsControllerRefreshRaceTests {
     }
 
     @Test
+    func switchingAccountsDuringAnActiveRefreshKeepsTheNewAccountActive() async throws {
+        let fixture = RefreshRaceFixture()
+        await fixture.activeStatusClient.holdReads()
+        let controller = fixture.makeController()
+        controller.load()
+
+        let refresh = Task { await controller.refreshAccountData(for: fixture.personal) }
+        await fixture.activeStatusClient.waitUntilReading(count: 1)
+        let switchToBackup = Task { _ = await controller.switchToAccount(fixture.backup) }
+        await fixture.activeStatusClient.waitUntilReading(count: 2)
+        await fixture.activeStatusClient.finishRead(with: fixture.refreshedStatus)
+        await switchToBackup.value
+        await fixture.activeStatusClient.finishRead(with: fixture.personalStatus)
+        #expect(await refresh.value == .refreshed)
+
+        let personal = try #require(controller.accounts.first(where: { $0.id == fixture.personal.id }))
+        let backup = try #require(controller.accounts.first(where: { $0.id == fixture.backup.id }))
+        #expect(controller.activeAccountID == fixture.backup.id)
+        #expect(fixture.authStore.liveAuth == "backup:1")
+        #expect(fixture.authStore.snapshots == [fixture.personal.id: "personal:1", fixture.backup.id: "backup:1"])
+        #expect(personal.rateLimits?.primary?.usedPercent == 20)
+        #expect(backup.rateLimits?.primary?.usedPercent == 70)
+    }
+
+    @Test
     func removingTheActiveAccountDuringAnActiveRefreshLeavesNoSnapshotForIt() async {
         let fixture = RefreshRaceFixture()
         fixture.authStore.liveAuth = "personal:2"
@@ -170,26 +195,8 @@ private final class RefreshRaceFixture {
     let statusClient = SuspendedSavedStatusClient()
     let activeStatusClient = SuspendedActiveStatusClient()
     let catalog: InMemoryAccountCatalog
-    let refreshedStatus = CodexAccountStatus(
-        email: "backup@example.com",
-        planType: "pro",
-        rateLimits: CodexRateLimitSnapshot(
-            limitID: "codex",
-            limitName: nil,
-            planType: "pro",
-            primary: CodexRateLimitWindow(
-                usedPercent: 70,
-                resetsAt: Date(timeIntervalSince1970: 1_776_256_138),
-                windowDurationMinutes: 300
-            ),
-            secondary: CodexRateLimitWindow(
-                usedPercent: 30,
-                resetsAt: Date(timeIntervalSince1970: 1_776_842_938),
-                windowDurationMinutes: 10_080
-            ),
-            fetchedAt: Date(timeIntervalSince1970: 1_776_300_000)
-        )
-    )
+    let refreshedStatus = makeRaceStatus(email: "backup@example.com", primaryUsedPercent: 70)
+    let personalStatus = makeRaceStatus(email: "personal@example.com", primaryUsedPercent: 20)
 
     init() {
         catalog = InMemoryAccountCatalog(accounts: [personal, backup], authStore: authStore)
@@ -253,6 +260,29 @@ private func makeRaceAccount(name: String, stableAccountID: String) -> CodexAcco
         identity: CodexAccountIdentity(
             stableAccountID: stableAccountID,
             snapshotFingerprint: "\(stableAccountID):1"
+        )
+    )
+}
+
+private func makeRaceStatus(email: String, primaryUsedPercent: Int) -> CodexAccountStatus {
+    CodexAccountStatus(
+        email: email,
+        planType: "pro",
+        rateLimits: CodexRateLimitSnapshot(
+            limitID: "codex",
+            limitName: nil,
+            planType: "pro",
+            primary: CodexRateLimitWindow(
+                usedPercent: primaryUsedPercent,
+                resetsAt: Date(timeIntervalSince1970: 1_776_256_138),
+                windowDurationMinutes: 300
+            ),
+            secondary: CodexRateLimitWindow(
+                usedPercent: 30,
+                resetsAt: Date(timeIntervalSince1970: 1_776_842_938),
+                windowDurationMinutes: 10_080
+            ),
+            fetchedAt: Date(timeIntervalSince1970: 1_776_300_000)
         )
     )
 }
@@ -366,10 +396,11 @@ private final class InMemoryAccountCatalog: AccountCatalogLoader, AccountSnapsho
 }
 
 // Fails reads until a test holds them, so switch tests skip the post-switch refresh.
+// `finishRead` resumes the most recent held read.
 private actor SuspendedActiveStatusClient: CodexAccountStatusClient {
     private var isHoldingReads = false
-    private var pendingRead: CheckedContinuation<CodexAccountStatus, Never>?
-    private var readStarted: CheckedContinuation<Void, Never>?
+    private var pendingReads: [CheckedContinuation<CodexAccountStatus, Never>] = []
+    private var readWaiters: [(count: Int, continuation: CheckedContinuation<Void, Never>)] = []
 
     func holdReads() {
         isHoldingReads = true
@@ -378,20 +409,20 @@ private actor SuspendedActiveStatusClient: CodexAccountStatusClient {
     func readCurrentAccountStatus() async throws -> CodexAccountStatus {
         guard isHoldingReads else { throw RefreshRaceFailure.readFailed }
         return await withCheckedContinuation { continuation in
-            pendingRead = continuation
-            readStarted?.resume()
-            readStarted = nil
+            pendingReads.append(continuation)
+            let ready = readWaiters.filter { $0.count <= pendingReads.count }
+            readWaiters.removeAll { $0.count <= pendingReads.count }
+            ready.forEach { $0.continuation.resume() }
         }
     }
 
-    func waitUntilReading() async {
-        guard pendingRead == nil else { return }
-        await withCheckedContinuation { readStarted = $0 }
+    func waitUntilReading(count: Int = 1) async {
+        guard pendingReads.count < count else { return }
+        await withCheckedContinuation { readWaiters.append((count, $0)) }
     }
 
     func finishRead(with status: CodexAccountStatus) {
-        pendingRead?.resume(returning: status)
-        pendingRead = nil
+        pendingReads.popLast()?.resume(returning: status)
     }
 }
 

@@ -31,8 +31,11 @@ struct RefreshActiveAccountUseCase: Sendable {
     }
 
     func run(accounts: [CodexAccount]) async throws -> RefreshActiveAccountResult {
+        // Resolves against the auth read before the await, since a switch can replace it meanwhile.
+        let liveIdentity = identityResolver.readCurrentLiveIdentity()
         let remote = try await accountStatusClient.readCurrentAccountStatus()
         let matchOutcome = identityResolver.resolve(
+            liveIdentity: liveIdentity,
             accounts: accounts,
             liveRemoteIdentity: remote.remoteIdentity
         )
