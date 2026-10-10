@@ -5,57 +5,14 @@ import Testing
 
 struct AppRuntimeEnvironmentTests {
     @Test
-    func validationAutoRefreshIntervalSecondsParsesPositiveValues() {
+    func isolatedLaunchReadsTrimmedDirectoryAndDefaultsSuite() {
         let environment = [
-            AppRuntimeEnvironment.validationAutoRefreshIntervalSecondsEnvironmentKey: "2.5"
+            AppRuntimeEnvironment.isolatedAppSupportDirectoryEnvironmentKey: " /tmp/codexpill-isolated ",
+            AppRuntimeEnvironment.isolatedDefaultsSuiteEnvironmentKey: " isolated-suite "
         ]
 
-        #expect(AppRuntimeEnvironment.validationAutoRefreshIntervalSeconds(environment: environment) == 2.5)
-    }
-
-    @Test
-    func validationAutoRefreshIntervalSecondsRejectsInvalidValues() {
-        #expect(AppRuntimeEnvironment.validationAutoRefreshIntervalSeconds(environment: [:]) == nil)
-        #expect(
-            AppRuntimeEnvironment.validationAutoRefreshIntervalSeconds(
-                environment: [AppRuntimeEnvironment.validationAutoRefreshIntervalSecondsEnvironmentKey: "0"]
-            ) == nil
-        )
-        #expect(
-            AppRuntimeEnvironment.validationAutoRefreshIntervalSeconds(
-                environment: [AppRuntimeEnvironment.validationAutoRefreshIntervalSecondsEnvironmentKey: "abc"]
-            ) == nil
-        )
-    }
-
-    @Test
-    func validationOverridesReadTrimmedPathsAndSuiteNames() {
-        let environment = [
-            AppRuntimeEnvironment.validationAppSupportDirectoryEnvironmentKey: " /tmp/codexpill-validation ",
-            AppRuntimeEnvironment.validationUserDefaultsSuiteEnvironmentKey: " validation-suite "
-        ]
-
-        #expect(AppRuntimeEnvironment.validationAppSupportDirectory(environment: environment)?.path == "/tmp/codexpill-validation")
-        #expect(AppRuntimeEnvironment.validationUserDefaultsSuiteName(environment: environment) == "validation-suite")
-    }
-
-    @Test
-    func validationCodexProcessClientModeAcceptsExplicitTruthValues() {
-        #expect(
-            AppRuntimeEnvironment.shouldUseValidationCodexProcessClient(
-                environment: [AppRuntimeEnvironment.validationCodexProcessClientEnvironmentKey: "memory"]
-            )
-        )
-        #expect(
-            AppRuntimeEnvironment.shouldUseValidationCodexProcessClient(
-                environment: [AppRuntimeEnvironment.validationCodexProcessClientEnvironmentKey: "true"]
-            )
-        )
-        #expect(
-            !AppRuntimeEnvironment.shouldUseValidationCodexProcessClient(
-                environment: [AppRuntimeEnvironment.validationCodexProcessClientEnvironmentKey: "0"]
-            )
-        )
+        #expect(AppRuntimeEnvironment.isolatedAppSupportDirectory(environment: environment)?.path == "/tmp/codexpill-isolated")
+        #expect(AppRuntimeEnvironment.isolatedDefaultsSuiteName(environment: environment) == "isolated-suite")
     }
 
     @Test
@@ -87,14 +44,14 @@ struct AppRuntimeEnvironmentTests {
     }
 
     @Test
-    func isolatedAppSupportDirectoryPrefersValidationOverrideThenAutomatedTestDirectory() {
+    func isolatedAppSupportDirectoryPrefersIsolatedLaunchThenAutomatedTestDirectory() {
         let testDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("CodexPillTests-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true)
 
         #expect(
             AppRuntimeEnvironment.isolatedAppSupportDirectory(
-                environment: [AppRuntimeEnvironment.validationAppSupportDirectoryEnvironmentKey: "/tmp/codexpill-validation"]
-            )?.path == "/tmp/codexpill-validation"
+                environment: [AppRuntimeEnvironment.isolatedAppSupportDirectoryEnvironmentKey: "/tmp/codexpill-isolated"]
+            )?.path == "/tmp/codexpill-isolated"
         )
         #expect(
             AppRuntimeEnvironment.isolatedAppSupportDirectory(

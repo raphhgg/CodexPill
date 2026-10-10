@@ -93,6 +93,33 @@ remote `~/.codexpill` cache when called with `--remote <host>`. Use
 `--remote-sign-out` only when you intentionally want to remove the remote
 host's active Codex login.
 
+## Isolated Launch
+
+Run a dev build without touching your real `~/.codex` login or your real
+CodexPill data:
+
+```bash
+make build AGENT_NAME=<name>
+root="$(mktemp -d)"
+open -n \
+  --env CODEXPILL_ISOLATED_APP_SUPPORT_DIR="$root" \
+  --env CODEXPILL_ISOLATED_DEFAULTS_SUITE="codexpill-isolated-${root##*/}" \
+  --env CODEX_HOME="$root" \
+  build/DerivedData/<name>/Build/Products/Debug/CodexPill.app
+```
+
+- `CODEXPILL_ISOLATED_APP_SUPPORT_DIR` holds the account catalog, saved
+  snapshots, the token-usage cache, and the live `auth.json` that switching
+  writes.
+- `CODEXPILL_ISOLATED_DEFAULTS_SUITE` keeps preferences out of the real
+  `UserDefaults` domain.
+- `CODEX_HOME` points the `codex app-server` that CodexPill starts at the same
+  `auth.json`.
+
+Switching still asks the real Codex app to relaunch. Quit the isolated app by
+its process ID, not with `scripts/stop_menubar.sh`, which stops every running
+CodexPill.
+
 ## Validation
 
 Behavior and invariant requirements live in [VALIDATION.md](VALIDATION.md). Run

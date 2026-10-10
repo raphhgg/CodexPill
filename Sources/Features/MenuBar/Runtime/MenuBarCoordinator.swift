@@ -23,7 +23,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let diagnosticEventRecorder = DiagnosticEventRecorder()
     private let tokenUsageProvider: TokenUsageMenuProviding
     private let allowsEmptyStatePrompt: Bool
-    private let autoRefreshIntervalOverride: TimeInterval?
     private let accountActionFlow = AccountActionFlow()
     private let menuBuilder = MenuBarMenuBuilder()
     private var autoRefreshTimer: Timer?
@@ -57,8 +56,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         loginItemsSettingsLauncher: LoginItemsSettingsLaunching,
         diagnosticReportPresenter: DiagnosticReportPresenting,
         tokenUsageProvider: TokenUsageMenuProviding,
-        allowsEmptyStatePrompt: Bool,
-        autoRefreshIntervalOverride: TimeInterval?
+        allowsEmptyStatePrompt: Bool
     ) {
         self.statusItemRuntime = statusItemRuntime
         self.shortcutRuntime = shortcutRuntime
@@ -75,7 +73,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.diagnosticReportPresenter = diagnosticReportPresenter
         self.tokenUsageProvider = tokenUsageProvider
         self.allowsEmptyStatePrompt = allowsEmptyStatePrompt
-        self.autoRefreshIntervalOverride = autoRefreshIntervalOverride
     }
 
     func start() {
@@ -678,7 +675,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     private func scheduleAutoRefresh() {
         autoRefreshTimer?.invalidate()
-        let interval = autoRefreshIntervalOverride ?? TimeInterval(menuDisplaySettings.refreshIntervalMinutes * 60)
+        let interval = TimeInterval(menuDisplaySettings.refreshIntervalMinutes * 60)
         autoRefreshTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             self?.tasks.start { await self?.performScheduledRefresh() }
         }
