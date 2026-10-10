@@ -94,7 +94,7 @@ It coordinates cache-first loading, scan-task identity, duplicate-scan preventio
 Key boundaries:
 
 - `UsageProviderSource`, the port for one provider. It returns a `UsageProviderReading`: not connected, unavailable (not installed, signed out, sign-in expired, Keychain access needed, or read failed), awaiting usage, or a `UsageSnapshot`.
-- `ClaudeCodeUsage` and `CursorUsage`, the two sources. Each wraps its `Platform` adapter, maps the adapter's values onto `UsageSnapshot`, and owns its opt-in setting and its connect and disconnect steps.
+- `ClaudeCodeUsage` and `CursorUsage`, the two sources. Each wraps its `Platform` adapter, maps the adapter's values onto `UsageSnapshot`, and owns its opt-in setting and its connect and disconnect steps. `ClaudeCodeUsage` also runs the browser sign-in; `MenuBarCoordinator` holds that task outside its tracked tasks and shows it as `ProviderUsageStatus.signingIn` until it ends.
 - `ProviderUsageRuntime`, which reads each source at most once per the source's `refreshInterval`, however often the menu opens, and publishes `ProviderUsageState` values. Both sources use the default interval of 5 minutes. A snapshot older than the source's `staleAfter` is published as `.stale`. When a source is unavailable for a reason that keeps the same account, such as an expired sign-in or a failed read, the runtime keeps the last good snapshot next to the reason.
 
 Provider states only feed menu sections. They never reach `AccountAvailability`, `InactiveAccountAvailabilityRanking`, or notifications: those read `CodexAccount.usage`, and the runtime reports changes through a menu-rebuild callback instead of the account store that drives notification evaluation. The runtime refuses a source for `.codex`.
@@ -148,7 +148,15 @@ Reusable Codex app-server access is split into these platform boundaries:
 
 Local app-server reads enter this shared session runner through `CodexAppServerClient`, which keeps local executable, environment, client-info, timeout, and saved-account strict rate-limit requirements in `CodexAppServerConfiguration`. SSH-backed reads enter the same runner from `SSHRemoteHostClient` only after that host adapter has built the remote `ssh ... codex app-server` invocation. `SSHRemoteHostClient` continues to own SSH destination construction, non-interactive SSH options, remote runtime refresh commands, remote auth enrichment reads, and SSH/remote failure classification.
 
-`Platform/Claude` owns everything CodexPill knows about Claude Code: the read-only sign-in lookup in `.credentials.json` and the `Claude Code-credentials` Keychain item, the Keychain prompt rule (only after a user action), the `api.anthropic.com/api/oauth/usage` request, its redirect rule, its rate-limit wait, and parsing its response. The token never leaves this module except as the request's `Authorization` header.
+`Platform/Claude` owns everything CodexPill knows about Claude and Claude Code:
+
+- `ClaudeOAuth`, the pure OAuth rules: Claude Code's public client, the authorize URL with PKCE (S256) and a `localhost` redirect, callback request-line parsing and the `state` check, token request bodies, and token response parsing (`invalid_grant` means sign in again).
+- `ClaudeBrowserSignIn`, one browser sign-in: it starts a `ClaudeOAuthRedirectReceiver` (`LoopbackClaudeOAuthReceiver`, a one-shot `NWListener` on the loopback interface), opens the authorize URL, waits up to 5 minutes for the callback, and exchanges the code through `ClaudeTokenEndpoint`.
+- `ClaudeSignIn` and `ClaudeSignInStoring`, CodexPill's own sign-in in one `CodexPill Claude sign-in` Keychain item, so a token rotation is one write.
+- `ClaudeUsageClient`, the source order (CodexPill's sign-in, then Claude Code's unexpired sign-in), the single-flight refresh 5 minutes before expiry, the Keychain prompt rule (only after a user action, for both items), the `api.anthropic.com/api/oauth/usage` request, its redirect rule, its rate-limit wait, and parsing its response.
+- The read-only Claude Code lookup in `.credentials.json` and the `Claude Code-credentials` Keychain item, which CodexPill never writes.
+
+Tokens are `RedactedClaudeSecret` values that print as `<Type>(redacted)`. They never leave this module except in a request to Anthropic or in CodexPill's own Keychain item.
 
 `Platform/Cursor` owns everything CodexPill knows about Cursor: the read-only token lookup in Cursor's `state.vscdb`, the `cursor.com/api/usage-summary` request, and parsing its response. The token never leaves this module except as the request's cookie.
 
@@ -240,7 +248,7 @@ The current truth sources are split by concern:
 - local account metadata and rate limits: local `codex app-server`;
 - remote account metadata and rate limits: remote `codex app-server` through the host adapter;
 - running CLI session observation: local process table inspection;
-- Claude Code usage: `api.anthropic.com/api/oauth/usage`, authenticated with Claude Code's local sign-in token;
+- Claude usage: `api.anthropic.com/api/oauth/usage`, authenticated with CodexPill's own Claude sign-in (Keychain item `CodexPill Claude sign-in`, refreshed at `platform.claude.com`), or with Claude Code's local sign-in token as a read-only fallback;
 - Cursor usage: `cursor.com/api/usage-summary`, authenticated with Cursor's local sign-in token.
 
 Rules:

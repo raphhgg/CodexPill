@@ -9,7 +9,7 @@ Feature docs are organized by product feature area. Each area can contain behavi
 - [Accounts](accounts/00-accounts.md): saved accounts, current account, switching, adding, removing, renaming, and account refresh.
 - [Remote Hosts](remote-hosts.md): host setup, remote account install/switch, verification, and remote account presentation.
 - [Notifications](notifications.md): notification modes, permission recovery, delivery copy, actions, and dedupe behavior.
-- [Claude Usage](claude-usage.md): opt-in, read-only Claude Code 5-hour and weekly limits, read with Claude Code's own sign-in.
+- [Claude Usage](claude-usage.md): opt-in, read-only Claude 5-hour and weekly limits, read with CodexPill's own "Sign in with Claude" or, as a fallback, Claude Code's sign-in.
 - [Cursor Usage](cursor-usage.md): opt-in, read-only Cursor plan usage, on-demand spend, and billing-cycle reset.
 - [Token Usage History](token-usage.md): opt-in local Codex token usage card and its source contract.
 - [Token Usage Incremental Cache](token-usage-cache.md): persistent cache and background scanner contract for large local Codex histories.
