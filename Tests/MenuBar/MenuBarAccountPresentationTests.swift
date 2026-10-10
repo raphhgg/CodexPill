@@ -328,11 +328,11 @@ struct MenuBarAccountPresentationTests {
             fetchedAt: now
         )
 
-        let meters = UsageMeter.codexMeters(for: weeklyOnly, sessionTint: .green, weeklyTint: .blue)
+        let meters = UsageMeter.meters(for: weeklyOnly, sessionTint: .green, weeklyTint: .blue)
 
         #expect(meters.map(\.title) == ["Weekly"])
         #expect(meters.map(\.window.usedPercent) == [30])
-        #expect(UsageMeter.codexMeters(for: nil, sessionTint: .green, weeklyTint: .blue).isEmpty)
+        #expect(UsageMeter.meters(for: nil, sessionTint: .green, weeklyTint: .blue).isEmpty)
     }
 
     @Test

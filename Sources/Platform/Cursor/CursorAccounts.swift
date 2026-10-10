@@ -41,21 +41,21 @@ struct CursorAccounts: Sendable {
         return try loadAccounts().first { $0.userID == current.userID }?.id
     }
 
-    /// Saves Cursor's current sign-in under `name`. Saving an account that is already saved refreshes its
-    /// tokens and renames it instead of adding a second entry.
+    /// Saves Cursor's current sign-in under `name`, or under its email when `name` is nil. Saving an account that
+    /// is already saved refreshes its tokens, and renames it when a name is given, instead of adding a second entry.
     @discardableResult
-    func captureCurrent(named name: String) throws(CursorAccountsError) -> CursorSavedAccount {
+    func captureCurrent(named name: String? = nil) throws(CursorAccountsError) -> CursorSavedAccount {
         guard database.exists else { throw .cursorNotInstalled }
         guard let signIn = try currentSignIn() else { throw .signedOut }
 
         var accounts = try loadAccounts()
         let account: CursorSavedAccount
         if let index = accounts.firstIndex(where: { $0.userID == signIn.userID }) {
-            accounts[index].name = name
+            if let name { accounts[index].name = name }
             accounts[index].signIn = signIn
             account = accounts[index]
         } else {
-            account = CursorSavedAccount(id: UUID(), name: name, signIn: signIn)
+            account = CursorSavedAccount(id: UUID(), name: name ?? signIn.email ?? "Cursor", signIn: signIn)
             accounts.append(account)
         }
         try saveAccounts(accounts)

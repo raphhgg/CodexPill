@@ -12,6 +12,7 @@ protocol MenuBarAccounts: AnyObject {
     var isApplyingResetCredit: Bool { get }
 
     func switchToAccount(_ account: CodexAccount) async -> Bool
+    func useResetCredit() async -> ResetCreditResult
     func removeSavedAccount(_ account: CodexAccount, signOutLocalAccount: Bool) async
     func renameSavedAccount(_ account: CodexAccount, to newName: String) async
     func refreshAccountData(for account: CodexAccount) async -> AccountsController.BackgroundRefreshOutcome

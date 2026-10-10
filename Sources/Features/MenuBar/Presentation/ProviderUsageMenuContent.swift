@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// Read-only usage for a provider other than Codex. It has no switching actions.
+/// Usage for one tool other than Codex: its meters, or the message for why it has none.
 struct ProviderUsageMenuContent: View {
-    let provider: UsageProvider
+    let copy: ProviderCopy
     let status: ProviderUsageStatus
     let sessionAccentColor: Color
     let weeklyAccentColor: Color
@@ -17,9 +17,9 @@ struct ProviderUsageMenuContent: View {
             case .notConnected:
                 EmptyView()
             case .awaitingUsage:
-                message(title: "Waiting for \(provider.menuTitle) usage", detail: nil)
+                message(title: "Waiting for \(copy.name) usage", detail: nil)
             case let .unavailable(reason, lastSnapshot):
-                let text = provider.unavailableMessage(for: reason)
+                let text = copy.unavailableMessage(for: reason)
                 message(title: text.title, detail: text.detail)
                 if let lastSnapshot {
                     meters(for: lastSnapshot, freshness: "As of \(usageAsOfText(lastSnapshot.fetchedAt, now: now))")
@@ -57,7 +57,7 @@ struct ProviderUsageMenuContent: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             UsageMeters(
-                meters: meters(for: snapshot),
+                meters: UsageMeter.meters(for: snapshot, sessionTint: sessionAccentColor, weeklyTint: weeklyAccentColor),
                 layout: meterLayout,
                 percentMode: percentMode,
                 showsPacingMarkers: showsPacingMarkers,
@@ -72,17 +72,6 @@ struct ProviderUsageMenuContent: View {
         }
     }
 
-    private func meters(for snapshot: UsageSnapshot) -> [UsageMeter] {
-        switch provider {
-        case .codex, .claude:
-            UsageMeter.codexMeters(for: snapshot, sessionTint: sessionAccentColor, weeklyTint: weeklyAccentColor)
-        case .cursor:
-            snapshot.window(.billingCycle).map {
-                [UsageMeter(title: "Billing cycle", window: $0, tintColor: weeklyAccentColor)]
-            } ?? []
-        }
-    }
-
     private func planLabel(_ planName: String) -> String {
         planName.replacingOccurrences(of: "_", with: " ").capitalized + " plan"
     }
@@ -94,40 +83,6 @@ func onDemandSpendText(_ spend: UsageSpend, locale: Locale = .current) -> String
     let used = spend.usedUSD.formatted(currency)
     guard let limit = spend.limitUSD else { return "On-demand: \(used)" }
     return "On-demand: \(used) of \(limit.formatted(currency))"
-}
-
-extension UsageProvider {
-    var menuTitle: String {
-        switch self {
-        case .codex: "Codex"
-        case .claude: "Claude Code"
-        case .cursor: "Cursor"
-        }
-    }
-
-    func unavailableMessage(for reason: UsageUnavailableReason) -> (title: String, detail: String?) {
-        let retrying = "Retrying in a few minutes."
-        return switch reason {
-        case .notInstalled: ("\(menuTitle) isn't installed", nil)
-        case .signedOut: ("Not signed in to \(menuTitle)", "Sign in to \(menuTitle) to see usage.")
-        case .signInExpired: ("\(menuTitle) sign-in expired", "Open \(menuTitle) to renew it.")
-        case .keychainAccessNeeded: ("Allow Keychain access", nil)
-        case .signInUnreadable: ("Can't read the \(menuTitle) sign-in", "Sign in to \(menuTitle) again.")
-        case .signInBusy: ("\(menuTitle) is busy", retrying)
-        case .accessDenied: ("\(serviceName) won't share usage", "Sign in to \(menuTitle) again.")
-        case .rateLimited: ("\(serviceName) asked to wait", retrying)
-        case .unreachable: ("Can't reach \(serviceName)", retrying)
-        case .serviceError: ("\(serviceName) is having trouble", retrying)
-        case .unexpectedResponse: ("Unexpected reply from \(serviceName)", retrying)
-        }
-    }
-
-    private var serviceName: String {
-        switch self {
-        case .claude: "Anthropic"
-        case .codex, .cursor: menuTitle
-        }
-    }
 }
 
 /// The time alone for today, otherwise the date and time.

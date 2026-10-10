@@ -175,10 +175,7 @@ struct MenuBarMenuBuilder {
         submenu.addItem(inactiveAccountUsageStatusItem(for: entry, state: state))
         submenu.addItem(.separator())
 
-        let localItem = NSMenuItem(title: "Switch on This Mac", action: #selector(MenuBarCoordinator.switchAccount(_:)), keyEquivalent: "")
-        localItem.target = target
-        localItem.representedObject = account.id.uuidString
-        localItem.isEnabled = true
+        let localItem = providerItem(title: "Switch on This Mac", .switchAccount(account.id), for: .codex, target: target)
         submenu.addItem(localItem)
         submenu.addItem(.separator())
         submenu.addItem(renameAccountMenuItem(for: account, state: state, target: target))
@@ -204,6 +201,14 @@ struct MenuBarMenuBuilder {
         state.activeAccount?.id == entry.account.id ? "In use on This Mac" : "Not currently in use"
     }
 
+    /// Every tool action goes through one selector. The item carries which tool and what to do.
+    private func providerItem(title: String, _ action: ProviderAction, for provider: UsageProvider, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: #selector(MenuBarCoordinator.performProviderAction(_:)), keyEquivalent: "")
+        item.target = target
+        item.representedObject = ProviderMenuAction(provider: provider, action: action)
+        return item
+    }
+
     private func actionItem(title: String, systemImage: String, action: Selector, state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
         item.target = target
@@ -220,9 +225,8 @@ struct MenuBarMenuBuilder {
     }
 
     private func addAccountMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Add Account…", action: #selector(MenuBarCoordinator.addAccount), keyEquivalent: "")
+        let item = providerItem(title: "Add Account…", .addAccount, for: .codex, target: target)
         item.image = NSImage(systemSymbolName: "plus.circle", accessibilityDescription: "Add Account")
-        item.target = target
         item.isEnabled = state.canAddAccount
         return item
     }
@@ -253,9 +257,7 @@ struct MenuBarMenuBuilder {
     }
 
     private func removeAccountMenuItem(for account: CodexAccount, state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Remove…", action: #selector(MenuBarCoordinator.removeAccount(_:)), keyEquivalent: "")
-        item.target = target
-        item.representedObject = account.id.uuidString
+        let item = providerItem(title: "Remove…", .removeAccount(account.id), for: .codex, target: target)
         item.isEnabled = state.canRemoveSavedAccounts
         return item
     }
@@ -308,10 +310,8 @@ struct MenuBarMenuBuilder {
         submenu.addItem(tokenUsagePreferencesMenuItem(state: state, target: target))
         submenu.addItem(.separator())
         submenu.addItem(launchAtLoginMenuItem(state: state, target: target))
-        let disconnectItems = state.providerUsage.compactMap { providerUsage -> NSMenuItem? in
-            guard providerUsage.status != .notConnected, let action = providerUsage.provider.disconnectAction else { return nil }
-            let disconnect = NSMenuItem(title: "Disconnect \(providerUsage.provider.menuTitle)…", action: action, keyEquivalent: "")
-            disconnect.target = target
+        let disconnectItems = state.providerUsage.filter { $0.status != .notConnected }.map { providerUsage in
+            let disconnect = providerItem(title: "Disconnect \(providerUsage.provider.copy.name)…", .disconnect, for: providerUsage.provider, target: target)
             disconnect.isEnabled = !state.isBusy
             return disconnect
         }
@@ -331,24 +331,21 @@ struct MenuBarMenuBuilder {
         target: MenuBarCoordinator,
         width: CGFloat
     ) {
+        let provider = providerUsage.provider
         let content: NSMenuItem
         if providerUsage.status == .notConnected {
-            guard let action = providerUsage.provider.connectAction else { return }
-            content = actionItem(
-                title: "Connect \(providerUsage.provider.menuTitle)…",
-                systemImage: "link",
-                action: action,
-                state: state,
-                target: target
-            )
-        } else if case .unavailable(.keychainAccessNeeded, _) = providerUsage.status,
-                  let action = providerUsage.provider.allowKeychainAccessAction {
-            content = actionItem(title: "Allow Keychain access…", systemImage: "key", action: action, state: state, target: target)
+            content = providerItem(title: "Connect \(provider.copy.name)…", .connect, for: provider, target: target)
+            content.image = NSImage(systemSymbolName: "link", accessibilityDescription: content.title)
+            content.isEnabled = !state.isBusy
+        } else if case .unavailable(.keychainAccessNeeded, _) = providerUsage.status {
+            content = providerItem(title: "Allow Keychain access…", .allowKeychainAccess, for: provider, target: target)
+            content.image = NSImage(systemSymbolName: "key", accessibilityDescription: content.title)
+            content.isEnabled = !state.isBusy
         } else {
             content = NSMenuItem()
             content.view = configuredHostedMenuView(
                 NSHostingView(rootView: ProviderUsageMenuContent(
-                    provider: providerUsage.provider,
+                    copy: provider.copy,
                     status: providerUsage.status,
                     sessionAccentColor: Color(nsColor: state.sessionAccentColor),
                     weeklyAccentColor: Color(nsColor: state.weeklyAccentColor),
@@ -363,7 +360,7 @@ struct MenuBarMenuBuilder {
             )
         }
         menu.addItem(.separator())
-        menu.addItem(sectionHeaderItem(providerUsage.provider.menuTitle, width: width, bottomPadding: 4))
+        menu.addItem(sectionHeaderItem(provider.copy.name, width: width, bottomPadding: 4))
         menu.addItem(content)
     }
 
@@ -588,30 +585,5 @@ private struct SectionHeaderLabel: View {
         .padding(.horizontal, 10)
         .padding(.top, 2)
         .padding(.bottom, bottomPadding)
-    }
-}
-
-private extension UsageProvider {
-    var connectAction: Selector? {
-        switch self {
-        case .claude: #selector(MenuBarCoordinator.connectClaudeCode)
-        case .cursor: #selector(MenuBarCoordinator.connectCursor)
-        case .codex: nil
-        }
-    }
-
-    var disconnectAction: Selector? {
-        switch self {
-        case .claude: #selector(MenuBarCoordinator.disconnectClaudeCode)
-        case .cursor: #selector(MenuBarCoordinator.disconnectCursor)
-        case .codex: nil
-        }
-    }
-
-    var allowKeychainAccessAction: Selector? {
-        switch self {
-        case .claude: #selector(MenuBarCoordinator.allowClaudeKeychainAccess)
-        case .codex, .cursor: nil
-        }
     }
 }
