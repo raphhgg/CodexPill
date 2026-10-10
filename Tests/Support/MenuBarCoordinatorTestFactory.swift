@@ -19,6 +19,7 @@ extension MenuBarCoordinator {
         ),
         providerUsageSources: [any UsageProviderSource] = [],
         claudeCodeUsage: ClaudeCodeUsage? = nil,
+        cursorUsage: CursorUsage? = nil,
         allowsEmptyStatePrompt: Bool = true,
         now: @escaping () -> Date = Date.init
     ) -> MenuBarCoordinator {
@@ -39,6 +40,7 @@ extension MenuBarCoordinator {
             tokenUsageProvider: tokenUsageProvider,
             providerUsageSources: providerUsageSources,
             claudeCodeUsage: claudeCodeUsage,
+            cursorUsage: cursorUsage,
             allowsEmptyStatePrompt: allowsEmptyStatePrompt,
             now: now
         )

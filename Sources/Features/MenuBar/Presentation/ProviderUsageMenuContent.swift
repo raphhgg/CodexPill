@@ -65,6 +65,11 @@ struct ProviderUsageMenuContent: View {
                 now: now
             )
             .padding(.top, meterLayout == .compact ? 3 : 0)
+            if let spend = snapshot.spend {
+                Text(onDemandSpendText(spend))
+                    .font(.caption)
+                    .monospacedDigit()
+            }
         }
     }
 
@@ -73,13 +78,23 @@ struct ProviderUsageMenuContent: View {
         case .codex, .claude:
             UsageMeter.codexMeters(for: snapshot, sessionTint: sessionAccentColor, weeklyTint: weeklyAccentColor)
         case .cursor:
-            []
+            snapshot.window(.billingCycle).map {
+                [UsageMeter(title: "Billing cycle", window: $0, tintColor: weeklyAccentColor)]
+            } ?? []
         }
     }
 
     private func planLabel(_ planName: String) -> String {
         planName.replacingOccurrences(of: "_", with: " ").capitalized + " plan"
     }
+}
+
+/// Spend is a dollar amount, never a percent: "On-demand: $12.34 of $50.00", or the amount alone when uncapped.
+func onDemandSpendText(_ spend: UsageSpend, locale: Locale = .current) -> String {
+    let currency = Decimal.FormatStyle.Currency(code: "USD", locale: locale)
+    let used = spend.usedUSD.formatted(currency)
+    guard let limit = spend.limitUSD else { return "On-demand: \(used)" }
+    return "On-demand: \(used) of \(limit.formatted(currency))"
 }
 
 extension UsageProvider {
@@ -94,6 +109,7 @@ extension UsageProvider {
     func unavailableMessage(for reason: UsageUnavailableReason) -> (title: String, detail: String?) {
         let retrying = "Retrying in a few minutes."
         return switch reason {
+        case .notInstalled: ("\(menuTitle) isn't installed", nil)
         case .signedOut: ("Not signed in to \(menuTitle)", "Sign in to \(menuTitle) to see usage.")
         case .signInExpired: ("\(menuTitle) sign-in expired", "Open \(menuTitle) to renew it.")
         case .keychainAccessNeeded: ("Allow Keychain access", nil)

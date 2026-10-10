@@ -30,6 +30,7 @@ struct UsageSnapshot: Hashable {
     var windows: [UsageWindow]
     var fetchedAt: Date
     var resetCredits: UsageResetCredits? = nil
+    var spend: UsageSpend? = nil
 
     func window(_ kind: UsageWindowKind) -> UsageWindow? {
         windows.first { $0.kind == kind }
@@ -38,6 +39,13 @@ struct UsageSnapshot: Hashable {
     func freshness(at now: Date, staleAfter: TimeInterval) -> UsageFreshness {
         now.timeIntervalSince(fetchedAt) > staleAfter ? .stale : .fresh
     }
+}
+
+/// On-demand spend in dollars, beyond the plan. It is money, not a percent of a limit.
+struct UsageSpend: Hashable {
+    var usedUSD: Decimal
+    /// `nil` when on-demand spend has no cap.
+    var limitUSD: Decimal?
 }
 
 /// Earned credits that reset the current Codex limits early.

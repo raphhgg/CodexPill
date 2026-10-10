@@ -595,14 +595,16 @@ private extension UsageProvider {
     var connectAction: Selector? {
         switch self {
         case .claude: #selector(MenuBarCoordinator.connectClaudeCode)
-        case .codex, .cursor: nil
+        case .cursor: #selector(MenuBarCoordinator.connectCursor)
+        case .codex: nil
         }
     }
 
     var disconnectAction: Selector? {
         switch self {
         case .claude: #selector(MenuBarCoordinator.disconnectClaudeCode)
-        case .codex, .cursor: nil
+        case .cursor: #selector(MenuBarCoordinator.disconnectCursor)
+        case .codex: nil
         }
     }
 
