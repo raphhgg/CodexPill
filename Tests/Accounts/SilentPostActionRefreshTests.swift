@@ -42,7 +42,7 @@ struct SilentPostActionRefreshTests {
     }
 
     @Test
-    func returnsUpdatedAccountsWhenRefreshSucceeds() async throws {
+    func returnsTheRefreshedAccountWhenRefreshSucceeds() async throws {
         let repository = SilentRefreshCatalogProbe()
         let account = makeAccount(name: "Business 4", fingerprint: "live")
         let refreshedRateLimits = CodexRateLimitSnapshot(
@@ -72,12 +72,11 @@ struct SilentPostActionRefreshTests {
             )
         )
 
-        #expect(result.refreshedAccountID == account.id)
-        #expect(result.accounts.count == 1)
-        #expect(result.accounts[0].email == "business@example.com")
-        #expect(result.accounts[0].planType == "pro")
-        #expect(result.accounts[0].rateLimits == refreshedRateLimits)
-        #expect(repository.savedAccounts == result.accounts)
+        #expect(result.update.accountID == account.id)
+        #expect(result.update.email == "business@example.com")
+        #expect(result.update.planType == "pro")
+        #expect(result.update.rateLimits == refreshedRateLimits)
+        #expect(repository.savedAccounts == nil)
     }
 
     private func makeUseCase(

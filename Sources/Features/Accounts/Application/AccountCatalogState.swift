@@ -36,11 +36,6 @@ struct AccountCatalogState {
         accounts = result.accounts
     }
 
-    mutating func applyRefreshed(_ result: RefreshActiveAccountResult) {
-        accounts = result.accounts
-        activeAccountID = result.refreshedAccountID
-    }
-
     mutating func applyPersistedMetadata(_ accounts: [CodexAccount]) {
         self.accounts = accounts
     }
