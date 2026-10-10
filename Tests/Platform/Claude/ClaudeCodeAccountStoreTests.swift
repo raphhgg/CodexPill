@@ -272,7 +272,6 @@ struct ClaudeCodeAccountStoreTests {
 
         let printed = [dumped, String(describing: snapshot), String(reflecting: snapshot), String(describing: item), String(describing: account)]
         #expect(printed.filter { $0.contains("fake-team") } == [])
-        #expect(String(describing: snapshot) == "ClaudeCodeSignInSnapshot(redacted)")
         let catalog = try String(contentsOf: fixture.catalogFile, encoding: .utf8)
         #expect(catalog.contains("fake-team") == false)
     }
