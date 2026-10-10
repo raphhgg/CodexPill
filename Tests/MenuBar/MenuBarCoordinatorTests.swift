@@ -118,6 +118,69 @@ struct MenuBarCoordinatorTests {
     }
 
     @Test
+    func claudeSectionAsksForConsentThenAsksForKeychainAccessAndShowsUsage() async throws {
+        let harness = try MenuBarCoordinatorHarness()
+        let fixture = ClaudeUsageFixture(refreshInterval: 0)
+        defer {
+            harness.tearDown()
+            fixture.remove()
+        }
+        fixture.signInToKeychain(expiresAt: Date().addingTimeInterval(3_600), needsPermission: true)
+        fixture.response = .success(Data(ClaudeUsageFixture.usageResponse.utf8))
+        let coordinator = harness.makeCoordinator(providerUsageSources: [fixture.usage], claudeCodeUsage: fixture.usage)
+        coordinator.start()
+        await coordinator.waitForPendingWork()
+
+        #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .claude, status: .notConnected)])
+        #expect(claudeMenuTitles(coordinator) == ["Connect Claude Code…"])
+
+        coordinator.connectClaudeCode()
+        await coordinator.waitForPendingWork()
+
+        #expect(harness.alertPresenter.confirmationRequests.map(\.messageText) == ["Connect Claude Code?"])
+        #expect(fixture.settings.isEnabled == false)
+        #expect(fixture.keychainReadPrompts == [])
+
+        harness.alertPresenter.confirmationResponse = true
+        coordinator.connectClaudeCode()
+        await coordinator.waitForPendingWork()
+
+        #expect(fixture.keychainReadPrompts == [true])
+        guard case .current = coordinator.menuState().providerUsage.first?.status else {
+            Issue.record("Expected current Claude usage right after connecting")
+            return
+        }
+        #expect(claudeMenuTitles(coordinator) == ["Disconnect Claude Code…"])
+
+        fixture.signInToKeychain(expiresAt: Date().addingTimeInterval(3_600), needsPermission: true)
+        await coordinator.performScheduledRefresh()
+        await coordinator.waitForPendingWork()
+
+        guard case .unavailable(.keychainAccessNeeded, lastSnapshot: .some) = coordinator.menuState().providerUsage.first?.status else {
+            Issue.record("Expected the Allow Keychain access state with the last usage kept")
+            return
+        }
+        #expect(claudeMenuTitles(coordinator) == ["Allow Keychain access…", "Disconnect Claude Code…"])
+
+        coordinator.allowClaudeKeychainAccess()
+        await coordinator.waitForPendingWork()
+
+        guard case .current = coordinator.menuState().providerUsage.first?.status else {
+            Issue.record("Expected current Claude usage after allowing Keychain access")
+            return
+        }
+        #expect(fixture.keychainReadPrompts.suffix(2) == [false, true])
+
+        coordinator.disconnectClaudeCode()
+        await coordinator.waitForPendingWork()
+
+        #expect(harness.alertPresenter.confirmationRequests.count == 2)
+        #expect(fixture.settings.isEnabled == false)
+        #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .claude, status: .notConnected)])
+        #expect(claudeMenuTitles(coordinator) == ["Connect Claude Code…"])
+    }
+
+    @Test
     func commonModeTimerFiresWhileAMenuIsTracking() {
         var fireCount = 0
         let timer = Timer.repeatingInCommonModes(interval: 0.01) { fireCount += 1 }
@@ -126,6 +189,13 @@ struct MenuBarCoordinatorTests {
         CFRunLoopRunInMode(CFRunLoopMode(RunLoop.Mode.eventTracking.rawValue as CFString), 0.2, false)
 
         #expect(fireCount > 0)
+    }
+
+    /// Claude rows in the main menu and the Preferences submenu, read from the built `NSMenu`.
+    private func claudeMenuTitles(_ coordinator: MenuBarCoordinator) -> [String] {
+        let menu = MenuBarMenuBuilder().makeMenu(state: coordinator.menuState(), target: coordinator)
+        let preferences = menu.items.first { $0.title == "Preferences" }?.submenu?.items ?? []
+        return (menu.items + preferences).map(\.title).filter { $0.contains("Claude") || $0.contains("Keychain") }
     }
 }
 
@@ -150,6 +220,7 @@ private final class MenuBarCoordinatorHarness {
 
     func makeCoordinator(
         providerUsageSources: [any UsageProviderSource] = [],
+        claudeCodeUsage: ClaudeCodeUsage? = nil,
         resetCreditClient: CodexResetCreditClient = UnavailableResetCreditClient(),
         now: @escaping () -> Date = Date.init
     ) -> MenuBarCoordinator {
@@ -169,6 +240,7 @@ private final class MenuBarCoordinatorHarness {
             alertPresenter: alertPresenter,
             panelPresenter: panelPresenter,
             providerUsageSources: providerUsageSources,
+            claudeCodeUsage: claudeCodeUsage,
             allowsEmptyStatePrompt: false,
             now: now
         )

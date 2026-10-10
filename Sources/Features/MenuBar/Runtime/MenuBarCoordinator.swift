@@ -44,6 +44,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         }
     )
     private let providerUsageSources: [any UsageProviderSource]
+    private let claudeCodeUsage: ClaudeCodeUsage?
     private lazy var providerUsageRuntime = ProviderUsageRuntime(
         sources: providerUsageSources,
         onChange: { [weak self] in
@@ -67,6 +68,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         diagnosticReportPresenter: DiagnosticReportPresenting,
         tokenUsageProvider: TokenUsageMenuProviding,
         providerUsageSources: [any UsageProviderSource],
+        claudeCodeUsage: ClaudeCodeUsage?,
         allowsEmptyStatePrompt: Bool,
         now: @escaping () -> Date = Date.init
     ) {
@@ -85,6 +87,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.diagnosticReportPresenter = diagnosticReportPresenter
         self.tokenUsageProvider = tokenUsageProvider
         self.providerUsageSources = providerUsageSources
+        self.claudeCodeUsage = claudeCodeUsage
         self.allowsEmptyStatePrompt = allowsEmptyStatePrompt
         self.now = now
     }
@@ -400,6 +403,35 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     @objc
+    func connectClaudeCode() {
+        recordMenuAction("connectClaudeCode")
+        guard let claudeCodeUsage, alertPresenter.presentConfirmation(alertFactory.makeConnectClaudeCodeRequest()) else { return }
+        tasks.start { [weak self] in
+            await claudeCodeUsage.connect()
+            await self?.providerUsageRuntime.refreshIfDue(forcing: .claude)
+        }
+    }
+
+    /// Retries the read with the Keychain prompt allowed, because the user asked for it.
+    @objc
+    func allowClaudeKeychainAccess() {
+        recordMenuAction("allowClaudeKeychainAccess")
+        guard let claudeCodeUsage else { return }
+        tasks.start { [weak self] in
+            await claudeCodeUsage.allowKeychainAccess()
+            await self?.providerUsageRuntime.refreshIfDue(forcing: .claude)
+        }
+    }
+
+    @objc
+    func disconnectClaudeCode() {
+        recordMenuAction("disconnectClaudeCode")
+        guard let claudeCodeUsage else { return }
+        claudeCodeUsage.disconnect()
+        refreshProviderUsageIfDue(forcing: .claude)
+    }
+
+    @objc
     func showAbout() {
         recordMenuAction("showAbout")
         alertPresenter.presentInfo(alertFactory.makeAboutRequest())
@@ -566,8 +598,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         tokenUsageRuntime.refreshIfNeeded(period: tokenUsagePreferences.period, peakScope: tokenUsagePreferences.peakScope)
     }
 
-    private func refreshProviderUsageIfDue() {
-        tasks.start { [weak self] in await self?.providerUsageRuntime.refreshIfDue() }
+    private func refreshProviderUsageIfDue(forcing forcedProvider: UsageProvider? = nil) {
+        tasks.start { [weak self] in await self?.providerUsageRuntime.refreshIfDue(forcing: forcedProvider) }
     }
 
     /// Rebuilding an open menu makes it jump, so menu-only content rebuilds after the menu closes, or right before it next opens.

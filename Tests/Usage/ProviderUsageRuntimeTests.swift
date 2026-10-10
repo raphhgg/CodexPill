@@ -61,7 +61,7 @@ struct ProviderUsageRuntimeTests {
         #expect(changeCount == 1)
         #expect(runtime.states == [
             ProviderUsageState(provider: .claude, status: .notConnected),
-            ProviderUsageState(provider: .cursor, status: .unavailable(.signInExpired))
+            ProviderUsageState(provider: .cursor, status: .unavailable(.signInExpired, lastSnapshot: nil))
         ])
     }
 
@@ -77,5 +77,35 @@ struct ProviderUsageRuntimeTests {
 
         #expect(changeCount == 1)
         #expect(runtime.states == [ProviderUsageState(provider: .cursor, status: .awaitingUsage)])
+    }
+
+    @Test
+    func failedReadKeepsTheLastGoodSnapshotUntilTheAccountMayHaveChanged() async {
+        let snapshot = UsageSnapshot(
+            provider: .claude,
+            planName: nil,
+            windows: [UsageWindow(kind: .weekly, usedPercent: 30, resetsAt: nil, durationMinutes: 10_080)],
+            fetchedAt: start
+        )
+        let claude = UsageProviderSourceProbe(provider: .claude, reading: .snapshot(snapshot))
+        let runtime = ProviderUsageRuntime(sources: [claude], now: { start }, onChange: {})
+        await runtime.refreshIfDue()
+
+        claude.reading = .unavailable(.readFailed)
+        await runtime.refreshIfDue(forcing: .claude)
+
+        #expect(runtime.states == [ProviderUsageState(provider: .claude, status: .unavailable(.readFailed, lastSnapshot: snapshot))])
+
+        claude.reading = .unavailable(.signInExpired)
+        await runtime.refreshIfDue(forcing: .claude)
+
+        #expect(runtime.states == [ProviderUsageState(provider: .claude, status: .unavailable(.signInExpired, lastSnapshot: snapshot))])
+
+        claude.reading = .unavailable(.signedOut)
+        await runtime.refreshIfDue(forcing: .claude)
+        claude.reading = .unavailable(.readFailed)
+        await runtime.refreshIfDue(forcing: .claude)
+
+        #expect(runtime.states == [ProviderUsageState(provider: .claude, status: .unavailable(.readFailed, lastSnapshot: nil))])
     }
 }

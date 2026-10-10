@@ -19,6 +19,7 @@ struct AppComposition {
             resetCreditClient: codexAppServerClient
         ).makeController()
 
+        let claudeCodeUsage = Self.makeClaudeCodeUsage(environment: environment, defaults: defaults, isolatedRootDirectory: isolatedRootDirectory)
         coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(),
             shortcutRuntime: GlobalShortcutRuntime(),
@@ -36,8 +37,34 @@ struct AppComposition {
             tokenUsageProvider: LocalCodexSessionTokenUsageMenuProvider(
                 cacheFile: AppPaths.tokenUsageCacheFile(isolatedRootDirectory: isolatedRootDirectory)
             ),
-            providerUsageSources: [],
+            providerUsageSources: [claudeCodeUsage],
+            claudeCodeUsage: claudeCodeUsage,
             allowsEmptyStatePrompt: true
+        )
+    }
+
+    /// An isolated run never reads the real Claude sign-in: it reads `.credentials.json` from `CLAUDE_CONFIG_DIR`, or from
+    /// `.claude` inside the isolated root, and skips the Keychain.
+    private static func makeClaudeCodeUsage(
+        environment: [String: String],
+        defaults: UserDefaults,
+        isolatedRootDirectory: URL?
+    ) -> ClaudeCodeUsage {
+        let credentials: ClaudeCredentialsSource
+        if let isolatedRootDirectory {
+            let configDirectory = environment["CLAUDE_CONFIG_DIR"]?.isEmpty == false
+                ? ClaudeCredentialsSource.configDirectory(environment: environment)
+                : isolatedRootDirectory.appendingPathComponent(".claude", isDirectory: true)
+            credentials = ClaudeCredentialsSource(configDirectory: configDirectory, keychain: nil)
+        } else {
+            credentials = ClaudeCredentialsSource(
+                configDirectory: ClaudeCredentialsSource.configDirectory(environment: environment),
+                keychain: SystemClaudeKeychain()
+            )
+        }
+        return ClaudeCodeUsage(
+            settings: ClaudeUsageSettingsStore(userDefaults: defaults),
+            client: ClaudeUsageClient(credentials: credentials, webClient: URLSessionClaudeUsageWebClient())
         )
     }
 }

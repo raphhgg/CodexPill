@@ -15,6 +15,7 @@ The source tree is organized by responsibility:
 - `Sources/Features/Usage/`
 - `Sources/Core/Configuration/`
 - `Sources/Core/Models/`
+- `Sources/Platform/Claude/`
 - `Sources/Platform/Codex/`
 - `Sources/Platform/Persistence/`
 
@@ -74,8 +75,9 @@ It coordinates cache-first loading, scan-task identity, duplicate-scan preventio
 
 Key boundaries:
 
-- `UsageProviderSource`, the port a Platform adapter implements for one provider. It returns a `UsageProviderReading`: not connected, unavailable (sign-in expired or read failed), awaiting usage, or a `UsageSnapshot`.
-- `ProviderUsageRuntime`, which reads each registered source at most once every 5 minutes, however often the menu opens, and publishes `ProviderUsageState` values. A snapshot older than the source's `staleAfter` is published as `.stale`.
+- `UsageProviderSource`, the port for one provider. It returns a `UsageProviderReading`: not connected, unavailable (signed out, sign-in expired, Keychain access needed, or read failed), awaiting usage, or a `UsageSnapshot`.
+- `ClaudeCodeUsage`, the Claude Code source. It wraps the `Platform/Claude` adapter, maps its values onto `UsageSnapshot`, and owns the opt-in setting and the connect and disconnect steps.
+- `ProviderUsageRuntime`, which reads each source at most once per the source's `refreshInterval`, however often the menu opens, and publishes `ProviderUsageState` values. The default interval is 5 minutes. A snapshot older than the source's `staleAfter` is published as `.stale`. When a source is unavailable for a reason that keeps the same account, such as an expired sign-in or a failed read, the runtime keeps the last good snapshot next to the reason.
 
 Provider states only feed menu sections. They never reach `AccountAvailability` or `InactiveAccountAvailabilityRanking`: those read `CodexAccount.usage`, and the runtime reports changes through a menu-rebuild callback instead of the account store. The runtime refuses a source for `.codex`.
 
@@ -122,6 +124,8 @@ Reusable Codex app-server access is split into these platform boundaries:
 - `CodexPillAccountStatusMapper` maps generic app-server DTOs into CodexPill account and rate-limit models.
 
 Local app-server reads enter this session runner through `CodexAppServerClient`, which keeps local executable, environment, client-info, timeout, and saved-account strict rate-limit requirements in `CodexAppServerConfiguration`.
+
+`Platform/Claude` owns everything CodexPill knows about Claude Code: the read-only sign-in lookup in `.credentials.json` and the `Claude Code-credentials` Keychain item, the Keychain prompt rule (only after a user action), the `api.anthropic.com/api/oauth/usage` request, its redirect rule, its rate-limit wait, and parsing its response. The token never leaves this module except as the request's `Authorization` header.
 
 `Platform/Persistence` owns:
 
@@ -191,7 +195,8 @@ The current truth sources are split by concern:
 - active local Codex auth: `~/.codex/auth.json`;
 - CodexPill catalog and saved snapshots: `~/Library/Application Support/CodexPill`;
 - local account metadata and rate limits: local `codex app-server`;
-- running CLI session observation: local process table inspection.
+- running CLI session observation: local process table inspection;
+- Claude Code usage: `api.anthropic.com/api/oauth/usage`, authenticated with Claude Code's local sign-in token.
 
 Rules:
 
@@ -240,6 +245,7 @@ Tests should mirror stable source ownership boundaries once those boundaries exi
 - `Tests/MenuBar/`
 - `Tests/TokenUsage/`
 - `Tests/Usage/`
+- `Tests/Platform/Claude/`
 - `Tests/Platform/Codex/`
 - `Tests/Platform/Persistence/`
 - `Tests/Core/Models/`
