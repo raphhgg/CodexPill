@@ -68,7 +68,7 @@ actor ClaudeUsageClient {
         }
 
         do {
-            return .available(try ClaudeUsageAPI.parseUsage(data), planName: signIn.subscriptionType)
+            return .available(try ClaudeUsageAPI.parseUsage(data), planName: signIn.planName)
         } catch {
             return .unexpectedResponse
         }

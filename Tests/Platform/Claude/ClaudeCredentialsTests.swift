@@ -19,6 +19,19 @@ struct ClaudeCredentialsTests {
         #expect(credentials.isExpired(at: Date(timeIntervalSince1970: 1_791_644_400)) == true)
     }
 
+    @Test(arguments: [
+        (#""subscriptionType":"max","rateLimitTier":"default_claude_max_20x""#, "max_20x"),
+        (#""subscriptionType":"max","rateLimitTier":"default_claude_max_5x""#, "max_5x"),
+        (#""subscriptionType":"pro","rateLimitTier":"default_claude_ai""#, "pro"),
+        (#""subscriptionType":"pro""#, "pro"),
+    ])
+    func thePlanCarriesTheMaxMultiplierWhenClaudeCodeRecordedOne(fields: String, planName: String) throws {
+        let json = #"{"claudeAiOauth":{"accessToken":"fake-claude-access-token","# + fields + "}}"
+        let credentials = try #require(try ClaudeCredentials(json: Data(json.utf8)))
+
+        #expect(credentials.planName == planName)
+    }
+
     @Test
     func anItemWithOnlyMCPSignInsIsSignedOutAndGarbageIsAnError() throws {
         #expect(try ClaudeCredentials(json: Data(#"{"mcpOAuth":{"some-server":{"accessToken":"fake-mcp-token"}}}"#.utf8)) == nil)
