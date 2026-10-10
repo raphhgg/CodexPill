@@ -49,11 +49,11 @@ struct ClaudeCredentials: Sendable {
     let expiresAt: Date?
     let subscriptionType: String?
 
-    /// Parses Claude Code's credentials JSON. Returns nil when it holds no Claude sign-in, for example only `mcpOAuth`.
-    init?(json data: Data) {
+    /// Parses Claude Code's credentials JSON. Returns nil when it holds no Claude sign-in, for example only `mcpOAuth`,
+    /// and throws when it is not credentials JSON at all.
+    init?(json data: Data) throws {
         guard
-            let payload = try? JSONDecoder().decode(CredentialsDTO.self, from: data),
-            let oauth = payload.claudeAiOauth,
+            let oauth = try JSONDecoder().decode(CredentialsDTO.self, from: data).claudeAiOauth,
             let accessToken = oauth.accessToken.flatMap(ClaudeAccessToken.init)
         else {
             return nil

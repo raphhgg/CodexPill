@@ -90,7 +90,7 @@ final class ClaudeUsageFixture: ClaudeKeychainReading, ClaudeUsageWebClient, @un
         }
     }
 
-    func usage(using token: ClaudeAccessToken) async throws -> Data {
+    func usage(using token: ClaudeAccessToken) async throws(ClaudeUsageWebError) -> Data {
         let response = lock.withLock {
             requests += 1
             return currentResponse

@@ -3,10 +3,19 @@ import Foundation
 enum ClaudeUsageStatus: Equatable, Sendable {
     case signedOut
     case keychainAccessNeeded
-    /// The token has expired or Anthropic rejected it. Claude Code renews it when it next runs.
+    /// The credentials file or Keychain item exists but could not be read or parsed.
+    case signInUnreadable
+    /// The token has expired or Anthropic rejected it (401). Claude Code renews it when it next runs.
     case signInExpired
-    /// Anthropic could not be reached, asked CodexPill to slow down, or sent something unexpected.
-    case unavailable
+    /// Anthropic knows the token but refuses the usage read (403), for example a token without the profile scope.
+    case forbidden
+    /// Anthropic answered 429, or its `Retry-After` has not passed yet.
+    case rateLimited
+    case unreachable
+    /// Any other HTTP status.
+    case serviceError
+    /// A 200 whose body is not the usage shape.
+    case unexpectedResponse
     case available(ClaudeUsageReport, planName: String?)
 }
 
@@ -33,14 +42,14 @@ actor ClaudeUsageClient {
         let allowingPrompt = promptAllowedOnNextRead
         promptAllowedOnNextRead = false
         if let rateLimitedUntil, now < rateLimitedUntil {
-            return .unavailable
+            return .rateLimited
         }
 
         let signIn: ClaudeCredentials
         switch credentials.lookup(allowingPrompt: allowingPrompt) {
         case .signedOut: return .signedOut
         case .keychainAccessNeeded: return .keychainAccessNeeded
-        case .unreadable: return .unavailable
+        case .unreadable: return .signInUnreadable
         case let .credentials(found): signIn = found
         }
         guard !signIn.isExpired(at: now) else { return .signInExpired }
@@ -48,16 +57,22 @@ actor ClaudeUsageClient {
         let data: Data
         do {
             data = try await webClient.usage(using: signIn.accessToken)
-        } catch ClaudeUsageWebError.unauthorized {
-            return .signInExpired
-        } catch let ClaudeUsageWebError.rateLimited(retryAfter) {
-            rateLimitedUntil = now.addingTimeInterval(retryAfter ?? Self.defaultRetryAfter)
-            return .unavailable
         } catch {
-            return .unavailable
+            switch error {
+            case .unauthorized: return .signInExpired
+            case .forbidden: return .forbidden
+            case let .rateLimited(retryAfter):
+                rateLimitedUntil = now.addingTimeInterval(retryAfter ?? Self.defaultRetryAfter)
+                return .rateLimited
+            case .httpStatus: return .serviceError
+            case .transport: return .unreachable
+            }
         }
 
-        guard let report = try? ClaudeUsageAPI.parseUsage(data) else { return .unavailable }
-        return .available(report, planName: signIn.subscriptionType)
+        do {
+            return .available(try ClaudeUsageAPI.parseUsage(data), planName: signIn.subscriptionType)
+        } catch {
+            return .unexpectedResponse
+        }
     }
 }

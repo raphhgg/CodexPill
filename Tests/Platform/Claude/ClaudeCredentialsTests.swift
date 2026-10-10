@@ -6,7 +6,7 @@ import Testing
 struct ClaudeCredentialsTests {
     @Test
     func readsTheClaudeSignInAndNeverItsRefreshToken() throws {
-        let credentials = try #require(ClaudeCredentials(json: Data(#"""
+        let credentials = try #require(try ClaudeCredentials(json: Data(#"""
         {"claudeAiOauth":{"accessToken":"fake-claude-access-token","refreshToken":"fake-claude-refresh-token",
          "expiresAt":1791644400000,"scopes":["user:inference","user:profile"],"subscriptionType":"max"},
          "mcpOAuth":{"some-server":{"accessToken":"fake-mcp-token"}}}
@@ -20,15 +20,15 @@ struct ClaudeCredentialsTests {
     }
 
     @Test
-    func anItemWithOnlyMCPSignInsIsSignedOut() {
-        #expect(ClaudeCredentials(json: Data(#"{"mcpOAuth":{"some-server":{"accessToken":"fake-mcp-token"}}}"#.utf8)) == nil)
-        #expect(ClaudeCredentials(json: Data(#"{"claudeAiOauth":{"accessToken":""}}"#.utf8)) == nil)
-        #expect(ClaudeCredentials(json: Data("not json".utf8)) == nil)
+    func anItemWithOnlyMCPSignInsIsSignedOutAndGarbageIsAnError() throws {
+        #expect(try ClaudeCredentials(json: Data(#"{"mcpOAuth":{"some-server":{"accessToken":"fake-mcp-token"}}}"#.utf8)) == nil)
+        #expect(try ClaudeCredentials(json: Data(#"{"claudeAiOauth":{"accessToken":""}}"#.utf8)) == nil)
+        #expect(throws: (any Error).self) { try ClaudeCredentials(json: Data("not json".utf8)) }
     }
 
     @Test
     func theTokenNeverAppearsWhenCredentialsOrTheRequestArePrinted() throws {
-        let credentials = try #require(ClaudeCredentials(json: Data(
+        let credentials = try #require(try ClaudeCredentials(json: Data(
             ClaudeUsageFixture.credentialsJSON(expiresAt: Date(timeIntervalSince1970: 1_791_644_400)).utf8
         )))
         let request = ClaudeUsageAPI.request(using: credentials.accessToken)
@@ -87,7 +87,27 @@ struct ClaudeCredentialsTests {
         fixture.signInToKeychain(expiresAt: Date(timeIntervalSince1970: 1_791_644_400), needsPermission: true)
         #expect(describe(source.lookup(allowingPrompt: false)) == "keychainAccessNeeded")
         #expect(describe(source.lookup(allowingPrompt: true)) == "credentials")
-        #expect(fixture.keychainReadPrompts == [false, false, false, true])
+
+        fixture.keychainItem = Data("not json".utf8)
+        #expect(describe(source.lookup(allowingPrompt: false)) == "unreadable")
+        #expect(fixture.keychainReadPrompts == [false, false, false, true, false])
+    }
+
+    @Test
+    func aBrokenCredentialsFileIsReportedInsteadOfSkipped() throws {
+        let fixture = ClaudeUsageFixture()
+        defer { fixture.remove() }
+        let source = ClaudeCredentialsSource(configDirectory: fixture.configDirectory, keychain: fixture)
+        fixture.signInToKeychain(expiresAt: Date(timeIntervalSince1970: 1_791_644_400))
+
+        try fixture.writeCredentialsFile("{not json")
+        #expect(describe(source.lookup(allowingPrompt: false)) == "unreadable")
+
+        try fixture.writeCredentialsFile(ClaudeUsageFixture.credentialsJSON(expiresAt: Date(timeIntervalSince1970: 1_791_644_400)))
+        try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: source.credentialsFileURL.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: source.credentialsFileURL.path) }
+        #expect(describe(source.lookup(allowingPrompt: false)) == "unreadable")
+        #expect(fixture.keychainReadPrompts == [])
     }
 
     private func describe(_ lookup: ClaudeCredentialsLookup) -> String {
