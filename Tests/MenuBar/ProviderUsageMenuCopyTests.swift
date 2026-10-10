@@ -4,7 +4,7 @@ import Testing
 
 struct ProviderUsageMenuCopyTests {
     private let reasons: [UsageUnavailableReason] = [
-        .signedOut, .signInExpired, .keychainAccessNeeded, .signInUnreadable, .accessDenied,
+        .signedOut, .signInExpired, .signInRequired, .keychainAccessNeeded, .signInUnreadable, .accessDenied,
         .rateLimited, .unreachable, .serviceError, .unexpectedResponse,
     ]
 

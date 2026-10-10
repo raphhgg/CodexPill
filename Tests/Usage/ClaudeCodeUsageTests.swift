@@ -29,12 +29,12 @@ struct ClaudeCodeUsageTests {
         #expect(fixture.keychainReadPrompts == [])
 
         #expect(await fixture.usage.connectWithClaudeCodeSignIn(now: now) == true)
-        #expect(ClaudeUsageSettingsStore(userDefaults: fixture.defaults).isEnabled == true)
+        #expect(ClaudeUsageSettingsStore(userDefaults: fixture.defaults).connection == .claudeCode)
         #expect(await fixture.usage.readUsage(now: now) == currentUsage)
 
         await fixture.usage.disconnect()
 
-        #expect(ClaudeUsageSettingsStore(userDefaults: fixture.defaults).isEnabled == false)
+        #expect(ClaudeUsageSettingsStore(userDefaults: fixture.defaults).connection == nil)
         #expect(await fixture.usage.readUsage(now: now) == .notConnected)
         #expect(fixture.usageRequestTokens == [ClaudeUsageFixture.fakeAccessToken])
         #expect(fixture.keychainReadPrompts == [false, false])
@@ -48,48 +48,43 @@ struct ClaudeCodeUsageTests {
         fixture.signInToKeychain(expiresAt: now)
 
         #expect(await fixture.usage.connectWithClaudeCodeSignIn(now: now) == false)
-        #expect(fixture.settings.isEnabled == false)
+        #expect(fixture.settings.connection == nil)
 
         async let cancelled = fixture.usage.signIn()
         await fixture.waitUntilSignInStarted()
         fixture.finishSignIn(with: .failure(ClaudeSignInError.timedOut))
         #expect(await cancelled == false)
-        #expect(fixture.settings.isEnabled == false)
+        #expect(fixture.settings.connection == nil)
         #expect(fixture.ownSignIn == nil)
 
         async let signedIn = fixture.usage.signIn()
         await fixture.waitUntilSignInStarted()
         fixture.finishSignIn(with: .success(ClaudeUsageFixture.ownSignIn(expiresAt: now.addingTimeInterval(3_600))))
         #expect(await signedIn == true)
-        #expect(fixture.settings.isEnabled == true)
+        #expect(fixture.settings.connection == .codexPill)
         #expect(fixture.ownSignIn == ClaudeUsageFixture.ownSignIn(expiresAt: now.addingTimeInterval(3_600)))
     }
 
     @Test
-    func codexPillsOwnSignInWinsOverClaudeCodesAndNoSignInAsksForANewOne() async {
+    func eachConnectionReadsOnlyTheSignInTheUserChose() async {
         let fixture = ClaudeUsageFixture()
         defer { fixture.remove() }
-        fixture.settings.isEnabled = true
         fixture.response = .success(Data(ClaudeUsageFixture.usageResponse.utf8))
-
-        #expect(await fixture.usage.readUsage(now: now) == .unavailable(.signedOut))
-
-        fixture.signInToKeychain(expiresAt: now)
-        #expect(await fixture.usage.readUsage(now: now) == .unavailable(.signInExpired))
-
         fixture.signInToKeychain(expiresAt: now.addingTimeInterval(3_600))
-        _ = await fixture.usage.readUsage(now: now)
-
         fixture.ownSignIn = ClaudeUsageFixture.ownSignIn(expiresAt: now.addingTimeInterval(3_600))
-        #expect(await fixture.usage.readUsage(now: now) == .snapshot(UsageSnapshot(
-            provider: .claude,
-            planName: nil,
-            windows: [
-                UsageWindow(kind: .session, usedPercent: 64, resetsAt: Date(timeIntervalSince1970: 1_791_644_400), durationMinutes: 300),
-                UsageWindow(kind: .weekly, usedPercent: 21, resetsAt: Date(timeIntervalSince1970: 1_791_968_400), durationMinutes: 10_080),
-            ],
-            fetchedAt: now
-        )))
+
+        fixture.settings.connection = .claudeCode
+        #expect(await fixture.usage.readUsage(now: now) == currentUsage)
+
+        fixture.settings.connection = .codexPill
+        guard case let .snapshot(snapshot) = await fixture.usage.readUsage(now: now) else {
+            Issue.record("Expected usage with CodexPill's own sign-in")
+            return
+        }
+        #expect(snapshot.planName == nil)
+
+        fixture.ownSignIn = nil
+        #expect(await fixture.usage.readUsage(now: now) == .unavailable(.signInRequired))
         #expect(fixture.usageRequestTokens == [ClaudeUsageFixture.fakeAccessToken, ClaudeUsageFixture.fakeOwnAccessToken])
     }
 
@@ -97,7 +92,7 @@ struct ClaudeCodeUsageTests {
     func theOwnSignInIsRefreshedFiveMinutesBeforeItExpiresAndTheRotationIsSaved() async {
         let fixture = ClaudeUsageFixture()
         defer { fixture.remove() }
-        fixture.settings.isEnabled = true
+        fixture.settings.connection = .codexPill
         fixture.response = .success(Data(ClaudeUsageFixture.usageResponse.utf8))
         fixture.ownSignIn = ClaudeUsageFixture.ownSignIn(expiresAt: now.addingTimeInterval(301))
         let rotated = ClaudeUsageFixture.ownSignIn(expiresAt: now.addingTimeInterval(28_800), rotated: true)
@@ -119,24 +114,29 @@ struct ClaudeCodeUsageTests {
     }
 
     @Test
-    func aRejectedRefreshTokenAsksForANewSignInAndDeletesTheDeadItem() async {
+    func aRejectedRefreshTokenKeepsAskingForANewSignInAndNeverFallsBackToClaudeCode() async {
         let fixture = ClaudeUsageFixture()
         defer { fixture.remove() }
-        fixture.settings.isEnabled = true
+        fixture.settings.connection = .codexPill
         fixture.response = .success(Data(ClaudeUsageFixture.usageResponse.utf8))
         fixture.ownSignIn = ClaudeUsageFixture.ownSignIn(expiresAt: now.addingTimeInterval(60))
         fixture.refreshResult = .failure(.invalidGrant)
 
-        #expect(await fixture.usage.readUsage(now: now) == .unavailable(.signInExpired))
+        #expect(await fixture.usage.readUsage(now: now) == .unavailable(.signInRequired))
         #expect(fixture.ownSignIn == nil)
+
+        fixture.signInToKeychain(expiresAt: now.addingTimeInterval(3_600))
+        #expect(await fixture.usage.readUsage(now: now.addingTimeInterval(600)) == .unavailable(.signInRequired))
         #expect(fixture.requestCount == 0)
+        #expect(fixture.keychainReadPrompts == [])
+        #expect(fixture.settings.connection == .codexPill)
     }
 
     @Test
     func aRefreshThatCannotReachAnthropicKeepsUsingTheTokenUntilItExpires() async {
         let fixture = ClaudeUsageFixture()
         defer { fixture.remove() }
-        fixture.settings.isEnabled = true
+        fixture.settings.connection = .codexPill
         fixture.response = .success(Data(ClaudeUsageFixture.usageResponse.utf8))
         let signIn = ClaudeUsageFixture.ownSignIn(expiresAt: now.addingTimeInterval(60))
         fixture.ownSignIn = signIn
@@ -155,7 +155,7 @@ struct ClaudeCodeUsageTests {
     func twoReadsAtOnceShareOneRefresh() async {
         let fixture = ClaudeUsageFixture()
         defer { fixture.remove() }
-        fixture.settings.isEnabled = true
+        fixture.settings.connection = .codexPill
         fixture.response = .success(Data(ClaudeUsageFixture.usageResponse.utf8))
         fixture.ownSignIn = ClaudeUsageFixture.ownSignIn(expiresAt: now.addingTimeInterval(60))
         fixture.refreshResult = .success(ClaudeUsageFixture.ownSignIn(expiresAt: now.addingTimeInterval(28_800), rotated: true))
@@ -176,14 +176,14 @@ struct ClaudeCodeUsageTests {
     func disconnectDeletesAndRevokesOnlyCodexPillsOwnSignIn() async {
         let fixture = ClaudeUsageFixture()
         defer { fixture.remove() }
-        fixture.settings.isEnabled = true
+        fixture.settings.connection = .codexPill
         fixture.signInToKeychain(expiresAt: now.addingTimeInterval(3_600))
         let claudeCodeItem = fixture.keychainItem
         fixture.ownSignIn = ClaudeUsageFixture.ownSignIn(expiresAt: now.addingTimeInterval(3_600))
 
         await fixture.usage.disconnect()
 
-        #expect(fixture.settings.isEnabled == false)
+        #expect(fixture.settings.connection == nil)
         #expect(fixture.ownSignIn == nil)
         #expect(fixture.revokedRefreshTokens == [ClaudeUsageFixture.fakeOwnRefreshToken])
         #expect(fixture.keychainItem == claudeCodeItem)
@@ -195,7 +195,7 @@ struct ClaudeCodeUsageTests {
         defer { fixture.remove() }
         fixture.signInToKeychain(expiresAt: now.addingTimeInterval(3_600), needsPermission: true)
         fixture.response = .success(Data(ClaudeUsageFixture.usageResponse.utf8))
-        fixture.settings.isEnabled = true
+        fixture.settings.connection = .claudeCode
 
         #expect(await fixture.usage.readUsage(now: now) == .unavailable(.keychainAccessNeeded))
         #expect(await fixture.usage.readUsage(now: now) == .unavailable(.keychainAccessNeeded))
@@ -215,7 +215,7 @@ struct ClaudeCodeUsageTests {
     func anExpiredSignInIsNeverSentToAnthropic() async {
         let fixture = ClaudeUsageFixture()
         defer { fixture.remove() }
-        fixture.settings.isEnabled = true
+        fixture.settings.connection = .claudeCode
         fixture.signInToKeychain(expiresAt: now)
         fixture.response = .success(Data(ClaudeUsageFixture.usageResponse.utf8))
 
@@ -227,7 +227,7 @@ struct ClaudeCodeUsageTests {
     func eachAnthropicProblemBecomesOneMenuState() async {
         let fixture = ClaudeUsageFixture()
         defer { fixture.remove() }
-        fixture.settings.isEnabled = true
+        fixture.settings.connection = .claudeCode
 
         #expect(await fixture.usage.readUsage(now: now) == .unavailable(.signedOut))
 
@@ -259,7 +259,7 @@ struct ClaudeCodeUsageTests {
     func aRateLimitWaitsForRetryAfterBeforeTheNextRequest() async {
         let fixture = ClaudeUsageFixture()
         defer { fixture.remove() }
-        fixture.settings.isEnabled = true
+        fixture.settings.connection = .claudeCode
         fixture.signInToKeychain(expiresAt: now.addingTimeInterval(7_200))
         fixture.response = .failure(.rateLimited(retryAfter: 900))
 
@@ -279,7 +279,7 @@ struct ClaudeCodeUsageTests {
     func aRateLimitWithoutRetryAfterWaitsFiveMinutes() async {
         let fixture = ClaudeUsageFixture()
         defer { fixture.remove() }
-        fixture.settings.isEnabled = true
+        fixture.settings.connection = .claudeCode
         fixture.signInToKeychain(expiresAt: now.addingTimeInterval(7_200))
         fixture.response = .failure(.rateLimited(retryAfter: nil))
 
@@ -302,7 +302,7 @@ struct ClaudeCodeUsageTests {
         let suiteName = "ClaudeSwitchUsage-\(UUID().uuidString)"
         defer { UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName) }
         let settings = ClaudeUsageSettingsStore(userDefaults: UserDefaults(suiteName: suiteName)!)
-        settings.isEnabled = true
+        settings.connection = .claudeCode
         let signInDoubles = ClaudeUsageFixture()
         defer { signInDoubles.remove() }
         let usage = ClaudeCodeUsage(

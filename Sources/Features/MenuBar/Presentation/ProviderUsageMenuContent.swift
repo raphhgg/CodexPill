@@ -98,6 +98,7 @@ extension UsageProvider {
         return switch reason {
         case .signedOut: ("Not signed in to \(menuTitle)", "Sign in to \(menuTitle) to see usage.")
         case .signInExpired: ("\(menuTitle) sign-in expired", "Open \(menuTitle) to renew it.")
+        case .signInRequired: ("Sign in to \(accountName) again", nil)
         case .keychainAccessNeeded: ("Allow Keychain access", nil)
         case .signInUnreadable: ("Can't read the \(menuTitle) sign-in", "Sign in to \(menuTitle) again.")
         case .accessDenied: ("\(serviceName) won't share usage", "Sign in to \(menuTitle) again.")
@@ -105,6 +106,13 @@ extension UsageProvider {
         case .unreachable: ("Can't reach \(serviceName)", retrying)
         case .serviceError: ("\(serviceName) is having trouble", retrying)
         case .unexpectedResponse: ("Unexpected reply from \(serviceName)", retrying)
+        }
+    }
+
+    private var accountName: String {
+        switch self {
+        case .claude: "Claude"
+        case .codex, .cursor: menuTitle
         }
     }
 

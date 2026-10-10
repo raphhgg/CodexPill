@@ -617,7 +617,7 @@ private extension UsageProvider {
         switch status {
         case .signingIn:
             return ("Cancel Sign-In", "xmark.circle", #selector(MenuBarCoordinator.cancelClaudeSignIn))
-        case .unavailable(.signInExpired, _), .unavailable(.signedOut, _):
+        case .unavailable(.signInRequired, _), .unavailable(.signInExpired, _), .unavailable(.signedOut, _):
             return ("Sign In…", "person.crop.circle", #selector(MenuBarCoordinator.signInToClaude))
         default:
             return nil

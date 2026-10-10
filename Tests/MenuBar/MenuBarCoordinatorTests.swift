@@ -150,7 +150,7 @@ struct MenuBarCoordinatorTests {
         await coordinator.waitForPendingWork()
 
         #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .claude, status: .notConnected)])
-        #expect(fixture.settings.isEnabled == false)
+        #expect(fixture.settings.connection == nil)
 
         coordinator.connectClaudeCode()
         await fixture.waitUntilSignInStarted()
@@ -169,10 +169,9 @@ struct MenuBarCoordinatorTests {
         await coordinator.performScheduledRefresh()
         await coordinator.waitForPendingWork()
 
-        guard case .unavailable(.signInExpired, lastSnapshot: .some) = coordinator.menuState().providerUsage.first?.status else {
-            Issue.record("Expected Sign in to Claude again with the last usage kept")
-            return
-        }
+        #expect(coordinator.menuState().providerUsage == [
+            ProviderUsageState(provider: .claude, status: .unavailable(.signInRequired, lastSnapshot: nil)),
+        ])
         #expect(claudeMenuTitles(coordinator) == ["Sign In…", "Disconnect Claude Code…"])
 
         coordinator.signInToClaude()
@@ -189,7 +188,7 @@ struct MenuBarCoordinatorTests {
         await coordinator.waitForPendingWork()
 
         #expect(harness.alertPresenter.confirmationRequests.count == 3)
-        #expect(fixture.settings.isEnabled == false)
+        #expect(fixture.settings.connection == nil)
         #expect(fixture.ownSignIn == nil)
         #expect(fixture.revokedRefreshTokens == [ClaudeUsageFixture.fakeOwnRefreshToken])
         #expect(claudeMenuTitles(coordinator) == ["Connect Claude Code…"])
@@ -203,7 +202,7 @@ struct MenuBarCoordinatorTests {
             harness.tearDown()
             fixture.remove()
         }
-        fixture.settings.isEnabled = true
+        fixture.settings.connection = .claudeCode
         fixture.signInToKeychain(expiresAt: Date().addingTimeInterval(3_600), needsPermission: true)
         fixture.response = .success(Data(ClaudeUsageFixture.usageResponse.utf8))
         let coordinator = harness.makeCoordinator(providerUsageSources: [fixture.usage], claudeCodeUsage: fixture.usage)

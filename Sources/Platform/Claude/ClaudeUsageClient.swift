@@ -17,8 +17,8 @@ enum ClaudeUsageStatus: Equatable, Sendable {
     case available(ClaudeUsageReport, planName: String?)
 }
 
-/// Fetches Claude usage with CodexPill's own sign-in when there is one, otherwise with Claude Code's sign-in
-/// while that is unexpired. It refreshes only its own sign-in, one refresh at a time.
+/// Fetches Claude usage with the sign-in the user connected: CodexPill's own, or Claude Code's while that is unexpired.
+/// It never falls back from one to the other, and it refreshes only its own sign-in, one refresh at a time.
 actor ClaudeUsageClient {
     static let defaultRetryAfter: TimeInterval = 5 * 60
 
@@ -77,7 +77,7 @@ actor ClaudeUsageClient {
         }
     }
 
-    func refresh(now: Date) async -> ClaudeUsageStatus {
+    func refresh(now: Date, using source: ClaudeSignInSource) async -> ClaudeUsageStatus {
         let allowingPrompt = promptAllowedOnNextRead
         promptAllowedOnNextRead = false
         if let rateLimitedUntil, now < rateLimitedUntil {
@@ -86,7 +86,11 @@ actor ClaudeUsageClient {
 
         let token: ClaudeAccessToken
         let planName: String?
-        switch await usableToken(now: now, allowingPrompt: allowingPrompt) {
+        let lookup = switch source {
+        case .claudeCode: claudeCodeToken(now: now, allowingPrompt: allowingPrompt)
+        case .codexPill: await ownToken(now: now, allowingPrompt: allowingPrompt)
+        }
+        switch lookup {
         case let .stop(status): return status
         case let .token(found, plan): (token, planName) = (found, plan)
         }
@@ -113,21 +117,19 @@ actor ClaudeUsageClient {
         }
     }
 
-    /// CodexPill's own sign-in first, refreshed shortly before it expires. Otherwise Claude Code's, only while unexpired.
-    private func usableToken(now: Date, allowingPrompt: Bool) async -> TokenLookup {
+    /// CodexPill's own sign-in, refreshed shortly before it expires. A missing or rejected sign-in needs a new one.
+    private func ownToken(now: Date, allowingPrompt: Bool) async -> TokenLookup {
         let signIn: ClaudeSignIn
         if let unsavedSignIn {
             signIn = unsavedSignIn
             if signInStore.save(signIn, allowingPrompt: allowingPrompt) { self.unsavedSignIn = nil }
         } else {
             switch signInStore.read(allowingPrompt: allowingPrompt) {
-            case .notFound: return claudeCodeToken(now: now, allowingPrompt: allowingPrompt)
+            case .notFound: return .stop(.signInExpired)
             case .needsPermission: return .stop(.keychainAccessNeeded)
             case .failed: return .stop(.signInUnreadable)
             case let .found(data):
-                guard let stored = ClaudeSignIn(keychainData: data) else {
-                    return claudeCodeToken(now: now, allowingPrompt: allowingPrompt)
-                }
+                guard let stored = ClaudeSignIn(keychainData: data) else { return .stop(.signInUnreadable) }
                 signIn = stored
             }
         }
