@@ -80,34 +80,6 @@ struct MenuBarValidationObserverTests {
         #expect(sink.snapshots.last?.actionTrace?.lastConfirmationAccepted == true)
     }
 
-    @Test
-    func remoteHostSwitchObserverPreservesEventNamesAndInvariantIDs() throws {
-        let sink = ValidationSinkProbe()
-        let observer = MenuBarValidationObserver(
-            sink: sink,
-            scenario: "observer-tests"
-        )
-        let account = makeAccount(name: "Business", email: "business@example.com")
-        let host = RemoteHost(destination: "user@buildbox", displayName: "Buildbox")
-
-        observer.recordRemoteHostSwitchMenuAction(targetName: account.name, hostName: host.displayName)
-        observer.recordRemoteHostSwitchResult(.verified(CodexAccountStatus(email: account.email, planType: "team")), account: account, host: host)
-
-        #expect(sink.events.map(\.event) == [
-            "remote_host_switch_started",
-            "remote_host_active_account_changed"
-        ])
-        #expect(sink.events.map(\.step) == [
-            "remote_host_switch_start",
-            "remote_host_switch_result"
-        ])
-        #expect(sink.events.last?.invariantIds == ["hosts.switch_account_on_host.changes_remote_active_account"])
-        #expect(sink.events.last?.payload == [
-            "hostName": "Buildbox",
-            "targetName": "Business"
-        ])
-    }
-
     private func makeMenuState(activeAccount: CodexAccount? = nil) -> MenuBarMenuState {
         MenuBarMenuState(
             activeAccount: activeAccount,

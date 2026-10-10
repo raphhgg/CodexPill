@@ -65,7 +65,7 @@ Given a saved account exists, when the user enters a unique new name and confirm
 
 ### Rename Does Not Change Auth
 
-Given a saved account is renamed, then the saved auth snapshot, Codex identity, active local auth state, and remote installed snapshots remain unchanged.
+Given a saved account is renamed, then the saved auth snapshot, Codex identity, and active local auth state remain unchanged.
 
 ### Empty Name Rejected
 

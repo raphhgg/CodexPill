@@ -26,14 +26,6 @@ final class MenuBarAccountsStore {
         await controller.switchToAccount(account)
     }
 
-    func switchToAccountOnHost(_ account: CodexAccount, on host: RemoteHost) async -> AccountsController.RemoteHostSwitchOutcome {
-        await controller.switchToAccountOnHost(account, on: host)
-    }
-
-    func testRemoteHostConnection(_ host: RemoteHost) async -> Bool {
-        await controller.testRemoteHostConnection(host)
-    }
-
     func removeSavedAccount(_ account: CodexAccount, signOutLocalAccount: Bool = false) async {
         await controller.removeSavedAccount(account, signOutLocalAccount: signOutLocalAccount)
     }

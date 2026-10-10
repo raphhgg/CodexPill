@@ -32,32 +32,11 @@ struct AppRuntimeEnvironmentTests {
     func validationOverridesReadTrimmedPathsAndSuiteNames() {
         let environment = [
             AppRuntimeEnvironment.validationAppSupportDirectoryEnvironmentKey: " /tmp/codexpill-validation ",
-            AppRuntimeEnvironment.validationUserDefaultsSuiteEnvironmentKey: " validation-suite ",
-            AppRuntimeEnvironment.validationSettingsFixtureEnvironmentKey: " /tmp/settings.json "
+            AppRuntimeEnvironment.validationUserDefaultsSuiteEnvironmentKey: " validation-suite "
         ]
 
         #expect(AppRuntimeEnvironment.validationAppSupportDirectory(environment: environment)?.path == "/tmp/codexpill-validation")
         #expect(AppRuntimeEnvironment.validationUserDefaultsSuiteName(environment: environment) == "validation-suite")
-        #expect(AppRuntimeEnvironment.validationSettingsFixtureURL(environment: environment)?.path == "/tmp/settings.json")
-    }
-
-    @Test
-    func validationRemoteHostClientModeAcceptsExplicitTruthValues() {
-        #expect(
-            AppRuntimeEnvironment.shouldUseValidationRemoteHostClient(
-                environment: [AppRuntimeEnvironment.validationRemoteHostClientEnvironmentKey: "memory"]
-            )
-        )
-        #expect(
-            AppRuntimeEnvironment.shouldUseValidationRemoteHostClient(
-                environment: [AppRuntimeEnvironment.validationRemoteHostClientEnvironmentKey: "true"]
-            )
-        )
-        #expect(
-            !AppRuntimeEnvironment.shouldUseValidationRemoteHostClient(
-                environment: [AppRuntimeEnvironment.validationRemoteHostClientEnvironmentKey: "0"]
-            )
-        )
     }
 
     @Test

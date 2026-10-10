@@ -35,7 +35,7 @@
 ## Privacy / Safety
 
 - [ ] No tokens, auth snapshots, API keys, emails, or personal app data are included in code, tests, logs, screenshots, or docs.
-- [ ] If this touches auth, diagnostics, logs, notifications, or remote hosts, I checked `docs/PRIVACY.md`.
+- [ ] If this touches auth, diagnostics, or logs, I checked `docs/PRIVACY.md`.
 
 ## Reviewer focus
 

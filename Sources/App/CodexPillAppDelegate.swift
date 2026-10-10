@@ -1,8 +1,7 @@
 import AppKit
-import UserNotifications
 
 @MainActor
-final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
+final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
     private var coordinator: MenuBarCoordinator?
     private var settings: CodexPillSettingsStore!
     private var statusItemRuntime: StatusItemRuntime?
@@ -16,7 +15,6 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
             .flatMap(UserDefaults.init(suiteName:))
             ?? .standard
         settings = CodexPillSettingsStore(userDefaults: defaults)
-        ValidationAppBootstrap.applyFixtureIfPresent(to: settings, environment: environment)
 
         guard AppRuntimeEnvironment.shouldStartAppRuntime(environment: environment) else {
             return
@@ -28,19 +26,11 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
             ? ValidationCodexAppProcessClient()
             : SystemCodexAppProcessClient()
         let accountStatusClient = CodexAppServerClient()
-        let remoteHostClient: RemoteHostSwitchWorkflowOperations
-            & RemoteHostAccountSigningOut
-        if AppRuntimeEnvironment.shouldUseValidationRemoteHostClient(environment: environment) {
-            remoteHostClient = ValidationRemoteHostClient(seedStates: settings.remoteHostStates)
-        } else {
-            remoteHostClient = SSHRemoteHostClient(snapshotLocator: repository)
-        }
         let accountsFeatureFactory = AccountsFeatureFactory(
             repository: repository,
             authService: authService,
             codexAppProcessClient: processClient,
-            accountStatusClient: accountStatusClient,
-            remoteHostSwitchOperations: remoteHostClient
+            accountStatusClient: accountStatusClient
         )
         let store = accountsFeatureFactory.makeMenuBarAccountsStore()
 
@@ -50,16 +40,10 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
             statusItemRuntime: statusItemRuntime,
             store: store,
             settings: settings,
-            remoteHostConnectionChecker: remoteHostClient,
-            remoteHostAccountStatusReader: remoteHostClient,
-            remoteHostAccountSignerOut: remoteHostClient,
-            remoteHostAppServerRefresher: remoteHostClient,
             alertPresenter: SystemAlertPresenter(),
             validationSink: MenuBarValidationConfiguration.makeSink(),
             allowsEmptyStatePrompt: !AppRuntimeEnvironment.shouldSuppressEmptyStatePrompt()
         )
-
-        UNUserNotificationCenter.current().delegate = self
 
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didWakeNotification,
@@ -86,23 +70,4 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
         }
         coordinator?.invalidate()
     }
-
-    nonisolated func userNotificationCenter(
-        _ center: UNUserNotificationCenter,
-        willPresent notification: UNNotification
-    ) async -> UNNotificationPresentationOptions {
-        [.banner, .sound]
-    }
-
-    nonisolated func userNotificationCenter(
-        _ center: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse
-    ) async {
-        let payload = AccountAvailabilityNotificationResponsePayload(
-            actionIdentifier: response.actionIdentifier,
-            userInfo: response.notification.request.content.userInfo
-        )
-        await coordinator?.handleNotificationResponse(payload)
-    }
-
 }

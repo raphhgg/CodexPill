@@ -26,7 +26,6 @@ assignees: ""
 
 - CodexPill version:
 - macOS version:
-- Local only or remote hosts:
 
 ## Redaction Check
 
