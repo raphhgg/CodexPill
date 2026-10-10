@@ -23,25 +23,6 @@ struct AccountsControllerRefreshRaceTests {
     }
 
     @Test
-    func renamingAnAccountDuringAnInactiveRefreshKeepsTheNewNameAndTheRefreshedLimits() async throws {
-        let fixture = RefreshRaceFixture()
-        let controller = fixture.makeController()
-        controller.load()
-
-        let refresh = Task { await controller.refreshInactiveSavedAccountsMetadata() }
-        await fixture.statusClient.waitUntilReading()
-        let rename = await startOperation(on: controller) { await controller.renameSavedAccount(fixture.backup, to: "Side project") }
-        await fixture.statusClient.finishRead(status: .success(fixture.refreshedStatus), rotatedAuthData: nil)
-        await rename.value
-        await refresh.value
-
-        let backup = try #require(controller.accounts.first(where: { $0.id == fixture.backup.id }))
-        #expect(backup.name == "Side project")
-        #expect(backup.usage?.window(.session)?.usedPercent == 70)
-        #expect(fixture.catalog.savedAccounts.map(\.name) == ["Personal", "Side project"])
-    }
-
-    @Test
     func switchingToAnAccountDuringAnInactiveRefreshActivatesItsRotatedAuth() async {
         let fixture = RefreshRaceFixture()
         let controller = fixture.makeController()
@@ -94,26 +75,6 @@ struct AccountsControllerRefreshRaceTests {
         let personal = try #require(controller.accounts.first(where: { $0.id == fixture.personal.id }))
         #expect(controller.accounts.map(\.name) == ["Personal"])
         #expect(fixture.catalog.savedAccounts.map(\.name) == ["Personal"])
-        #expect(personal.usage?.window(.session)?.usedPercent == 70)
-        #expect(controller.activeAccountID == fixture.personal.id)
-    }
-
-    @Test
-    func renamingAnAccountDuringAnActiveRefreshKeepsTheNewName() async throws {
-        let fixture = RefreshRaceFixture()
-        await fixture.activeStatusClient.holdReads()
-        let controller = fixture.makeController()
-        controller.load()
-
-        let refresh = Task { await controller.refreshAccountData(for: fixture.personal) }
-        await fixture.activeStatusClient.waitUntilReading()
-        await controller.renameSavedAccount(fixture.backup, to: "Side project")
-        await fixture.activeStatusClient.finishRead(with: fixture.refreshedStatus)
-        #expect(await refresh.value == .refreshed)
-
-        let personal = try #require(controller.accounts.first(where: { $0.id == fixture.personal.id }))
-        #expect(controller.accounts.map(\.name) == ["Personal", "Side project"])
-        #expect(fixture.catalog.savedAccounts.map(\.name) == ["Personal", "Side project"])
         #expect(personal.usage?.window(.session)?.usedPercent == 70)
         #expect(controller.activeAccountID == fixture.personal.id)
     }
@@ -225,7 +186,6 @@ private final class RefreshRaceFixture {
                 repository: catalog
             ),
             deleteSavedAccountUseCase: DeleteSavedAccountUseCase(repository: catalog, identityResolver: identityResolver),
-            renameSavedAccountUseCase: RenameSavedAccountUseCase(repository: catalog),
             accountCatalogStore: catalog,
             switchAccountWorkflow: SwitchAccountWorkflow(
                 authService: authStore,

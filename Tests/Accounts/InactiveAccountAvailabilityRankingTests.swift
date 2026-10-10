@@ -163,7 +163,6 @@ struct InactiveAccountAvailabilityRankingTests {
                 repository: repository,
                 identityResolver: identityResolver
             ),
-            renameSavedAccountUseCase: RenameSavedAccountUseCase(repository: repository),
             accountCatalogStore: repository,
             switchAccountWorkflow: SwitchAccountWorkflow(
                 authService: RankingNullAuthService(),

@@ -140,7 +140,6 @@ struct AccountsControllerTests {
                 repository: repository,
                 identityResolver: identityResolver
             ),
-            renameSavedAccountUseCase: RenameSavedAccountUseCase(repository: repository),
             accountCatalogStore: repository,
             switchAccountWorkflow: SwitchAccountWorkflow(
                 authService: NullAuthService(),
@@ -594,7 +593,6 @@ struct AccountsControllerTests {
                 repository: repository,
                 identityResolver: identityResolver
             ),
-            renameSavedAccountUseCase: RenameSavedAccountUseCase(repository: repository),
             accountCatalogStore: repository,
             switchAccountWorkflow: SwitchAccountWorkflow(
                 authService: authService,
