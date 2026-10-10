@@ -47,7 +47,19 @@ struct ClaudeCodeUsageTests {
         #expect(ClaudeUsageSettingsStore(userDefaults: fixture.defaults).connection == nil)
         #expect(await fixture.usage.readUsage(now: now) == .notConnected)
         #expect(fixture.usageRequestTokens == [ClaudeUsageFixture.fakeAccessToken])
-        #expect(fixture.keychainReadPrompts == [false, false])
+        #expect(fixture.keychainReadPrompts == [true, false])
+        #expect(fixture.browserSignInCount == 0)
+    }
+
+    @Test
+    func connectingMayAskForKeychainAccessSoAClaudeCodeUserIsNotSentToTheBrowser() async {
+        let fixture = ClaudeUsageFixture()
+        defer { fixture.remove() }
+        fixture.signInToKeychain(expiresAt: Date().addingTimeInterval(3_600), needsPermission: true)
+
+        #expect(await fixture.usage.connect() == true)
+        #expect(fixture.settings.connection == .claudeCode)
+        #expect(fixture.keychainReadPrompts == [true])
         #expect(fixture.browserSignInCount == 0)
     }
 

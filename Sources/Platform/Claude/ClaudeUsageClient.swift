@@ -50,9 +50,10 @@ actor ClaudeUsageClient {
         promptAllowedOnNextRead = true
     }
 
-    /// True when Claude Code's sign-in can be read without a prompt and is unexpired, so connecting needs no browser.
+    /// True when Claude Code's sign-in is there and unexpired, so connecting needs no browser. It may show the Keychain
+    /// prompt, so call it only right after the user chose to connect.
     func hasUsableClaudeCodeSignIn(now: Date) -> Bool {
-        guard case let .credentials(credentials) = claudeCode.lookup(allowingPrompt: false) else { return false }
+        guard case let .credentials(credentials) = claudeCode.lookup(allowingPrompt: true) else { return false }
         return !credentials.isExpired(at: now)
     }
 

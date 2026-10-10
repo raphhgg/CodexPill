@@ -29,9 +29,9 @@ struct ClaudeCodeUsage: ProviderConnection {
 
     var signIn: (any ProviderSignIn)? { browserSignIn }
 
-    /// Connects with Claude Code's sign-in when it is readable without a prompt and unexpired. Returns false when
-    /// the user has to sign in with Claude in the browser instead. Once connected, it only lets the next read ask for
-    /// Keychain access, since the user just asked for it.
+    /// Connects with Claude Code's sign-in when it is there and unexpired. Returns false when the user has to sign in
+    /// with Claude in the browser instead. Once connected, it only lets the next read ask for Keychain access, since
+    /// the user just asked for it.
     func connect() async -> Bool {
         guard settings.connection != nil else {
             guard await client.hasUsableClaudeCodeSignIn(now: Date()) else { return false }
