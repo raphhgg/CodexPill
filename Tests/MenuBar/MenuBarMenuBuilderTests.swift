@@ -947,7 +947,7 @@ struct MenuBarMenuBuilderTests {
         let active = makeAccount(name: "Alex", email: "alex@example.com", usage: usage)
         let first = makeAccount(name: "Side", email: "side@example.com")
         let second = makeAccount(name: "Team", email: "team@example.com")
-        let menu = MenuBarMenuBuilder().makeMenu(
+        let menu = MenuBarMenuBuilder(locale: Locale(identifier: "en_GB"), timeZone: TimeZone(identifier: "GMT")!).makeMenu(
             state: makeState(
                 activeAccount: active,
                 inactiveAccounts: [first, second],

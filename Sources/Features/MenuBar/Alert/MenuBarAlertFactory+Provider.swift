@@ -17,7 +17,7 @@ extension MenuBarAlertFactory {
     func makeUseResetCreditRequest(_ credits: UsageResetCredits?) -> MenuBarConfirmationAlertRequest {
         let count = credits?.availableCount ?? 0
         let detail = if count == 1, let expiry = credits?.nextExpiry {
-            "Uses the reset that expires \(expiry.formatted(.dateTime.day().month(.abbreviated)))."
+            "Uses the reset that expires \(shortDate(expiry))."
         } else if count > 1 {
             "Uses 1 of \(count) resets."
         } else {
