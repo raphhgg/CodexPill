@@ -20,11 +20,11 @@ struct ClaudeCodeAccountStoreTests {
         try fixture.signIn(.personal, refreshToken: "fake-personal-refresh-2", plan: "pro")
         let again = try fixture.store.captureCurrent()
 
-        #expect(fixture.store.accounts().map(\.id) == [saved.id])
+        #expect(try fixture.store.accounts().map(\.id) == [saved.id])
         #expect(again.name == "personal@example.com")
         #expect(again.planName == "pro")
         #expect(fixture.savedRefreshToken(saved.id) == "fake-personal-refresh-2")
-        #expect(fixture.store.activeAccountID() == saved.id)
+        #expect(try fixture.store.activeAccountID() == saved.id)
     }
 
     @Test
@@ -36,9 +36,9 @@ struct ClaudeCodeAccountStoreTests {
         try fixture.signIn(.team, refreshToken: "fake-team-refresh-1")
         let team = try fixture.store.captureCurrent(named: "Work")
 
-        #expect(fixture.store.accounts().map(\.name) == ["personal@example.com", "Work"])
+        #expect(try fixture.store.accounts().map(\.name) == ["personal@example.com", "Work"])
         #expect(personal.id != team.id)
-        #expect(fixture.store.activeAccountID() == team.id)
+        #expect(try fixture.store.activeAccountID() == team.id)
     }
 
     @Test
@@ -61,7 +61,7 @@ struct ClaudeCodeAccountStoreTests {
         #expect((config["oauthAccount"] as? [String: Any])?["emailAddress"] as? String == "team@example.com")
         #expect(config["numStartups"] as? Int == 42)
         #expect((config["projects"] as? [String: Any])?.keys.sorted() == ["/fake/project"])
-        #expect(fixture.store.activeAccountID() == team.id)
+        #expect(try fixture.store.activeAccountID() == team.id)
         #expect(personal.id != team.id)
     }
 
@@ -113,7 +113,7 @@ struct ClaudeCodeAccountStoreTests {
 
         #expect(throws: ClaudeCodeAccountError.currentSignInNotSaved) { try fixture.store.activate(team.id) }
         #expect(try fixture.currentRefreshToken() == "fake-personal-refresh-1")
-        #expect(fixture.store.activeAccountID() == nil)
+        #expect(try fixture.store.activeAccountID() == nil)
     }
 
     @Test
@@ -167,7 +167,47 @@ struct ClaudeCodeAccountStoreTests {
 
         fixture.processes.isRunning = false
         try fixture.store.activate(team.id)
-        #expect(fixture.store.activeAccountID() == team.id)
+        #expect(try fixture.store.activeAccountID() == team.id)
+    }
+
+    @Test(arguments: SwitchStep.allCases)
+    func aFailedSwitchStepPutsEveryFileAndItemBack(_ failingStep: SwitchStep) throws {
+        let fixture = try ClaudeCodeAccountFixture()
+        defer { fixture.remove() }
+        try fixture.signIn(.team, refreshToken: "fake-team-refresh-1")
+        let team = try fixture.store.captureCurrent()
+        try fixture.signIn(.personal, refreshToken: "fake-personal-refresh-1")
+        _ = try fixture.store.captureCurrent()
+        // Claude Code renewed the personal sign-in, so the switch has a new copy to save first.
+        if failingStep == .claudeCodeCredentialsFile {
+            try fixture.writeCredentialsFile(oauth: .personal, refreshToken: "fake-personal-refresh-2")
+        } else {
+            try fixture.writeKeychainItem(oauth: .personal, refreshToken: "fake-personal-refresh-2")
+        }
+        let before = try fixture.allFiles()
+
+        switch failingStep {
+        case .savedAccountItem: fixture.items.failsSaves = true
+        case .savedAccountList: try fixture.lock(fixture.catalogFile)
+        case .claudeCodeKeychainItem: fixture.keychain.failsUpdates = true
+        case .claudeCodeCredentialsFile: try fixture.refuseWrites(in: fixture.credentialsFile.deletingLastPathComponent())
+        case .claudeCodeGlobalConfig: try fixture.refuseWrites(in: fixture.globalConfigFile.deletingLastPathComponent())
+        }
+
+        #expect(throws: ClaudeCodeAccountError.writeFailed) { try fixture.store.activate(team.id) }
+        fixture.allowWrites()
+        #expect(try fixture.allFiles() == before)
+    }
+
+    @Test
+    func aBrokenSavedAccountListIsReportedAndNeverOverwritten() throws {
+        let fixture = try ClaudeCodeAccountFixture()
+        defer { fixture.remove() }
+        try fixture.signIn(.team, refreshToken: "fake-team-refresh-1")
+        try Data("{not json".utf8).write(to: fixture.catalogFile)
+
+        #expect(throws: ClaudeCodeAccountError.savedAccountsUnreadable) { try fixture.store.captureCurrent() }
+        #expect(try Data(contentsOf: fixture.catalogFile) == Data("{not json".utf8))
     }
 
     @Test
@@ -192,11 +232,11 @@ struct ClaudeCodeAccountStoreTests {
         try fixture.signIn(.team, refreshToken: "fake-team-refresh-1")
         let team = try fixture.store.captureCurrent()
         try fixture.store.rename(team.id, to: "Work")
-        #expect(fixture.store.accounts().map(\.name) == ["Work"])
+        #expect(try fixture.store.accounts().map(\.name) == ["Work"])
 
         try fixture.store.delete(team.id)
 
-        #expect(fixture.store.accounts().isEmpty)
+        #expect(try fixture.store.accounts().isEmpty)
         #expect(fixture.savedRefreshToken(team.id) == nil)
         #expect(try fixture.currentRefreshToken() == "fake-team-refresh-1")
         #expect(throws: ClaudeCodeAccountError.unknownAccount) { try fixture.store.activate(team.id) }
@@ -225,6 +265,14 @@ struct ClaudeCodeAccountStoreTests {
     }
 }
 
+enum SwitchStep: CaseIterable, Sendable {
+    case savedAccountItem
+    case savedAccountList
+    case claudeCodeKeychainItem
+    case claudeCodeCredentialsFile
+    case claudeCodeGlobalConfig
+}
+
 private enum FakeClaudeAccount {
     case personal
     case team
@@ -250,29 +298,36 @@ private struct ClaudeCodeAccountFixture {
     let root: URL
     let store: ClaudeCodeAccountStore
     let processes = ClaudeCodeProcessProbe()
+    let items: FileClaudeCodeAccountItems
+    let keychain: FileClaudeCodeKeychain
 
     init() throws {
         root = FileManager.default.temporaryDirectory
             .appendingPathComponent("ClaudeCodeAccountFixture-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: root.appendingPathComponent(".claude"), withIntermediateDirectories: true)
+        let home = root.appendingPathComponent("home", isDirectory: true)
+        let codexPill = root.appendingPathComponent("codexpill", isDirectory: true)
+        try FileManager.default.createDirectory(at: home.appendingPathComponent(".claude"), withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: codexPill, withIntermediateDirectories: true)
         try JSONSerialization.data(withJSONObject: ["numStartups": 42, "projects": ["/fake/project": ["allowedTools": []]]])
-            .write(to: root.appendingPathComponent(".claude.json"))
+            .write(to: home.appendingPathComponent(".claude.json"))
+        items = FileClaudeCodeAccountItems(rootDirectory: codexPill)
+        keychain = FileClaudeCodeKeychain(fileURL: codexPill.appendingPathComponent(FileClaudeCodeKeychain.fileName))
         store = ClaudeCodeAccountStore(
-            catalogFile: root.appendingPathComponent("claude-code-accounts.json"),
-            items: FileClaudeCodeAccountItems(rootDirectory: root),
+            catalogFile: codexPill.appendingPathComponent("claude-code-accounts.json"),
+            items: items,
             claudeCode: ClaudeCodeSignInStore(
-                configDirectory: root.appendingPathComponent(".claude", isDirectory: true),
-                globalConfigFile: ClaudeCodeSignInStore.globalConfigFile(environment: [:], homeDirectory: root),
-                keychain: FileClaudeCodeKeychain(fileURL: root.appendingPathComponent(FileClaudeCodeKeychain.fileName))
+                configDirectory: home.appendingPathComponent(".claude", isDirectory: true),
+                globalConfigFile: ClaudeCodeSignInStore.globalConfigFile(environment: [:], homeDirectory: home),
+                keychain: keychain
             ),
             processes: processes
         )
     }
 
-    var keychainFile: URL { root.appendingPathComponent(FileClaudeCodeKeychain.fileName) }
-    var credentialsFile: URL { root.appendingPathComponent(".claude/.credentials.json") }
-    var catalogFile: URL { root.appendingPathComponent("claude-code-accounts.json") }
-    var globalConfigFile: URL { root.appendingPathComponent(".claude.json") }
+    var keychainFile: URL { root.appendingPathComponent("codexpill/\(FileClaudeCodeKeychain.fileName)") }
+    var credentialsFile: URL { root.appendingPathComponent("home/.claude/.credentials.json") }
+    var catalogFile: URL { root.appendingPathComponent("codexpill/claude-code-accounts.json") }
+    var globalConfigFile: URL { root.appendingPathComponent("home/.claude.json") }
 
     /// What Claude Code leaves behind after `/login`: the Keychain item, with an MCP sign-in, and the account record.
     func signIn(_ account: FakeClaudeAccount, refreshToken: String, plan: String = "max", recordsAccount: Bool = true) throws {
@@ -282,7 +337,7 @@ private struct ClaudeCodeAccountFixture {
         } else {
             var config = try globalConfig()
             config["oauthAccount"] = nil
-            try JSONSerialization.data(withJSONObject: config).write(to: root.appendingPathComponent(".claude.json"))
+            try JSONSerialization.data(withJSONObject: config).write(to: globalConfigFile)
         }
     }
 
@@ -301,7 +356,7 @@ private struct ClaudeCodeAccountFixture {
     func writeAccountRecord(_ account: FakeClaudeAccount) throws {
         var config = try globalConfig()
         config["oauthAccount"] = account.record
-        try JSONSerialization.data(withJSONObject: config).write(to: root.appendingPathComponent(".claude.json"))
+        try JSONSerialization.data(withJSONObject: config).write(to: globalConfigFile)
     }
 
     func keychainItem() throws -> [String: Any] {
@@ -309,7 +364,7 @@ private struct ClaudeCodeAccountFixture {
     }
 
     func globalConfig() throws -> [String: Any] {
-        try json(at: root.appendingPathComponent(".claude.json"))
+        try json(at: globalConfigFile)
     }
 
     func currentRefreshToken() throws -> String? {
@@ -317,7 +372,7 @@ private struct ClaudeCodeAccountFixture {
     }
 
     func savedRefreshToken(_ id: UUID) -> String? {
-        let data = FileClaudeCodeAccountItems(rootDirectory: root).read(id)
+        let data = try? items.read(id)
         let item = data.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
         return (item?["claudeAiOauth"] as? [String: Any])?["refreshToken"] as? String
     }
@@ -326,7 +381,35 @@ private struct ClaudeCodeAccountFixture {
         try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
     }
 
+    /// Every file under the fixture, by path relative to it.
+    func allFiles() throws -> [String: Data] {
+        let enumerator = try #require(FileManager.default.enumerator(at: root, includingPropertiesForKeys: [.isRegularFileKey]))
+        var files: [String: Data] = [:]
+        for case let url as URL in enumerator where (try url.resourceValues(forKeys: [.isRegularFileKey])).isRegularFile == true {
+            files[String(url.path.dropFirst(root.path.count))] = try Data(contentsOf: url)
+        }
+        return files
+    }
+
+    /// Makes new files in `directory` fail to save until `allowWrites` runs.
+    func refuseWrites(in directory: URL) throws {
+        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: directory.path)
+    }
+
+    /// Makes `file` impossible to replace, even when its folder stays writable.
+    func lock(_ file: URL) throws {
+        try FileManager.default.setAttributes([.immutable: true], ofItemAtPath: file.path)
+    }
+
+    func allowWrites() {
+        for directory in ["home", "home/.claude", "codexpill"] {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: root.appendingPathComponent(directory).path)
+        }
+        try? FileManager.default.setAttributes([.immutable: false], ofItemAtPath: catalogFile.path)
+    }
+
     func remove() {
+        allowWrites()
         try? FileManager.default.removeItem(at: root)
     }
 }

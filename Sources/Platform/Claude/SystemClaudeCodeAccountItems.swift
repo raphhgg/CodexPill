@@ -7,13 +7,20 @@ import Security
 struct SystemClaudeCodeAccountItems: ClaudeCodeAccountItemStoring {
     static let service = "CodexPill Claude Code account"
 
-    func read(_ id: UUID) -> Data? {
+    func read(_ id: UUID) throws(ClaudeCodeAccountError) -> Data? {
         var query = Self.itemQuery(for: id)
         query[kSecMatchLimit] = kSecMatchLimitOne
         query[kSecReturnData] = true
         var result: AnyObject?
-        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess else { return nil }
-        return result as? Data
+        switch SecItemCopyMatching(query as CFDictionary, &result) {
+        case errSecSuccess:
+            guard let data = result as? Data else { throw .savedAccountsUnreadable }
+            return data
+        case errSecItemNotFound:
+            return nil
+        default:
+            throw .savedAccountsUnreadable
+        }
     }
 
     func save(_ data: Data, for id: UUID) -> Bool {
@@ -28,8 +35,9 @@ struct SystemClaudeCodeAccountItems: ClaudeCodeAccountItemStoring {
         return SecItemAdd(item as CFDictionary, nil) == errSecSuccess
     }
 
-    func delete(_ id: UUID) {
-        SecItemDelete(Self.itemQuery(for: id) as CFDictionary)
+    func delete(_ id: UUID) -> Bool {
+        let status = SecItemDelete(Self.itemQuery(for: id) as CFDictionary)
+        return status == errSecSuccess || status == errSecItemNotFound
     }
 
     private static func itemQuery(for id: UUID) -> [CFString: Any] {

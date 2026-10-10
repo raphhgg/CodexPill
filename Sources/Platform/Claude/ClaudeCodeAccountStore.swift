@@ -16,8 +16,10 @@ struct ClaudeCodeAccount: Codable, Equatable, Identifiable, Sendable {
 
 enum ClaudeCodeAccountError: Error, Equatable, Sendable {
     case unknownAccount
-    /// CodexPill's item for this account is missing or unreadable.
+    /// CodexPill's item for this account is missing.
     case savedSignInMissing
+    /// CodexPill's saved-account list or one of its Keychain items could not be read.
+    case savedAccountsUnreadable
     /// Claude Code has no sign-in on this Mac. Signing in once with `claude` creates the item a switch updates.
     case claudeCodeSignedOut
     /// Claude Code's sign-in is not saved in CodexPill, so switching away would lose it.
@@ -25,23 +27,29 @@ enum ClaudeCodeAccountError: Error, Equatable, Sendable {
     /// A running Claude Code would write its old sign-in back, so switching waits until it quits.
     case claudeCodeRunning
     case keychainAccessNeeded
+    /// Claude Code's credentials or its global config could not be read or parsed.
     case unreadable
+    /// A write failed and everything it had changed was put back.
     case writeFailed
+    /// A write failed and putting the earlier state back failed too.
+    case restoreFailed
 }
 
 /// CodexPill's saved-account items, one per saved Claude Code account.
 protocol ClaudeCodeAccountItemStoring: Sendable {
-    func read(_ id: UUID) -> Data?
-    @discardableResult
+    /// Nil when there is no item. Throws when the item exists but can't be read.
+    func read(_ id: UUID) throws(ClaudeCodeAccountError) -> Data?
     func save(_ data: Data, for id: UUID) -> Bool
-    func delete(_ id: UUID)
+    /// True when the item is gone afterwards, including when there was none.
+    func delete(_ id: UUID) -> Bool
 }
 
 /// Saves Claude Code sign-ins and switches between them, the way Codex accounts switch through `auth.json`
 /// snapshots. Every call is a user action, so it may show the macOS Keychain prompt for Claude Code's item.
 ///
 /// A switch first saves the outgoing sign-in again, because Claude Code rotates its refresh token when it renews
-/// the access token: the copy CodexPill saved earlier may no longer work.
+/// the access token: the copy CodexPill saved earlier may no longer work. A switch changes CodexPill's item and
+/// list, then Claude Code's credentials, then its global config. When any step fails, every earlier step is put back.
 struct ClaudeCodeAccountStore: Sendable {
     let catalogFile: URL
     let items: any ClaudeCodeAccountItemStoring
@@ -49,15 +57,19 @@ struct ClaudeCodeAccountStore: Sendable {
     let processes: any ClaudeCodeProcessDetecting
     var now: @Sendable () -> Date = Date.init
 
-    func accounts() -> [ClaudeCodeAccount] {
-        guard let data = try? Data(contentsOf: catalogFile) else { return [] }
-        return (try? Self.decoder.decode([ClaudeCodeAccount].self, from: data)) ?? []
+    func accounts() throws(ClaudeCodeAccountError) -> [ClaudeCodeAccount] {
+        do {
+            guard let data = try ClaudeCredentialsSource.contentsIfPresent(of: catalogFile) else { return [] }
+            return try Self.decoder.decode([ClaudeCodeAccount].self, from: data)
+        } catch {
+            throw .savedAccountsUnreadable
+        }
     }
 
     /// The saved account Claude Code is signed in to, from Claude Code's account record. No Keychain read.
-    func activeAccountID() -> UUID? {
-        guard let identity = claudeCode.currentIdentity() else { return nil }
-        return accounts().first { $0.identity == identity }?.id
+    func activeAccountID() throws(ClaudeCodeAccountError) -> UUID? {
+        guard let identity = try claudeCode.currentIdentity() else { return nil }
+        return try accounts().first { $0.identity == identity }?.id
     }
 
     /// Saves Claude Code's current sign-in. Saving an account that is already saved refreshes its sign-in and plan
@@ -65,61 +77,73 @@ struct ClaudeCodeAccountStore: Sendable {
     @discardableResult
     func captureCurrent(named name: String? = nil) throws(ClaudeCodeAccountError) -> ClaudeCodeAccount {
         let (current, _) = try currentSignIn()
-        var catalog = accounts()
-        if let index = catalog.firstIndex(where: { matches($0, current) }) {
-            try save(current, into: &catalog[index])
-            if let name { catalog[index].name = name }
-            try write(catalog)
-            return catalog[index]
+        var catalog = try accounts()
+        let index: Int
+        if let existing = try savedIndex(of: current, in: catalog) {
+            index = existing
+        } else {
+            catalog.append(ClaudeCodeAccount(
+                id: UUID(),
+                name: current.email ?? current.organizationName ?? "Claude Account",
+                createdAt: now(),
+                updatedAt: now()
+            ))
+            index = catalog.endIndex - 1
         }
+        if let name { catalog[index].name = name }
 
-        var account = ClaudeCodeAccount(
-            id: UUID(),
-            name: name ?? current.email ?? current.organizationName ?? "Claude Account",
-            createdAt: now(),
-            updatedAt: now()
-        )
-        try save(current, into: &account)
-        catalog.append(account)
-        try write(catalog)
-        return account
+        var undo = Undo()
+        do throws(ClaudeCodeAccountError) {
+            try save(current, into: &catalog[index], undo: &undo)
+            try write(catalog, undo: &undo)
+        } catch {
+            throw undo.rollBack(after: error)
+        }
+        return catalog[index]
     }
 
     /// Signs Claude Code in to a saved account. The outgoing sign-in is saved again first; a sign-in that is not
     /// saved is never overwritten.
     func activate(_ id: UUID) throws(ClaudeCodeAccountError) {
         guard !processes.isClaudeCodeRunning() else { throw .claudeCodeRunning }
-        var catalog = accounts()
+        var catalog = try accounts()
         guard let targetIndex = catalog.firstIndex(where: { $0.id == id }) else { throw .unknownAccount }
-        guard let target = items.read(id).flatMap(ClaudeCodeSignInSnapshot.init(itemData:)) else {
-            throw .savedSignInMissing
-        }
+        guard let targetData = try items.read(id) else { throw .savedSignInMissing }
+        guard let target = ClaudeCodeSignInSnapshot(itemData: targetData) else { throw .savedAccountsUnreadable }
 
         let (current, item) = try currentSignIn()
-        guard let outgoingIndex = catalog.firstIndex(where: { matches($0, current) }) else {
+        guard let outgoingIndex = try savedIndex(of: current, in: catalog) else {
             throw .currentSignInNotSaved
         }
-        try save(current, into: &catalog[outgoingIndex])
-        try write(catalog)
-        guard outgoingIndex != targetIndex else { return }
 
-        try claudeCode.replace(item, with: target)
+        var undo = Undo()
+        do throws(ClaudeCodeAccountError) {
+            try save(current, into: &catalog[outgoingIndex], undo: &undo)
+            try write(catalog, undo: &undo)
+            if outgoingIndex != targetIndex {
+                try claudeCode.replace(item, with: target)
+            }
+        } catch {
+            throw undo.rollBack(after: error)
+        }
     }
 
     func rename(_ id: UUID, to name: String) throws(ClaudeCodeAccountError) {
-        var catalog = accounts()
+        var catalog = try accounts()
         guard let index = catalog.firstIndex(where: { $0.id == id }) else { throw .unknownAccount }
         catalog[index].name = name
         catalog[index].updatedAt = now()
-        try write(catalog)
+        var undo = Undo()
+        try write(catalog, undo: &undo)
     }
 
     /// Forgets a saved account. Claude Code's own sign-in is left as it is.
     func delete(_ id: UUID) throws(ClaudeCodeAccountError) {
-        let catalog = accounts()
+        let catalog = try accounts()
         guard catalog.contains(where: { $0.id == id }) else { throw .unknownAccount }
-        try write(catalog.filter { $0.id != id })
-        items.delete(id)
+        var undo = Undo()
+        try write(catalog.filter { $0.id != id }, undo: &undo)
+        guard items.delete(id) else { throw undo.rollBack(after: .writeFailed) }
     }
 
     private func currentSignIn() throws(ClaudeCodeAccountError) -> (ClaudeCodeSignInSnapshot, ClaudeCodeCredentialsItem) {
@@ -131,17 +155,33 @@ struct ClaudeCodeAccountStore: Sendable {
         }
     }
 
-    private func matches(_ account: ClaudeCodeAccount, _ current: ClaudeCodeSignInSnapshot) -> Bool {
+    private func savedIndex(of current: ClaudeCodeSignInSnapshot, in catalog: [ClaudeCodeAccount]) throws(ClaudeCodeAccountError) -> Int? {
+        for (index, account) in catalog.enumerated() where try matches(account, current) {
+            return index
+        }
+        return nil
+    }
+
+    private func matches(_ account: ClaudeCodeAccount, _ current: ClaudeCodeSignInSnapshot) throws(ClaudeCodeAccountError) -> Bool {
         if let identity = account.identity, let currentIdentity = current.identity {
             return identity == currentIdentity
         }
-        return items.read(account.id)
+        return try items.read(account.id)
             .flatMap(ClaudeCodeSignInSnapshot.init(itemData:))
             .map { $0.isSameAccount(as: current) } ?? false
     }
 
-    private func save(_ signIn: ClaudeCodeSignInSnapshot, into account: inout ClaudeCodeAccount) throws(ClaudeCodeAccountError) {
-        guard items.save(signIn.itemData, for: account.id) else { throw .writeFailed }
+    private func save(
+        _ signIn: ClaudeCodeSignInSnapshot,
+        into account: inout ClaudeCodeAccount,
+        undo: inout Undo
+    ) throws(ClaudeCodeAccountError) {
+        let id = account.id
+        let previous = try items.read(id)
+        guard items.save(signIn.itemData, for: id) else { throw .writeFailed }
+        undo.add { [items] in
+            previous.map { items.save($0, for: id) } ?? items.delete(id)
+        }
         account.email = signIn.email ?? account.email
         account.organizationName = signIn.organizationName ?? account.organizationName
         account.planName = signIn.subscriptionType ?? account.planName
@@ -149,13 +189,31 @@ struct ClaudeCodeAccountStore: Sendable {
         account.updatedAt = now()
     }
 
-    private func write(_ catalog: [ClaudeCodeAccount]) throws(ClaudeCodeAccountError) {
+    private func write(_ catalog: [ClaudeCodeAccount], undo: inout Undo) throws(ClaudeCodeAccountError) {
+        let file = catalogFile
+        let previous: Data?
         do {
-            try FilePermissionHardening.createPrivateDirectory(at: catalogFile.deletingLastPathComponent())
-            try Self.encoder.encode(catalog).write(to: catalogFile, options: .atomic)
-            try FilePermissionHardening.repairPrivateFile(at: catalogFile)
+            previous = try ClaudeCredentialsSource.contentsIfPresent(of: file)
+            try FilePermissionHardening.createPrivateDirectory(at: file.deletingLastPathComponent())
+            try Self.encoder.encode(catalog).write(to: file, options: .atomic)
+            try FilePermissionHardening.repairPrivateFile(at: file)
         } catch {
             throw .writeFailed
+        }
+        undo.add { Self.restore(previous, at: file) }
+    }
+
+    /// Puts `data` back at `url`, or removes the file when there was none. False when that fails.
+    static func restore(_ data: Data?, at url: URL) -> Bool {
+        do {
+            if let data {
+                try data.write(to: url, options: .atomic)
+            } else if FileManager.default.fileExists(atPath: url.path) {
+                try FileManager.default.removeItem(at: url)
+            }
+            return true
+        } catch {
+            return false
         }
     }
 
@@ -171,4 +229,20 @@ struct ClaudeCodeAccountStore: Sendable {
         decoder.dateDecodingStrategy = .iso8601
         return decoder
     }()
+}
+
+/// The steps a multi-write change has done so far, each with how to put it back.
+private struct Undo {
+    private var steps: [() -> Bool] = []
+
+    mutating func add(_ step: @escaping () -> Bool) {
+        steps.append(step)
+    }
+
+    /// Puts every done step back, last first, and returns the error to report: `restoreFailed` when any step
+    /// could not be put back.
+    func rollBack(after error: ClaudeCodeAccountError) -> ClaudeCodeAccountError {
+        let restored = steps.reversed().map { $0() }.allSatisfy(\.self)
+        return restored ? error : .restoreFailed
+    }
 }
