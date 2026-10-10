@@ -64,7 +64,7 @@ struct RefreshActiveAccountUseCaseTests {
     }
 
     @Test
-    func runRelinksSavedSnapshotWhenLiveAuthFingerprintChangedForSameAccount() async throws {
+    func saveRelinksSavedSnapshotWhenLiveAuthFingerprintChangedForSameAccount() async throws {
         var account = makeAccount(name: "Personal", fingerprint: "stale-fingerprint", email: "personal@example.com")
         account.identity.stableAccountID = "acct_personal"
         account.updatedAt = Date(timeIntervalSince1970: 1_744_195_200)
@@ -100,13 +100,15 @@ struct RefreshActiveAccountUseCaseTests {
         )
 
         let result = try await useCase.run(accounts: [account])
+        #expect(relinker.savedAuthData == nil)
 
-        #expect(result.update.accountID == account.id)
-        #expect(result.update.identity.snapshotFingerprint == "fresh-fingerprint")
+        let savedAccounts = try #require(try useCase.save(result, into: [account]))
+
+        #expect(savedAccounts.map(\.identity.snapshotFingerprint) == ["fresh-fingerprint"])
+        #expect(savedAccounts.map(\.updatedAt) == [account.updatedAt])
         #expect(relinker.savedAuthData == Data("fresh-auth".utf8))
         #expect(relinker.savedExistingAccount?.id == account.id)
-        #expect(result.update.updatedAt == account.updatedAt)
-        #expect(repository.savedAccounts == nil)
+        #expect(repository.savedAccounts?.map(\.identity.snapshotFingerprint) == ["fresh-fingerprint"])
     }
 
     @Test
