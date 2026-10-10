@@ -55,8 +55,31 @@ struct ClaudeBrowserSignIn: ClaudeSignInAuthorizing {
 /// It answers other paths with 404 and stops after the first callback.
 final class LoopbackClaudeOAuthReceiver: ClaudeOAuthRedirectReceiver, @unchecked Sendable {
     private static let maxRequestLength = 16 * 1_024
-    private static let page = "<!doctype html><meta charset=utf-8><title>CodexPill</title>"
-        + "<p style=\"font:15px -apple-system;margin:3em\">You can close this tab and return to CodexPill.</p>"
+    private static let page = """
+        <!doctype html>
+        <html lang="en">
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <meta name="color-scheme" content="light dark">
+        <title>Signed in · CodexPill</title>
+        <style>
+        :root { --bg: #f5f5f7; --card: #fff; --text: #1d1d1f; --muted: #6e6e73; --ok: #34c759; }
+        @media (prefers-color-scheme: dark) { :root { --bg: #1c1c1e; --card: #2c2c2e; --text: #f5f5f7; --muted: #98989d; --ok: #30d158; } }
+        body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg);
+          font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; color: var(--text); }
+        main { background: var(--card); border-radius: 16px; padding: 36px 44px; text-align: center; max-width: 420px;
+          box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 8px 24px rgba(0,0,0,.06); }
+        svg { width: 44px; height: 44px; color: var(--ok); }
+        h1 { font-size: 19px; font-weight: 600; margin: 14px 0 6px; }
+        p { margin: 0; color: var(--muted); }
+        </style>
+        <main>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m7.5 12.5 3 3 6-6.5"/></svg>
+        <h1>Signed in to Claude</h1>
+        <p>You can close this tab and go back to CodexPill.</p>
+        </main>
+        </html>
+        """
 
     /// Set once the listener is ready, before `start()` returns the receiver.
     private(set) var redirectURI = ClaudeOAuth.redirectURI(port: 0)
