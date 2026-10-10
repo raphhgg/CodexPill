@@ -17,29 +17,29 @@ extension RedactedClaudeSecret {
     }
 }
 
-/// Claude Code's OAuth access token. It is only ever placed in the `Authorization` header and never printed.
-struct ClaudeAccessToken: Sendable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
-    private let value: String
+/// A Claude OAuth access token. It is only ever placed in the `Authorization` header.
+struct ClaudeAccessToken: RedactedClaudeSecret {
+    /// Read only to build a request or to store CodexPill's own sign-in in its Keychain item.
+    let exposedValue: String
 
     init?(_ value: String) {
         guard !value.isEmpty else { return nil }
-        self.value = value
+        exposedValue = value
     }
 
     var authorizationHeaderValue: String {
-        "Bearer \(value)"
+        "Bearer \(exposedValue)"
     }
+}
 
-    var description: String {
-        "ClaudeAccessToken(redacted)"
-    }
+/// The refresh token of CodexPill's own Claude sign-in. Claude Code's refresh token is never decoded.
+struct ClaudeRefreshToken: RedactedClaudeSecret {
+    /// Read only to build a token request or to store CodexPill's own sign-in in its Keychain item.
+    let exposedValue: String
 
-    var debugDescription: String {
-        description
-    }
-
-    var customMirror: Mirror {
-        Mirror(self, children: EmptyCollection<Mirror.Child>())
+    init?(_ value: String) {
+        guard !value.isEmpty else { return nil }
+        exposedValue = value
     }
 }
 

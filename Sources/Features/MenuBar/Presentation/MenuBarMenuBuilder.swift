@@ -309,7 +309,9 @@ struct MenuBarMenuBuilder {
         submenu.addItem(.separator())
         submenu.addItem(launchAtLoginMenuItem(state: state, target: target))
         let disconnectItems = state.providerUsage.compactMap { providerUsage -> NSMenuItem? in
-            guard providerUsage.status != .notConnected, let action = providerUsage.provider.disconnectAction else { return nil }
+            guard ![.notConnected, .signingIn].contains(providerUsage.status),
+                  let action = providerUsage.provider.disconnectAction
+            else { return nil }
             let disconnect = NSMenuItem(title: "Disconnect \(providerUsage.provider.menuTitle)…", action: action, keyEquivalent: "")
             disconnect.target = target
             disconnect.isEnabled = !state.isBusy
@@ -365,6 +367,9 @@ struct MenuBarMenuBuilder {
         menu.addItem(.separator())
         menu.addItem(sectionHeaderItem(providerUsage.provider.menuTitle, width: width, bottomPadding: 4))
         menu.addItem(content)
+        if let followUp = providerUsage.provider.followUpAction(for: providerUsage.status) {
+            menu.addItem(actionItem(title: followUp.title, systemImage: followUp.systemImage, action: followUp.action, state: state, target: target))
+        }
     }
 
     private func launchAtLoginMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
@@ -603,6 +608,19 @@ private extension UsageProvider {
         switch self {
         case .claude: #selector(MenuBarCoordinator.disconnectClaudeCode)
         case .codex, .cursor: nil
+        }
+    }
+
+    /// The action under the section's message: cancel a running sign-in, or start a new one.
+    func followUpAction(for status: ProviderUsageStatus) -> (title: String, systemImage: String, action: Selector)? {
+        guard self == .claude else { return nil }
+        switch status {
+        case .signingIn:
+            return ("Cancel Sign-In", "xmark.circle", #selector(MenuBarCoordinator.cancelClaudeSignIn))
+        case .unavailable(.signInExpired, _), .unavailable(.signedOut, _):
+            return ("Sign In…", "person.crop.circle", #selector(MenuBarCoordinator.signInToClaude))
+        default:
+            return nil
         }
     }
 

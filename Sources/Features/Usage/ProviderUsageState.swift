@@ -8,6 +8,8 @@ struct ProviderUsageState: Equatable {
 
 enum ProviderUsageStatus: Equatable {
     case notConnected
+    /// The user started a browser sign-in that has not finished yet.
+    case signingIn
     /// `lastSnapshot` is the last good reading, kept so the menu can still show it with its time.
     case unavailable(UsageUnavailableReason, lastSnapshot: UsageSnapshot?)
     case awaitingUsage

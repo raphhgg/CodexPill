@@ -16,6 +16,8 @@ struct ProviderUsageMenuContent: View {
             switch status {
             case .notConnected:
                 EmptyView()
+            case .signingIn:
+                message(title: "Finish signing in in your browser", detail: nil)
             case .awaitingUsage:
                 let text = provider.awaitingUsageMessage
                 message(title: text.title, detail: text.detail)

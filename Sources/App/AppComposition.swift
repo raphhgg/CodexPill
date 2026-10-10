@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 
 @MainActor
 struct AppComposition {
@@ -49,7 +49,8 @@ struct AppComposition {
     }
 
     /// An isolated run never touches the real Claude sign-in: it reads `.credentials.json` from `CLAUDE_CONFIG_DIR`, or
-    /// from `.claude` inside the isolated root, skips the Keychain, and has no account switching.
+    /// from `.claude` inside the isolated root, skips the Keychain, keeps CodexPill's own sign-in in memory only, and has
+    /// no account switching.
     private static func makeClaudeCodeUsage(
         environment: [String: String],
         defaults: UserDefaults,
@@ -58,6 +59,12 @@ struct AppComposition {
     ) -> ClaudeCodeUsage {
         let settings = ClaudeUsageSettingsStore(userDefaults: defaults)
         let webClient = URLSessionClaudeUsageWebClient()
+        let tokenEndpoint = URLSessionClaudeTokenEndpoint()
+        let signInFlow = ClaudeBrowserSignIn(
+            tokenEndpoint: tokenEndpoint,
+            startReceiver: { try await LoopbackClaudeOAuthReceiver.start() },
+            openURL: { url in Task { @MainActor in NSWorkspace.shared.open(url) } }
+        )
         if let isolatedRootDirectory {
             let configDirectory = environment["CLAUDE_CONFIG_DIR"]?.isEmpty == false
                 ? ClaudeCredentialsSource.configDirectory(environment: environment)
@@ -65,9 +72,12 @@ struct AppComposition {
             return ClaudeCodeUsage(
                 settings: settings,
                 client: ClaudeUsageClient(
-                    credentials: ClaudeCredentialsSource(configDirectory: configDirectory, keychain: nil),
+                    claudeCode: ClaudeCredentialsSource(configDirectory: configDirectory, keychain: nil),
+                    signInStore: InMemoryClaudeSignInStore(),
+                    tokenEndpoint: tokenEndpoint,
                     webClient: webClient
-                )
+                ),
+                signInFlow: signInFlow
             )
         }
 
@@ -76,9 +86,12 @@ struct AppComposition {
         return ClaudeCodeUsage(
             settings: settings,
             client: ClaudeUsageClient(
-                credentials: ClaudeCredentialsSource(configDirectory: configDirectory, keychain: keychain),
+                claudeCode: ClaudeCredentialsSource(configDirectory: configDirectory, keychain: keychain),
+                signInStore: SystemClaudeSignInKeychain(),
+                tokenEndpoint: tokenEndpoint,
                 webClient: webClient
             ),
+            signInFlow: signInFlow,
             accounts: ClaudeCodeAccountStore(
                 catalogFile: appSupportDirectory.appendingPathComponent("claude-code-accounts.json"),
                 items: SystemClaudeCodeAccountItems(),

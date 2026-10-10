@@ -45,6 +45,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     )
     private let providerUsageSources: [any UsageProviderSource]
     private let claudeCodeUsage: ClaudeCodeUsage?
+    private var claudeSignIn: Task<Void, Never>?
     private lazy var providerUsageRuntime = ProviderUsageRuntime(
         sources: providerUsageSources,
         onChange: { [weak self] in
@@ -118,6 +119,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     /// Waits until the tasks started by menu actions and store or settings changes finish, including tasks they started.
     func waitForPendingWork() async {
         await tasks.waitUntilIdle()
+        if let claudeSignIn {
+            await claudeSignIn.value
+            await tasks.waitUntilIdle()
+        }
     }
 
     func handleSystemDidWake() {
@@ -402,14 +407,41 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         requestSwitch(to: account)
     }
 
+    /// Connects with Claude Code's sign-in when it is fresh, otherwise starts "Sign in with Claude" in the browser.
     @objc
     func connectClaudeCode() {
         recordMenuAction("connectClaudeCode")
         guard let claudeCodeUsage, alertPresenter.presentConfirmation(alertFactory.makeConnectClaudeCodeRequest()) else { return }
         tasks.start { [weak self] in
-            await claudeCodeUsage.connect()
+            if await claudeCodeUsage.connectWithClaudeCodeSignIn(now: Date()) {
+                await self?.providerUsageRuntime.refreshIfDue(forcing: .claude)
+            } else {
+                self?.startClaudeSignIn()
+            }
+        }
+    }
+
+    @objc
+    func signInToClaude() {
+        recordMenuAction("signInToClaude")
+        startClaudeSignIn()
+    }
+
+    @objc
+    func cancelClaudeSignIn() {
+        recordMenuAction("cancelClaudeSignIn")
+        claudeSignIn?.cancel()
+    }
+
+    /// The browser sign-in runs outside `tasks`: it can wait minutes for the user, and the menu must stay usable.
+    private func startClaudeSignIn() {
+        guard let claudeCodeUsage, claudeSignIn == nil else { return }
+        claudeSignIn = Task { [weak self] in
+            await claudeCodeUsage.signIn()
+            self?.claudeSignIn = nil
             await self?.providerUsageRuntime.refreshIfDue(forcing: .claude)
         }
+        rebuildMenuWhenSafe()
     }
 
     /// Retries the read with the Keychain prompt allowed, because the user asked for it.
@@ -427,8 +459,11 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     func disconnectClaudeCode() {
         recordMenuAction("disconnectClaudeCode")
         guard let claudeCodeUsage else { return }
-        claudeCodeUsage.disconnect()
-        refreshProviderUsageIfDue(forcing: .claude)
+        claudeSignIn?.cancel()
+        tasks.start { [weak self] in
+            await claudeCodeUsage.disconnect()
+            await self?.providerUsageRuntime.refreshIfDue(forcing: .claude)
+        }
     }
 
     @objc
@@ -571,7 +606,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             tokenUsageLoadingAnimationStyle: tokenUsagePreferences.loadingAnimationStyle,
             tokenUsagePeakScope: tokenUsagePreferences.peakScope,
             tokenUsageCard: makeTokenUsageCard(),
-            providerUsage: providerUsageRuntime.states,
+            providerUsage: providerUsageRuntime.states.map { usage in
+                usage.provider == .claude && claudeSignIn != nil ? ProviderUsageState(provider: .claude, status: .signingIn) : usage
+            },
             now: now()
         )
     }

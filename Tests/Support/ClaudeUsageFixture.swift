@@ -2,10 +2,17 @@ import Foundation
 
 @testable import CodexPill
 
-/// A `ClaudeCodeUsage` over an isolated defaults suite, a temp Claude config folder, a settable Keychain item,
-/// and a settable usage response. All tokens are fake.
-final class ClaudeUsageFixture: ClaudeKeychainReading, ClaudeUsageWebClient, @unchecked Sendable {
+/// A `ClaudeCodeUsage` over an isolated defaults suite, a temp Claude config folder, a settable Claude Code Keychain
+/// item, an in-memory CodexPill sign-in item, a scripted token endpoint and browser sign-in, and a settable usage
+/// response. All tokens are fake.
+final class ClaudeUsageFixture: ClaudeKeychainReading, ClaudeUsageWebClient, ClaudeSignInStoring, ClaudeTokenEndpoint,
+    ClaudeSignInAuthorizing, @unchecked Sendable
+{
     static let fakeAccessToken = "fake-claude-access-token"
+    static let fakeOwnAccessToken = "fake-codexpill-access-token"
+    static let fakeOwnRefreshToken = "fake-codexpill-refresh-token"
+    static let fakeRotatedAccessToken = "fake-rotated-access-token"
+    static let fakeRotatedRefreshToken = "fake-rotated-refresh-token"
 
     /// Synthetic `/api/oauth/usage` response with an Opus window that CodexPill ignores.
     static let usageResponse = #"""
@@ -24,7 +31,16 @@ final class ClaudeUsageFixture: ClaudeKeychainReading, ClaudeUsageWebClient, @un
     private var keychainNeedsPermissionWithoutPrompt = false
     private var currentResponse: Result<Data, ClaudeUsageWebError> = .failure(.transport)
     private var keychainReads: [Bool] = []
-    private var requests = 0
+    private var sentTokens: [String] = []
+    private var ownItem: Data?
+    private var currentRefreshResult: Result<ClaudeSignIn, ClaudeTokenError> = .failure(.transport)
+    private var refreshedTokens: [String] = []
+    private var revokedTokens: [String] = []
+    private var refreshGate: CheckedContinuation<Void, Never>?
+    private var holdsRefresh = false
+    private var signInWaiter: CheckedContinuation<ClaudeSignIn, any Error>?
+    private var signInStartedWaiters: [CheckedContinuation<Void, Never>] = []
+    private var signInsStarted = 0
 
     init(refreshInterval: TimeInterval = ProviderUsageRuntime.refreshInterval) {
         defaults = UserDefaults(suiteName: suiteName)!
@@ -34,9 +50,12 @@ final class ClaudeUsageFixture: ClaudeKeychainReading, ClaudeUsageWebClient, @un
         usage = ClaudeCodeUsage(
             settings: settings,
             client: ClaudeUsageClient(
-                credentials: ClaudeCredentialsSource(configDirectory: configDirectory, keychain: self),
+                claudeCode: ClaudeCredentialsSource(configDirectory: configDirectory, keychain: self),
+                signInStore: self,
+                tokenEndpoint: self,
                 webClient: self
             ),
+            signInFlow: self,
             refreshInterval: refreshInterval
         )
     }
@@ -46,7 +65,15 @@ final class ClaudeUsageFixture: ClaudeKeychainReading, ClaudeUsageWebClient, @un
         return #"{"claudeAiOauth":{"accessToken":"\#(fakeAccessToken)","refreshToken":"fake-claude-refresh-token","expiresAt":\#(milliseconds),"scopes":["user:inference","user:profile"],"subscriptionType":"\#(subscriptionType)"}}"#
     }
 
-    /// Puts a fake sign-in in the Keychain. `needsPermission` makes reads without a prompt fail like a fresh ACL.
+    static func ownSignIn(expiresAt: Date, rotated: Bool = false) -> ClaudeSignIn {
+        ClaudeSignIn(
+            accessToken: ClaudeAccessToken(rotated ? fakeRotatedAccessToken : fakeOwnAccessToken)!,
+            refreshToken: ClaudeRefreshToken(rotated ? fakeRotatedRefreshToken : fakeOwnRefreshToken)!,
+            expiresAt: expiresAt
+        )
+    }
+
+    /// Puts a fake Claude Code sign-in in the Keychain. `needsPermission` makes reads without a prompt fail like a fresh ACL.
     func signInToKeychain(expiresAt: Date, needsPermission: Bool = false) {
         lock.withLock {
             currentKeychainItem = Data(Self.credentialsJSON(expiresAt: expiresAt).utf8)
@@ -64,16 +91,41 @@ final class ClaudeUsageFixture: ClaudeKeychainReading, ClaudeUsageWebClient, @un
         set { lock.withLock { currentKeychainItem = newValue } }
     }
 
+    /// CodexPill's own sign-in item, decoded.
+    var ownSignIn: ClaudeSignIn? {
+        get { lock.withLock { ownItem.flatMap(ClaudeSignIn.init(keychainData:)) } }
+        set { lock.withLock { ownItem = newValue?.keychainData } }
+    }
+
     var response: Result<Data, ClaudeUsageWebError> {
         get { lock.withLock { currentResponse } }
         set { lock.withLock { currentResponse = newValue } }
     }
 
-    var requestCount: Int {
-        lock.withLock { requests }
+    var refreshResult: Result<ClaudeSignIn, ClaudeTokenError> {
+        get { lock.withLock { currentRefreshResult } }
+        set { lock.withLock { currentRefreshResult = newValue } }
     }
 
-    /// `allowingPrompt` for each Keychain read, in order.
+    var requestCount: Int {
+        lock.withLock { sentTokens.count }
+    }
+
+    /// The access token sent with each usage request, in order.
+    var usageRequestTokens: [String] {
+        lock.withLock { sentTokens }
+    }
+
+    /// The refresh token sent with each refresh request, in order.
+    var refreshRequestTokens: [String] {
+        lock.withLock { refreshedTokens }
+    }
+
+    var revokedRefreshTokens: [String] {
+        lock.withLock { revokedTokens }
+    }
+
+    /// `allowingPrompt` for each Claude Code Keychain read, in order.
     var keychainReadPrompts: [Bool] {
         lock.withLock { keychainReads }
     }
@@ -92,13 +144,100 @@ final class ClaudeUsageFixture: ClaudeKeychainReading, ClaudeUsageWebClient, @un
 
     func usage(using token: ClaudeAccessToken) async throws(ClaudeUsageWebError) -> Data {
         let response = lock.withLock {
-            requests += 1
+            sentTokens.append(token.exposedValue)
             return currentResponse
         }
-        guard token.authorizationHeaderValue == "Bearer \(Self.fakeAccessToken)" else {
-            throw ClaudeUsageWebError.unauthorized
-        }
         return try response.get()
+    }
+
+    func read(allowingPrompt _: Bool) -> ClaudeKeychainRead {
+        lock.withLock { ownItem.map(ClaudeKeychainRead.found) ?? .notFound }
+    }
+
+    func save(_ signIn: ClaudeSignIn, allowingPrompt _: Bool) -> Bool {
+        lock.withLock { ownItem = signIn.keychainData }
+        return true
+    }
+
+    func delete() {
+        lock.withLock { ownItem = nil }
+    }
+
+    func exchange(code _: String, pkce _: ClaudePKCE, state _: String, redirectURI _: URL, now _: Date) async throws(ClaudeTokenError) -> ClaudeSignIn {
+        throw .transport
+    }
+
+    /// Makes refreshes wait until `releaseRefresh()`, so a test can start two reads at once.
+    func holdRefreshes() {
+        lock.withLock { holdsRefresh = true }
+    }
+
+    func releaseRefresh() {
+        let gate = lock.withLock {
+            holdsRefresh = false
+            defer { refreshGate = nil }
+            return refreshGate
+        }
+        gate?.resume()
+    }
+
+    var isRefreshWaiting: Bool {
+        lock.withLock { refreshGate != nil }
+    }
+
+    func refresh(_ refreshToken: ClaudeRefreshToken, now _: Date) async throws(ClaudeTokenError) -> ClaudeSignIn {
+        lock.withLock { refreshedTokens.append(refreshToken.exposedValue) }
+        await withCheckedContinuation { continuation in
+            let holds = lock.withLock {
+                if holdsRefresh { refreshGate = continuation }
+                return holdsRefresh
+            }
+            if !holds { continuation.resume() }
+        }
+        return try refreshResult.get()
+    }
+
+    func revoke(_ refreshToken: ClaudeRefreshToken) async {
+        lock.withLock { revokedTokens.append(refreshToken.exposedValue) }
+    }
+
+    /// The scripted browser sign-in waits until the test finishes it with `finishSignIn(with:)` or cancels it.
+    func signIn() async throws -> ClaudeSignIn {
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                let started = lock.withLock {
+                    signInWaiter = continuation
+                    signInsStarted += 1
+                    defer { signInStartedWaiters = [] }
+                    return signInStartedWaiters
+                }
+                started.forEach { $0.resume() }
+            }
+        } onCancel: {
+            finishSignIn(with: .failure(CancellationError()))
+        }
+    }
+
+    func waitUntilSignInStarted() async {
+        await withCheckedContinuation { continuation in
+            let started = lock.withLock {
+                if signInWaiter == nil { signInStartedWaiters.append(continuation) }
+                return signInWaiter != nil
+            }
+            if started { continuation.resume() }
+        }
+    }
+
+    var browserSignInCount: Int {
+        lock.withLock { signInsStarted }
+    }
+
+    func finishSignIn(with result: Result<ClaudeSignIn, any Error>) {
+        let waiter = lock.withLock {
+            defer { signInWaiter = nil }
+            return signInWaiter
+        }
+        waiter?.resume(with: result)
     }
 
     func remove() {
