@@ -1,6 +1,7 @@
 import Foundation
 
-/// Claude Code subscription limits for the menu, read from Claude Code's sign-in only after the user connects it.
+/// Claude subscription limits for the menu, read only after the user connects Claude. CodexPill's own
+/// "Sign in with Claude" comes first; Claude Code's unexpired sign-in is the fallback for terminal users.
 struct ClaudeCodeUsage: ProviderConnection {
     let provider = UsageProvider.claude
     let staleAfter: TimeInterval = 15 * 60
@@ -10,10 +11,12 @@ struct ClaudeCodeUsage: ProviderConnection {
     let client: ClaudeUsageClient
     /// Saved Claude Code sign-ins to switch between. Nil in isolated runs, which never write the real Keychain.
     let accounts: ClaudeCodeAccountStore?
+    private let browserSignIn: ClaudeUsageSignIn
 
     init(
         settings: ClaudeUsageSettingsStore,
         client: ClaudeUsageClient,
+        signInFlow: any ClaudeSignInAuthorizing,
         accounts: ClaudeCodeAccountStore? = nil,
         refreshInterval: TimeInterval = ProviderUsageRuntime.refreshInterval
     ) {
@@ -21,19 +24,30 @@ struct ClaudeCodeUsage: ProviderConnection {
         self.client = client
         self.accounts = accounts
         self.refreshInterval = refreshInterval
+        browserSignIn = ClaudeUsageSignIn(flow: signInFlow, client: client, settings: settings)
     }
 
-    /// Turns the feature on and lets the next read ask for Keychain access, since the user just asked for it.
-    func connect() async {
-        settings.isEnabled = true
+    var signIn: (any ProviderSignIn)? { browserSignIn }
+
+    /// Connects with Claude Code's sign-in when it is readable without a prompt and unexpired. Returns false when
+    /// the user has to sign in with Claude in the browser instead. Once connected, it only lets the next read ask for
+    /// Keychain access, since the user just asked for it.
+    func connect() async -> Bool {
+        guard settings.isEnabled else {
+            guard await client.hasUsableClaudeCodeSignIn(now: Date()) else { return false }
+            settings.isEnabled = true
+            return true
+        }
         await client.allowKeychainPromptOnNextRead()
+        return true
     }
 
+    /// Forgets the opt-in and deletes CodexPill's own sign-in. Claude Code's sign-in is untouched.
     func disconnect() async {
+        await browserSignIn.cancel()
         settings.isEnabled = false
+        await client.forgetSignIn()
     }
-
-    let signIn: (any ProviderSignIn)? = nil
 
     func savedAccounts() async throws(ProviderNotice) -> [ProviderAccount] {
         guard let accounts else { return [] }
@@ -110,5 +124,35 @@ struct ClaudeCodeUsage: ProviderConnection {
             resetsAt: window.resetsAt,
             durationMinutes: durationMinutes
         )
+    }
+}
+
+/// "Sign in with Claude" from the menu: one browser sign-in at a time, which the menu can cancel.
+actor ClaudeUsageSignIn: ProviderSignIn {
+    private let flow: any ClaudeSignInAuthorizing
+    private let client: ClaudeUsageClient
+    private let settings: ClaudeUsageSettingsStore
+    private var running: Task<ClaudeSignIn, any Error>?
+
+    init(flow: any ClaudeSignInAuthorizing, client: ClaudeUsageClient, settings: ClaudeUsageSettingsStore) {
+        self.flow = flow
+        self.client = client
+        self.settings = settings
+    }
+
+    /// Claude stays connected only if the sign-in succeeds, so a cancelled or timed-out first sign-in leaves Claude
+    /// not connected.
+    func run() async throws(ProviderNotice) -> Bool {
+        let task = Task { [flow] in try await flow.signIn() }
+        running = task
+        defer { running = nil }
+        guard let signIn = try? await task.value, !task.isCancelled else { return false }
+        await client.store(signIn)
+        settings.isEnabled = true
+        return true
+    }
+
+    func cancel() {
+        running?.cancel()
     }
 }

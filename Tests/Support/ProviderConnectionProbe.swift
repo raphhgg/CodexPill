@@ -54,7 +54,7 @@ final class ProviderConnectionProbe: ProviderConnection {
         return reading
     }
 
-    func connect() async {}
+    func connect() async -> Bool { true }
     func disconnect() async {}
 
     func savedAccounts() async throws(ProviderNotice) -> [ProviderAccount] {

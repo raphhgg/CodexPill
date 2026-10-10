@@ -33,7 +33,8 @@ final class ProviderUsageRuntime {
         let date = now()
         return connections.compactMap { connection in
             let provider = connection.provider
-            return readings[provider].map {
+            let reading = readings[provider] ?? (signingIn.contains(provider) ? .notConnected : nil)
+            return reading.map {
                 ProviderUsageState(
                     provider: provider,
                     status: ProviderUsageStatus(
@@ -43,7 +44,8 @@ final class ProviderUsageRuntime {
                         staleAfter: connection.staleAfter
                     ),
                     accounts: accounts[provider] ?? [],
-                    isSigningIn: signingIn.contains(provider)
+                    isSigningIn: signingIn.contains(provider),
+                    canSignIn: connection.signIn != nil
                 )
             }
         }
@@ -61,7 +63,9 @@ final class ProviderUsageRuntime {
         do {
             switch action {
             case .connect, .allowKeychainAccess:
-                await connection.connect()
+                if await !connection.connect() {
+                    try await signIn(on: connection)
+                }
             case .disconnect:
                 await connection.disconnect()
             case let .switchAccount(id):
@@ -73,12 +77,7 @@ final class ProviderUsageRuntime {
             case let .removeAccount(id):
                 try await connection.removeAccount(id)
             case .signIn:
-                guard let signIn = connection.signIn, signingIn.insert(provider).inserted else { return nil }
-                onChange()
-                defer { signingIn.remove(provider) }
-                if try await signIn.run() {
-                    discardReading(for: provider)
-                }
+                try await signIn(on: connection)
             case .cancelSignIn:
                 await connection.signIn?.cancel()
                 return nil
@@ -131,6 +130,17 @@ final class ProviderUsageRuntime {
             }
         }
         onChange()
+    }
+
+    /// Runs the tool's browser sign-in, one at a time. The card shows it while it waits for the user.
+    private func signIn(on connection: any ProviderConnection) async throws(ProviderNotice) {
+        let provider = connection.provider
+        guard let signIn = connection.signIn, signingIn.insert(provider).inserted else { return }
+        onChange()
+        defer { signingIn.remove(provider) }
+        if try await signIn.run() {
+            discardReading(for: provider)
+        }
     }
 
     private func discardReading(for provider: UsageProvider) {

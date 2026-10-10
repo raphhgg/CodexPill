@@ -65,7 +65,7 @@ extension MenuBarMenuState {
             if provider == .codex {
                 return codexSection
             }
-            guard let usage = providerUsage.first(where: { $0.provider == provider }), usage.status != .notConnected else {
+            guard let usage = providerUsage.first(where: { $0.provider == provider }), usage.status != .notConnected || usage.isSigningIn else {
                 return nil
             }
             return section(for: usage)
@@ -145,6 +145,8 @@ extension MenuBarMenuState {
                 card.title = message.title
                 if reason == .keychainAccessNeeded {
                     followUp = ToolFollowUp(title: "Allow Keychain access…", systemImage: "key", action: .allowKeychainAccess)
+                } else if usage.canSignIn, [.signedOut, .signInExpired].contains(reason) {
+                    followUp = ToolFollowUp(title: "Sign In…", systemImage: "person.crop.circle", action: .signIn)
                 }
             }
         }

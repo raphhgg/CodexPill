@@ -8,6 +8,8 @@ struct ProviderUsageState: Equatable {
     var accounts: [ProviderAccount] = []
     /// CodexPill's own browser sign-in for this tool is waiting for the user.
     var isSigningIn = false
+    /// The tool offers CodexPill's own browser sign-in.
+    var canSignIn = false
 }
 
 enum ProviderUsageStatus: Equatable {

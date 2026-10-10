@@ -8,8 +8,10 @@ import Foundation
 /// coordinator routes `.codex` actions to `AccountsController` instead.
 protocol ProviderConnection: UsageProviderSource {
     /// Reads with the tool's sign-in from now on, and lets the next read show a macOS prompt because the user asked.
-    /// Calling it again, as "Allow Keychain access…" does, only allows the prompt again.
-    func connect() async
+    /// Calling it again, as "Allow Keychain access…" does, only allows the prompt again. Returns false when the tool
+    /// has no sign-in to read, so the user has to sign in with `signIn` first.
+    @discardableResult
+    func connect() async -> Bool
     func disconnect() async
     /// CodexPill's own browser sign-in for this tool, or nil when it reads only the tool's sign-in.
     var signIn: (any ProviderSignIn)? { get }

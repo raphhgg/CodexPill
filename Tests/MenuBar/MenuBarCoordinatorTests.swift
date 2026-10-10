@@ -119,48 +119,97 @@ struct MenuBarCoordinatorTests {
     }
 
     @Test
-    func claudeSectionAsksForConsentThenAsksForKeychainAccessAndShowsUsage() async throws {
+    func claudeSectionAsksForConsentThenSignsInWithClaudeInTheBrowser() async throws {
         let harness = try MenuBarCoordinatorHarness()
         let fixture = ClaudeUsageFixture(refreshInterval: 0)
         defer {
             harness.tearDown()
             fixture.remove()
         }
-        fixture.signInToKeychain(expiresAt: Date().addingTimeInterval(3_600), needsPermission: true)
         fixture.response = .success(Data(ClaudeUsageFixture.usageResponse.utf8))
         let coordinator = harness.makeCoordinator(providerConnections: [fixture.usage])
         coordinator.start()
         await coordinator.waitForPendingWork()
 
-        #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .claude, status: .notConnected)])
         #expect(mainMenuTitles(coordinator) == ["Add Account", "", "Settings", "", "Quit"])
 
         harness.click("Claude…")
         await coordinator.waitForPendingWork()
 
         #expect(harness.alertPresenter.confirmationRequests.map(\.messageText) == ["Connect Claude Code?"])
-        #expect(fixture.settings.isEnabled == false)
-        #expect(fixture.keychainReadPrompts == [])
+        #expect(fixture.browserSignInCount == 0)
 
         harness.alertPresenter.confirmationResponse = true
         harness.click("Claude…")
+        await fixture.waitUntilSignInStarted()
+
+        #expect(coordinator.menuState().providerUsage.map(\.isSigningIn) == [true])
+        #expect(mainMenuTitles(coordinator) == ["Claude", "Cancel Sign-In", "", "Settings", "", "Quit"])
+
+        harness.click("Cancel Sign-In")
         await coordinator.waitForPendingWork()
 
-        #expect(fixture.keychainReadPrompts == [true])
+        #expect(coordinator.menuState().providerUsage.map(\.status) == [.notConnected])
+        #expect(fixture.settings.isEnabled == false)
+
+        harness.click("Claude…")
+        await fixture.waitUntilSignInStarted()
+        fixture.finishSignIn(with: .success(ClaudeUsageFixture.ownSignIn(expiresAt: Date().addingTimeInterval(3_600))))
+        await coordinator.waitForPendingWork()
+
         guard case .current = coordinator.menuState().providerUsage.first?.status else {
-            Issue.record("Expected current Claude usage right after connecting")
+            Issue.record("Expected current Claude usage right after signing in")
             return
         }
         #expect(mainMenuTitles(coordinator) == ["Claude", "", "Settings", "", "Quit"])
+        #expect(fixture.usageRequestTokens == [ClaudeUsageFixture.fakeOwnAccessToken])
 
-        fixture.signInToKeychain(expiresAt: Date().addingTimeInterval(3_600), needsPermission: true)
+        fixture.ownSignIn = ClaudeUsageFixture.ownSignIn(expiresAt: Date().addingTimeInterval(60))
+        fixture.refreshResult = .failure(.invalidGrant)
         await coordinator.performScheduledRefresh()
         await coordinator.waitForPendingWork()
 
-        guard case .unavailable(.keychainAccessNeeded, lastSnapshot: .some) = coordinator.menuState().providerUsage.first?.status else {
-            Issue.record("Expected the Allow Keychain access state with the last usage kept")
+        guard case .unavailable(.signInExpired, lastSnapshot: .some) = coordinator.menuState().providerUsage.first?.status else {
+            Issue.record("Expected an expired sign-in with the last usage kept")
             return
         }
+        #expect(mainMenuTitles(coordinator) == ["Claude", "Sign In…", "", "Settings", "", "Quit"])
+
+        harness.click("Sign In…")
+        await fixture.waitUntilSignInStarted()
+        fixture.finishSignIn(with: .success(ClaudeUsageFixture.ownSignIn(expiresAt: Date().addingTimeInterval(3_600))))
+        await coordinator.waitForPendingWork()
+
+        guard case .current = coordinator.menuState().providerUsage.first?.status else {
+            Issue.record("Expected current Claude usage after signing in again")
+            return
+        }
+
+        harness.click("Disconnect Claude")
+        await coordinator.waitForPendingWork()
+
+        #expect(harness.alertPresenter.confirmationRequests.count == 3)
+        #expect(fixture.settings.isEnabled == false)
+        #expect(fixture.ownSignIn == nil)
+        #expect(fixture.revokedRefreshTokens == [ClaudeUsageFixture.fakeOwnRefreshToken])
+        #expect(mainMenuTitles(coordinator) == ["Add Account", "", "Settings", "", "Quit"])
+    }
+
+    @Test
+    func claudeCodesSignInAsksForKeychainAccessOnlyAfterTheUserChoosesIt() async throws {
+        let harness = try MenuBarCoordinatorHarness()
+        let fixture = ClaudeUsageFixture(refreshInterval: 0)
+        defer {
+            harness.tearDown()
+            fixture.remove()
+        }
+        fixture.settings.isEnabled = true
+        fixture.signInToKeychain(expiresAt: Date().addingTimeInterval(3_600), needsPermission: true)
+        fixture.response = .success(Data(ClaudeUsageFixture.usageResponse.utf8))
+        let coordinator = harness.makeCoordinator(providerConnections: [fixture.usage])
+        coordinator.start()
+        await coordinator.waitForPendingWork()
+
         #expect(mainMenuTitles(coordinator) == ["Claude", "Allow Keychain access…", "", "Settings", "", "Quit"])
 
         harness.click("Allow Keychain access…")
@@ -170,15 +219,8 @@ struct MenuBarCoordinatorTests {
             Issue.record("Expected current Claude usage after allowing Keychain access")
             return
         }
-        #expect(fixture.keychainReadPrompts.suffix(2) == [false, true])
-
-        harness.click("Disconnect Claude")
-        await coordinator.waitForPendingWork()
-
-        #expect(harness.alertPresenter.confirmationRequests.count == 2)
-        #expect(fixture.settings.isEnabled == false)
-        #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .claude, status: .notConnected)])
-        #expect(mainMenuTitles(coordinator) == ["Add Account", "", "Settings", "", "Quit"])
+        #expect(fixture.keychainReadPrompts == [false, true])
+        #expect(fixture.usageRequestTokens == [ClaudeUsageFixture.fakeAccessToken])
     }
 
     @Test

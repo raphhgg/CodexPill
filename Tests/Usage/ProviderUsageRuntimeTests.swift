@@ -169,7 +169,7 @@ struct ProviderUsageRuntimeTests {
         claude.reading = .awaitingUsage
         await gate.open()
         #expect(await signIn.value == nil)
-        #expect(runtime.states == [ProviderUsageState(provider: .claude, status: .awaitingUsage)])
+        #expect(runtime.states == [ProviderUsageState(provider: .claude, status: .awaitingUsage, canSignIn: true)])
         #expect(claude.readCount == 2)
     }
 

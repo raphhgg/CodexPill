@@ -52,7 +52,7 @@ extension UsageProvider {
                 serviceName: "Anthropic",
                 connectPrompt: ProviderPrompt(
                     title: "Connect Claude Code?",
-                    detail: "Uses Claude Code's sign-in to read your limits.",
+                    detail: "Uses Claude Code's sign-in, or your browser if it has none.",
                     confirmTitle: "Connect"
                 ),
                 switchPrompt: nil

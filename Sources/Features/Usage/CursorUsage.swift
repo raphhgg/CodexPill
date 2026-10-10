@@ -23,8 +23,9 @@ struct CursorUsage: ProviderConnection {
         self.refreshInterval = refreshInterval
     }
 
-    func connect() async {
+    func connect() async -> Bool {
         settings.isEnabled = true
+        return true
     }
 
     func disconnect() async {
