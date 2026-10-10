@@ -7,7 +7,7 @@ The product replaces manual auth-file swapping and repeated app restarts with a 
 - save Codex accounts as reusable local snapshots;
 - switch the active Codex account from the menubar;
 - see current session and weekly Codex usage before choosing which account to use;
-- optionally see Claude Code usage next to Codex, and switch Claude Code between saved sign-ins.
+- optionally see Claude Code and Cursor usage next to Codex, and switch either tool between saved sign-ins.
 
 Detailed product behavior and UX contracts live in [features](features/README.md).
 
@@ -60,13 +60,17 @@ A stored copy of Codex auth state used for later re-activation. A snapshot is no
 
 The most recently fetched view of Codex session and weekly availability.
 
-### Display-Only Provider
+### Other Providers
 
-A non-Codex tool whose usage CodexPill shows. Claude Code is one. It is opt-in and has its own menu section below the saved accounts. Its usage never affects Codex account availability, ranking, or notifications. CodexPill can also save Claude Code sign-ins and switch between them, through Claude Code's own credentials; the menu for that is not built yet. CodexPill never signs in to Claude itself and never renews Claude Code's sign-in.
+A non-Codex tool whose usage CodexPill shows. Claude Code and Cursor are the two. Each is opt-in and has its own menu section below the saved accounts. Their usage never affects Codex account availability, ranking, or notifications. The menu for switching either one is not built yet.
+
+- **Claude Code.** CodexPill can also save Claude Code sign-ins and switch between them, through Claude Code's own credentials. CodexPill never signs in to Claude itself and never renews Claude Code's sign-in.
+- **Cursor.** CodexPill can save Cursor sign-ins and switch between them. A switch quits Cursor, puts the saved sign-in back into Cursor's local database, and reopens Cursor. CodexPill never signs in to Cursor itself and never renews Cursor's sign-in.
 
 ## Non-Goals
 
 - Browser-based ChatGPT account switching.
+- Signing in to a non-Codex tool, or renewing its session, on its behalf. Switching only puts back a sign-in the tool itself created.
 - Cloud sync or multi-device account storage.
 - Team/shared account management.
 - Background telemetry pipeline.
