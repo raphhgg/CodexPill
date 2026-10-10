@@ -16,5 +16,4 @@ struct CursorAlertTests {
         #expect(alerts.allSatisfy { $0.messageText.count <= 32 && $0.informativeText.count <= 40 })
         #expect(alerts.allSatisfy { $0.informativeText.filter { $0 == "." }.count == 1 })
     }
-
 }
