@@ -65,7 +65,7 @@ All knowledge of Claude's OAuth, both sign-ins, and Anthropic's usage endpoint l
 - Token endpoint `https://platform.claude.com/v1/oauth/token`, JSON bodies. Exchange: `grant_type=authorization_code`, `code`, `redirect_uri`, `client_id`, `code_verifier`, `state`. Refresh: `grant_type=refresh_token`, `refresh_token`, `client_id`, `scope`. A refresh that omits `refresh_token` keeps the current one.
 - Revoke `https://platform.claude.com/v1/oauth/token/revoke` with `token`, `token_type_hint=refresh_token`, and `client_id`, best effort on disconnect.
 
-**CodexPill's sign-in item.** A generic password in the login Keychain, service `CodexPill Claude sign-in`, account `Claude`, holding JSON with the access token, refresh token, and expiry. Never a file. Refreshes run one at a time, so a rotated refresh token is never spent twice. If the Keychain refuses to save a rotation, CodexPill keeps it in memory and retries the save on the next read.
+**CodexPill's sign-in item.** A generic password in the login Keychain, service `CodexPill Claude sign-in`, account `Claude`, holding JSON with the access token, refresh token, and expiry. Never a file. Refreshes run one at a time, so a rotated refresh token is never spent twice. If the Keychain refuses to save a new sign-in or a rotation, CodexPill keeps it in memory and retries the save on the next read. After a new sign-in, an alert says so: `Claude sign-in not saved yet` / `CodexPill keeps trying while it runs.`
 
 **Claude Code's sign-in, read only.** CodexPill looks in two places, in order, and never writes either outside a switch:
 

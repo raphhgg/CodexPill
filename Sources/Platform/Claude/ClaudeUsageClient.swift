@@ -56,10 +56,13 @@ actor ClaudeUsageClient {
         return !credentials.isExpired(at: now)
     }
 
-    /// Saves a new sign-in right after the user signed in.
-    func store(_ signIn: ClaudeSignIn) {
+    /// Saves a new sign-in right after the user signed in. Returns false when the Keychain refused it: it is kept in
+    /// memory and each read tries to save it again.
+    func store(_ signIn: ClaudeSignIn) -> Bool {
         rateLimitedUntil = nil
-        unsavedSignIn = signInStore.save(signIn, allowingPrompt: true) ? nil : signIn
+        let saved = signInStore.save(signIn, allowingPrompt: true)
+        unsavedSignIn = saved ? nil : signIn
+        return saved
     }
 
     /// Deletes CodexPill's own sign-in and asks Anthropic to revoke it. Claude Code's sign-in is untouched.

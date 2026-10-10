@@ -24,7 +24,9 @@ struct ClaudeCodeAccountAlertTests {
             .denied, .timedOut, .stateMismatch, .listenerFailed,
             .token(.invalidGrant), .token(.transport), .token(.rejected(status: 500)), .token(.malformedResponse),
         ]
-        let alerts = errors.map(MenuBarAlertFactory().makeClaudeSignInErrorRequest) + [MenuBarAlertFactory().makeClaudeSignInNotRemovedRequest()]
+        let alerts = errors.map(MenuBarAlertFactory().makeClaudeSignInErrorRequest) + [
+            MenuBarAlertFactory().makeClaudeSignInNotRemovedRequest(), MenuBarAlertFactory().makeClaudeSignInNotSavedRequest(),
+        ]
 
         #expect(alerts.allSatisfy { $0.messageText.count <= 32 && $0.informativeText.count <= 40 })
         #expect(alerts.allSatisfy { $0.informativeText.filter { $0 == "." }.count == 1 })

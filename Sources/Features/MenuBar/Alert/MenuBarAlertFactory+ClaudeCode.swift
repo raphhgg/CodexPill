@@ -22,6 +22,15 @@ extension MenuBarAlertFactory {
         return MenuBarInfoAlertRequest(messageText: title, informativeText: detail, style: .warning, buttonTitle: "OK")
     }
 
+    func makeClaudeSignInNotSavedRequest() -> MenuBarInfoAlertRequest {
+        MenuBarInfoAlertRequest(
+            messageText: "Claude sign-in not saved yet",
+            informativeText: "CodexPill keeps trying while it runs.",
+            style: .warning,
+            buttonTitle: "OK"
+        )
+    }
+
     func makeClaudeSignInNotRemovedRequest() -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
             messageText: "Claude sign-in not removed",

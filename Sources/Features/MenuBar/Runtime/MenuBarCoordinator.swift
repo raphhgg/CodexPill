@@ -438,7 +438,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         guard let claudeCodeUsage, claudeSignIn == nil else { return }
         claudeSignIn = Task { [weak self] in
             do throws(ClaudeSignInError) {
-                try await claudeCodeUsage.signIn()
+                if try await !claudeCodeUsage.signIn(), let self {
+                    alertPresenter.presentInfo(alertFactory.makeClaudeSignInNotSavedRequest())
+                }
             } catch {
                 guard let self else { return }
                 alertPresenter.presentInfo(alertFactory.makeClaudeSignInErrorRequest(error))

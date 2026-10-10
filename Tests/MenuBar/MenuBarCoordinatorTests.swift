@@ -203,6 +203,31 @@ struct MenuBarCoordinatorTests {
     }
 
     @Test
+    func claudeSignInTheKeychainRefusesStillReadsUsageAndSaysItIsNotSaved() async throws {
+        let harness = try MenuBarCoordinatorHarness()
+        let fixture = ClaudeUsageFixture(refreshInterval: 0)
+        defer {
+            harness.tearDown()
+            fixture.remove()
+        }
+        fixture.response = .success(Data(ClaudeUsageFixture.usageResponse.utf8))
+        fixture.failSaves()
+        harness.alertPresenter.confirmationResponse = true
+        let coordinator = harness.makeCoordinator(providerUsageSources: [fixture.usage], claudeCodeUsage: fixture.usage)
+        coordinator.start()
+        await coordinator.waitForPendingWork()
+
+        coordinator.connectClaudeCode()
+        await fixture.waitUntilSignInStarted()
+        fixture.finishSignIn(with: .success(ClaudeUsageFixture.ownSignIn(expiresAt: Date().addingTimeInterval(3_600))))
+        await coordinator.waitForPendingWork()
+
+        #expect(harness.alertPresenter.infoRequests.map(\.messageText) == ["Claude sign-in not saved yet"])
+        #expect(fixture.ownSignIn == nil)
+        #expect(fixture.usageRequestTokens == [ClaudeUsageFixture.fakeOwnAccessToken])
+    }
+
+    @Test
     func claudeCodesSignInAsksForKeychainAccessOnlyAfterTheUserChoosesIt() async throws {
         let harness = try MenuBarCoordinatorHarness()
         let fixture = ClaudeUsageFixture(refreshInterval: 0)
