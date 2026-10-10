@@ -183,7 +183,7 @@ struct MenuBarAccountPresentationTests {
             )
         )
 
-        #expect(compactMenuRowUsageSummary(for: account, now: now) == "S --  W 0%")
+        #expect(compactMenuRowUsageSummary(for: account, now: now) == "W 0%")
     }
 
     @Test
@@ -262,7 +262,7 @@ struct MenuBarAccountPresentationTests {
     }
 
     @Test
-    func percentLeftModeInvertsTextBarsAndPaceMarkers() {
+    func percentLeftModeInvertsTextBarsAndPaceMarkers() throws {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
         let account = makeAccount(
             name: "Business 1",
@@ -273,11 +273,10 @@ struct MenuBarAccountPresentationTests {
                 fetchedAt: now
             )
         )
-        let session = account.usage?.window(.session)
+        let session = try #require(account.usage?.window(.session))
 
         #expect(usageMeterPercentText(for: session, mode: .used, now: now) == "42% used")
         #expect(usageMeterPercentText(for: session, mode: .left, now: now) == "58% left")
-        #expect(usageMeterPercentText(for: nil, mode: .left, now: now) == "--")
         #expect(statusItemHoverTitle(for: account, percentMode: .left, now: now) == "S 58% W 2d")
         #expect(compactMenuRowUsageSummary(for: account, percentMode: .left, now: now) == "S 58% (4h00)  W 0% (2d)")
         #expect(expectedPaceMarkerPercent(for: session, showsPacingMarkers: true, percentMode: .used, now: now) == 20)
@@ -315,8 +314,25 @@ struct MenuBarAccountPresentationTests {
     }
 
     @Test
-    func compactMenuRowUsageSummaryShowsDashesWhenRateLimitsAreMissing() {
-        #expect(compactMenuRowUsageSummary(for: makeAccount(name: "Research", usage: nil)) == "S --  W --")
+    func compactMenuRowUsageSummaryIsEmptyWhenUsageIsMissing() {
+        #expect(compactMenuRowUsageSummary(for: makeAccount(name: "Research", usage: nil)) == "")
+    }
+
+    @Test
+    func activeAccountMetersSkipAWindowCodexDidNotReport() {
+        let now = Date(timeIntervalSince1970: 1_744_195_200)
+        let weeklyOnly = UsageSnapshot.codex(
+            planName: "free",
+            primary: (usedPercent: 30, resetsAt: now.addingTimeInterval(2 * 24 * 60 * 60), durationMinutes: 10_080),
+            secondary: nil,
+            fetchedAt: now
+        )
+
+        let meters = UsageMeter.codexMeters(for: weeklyOnly, sessionTint: .green, weeklyTint: .blue)
+
+        #expect(meters.map(\.title) == ["Weekly"])
+        #expect(meters.map(\.window.usedPercent) == [30])
+        #expect(UsageMeter.codexMeters(for: nil, sessionTint: .green, weeklyTint: .blue).isEmpty)
     }
 
     @Test

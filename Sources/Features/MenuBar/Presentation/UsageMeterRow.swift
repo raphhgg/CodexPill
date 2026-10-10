@@ -2,10 +2,18 @@ import SwiftUI
 
 struct UsageMeter: Identifiable {
     let title: String
-    let window: UsageWindow?
+    let window: UsageWindow
     let tintColor: Color
 
     var id: String { title }
+
+    /// A window the provider did not report gets no meter, so it never reads as 0%.
+    static func codexMeters(for usage: UsageSnapshot?, sessionTint: Color, weeklyTint: Color) -> [UsageMeter] {
+        [
+            usage?.window(.session).map { UsageMeter(title: "Session", window: $0, tintColor: sessionTint) },
+            usage?.window(.weekly).map { UsageMeter(title: "Weekly", window: $0, tintColor: weeklyTint) },
+        ].compactMap { $0 }
+    }
 }
 
 struct UsageMeters: View {
@@ -36,7 +44,7 @@ struct UsageMeters: View {
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.primary)
                         UsageMeterBar(
-                            percent: meter.window.map { displayedPercent(of: $0, mode: percentMode, now: now) } ?? 0,
+                            percent: displayedPercent(of: meter.window, mode: percentMode, now: now),
                             expectedPercent: paceMarkerPercent(for: meter),
                             tintColor: meter.tintColor
                         )
@@ -46,7 +54,7 @@ struct UsageMeters: View {
                             .monospacedDigit()
                             .foregroundStyle(.primary)
                             .gridColumnAlignment(.trailing)
-                        Text(resetText(for: meter.window))
+                        Text(resetStatusText(for: meter.window, now: now) ?? "")
                             .foregroundStyle(.secondary)
                     }
                     .font(.caption)
@@ -63,11 +71,6 @@ struct UsageMeters: View {
             percentMode: percentMode,
             now: now
         )
-    }
-
-    private func resetText(for window: UsageWindow?) -> String {
-        guard let window else { return "Unavailable" }
-        return resetStatusText(for: window, now: now) ?? ""
     }
 }
 
@@ -91,7 +94,7 @@ struct UsageMeterRow: View {
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.primary)
             UsageMeterBar(
-                percent: window.map { displayedPercent(of: $0, mode: percentMode, now: now) } ?? 0,
+                percent: displayedPercent(of: window, mode: percentMode, now: now),
                 expectedPercent: expectedPercent,
                 tintColor: meter.tintColor
             )
@@ -101,11 +104,8 @@ struct UsageMeterRow: View {
                     .monospacedDigit()
                     .foregroundStyle(.primary)
                 Spacer()
-                if let window, let resetStatus = resetStatusText(for: window, now: now) {
+                if let resetStatus = resetStatusText(for: window, now: now) {
                     Text(resetStatus)
-                        .foregroundStyle(.secondary)
-                } else if window == nil {
-                    Text("Unavailable")
                         .foregroundStyle(.secondary)
                 }
             }
