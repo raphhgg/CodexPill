@@ -50,9 +50,13 @@ actor CursorUsageClient {
             data = try await webClient.usageSummary(using: token)
         } catch CursorUsageWebError.unauthorized {
             return .unauthorized
+        } catch CursorUsageWebError.forbidden {
+            return .unavailable(.forbidden)
         } catch let CursorUsageWebError.rateLimited(retryAfter) {
             rateLimitedUntil = now().addingTimeInterval(retryAfter ?? Self.defaultRetryAfter)
             return .unavailable(.rateLimited)
+        } catch CursorUsageWebError.httpStatus {
+            return .unavailable(.serviceError)
         } catch {
             return .unavailable(.network)
         }

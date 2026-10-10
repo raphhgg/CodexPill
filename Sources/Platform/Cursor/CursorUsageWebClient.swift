@@ -6,6 +6,7 @@ protocol CursorUsageWebClient: Sendable {
 
 enum CursorUsageWebError: Error, Equatable {
     case unauthorized
+    case forbidden
     /// HTTP 429. `retryAfter` is the wait cursor.com asked for, or nil when it named none.
     case rateLimited(retryAfter: TimeInterval?)
     case httpStatus(Int)
@@ -15,7 +16,8 @@ enum CursorUsageWebError: Error, Equatable {
     static func error(forStatus statusCode: Int, retryAfter: String?, now: Date) -> CursorUsageWebError? {
         switch statusCode {
         case 200: nil
-        case 401, 403: .unauthorized
+        case 401: .unauthorized
+        case 403: .forbidden
         case 429: .rateLimited(retryAfter: retryAfter.flatMap { delay(fromRetryAfter: $0, now: now) })
         default: .httpStatus(statusCode)
         }
