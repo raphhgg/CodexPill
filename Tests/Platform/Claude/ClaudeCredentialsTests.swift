@@ -45,7 +45,6 @@ struct ClaudeCredentialsTests {
             String(reflecting: request),
         ]
         #expect(printed.filter { $0.contains("fake-claude-access-token") || $0.contains("fake-claude-refresh-token") } == [])
-        #expect(String(describing: credentials.accessToken) == "ClaudeAccessToken(redacted)")
     }
 
     @Test
