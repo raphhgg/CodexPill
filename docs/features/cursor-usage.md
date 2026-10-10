@@ -16,7 +16,7 @@ The data contract shipped in the Cursor data-layer PR. The menu section below sh
 
 ## Menu
 
-A `Cursor` section sits below `Claude Code`. It never affects account availability, ranking, switching, or notifications.
+A `Cursor` section sits below `Claude Code`. It never affects account availability, ranking, or switching.
 
 - **Not connected.** The section shows `Connect Cursor…`. Choosing it opens a consent alert first. Nothing is read until the user confirms.
 - **Consent alert.** One short alert:

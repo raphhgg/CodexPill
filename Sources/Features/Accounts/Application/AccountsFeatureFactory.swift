@@ -6,7 +6,6 @@ struct AccountsFeatureFactory {
     private let authService: CodexAuthSnapshotService
     private let codexAppProcessClient: CodexAppProcessClient
     private let accountStatusClient: CodexAccountStatusClient & SavedCodexAccountStatusClient
-    private let remoteHostSwitchOperations: RemoteHostSwitchWorkflowOperations
     private let postSwitchRefreshDelay: Duration
 
     init(
@@ -14,14 +13,12 @@ struct AccountsFeatureFactory {
         authService: CodexAuthSnapshotService,
         codexAppProcessClient: CodexAppProcessClient,
         accountStatusClient: CodexAccountStatusClient & SavedCodexAccountStatusClient,
-        remoteHostSwitchOperations: RemoteHostSwitchWorkflowOperations = UnavailableRemoteHostClient(),
         postSwitchRefreshDelay: Duration = .seconds(2)
     ) {
         self.repository = repository
         self.authService = authService
         self.codexAppProcessClient = codexAppProcessClient
         self.accountStatusClient = accountStatusClient
-        self.remoteHostSwitchOperations = remoteHostSwitchOperations
         self.postSwitchRefreshDelay = postSwitchRefreshDelay
     }
 
@@ -69,10 +66,6 @@ struct AccountsFeatureFactory {
                 codexAppProcessClient: codexAppProcessClient,
                 identityResolver: identityResolver
             ),
-            switchAccountOnHostWorkflow: SwitchAccountOnHostWorkflow(
-                remoteHostSwitchOperations: remoteHostSwitchOperations
-            ),
-            remoteHostAccountVerifier: RemoteHostAccountVerifier(),
             addAccountWorkflow: AddAccountWorkflow(
                 authService: authService,
                 repository: repository,

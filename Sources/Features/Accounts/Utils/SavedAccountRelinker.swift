@@ -28,23 +28,6 @@ struct SavedAccountRelinker {
         return uniqueDisplayMatch(for: account, among: candidates)
     }
 
-    func resolveCanonicalAccount(
-        for hostState: PersistedRemoteHostState,
-        among candidates: [CodexAccount]
-    ) -> CodexAccount? {
-        if let desiredAccountID = hostState.desiredAccountID,
-           let desiredAccount = candidates.first(where: { $0.id == desiredAccountID }) {
-            return desiredAccount
-        }
-
-        if let verifiedAccount = hostState.verifiedAccount,
-           let canonicalVerifiedAccount = resolveCanonicalAccount(for: verifiedAccount, among: candidates) {
-            return canonicalVerifiedAccount
-        }
-
-        return nil
-    }
-
     private func uniqueDisplayMatch(
         for account: CodexAccount,
         among candidates: [CodexAccount]

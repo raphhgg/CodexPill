@@ -4,23 +4,6 @@ import OSLog
 
 private let menuBarCoordinatorLogger = Logger(subsystem: "com.raphhgg.codexpill", category: "MenuBarCoordinator")
 
-typealias MenuBarRemoteHostOperations =
-    RemoteHostConnectionChecking
-    & RemoteHostAccountStatusReading
-    & RemoteHostAccountSigningOut
-    & RemoteHostCodexAppServerRefreshing
-
-@MainActor
-protocol ApplicationActivator {
-    func activate()
-}
-
-struct NSApplicationActivator: ApplicationActivator {
-    func activate() {
-        NSApp.activate(ignoringOtherApps: true)
-    }
-}
-
 @MainActor
 final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let statusItemRuntime: StatusItemRuntime
@@ -28,19 +11,12 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let accountsController: MenuBarAccounts
     private let menuDisplaySettings: MenuDisplaySettingsStore
     private let statusItemSettings: StatusItemSettingsStore
-    private let remoteHostSettings: RemoteHostSettingsStore
-    private let notificationPreferences: NotificationPreferencesStore
     private let tokenUsagePreferences: TokenUsagePreferencesStore
-    private let remoteHostOperations: MenuBarRemoteHostOperations
     private let cliProcessInspector: CodexCLIProcessInspector
     private let alertPresenter: AlertPresenter
     private let panelPresenter: PanelPresenter
     private let shortcutCapturePanelPresenter: ShortcutCapturePanelPresenter
     private let alertFactory = MenuBarAlertFactory()
-    private let notificationStateStore: AccountAvailabilityNotificationStore
-    private let notificationDelivery: AccountAvailabilityNotifier
-    private let applicationActivator: ApplicationActivator
-    private let notificationSettingsLauncher: NotificationSettingsLauncher
     private let loginItemController: LoginItemControlling
     private let loginItemsSettingsLauncher: LoginItemsSettingsLaunching
     private let diagnosticReportPresenter: DiagnosticReportPresenting
@@ -48,42 +24,18 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let tokenUsageProvider: TokenUsageMenuProviding
     private let allowsEmptyStatePrompt: Bool
     private let autoRefreshIntervalOverride: TimeInterval?
-    private let remoteHostRuntime: RemoteHostRuntime
     private let accountActionFlow = AccountActionFlow()
     private let menuBuilder = MenuBarMenuBuilder()
     private var autoRefreshTimer: Timer?
     private var colorPanelTarget: UsageColorTarget?
     private var wakeRefreshTask: Task<Void, Never>?
-    private var notificationWaitTask: Task<Void, Never>?
     private let tasks = TrackedTasks()
     private var rebuildsMenuAfterClose = false
     private var rebuildsMenuBeforeOpen = false
     private var hasPromptedForEmptyState = false
     private var isObservingSettings = false
     private var isObservingStore = false
-    private var lastObservedActiveAccountID: UUID?
     private var activeIsolatedAddAccountSession: IsolatedAddAccountSignInSession?
-    private lazy var notificationWorkflow = MenuBarNotificationWorkflow(
-        stateStore: notificationStateStore,
-        delivery: notificationDelivery,
-        applicationActivator: applicationActivator,
-        settingsLauncher: notificationSettingsLauncher,
-        scheduleRefresh: { [weak self] date in
-            self?.scheduleNotificationEvaluation(at: date)
-        },
-        presentLocalSwitch: { [weak self] resolution in
-            self?.presentNotificationDrivenLocalSwitch(resolution: resolution)
-        },
-        presentRemoteSwitch: { [weak self] resolution, hostDestination in
-            self?.presentNotificationDrivenRemoteSwitch(
-                resolution: resolution,
-                hostDestination: hostDestination
-            )
-        },
-        rebuildMenu: { [weak self] in
-            self?.rebuildMenu()
-        }
-    )
     private lazy var tokenUsageRuntime = TokenUsageMenuRuntime(
         provider: tokenUsageProvider,
         onStateChange: { [weak self] _ in
@@ -100,24 +52,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             self?.rebuildMenuWhenSafe()
         }
     )
-    private lazy var hostActionCoordinator = MenuBarHostActionCoordinator(
-        store: accountsController,
-        settings: remoteHostSettings,
-        connectionChecker: remoteHostOperations,
-        remoteHostRuntime: remoteHostRuntime,
-        alertPresenter: alertPresenter,
-        panelPresenter: panelPresenter,
-        alertFactory: alertFactory,
-        recordMenuAction: { [weak self] name in
-            self?.recordMenuAction(name)
-        },
-        rebuildMenu: { [weak self] in
-            self?.rebuildMenu()
-        },
-        cancelMenuTracking: { [weak self] in
-            self?.statusItemRuntime.menu?.cancelTracking()
-        }
-    )
 
     init(
         statusItemRuntime: StatusItemRuntime,
@@ -125,18 +59,11 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         accountsController: MenuBarAccounts,
         menuDisplaySettings: MenuDisplaySettingsStore,
         statusItemSettings: StatusItemSettingsStore,
-        remoteHostSettings: RemoteHostSettingsStore,
-        notificationPreferences: NotificationPreferencesStore,
-        notificationState: NotificationStateStore,
         tokenUsagePreferences: TokenUsagePreferencesStore,
-        remoteHostOperations: MenuBarRemoteHostOperations,
         cliProcessInspector: CodexCLIProcessInspector,
         alertPresenter: AlertPresenter,
         panelPresenter: PanelPresenter,
         shortcutCapturePanelPresenter: ShortcutCapturePanelPresenter,
-        notificationDelivery: AccountAvailabilityNotifier,
-        applicationActivator: ApplicationActivator,
-        notificationSettingsLauncher: NotificationSettingsLauncher,
         loginItemController: LoginItemControlling,
         loginItemsSettingsLauncher: LoginItemsSettingsLaunching,
         diagnosticReportPresenter: DiagnosticReportPresenting,
@@ -152,21 +79,11 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.accountsController = accountsController
         self.menuDisplaySettings = menuDisplaySettings
         self.statusItemSettings = statusItemSettings
-        self.remoteHostSettings = remoteHostSettings
-        self.notificationPreferences = notificationPreferences
         self.tokenUsagePreferences = tokenUsagePreferences
-        self.remoteHostOperations = remoteHostOperations
         self.cliProcessInspector = cliProcessInspector
         self.alertPresenter = alertPresenter
         self.panelPresenter = panelPresenter
         self.shortcutCapturePanelPresenter = shortcutCapturePanelPresenter
-        self.notificationStateStore = AccountAvailabilityNotificationStore(
-            preferences: notificationPreferences,
-            stateStore: notificationState
-        )
-        self.notificationDelivery = notificationDelivery
-        self.applicationActivator = applicationActivator
-        self.notificationSettingsLauncher = notificationSettingsLauncher
         self.loginItemController = loginItemController
         self.loginItemsSettingsLauncher = loginItemsSettingsLauncher
         self.diagnosticReportPresenter = diagnosticReportPresenter
@@ -176,32 +93,18 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.cursorUsage = cursorUsage
         self.allowsEmptyStatePrompt = allowsEmptyStatePrompt
         self.autoRefreshIntervalOverride = autoRefreshIntervalOverride
-        self.remoteHostRuntime = RemoteHostRuntime(
-            settings: remoteHostSettings,
-            accountStatusReader: remoteHostOperations,
-            accounts: { accountsController.accounts },
-            persistAccountMetadata: { accountsController.persistAccountMetadata($0) },
-            markAccountActivated: { [notificationStateStore] accountID in
-                notificationStateStore.markAccountActivated(accountID)
-            }
-        )
     }
 
     func start() {
         shortcutRuntime.onShortcut = { [weak self] in
             self?.statusItemRuntime.revealTitleTemporarily(duration: 3)
         }
-        restorePersistedRemoteHostState()
         statusItemRuntime.start(presentation: statusItemPresentation(for: menuState()))
-        lastObservedActiveAccountID = accountsController.activeAccountID
-        notificationWorkflow.start(with: menuState())
-        tasks.start { [weak self] in await self?.notificationWorkflow.refreshAuthorizationState() }
         startObservingStore()
         startObservingSettings()
         rebuildMenu()
         scheduleAutoRefresh()
         syncBackgroundState()
-        tasks.start { [weak self] in await self?.refreshRemoteHostStateIfNeeded() }
         registerRevealShortcutFromSettings()
         refreshMenuUsageIfNeeded()
     }
@@ -209,14 +112,13 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     func invalidate() {
         autoRefreshTimer?.invalidate()
         wakeRefreshTask?.cancel()
-        notificationWaitTask?.cancel()
         tokenUsageRuntime.cancel()
         cancelActiveIsolatedAddAccountSession()
         shortcutRuntime.invalidate()
         statusItemRuntime.invalidate()
     }
 
-    /// Waits until the tasks started by menu actions, notification responses, and store or settings changes finish, including tasks they started.
+    /// Waits until the tasks started by menu actions and store or settings changes finish, including tasks they started.
     func waitForPendingWork() async {
         await tasks.waitUntilIdle()
         if let claudeSignIn {
@@ -266,22 +168,14 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
         let state = menuState()
         let shouldSignOutLocalAccount = state.isAccountActiveLocally(account)
-        let activeRemoteHosts = state.activeRemoteHosts(for: account)
         let request = alertFactory.makeRemoveAccountRequest(
             accountName: account.name,
-            activeTargets: removeAccountActiveTargetNames(
-                signsOutLocalAccount: shouldSignOutLocalAccount,
-                remoteHosts: activeRemoteHosts
-            )
+            activeTargets: shouldSignOutLocalAccount ? ["This Mac"] : []
         )
 
         guard alertPresenter.presentConfirmation(request) else { return }
         tasks.start { [weak self] in
-            await self?.removeSavedAccount(
-                account,
-                signOutLocalAccount: shouldSignOutLocalAccount,
-                remoteHosts: activeRemoteHosts
-            )
+            await self?.removeSavedAccount(account, signOutLocalAccount: shouldSignOutLocalAccount)
         }
     }
 
@@ -501,24 +395,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     @objc
-    func toggleNotificationsWhenBlocked(_ sender: NSMenuItem) {
-        recordMenuAction("toggleNotificationsWhenBlocked")
-        notificationWorkflow.handleNotificationToggle(enabled: \.whenBlockedEnabled)
-    }
-
-    @objc
-    func toggleNotificationsWhenOut(_ sender: NSMenuItem) {
-        recordMenuAction("toggleNotificationsWhenOut")
-        notificationWorkflow.handleNotificationToggle(enabled: \.whenOutEnabled)
-    }
-
-    @objc
-    func enableNotifications(_ sender: NSMenuItem) {
-        recordMenuAction("enableNotifications")
-        tasks.start { [weak self] in await self?.notificationWorkflow.enableNotifications() }
-    }
-
-    @objc
     func switchAccount(_ sender: NSMenuItem) {
         guard
             let idString = sender.representedObject as? String,
@@ -531,61 +407,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         recordMenuAction("switchAccount")
         diagnosticEventRecorder.recordSwitchAccount(targetAccountID: account.id)
         requestSwitch(to: account)
-    }
-
-    @objc
-    func switchAccountOnHost(_ sender: NSMenuItem) {
-        guard let payload = sender.representedObject as? HostAccountMenuItemPayload else { return }
-        diagnosticEventRecorder.recordRemoteHostSwitch(
-            targetAccountID: payload.accountID,
-            hostDestination: payload.hostDestination
-        )
-        tasks.start { [weak self] in
-            await self?.hostActionCoordinator.switchAccountOnHost(
-                accountID: payload.accountID,
-                hostDestination: payload.hostDestination
-            )
-        }
-    }
-
-    @objc
-    func addHost(_ sender: NSMenuItem) {
-        recordMenuAction("addHost")
-        tasks.start { [weak self] in await self?.hostActionCoordinator.addHost() }
-    }
-
-    @objc
-    func removeHost(_ sender: NSMenuItem) {
-        recordMenuAction("removeHost")
-        guard let payload = sender.representedObject as? HostSelectionMenuItemPayload else { return }
-        hostActionCoordinator.removeHost(hostDestination: payload.hostDestination)
-    }
-
-    @objc
-    func reverifyHost(_ sender: NSMenuItem) {
-        recordMenuAction("reverifyHost")
-        guard let payload = sender.representedObject as? HostSelectionMenuItemPayload else { return }
-        reverifyHost(hostDestination: payload.hostDestination)
-    }
-
-    func reverifyHost(hostDestination: String) {
-        tasks.start { [weak self] in await self?.hostActionCoordinator.reverifyHost(hostDestination: hostDestination) }
-    }
-
-    @objc
-    func adoptDetectedRemoteAccount(_ sender: NSMenuItem) {
-        recordMenuAction("adoptDetectedRemoteAccount")
-        guard let payload = sender.representedObject as? HostAccountMenuItemPayload else { return }
-        adoptDetectedRemoteAccount(hostDestination: payload.hostDestination, accountID: payload.accountID)
-    }
-
-    func adoptDetectedRemoteAccount(hostDestination: String, accountID: UUID) {
-        tasks.start { [weak self] in
-            await self?.hostActionCoordinator.adoptDetectedRemoteAccount(
-                hostDestination: hostDestination,
-                accountID: accountID
-            )
-        }
     }
 
     /// Connects with Claude Code's sign-in when it is fresh, otherwise starts "Sign in with Claude" in the browser.
@@ -778,7 +599,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         MenuBarMenuState(
             activeAccount: accountsController.activeAccount,
             inactiveAccounts: accountsController.sortedInactiveAccounts,
-            remoteHosts: remoteHostRuntime.menuStates(),
             visibleInactiveAccountCount: menuDisplaySettings.visibleInactiveAccountCount,
             visibleInactiveAccountCountOptions: menuDisplaySettings.visibleInactiveAccountCountOptions,
             refreshIntervalMinutes: menuDisplaySettings.refreshIntervalMinutes,
@@ -796,9 +616,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             pacingMarkersEnabled: statusItemSettings.pacingMarkersEnabled,
             isBusy: accountsController.isBusy,
             statusMessage: accountsController.statusMessage,
-            notificationsWhenBlockedEnabled: notificationWorkflow.whenBlockedEnabled,
-            notificationsWhenOutEnabled: notificationWorkflow.whenOutEnabled,
-            notificationAuthorizationState: notificationWorkflow.authorizationState,
             loginItemState: loginItemController.state(),
             tokenUsageEnabled: tokenUsagePreferences.isEnabled,
             tokenUsagePeriod: tokenUsagePreferences.period,
@@ -1003,13 +820,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         }
     }
 
-    func handleNotificationResponse(_ payload: AccountAvailabilityNotificationResponsePayload) async {
-        notificationWorkflow.handleResponse(
-            payload: payload,
-            state: menuState()
-        )
-    }
-
     private func recordMenuAction(_ name: String) {
         diagnosticEventRecorder.recordMenuAction(name)
     }
@@ -1035,7 +845,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         }
 
         await accountsController.refreshInactiveSavedAccountsMetadata()
-        await refreshRemoteHostStateIfNeeded(markSyncing: false)
     }
 
     private func startObservingStore() {
@@ -1054,16 +863,14 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         } onChange: { [weak self] in
             self?.tasks.start { [weak self] in
                 guard let self else { return }
-                let state = self.handleStoreChange()
+                _ = self.handleStoreChange()
                 self.observeStoreChanges()
-                await self.notificationWorkflow.evaluate(using: state)
             }
         }
     }
 
     private func handleStoreChange() -> MenuBarMenuState {
         let state = menuState()
-        recordActiveAccountTransitionIfNeeded()
         if !accountsController.accounts.isEmpty {
             hasPromptedForEmptyState = false
         }
@@ -1072,14 +879,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         presentPendingErrorIfNeeded()
         syncBackgroundState()
         return state
-    }
-
-    private func recordActiveAccountTransitionIfNeeded() {
-        let currentActiveAccountID = accountsController.activeAccountID
-        defer { lastObservedActiveAccountID = currentActiveAccountID }
-
-        guard currentActiveAccountID != lastObservedActiveAccountID, let currentActiveAccountID else { return }
-        notificationWorkflow.markAccountActivated(currentActiveAccountID)
     }
 
     private func startObservingSettings() {
@@ -1101,15 +900,11 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             _ = statusItemSettings.usagePercentMode
             _ = statusItemSettings.usageMeterLayout
             _ = statusItemSettings.pacingMarkersEnabled
-            _ = remoteHostSettings.remoteHostStates
-            _ = notificationPreferences.notificationsWhenBlockedEnabled
-            _ = notificationPreferences.notificationsWhenOutEnabled
         } onChange: { [weak self] in
             self?.tasks.start { [weak self] in
                 guard let self else { return }
-                let state = self.handleSettingsChange()
+                _ = self.handleSettingsChange()
                 self.observeSettingsChanges()
-                await self.notificationWorkflow.evaluate(using: state)
             }
         }
     }
@@ -1122,105 +917,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         return state
     }
 
-    private func presentNotificationDrivenLocalSwitch(
-        resolution: AccountAvailabilityNotificationActionResolution
-    ) {
-        let runningCLISessions = cliProcessInspector.runningCLISessionCount()
-        let request = alertFactory.makeNotificationActionRequest(
-            accountName: resolution.account.name,
-            targetDescription: "This Mac",
-            substitutionMessage: resolution.substitutionMessage,
-            runningCLISessions: runningCLISessions
-        )
-        guard alertPresenter.presentConfirmation(request) else { return }
-        beginLocalSwitch(to: resolution.account)
-    }
-
-    private func presentNotificationDrivenRemoteSwitch(
-        resolution: AccountAvailabilityNotificationActionResolution,
-        hostDestination: String
-    ) {
-        guard
-            let remoteHost = remoteHostSettings.remoteHostState(for: hostDestination)?.host
-        else {
-            return
-        }
-
-        let request = alertFactory.makeNotificationActionRequest(
-            accountName: resolution.account.name,
-            targetDescription: remoteHost.displayName,
-            substitutionMessage: resolution.substitutionMessage,
-            runningCLISessions: nil
-        )
-        guard alertPresenter.presentConfirmation(request) else { return }
-
-        let payload = HostAccountMenuItemPayload(
-            accountID: resolution.account.id,
-            hostDestination: hostDestination
-        )
-        let menuItem = NSMenuItem()
-        menuItem.representedObject = payload
-        switchAccountOnHost(menuItem)
-    }
-
-    private func scheduleNotificationEvaluation(at date: Date?) {
-        notificationWaitTask?.cancel()
-        guard let date, date > .now else { return }
-        let delay = max(0, date.timeIntervalSinceNow)
-        notificationWaitTask = Task { @MainActor [weak self] in
-            guard let self else { return }
-            try? await Task.sleep(for: .seconds(delay))
-            guard !Task.isCancelled else { return }
-            await self.performScheduledRefresh()
-        }
-    }
-
-    private func removeSavedAccount(
-        _ account: CodexAccount,
-        signOutLocalAccount: Bool,
-        remoteHosts: [RemoteHostMenuState]
-    ) async {
-        do {
-            try await signOutRemoteHosts(remoteHosts)
-            await accountsController.removeSavedAccount(account, signOutLocalAccount: signOutLocalAccount)
-            presentPendingErrorIfNeeded()
-        } catch {
-            alertPresenter.presentInfo(alertFactory.makeErrorRequest(message: error.localizedDescription))
-        }
+    private func removeSavedAccount(_ account: CodexAccount, signOutLocalAccount: Bool) async {
+        await accountsController.removeSavedAccount(account, signOutLocalAccount: signOutLocalAccount)
+        presentPendingErrorIfNeeded()
         rebuildMenu()
-    }
-
-    private func signOutRemoteHosts(_ remoteHosts: [RemoteHostMenuState]) async throws {
-        for remoteHostState in remoteHosts {
-            guard let remoteHost = remoteHostSettings.remoteHostState(for: remoteHostState.destination)?.host else {
-                throw RemoteHostClientError.commandFailed("Remote host \(remoteHostState.name) is no longer configured.")
-            }
-            try await remoteHostOperations.signOut(on: remoteHost)
-            try await remoteHostOperations.refreshCodexAppServer(on: remoteHost)
-            remoteHostRuntime.applySignOut(on: remoteHost)
-        }
-    }
-
-    private func removeAccountActiveTargetNames(
-        signsOutLocalAccount: Bool,
-        remoteHosts: [RemoteHostMenuState]
-    ) -> [String] {
-        var targets: [String] = []
-        if signsOutLocalAccount {
-            targets.append("This Mac")
-        }
-        targets.append(contentsOf: remoteHosts.map(\.name))
-        return targets
-    }
-
-    private func restorePersistedRemoteHostState() {
-        remoteHostRuntime.restorePersistedState()
-    }
-
-    private func refreshRemoteHostStateIfNeeded(markSyncing: Bool = true) async {
-        await remoteHostRuntime.refreshAll(markSyncing: markSyncing) { [weak self] in
-            self?.rebuildMenu()
-        }
     }
 
     private func presentPendingErrorIfNeeded() {

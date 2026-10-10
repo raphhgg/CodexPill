@@ -352,7 +352,7 @@ struct MenuBarAccountPresentationTests {
     }
 
     @Test
-    func inactiveAccountTitleUsesTabAlignedColumns() {
+    func inactiveAccountTitleShowsNameThenUsage() {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
         let account = CodexAccount(
             id: UUID(),
@@ -370,10 +370,8 @@ struct MenuBarAccountPresentationTests {
             )
         )
 
-        let title = inactiveAccountTitle(for: account, placement: .local, menuContentWidth: 423, now: now)
-        let paragraphStyle = title.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle
+        let title = inactiveAccountTitle(for: account, now: now)
 
-        #expect(title.string == "Business 2  S 10% (1h23)  W 78% (3d)\tLocal")
-        #expect(paragraphStyle?.tabStops.first?.location == 395)
+        #expect(title.string == "Business 2  S 10% (1h23)  W 78% (3d)")
     }
 }

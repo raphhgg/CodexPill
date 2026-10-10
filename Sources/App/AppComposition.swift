@@ -5,7 +5,7 @@ struct AppComposition {
     let accountsController: AccountsController
     let coordinator: MenuBarCoordinator
 
-    init(environment: [String: String], defaults: UserDefaults, remoteHostSettings: RemoteHostSettingsStore) {
+    init(environment: [String: String], defaults: UserDefaults) {
         let isolatedRootDirectory = AppRuntimeEnvironment.isolatedAppSupportDirectory(environment: environment)
         let suppressesInteractivePrompts = AppRuntimeEnvironment.isRunningAutomatedTests(environment: environment)
         let repository = try! AccountRepository(isolatedRootDirectory: isolatedRootDirectory)
@@ -13,18 +13,11 @@ struct AppComposition {
         let processClient: CodexAppProcessClient = AppRuntimeEnvironment.shouldUseValidationCodexProcessClient(environment: environment)
             ? ValidationCodexAppProcessClient()
             : SystemCodexAppProcessClient()
-        let remoteHostClient: RemoteHostSwitchWorkflowOperations & MenuBarRemoteHostOperations
-        if AppRuntimeEnvironment.shouldUseValidationRemoteHostClient(environment: environment) {
-            remoteHostClient = ValidationRemoteHostClient(seedStates: remoteHostSettings.remoteHostStates)
-        } else {
-            remoteHostClient = SSHRemoteHostClient(snapshotLocator: repository)
-        }
         accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: authService,
             codexAppProcessClient: processClient,
-            accountStatusClient: CodexAppServerClient(),
-            remoteHostSwitchOperations: remoteHostClient
+            accountStatusClient: CodexAppServerClient()
         ).makeController()
 
         let claudeCodeUsage = Self.makeClaudeCodeUsage(environment: environment, defaults: defaults, isolatedRootDirectory: isolatedRootDirectory)
@@ -36,18 +29,11 @@ struct AppComposition {
             accountsController: accountsController,
             menuDisplaySettings: MenuDisplaySettingsStore(userDefaults: defaults),
             statusItemSettings: StatusItemSettingsStore(userDefaults: defaults),
-            remoteHostSettings: remoteHostSettings,
-            notificationPreferences: NotificationPreferencesStore(userDefaults: defaults),
-            notificationState: NotificationStateStore(userDefaults: defaults),
             tokenUsagePreferences: TokenUsagePreferencesStore(userDefaults: defaults),
-            remoteHostOperations: remoteHostClient,
             cliProcessInspector: CodexCLIProcessInspector(),
             alertPresenter: SystemAlertPresenter(suppressesInteractivePrompts: suppressesInteractivePrompts),
             panelPresenter: SystemPanelPresenter(suppressesInteractivePrompts: suppressesInteractivePrompts),
             shortcutCapturePanelPresenter: SystemShortcutCapturePanelPresenter(suppressesInteractivePrompts: suppressesInteractivePrompts),
-            notificationDelivery: AccountAvailabilityNotificationCenter(),
-            applicationActivator: NSApplicationActivator(),
-            notificationSettingsLauncher: SystemNotificationSettingsLauncher(),
             loginItemController: SystemLoginItemController(),
             loginItemsSettingsLauncher: SystemLoginItemsSettingsLauncher(),
             diagnosticReportPresenter: SystemDiagnosticReportPresenter(),

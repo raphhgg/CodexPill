@@ -185,17 +185,6 @@ struct MenuBarAlertFactoryTests {
     }
 
     @Test
-    func installCurrentAccountOnHostRequestExplainsCancelAbortsSetup() {
-        let request = factory.makeInstallCurrentAccountOnHostRequest(accountName: "Business 1", hostName: "buildbox")
-
-        #expect(request.messageText == "Install current account on buildbox?")
-        #expect(request.informativeText.contains("Install Business 1 on buildbox"))
-        #expect(request.informativeText.contains("the host will not be added yet"))
-        #expect(request.confirmTitle == "Install and Switch")
-        #expect(request.cancelTitle == "Cancel")
-    }
-
-    @Test
     func diagnosticsExportRequestExplainsRedactedSupportFile() {
         let request = factory.makeDiagnosticsExportRequest()
 
@@ -211,18 +200,4 @@ struct MenuBarAlertFactoryTests {
         #expect(request.cancelTitle == "Cancel")
     }
 
-    @Test
-    func notificationActionRequestExplainsSubstitutionWhenPresent() {
-        let request = factory.makeNotificationActionRequest(
-            accountName: "Business 2",
-            targetDescription: "debian-vm",
-            substitutionMessage: "Business 4 is no longer the best option. Switching to Business 2 instead.",
-            runningCLISessions: nil
-        )
-
-        #expect(request.messageText == "Use Business 2 now?")
-        #expect(request.informativeText.contains("Business 4 is no longer the best option. Switching to Business 2 instead."))
-        #expect(request.informativeText.contains("Switch debian-vm to Business 2."))
-        #expect(request.confirmTitle == "Switch")
-    }
 }

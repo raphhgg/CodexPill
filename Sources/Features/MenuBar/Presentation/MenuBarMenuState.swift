@@ -1,16 +1,8 @@
 import AppKit
 
-enum NotificationAuthorizationState: Equatable {
-    case notDetermined
-    case authorized
-    case denied
-    case unknown
-}
-
 struct MenuBarMenuState {
     let activeAccount: CodexAccount?
     let inactiveAccounts: [CodexAccount]
-    let remoteHosts: [RemoteHostMenuState]
     let visibleInactiveAccountCount: Int
     let visibleInactiveAccountCountOptions: [Int]
     let refreshIntervalMinutes: Int
@@ -28,9 +20,6 @@ struct MenuBarMenuState {
     let pacingMarkersEnabled: Bool
     let isBusy: Bool
     let statusMessage: String
-    let notificationsWhenBlockedEnabled: Bool
-    let notificationsWhenOutEnabled: Bool
-    let notificationAuthorizationState: NotificationAuthorizationState
     let loginItemState: LoginItemState
     let tokenUsageEnabled: Bool
     let tokenUsagePeriod: CodexTokenUsagePeriod
@@ -43,7 +32,6 @@ struct MenuBarMenuState {
     init(
         activeAccount: CodexAccount?,
         inactiveAccounts: [CodexAccount],
-        remoteHosts: [RemoteHostMenuState] = [],
         visibleInactiveAccountCount: Int,
         visibleInactiveAccountCountOptions: [Int],
         refreshIntervalMinutes: Int,
@@ -61,9 +49,6 @@ struct MenuBarMenuState {
         pacingMarkersEnabled: Bool = true,
         isBusy: Bool,
         statusMessage: String,
-        notificationsWhenBlockedEnabled: Bool = false,
-        notificationsWhenOutEnabled: Bool = false,
-        notificationAuthorizationState: NotificationAuthorizationState = .unknown,
         loginItemState: LoginItemState = .unavailable,
         tokenUsageEnabled: Bool = false,
         tokenUsagePeriod: CodexTokenUsagePeriod = .last30Days,
@@ -75,7 +60,6 @@ struct MenuBarMenuState {
     ) {
         self.activeAccount = activeAccount
         self.inactiveAccounts = inactiveAccounts
-        self.remoteHosts = remoteHosts
         self.visibleInactiveAccountCount = visibleInactiveAccountCount
         self.visibleInactiveAccountCountOptions = visibleInactiveAccountCountOptions
         self.refreshIntervalMinutes = refreshIntervalMinutes
@@ -93,9 +77,6 @@ struct MenuBarMenuState {
         self.pacingMarkersEnabled = pacingMarkersEnabled
         self.isBusy = isBusy
         self.statusMessage = statusMessage
-        self.notificationsWhenBlockedEnabled = notificationsWhenBlockedEnabled
-        self.notificationsWhenOutEnabled = notificationsWhenOutEnabled
-        self.notificationAuthorizationState = notificationAuthorizationState
         self.loginItemState = loginItemState
         self.tokenUsageEnabled = tokenUsageEnabled
         self.tokenUsagePeriod = tokenUsagePeriod
@@ -122,20 +103,8 @@ struct MenuBarMenuState {
         !isBusy && allSavedAccounts.count > 0
     }
 
-    var canConfigureHosts: Bool {
-        !isBusy
-    }
-
     var allSavedAccounts: [CodexAccount] {
         accountCatalogProjection.allSavedAccounts
-    }
-
-    var resolvedRemoteHosts: [RemoteHostMenuState] {
-        accountCatalogProjection.resolvedRemoteHosts
-    }
-
-    var connectedRemoteHosts: [RemoteHostMenuState] {
-        accountCatalogProjection.connectedRemoteHosts
     }
 
     var activeAccountCards: [ActiveAccountCard] {
@@ -149,23 +118,6 @@ struct MenuBarMenuState {
     func isAccountActiveLocally(_ account: CodexAccount) -> Bool {
         guard let activeAccount else { return false }
         return account.matchesSameAccount(as: activeAccount)
-    }
-
-    func activeRemoteHosts(for account: CodexAccount) -> [RemoteHostMenuState] {
-        resolvedRemoteHosts.filter { remoteHost in
-            guard remoteHost.connectionState == .connected,
-                  remoteHost.verificationStatus == .verified,
-                  remoteHost.lastVerificationError?.isEmpty ?? true,
-                  let activeAccount = remoteHost.activeAccount,
-                  activeAccount.matchesSameAccount(as: account) else {
-                return false
-            }
-            return true
-        }
-    }
-
-    var remoteTargetAvailabilities: [String: AccountTargetAvailability] {
-        accountCatalogProjection.remoteTargetAvailabilities
     }
 
     var accountCatalogEntries: [MenuBarAccountCatalogEntry] {
@@ -208,11 +160,11 @@ struct MenuBarMenuState {
     }
 
     var shouldShowSingleAccountManagementMenu: Bool {
-        remoteHosts.isEmpty && allSavedAccounts.count == 1
+        allSavedAccounts.count == 1
     }
 
     var shouldShowActiveAccountManagementMenu: Bool {
-        remoteHosts.isEmpty && allSavedAccounts.count > 1 && activeAccount != nil
+        allSavedAccounts.count > 1 && activeAccount != nil
     }
 
     var accountForAccountManagementMenu: CodexAccount? {
@@ -228,7 +180,7 @@ struct MenuBarMenuState {
     }
 
     private var shouldShowOtherAccountsList: Bool {
-        remoteHosts.isEmpty && allSavedAccounts.count > 1
+        allSavedAccounts.count > 1
     }
 
     private var accountEntriesExcludingActiveLocalAccount: [MenuBarAccountCatalogEntry] {
@@ -257,10 +209,6 @@ struct MenuBarMenuState {
         return activeAccount.usage?.window(.session) != nil || activeAccount.usage?.window(.weekly) != nil
     }
 
-    var availabilitySnapshots: [AccountAvailabilitySnapshot] {
-        accountCatalogProjection.availabilitySnapshots
-    }
-
     var effectiveStatusBarDisplayMode: StatusBarDisplayMode {
         guard hasStatusItemContentData else { return .iconOnly }
         return statusBarDisplayMode
@@ -274,15 +222,11 @@ struct MenuBarMenuState {
     private var accountCatalogProjection: MenuBarAccountCatalogProjection {
         MenuBarAccountCatalogProjection(
             activeAccount: activeAccount,
-            inactiveAccounts: inactiveAccounts,
-            remoteHosts: remoteHosts
+            inactiveAccounts: inactiveAccounts
         )
     }
 
     private var activeAccountsProjection: ActiveAccountsProjection {
-        ActiveAccountsProjection(
-            activeAccount: activeAccount,
-            connectedRemoteHosts: connectedRemoteHosts
-        )
+        ActiveAccountsProjection(activeAccount: activeAccount)
     }
 }

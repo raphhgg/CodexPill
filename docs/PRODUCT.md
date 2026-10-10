@@ -7,7 +7,6 @@ The product replaces manual auth-file swapping and repeated app restarts with a 
 - save Codex accounts as reusable local snapshots;
 - switch the active Codex account from the menubar;
 - see current session and weekly Codex usage before choosing which account to use;
-- use the same saved accounts on configured remote hosts;
 - optionally see Claude and Cursor usage next to Codex.
 
 Detailed product behavior and UX contracts live in [features](features/README.md).
@@ -29,7 +28,7 @@ Secondary user:
 ## Core Outcomes
 
 1. Add another Codex account without disrupting the current local session.
-2. See which saved account is active locally and remotely.
+2. See which saved account is active on this Mac.
 3. Switch accounts from the menubar with a clear, bounded flow.
 4. Refresh Codex account metadata and rate limits from Codex app-server surfaces.
 5. Understand when the app cannot confidently match live auth to a saved account.
@@ -59,15 +58,11 @@ A stored copy of Codex auth state used for later re-activation. A snapshot is no
 
 ### Rate-Limit Snapshot
 
-The most recently fetched local or remote view of Codex session and weekly availability.
+The most recently fetched view of Codex session and weekly availability.
 
 ### Display-Only Provider
 
-A non-Codex tool whose usage CodexPill shows but never manages. Claude and Cursor are display-only providers. Each one is opt-in and has its own menu section below the saved accounts. CodexPill does not switch or save accounts for them. For Claude it keeps one sign-in of its own, used only to read usage. Their usage never affects Codex account availability, ranking, or notifications.
-
-### Remote Host
-
-A user-configured SSH target where CodexPill can install saved account snapshots, switch remote Codex auth, and verify the remote active account.
+A non-Codex tool whose usage CodexPill shows but never manages. Claude and Cursor are display-only providers. Each one is opt-in and has its own menu section below the saved accounts. CodexPill does not switch or save accounts for them. For Claude it keeps one sign-in of its own, used only to read usage. Their usage never affects Codex account availability or ranking.
 
 ## Non-Goals
 

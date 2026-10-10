@@ -60,14 +60,13 @@ For inactive saved catalog accounts:
 - write rotated isolated auth back to the same saved account only on an exact stable or scoped account id match;
 - prefer complete `result.rateLimitsByLimitId["codex"]` values over `result.rateLimits`;
 - preserve previous meaningful rate-limit windows on failed, missing, partial, zeroed, or suspicious isolated reads;
-- never mutate the live local `~/.codex/auth.json`;
-- keep remote inactive-account refresh behavior separate unless it is proven through the same isolated-read path.
+- never mutate the live local `~/.codex/auth.json`.
 
 The safest status source remains `codex app-server` launched as a short-lived child process with isolated `CODEX_HOME`, because it works for account identity, plan, and complete rate-limit windows without mutating live auth.
 
 ### Follow-Up Trigger
 
-Revisit this path if Codex changes the app-server protocol shape or if remote inactive-account refresh should use isolated saved-account reads too.
+Revisit this path if Codex changes the app-server protocol shape.
 
 ## Active Local Snapshot Relinking
 
@@ -79,7 +78,7 @@ Date: 2026-05-06
 
 When refreshing the active local account, CodexPill may relink that saved account's snapshot from the current live local auth if the resolved Codex account identity is the same but the auth fingerprint changed.
 
-This handles the case where the user signs back into Codex outside CodexPill. The saved catalog entry still represents the same account, but the saved auth snapshot can contain a revoked refresh token. Relinking the active saved snapshot prevents later remote install/switch flows from copying stale auth to a host.
+This handles the case where the user signs back into Codex outside CodexPill. The saved catalog entry still represents the same account, but the saved auth snapshot can contain a revoked refresh token. Relinking the active saved snapshot keeps later switches from restoring stale auth.
 
 ### Refresh Semantics
 

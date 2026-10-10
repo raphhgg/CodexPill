@@ -40,25 +40,6 @@ struct AppRuntimeEnvironmentTests {
     }
 
     @Test
-    func validationRemoteHostClientModeAcceptsExplicitTruthValues() {
-        #expect(
-            AppRuntimeEnvironment.shouldUseValidationRemoteHostClient(
-                environment: [AppRuntimeEnvironment.validationRemoteHostClientEnvironmentKey: "memory"]
-            )
-        )
-        #expect(
-            AppRuntimeEnvironment.shouldUseValidationRemoteHostClient(
-                environment: [AppRuntimeEnvironment.validationRemoteHostClientEnvironmentKey: "true"]
-            )
-        )
-        #expect(
-            !AppRuntimeEnvironment.shouldUseValidationRemoteHostClient(
-                environment: [AppRuntimeEnvironment.validationRemoteHostClientEnvironmentKey: "0"]
-            )
-        )
-    }
-
-    @Test
     func validationCodexProcessClientModeAcceptsExplicitTruthValues() {
         #expect(
             AppRuntimeEnvironment.shouldUseValidationCodexProcessClient(

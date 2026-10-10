@@ -5,7 +5,7 @@
 <h1 align="center">CodexPill</h1>
 
 <p align="center">
-  <i>A native macOS menubar companion for Codex accounts, limits, token usage and remote hosts.</i>
+  <i>A native macOS menubar companion for Codex accounts, limits and token usage.</i>
 </p>
 
 <p align="center">
@@ -25,7 +25,6 @@
 - Track local Codex token usage history from the menu bar.
 - Switch between saved Codex accounts.
 - Add accounts without disrupting your current session.
-- Use selected accounts on SSH hosts you configure.
 - Stay local-first: no cloud sync, no hidden browser automation, no account data upload.
 
 ## New In Beta 2
@@ -85,18 +84,17 @@ session rows or auth data.
 
 ## Screenshots
 
-| Add Account | Add Remote Host |
+| Add Account | Account Actions |
 | --- | --- |
-| <img src="docs/assets/codexpill-add-account.png" width="420" alt="CodexPill Add Account dialog"> | <img src="docs/assets/codexpill-add-host.png" width="420" alt="CodexPill Add Remote Host dialog"> |
+| <img src="docs/assets/codexpill-add-account.png" width="420" alt="CodexPill Add Account dialog"> | <img src="docs/assets/codexpill-account-actions.png" width="420" alt="CodexPill account actions submenu"> |
 
-| Account Actions | Preferences |
-| --- | --- |
-| <img src="docs/assets/codexpill-account-actions.png" width="420" alt="CodexPill account actions submenu"> | <img src="docs/assets/codexpill-preferences.png" width="420" alt="CodexPill preferences submenu"> |
+| Preferences |
+| --- |
+| <img src="docs/assets/codexpill-preferences.png" width="420" alt="CodexPill preferences submenu"> |
 
 ## Local-First
 
-CodexPill works with Codex state on your Mac and the SSH hosts you configure. It
-does not run a cloud service.
+CodexPill works with Codex state on your Mac. It does not run a cloud service.
 
 Saved accounts stay on your Mac under
 `~/Library/Application Support/CodexPill`. They contain authentication material,

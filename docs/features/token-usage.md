@@ -112,7 +112,6 @@ Expected behavior:
 - A session file is truncated, malformed, or too large to parse naively.
 - Model metadata is missing or appears only in nearby `turn_context` rows.
 - Multiple Codex homes exist; V1 only scans the active local Codex home.
-- Remote hosts exist; V1 does not scan or display their token usage.
 - A future period selector changes period while a scan is already running.
 - The user disables Token Usage while a scan is already running.
 - The user disables Token Usage after a successful scan, then re-enables it during the same app run.

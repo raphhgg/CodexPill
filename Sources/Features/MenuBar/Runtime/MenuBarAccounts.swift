@@ -1,7 +1,9 @@
 import Foundation
 
 @MainActor
-protocol MenuBarAccounts: MenuBarHostActionAccountsStore {
+protocol MenuBarAccounts: AnyObject {
+    var accounts: [CodexAccount] { get }
+    var activeAccount: CodexAccount? { get }
     var activeAccountID: UUID? { get }
     var sortedInactiveAccounts: [CodexAccount] { get }
     var pendingErrorMessage: String? { get }

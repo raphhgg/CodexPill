@@ -14,7 +14,7 @@ CodexPill does not switch Claude accounts or change anything in Claude Code. It 
 
 The feature is off by default. Connecting it is the user's consent for CodexPill to sign in to Claude, or to read Claude Code's sign-in, and to send the token to Anthropic.
 
-Claude usage is display-only. It never feeds account availability, ranking, or notifications, which stay Codex-only.
+Claude usage is display-only. It never feeds Codex account availability or ranking.
 
 ## Menu
 

@@ -12,12 +12,6 @@ final class AccountsController {
         case failed(String)
     }
 
-    enum RemoteHostSwitchOutcome: Equatable {
-        case verified(CodexAccountStatus)
-        case notVerified(String, detectedAccountID: UUID?)
-        case failed(String, hostReachable: Bool)
-    }
-
     private static let inactiveSavedAccountsRefreshInterval: TimeInterval = 15 * 60
 
     private let identityResolver: SavedAccountIdentityResolver
@@ -30,8 +24,6 @@ final class AccountsController {
     private let renameSavedAccountUseCase: RenameSavedAccountUseCase
     private let accountCatalogStore: AccountCatalogStore
     private let switchAccountWorkflow: SwitchAccountWorkflow
-    private let switchAccountOnHostWorkflow: SwitchAccountOnHostWorkflow
-    private let remoteHostAccountVerifier: RemoteHostAccountVerifier
     private let addAccountWorkflow: AddAccountWorkflow
     private let now: () -> Date
     private let postSwitchRefreshDelay: Duration
@@ -51,10 +43,6 @@ final class AccountsController {
         renameSavedAccountUseCase: RenameSavedAccountUseCase,
         accountCatalogStore: AccountCatalogStore,
         switchAccountWorkflow: SwitchAccountWorkflow,
-        switchAccountOnHostWorkflow: SwitchAccountOnHostWorkflow = SwitchAccountOnHostWorkflow(
-            remoteHostSwitchOperations: UnavailableRemoteHostClient()
-        ),
-        remoteHostAccountVerifier: RemoteHostAccountVerifier = RemoteHostAccountVerifier(),
         addAccountWorkflow: AddAccountWorkflow,
         now: @escaping () -> Date = Date.init,
         postSwitchRefreshDelay: Duration = .seconds(2)
@@ -69,8 +57,6 @@ final class AccountsController {
         self.renameSavedAccountUseCase = renameSavedAccountUseCase
         self.accountCatalogStore = accountCatalogStore
         self.switchAccountWorkflow = switchAccountWorkflow
-        self.switchAccountOnHostWorkflow = switchAccountOnHostWorkflow
-        self.remoteHostAccountVerifier = remoteHostAccountVerifier
         self.addAccountWorkflow = addAccountWorkflow
         self.now = now
         self.postSwitchRefreshDelay = postSwitchRefreshDelay
@@ -100,78 +86,6 @@ final class AccountsController {
             didRefreshAfterSwitch = await applySilentPostActionRefresh(after: postSwitchRefreshDelay)
         }
         return didRefreshAfterSwitch
-    }
-
-    func switchToAccountOnHost(_ account: CodexAccount, on host: RemoteHost) async -> RemoteHostSwitchOutcome {
-        operationState.begin(status: "Switching \(account.name) on \(host.displayName)...")
-        do {
-            let accountToSwitch = await refreshActiveSnapshotBeforeRemoteSwitchIfNeeded(account)
-            let result = try await switchAccountOnHostWorkflow.run(
-                account: accountToSwitch,
-                on: host,
-                among: accounts
-            )
-            switch result {
-            case .verified(let status):
-                operationState.succeed()
-                return .verified(status)
-            case .notVerified(let matchOutcome):
-                let error = RemoteHostSwitchVerificationError(
-                    message: remoteHostAccountVerifier.failureMessage(
-                        for: account,
-                        on: host,
-                        among: accounts,
-                        matchOutcome: matchOutcome
-                    )
-                )
-                operationState.fail(error)
-                return .notVerified(
-                    error.localizedDescription,
-                    detectedAccountID: matchOutcome.matchedAccountID
-                )
-            }
-        } catch {
-            operationState.fail(error)
-            return .failed(
-                error.localizedDescription,
-                hostReachable: isReachableRemoteVerificationFailure(error)
-            )
-        }
-    }
-
-    private func refreshActiveSnapshotBeforeRemoteSwitchIfNeeded(_ account: CodexAccount) async -> CodexAccount {
-        guard account.id == activeAccountID else { return account }
-        do {
-            let result = try await refreshActiveAccountUseCase.run(accounts: accounts)
-            catalogState.applyRefreshed(result)
-            return accounts.first(where: { $0.id == account.id }) ?? account
-        } catch {
-            do {
-                if let result = try refreshActiveAccountUseCase.relinkCurrentAuthSnapshotIfNeeded(
-                    accounts: accounts,
-                    targetAccountID: account.id
-                ) {
-                    catalogState.applyRefreshed(result)
-                    return accounts.first(where: { $0.id == account.id }) ?? account
-                }
-            } catch {
-                accountsControllerLogger.log("Remote switch preflight active snapshot relink skipped: \(error.localizedDescription, privacy: .public)")
-            }
-            accountsControllerLogger.log("Remote switch preflight active snapshot refresh skipped: \(error.localizedDescription, privacy: .public)")
-            return account
-        }
-    }
-
-    func testRemoteHostConnection(_ host: RemoteHost) async -> Bool {
-        operationState.begin(status: "Testing \(host.displayName)...")
-        do {
-            try await switchAccountOnHostWorkflow.testConnection(to: host)
-            operationState.succeed()
-            return true
-        } catch {
-            operationState.fail(error)
-            return false
-        }
     }
 
     func removeSavedAccount(_ account: CodexAccount, signOutLocalAccount: Bool = false) async {
@@ -403,20 +317,6 @@ final class AccountsController {
         }
     }
 
-}
-
-private struct RemoteHostSwitchVerificationError: LocalizedError, Equatable {
-    let message: String
-
-    var errorDescription: String? { message }
-}
-
-private func isReachableRemoteVerificationFailure(_ error: Error) -> Bool {
-    guard let clientError = error as? RemoteHostClientError else { return false }
-    if case .authReadFailed = clientError {
-        return true
-    }
-    return false
 }
 
 enum AccountsControllerError: LocalizedError, Equatable {

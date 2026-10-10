@@ -5,7 +5,6 @@ enum AppRuntimeEnvironment {
     static let validationAutoRefreshIntervalSecondsEnvironmentKey = "CODEXPILL_VALIDATION_AUTO_REFRESH_INTERVAL_SECONDS"
     static let validationAppSupportDirectoryEnvironmentKey = "CODEXPILL_VALIDATION_APP_SUPPORT_DIR"
     static let validationUserDefaultsSuiteEnvironmentKey = "CODEXPILL_VALIDATION_USER_DEFAULTS_SUITE"
-    static let validationRemoteHostClientEnvironmentKey = "CODEXPILL_VALIDATION_REMOTE_HOST_CLIENT"
     static let validationCodexProcessClientEnvironmentKey = "CODEXPILL_VALIDATION_CODEX_PROCESS_CLIENT"
     static let xctestConfigurationFilePathEnvironmentKey = "XCTestConfigurationFilePath"
 
@@ -44,12 +43,6 @@ enum AppRuntimeEnvironment {
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) -> String? {
         trimmedURLValue(for: validationUserDefaultsSuiteEnvironmentKey, environment: environment)
-    }
-
-    static func shouldUseValidationRemoteHostClient(
-        environment: [String: String] = ProcessInfo.processInfo.environment
-    ) -> Bool {
-        validationModeIsEnabled(environment[validationRemoteHostClientEnvironmentKey])
     }
 
     static func shouldUseValidationCodexProcessClient(

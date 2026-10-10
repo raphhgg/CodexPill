@@ -2,28 +2,19 @@
 
 ## User Story
 
-As a CodexPill user, I want to switch a saved Codex account onto This Mac or a configured remote host, so that I can continue working with an account that has available capacity.
+As a CodexPill user, I want to switch a saved Codex account onto This Mac, so that I can continue working with an account that has available capacity.
 
 ## Product Contract
 
 - Switching is always explicit. Adding, renaming, or removing an account must not implicitly switch the active account.
 - `Switch on This Mac` activates the selected saved snapshot as the local Codex auth state.
-- Remote switch actions target a specific configured host.
-- If a saved account is not installed on a remote host, or the host has an older cached snapshot for that account, the remote action installs the current saved snapshot before switching.
 - Local switching relaunches Codex so the app-server reads the newly active account.
-- If the selected remote account is also the active local account, CodexPill refreshes and relinks the saved snapshot from the current local auth before installing or switching it on the host.
-- If that active-account status refresh fails but live auth identity still uniquely matches the selected saved account, CodexPill still relinks the saved snapshot from current local auth before switching.
-- Remote switching refreshes the remote Codex app-server after the remote auth change and verifies the expected account.
 - CodexPill must not log or expose raw auth payloads during switch operations.
 
 ## Entry Points
 
 - Saved account submenu: `Switch on This Mac`.
-- Saved account submenu for each configured host:
-  - `Switch on <host>` when the account is already installed on that host.
-  - `Install on <host> and switch` when the account snapshot is missing on that host.
 - Add Account success alert: `Use on This Mac`, which routes through the existing local switch path without showing a second switch confirmation.
-- Account availability notifications: action buttons may route to the same local or remote switch paths.
 
 ## Local Happy Path
 
@@ -34,18 +25,6 @@ As a CodexPill user, I want to switch a saved Codex account onto This Mac or a c
 5. CodexPill persists the catalog state.
 6. CodexPill relaunches Codex.
 7. CodexPill refreshes account data after the switch.
-
-## Remote Happy Path
-
-1. The user opens a saved account submenu.
-2. The user chooses a remote host switch action.
-3. If the selected account is active on This Mac, CodexPill refreshes the saved snapshot from the current local auth.
-4. CodexPill checks whether the account snapshot is already installed and fresh on that host.
-5. If missing or stale, CodexPill installs the current saved snapshot on the host.
-6. CodexPill switches the host to that account.
-7. CodexPill refreshes the remote Codex app-server.
-8. CodexPill verifies that the remote host reports the expected account.
-9. CodexPill updates the remote host account state shown in the menu.
 
 ## Confirmation Copy
 
@@ -77,40 +56,8 @@ Given the user confirms a local switch, when CodexPill activates the selected sn
 
 Given Add Account succeeds, when the user chooses `Use on This Mac`, then CodexPill switches through the existing local switch path and does not show a second switch confirmation.
 
-### Remote Install And Switch
-
-Given a saved account is not installed on a configured host, when the user chooses `Install on <host> and switch`, then CodexPill installs the account snapshot before switching the remote host.
-
-### Remote Reinstalls Stale Cached Snapshot
-
-Given a configured host has an older cached snapshot for the selected saved account, when the user switches that account on the host, then CodexPill treats the host snapshot as missing and reinstalls the current saved snapshot before switching.
-
-### Remote Switch Refreshes Active Local Snapshot
-
-Given the selected saved account is the active local account and local Codex auth was refreshed since the account was saved, when the user switches that account on a remote host, then CodexPill relinks the saved snapshot from current local auth before installing or switching it remotely.
-
-If active-account status refresh fails, CodexPill may still relink from current local auth when live auth identity uniquely resolves to that saved account.
-
-### Remote Direct Switch
-
-Given a saved account is already installed on a configured host, when the user chooses `Switch on <host>`, then CodexPill switches the remote host without reinstalling the snapshot.
-
-### Remote Verification
-
-Given a remote switch completes, when CodexPill refreshes the remote Codex app-server, then it verifies that the reported remote account matches the selected saved account.
-
-### Remote Verification Failure
-
-Given a remote switch command completes but verification reports a different or ambiguous account, then CodexPill surfaces the verification failure instead of silently marking the remote switch as successful.
-
 ## Validation Targets
 
 - `switch_account_local_confirms_before_activation`
 - `switch_account_local_activates_snapshot_and_relaunches_codex`
 - `switch_account_add_account_success_uses_existing_switch_path`
-- `switch_account_remote_installs_missing_snapshot_before_switch`
-- `switch_account_remote_reinstalls_stale_snapshot_before_switch`
-- `switch_account_remote_relinks_active_local_snapshot_before_switch`
-- `switch_account_remote_switches_directly_when_snapshot_exists`
-- `switch_account_remote_verifies_expected_account`
-- `switch_account_remote_surfaces_verification_failure`

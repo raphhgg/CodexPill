@@ -1,8 +1,7 @@
 import AppKit
-import UserNotifications
 
 @MainActor
-final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
+final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
     private var coordinator: MenuBarCoordinator?
     private var wakeObserver: NSObjectProtocol?
 
@@ -13,21 +12,14 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
         let defaults = AppRuntimeEnvironment.validationUserDefaultsSuiteName(environment: environment)
             .flatMap(UserDefaults.init(suiteName:))
             ?? .standard
-        let remoteHostSettings = RemoteHostSettingsStore(userDefaults: defaults)
 
         guard AppRuntimeEnvironment.shouldStartAppRuntime(environment: environment) else {
             return
         }
 
-        let composition = AppComposition(
-            environment: environment,
-            defaults: defaults,
-            remoteHostSettings: remoteHostSettings
-        )
+        let composition = AppComposition(environment: environment, defaults: defaults)
         let accountsController = composition.accountsController
         coordinator = composition.coordinator
-
-        UNUserNotificationCenter.current().delegate = self
 
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didWakeNotification,
@@ -54,23 +46,4 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate, UNUserNotific
         }
         coordinator?.invalidate()
     }
-
-    nonisolated func userNotificationCenter(
-        _ center: UNUserNotificationCenter,
-        willPresent notification: UNNotification
-    ) async -> UNNotificationPresentationOptions {
-        [.banner, .sound]
-    }
-
-    nonisolated func userNotificationCenter(
-        _ center: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse
-    ) async {
-        let payload = AccountAvailabilityNotificationResponsePayload(
-            actionIdentifier: response.actionIdentifier,
-            userInfo: response.notification.request.content.userInfo
-        )
-        await coordinator?.handleNotificationResponse(payload)
-    }
-
 }

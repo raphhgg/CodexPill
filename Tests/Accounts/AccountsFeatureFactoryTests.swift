@@ -26,8 +26,7 @@ struct AccountsFeatureFactoryTests {
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
-            accountStatusClient: DisabledAccountStatusClient(),
-            remoteHostSwitchOperations: UnavailableRemoteHostClient()
+            accountStatusClient: DisabledAccountStatusClient()
         )
 
         let controller = factory.makeController()
