@@ -29,7 +29,7 @@ A `Claude Code` section sits below the saved accounts. It has no switching actio
   Confirming saves the choice and reads at once. That first read may show the macOS Keychain prompt.
 - **Connected.** The choice is saved in user defaults (`claudeUsageEnabled`, off by default). `Preferences` gains `Disconnect Claude Code…`, which turns the feature off at once with no alert, because it changes nothing outside CodexPill.
 - **Current.** A caption with the plan and the read time (`Max plan · As of 10:42`), then `Session` and `Weekly` meters with their reset times. The meters use the same percent mode, layout, colors, and pacing markers as the Codex card.
-- **Waiting.** `Waiting for Claude usage`, with no second line. Anthropic answered but sent neither window, for example on a plan without subscription limits.
+- **Waiting.** `Waiting for Claude Code usage`, with no second line. Anthropic answered but sent neither window, for example on a plan without subscription limits.
 - **Keychain access needed.** One action, `Allow Keychain access…`. It reads again with the macOS Keychain prompt allowed. Claude Code rewrites its Keychain item when it renews its sign-in, which can reset an earlier `Always Allow`, so this state can come back.
 - **Failures.** Each failure shows a title and one short line. Except for signed out, the last good values stay dimmed below it with their `As of` time.
 
