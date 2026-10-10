@@ -33,16 +33,19 @@ struct TokenUsageToolSummary: Equatable, Identifiable {
 
     var modelsSummary: String? {
         guard !models.isEmpty else { return nil }
-        return models.map { "\($0.model) \($0.percent)%" }.joined(separator: " · ")
+        return models.map { "\($0.model) \($0.percent > 0 ? "\($0.percent)" : "<1")%" }.joined(separator: " · ")
     }
 
     static func make(from series: ToolTokenUsageSeries, today: Date?) -> TokenUsageToolSummary {
         let total = series.totalTokens
-        let models = series.modelTotals.prefix(maximumModelCount).map { entry in
-            ModelShare(
+        let modelTotals = series.modelTotals
+        let models = modelTotals.prefix(maximumModelCount).map { entry in
+            let rounded = total > 0 ? Int((Double(entry.tokens) * 100 / Double(total)).rounded()) : 0
+            // A share never reads 100% while another model has tokens.
+            return ModelShare(
                 model: entry.model,
                 tokenCount: entry.tokens,
-                percent: total > 0 ? Int((Double(entry.tokens) * 100 / Double(total)).rounded()) : 0
+                percent: modelTotals.count > 1 ? min(rounded, 99) : rounded
             )
         }
         return TokenUsageToolSummary(
@@ -292,6 +295,14 @@ func formattedTokenCount(_ tokenCount: Int) -> String {
     formatter.numberStyle = .decimal
     formatter.usesGroupingSeparator = true
     return formatter.string(from: NSNumber(value: tokenCount)) ?? "\(tokenCount)"
+}
+
+/// Like `formattedTokenCount`, but thousands read as `K` so per-tool columns stay narrow.
+func formattedShortTokenCount(_ tokenCount: Int) -> String {
+    guard tokenCount >= 1_000, tokenCount < 1_000_000 else {
+        return formattedTokenCount(tokenCount)
+    }
+    return formattedCompactTokenCount(tokenCount, divisor: 1_000, suffix: "K")
 }
 
 private func formattedCompactTokenCount(_ tokenCount: Int, divisor: Double, suffix: String) -> String {
