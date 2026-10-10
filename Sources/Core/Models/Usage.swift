@@ -10,7 +10,6 @@ enum UsageWindowKind: Hashable {
     case session
     case weekly
     case billingCycle
-    case other(minutes: Int)
 }
 
 struct UsageWindow: Hashable {
