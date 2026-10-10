@@ -58,7 +58,7 @@ struct MenuBarCoordinatorTests {
     }
 
     @Test
-    func openingTheMenuMeasuresResetCountdownsFromTheMomentItOpens() async throws {
+    func openingAMenuBuiltAWhileAgoRebuildsItSoCountdownsStartNow() async throws {
         let harness = try MenuBarCoordinatorHarness()
         defer { harness.tearDown() }
         let builtAt = Date(timeIntervalSince1970: 1_800_000_000)
@@ -79,18 +79,19 @@ struct MenuBarCoordinatorTests {
         coordinator.start()
         await coordinator.waitForPendingWork()
         let menu = try #require(harness.menu)
-        func limitedRowTitle() -> String? {
-            menu.items.first { ($0.representedObject as? String) == limited.id.uuidString }?.attributedTitle?.string
+        func codexCard() -> NSMenuItem? {
+            menu.items.first { $0.title == "Codex" }
         }
-        #expect(limitedRowTitle()?.contains("S 100% (2h00)") == true)
+        let builtCard = try #require(codexCard())
 
         clock = builtAt.addingTimeInterval(10)
         coordinator.menuWillOpen(menu)
-        #expect(limitedRowTitle()?.contains("S 100% (2h00)") == true)
+        #expect(codexCard() === builtCard)
 
         clock = builtAt.addingTimeInterval(30 * 60)
         coordinator.menuWillOpen(menu)
-        #expect(limitedRowTitle()?.contains("S 100% (1h30)") == true)
+        #expect(codexCard() !== builtCard)
+        #expect(codexCard() != nil)
     }
 
     @Test
@@ -132,9 +133,9 @@ struct MenuBarCoordinatorTests {
         await coordinator.waitForPendingWork()
 
         #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .claude, status: .notConnected)])
-        #expect(claudeMenuTitles(coordinator) == ["Connect Claude Code…"])
+        #expect(mainMenuTitles(coordinator) == ["Add Account", "", "Settings", "", "Quit"])
 
-        harness.click("Connect Claude Code…")
+        harness.click("Claude…")
         await coordinator.waitForPendingWork()
 
         #expect(harness.alertPresenter.confirmationRequests.map(\.messageText) == ["Connect Claude Code?"])
@@ -142,7 +143,7 @@ struct MenuBarCoordinatorTests {
         #expect(fixture.keychainReadPrompts == [])
 
         harness.alertPresenter.confirmationResponse = true
-        harness.click("Connect Claude Code…")
+        harness.click("Claude…")
         await coordinator.waitForPendingWork()
 
         #expect(fixture.keychainReadPrompts == [true])
@@ -150,7 +151,7 @@ struct MenuBarCoordinatorTests {
             Issue.record("Expected current Claude usage right after connecting")
             return
         }
-        #expect(claudeMenuTitles(coordinator) == ["Disconnect Claude Code…"])
+        #expect(mainMenuTitles(coordinator) == ["Claude", "", "Settings", "", "Quit"])
 
         fixture.signInToKeychain(expiresAt: Date().addingTimeInterval(3_600), needsPermission: true)
         await coordinator.performScheduledRefresh()
@@ -160,7 +161,7 @@ struct MenuBarCoordinatorTests {
             Issue.record("Expected the Allow Keychain access state with the last usage kept")
             return
         }
-        #expect(claudeMenuTitles(coordinator) == ["Allow Keychain access…", "Disconnect Claude Code…"])
+        #expect(mainMenuTitles(coordinator) == ["Claude", "Allow Keychain access…", "", "Settings", "", "Quit"])
 
         harness.click("Allow Keychain access…")
         await coordinator.waitForPendingWork()
@@ -171,13 +172,13 @@ struct MenuBarCoordinatorTests {
         }
         #expect(fixture.keychainReadPrompts.suffix(2) == [false, true])
 
-        harness.click("Disconnect Claude Code…")
+        harness.click("Disconnect Claude")
         await coordinator.waitForPendingWork()
 
         #expect(harness.alertPresenter.confirmationRequests.count == 2)
         #expect(fixture.settings.isEnabled == false)
         #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .claude, status: .notConnected)])
-        #expect(claudeMenuTitles(coordinator) == ["Connect Claude Code…"])
+        #expect(mainMenuTitles(coordinator) == ["Add Account", "", "Settings", "", "Quit"])
     }
 
     @Test
@@ -195,9 +196,9 @@ struct MenuBarCoordinatorTests {
         await coordinator.waitForPendingWork()
 
         #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .cursor, status: .notConnected)])
-        #expect(cursorMenuTitles(coordinator) == ["Connect Cursor…"])
+        #expect(mainMenuTitles(coordinator) == ["Add Account", "", "Settings", "", "Quit"])
 
-        harness.click("Connect Cursor…")
+        harness.click("Cursor…")
         await coordinator.waitForPendingWork()
 
         #expect(harness.alertPresenter.confirmationRequests.map(\.messageText) == ["Connect Cursor?"])
@@ -205,7 +206,7 @@ struct MenuBarCoordinatorTests {
         #expect(fixture.requestCount == 0)
 
         harness.alertPresenter.confirmationResponse = true
-        harness.click("Connect Cursor…")
+        harness.click("Cursor…")
         await coordinator.waitForPendingWork()
 
         let current = UsageSnapshot(
@@ -216,7 +217,7 @@ struct MenuBarCoordinatorTests {
             spend: UsageSpend(usedUSD: Decimal(string: "12.34")!, limitUSD: 50)
         )
         #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .cursor, status: .current(current))])
-        #expect(cursorMenuTitles(coordinator) == ["Disconnect Cursor…"])
+        #expect(mainMenuTitles(coordinator) == ["Cursor", "", "Settings", "", "Quit"])
 
         fixture.response = .failure(.transport)
         await coordinator.performScheduledRefresh()
@@ -226,12 +227,12 @@ struct MenuBarCoordinatorTests {
             ProviderUsageState(provider: .cursor, status: .unavailable(.unreachable, lastSnapshot: current))
         ])
 
-        harness.click("Disconnect Cursor…")
+        harness.click("Disconnect Cursor")
         await coordinator.waitForPendingWork()
 
         #expect(fixture.settings.isEnabled == false)
         #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .cursor, status: .notConnected)])
-        #expect(cursorMenuTitles(coordinator) == ["Connect Cursor…"])
+        #expect(mainMenuTitles(coordinator) == ["Add Account", "", "Settings", "", "Quit"])
     }
 
     @Test
@@ -330,17 +331,8 @@ struct MenuBarCoordinatorTests {
         #expect(fireCount > 0)
     }
 
-    private func cursorMenuTitles(_ coordinator: MenuBarCoordinator) -> [String] {
-        let menu = MenuBarMenuBuilder().makeMenu(state: coordinator.menuState(), target: coordinator)
-        let preferences = menu.items.first { $0.title == "Preferences" }?.submenu?.items ?? []
-        return (menu.items + preferences).map(\.title).filter { $0.contains("Cursor") }
-    }
-
-    /// Claude rows in the main menu and the Preferences submenu, read from the built `NSMenu`.
-    private func claudeMenuTitles(_ coordinator: MenuBarCoordinator) -> [String] {
-        let menu = MenuBarMenuBuilder().makeMenu(state: coordinator.menuState(), target: coordinator)
-        let preferences = menu.items.first { $0.title == "Preferences" }?.submenu?.items ?? []
-        return (menu.items + preferences).map(\.title).filter { $0.contains("Claude") || $0.contains("Keychain") }
+    private func mainMenuTitles(_ coordinator: MenuBarCoordinator) -> [String] {
+        MenuBarMenuBuilder().makeMenu(state: coordinator.menuState(), target: coordinator).items.map(\.title)
     }
 }
 

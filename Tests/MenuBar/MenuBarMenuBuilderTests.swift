@@ -248,8 +248,6 @@ struct MenuBarMenuBuilderTests {
             activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
             inactiveAccounts: [makeAccount(name: "Other", usage: makeUsage(resettingAfter: .now))],
             tokenUsageEnabled: true,
-            tokenUsagePeriod: .last30Days,
-            tokenUsageChartStyle: .heatStrip,
             tokenUsageCard: makeTokenUsageCard(
                 period: .last30Days,
                 style: .heatStrip,
@@ -359,39 +357,6 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func preferencesMenuIncludesTokenUsageControls() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
-                tokenUsageEnabled: true,
-                tokenUsagePeriod: .last30Days,
-                tokenUsageChartStyle: .sparkline,
-                tokenUsageLoadingAnimationStyle: .random,
-                tokenUsagePeakScope: .allTime
-            ),
-            target: coordinator
-        )
-
-        let preferencesMenu = try #require(menu.items.first(where: { $0.title == "Preferences" })?.submenu)
-        let tokenUsageMenu = try #require(preferencesMenu.items.first(where: { $0.title == "Token Usage" })?.submenu)
-        let show = try #require(tokenUsageMenu.items.first(where: { $0.title == "Show Token Usage" }))
-        let peakDay = try #require(tokenUsageMenu.items.first(where: { $0.title == "Peak Day" })?.submenu)
-        let chartStyle = try #require(tokenUsageMenu.items.first(where: { $0.title == "Chart Style" })?.submenu)
-        let loadingAnimation = try #require(tokenUsageMenu.items.first(where: { $0.title == "Loading Animation" })?.submenu)
-
-        #expect(show.state == .on)
-        #expect(tokenUsageMenu.items.contains { $0.title == "Period" } == false)
-        #expect(peakDay.items.map(\.title) == ["Last 30 Days", "All Time"])
-        #expect(peakDay.items.first(where: { $0.title == "All Time" })?.state == .on)
-        #expect(chartStyle.items.map(\.title) == ["Daily Bars", "Heat Strip", "Sparkline"])
-        #expect(chartStyle.items.first(where: { $0.title == "Sparkline" })?.state == .on)
-        #expect(loadingAnimation.items.map(\.title) == ["Waves", "Random"])
-        #expect(loadingAnimation.items.first(where: { $0.title == "Random" })?.state == .on)
-    }
-
-    @Test
     func statusItemContentOptionsAreDisabledWhenNoStatusDataExists() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
@@ -416,7 +381,7 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func menuIncludesDiagnosticReportExportActionNearAbout() throws {
+    func settingsIncludesDiagnosticReportExportActionNearAbout() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
@@ -424,30 +389,15 @@ struct MenuBarMenuBuilderTests {
             target: coordinator
         )
 
-        let exportIndex = try #require(menu.items.firstIndex(where: { $0.title == "Diagnostics…" }))
-        let aboutIndex = try #require(menu.items.firstIndex(where: { $0.title == "About" }))
-        let export = menu.items[exportIndex]
+        let settings = try settingsMenu(in: menu)
+        let exportIndex = try #require(settings.items.firstIndex(where: { $0.title == "Diagnostics…" }))
+        let aboutIndex = try #require(settings.items.firstIndex(where: { $0.title == "About" }))
+        let export = settings.items[exportIndex]
 
         #expect(exportIndex < aboutIndex)
         #expect(export.action == #selector(MenuBarCoordinator.exportDiagnosticReport))
         #expect(export.target === coordinator)
         #expect(export.isEnabled)
-    }
-
-    @Test
-    func quitItemReservesIconColumnForStableTextAlignment() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now))),
-            target: coordinator
-        )
-
-        let quit = try #require(menu.items.first(where: { $0.title == "Quit" }))
-
-        #expect(quit.action == #selector(MenuBarCoordinator.quitApp))
-        #expect(quit.keyEquivalent == "q")
-        #expect(quit.image?.size == NSSize(width: 16, height: 16))
     }
 
     @Test
@@ -572,274 +522,6 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func visibleAccountsUseNativeSubmenusForSwitching() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let business3 = makeAccount(name: "Business 3", usage: makeUsage(resettingAfter: .now))
-        let business4 = makeAccount(name: "Business 4", usage: makeUsage(resettingAfter: .now))
-        let business2 = makeAccount(name: "Business 2", usage: makeUsage(resettingAfter: .now))
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
-                inactiveAccounts: [business3, business4, business2]
-            ),
-            target: coordinator
-        )
-
-        let visibleRow = try #require(
-            menu.items.first(where: { $0.submenu?.title == business3.name })
-        )
-        let submenu = try #require(visibleRow.submenu)
-        let emailItem = try #require(submenu.items.first)
-        let statusItem = try #require(submenu.items.dropFirst().first)
-        let localAction = try #require(submenu.items.first(where: { $0.title == "Switch on This Mac" }))
-        let renameAction = try #require(submenu.items.first(where: { $0.title == "Rename…" }))
-        let removeAction = try #require(submenu.items.first(where: { $0.title == "Remove…" }))
-        let localActionIndex = try #require(submenu.items.firstIndex(where: { $0.title == "Switch on This Mac" }))
-        let renameIndex = try #require(submenu.items.firstIndex(where: { $0.title == "Rename…" }))
-        let removeIndex = try #require(submenu.items.firstIndex(where: { $0.title == "Remove…" }))
-
-        #expect(visibleRow.view == nil)
-        #expect(visibleRow.attributedTitle?.string.contains("S ") == true)
-        #expect(visibleRow.attributedTitle?.string.contains("W ") == true)
-        #expect(visibleRow.attributedTitle?.string.contains("Local") == false)
-        #expect(visibleRow.representedObject as? String == business3.id.uuidString)
-        #expect(codexAction(visibleRow) == nil)
-        #expect(visibleRow.isEnabled == true)
-        #expect(emailItem.title == "business 3@example.com")
-        #expect(emailItem.isEnabled == false)
-        #expect(statusItem.title == "Not currently in use")
-        #expect(statusItem.isEnabled == false)
-        #expect(localActionIndex > 1)
-        #expect(codexAction(localAction) == .switchAccount(business3.id))
-        #expect(localAction.target === coordinator)
-        #expect(renameAction.action == #selector(MenuBarCoordinator.renameAccount(_:)))
-        #expect(renameAction.representedObject as? String == business3.id.uuidString)
-        #expect(codexAction(removeAction) == .removeAccount(business3.id))
-        #expect(submenu.items[renameIndex - 1].isSeparatorItem)
-        #expect(removeIndex == renameIndex + 1)
-        #expect(menu.autoenablesItems)
-    }
-
-    @Test
-    func singleAccountWithoutHostsUsesAccountManagementSubmenu() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let active = makeAccount(name: "Personal", usage: makeUsage(resettingAfter: .now))
-        let state = makeState(activeAccount: active)
-        let menu = builder.makeMenu(state: state, target: coordinator)
-
-        let accountMenu = try #require(menu.items.first(where: { $0.title == "Account" })?.submenu)
-        let addAccount = try #require(accountMenu.items.first(where: { $0.title == "Add Account…" }))
-        let rename = try #require(accountMenu.items.first(where: { $0.title == "Rename…" }))
-        let remove = try #require(accountMenu.items.first(where: { $0.title == "Remove…" }))
-
-        #expect(accountRowIDs(in: menu).isEmpty)
-        #expect(menu.items.contains(where: { $0.title == "Add Account…" }) == false)
-        #expect(codexAction(addAccount) == .addAccount)
-        #expect(rename.action == #selector(MenuBarCoordinator.renameAccount(_:)))
-        #expect(rename.representedObject as? String == active.id.uuidString)
-        #expect(codexAction(remove) == .removeAccount(active.id))
-    }
-
-    @Test
-    func multipleAccountsWithoutHostsShowsOtherAccountsAndManagesActiveAccountSeparately() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let active = makeAccount(name: "Personal", usage: makeUsage(resettingAfter: .now))
-        let business1 = makeAccount(name: "Business 1", usage: makeUsage(resettingAfter: .now))
-        let business2 = makeAccount(name: "Business 2", usage: makeUsage(resettingAfter: .now))
-        let state = makeState(
-            activeAccount: active,
-            inactiveAccounts: [business1, business2]
-        )
-        let menu = builder.makeMenu(state: state, target: coordinator)
-
-        let activeRow = menu.items.first(where: { $0.submenu?.title == active.name })
-        let accountItem = try #require(menu.items.first(where: { $0.title == "Account" }))
-        let accountMenu = try #require(accountItem.submenu)
-        let rename = try #require(accountMenu.items.first(where: { $0.title == "Rename…" }))
-        let remove = try #require(accountMenu.items.first(where: { $0.title == "Remove…" }))
-        let addAccount = try #require(accountMenu.items.first(where: { $0.title == "Add Account…" }))
-
-        #expect(Set(accountRowIDs(in: menu)) == [business1.id.uuidString, business2.id.uuidString])
-        #expect(activeRow == nil)
-        #expect(accountItem.image != nil)
-        #expect(codexAction(addAccount) == .addAccount)
-        #expect(menu.items.contains(where: { $0.title == "Add Account…" }) == false)
-        #expect(rename.representedObject as? String == active.id.uuidString)
-        #expect(codexAction(remove) == .removeAccount(active.id))
-    }
-
-    @Test
-    func inactiveAccountSubmenuShowsNoEmailFallbackBeforeUsage() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        var account = makeAccount(name: "Business 3", usage: makeUsage(resettingAfter: .now))
-        account.email = nil
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
-                inactiveAccounts: [account]
-            ),
-            target: coordinator
-        )
-
-        let accountItem = try #require(menu.items.first(where: { $0.attributedTitle?.string.contains(account.name) == true }))
-        let submenu = try #require(accountItem.submenu)
-        let emailItem = try #require(submenu.items.first)
-        let statusItem = try #require(submenu.items.dropFirst().first)
-
-        #expect(emailItem.title == "No email")
-        #expect(emailItem.isEnabled == false)
-        #expect(statusItem.title == "Not currently in use")
-        #expect(statusItem.isEnabled == false)
-    }
-
-    @Test
-    func moreAccountsRowUsesTextOnlyDisclosureLabel() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
-                inactiveAccounts: [
-                    makeAccount(name: "Business 3", usage: makeUsage(resettingAfter: .now)),
-                    makeAccount(name: "Business 4", usage: makeUsage(resettingAfter: .now)),
-                    makeAccount(name: "Business 2", usage: makeUsage(resettingAfter: .now)),
-                    makeAccount(name: "Business 1", usage: makeUsage(resettingAfter: .now))
-                ]
-            ),
-            target: coordinator
-        )
-
-        let moreAccounts = try #require(menu.items.first(where: { $0.title == "More Accounts…" }))
-        let firstOverflowAccount = try #require(moreAccounts.submenu?.items.first)
-        let overflowSubmenu = try #require(firstOverflowAccount.submenu)
-        let overflowEmail = try #require(overflowSubmenu.items.first)
-        let overflowUsage = try #require(overflowSubmenu.items.dropFirst().first)
-        let overflowSwitch = try #require(overflowSubmenu.items.first(where: { $0.title == "Switch on This Mac" }))
-
-        #expect(moreAccounts.image == nil)
-        #expect(moreAccounts.submenu?.title == "More Accounts…")
-        #expect(!firstOverflowAccount.title.isEmpty)
-        #expect(
-            ["Business 1", "Business 2", "Business 3", "Business 4"]
-                .contains(where: { firstOverflowAccount.title.contains($0) })
-        )
-        #expect(firstOverflowAccount.submenu != nil)
-        #expect(codexAction(firstOverflowAccount) == nil)
-        #expect(overflowEmail.title.hasSuffix("@example.com"))
-        #expect(overflowEmail.isEnabled == false)
-        #expect(overflowUsage.title == "Not currently in use")
-        #expect(overflowUsage.isEnabled == false)
-        #expect(isSwitch(codexAction(overflowSwitch)))
-    }
-
-    @Test
-    func activeAccountHostedViewFitsWithinConfiguredMenuWidth() {
-        let view = NSHostingView(
-            rootView: ActiveAccountMenuContent(
-                account: makeAccount(name: "Business 2", usage: makeUsage(resettingAfter: .now)),
-                locations: [],
-                showsUpdatedTime: true,
-                sessionAccentColor: .blue,
-                weeklyAccentColor: .blue,
-                percentMode: .used,
-                meterLayout: .classic,
-                showsPacingMarkers: true
-            )
-        )
-
-        view.frame = NSRect(x: 0, y: 0, width: 372, height: 1)
-        view.layoutSubtreeIfNeeded()
-
-        #expect(view.fittingSize.width <= 372)
-    }
-
-    @Test
-    func singleActiveAccountDoesNotAddActiveCardDivider() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now))),
-            target: coordinator
-        )
-
-        let hostedViewNames = menu.items.compactMap(\.view).map { String(describing: type(of: $0)) }
-
-        #expect(hostedViewNames.filter { $0.contains("ActiveAccountMenuContent") }.count == 1)
-        #expect(hostedViewNames.contains(where: { $0.contains("ActiveAccountCardDivider") }) == false)
-    }
-
-    @Test
-    func sectionHeaderAndActiveCardUseSameComputedWidth() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Personal", usage: makeUsage(resettingAfter: .now)),
-                inactiveAccounts: [
-                    makeAccount(name: "Business 1", usage: makeUsage(resettingAfter: .now)),
-                    makeAccount(name: "Business 2", usage: makeUsage(resettingAfter: .now))
-                ]
-            ),
-            target: coordinator
-        )
-
-        let headerWidth = try #require(menu.items.first?.view?.frame.width)
-        let cardWidth = try #require(menu.items.dropFirst().first?.view?.frame.width)
-
-        #expect(headerWidth == cardWidth)
-        #expect(headerWidth >= 372)
-    }
-
-    @Test
-    func wideAccountRowsExpandHostedSectionsToMatchMenuBudget() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let now = Date(timeIntervalSince1970: 1_744_195_200)
-        let wideAccountName = "Extremely Long Business Account Name For Width Regression Coverage"
-        let wideAccount = CodexAccount(
-            id: UUID(),
-            name: wideAccountName,
-            snapshotFileName: "wide-account.json",
-            createdAt: now,
-            updatedAt: now,
-            email: "wide@example.com",
-            planType: "team",
-            usage: UsageSnapshot.codex(
-                planName: "team",
-                primary: (usedPercent: 100, resetsAt: now.addingTimeInterval((4 * 60 + 59) * 60), durationMinutes: 300),
-                secondary: (usedPercent: 78, resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60), durationMinutes: 10_080),
-                fetchedAt: now
-            )
-        )
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Personal", usage: makeUsage(resettingAfter: .now)),
-                inactiveAccounts: [wideAccount]
-            ),
-            target: coordinator
-        )
-
-        let headerWidth = try #require(menu.items.first?.view?.frame.width)
-        let widestLocalRow = try #require(
-            menu.items.first(where: { $0.submenu?.title == wideAccountName })
-        )
-        let rowWidth = inactiveAccountTitleWidth(
-            for: wideAccount,
-            displayName: compactMenuRowDisplayName(for: wideAccountName),
-            now: now
-        )
-
-        #expect(headerWidth == 372)
-        #expect(widestLocalRow.view == nil)
-        #expect(widestLocalRow.attributedTitle?.string.contains("…") == true)
-        #expect(rowWidth > 0)
-    }
-
-    @Test
     func statusItemMenuIncludesColorCustomizationAndReset() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
@@ -848,7 +530,7 @@ struct MenuBarMenuBuilderTests {
             target: coordinator
         )
 
-        let preferencesMenu = try #require(menu.items.first(where: { $0.title == "Preferences" })?.submenu)
+        let preferencesMenu = try appearanceMenu(in: menu)
         let usageBarsMenu = try #require(preferencesMenu.items.first(where: { $0.title == "Usage Bars" })?.submenu)
         let session = try #require(usageBarsMenu.items.first(where: { $0.title == "Session Color…" }))
         let weekly = try #require(usageBarsMenu.items.first(where: { $0.title == "Weekly Color…" }))
@@ -865,7 +547,7 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func preferencesMenuGroupsIconAndMarkerControls() throws {
+    func appearanceMenuGroupsIconAndMarkerControls() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
@@ -873,13 +555,12 @@ struct MenuBarMenuBuilderTests {
             target: coordinator
         )
 
-        let preferencesMenu = try #require(menu.items.first(where: { $0.title == "Preferences" })?.submenu)
+        let preferencesMenu = try appearanceMenu(in: menu)
         let usageBarsMenu = try #require(preferencesMenu.items.first(where: { $0.title == "Usage Bars" })?.submenu)
         let usageBarTitles = usageBarsMenu.items.map(\.title)
         let showMarkers = try #require(usageBarsMenu.items.first(where: { $0.title == "Show Pace Markers" }))
 
-        #expect(preferencesMenu.items.map(\.title) == ["Menu Bar Label", "Icon Style", "Usage Bars", "Token Usage", "", "Launch at Login"])
-        #expect(preferencesMenu.items[4].isSeparatorItem)
+        #expect(preferencesMenu.items.map(\.title) == ["Menu Bar Label", "Icon Style", "Usage Bars", "", "Show Token Usage"])
         #expect(usageBarTitles == [
             "Show % Used", "Show % Left", "",
             "Classic Layout", "Compact Layout", "",
@@ -1076,7 +757,7 @@ struct MenuBarMenuBuilderTests {
             target: coordinator
         )
 
-        let preferencesMenu = try #require(menu.items.first(where: { $0.title == "Preferences" })?.submenu)
+        let preferencesMenu = try appearanceMenu(in: menu)
         let usageBarsMenu = try #require(preferencesMenu.items.first(where: { $0.title == "Usage Bars" })?.submenu)
         let reset = try #require(usageBarsMenu.items.first(where: { $0.title == "Use Default Colors" }))
 
@@ -1100,40 +781,6 @@ struct MenuBarMenuBuilderTests {
         coordinator.menuWillOpen(menu)
 
         #expect(statusItem.menu === menu)
-    }
-
-    @Test
-    func openingMenuDoesNotReplaceInactiveAccountRowsDuringOpen() throws {
-        let builder = MenuBarMenuBuilder()
-        let (coordinator, statusItem) = try makeCoordinatorWithStatusItem()
-        let inactive = makeAccount(name: "Business 3", usage: makeUsage(resettingAfter: .now))
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
-                inactiveAccounts: [inactive]
-            ),
-            target: coordinator
-        )
-
-        statusItem.menu = menu
-        let visibleRowBeforeOpen = try #require(
-            menu.items.first(where: { ($0.representedObject as? String) == inactive.id.uuidString })
-        )
-
-        coordinator.menuWillOpen(menu)
-
-        let visibleRowAfterOpen = try #require(
-            menu.items.first(where: { ($0.representedObject as? String) == inactive.id.uuidString })
-        )
-        let localAction = try #require(
-            visibleRowAfterOpen.submenu?.items.first(where: { $0.title == "Switch on This Mac" })
-        )
-
-        #expect(visibleRowAfterOpen === visibleRowBeforeOpen)
-        #expect(visibleRowAfterOpen.submenu === visibleRowBeforeOpen.submenu)
-        #expect(codexAction(visibleRowAfterOpen) == nil)
-        #expect(isSwitch(codexAction(localAction)))
-        #expect(localAction.target === coordinator)
     }
 
     @Test
@@ -1176,7 +823,6 @@ struct MenuBarMenuBuilderTests {
             state: makeState(
                 activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
                 tokenUsageEnabled: true,
-                tokenUsagePeriod: .last30Days,
                 tokenUsageCard: makeTokenUsageCard(loadState: .loading(nil))
             ),
             target: coordinator
@@ -1222,7 +868,6 @@ struct MenuBarMenuBuilderTests {
             state: makeState(
                 activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
                 tokenUsageEnabled: true,
-                tokenUsagePeriod: .last30Days,
                 tokenUsageCard: makeTokenUsageCard(loadState: .loading(nil))
             ),
             target: coordinator
@@ -1253,22 +898,176 @@ struct MenuBarMenuBuilderTests {
         #expect(!menuItems(menu.items, areSameInstancesAs: itemsBeforeClosedProgress))
     }
 
-    private func accountRowIDs(in menu: NSMenu) -> [String] {
-        menu.items.compactMap { $0.submenu == nil ? nil : $0.representedObject as? String }
+    @Test
+    func mainMenuShowsOneCardPerToolThenSettingsAndQuit() throws {
+        let menu = MenuBarMenuBuilder().makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
+                providerUsage: [
+                    ProviderUsageState(provider: .claude, status: .current(providerSnapshot(.claude))),
+                    ProviderUsageState(provider: .cursor, status: .current(providerSnapshot(.cursor))),
+                ]
+            ),
+            target: try makeCoordinator()
+        )
+
+        #expect(menu.items.map(\.title) == ["Claude", "", "Codex", "", "Cursor", "", "Settings", "", "Quit"])
+        #expect(menu.items.filter { $0.view is MenuCardItemView }.map(\.title) == ["Claude", "Codex", "Cursor"])
+        #expect(menu.items.filter { $0.view is MenuCardItemView }.allSatisfy { $0.submenu != nil })
+        #expect(menu.items.last?.keyEquivalent == "q")
+    }
+
+    @Test
+    func firstRunMenuOffersToAddAnAccountForEveryTool() throws {
+        let menu = MenuBarMenuBuilder().makeMenu(
+            state: makeState(
+                activeAccount: nil,
+                providerUsage: [
+                    ProviderUsageState(provider: .claude, status: .notConnected),
+                    ProviderUsageState(provider: .cursor, status: .notConnected),
+                ]
+            ),
+            target: try makeCoordinator()
+        )
+        let addAccount = try #require(menu.items.first?.submenu)
+
+        #expect(menu.items.map(\.title) == ["Add Account", "", "Settings", "", "Quit"])
+        #expect(addAccount.items.map(\.title) == ["Codex…", "Claude…", "Cursor…"])
+        #expect(addAccount.items.map(providerAction) == [.addAccount, .connect, .connect])
+    }
+
+    @Test
+    func codexSideMenuSwitchesAccountsUsesResetsAndShowsTokenUsage() throws {
+        let nov5 = Date(timeIntervalSince1970: 1_793_880_000)
+        var usage = makeUsage(resettingAfter: .now)
+        usage.resetCredits = UsageResetCredits(
+            availableCount: 2,
+            credits: [UsageResetCredit(expiresAt: nov5.addingTimeInterval(15 * 86_400)), UsageResetCredit(expiresAt: nov5)]
+        )
+        let active = makeAccount(name: "Alex", email: "alex@example.com", usage: usage)
+        let first = makeAccount(name: "Side", email: "side@example.com")
+        let second = makeAccount(name: "Team", email: "team@example.com")
+        let menu = MenuBarMenuBuilder().makeMenu(
+            state: makeState(
+                activeAccount: active,
+                inactiveAccounts: [first, second],
+                tokenUsageEnabled: true,
+                tokenUsageCard: makeTokenUsageCard(loadState: .loading(nil))
+            ),
+            target: try makeCoordinator()
+        )
+
+        let side = try #require(menu.items.first { $0.title == "Codex" }?.submenu)
+        let useAnother = try #require(side.items.first { $0.title == "Use Another Codex Account" }?.submenu)
+        let remove = try #require(side.items.first { $0.title == "Remove Codex Account" }?.submenu)
+
+        #expect(side.items.map(\.title) == [
+            "alex@example.com", "",
+            "Use Another Codex Account", "Use a Reset…", "Expires 5 Nov", "Expires 20 Nov", "Token Usage", "",
+            "Add Codex Account…", "Remove Codex Account",
+        ])
+        #expect(side.items[0].isEnabled == false)
+        #expect(side.items[4].isEnabled == false && side.items[4].indentationLevel == 1)
+        #expect(providerAction(side.items[3]) == .useResetCredit)
+        #expect(useAnother.items.map(\.title) == ["side@example.com", "team@example.com"])
+        #expect(useAnother.items.map(providerAction) == [.switchAccount(first.id), .switchAccount(second.id)])
+        #expect(remove.items.map(\.title) == ["alex@example.com…", "side@example.com…", "team@example.com…"])
+        #expect(remove.items.map(providerAction) == [.removeAccount(active.id), .removeAccount(first.id), .removeAccount(second.id)])
+    }
+
+    @Test
+    func claudeSideMenuEndsWithDisconnectAndAKeychainStateAddsItsActionUnderTheCard() throws {
+        let saved = ProviderAccount(id: UUID(), email: "sam@acme.dev", isActive: false)
+        let active = ProviderAccount(id: UUID(), email: "alex@example.com", isActive: true)
+        let menu = MenuBarMenuBuilder().makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Work", usage: makeUsage(resettingAfter: .now)),
+                providerUsage: [
+                    ProviderUsageState(provider: .claude, status: .unavailable(.keychainAccessNeeded, lastSnapshot: nil), accounts: [saved, active]),
+                ],
+                masksEmails: true
+            ),
+            target: try makeCoordinator()
+        )
+
+        let side = try #require(menu.items.first?.submenu)
+
+        #expect(menu.items.map(\.title) == ["Claude", "Allow Keychain access…", "", "Codex", "", "Settings", "", "Quit"])
+        #expect(providerAction(menu.items[1]) == .allowKeychainAccess)
+        #expect(side.items.map(\.title) == [
+            "a•••x@example.com", "",
+            "Use s•••m@acme.dev", "",
+            "Move to Top", "Move Up", "Move Down", "",
+            "Add Claude Account…", "Remove Claude Account", "",
+            "Disconnect Claude",
+        ])
+        #expect(side.items.filter { $0.title.hasPrefix("Move") }.map(\.isEnabled) == [false, false, true])
+        #expect(side.items[4...6].compactMap { $0.representedObject as? [UsageProvider] } == [[.codex, .claude, .cursor]])
+        #expect(providerAction(side.items[2]) == .switchAccount(saved.id))
+        #expect(providerAction(side.items[11]) == .disconnect)
+    }
+
+    @Test
+    func settingsHoldsSetupAndRareChoices() throws {
+        let menu = MenuBarMenuBuilder().makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
+                providerUsage: [ProviderUsageState(provider: .claude, status: .current(providerSnapshot(.claude)))],
+                masksEmails: true
+            ),
+            target: try makeCoordinator()
+        )
+
+        let settings = try settingsMenu(in: menu)
+        let addAccount = try #require(settings.items.first { $0.title == "Add Account" }?.submenu)
+        let refresh = try #require(settings.items.first { $0.title == "Refresh Every" }?.submenu)
+
+        #expect(settings.items.map(\.title) == [
+            "Add Account", "", "Appearance", "Hide Emails", "Refresh Every", "Launch at Login", "", "Diagnostics…", "About",
+        ])
+        #expect(settings.items.first { $0.title == "Hide Emails" }?.state == .on)
+        #expect(addAccount.items.map(providerAction) == [.addAccount, .addAccount, .connect])
+        #expect(refresh.items.map(\.title) == ["1 minute", "2 minutes", "5 minutes", "10 minutes", "15 minutes", "30 minutes"])
+        #expect(refresh.items.first { $0.state == .on }?.title == "5 minutes")
+    }
+
+    @Test
+    func hideEmailsAndSectionMovesPersistThroughTheCoordinator() throws {
+        let coordinator = try makeCoordinator()
+        let move = NSMenuItem()
+        move.representedObject = [UsageProvider.cursor, .codex, .claude]
+
+        coordinator.toggleMasksEmails(NSMenuItem())
+        coordinator.reorderTools(move)
+
+        #expect(coordinator.menuState().masksEmails)
+        #expect(coordinator.menuState().toolOrder == [.cursor, .codex, .claude])
+    }
+
+    private func providerSnapshot(_ provider: UsageProvider) -> UsageSnapshot {
+        let kind: UsageWindowKind = provider == .cursor ? .billingCycle : .weekly
+        return UsageSnapshot(
+            provider: provider,
+            planName: "pro",
+            windows: [UsageWindow(kind: kind, usedPercent: 40, resetsAt: .now.addingTimeInterval(86_400), durationMinutes: nil)],
+            fetchedAt: .now
+        )
+    }
+
+    private func settingsMenu(in menu: NSMenu) throws -> NSMenu {
+        try #require(menu.items.first(where: { $0.title == "Settings" })?.submenu)
+    }
+
+    private func appearanceMenu(in menu: NSMenu) throws -> NSMenu {
+        try #require(settingsMenu(in: menu).items.first(where: { $0.title == "Appearance" })?.submenu)
     }
 
     private func statusItemContentMenu(in menu: NSMenu) -> NSMenu? {
-        menu.items
-            .first(where: { $0.title == "Preferences" })?
-            .submenu?
-            .items
-            .first(where: { $0.title == "Menu Bar Label" })?
-            .submenu
+        try? appearanceMenu(in: menu).items.first(where: { $0.title == "Menu Bar Label" })?.submenu
     }
 
     private func launchAtLoginItem(in menu: NSMenu) throws -> NSMenuItem {
-        let preferencesMenu = try #require(menu.items.first(where: { $0.title == "Preferences" })?.submenu)
-        return try #require(preferencesMenu.items.first(where: { $0.title.hasPrefix("Launch at Login") }))
+        try #require(settingsMenu(in: menu).items.first(where: { $0.title.hasPrefix("Launch at Login") }))
     }
 
     private func makeCoordinator() throws -> MenuBarCoordinator {
@@ -1356,18 +1155,16 @@ struct MenuBarMenuBuilderTests {
         usagePercentMode: UsagePercentMode = .used,
         loginItemState: LoginItemState = .disabled,
         revealStatusItemTitleShortcut: CodexPill.KeyboardShortcut? = .defaultRevealStatusItemTitle,
+        isBusy: Bool = false,
         tokenUsageEnabled: Bool = false,
-        tokenUsagePeriod: CodexTokenUsagePeriod = .last30Days,
-        tokenUsageChartStyle: TokenUsageChartStyle = .dailyBars,
-        tokenUsageLoadingAnimationStyle: TokenUsageLoadingAnimationStyle = .waves,
-        tokenUsagePeakScope: TokenUsagePeakScope = .currentPeriod,
-        tokenUsageCard: TokenUsageMenuCard? = nil
+        tokenUsageCard: TokenUsageMenuCard? = nil,
+        providerUsage: [ProviderUsageState] = [],
+        toolOrder: [UsageProvider] = [.claude, .codex, .cursor],
+        masksEmails: Bool = false
     ) -> MenuBarMenuState {
         MenuBarMenuState(
             activeAccount: activeAccount,
             inactiveAccounts: inactiveAccounts,
-            visibleInactiveAccountCount: 2,
-            visibleInactiveAccountCountOptions: [2, 3, 5, 0],
             refreshIntervalMinutes: 5,
             refreshIntervalOptions: [1, 2, 5, 10, 15, 30],
             statusBarMonochrome: false,
@@ -1377,15 +1174,14 @@ struct MenuBarMenuBuilderTests {
             sessionAccentColor: sessionAccentColor,
             hasCustomUsageColors: hasCustomUsageColors,
             usagePercentMode: usagePercentMode,
-            isBusy: false,
+            isBusy: isBusy,
             statusMessage: "Ready",
             loginItemState: loginItemState,
             tokenUsageEnabled: tokenUsageEnabled,
-            tokenUsagePeriod: tokenUsagePeriod,
-            tokenUsageChartStyle: tokenUsageChartStyle,
-            tokenUsageLoadingAnimationStyle: tokenUsageLoadingAnimationStyle,
-            tokenUsagePeakScope: tokenUsagePeakScope,
-            tokenUsageCard: tokenUsageCard
+            tokenUsageCard: tokenUsageCard,
+            providerUsage: providerUsage,
+            toolOrder: toolOrder,
+            masksEmails: masksEmails
         )
     }
 
@@ -1427,16 +1223,11 @@ struct MenuBarMenuBuilderTests {
     }
 }
 
-/// The Codex action a menu item sends, or nil when it sends none.
+/// The tool action a menu item sends, or nil when it sends none.
 @MainActor
-private func codexAction(_ item: NSMenuItem) -> ProviderAction? {
+private func providerAction(_ item: NSMenuItem) -> ProviderAction? {
     guard item.action == #selector(MenuBarCoordinator.performProviderAction(_:)),
-          let menuAction = item.representedObject as? ProviderMenuAction,
-          menuAction.provider == .codex
+          let menuAction = item.representedObject as? ProviderMenuAction
     else { return nil }
     return menuAction.action
-}
-
-private func isSwitch(_ action: ProviderAction?) -> Bool {
-    if case .switchAccount = action { true } else { false }
 }

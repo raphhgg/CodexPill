@@ -3,6 +3,8 @@ import Foundation
 /// Every word the menu shows for one tool, in one table. In-app copy is a title plus at most one short line.
 struct ProviderCopy: Sendable {
     let name: String
+    /// The short tool name on its menu card and in its side menu, such as "Claude".
+    let sectionTitle: String
     /// Who answers usage requests, for "Can't reach …" style messages.
     let serviceName: String
     let connectPrompt: ProviderPrompt?
@@ -42,10 +44,11 @@ extension UsageProvider {
     var copy: ProviderCopy {
         switch self {
         case .codex:
-            ProviderCopy(name: "Codex", serviceName: "Codex", connectPrompt: nil, switchPrompt: nil)
+            ProviderCopy(name: "Codex", sectionTitle: "Codex", serviceName: "Codex", connectPrompt: nil, switchPrompt: nil)
         case .claude:
             ProviderCopy(
                 name: "Claude Code",
+                sectionTitle: "Claude",
                 serviceName: "Anthropic",
                 connectPrompt: ProviderPrompt(
                     title: "Connect Claude Code?",
@@ -57,6 +60,7 @@ extension UsageProvider {
         case .cursor:
             ProviderCopy(
                 name: "Cursor",
+                sectionTitle: "Cursor",
                 serviceName: "Cursor",
                 connectPrompt: ProviderPrompt(
                     title: "Connect Cursor?",
