@@ -604,20 +604,18 @@ struct MenuBarMenuBuilderTests {
         #expect(visibleRow.attributedTitle?.string.contains("W ") == true)
         #expect(visibleRow.attributedTitle?.string.contains("Local") == false)
         #expect(visibleRow.representedObject as? String == business3.id.uuidString)
-        #expect(visibleRow.action != #selector(MenuBarCoordinator.switchAccount(_:)))
+        #expect(codexAction(visibleRow) == nil)
         #expect(visibleRow.isEnabled == true)
         #expect(emailItem.title == "business 3@example.com")
         #expect(emailItem.isEnabled == false)
         #expect(statusItem.title == "Not currently in use")
         #expect(statusItem.isEnabled == false)
         #expect(localActionIndex > 1)
-        #expect(localAction.action == #selector(MenuBarCoordinator.switchAccount(_:)))
+        #expect(codexAction(localAction) == .switchAccount(business3.id))
         #expect(localAction.target === coordinator)
-        #expect(localAction.representedObject as? String == business3.id.uuidString)
         #expect(renameAction.action == #selector(MenuBarCoordinator.renameAccount(_:)))
         #expect(renameAction.representedObject as? String == business3.id.uuidString)
-        #expect(removeAction.action == #selector(MenuBarCoordinator.removeAccount(_:)))
-        #expect(removeAction.representedObject as? String == business3.id.uuidString)
+        #expect(codexAction(removeAction) == .removeAccount(business3.id))
         #expect(submenu.items[renameIndex - 1].isSeparatorItem)
         #expect(removeIndex == renameIndex + 1)
         #expect(menu.autoenablesItems)
@@ -638,11 +636,10 @@ struct MenuBarMenuBuilderTests {
 
         #expect(accountRowIDs(in: menu).isEmpty)
         #expect(menu.items.contains(where: { $0.title == "Add Account…" }) == false)
-        #expect(addAccount.action == #selector(MenuBarCoordinator.addAccount))
+        #expect(codexAction(addAccount) == .addAccount)
         #expect(rename.action == #selector(MenuBarCoordinator.renameAccount(_:)))
         #expect(rename.representedObject as? String == active.id.uuidString)
-        #expect(remove.action == #selector(MenuBarCoordinator.removeAccount(_:)))
-        #expect(remove.representedObject as? String == active.id.uuidString)
+        #expect(codexAction(remove) == .removeAccount(active.id))
     }
 
     @Test
@@ -668,10 +665,10 @@ struct MenuBarMenuBuilderTests {
         #expect(Set(accountRowIDs(in: menu)) == [business1.id.uuidString, business2.id.uuidString])
         #expect(activeRow == nil)
         #expect(accountItem.image != nil)
-        #expect(addAccount.action == #selector(MenuBarCoordinator.addAccount))
+        #expect(codexAction(addAccount) == .addAccount)
         #expect(menu.items.contains(where: { $0.title == "Add Account…" }) == false)
         #expect(rename.representedObject as? String == active.id.uuidString)
-        #expect(remove.representedObject as? String == active.id.uuidString)
+        #expect(codexAction(remove) == .removeAccount(active.id))
     }
 
     @Test
@@ -731,12 +728,12 @@ struct MenuBarMenuBuilderTests {
                 .contains(where: { firstOverflowAccount.title.contains($0) })
         )
         #expect(firstOverflowAccount.submenu != nil)
-        #expect(firstOverflowAccount.action != #selector(MenuBarCoordinator.switchAccount(_:)))
+        #expect(codexAction(firstOverflowAccount) == nil)
         #expect(overflowEmail.title.hasSuffix("@example.com"))
         #expect(overflowEmail.isEnabled == false)
         #expect(overflowUsage.title == "Not currently in use")
         #expect(overflowUsage.isEnabled == false)
-        #expect(overflowSwitch.action == #selector(MenuBarCoordinator.switchAccount(_:)))
+        #expect(isSwitch(codexAction(overflowSwitch)))
     }
 
     @Test
@@ -1134,8 +1131,8 @@ struct MenuBarMenuBuilderTests {
 
         #expect(visibleRowAfterOpen === visibleRowBeforeOpen)
         #expect(visibleRowAfterOpen.submenu === visibleRowBeforeOpen.submenu)
-        #expect(visibleRowAfterOpen.action != #selector(MenuBarCoordinator.switchAccount(_:)))
-        #expect(localAction.action == #selector(MenuBarCoordinator.switchAccount(_:)))
+        #expect(codexAction(visibleRowAfterOpen) == nil)
+        #expect(isSwitch(codexAction(localAction)))
         #expect(localAction.target === coordinator)
     }
 
@@ -1428,4 +1425,18 @@ struct MenuBarMenuBuilderTests {
             )
         )
     }
+}
+
+/// The Codex action a menu item sends, or nil when it sends none.
+@MainActor
+private func codexAction(_ item: NSMenuItem) -> ProviderAction? {
+    guard item.action == #selector(MenuBarCoordinator.performProviderAction(_:)),
+          let menuAction = item.representedObject as? ProviderMenuAction,
+          menuAction.provider == .codex
+    else { return nil }
+    return menuAction.action
+}
+
+private func isSwitch(_ action: ProviderAction?) -> Bool {
+    if case .switchAccount = action { true } else { false }
 }

@@ -16,7 +16,7 @@ struct MenuBarCoordinatorTests {
         coordinator.start()
         await coordinator.waitForPendingWork()
 
-        coordinator.removeAccount(harness.menuItem(representing: account.id.uuidString))
+        harness.send(.removeAccount(account.id), for: .codex)
         await coordinator.waitForPendingWork()
 
         #expect(harness.alertPresenter.confirmationRequests.last?.messageText == "Business 4 is in use")
@@ -45,7 +45,7 @@ struct MenuBarCoordinatorTests {
             fetchedAt: now
         )
         let coordinator = harness.makeCoordinator(
-            providerUsageSources: [UsageProviderSourceProbe(provider: .claude, reading: .snapshot(claudeUsage))]
+            providerConnections: [ProviderConnectionProbe(provider: .claude, reading: .snapshot(claudeUsage))]
         )
 
         coordinator.start()
@@ -107,7 +107,7 @@ struct MenuBarCoordinatorTests {
 
         let reset = Task { await harness.accountsController.useResetCredit() }
         await resetCredits.waitUntilCalled()
-        coordinator.switchAccount(harness.menuItem(representing: work.id.uuidString))
+        harness.send(.switchAccount(work.id), for: .codex)
 
         #expect(harness.alertPresenter.confirmationRequests.isEmpty)
         #expect(harness.alertPresenter.infoRequests.map(\.messageText) == ["Reset in progress"])
@@ -127,14 +127,14 @@ struct MenuBarCoordinatorTests {
         }
         fixture.signInToKeychain(expiresAt: Date().addingTimeInterval(3_600), needsPermission: true)
         fixture.response = .success(Data(ClaudeUsageFixture.usageResponse.utf8))
-        let coordinator = harness.makeCoordinator(providerUsageSources: [fixture.usage], claudeCodeUsage: fixture.usage)
+        let coordinator = harness.makeCoordinator(providerConnections: [fixture.usage])
         coordinator.start()
         await coordinator.waitForPendingWork()
 
         #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .claude, status: .notConnected)])
         #expect(claudeMenuTitles(coordinator) == ["Connect Claude Code…"])
 
-        coordinator.connectClaudeCode()
+        harness.click("Connect Claude Code…")
         await coordinator.waitForPendingWork()
 
         #expect(harness.alertPresenter.confirmationRequests.map(\.messageText) == ["Connect Claude Code?"])
@@ -142,7 +142,7 @@ struct MenuBarCoordinatorTests {
         #expect(fixture.keychainReadPrompts == [])
 
         harness.alertPresenter.confirmationResponse = true
-        coordinator.connectClaudeCode()
+        harness.click("Connect Claude Code…")
         await coordinator.waitForPendingWork()
 
         #expect(fixture.keychainReadPrompts == [true])
@@ -162,7 +162,7 @@ struct MenuBarCoordinatorTests {
         }
         #expect(claudeMenuTitles(coordinator) == ["Allow Keychain access…", "Disconnect Claude Code…"])
 
-        coordinator.allowClaudeKeychainAccess()
+        harness.click("Allow Keychain access…")
         await coordinator.waitForPendingWork()
 
         guard case .current = coordinator.menuState().providerUsage.first?.status else {
@@ -171,7 +171,7 @@ struct MenuBarCoordinatorTests {
         }
         #expect(fixture.keychainReadPrompts.suffix(2) == [false, true])
 
-        coordinator.disconnectClaudeCode()
+        harness.click("Disconnect Claude Code…")
         await coordinator.waitForPendingWork()
 
         #expect(harness.alertPresenter.confirmationRequests.count == 2)
@@ -190,14 +190,14 @@ struct MenuBarCoordinatorTests {
             fixture.remove()
         }
         fixture.signIn(expiresAt: now.addingTimeInterval(3_600), summary: CursorUsageFixture.proPlanWithCappedOnDemand)
-        let coordinator = harness.makeCoordinator(providerUsageSources: [fixture.usage], cursorUsage: fixture.usage)
+        let coordinator = harness.makeCoordinator(providerConnections: [fixture.usage])
         coordinator.start()
         await coordinator.waitForPendingWork()
 
         #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .cursor, status: .notConnected)])
         #expect(cursorMenuTitles(coordinator) == ["Connect Cursor…"])
 
-        coordinator.connectCursor()
+        harness.click("Connect Cursor…")
         await coordinator.waitForPendingWork()
 
         #expect(harness.alertPresenter.confirmationRequests.map(\.messageText) == ["Connect Cursor?"])
@@ -205,7 +205,7 @@ struct MenuBarCoordinatorTests {
         #expect(fixture.requestCount == 0)
 
         harness.alertPresenter.confirmationResponse = true
-        coordinator.connectCursor()
+        harness.click("Connect Cursor…")
         await coordinator.waitForPendingWork()
 
         let current = UsageSnapshot(
@@ -226,12 +226,97 @@ struct MenuBarCoordinatorTests {
             ProviderUsageState(provider: .cursor, status: .unavailable(.unreachable, lastSnapshot: current))
         ])
 
-        coordinator.disconnectCursor()
+        harness.click("Disconnect Cursor…")
         await coordinator.waitForPendingWork()
 
         #expect(fixture.settings.isEnabled == false)
         #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .cursor, status: .notConnected)])
         #expect(cursorMenuTitles(coordinator) == ["Connect Cursor…"])
+    }
+
+    @Test
+    func switchingAToolAccountNeverShowsThePreviousAccountsNumbers() async throws {
+        let harness = try MenuBarCoordinatorHarness()
+        defer { harness.tearDown() }
+        let now = Date()
+        let personal = UUID()
+        let work = UUID()
+        let personalUsage = UsageSnapshot(
+            provider: .cursor,
+            planName: "pro",
+            windows: [UsageWindow(kind: .billingCycle, usedPercent: 82, resetsAt: now.addingTimeInterval(86_400), durationMinutes: 43_200)],
+            fetchedAt: now
+        )
+        let cursor = ProviderConnectionProbe(provider: .cursor, reading: .snapshot(personalUsage))
+        cursor.update {
+            $0.accounts = [
+                ProviderAccount(id: personal, email: "personal@example.com", isActive: true),
+                ProviderAccount(id: work, email: "work@example.com", isActive: false),
+            ]
+            $0.readingAfterSwitch = .unavailable(.unreachable)
+        }
+        let coordinator = harness.makeCoordinator(providerConnections: [cursor])
+        coordinator.start()
+        await coordinator.waitForPendingWork()
+        #expect(coordinator.menuState().providerUsage.first?.status == .current(personalUsage))
+
+        harness.alertPresenter.confirmationResponse = true
+        harness.send(.switchAccount(work), for: .cursor)
+        await coordinator.waitForPendingWork()
+
+        #expect(harness.alertPresenter.confirmationRequests.map(\.messageText) == ["Switch Cursor account?"])
+        #expect(cursor.switchedTo == [work])
+        #expect(coordinator.menuState().providerUsage == [
+            ProviderUsageState(
+                provider: .cursor,
+                status: .unavailable(.unreachable, lastSnapshot: nil),
+                accounts: [
+                    ProviderAccount(id: personal, email: "personal@example.com", isActive: false),
+                    ProviderAccount(id: work, email: "work@example.com", isActive: true),
+                ]
+            )
+        ])
+    }
+
+    @Test
+    func aFailedToolSwitchExplainsWhyInAShortAlert() async throws {
+        let harness = try MenuBarCoordinatorHarness()
+        defer { harness.tearDown() }
+        let claude = ProviderConnectionProbe(provider: .claude, reading: .awaitingUsage)
+        claude.update { $0.switchError = ClaudeCodeAccountError.claudeCodeRunning.notice }
+        let coordinator = harness.makeCoordinator(providerConnections: [claude])
+        coordinator.start()
+        await coordinator.waitForPendingWork()
+
+        harness.send(.switchAccount(UUID()), for: .claude)
+        await coordinator.waitForPendingWork()
+
+        #expect(harness.alertPresenter.confirmationRequests.isEmpty)
+        #expect(harness.alertPresenter.infoRequests.map(\.messageText) == ["Quit Claude Code first"])
+        #expect(harness.alertPresenter.infoRequests.map(\.informativeText) == ["Close every claude session."])
+    }
+
+    @Test
+    func usingACodexResetAsksFirstThenReportsTheOutcome() async throws {
+        let harness = try MenuBarCoordinatorHarness()
+        defer { harness.tearDown() }
+        _ = try harness.makeActiveAccount(named: "Personal", email: "personal@example.com")
+        let resetCredits = SuspendedResetCreditClient()
+        let coordinator = harness.makeCoordinator(resetCreditClient: resetCredits)
+        coordinator.start()
+        await coordinator.waitForPendingWork()
+
+        harness.send(.useResetCredit, for: .codex)
+        await coordinator.waitForPendingWork()
+        #expect(harness.alertPresenter.confirmationRequests.map(\.messageText) == ["Reset Codex limits?"])
+
+        harness.alertPresenter.confirmationResponse = true
+        harness.send(.useResetCredit, for: .codex)
+        await resetCredits.waitUntilCalled()
+        await resetCredits.answer(.reset)
+        await coordinator.waitForPendingWork()
+
+        #expect(harness.alertPresenter.infoRequests.map(\.messageText) == ["Your Codex limits are reset."])
     }
 
     @Test
@@ -279,9 +364,7 @@ private final class MenuBarCoordinatorHarness {
     }
 
     func makeCoordinator(
-        providerUsageSources: [any UsageProviderSource] = [],
-        claudeCodeUsage: ClaudeCodeUsage? = nil,
-        cursorUsage: CursorUsage? = nil,
+        providerConnections: [any ProviderConnection] = [],
         resetCreditClient: CodexResetCreditClient = UnavailableResetCreditClient(),
         now: @escaping () -> Date = Date.init
     ) -> MenuBarCoordinator {
@@ -300,9 +383,7 @@ private final class MenuBarCoordinatorHarness {
             settings: settings,
             alertPresenter: alertPresenter,
             panelPresenter: panelPresenter,
-            providerUsageSources: providerUsageSources,
-            claudeCodeUsage: claudeCodeUsage,
-            cursorUsage: cursorUsage,
+            providerConnections: providerConnections,
             allowsEmptyStatePrompt: false,
             now: now
         )
@@ -323,10 +404,30 @@ private final class MenuBarCoordinatorHarness {
 
     var menu: NSMenu? { statusItem.menu }
 
-    func menuItem(representing payload: Any) -> NSMenuItem {
+    /// Sends a tool action the way a menu item carrying it would.
+    func send(_ action: ProviderAction, for provider: UsageProvider) {
         let item = NSMenuItem()
-        item.representedObject = payload
-        return item
+        item.representedObject = ProviderMenuAction(provider: provider, action: action)
+        coordinator?.performProviderAction(item)
+    }
+
+    /// Clicks the item titled `title`, in the menu or any submenu, as the coordinator would build it now.
+    func click(_ title: String) {
+        guard let coordinator else { return }
+        let menu = MenuBarMenuBuilder().makeMenu(state: coordinator.menuState(), target: coordinator)
+        guard let item = Self.item(titled: title, in: menu), let action = item.action else {
+            Issue.record("No menu item titled \(title)")
+            return
+        }
+        _ = (item.target as? NSObject)?.perform(action, with: item)
+    }
+
+    private static func item(titled title: String, in menu: NSMenu) -> NSMenuItem? {
+        for item in menu.items {
+            if item.title == title { return item }
+            if let submenu = item.submenu, let found = Self.item(titled: title, in: submenu) { return found }
+        }
+        return nil
     }
 
     func tearDown() {

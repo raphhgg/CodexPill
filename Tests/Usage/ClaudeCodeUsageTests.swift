@@ -29,7 +29,7 @@ struct ClaudeCodeUsageTests {
             fetchedAt: now
         )))
 
-        fixture.usage.disconnect()
+        await fixture.usage.disconnect()
 
         #expect(ClaudeUsageSettingsStore(userDefaults: fixture.defaults).isEnabled == false)
         #expect(await fixture.usage.readUsage(now: now) == .notConnected)
@@ -48,7 +48,7 @@ struct ClaudeCodeUsageTests {
         #expect(await fixture.usage.readUsage(now: now) == .unavailable(.keychainAccessNeeded))
         #expect(fixture.requestCount == 0)
 
-        await fixture.usage.allowKeychainAccess()
+        await fixture.usage.connect()
         guard case .snapshot = await fixture.usage.readUsage(now: now) else {
             Issue.record("Expected usage after the user allowed Keychain access")
             return
@@ -175,15 +175,17 @@ struct ClaudeCodeUsageTests {
         }
 
         try signIn(token: "fake-work-token", organization: "fake-work-org")
-        let work = try #require(try usage.accounts?.captureCurrent())
+        try await usage.addCurrentAccount()
         try signIn(token: "fake-home-token", organization: "fake-home-org")
-        _ = try usage.accounts?.captureCurrent()
-        await usage.allowKeychainAccess()
+        try await usage.addCurrentAccount()
+        await usage.connect()
         #expect(await weeklyPercent() == 15)
+        let work = try #require(try await usage.savedAccounts().first { !$0.isActive })
 
         try await usage.switchAccount(to: work.id)
 
         #expect(await weeklyPercent() == 80)
+        #expect(try await usage.savedAccounts().first { $0.isActive }?.id == work.id)
     }
 }
 

@@ -55,7 +55,7 @@ struct ActiveAccountMenuContent: View {
                 .padding(.top, -2)
 
             UsageMeters(
-                meters: UsageMeter.codexMeters(
+                meters: UsageMeter.meters(
                     for: account.usage,
                     sessionTint: sessionAccentColor,
                     weeklyTint: weeklyAccentColor

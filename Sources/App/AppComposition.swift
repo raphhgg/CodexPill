@@ -43,9 +43,7 @@ struct AppComposition {
             tokenUsageProvider: LocalCodexSessionTokenUsageMenuProvider(
                 cacheFile: AppPaths.tokenUsageCacheFile(isolatedRootDirectory: isolatedRootDirectory)
             ),
-            providerUsageSources: [claudeCodeUsage, cursorUsage],
-            claudeCodeUsage: claudeCodeUsage,
-            cursorUsage: cursorUsage,
+            providerConnections: [claudeCodeUsage, cursorUsage],
             allowsEmptyStatePrompt: true
         )
     }
