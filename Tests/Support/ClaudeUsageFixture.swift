@@ -32,6 +32,7 @@ final class ClaudeUsageFixture: ClaudeKeychainReading, ClaudeUsageWebClient, Cla
     private var currentResponse: Result<Data, ClaudeUsageWebError> = .failure(.transport)
     private var keychainReads: [Bool] = []
     private var sentTokens: [String] = []
+    private var rejectedTokens: Set<String> = []
     private var ownItem: Data?
     private var currentRefreshResult: Result<ClaudeSignIn, ClaudeTokenError> = .failure(.transport)
     private var refreshedTokens: [String] = []
@@ -102,6 +103,12 @@ final class ClaudeUsageFixture: ClaudeKeychainReading, ClaudeUsageWebClient, Cla
         set { lock.withLock { currentResponse = newValue } }
     }
 
+    /// Access tokens the usage endpoint answers with 401.
+    var rejectedAccessTokens: Set<String> {
+        get { lock.withLock { rejectedTokens } }
+        set { lock.withLock { rejectedTokens = newValue } }
+    }
+
     var refreshResult: Result<ClaudeSignIn, ClaudeTokenError> {
         get { lock.withLock { currentRefreshResult } }
         set { lock.withLock { currentRefreshResult = newValue } }
@@ -143,10 +150,11 @@ final class ClaudeUsageFixture: ClaudeKeychainReading, ClaudeUsageWebClient, Cla
     }
 
     func usage(using token: ClaudeAccessToken) async throws(ClaudeUsageWebError) -> Data {
-        let response = lock.withLock {
+        let (response, rejected) = lock.withLock {
             sentTokens.append(token.exposedValue)
-            return currentResponse
+            return (currentResponse, rejectedTokens.contains(token.exposedValue))
         }
+        if rejected { throw .unauthorized }
         return try response.get()
     }
 

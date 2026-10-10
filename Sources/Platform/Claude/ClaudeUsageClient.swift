@@ -86,19 +86,29 @@ actor ClaudeUsageClient {
 
         let token: ClaudeAccessToken
         let planName: String?
+        let renewable: ClaudeSignIn?
         let lookup = switch source {
         case .claudeCode: claudeCodeToken(now: now, allowingPrompt: allowingPrompt)
         case .codexPill: await ownToken(now: now, allowingPrompt: allowingPrompt)
         }
         switch lookup {
         case let .stop(status): return status
-        case let .token(found, plan): (token, planName) = (found, plan)
+        case let .token(found, plan, renewal): (token, planName, renewable) = (found, plan, renewal)
+        }
+
+        var response = await usage(using: token)
+        if case .failure(.unauthorized) = response, let renewable {
+            guard case let .success(refreshed) = await refreshOnce(renewable, now: now, allowingPrompt: allowingPrompt) else {
+                return .signInExpired
+            }
+            response = await usage(using: refreshed.accessToken)
         }
 
         let data: Data
-        do {
-            data = try await webClient.usage(using: token)
-        } catch {
+        switch response {
+        case let .success(body):
+            data = body
+        case let .failure(error):
             switch error {
             case .unauthorized: return .signInExpired
             case .forbidden: return .forbidden
@@ -114,6 +124,14 @@ actor ClaudeUsageClient {
             return .available(try ClaudeUsageAPI.parseUsage(data), planName: planName)
         } catch {
             return .unexpectedResponse
+        }
+    }
+
+    private func usage(using token: ClaudeAccessToken) async -> Result<Data, ClaudeUsageWebError> {
+        do throws(ClaudeUsageWebError) {
+            return .success(try await webClient.usage(using: token))
+        } catch {
+            return .failure(error)
         }
     }
 
@@ -133,15 +151,15 @@ actor ClaudeUsageClient {
                 signIn = stored
             }
         }
-        guard signIn.needsRefresh(at: now) else { return .token(signIn.accessToken, planName: nil) }
+        guard signIn.needsRefresh(at: now) else { return .token(signIn.accessToken, planName: nil, renewable: signIn) }
 
         switch await refreshOnce(signIn, now: now, allowingPrompt: allowingPrompt) {
         case let .success(refreshed):
-            return .token(refreshed.accessToken, planName: nil)
+            return .token(refreshed.accessToken, planName: nil, renewable: nil)
         case .failure(.invalidGrant):
             return .stop(.signInExpired)
         case .failure:
-            return signIn.isExpired(at: now) ? .stop(.unreachable) : .token(signIn.accessToken, planName: nil)
+            return signIn.isExpired(at: now) ? .stop(.unreachable) : .token(signIn.accessToken, planName: nil, renewable: nil)
         }
     }
 
@@ -153,7 +171,7 @@ actor ClaudeUsageClient {
         case let .credentials(credentials):
             credentials.isExpired(at: now)
                 ? .stop(.signInExpired)
-                : .token(credentials.accessToken, planName: credentials.subscriptionType)
+                : .token(credentials.accessToken, planName: credentials.subscriptionType, renewable: nil)
         }
     }
 
@@ -186,8 +204,9 @@ actor ClaudeUsageClient {
     }
 }
 
-/// The token for one usage request, or the status a read ends with before any request.
+/// The token for one usage request, or the status a read ends with before any request. `renewable` is CodexPill's own
+/// sign-in when a 401 may still try one refresh; it is nil for Claude Code's sign-in and after a refresh in this read.
 private enum TokenLookup {
-    case token(ClaudeAccessToken, planName: String?)
+    case token(ClaudeAccessToken, planName: String?, renewable: ClaudeSignIn?)
     case stop(ClaudeUsageStatus)
 }
