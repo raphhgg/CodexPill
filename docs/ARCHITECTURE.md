@@ -211,7 +211,7 @@ Settings persistence is split by feature boundary:
 
 - `MenuDisplaySettingsStore` owns menu refresh cadence and visible inactive-account count options.
 - `StatusItemSettingsStore` owns status-item indicator style, monochrome mode, display mode, pacing marker visibility, progress accent color helpers, and persisted reveal-shortcut values.
-- `TokenUsagePreferencesStore` owns token-usage visibility, chart style, loading animation, peak scope, and the fixed 30-day period.
+- `TokenUsagePreferencesStore` owns token-usage visibility and the fixed 30-day period. Its stored chart style, loading animation and peak scope have no menu control anymore and keep their defaults.
 - `ClaudeUsageSettingsStore` owns whether Claude Code usage is connected (`claudeUsageEnabled`). It is off by default.
 - `CursorUsageSettingsStore` owns whether Cursor usage is connected (`cursorUsageEnabled`). It is off by default.
 

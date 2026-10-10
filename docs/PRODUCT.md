@@ -48,7 +48,7 @@ Secondary user:
 
 ### Tool
 
-Codex, Claude Code or Cursor. Each has one menu section with its usage and its saved accounts. A tool's usage never affects another tool's account ranking.
+Codex, Claude Code or Cursor. Each has one menu card with its usage, and a side menu with its saved accounts. A tool's usage never affects another tool's account ranking.
 
 ### Saved Account
 

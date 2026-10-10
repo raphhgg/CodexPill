@@ -4,15 +4,15 @@ The status bar feature owns CodexPill's closed-state menubar presentation: icon,
 
 ## Purpose
 
-The status bar gives the user a lightweight answer before opening the menu: which account is active and whether its limits look healthy.
+The status bar gives the user a lightweight answer before opening the menu: how the first tool in the menu stands against its limits.
 
 ## Owned Surface
 
 - App icon or monochrome menubar icon.
 - Optional label text.
 - Hover-expanded and shortcut-revealed text behavior.
-- Compact session/weekly indicators.
-- The `Preferences` submenu exposes `Menu Bar Label`, `Icon Style`, and `Usage Bars` controls for label mode, the reveal shortcut, icon style, usage percent mode, meter layout, pacing marker visibility, and usage colors. App-level controls in the same submenu are owned by their own feature docs.
+- Compact indicators for the first menu card's windows (see below).
+- `Settings › Appearance` exposes `Menu Bar Label`, `Icon Style`, and `Usage Bars` controls for label mode, the reveal shortcut, icon style, usage percent mode, meter layout, pacing marker visibility, and usage colors. Other Settings items are owned by their own feature docs.
 - Tooltip text.
 
 ## Menu Bar Label Reveal Shortcut
@@ -26,7 +26,7 @@ visible collapses it.
 Users can configure the shortcut from:
 
 ```text
-Preferences
+Settings › Appearance
   Menu Bar Label
     Reveal Shortcut…    ⌃⌥⌘L
 ```
@@ -34,10 +34,10 @@ Preferences
 If a configured shortcut cannot be registered, CodexPill keeps the previous
 working shortcut and shows an error.
 
-## Usage Bars Preferences
+## Usage Bars
 
 ```text
-Preferences
+Settings › Appearance
   Usage Bars
     Show % Used           (default)
     Show % Left
@@ -65,6 +65,17 @@ Preferences
 - An accent color chosen before this option existed becomes the session color,
   and with `Same Color for Both` on by default it keeps coloring both bars.
 - `Use Default Colors` clears both colors and turns `Same Color for Both` back on.
+
+## What The Icon Shows
+
+The icon follows the first card in the menu, so the user picks it by moving that card to the top.
+
+- Two windows fill both meters, session first. One window, such as Codex Pro's weekly limit or Cursor's billing cycle, fills the lower meter.
+- A window the tool does not report draws as an outline-only track, never as 0%. A card with no reading draws both tracks as outlines.
+- With no card at all, the icon is CodexPill's pill.
+- A stale reading is not dimmed.
+- The label reads `S 11% W 60%`, `W 17%` for one weekly window, or `82%` for a billing cycle alone. A full window shows its countdown instead.
+- The tooltip names the tool and plan, the account in use (masked with Hide Emails), and the reset of any full window.
 
 ## Relationship To Accounts
 

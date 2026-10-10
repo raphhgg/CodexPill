@@ -8,7 +8,7 @@ opening the app every day.
 
 ## Product Contract
 
-CodexPill exposes a `Launch at Login` control in the `Preferences` submenu.
+CodexPill exposes a `Launch at Login` control in the `Settings` submenu.
 
 The setting controls the macOS login item for the main app. It must use the
 native macOS login item mechanism and reflect the current system state when the
@@ -19,7 +19,7 @@ The product term is `Launch at Login`, not `Launch at Startup`.
 ## Happy Path
 
 1. The user opens the CodexPill menu.
-2. The user opens `Preferences`.
+2. The user opens `Settings`.
 3. The user selects `Launch at Login`.
 4. CodexPill explains that it will ask macOS to open the app automatically
    when the user logs in.
@@ -29,15 +29,15 @@ The product term is `Launch at Login`, not `Launch at Startup`.
 
 ## UI / Copy / States
 
-The entry appears at the bottom of `Preferences`, separated from visual
-preferences:
+The entry sits in `Settings`, after `Refresh Every`:
 
 ```text
-Preferences
-  Menu Bar Label
-  Icon Style
-  Usage Bars
+Settings
+  Add Account
   ----------------
+  Appearance
+  Hide Emails
+  Refresh Every
   Launch at Login
 ```
 
@@ -58,11 +58,8 @@ this off here or in System Settings.
 Blocked state:
 
 ```text
-Preferences
-  Menu Bar Label
-  Icon Style
-  Usage Bars
-  ----------------
+Settings
+  …
   Launch at Login…
 ```
 
@@ -83,7 +80,7 @@ Settings to the relevant Login Items surface instead of trying to toggle again.
 
 ## Acceptance Criteria
 
-- `Preferences` includes `Launch at Login` at the bottom, after a separator.
+- `Settings` includes `Launch at Login` after `Refresh Every`.
 - The normal row behaves like a native checkbox item.
 - Enabling the row requires explicit confirmation before registering CodexPill
   as a macOS login item.
@@ -120,7 +117,7 @@ Settings to the relevant Login Items surface instead of trying to toggle again.
 
 Manual QA on a signed or local macOS build:
 
-1. Toggle `Preferences > Launch at Login` on.
+1. Toggle `Settings > Launch at Login` on.
 2. Confirm CodexPill appears in macOS System Settings Login Items.
 3. Toggle it off.
 4. Confirm the System Settings entry is removed or disabled.

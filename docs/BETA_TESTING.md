@@ -46,7 +46,7 @@ remove CodexPill-owned beta state if needed.
 8. Confirm adding the account does not unexpectedly switch the active account.
 9. Switch between saved accounts.
 10. Confirm Codex uses the expected account after switching.
-11. Rename and remove a test account if you are comfortable doing so.
+11. Remove a test account if you are comfortable doing so.
 
 ## What Feedback Is Most Useful
 
