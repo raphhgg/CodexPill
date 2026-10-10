@@ -116,7 +116,9 @@ open -n \
 - `CODEX_HOME` points the `codex app-server` that CodexPill starts at the same
   `auth.json`.
 - Claude usage reads `.credentials.json` from `CLAUDE_CONFIG_DIR`, or from
-  `<root>/.claude`, and never the Keychain. Claude account switching is off.
+  `<root>/.claude`, and never the Keychain. CodexPill's own Claude sign-in is
+  kept in memory only. "Sign in with Claude" still opens the real browser, so
+  do not finish it with a real account. Claude account switching is off.
 
 Switching still asks the real Codex app to relaunch. Quit the isolated app by
 its process ID, not with `scripts/stop_menubar.sh`, which stops every running

@@ -28,6 +28,13 @@ them. Run this until it says the item could not be found:
 security delete-generic-password -s "CodexPill Claude Code account"
 ```
 
+If you used "Sign in with Claude", also remove CodexPill's own Claude sign-in.
+`Disconnect Claude Code…` deletes it too:
+
+```sh
+security delete-generic-password -s "CodexPill Claude sign-in" -a "Claude"
+```
+
 This leaves Claude Code's own sign-in, the `Claude Code-credentials` item, as it
 is. CodexPill never deletes that item.
 

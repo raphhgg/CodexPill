@@ -62,7 +62,7 @@ The most recently fetched view of Codex session and weekly availability.
 
 ### Display-Only Provider
 
-A non-Codex tool whose usage CodexPill shows. Claude Code is one. It is opt-in and has its own menu section below the saved accounts. Its usage never affects Codex account availability, ranking, or notifications. CodexPill can also save Claude Code sign-ins and switch between them, through Claude Code's own credentials; the menu for that is not built yet. CodexPill never signs in to Claude itself and never renews Claude Code's sign-in.
+A non-Codex tool whose usage CodexPill shows. Claude Code is one. It is opt-in and has its own menu section below the saved accounts. Its usage never affects Codex account availability, ranking, or notifications. CodexPill can also save Claude Code sign-ins and switch between them, through Claude Code's own credentials; the menu for that is not built yet. CodexPill can also keep its own Claude sign-in, made in the browser, for people who don't use the `claude` terminal app. It never renews Claude Code's sign-in.
 
 ## Non-Goals
 
