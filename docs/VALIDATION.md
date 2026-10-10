@@ -1,80 +1,33 @@
 # Validation
 
-CodexPill protects user trust by validating account switching, account storage,
-and privacy boundaries through unit and integration tests.
+Validation is `make test` plus a short manual check of the built app.
 
-## Validation Contract
+## Automated
 
-- Tests and validation fixtures must not touch real user data or real product
-  processes unless a live mutation scenario is explicitly opted into.
-- Tests must use temporary paths, isolated app-support directories, injected
-  clients, and fakes for process side effects.
-- Auth snapshots, raw auth payloads, tokens, API keys, and device codes must not
-  be logged, committed, or emitted in diagnostics.
-- Product behavior that changes account state must have deterministic coverage
-  near the owning feature boundary.
-- UI copy and menu composition changes should be covered by menu projection or
-  presentation tests where possible.
-
-## Main Local Gate
-
-Run the default test suite before shipping changes:
+Run the test suite before opening a pull request:
 
 ```bash
 make test
 ```
 
-## Product Invariants
+Tests use temporary directories, injected clients, and fakes for process side
+effects. They never read or write the real `~/.codex/auth.json`, real CodexPill
+data, or a running Codex app. Tests and fixtures use synthetic accounts and
+emails, and never print auth snapshots, tokens, or device codes.
 
-### Account Catalog
+## Manual Checklist
 
-- Saved account snapshots are stored in CodexPill-owned app-support state.
-- Duplicate saved-account names are rejected before sign-in starts.
-- Empty saved-account names are blocked before sign-in starts, with the user kept
-  in the Add Account naming flow.
-- Terminal Add Account failures clear pending state so the user is not trapped in
-  repeated completion alerts.
-- Removing the account that is active on This Mac signs it out before deleting
-  the saved snapshot.
+Run these against a dev build started with the
+[isolated launch](DEVELOPMENT.md#isolated-launch) unless the change needs real
+accounts.
 
-### Account Switching
-
-- Local switching writes the selected saved snapshot to the active Codex auth
-  surface and requests a Codex app refresh or relaunch through an injected
-  process client.
-
-### Account Refresh
-
-- Refresh reads account metadata and rate limits from the Codex app-server
-  surface when available.
-- Refresh failures preserve last-known account state and surface recoverable
-  error information without blocking normal menu use.
-- Saved account identity matching must avoid merging distinct accounts that only
-  share ambiguous metadata.
-
-### App Controls
-
-- Launch at Login reflects the native macOS login-item state; CodexPill must not
-  show it as enabled after a failed registration attempt.
-- Enabling Launch at Login must require an explicit confirmation before
-  CodexPill asks macOS to register the app as a login item.
-- When macOS requires approval for the login item, the menu opens System Settings
-  instead of pretending CodexPill can approve the permission itself.
-- When the login item state is unavailable, the menu keeps the item unchecked
-  and opens System Settings instead of leaving the user at a dead end.
-
-### Privacy
-
-- Logs and diagnostic exports must redact private paths, raw auth material,
-  token-like values, and account identifiers unless the value is already a
-  synthetic fixture.
-- Diagnostic exports must require explicit user confirmation before a support
-  artifact is built or written; cancelling the disclosure must leave no exported
-  report behind.
-- Demo and screenshot data must use synthetic accounts, hosts, and emails.
-
-### Token Usage
-
-- Cached Token Usage buckets may be reused only when they cover the requested
-  current period; the bucket labeled as today must match today's local usage
-  window rather than the last day from a stale persisted cache.
+1. The menu bar item appears, and the menu opens with the active account card,
+   the saved accounts, Add Account…, Refresh Time, Preferences, Diagnostics…,
+   About, and Quit.
+2. If the change touches switching, switch to another saved account and check
+   that the active account card follows.
+3. If the change touches Add Account, Rename, or Remove, run that flow once and
+   cancel it once.
+4. If the change touches the status item or Preferences, check the changed
+   setting in the menu bar label.
+5. Screenshots for a pull request show synthetic accounts only.
