@@ -8,6 +8,8 @@ final class CodexAppServerSessionState: @unchecked Sendable {
     private var rateLimits: CodexAppServerRateLimits?
     private var receivedRateLimitResponse = false
     private var finished = false
+    private var outputClosed = false
+    private var terminationStatus: Int32?
 
     func appendOutput(_ data: Data) -> [String] {
         lock.lock()
@@ -69,6 +71,22 @@ final class CodexAppServerSessionState: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return receivedRateLimitResponse
+    }
+
+    /// Returns the exit status once Codex has also exited, so the caller decides only after both.
+    func closeOutput() -> Int32? {
+        lock.lock()
+        defer { lock.unlock() }
+        outputClosed = true
+        return terminationStatus
+    }
+
+    /// Returns true once Codex's output has also closed, so the caller decides only after both.
+    func recordTermination(status: Int32) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        terminationStatus = status
+        return outputClosed
     }
 
     func markFinished() -> Bool {
@@ -205,9 +223,30 @@ struct CodexAppServerSessionRunner {
                 continuation.resume(with: result)
             }
 
+            let settle: @Sendable (Int32) -> Void = { terminationStatus in
+                if terminationStatus == 0 {
+                    if let result = cleanExit() {
+                        finish(result)
+                    }
+                    return
+                }
+
+                finish(.failure(failure(
+                    state.capturedStderr(),
+                    Int(terminationStatus),
+                    false
+                )))
+            }
+
             outputPipe.fileHandleForReading.readabilityHandler = { handle in
                 let data = handle.availableData
-                guard !data.isEmpty else { return }
+                guard !data.isEmpty else {
+                    handle.readabilityHandler = nil
+                    if let terminationStatus = state.closeOutput() {
+                        settle(terminationStatus)
+                    }
+                    return
+                }
 
                 do {
                     if let response = try consume(data, decoder) {
@@ -225,36 +264,14 @@ struct CodexAppServerSessionRunner {
             process.standardOutput = outputPipe
             process.standardError = errorPipe
             process.terminationHandler = { process in
-                let trailingOutput = outputPipe.fileHandleForReading.readDataToEndOfFile()
-                if !trailingOutput.isEmpty {
-                    do {
-                        if let response = try consume(trailingOutput, decoder) {
-                            finish(.success(response))
-                            return
-                        }
-                    } catch {
-                        finish(.failure(error))
-                        return
-                    }
-                }
-
                 let trailingError = errorPipe.fileHandleForReading.readDataToEndOfFile()
                 if !trailingError.isEmpty {
                     state.appendErrorOutput(trailingError)
                 }
 
-                if process.terminationStatus == 0 {
-                    if let result = cleanExit() {
-                        finish(result)
-                    }
-                    return
+                if state.recordTermination(status: process.terminationStatus) {
+                    settle(process.terminationStatus)
                 }
-
-                finish(.failure(failure(
-                    state.capturedStderr(),
-                    Int(process.terminationStatus),
-                    false
-                )))
             }
 
             do {
