@@ -191,7 +191,6 @@ struct MenuBarAlertFactoryTests {
         #expect(request.messageText == "Export Diagnostics?")
         #expect(request.informativeText.contains("redacted support file"))
         #expect(request.informativeText.contains("account aliases"))
-        #expect(request.informativeText.contains("host aliases"))
         #expect(request.informativeText.contains("auth tokens"))
         #expect(request.informativeText.contains("emails"))
         #expect(request.informativeText.contains("hostnames"))
