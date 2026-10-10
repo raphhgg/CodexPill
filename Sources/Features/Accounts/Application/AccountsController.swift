@@ -113,6 +113,7 @@ final class AccountsController {
     func switchToAccount(_ account: CodexAccount) async -> Bool {
         var didRefreshAfterSwitch = false
         await perform("Switching to \(account.name)...") {
+            try saveRotatedLiveAuth(switchingTo: account)
             catalogState.setActiveAccountID(
                 try await switchAccountWorkflow.run(
                     account: account,
@@ -122,6 +123,16 @@ final class AccountsController {
             didRefreshAfterSwitch = await applySilentPostActionRefresh()
         }
         return didRefreshAfterSwitch
+    }
+
+    private func saveRotatedLiveAuth(switchingTo account: CodexAccount) throws {
+        guard let outgoingAccountID = activeAccountID, outgoingAccountID != account.id else { return }
+        if let result = try refreshActiveAccountUseCase.relinkCurrentAuthSnapshotIfNeeded(
+            accounts: accounts,
+            targetAccountID: outgoingAccountID
+        ) {
+            catalogState.applyRefreshed(result)
+        }
     }
 
     func switchToAccountOnHost(_ account: CodexAccount, on host: RemoteHost) async -> RemoteHostSwitchOutcome {

@@ -62,6 +62,22 @@ struct AccountsControllerRefreshRaceTests {
         #expect(controller.activeAccountID == fixture.backup.id)
     }
 
+    @Test
+    func switchingAwaySavesTheActiveAccountsRotatedLiveAuth() async throws {
+        let fixture = RefreshRaceFixture()
+        fixture.authStore.liveAuth = "personal:2"
+        let controller = fixture.makeController()
+        controller.load()
+
+        _ = await controller.switchToAccount(fixture.backup)
+
+        let personal = try #require(controller.accounts.first(where: { $0.id == fixture.personal.id }))
+        #expect(fixture.authStore.snapshot(for: fixture.personal) == "personal:2")
+        #expect(personal.identity.snapshotFingerprint == "personal:2")
+        #expect(fixture.authStore.liveAuth == "backup:1")
+        #expect(controller.activeAccountID == fixture.backup.id)
+    }
+
     private func startOperation(
         on controller: AccountsController,
         _ operation: @escaping @MainActor () async -> Void
