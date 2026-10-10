@@ -155,8 +155,10 @@ final class AccountsController {
 
     /// Spends one reset credit on the live Codex account, then refreshes its limits.
     /// Each account keeps its attempt's idempotency key until Codex answers, so a retry after a
-    /// lost response cannot spend a second credit. Switching waits until the reset finishes.
+    /// lost response cannot spend a second credit. A reset and an account change never overlap:
+    /// a reset is refused while one runs, and switching, removing or renaming waits for the reset.
     func useResetCredit() async -> ResetCreditResult {
+        guard !isBusy else { return .accountChangeInProgress }
         guard let accountID = activeAccountID, !isApplyingResetCredit else { return .failed }
         isApplyingResetCredit = true
         defer { isApplyingResetCredit = false }
@@ -351,6 +353,10 @@ final class AccountsController {
     }
 
     private func perform(_ status: String, operation: () async throws -> Void) async {
+        guard !isApplyingResetCredit else {
+            operationState.fail(AccountsControllerError.resetCreditInProgress)
+            return
+        }
         accountsControllerLogger.log("Beginning operation with status: \(status, privacy: .public)")
         operationState.begin(status: status)
         await finishSavedAccountsRefresh()
@@ -387,11 +393,14 @@ final class AccountsController {
 
 enum AccountsControllerError: LocalizedError, Equatable {
     case operationAlreadyInProgress
+    case resetCreditInProgress
 
     var errorDescription: String? {
         switch self {
         case .operationAlreadyInProgress:
             "Another account operation is already in progress."
+        case .resetCreditInProgress:
+            "A reset is in progress. Try again when it finishes."
         }
     }
 }

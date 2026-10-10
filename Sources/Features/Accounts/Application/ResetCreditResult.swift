@@ -9,6 +9,8 @@ enum ResetCreditResult: Equatable {
     case unconfirmed
     /// Codex could not be reached. Trying again reuses the same attempt.
     case failed
+    /// A switch or another account change was running, so no reset was tried.
+    case accountChangeInProgress
 
     init(_ outcome: CodexResetCreditOutcome) {
         switch outcome {
@@ -35,6 +37,8 @@ enum ResetCreditResult: Equatable {
             "Codex didn't confirm the reset. Check your limits before trying again."
         case .failed:
             "Couldn't use a reset. Try again."
+        case .accountChangeInProgress:
+            "Wait for the account change to finish."
         }
     }
 }
