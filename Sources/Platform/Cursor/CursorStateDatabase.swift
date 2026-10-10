@@ -67,14 +67,14 @@ private final class Connection {
 
     init(openingReadOnly url: URL) throws {
         let path = url.path
-        let fileManager = FileManager.default
-        let hasWALSidecars = fileManager.fileExists(atPath: path + "-wal") || fileManager.fileExists(atPath: path + "-shm")
+        let hasSidecars = ["-wal", "-shm", "-journal"].contains { FileManager.default.fileExists(atPath: path + $0) }
 
-        // A read-only open of an idle WAL database may still need to create `-shm`.
-        // `immutable=1` never touches the directory, so use it whenever Cursor is not running.
+        // A read-only open of an idle WAL database may still need to create `-shm`, so an idle database is opened
+        // with `immutable=1`, which never touches the directory. A sidecar means a writer is open or crashed, and
+        // `immutable=1` would read its uncommitted pages, so then SQLite reads normally, or refuses a hot journal.
         var database: OpaquePointer?
         let code: Int32
-        if hasWALSidecars {
+        if hasSidecars {
             code = sqlite3_open_v2(path, &database, SQLITE_OPEN_READONLY, nil)
         } else {
             let uri = url.standardizedFileURL.absoluteString + "?immutable=1"

@@ -108,6 +108,19 @@ struct CursorStateDatabaseTokenSourceTests {
     }
 
     @Test
+    func hotRollbackJournalIsNeverReadPastAsIfTheDatabaseWereIdle() throws {
+        let harness = try CursorStateDatabaseHarness()
+        try harness.create()
+        try harness.insertText(jwt)
+        let uncommitted = CursorAccessTokenFixtures.jwt(subject: "github|user_uncommitted", expiresAt: CursorAccessTokenFixtures.referenceDate)
+        let crashCopy = try harness.copyWithHotJournal(replacingAccessTokenWith: uncommitted)
+
+        let lookup = try? CursorStateDatabaseTokenSource(databaseURL: crashCopy).lookup()
+
+        #expect(lookup.flatMap(userID(from:)) != "user_uncommitted")
+    }
+
+    @Test
     func idleWALDatabaseIsReadImmutablyWithoutCreatingSidecars() throws {
         let harness = try CursorStateDatabaseHarness()
         try harness.create(walMode: true)

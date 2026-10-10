@@ -98,6 +98,28 @@ final class CursorStateDatabaseHarness {
         }
     }
 
+    /// Copies the database and its rollback journal in the middle of a write that replaces the access token,
+    /// the way a crash would leave them: a hot journal next to a database file that already holds uncommitted
+    /// pages. Returns the copied database. The write itself is rolled back.
+    func copyWithHotJournal(replacingAccessTokenWith newValue: String) throws -> URL {
+        for index in 0..<300 {
+            try insertText(String(repeating: "x", count: 500), key: "filler/\(index)")
+        }
+        try execute("PRAGMA cache_size=1")
+        try execute("PRAGMA cache_spill=1")
+        try execute("BEGIN")
+        try execute("UPDATE ItemTable SET value = '\(newValue)' WHERE key = 'cursorAuth/accessToken'")
+        try execute("UPDATE ItemTable SET value = '\(String(repeating: "y", count: 500))' WHERE key LIKE 'filler/%'")
+
+        let copyDirectory = directoryURL.appendingPathComponent("crash-copy", isDirectory: true)
+        try FileManager.default.createDirectory(at: copyDirectory, withIntermediateDirectories: true)
+        let copy = copyDirectory.appendingPathComponent(databaseURL.lastPathComponent)
+        try FileManager.default.copyItem(atPath: databaseURL.path, toPath: copy.path)
+        try FileManager.default.copyItem(atPath: databaseURL.path + "-journal", toPath: copy.path + "-journal")
+        try execute("ROLLBACK")
+        return copy
+    }
+
     func directoryListing() throws -> [String] {
         try FileManager.default.contentsOfDirectory(atPath: directoryURL.path).sorted()
     }
