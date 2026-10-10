@@ -154,9 +154,10 @@ Local app-server reads enter this shared session runner through `CodexAppServerC
 - `ClaudeBrowserSignIn`, one browser sign-in: it starts a `ClaudeOAuthRedirectReceiver` (`LoopbackClaudeOAuthReceiver`, a one-shot `NWListener` on the loopback interface), opens the authorize URL, waits up to 5 minutes for the callback, and exchanges the code through `ClaudeTokenEndpoint`.
 - `ClaudeSignIn` and `ClaudeSignInStoring`, CodexPill's own sign-in in one `CodexPill Claude sign-in` Keychain item, so a token rotation is one write.
 - `ClaudeUsageClient`, the source order (CodexPill's sign-in, then Claude Code's unexpired sign-in), the single-flight refresh 5 minutes before expiry, the Keychain prompt rule (only after a user action, for both items), the `api.anthropic.com/api/oauth/usage` request, its redirect rule, its rate-limit wait, and parsing its response.
-- The read-only Claude Code lookup in `.credentials.json` and the `Claude Code-credentials` Keychain item, which CodexPill never writes.
+- The Claude Code lookup in `.credentials.json` and the `Claude Code-credentials` Keychain item, read-only for usage.
+- `ClaudeCodeAccountStore`, saved Claude Code sign-ins: the `claude-code-accounts.json` catalog, one `CodexPill Claude Code account` Keychain item per account (`ClaudeCodeAccountItemStoring`), capture, and switching. `ClaudeCodeSignInStore` is the only code that writes Claude Code's sign-in: the `claudeAiOauth` part of its credentials and `oauthAccount` in its global config, keeping every other key.
 
-Tokens are `RedactedClaudeSecret` values that print as `<Type>(redacted)`. They never leave this module except in a request to Anthropic or in CodexPill's own Keychain item.
+Tokens are `RedactedClaudeSecret` values that print as `<Type>(redacted)`. They never leave this module except in a request to Anthropic, in CodexPill's own Keychain items, or in Claude Code's own sign-in on a switch.
 
 `Platform/Cursor` owns everything CodexPill knows about Cursor: the read-only token lookup in Cursor's `state.vscdb`, the `cursor.com/api/usage-summary` request, and parsing its response. The token never leaves this module except as the request's cookie.
 

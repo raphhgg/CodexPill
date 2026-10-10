@@ -10,7 +10,7 @@ Claude Usage is an optional, display-only menu bar feature. When connected, Code
 
 CodexPill keeps its own Claude sign-in, made with "Sign in with Claude" in the browser. It refreshes that sign-in itself, so the numbers keep updating whether the user works in the Claude desktop app, the web, or the terminal. People who use the `claude` terminal app need no second sign-in: while Claude Code's own sign-in is unexpired, CodexPill can read usage with it instead.
 
-CodexPill does not switch Claude accounts or change anything in Claude Code. It never writes, refreshes, or stores Claude Code's sign-in.
+Reading usage never changes anything in Claude Code. It never writes, refreshes, or stores Claude Code's sign-in. Only [Claude Code account switching](#claude-code-account-switching), a separate user action, writes it.
 
 The feature is off by default. Connecting it is the user's consent for CodexPill to sign in to Claude, or to read Claude Code's sign-in, and to send the token to Anthropic.
 
@@ -18,7 +18,7 @@ Claude usage is display-only. It never feeds account availability, ranking, or n
 
 ## Menu
 
-A `Claude` section sits below the saved accounts and above `Cursor`. It has no switching actions. Each state has a short title and at most one line or one action.
+A `Claude` section sits below the saved accounts and above `Cursor`. Switching actions are not in the menu yet. Each state has a short title and at most one line or one action.
 
 - **Not connected.** `Connect Claude…`. Choosing it opens a consent alert first. Nothing is read until the user confirms.
 - **Consent alert.**
@@ -59,7 +59,7 @@ All knowledge of Claude's OAuth, both sign-ins, and Anthropic's usage endpoint l
 
 **CodexPill's sign-in item.** A generic password in the login Keychain, service `CodexPill Claude sign-in`, account `Claude`, holding JSON with the access token, refresh token, and expiry. Never a file. One item means a rotated access and refresh token are saved in one write. Refreshes run one at a time: concurrent reads share one refresh, so a rotated refresh token is never spent twice. If the Keychain refuses to save a rotation, CodexPill keeps it in memory and retries the save on the next read.
 
-**Claude Code's sign-in, read-only.** CodexPill looks in two places, in order, and never writes either:
+**Claude Code's sign-in.** CodexPill looks in two places, in order. Reading usage never writes either; only a switch does:
 
 1. `.credentials.json` in Claude Code's config folder: `CLAUDE_CONFIG_DIR` when CodexPill's environment sets it, otherwise `~/.claude`.
 2. The login Keychain generic password with service `Claude Code-credentials` and account set to the macOS user name.
@@ -73,6 +73,39 @@ Both hold the same JSON. CodexPill decodes only `claudeAiOauth.accessToken`, `cl
 **HTTP.** Every request that carries a token uses an ephemeral session with no cookie store and no URL cache. It follows a redirect only to the same host over HTTPS, so a token never reaches another host.
 
 **Response.** `five_hour` and `seven_day` are each `{utilization, resets_at}`: `utilization` runs from 0 to 100 and `resets_at` is ISO 8601. CodexPill maps `five_hour` to `Session` (300 minutes) and `seven_day` to `Weekly` (10,080 minutes). It ignores other windows such as `seven_day_opus` and `seven_day_sonnet`. A null or missing window is left out. The plan name comes from Claude Code's `subscriptionType`, for example `max`. CodexPill's own sign-in has no plan name.
+
+## Claude Code Account Switching
+
+CodexPill can save several Claude Code sign-ins and switch the `claude` terminal app between them, the way it switches Codex through `auth.json`. This is the data layer only. The menu (`Use <name> Account` in the Claude section) comes later.
+
+**What a saved account is.** A name, the email and organization name from Claude Code's account record, the plan from `subscriptionType`, and the account's user and organization ids. The catalog is `claude-code-accounts.json` in CodexPill's app-support folder and holds no token. The sign-in itself is one `CodexPill Claude Code account` generic password per account, with the account's id as the Keychain account, holding `{"claudeAiOauth": …, "oauthAccount": …}` exactly as Claude Code wrote them.
+
+**Identity.** Two sign-ins are the same account when `oauthAccount` has the same `accountUuid` and `organizationUuid`, because one person can belong to a personal and a team organization. Without an `oauthAccount`, the same refresh token. The active saved account comes from `oauthAccount` in Claude Code's global config alone, so finding it reads no Keychain item.
+
+**Save current.** Reads Claude Code's sign-in, which may show the macOS Keychain prompt. Saving an account that is already saved replaces its sign-in and plan and keeps its name. A new account is named after its email.
+
+**Switch.**
+
+1. Read Claude Code's current sign-in once, from `.credentials.json` or the Keychain item, in the same order as usage reads.
+2. If it is not a saved account, stop with `currentSignInNotSaved`. CodexPill never overwrites a sign-in it cannot bring back.
+3. Save it again into its account's item. Claude Code rotates the refresh token whenever it renews the access token, so the copy saved earlier may already be spent.
+4. If the target is the current account, stop.
+5. Replace `claudeAiOauth` in the item that was read, keeping every other key such as `mcpOAuth`, and write it back to the same place. The Keychain item is only updated, never created or deleted, so it keeps the access rules Claude Code gave it. If Claude Code is signed out, the switch stops with `claudeCodeSignedOut`: run `claude` and sign in once.
+6. Replace `oauthAccount` in Claude Code's global config (`~/.claude.json`, or `.claude.json` in `CLAUDE_CONFIG_DIR`), keeping every other key. If that write fails, the credentials go back to what they were.
+
+**Running Claude Code sessions.** Claude Code's docs say sessions that share a config folder share one saved login: a login made in another Claude Code window is picked up by an open interactive session on its own (Claude Code 2.1.286 or later), and parallel sessions coordinate renewal so only one refreshes at a time. A switch writes the login the same way, so open sessions are expected to move to the new account without a restart. The docs do not say when a session re-reads the login, so a request already in flight finishes on the old account. What is not verified:
+
+- whether a session that was mid-renewal of the old account can write the old account back over the switch. Switching again repairs it.
+- what happens when the saved sign-in's refresh token was spent outside CodexPill, for example after `/login` to another account without saving first. Claude Code's docs say a rejected refresh clears the saved login, so `claude` asks you to `/login` again.
+
+**Claude desktop app and claude.ai.** Not switched. The desktop app keeps its own sign-in, and Claude Code's docs describe no shared login between the two. CodexPill's own usage sign-in is not switched either.
+
+**Known limits.**
+
+- With `CLAUDE_CONFIG_DIR` set, Claude Code names its Keychain item after that folder (`Claude Code-credentials-<hash>`). CodexPill reads and writes only `Claude Code-credentials`. Apps opened from the Finder do not inherit shell variables, so this matters only when CodexPill itself runs with `CLAUDE_CONFIG_DIR`.
+- CodexPill rewrites `~/.claude.json` with `JSONSerialization`, so key order and spacing change. Claude Code reads it the same.
+
+**Isolated runs.** Claude Code's item is `<root>/claude-keychain-item.json` and updates only when that file exists, the global config is `<root>/.claude.json` (or `.claude.json` in `CLAUDE_CONFIG_DIR`), and each saved account is `<root>/claude-code-account-<id>.json`.
 
 ## Read Policy
 
@@ -106,4 +139,5 @@ The user-facing summary lives in [PRIVACY.md](../PRIVACY.md).
 - `ClaudeUsageAPITests` cover the usage response mapping, the request headers, the redirect rule, and status mapping for `401` and `429`.
 - `ClaudeCodeUsageTests` cover the source order, connecting with a fresh Claude Code sign-in, a cancelled first sign-in, refresh and rotation, `invalid_grant`, a refresh that cannot reach Anthropic, one shared refresh for two reads, disconnect, the Keychain prompt only after a user action, and the rate-limit wait.
 - Two coordinator tests walk the built `NSMenu`: consent, waiting with `Cancel Sign-In`, current usage, `Sign in to Claude again` with `Sign In…`, disconnect, and `Allow Keychain access…`.
+- `ClaudeCodeAccountStoreTests` run on the isolated-run files: save once per account and organization, switch keeping `mcpOAuth` and other config keys, save the rotated refresh token before switching away, match by refresh token when there is no account record, refuse an unsaved or signed-out sign-in, switch inside `.credentials.json` without touching the Keychain item, delete only CodexPill's copy, and print no token.
 - No test touches Anthropic or a real Keychain item.

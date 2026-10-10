@@ -2,9 +2,10 @@ import Foundation
 import LocalAuthentication
 import Security
 
-/// Reads one generic password, by default Claude Code's `Claude Code-credentials` item. It never writes,
-/// updates, or deletes that item.
-struct SystemClaudeKeychain: ClaudeKeychainReading {
+/// Reads one generic password, by default Claude Code's `Claude Code-credentials` item. It writes that item only
+/// when the user switches Claude accounts, and then only updates its data: it never creates or deletes it, so the
+/// item keeps the access rules Claude Code gave it.
+struct SystemClaudeKeychain: ClaudeCodeKeychainItem {
     static let claudeCodeService = "Claude Code-credentials"
 
     let service: String
@@ -39,6 +40,16 @@ struct SystemClaudeKeychain: ClaudeKeychainReading {
         default:
             return .failed
         }
+    }
+
+    /// May show the macOS Keychain prompt, so only a user's switch calls it.
+    func updateCredentialsData(_ data: Data) -> Bool {
+        let query: [CFString: Any] = [
+            kSecClass: kSecClassGenericPassword,
+            kSecAttrService: service,
+            kSecAttrAccount: account,
+        ]
+        return SecItemUpdate(query as CFDictionary, [kSecValueData: data] as CFDictionary) == errSecSuccess
     }
 
     private func copyMatching(returning key: CFString, allowingPrompt: Bool) -> (status: OSStatus, result: AnyObject?) {
