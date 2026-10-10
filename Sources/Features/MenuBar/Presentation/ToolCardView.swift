@@ -1,7 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// One tool's card: brand mark, name and plan, then its state message, meters and extra lines.
 struct ToolCardView: View {
     let section: ToolSection
     let sessionAccentColor: Color
