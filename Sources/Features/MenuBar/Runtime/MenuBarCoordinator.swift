@@ -31,6 +31,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let tasks = TrackedTasks()
     private var rebuildsMenuAfterClose = false
     private var rebuildsMenuBeforeOpen = false
+    private var menuBuiltAt: Date?
+    private let now: () -> Date
     private var hasPromptedForEmptyState = false
     private var isObservingSettings = false
     private var isObservingStore = false
@@ -65,7 +67,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         diagnosticReportPresenter: DiagnosticReportPresenting,
         tokenUsageProvider: TokenUsageMenuProviding,
         providerUsageSources: [any UsageProviderSource],
-        allowsEmptyStatePrompt: Bool
+        allowsEmptyStatePrompt: Bool,
+        now: @escaping () -> Date = Date.init
     ) {
         self.statusItemRuntime = statusItemRuntime
         self.shortcutRuntime = shortcutRuntime
@@ -83,6 +86,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.tokenUsageProvider = tokenUsageProvider
         self.providerUsageSources = providerUsageSources
         self.allowsEmptyStatePrompt = allowsEmptyStatePrompt
+        self.now = now
     }
 
     func start() {
@@ -504,6 +508,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         let menu = statusItemRuntime.menu ?? NSMenu()
         menuBuilder.populate(menu: menu, state: state, target: self)
         statusItemRuntime.menu = menu
+        menuBuiltAt = state.now
     }
 
     func menuState() -> MenuBarMenuState {
@@ -534,7 +539,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             tokenUsageLoadingAnimationStyle: tokenUsagePreferences.loadingAnimationStyle,
             tokenUsagePeakScope: tokenUsagePreferences.peakScope,
             tokenUsageCard: makeTokenUsageCard(),
-            providerUsage: providerUsageRuntime.states
+            providerUsage: providerUsageRuntime.states,
+            now: now()
         )
     }
 
@@ -573,11 +579,15 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         rebuildsMenuBeforeOpen = true
     }
 
+    /// Reset countdowns are measured from when the menu was built, so a menu built a while ago is rebuilt as it opens.
     private func rebuildDeferredMenuIfNeeded() {
-        guard rebuildsMenuBeforeOpen else { return }
+        let showsStaleTimes = menuBuiltAt.map { now().timeIntervalSince($0) >= Self.menuTimesStaleAfter } ?? false
+        guard rebuildsMenuBeforeOpen || showsStaleTimes else { return }
         rebuildsMenuBeforeOpen = false
         rebuildMenu()
     }
+
+    private static let menuTimesStaleAfter: TimeInterval = 30
 
     private func setLaunchAtLoginEnabled(_ isEnabled: Bool) {
         do {
@@ -736,7 +746,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private func scheduleAutoRefresh() {
         autoRefreshTimer?.invalidate()
         let interval = TimeInterval(menuDisplaySettings.refreshIntervalMinutes * 60)
-        autoRefreshTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+        autoRefreshTimer = Timer.repeatingInCommonModes(interval: interval) { [weak self] in
             self?.tasks.start { await self?.performScheduledRefresh() }
         }
     }

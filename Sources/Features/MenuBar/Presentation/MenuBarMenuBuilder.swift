@@ -85,7 +85,6 @@ struct MenuBarMenuBuilder {
         width: CGFloat
     ) -> NSMenuItem {
         let item = NSMenuItem()
-        let now = Date()
         let view = NSHostingView(
             rootView: ActiveAccountMenuContent(
                 account: card.account,
@@ -97,7 +96,7 @@ struct MenuBarMenuBuilder {
                 meterLayout: state.usageMeterLayout,
                 showsPacingMarkers: state.pacingMarkersEnabled,
                 tokenUsageCard: tokenUsageCard,
-                now: now
+                now: state.now
             )
         )
         item.view = configuredHostedMenuView(view, width: width)
@@ -136,7 +135,8 @@ struct MenuBarMenuBuilder {
                     for: $0.account,
                     displayName: compactMenuRowDisplayName(for: $0.account.name),
                     menuContentWidth: minimumMenuContentWidth,
-                    percentMode: state.usagePercentMode
+                    percentMode: state.usagePercentMode,
+                    now: state.now
                 ) + nativeMenuItemPaddingAllowance
             }
             .max() ?? 0
@@ -157,7 +157,8 @@ struct MenuBarMenuBuilder {
             for: entry.account,
             displayName: compactMenuRowDisplayName(for: entry.account.name),
             menuContentWidth: width,
-            percentMode: state.usagePercentMode
+            percentMode: state.usagePercentMode,
+            now: state.now
         )
         item.submenu = inactiveAccountTargetMenu(for: entry, state: state, target: target)
         return item

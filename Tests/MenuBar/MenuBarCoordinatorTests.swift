@@ -56,6 +56,53 @@ struct MenuBarCoordinatorTests {
         #expect(state.activeAccount?.name == "Personal")
         #expect(state.inactiveAccounts.map(\.name) == ["Business 2", "Business 1"])
     }
+
+    @Test
+    func openingTheMenuMeasuresResetCountdownsFromTheMomentItOpens() async throws {
+        let harness = try MenuBarCoordinatorHarness()
+        defer { harness.tearDown() }
+        let builtAt = Date(timeIntervalSince1970: 1_800_000_000)
+        var clock = builtAt
+        let active = try harness.makeActiveAccount(named: "Personal", email: "personal@example.com")
+        let limited = makeAccount(
+            name: "Business 2",
+            usage: makeUsage(
+                sessionUsedPercent: 100,
+                sessionResetsAt: builtAt.addingTimeInterval(2 * 60 * 60),
+                weeklyUsedPercent: 20,
+                weeklyResetsAt: builtAt.addingTimeInterval(3 * 24 * 60 * 60),
+                fetchedAt: builtAt
+            )
+        )
+        try harness.repository.saveAccounts([active, limited])
+        let coordinator = harness.makeCoordinator(now: { clock })
+        coordinator.start()
+        await coordinator.waitForPendingWork()
+        let menu = try #require(harness.menu)
+        func limitedRowTitle() -> String? {
+            menu.items.first { ($0.representedObject as? String) == limited.id.uuidString }?.attributedTitle?.string
+        }
+        #expect(limitedRowTitle()?.contains("S 100% (2h00)") == true)
+
+        clock = builtAt.addingTimeInterval(10)
+        coordinator.menuWillOpen(menu)
+        #expect(limitedRowTitle()?.contains("S 100% (2h00)") == true)
+
+        clock = builtAt.addingTimeInterval(30 * 60)
+        coordinator.menuWillOpen(menu)
+        #expect(limitedRowTitle()?.contains("S 100% (1h30)") == true)
+    }
+
+    @Test
+    func commonModeTimerFiresWhileAMenuIsTracking() {
+        var fireCount = 0
+        let timer = Timer.repeatingInCommonModes(interval: 0.01) { fireCount += 1 }
+        defer { timer.invalidate() }
+
+        CFRunLoopRunInMode(CFRunLoopMode(RunLoop.Mode.eventTracking.rawValue as CFString), 0.2, false)
+
+        #expect(fireCount > 0)
+    }
 }
 
 @MainActor
@@ -77,7 +124,10 @@ private final class MenuBarCoordinatorHarness {
         settings = SettingsStores(userDefaults: UserDefaults(suiteName: suiteName)!)
     }
 
-    func makeCoordinator(providerUsageSources: [any UsageProviderSource] = []) -> MenuBarCoordinator {
+    func makeCoordinator(
+        providerUsageSources: [any UsageProviderSource] = [],
+        now: @escaping () -> Date = Date.init
+    ) -> MenuBarCoordinator {
         accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
@@ -93,7 +143,8 @@ private final class MenuBarCoordinatorHarness {
             alertPresenter: alertPresenter,
             panelPresenter: panelPresenter,
             providerUsageSources: providerUsageSources,
-            allowsEmptyStatePrompt: false
+            allowsEmptyStatePrompt: false,
+            now: now
         )
         self.coordinator = coordinator
         return coordinator
@@ -109,6 +160,8 @@ private final class MenuBarCoordinatorHarness {
         try authData.write(to: repository.paths.codexAuthFile, options: .atomic)
         return account
     }
+
+    var menu: NSMenu? { statusItem.menu }
 
     func menuItem(representing payload: Any) -> NSMenuItem {
         let item = NSMenuItem()
