@@ -42,12 +42,13 @@ enum ClaudeUsageAPI {
         return target.scheme?.lowercased() == "https" && target.host?.lowercased() == host
     }
 
-    static func error(forStatus statusCode: Int, retryAfter: String?) -> ClaudeUsageWebError? {
+    /// Nil for 200. `retryAfter` is the parsed `Retry-After` wait, if any.
+    static func error(forStatus statusCode: Int, retryAfter: TimeInterval?) -> ClaudeUsageWebError? {
         switch statusCode {
         case 200: nil
         case 401: .unauthorized
         case 403: .forbidden
-        case 429: .rateLimited(retryAfter: retryAfter.flatMap { TimeInterval($0.trimmingCharacters(in: .whitespaces)) })
+        case 429: .rateLimited(retryAfter: retryAfter)
         default: .httpStatus(statusCode)
         }
     }
@@ -115,7 +116,7 @@ final class URLSessionClaudeUsageWebClient: ClaudeUsageWebClient {
         }
         if let error = ClaudeUsageAPI.error(
             forStatus: httpResponse.statusCode,
-            retryAfter: httpResponse.value(forHTTPHeaderField: "Retry-After")
+            retryAfter: RetryAfter.delay(httpResponse.value(forHTTPHeaderField: "Retry-After"), now: Date())
         ) {
             throw error
         }

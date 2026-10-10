@@ -42,8 +42,7 @@ final class URLSessionCursorUsageWebClient: CursorUsageWebClient {
 
         if let error = CursorUsageWebError.error(
             forStatus: httpResponse.statusCode,
-            retryAfter: httpResponse.value(forHTTPHeaderField: "Retry-After"),
-            now: Date()
+            retryAfter: RetryAfter.delay(httpResponse.value(forHTTPHeaderField: "Retry-After"), now: Date())
         ) {
             throw error
         }
