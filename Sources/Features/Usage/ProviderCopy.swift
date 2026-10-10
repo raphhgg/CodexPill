@@ -28,6 +28,7 @@ struct ProviderCopy: Sendable {
         case .notInstalled: ("\(name) isn't installed", nil)
         case .signedOut: ("Not signed in to \(name)", "Sign in to \(name) to see usage.")
         case .signInExpired: ("\(name) sign-in expired", "Open \(name) to renew it.")
+        case .signInRequired: ("Sign in to \(sectionTitle) again", nil)
         case .keychainAccessNeeded: ("Allow Keychain access", nil)
         case .signInUnreadable: ("Can't read the \(name) sign-in", "Sign in to \(name) again.")
         case .signInBusy: ("\(name) is busy", retrying)

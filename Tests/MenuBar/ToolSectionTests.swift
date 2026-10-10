@@ -90,6 +90,7 @@ struct ToolSectionTests {
         (.claude, .rateLimited, "Anthropic asked to wait", "Retrying in a few minutes."),
         (.claude, .signInExpired, "Claude Code sign-in expired", "Open Claude Code to renew it."),
         (.claude, .signedOut, "Not signed in to Claude Code", "Sign in to Claude Code to see usage."),
+        (.claude, .signInRequired, "Sign in to Claude again", nil),
         (.claude, .keychainAccessNeeded, "Allow Keychain access", nil),
         (.cursor, .signInBusy, "Cursor is busy", "Retrying in a few minutes."),
         (.cursor, .notInstalled, "Cursor isn't installed", nil),
@@ -124,6 +125,29 @@ struct ToolSectionTests {
         #expect(staleSection.card.title == nil)
         #expect(staleSection.card.isDimmed)
         #expect(staleSection.planTag == "Max x20")
+    }
+
+    @Test(arguments: [
+        (UsageUnavailableReason.signInRequired, "Sign In…"),
+        (.signInExpired, "Sign In…"),
+        (.signedOut, "Sign In…"),
+        (.keychainAccessNeeded, "Allow Keychain access…"),
+        (.unreachable, nil),
+    ] as [(UsageUnavailableReason, String?)])
+    func aToolWithItsOwnSignInOffersSignInWhenItsSignInIsGone(reason: UsageUnavailableReason, followUp: String?) throws {
+        let usage = ProviderUsageState(provider: .claude, status: .unavailable(reason, lastSnapshot: nil), canSignIn: true)
+        let section = try #require(state(providerUsage: [usage]).toolSections.first)
+
+        #expect(section.followUp?.title == followUp)
+    }
+
+    @Test
+    func aFirstSignInShowsTheCardBeforeTheToolIsConnected() throws {
+        let signingIn = ProviderUsageState(provider: .claude, status: .notConnected, isSigningIn: true)
+        let section = try #require(state(providerUsage: [signingIn]).toolSections.first)
+
+        #expect(section.card == ToolCard(title: "Finish signing in in your browser"))
+        #expect(section.followUp?.title == "Cancel Sign-In")
     }
 
     @Test

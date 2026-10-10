@@ -31,6 +31,9 @@ enum UsageUnavailableReason: Equatable, Sendable {
     case signedOut
     /// The sign-in is past its expiry, or the provider rejected it (HTTP 401).
     case signInExpired
+    /// The sign-in CodexPill keeps for the provider is gone or was rejected. Only signing in again in CodexPill helps,
+    /// and it may be another account.
+    case signInRequired
     /// The sign-in exists, but macOS needs the user to allow CodexPill to read it.
     case keychainAccessNeeded
     /// The sign-in exists but could not be read or parsed.
@@ -50,6 +53,6 @@ enum UsageUnavailableReason: Equatable, Sendable {
 
     /// The last good numbers stay on screen only while they still belong to the same signed-in account.
     var keepsLastSnapshot: Bool {
-        self != .signedOut && self != .notInstalled
+        ![.signedOut, .notInstalled, .signInRequired].contains(self)
     }
 }

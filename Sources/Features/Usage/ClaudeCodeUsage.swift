@@ -1,7 +1,7 @@
 import Foundation
 
-/// Claude subscription limits for the menu, read only after the user connects Claude. CodexPill's own
-/// "Sign in with Claude" comes first; Claude Code's unexpired sign-in is the fallback for terminal users.
+/// Claude subscription limits for the menu, read only after the user connects Claude, with the one sign-in they
+/// connected: Claude Code's, or CodexPill's own "Sign in with Claude".
 struct ClaudeCodeUsage: ProviderConnection {
     let provider = UsageProvider.claude
     let staleAfter: TimeInterval = 15 * 60
@@ -33,9 +33,9 @@ struct ClaudeCodeUsage: ProviderConnection {
     /// the user has to sign in with Claude in the browser instead. Once connected, it only lets the next read ask for
     /// Keychain access, since the user just asked for it.
     func connect() async -> Bool {
-        guard settings.isEnabled else {
+        guard settings.connection != nil else {
             guard await client.hasUsableClaudeCodeSignIn(now: Date()) else { return false }
-            settings.isEnabled = true
+            settings.connection = .claudeCode
             return true
         }
         await client.allowKeychainPromptOnNextRead()
@@ -45,7 +45,7 @@ struct ClaudeCodeUsage: ProviderConnection {
     /// Forgets the opt-in and deletes CodexPill's own sign-in. Claude Code's sign-in is untouched.
     func disconnect() async {
         await browserSignIn.cancel()
-        settings.isEnabled = false
+        settings.connection = nil
         await client.forgetSignIn()
     }
 
@@ -92,16 +92,16 @@ struct ClaudeCodeUsage: ProviderConnection {
     }
 
     func readUsage(now: Date) async -> UsageProviderReading {
-        guard settings.isEnabled else { return .notConnected }
-        return Self.reading(from: await client.refresh(now: now), fetchedAt: now)
+        guard let source = settings.connection else { return .notConnected }
+        return Self.reading(from: await client.refresh(now: now, using: source), source: source, fetchedAt: now)
     }
 
-    static func reading(from status: ClaudeUsageStatus, fetchedAt: Date) -> UsageProviderReading {
+    static func reading(from status: ClaudeUsageStatus, source: ClaudeSignInSource, fetchedAt: Date) -> UsageProviderReading {
         switch status {
         case .signedOut: return .unavailable(.signedOut)
         case .keychainAccessNeeded: return .unavailable(.keychainAccessNeeded)
         case .signInUnreadable: return .unavailable(.signInUnreadable)
-        case .signInExpired: return .unavailable(.signInExpired)
+        case .signInExpired: return .unavailable(source == .codexPill ? .signInRequired : .signInExpired)
         case .forbidden: return .unavailable(.accessDenied)
         case .rateLimited: return .unavailable(.rateLimited)
         case .unreachable: return .unavailable(.unreachable)
@@ -140,15 +140,15 @@ actor ClaudeUsageSignIn: ProviderSignIn {
         self.settings = settings
     }
 
-    /// Claude stays connected only if the sign-in succeeds, so a cancelled or timed-out first sign-in leaves Claude
-    /// not connected.
+    /// The connection changes only if the sign-in succeeds, so a cancelled first sign-in leaves Claude not connected
+    /// and a cancelled sign-in again keeps asking for one.
     func run() async throws(ProviderNotice) -> Bool {
         let task = Task { [flow] in try await flow.signIn() }
         running = task
         defer { running = nil }
         guard let signIn = try? await task.value, !task.isCancelled else { return false }
         await client.store(signIn)
-        settings.isEnabled = true
+        settings.connection = .codexPill
         return true
     }
 
