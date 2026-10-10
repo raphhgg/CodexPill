@@ -39,6 +39,7 @@ struct CursorUsage: UsageProviderSource {
         case .tokenExpired, .unauthorized: .unavailable(.signInExpired)
         case .unavailable(.localStateUnreadable): .unavailable(.signInUnreadable)
         case .unavailable(.network): .unavailable(.unreachable)
+        case .unavailable(.rateLimited): .unavailable(.rateLimited)
         case .unavailable(.unexpectedResponse): .unavailable(.unexpectedResponse)
         case let .available(snapshot): .snapshot(usage(from: snapshot))
         }

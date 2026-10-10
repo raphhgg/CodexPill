@@ -99,6 +99,9 @@ struct CursorUsageTests {
 
         fixture.response = .success(Data("<html>".utf8))
         #expect(await fixture.usage.readUsage(now: now) == .unavailable(.unexpectedResponse))
+
+        fixture.response = .failure(.rateLimited(retryAfter: 60))
+        #expect(await fixture.usage.readUsage(now: now) == .unavailable(.rateLimited))
     }
 
     private func connectedReading(summary: String) async -> UsageProviderReading {
