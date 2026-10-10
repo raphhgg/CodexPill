@@ -32,10 +32,6 @@ struct AccountCatalogState {
         activeAccountID = result.activeAccountID
     }
 
-    mutating func applyRenamed(_ result: RenameSavedAccountResult) {
-        accounts = result.accounts
-    }
-
     mutating func applyPersistedMetadata(_ accounts: [CodexAccount]) {
         self.accounts = accounts
     }

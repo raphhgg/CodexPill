@@ -21,7 +21,6 @@ final class AccountsController {
     private let refreshActiveAccountUseCase: RefreshActiveAccountUseCase
     private let hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase
     private let deleteSavedAccountUseCase: DeleteSavedAccountUseCase
-    private let renameSavedAccountUseCase: RenameSavedAccountUseCase
     private let accountCatalogStore: AccountCatalogStore
     private let switchAccountWorkflow: SwitchAccountWorkflow
     private let addAccountWorkflow: AddAccountWorkflow
@@ -45,7 +44,6 @@ final class AccountsController {
         refreshActiveAccountUseCase: RefreshActiveAccountUseCase,
         hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase,
         deleteSavedAccountUseCase: DeleteSavedAccountUseCase,
-        renameSavedAccountUseCase: RenameSavedAccountUseCase,
         accountCatalogStore: AccountCatalogStore,
         switchAccountWorkflow: SwitchAccountWorkflow,
         addAccountWorkflow: AddAccountWorkflow,
@@ -61,7 +59,6 @@ final class AccountsController {
         self.refreshActiveAccountUseCase = refreshActiveAccountUseCase
         self.hydrateSavedAccountsMetadataUseCase = hydrateSavedAccountsMetadataUseCase
         self.deleteSavedAccountUseCase = deleteSavedAccountUseCase
-        self.renameSavedAccountUseCase = renameSavedAccountUseCase
         self.accountCatalogStore = accountCatalogStore
         self.switchAccountWorkflow = switchAccountWorkflow
         self.addAccountWorkflow = addAccountWorkflow
@@ -129,17 +126,6 @@ final class AccountsController {
         }
     }
 
-    func renameSavedAccount(_ account: CodexAccount, to newName: String) async {
-        await perform("Renaming \(account.name)...") {
-            let result = try renameSavedAccountUseCase.run(
-                account: account,
-                newName: newName,
-                accounts: accounts
-            )
-            catalogState.applyRenamed(result)
-        }
-    }
-
     func refreshAccountData(for account: CodexAccount) async -> BackgroundRefreshOutcome {
         let activeAccountIDBeforeRefresh = activeAccountID
         do {
@@ -156,7 +142,7 @@ final class AccountsController {
     /// Spends one reset credit on the live Codex account, then refreshes its limits.
     /// Each account keeps its attempt's idempotency key until Codex answers, so a retry after a
     /// lost response cannot spend a second credit. A reset and an account change never overlap:
-    /// a reset is refused while one runs, and switching, removing or renaming waits for the reset.
+    /// a reset is refused while one runs, and switching or removing waits for the reset.
     func useResetCredit() async -> ResetCreditResult {
         guard !isBusy else { return .accountChangeInProgress }
         guard let accountID = activeAccountID, !isApplyingResetCredit else { return .failed }

@@ -194,18 +194,6 @@ struct MenuBarAlertFactory {
         )
     }
 
-    func makeRenameAccountRequest(accountName: String) -> MenuBarTextInputAlertRequest {
-        MenuBarTextInputAlertRequest(
-            messageText: "Rename saved account",
-            informativeText: "This only changes the name shown in CodexPill.",
-            fieldTitle: "Account Name",
-            placeholder: accountName,
-            confirmTitle: "Rename",
-            cancelTitle: "Cancel",
-            requiresNonEmptyValue: true
-        )
-    }
-
     func makeAboutRequest() -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
             messageText: "About CodexPill",

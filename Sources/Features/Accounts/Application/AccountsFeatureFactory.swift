@@ -59,7 +59,6 @@ struct AccountsFeatureFactory {
                     codexAppProcessClient: codexAppProcessClient
                 )
             ),
-            renameSavedAccountUseCase: RenameSavedAccountUseCase(repository: repository),
             accountCatalogStore: repository,
             switchAccountWorkflow: SwitchAccountWorkflow(
                 authService: authService,
