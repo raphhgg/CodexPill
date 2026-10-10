@@ -102,7 +102,10 @@ struct CodexAccountTests {
     @Test
     func savedAccountKeepsResetCredits() throws {
         var usage = makeUsage(fetchedAt: Date(timeIntervalSince1970: 1_776_200_000))
-        usage.resetCredits = UsageResetCredits(availableCount: 2, nextExpiry: Date(timeIntervalSince1970: 1_778_000_000))
+        usage.resetCredits = UsageResetCredits(
+            availableCount: 2,
+            credits: [UsageResetCredit(expiresAt: Date(timeIntervalSince1970: 1_778_000_000)), UsageResetCredit(expiresAt: nil)]
+        )
         let account = makeAccount(name: "Personal", usage: usage)
 
         let decoded = try JSONDecoder().decode(CodexAccount.self, from: JSONEncoder().encode(account))

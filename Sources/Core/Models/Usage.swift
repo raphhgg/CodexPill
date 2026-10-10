@@ -43,7 +43,18 @@ struct UsageSnapshot: Hashable {
 /// Earned credits that reset the current Codex limits early.
 struct UsageResetCredits: Hashable {
     var availableCount: Int
-    var nextExpiry: Date?
+    /// The available credits Codex listed, or `nil` when it reported only the count.
+    /// Codex may list fewer credits than `availableCount`.
+    var credits: [UsageResetCredit]?
+
+    var nextExpiry: Date? {
+        credits?.compactMap(\.expiresAt).min()
+    }
+}
+
+struct UsageResetCredit: Hashable {
+    /// `nil` for a credit that never expires.
+    var expiresAt: Date?
 }
 
 enum UsageFreshness: Hashable {

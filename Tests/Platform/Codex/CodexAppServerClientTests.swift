@@ -418,20 +418,24 @@ struct CodexAppServerClientTests {
     }
 
     @Test
-    func consumeOutputDataReadsResetCreditsWithTheEarliestAvailableExpiry() throws {
+    func consumeOutputDataReadsEachAvailableResetCreditExpiry() throws {
         let status = try readStatus(rateLimitsResult: #"{"rateLimits":{"primary":{"usedPercent":90,"windowDurationMins":300},"secondary":{"usedPercent":40,"windowDurationMins":10080}},"rateLimitResetCredits":{"availableCount":2,"credits":[{"id":"a","grantedAt":1,"resetType":"codexRateLimits","status":"available","expiresAt":2000900000},{"id":"b","grantedAt":1,"resetType":"codexRateLimits","status":"redeemed","expiresAt":2000100000},{"id":"c","grantedAt":1,"resetType":"unknown","status":"available","expiresAt":2000500000},{"id":"d","grantedAt":1,"resetType":"codexRateLimits","status":"available","expiresAt":null}]}}"#)
 
-        #expect(status?.usage?.resetCredits == UsageResetCredits(
-            availableCount: 2,
-            nextExpiry: Date(timeIntervalSince1970: 2_000_500_000)
-        ))
+        #expect(status?.usage?.resetCredits?.availableCount == 2)
+        #expect(status?.usage?.resetCredits?.credits?.map(\.expiresAt) == [
+            Date(timeIntervalSince1970: 2_000_900_000),
+            Date(timeIntervalSince1970: 2_000_500_000),
+            nil,
+        ])
+        #expect(status?.usage?.resetCredits?.nextExpiry == Date(timeIntervalSince1970: 2_000_500_000))
     }
 
     @Test
     func consumeOutputDataKeepsTheResetCountWhenCodexOmitsCreditDetails() throws {
         let status = try readStatus(rateLimitsResult: #"{"rateLimits":{"primary":{"usedPercent":90,"windowDurationMins":300}},"rateLimitResetCredits":{"availableCount":3,"credits":null}}"#)
 
-        #expect(status?.usage?.resetCredits == UsageResetCredits(availableCount: 3, nextExpiry: nil))
+        #expect(status?.usage?.resetCredits == UsageResetCredits(availableCount: 3, credits: nil))
+        #expect(status?.usage?.resetCredits?.nextExpiry == nil)
     }
 
     @Test

@@ -29,13 +29,13 @@ struct CodexAppServerRateLimitParser {
 
     /// Codex may list fewer credits than `availableCount`, or none at all when it only knows the count.
     private func parseResetCredits(_ summary: RateLimitResetCreditsSummary) -> UsageResetCredits {
-        let nextExpiry = (summary.credits ?? [])
-            .filter { $0.status == "available" }
-            .compactMap(\.expiresAt)
-            .min()
-        return UsageResetCredits(
+        UsageResetCredits(
             availableCount: max(summary.availableCount, 0),
-            nextExpiry: nextExpiry.map { Date(timeIntervalSince1970: TimeInterval($0)) }
+            credits: summary.credits.map { credits in
+                credits
+                    .filter { $0.status == "available" }
+                    .map { UsageResetCredit(expiresAt: $0.expiresAt.map { Date(timeIntervalSince1970: TimeInterval($0)) }) }
+            }
         )
     }
 

@@ -321,7 +321,7 @@ struct AccountsControllerTests {
         let account = makeAccount(name: "Business 4", email: "business@example.com", fingerprint: "live")
         let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [account])
         var refreshedUsage = makeUsageSnapshot()
-        refreshedUsage.resetCredits = UsageResetCredits(availableCount: 1, nextExpiry: nil)
+        refreshedUsage.resetCredits = UsageResetCredits(availableCount: 1, credits: nil)
         let resetCredits = ResetCreditClientProbe(results: [.success(.reset)])
         let controller = makeController(
             repository: repository,
@@ -341,7 +341,7 @@ struct AccountsControllerTests {
 
         #expect(result == .reset)
         #expect(result.message == "Your Codex limits are reset.")
-        #expect(controller.accounts[0].usage?.resetCredits == UsageResetCredits(availableCount: 1, nextExpiry: nil))
+        #expect(controller.accounts[0].usage?.resetCredits == UsageResetCredits(availableCount: 1, credits: nil))
         #expect(repository.savedAccounts == controller.accounts)
     }
 
