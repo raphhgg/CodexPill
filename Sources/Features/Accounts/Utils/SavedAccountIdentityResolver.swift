@@ -75,12 +75,16 @@ struct SavedAccountIdentityResolver: Sendable {
         storedAccountReconciler.reconcileStoredAccountIdentities(accounts)
     }
 
+    func readCurrentLiveIdentity() -> LiveCodexAccountIdentity {
+        liveIdentitySource.readCurrentLiveAccountIdentity()
+    }
+
     func resolve(
         accounts: [CodexAccount],
         liveRemoteIdentity: CodexRemoteAccountIdentity? = nil
     ) -> CodexAccountMatchOutcome {
         resolve(
-            liveIdentity: liveIdentitySource.readCurrentLiveAccountIdentity(),
+            liveIdentity: readCurrentLiveIdentity(),
             accounts: accounts,
             liveRemoteIdentity: liveRemoteIdentity
         )

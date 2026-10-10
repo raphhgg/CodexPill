@@ -131,14 +131,17 @@ final class AccountsController {
             accounts: accounts,
             targetAccountID: outgoingAccountID
         ) {
-            try applyRefreshed(result)
+            try applyRefreshed(result, activeAccountIDBeforeRefresh: activeAccountID)
         }
     }
 
-    private func applyRefreshed(_ result: RefreshActiveAccountResult) throws {
+    // A switch can land while a refresh awaits, so the refresh moves the active ID only if nothing else did.
+    private func applyRefreshed(_ result: RefreshActiveAccountResult, activeAccountIDBeforeRefresh: UUID?) throws {
         guard let updatedAccounts = try refreshActiveAccountUseCase.save(result, into: accounts) else { return }
         catalogState.applyPersistedMetadata(updatedAccounts)
-        catalogState.setActiveAccountID(result.update.accountID)
+        if activeAccountID == activeAccountIDBeforeRefresh {
+            catalogState.setActiveAccountID(result.update.accountID)
+        }
     }
 
     func switchToAccountOnHost(_ account: CodexAccount, on host: RemoteHost) async -> RemoteHostSwitchOutcome {
@@ -181,9 +184,10 @@ final class AccountsController {
 
     private func refreshActiveSnapshotBeforeRemoteSwitchIfNeeded(_ account: CodexAccount) async -> CodexAccount {
         guard account.id == activeAccountID else { return account }
+        let activeAccountIDBeforeRefresh = activeAccountID
         do {
             let result = try await refreshActiveAccountUseCase.run(accounts: accounts)
-            try applyRefreshed(result)
+            try applyRefreshed(result, activeAccountIDBeforeRefresh: activeAccountIDBeforeRefresh)
             return accounts.first(where: { $0.id == account.id }) ?? account
         } catch {
             do {
@@ -191,7 +195,7 @@ final class AccountsController {
                     accounts: accounts,
                     targetAccountID: account.id
                 ) {
-                    try applyRefreshed(result)
+                    try applyRefreshed(result, activeAccountIDBeforeRefresh: activeAccountID)
                     return accounts.first(where: { $0.id == account.id }) ?? account
                 }
             } catch {
@@ -237,9 +241,10 @@ final class AccountsController {
     }
 
     func refreshAccountData(for account: CodexAccount) async -> BackgroundRefreshOutcome {
+        let activeAccountIDBeforeRefresh = activeAccountID
         do {
             let result = try await refreshActiveAccountUseCase.run(accounts: accounts)
-            try applyRefreshed(result)
+            try applyRefreshed(result, activeAccountIDBeforeRefresh: activeAccountIDBeforeRefresh)
             accountsControllerLogger.log("Background refresh completed for \(account.name, privacy: .public)")
             return .refreshed
         } catch {
@@ -442,12 +447,13 @@ final class AccountsController {
     }
 
     private func applySilentPostActionRefresh() async -> Bool {
+        let activeAccountIDBeforeRefresh = activeAccountID
         if let result = await silentPostActionRefresh.run(
-            activeAccountID: activeAccountID,
+            activeAccountID: activeAccountIDBeforeRefresh,
             accounts: accounts
         ) {
             do {
-                try applyRefreshed(result)
+                try applyRefreshed(result, activeAccountIDBeforeRefresh: activeAccountIDBeforeRefresh)
                 return true
             } catch {
                 accountsControllerLogger.log("Silent post-action refresh save skipped: \(error.localizedDescription, privacy: .public)")
