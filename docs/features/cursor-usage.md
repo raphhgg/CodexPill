@@ -1,0 +1,107 @@
+# Cursor Usage
+
+## User Story
+
+As a CodexPill user who also codes in Cursor, I want to see how much of my Cursor plan I have used this billing cycle and when it resets, so I can decide which tool to reach for without opening Cursor's dashboard.
+
+## Product Contract
+
+Cursor Usage is an optional, display-only menu bar feature. When enabled, CodexPill shows the signed-in Cursor account's included-plan usage, any on-demand spend, and the billing-cycle reset date.
+
+CodexPill does not switch Cursor accounts, sign in to Cursor, refresh Cursor's session, or change anything in Cursor. If Cursor's own session is missing or expired, CodexPill says so and points the user back to Cursor.
+
+The feature is off by default. Enabling it is the user's consent for CodexPill to read Cursor's local sign-in token and send it to cursor.com.
+
+The data contract shipped in the Cursor data-layer PR. The menu section below shipped with the Cursor menu PR.
+
+## Menu
+
+A `Cursor` section sits below `Claude Code`. It never affects account availability, ranking, switching, or notifications.
+
+- **Not connected.** The section shows `Connect Cursor…`. Choosing it opens a consent alert first. Nothing is read until the user confirms.
+- **Consent alert.** One short alert:
+
+  > **Connect Cursor?**
+  > CodexPill will read Cursor's sign-in on this Mac to show your plan usage from cursor.com. You can disconnect in Preferences.
+
+  The alert stays short. The read and send rules live in the Source Contract below and in [PRIVACY.md](../PRIVACY.md).
+- **Connected.** The choice is saved in user defaults (`cursorUsageEnabled`, off by default). `Preferences` gains `Disconnect Cursor…`, which turns the feature off at once with no alert, because it changes nothing outside CodexPill.
+- **Current.** A caption with the plan and the read time (`Pro plan · As of 10:42`), one `Billing cycle` meter with `Resets Oct 30`, and, when on-demand usage is enabled, a text line: `On-demand: $12.34 of $50.00`, or `On-demand: $12.34` with no cap. Spend is never drawn as a bar. The meter follows the `% used` or `% left` setting, the meter layout, pacing markers, and the weekly color.
+- **Cursor not installed.** `Cursor isn't installed`, with no second line. Last good values are cleared.
+- **Signed out.** `Not signed in to Cursor` / `Sign in to Cursor to see usage.` Last good values are cleared.
+- **Sign-in expired or rejected.** `Sign in to Cursor again`, with no second line, and the last good values dimmed below it with their `As of` time.
+- **Read failed** (network, unexpected response, unreadable database). `Can't reach cursor.com` / `Retrying in a few minutes.`, with the last good values dimmed below it and their `As of` time.
+- **Stale.** A snapshot older than 15 minutes is dimmed. Its label still reads `As of …` until the next read.
+
+Reads happen when the menu opens or on the scheduled refresh, at most every 5 minutes. Connecting or disconnecting reads at once.
+
+The menu keeps the last good values itself, through the shared provider runtime, so Claude Code gets the same behavior. That differs from the data layer above in one place: when cursor.com rejects the session, the menu still shows the last values under `Sign in to Cursor again`, because the account has not changed. Signing out of Cursor clears them.
+
+For isolated runs (`CODEXPILL_ISOLATED_APP_SUPPORT_DIR`), CodexPill reads the token from `<root>/Cursor/state.vscdb` instead of Cursor's real database.
+
+## Source Contract
+
+Cursor.app stores its session in a VS Code style SQLite database. CodexPill may read one value from it, only through `Platform/Cursor`:
+
+- Database: `~/Library/Application Support/Cursor/User/globalStorage/state.vscdb`.
+- Table `ItemTable`, key `cursorAuth/accessToken`. The value is a JWT. It is SQLite TEXT on current builds and may be a UTF-8 or UTF-16LE BLOB on others.
+
+Read rules:
+
+- Open the database strictly read-only with a single keyed lookup. Never scan it. On a typical Mac it is several gigabytes.
+- When Cursor's `-wal` and `-shm` sidecars are absent, open in SQLite immutable mode so CodexPill never creates files in Cursor's directory.
+- Use the token only while its `exp` claim is more than 60 seconds away. Never refresh it. Cursor refreshes it when Cursor runs.
+- Never log, persist, display, or cache the token. The HTTP session uses no cookie store and no URL cache, and refuses redirects so the token never follows to another host.
+
+Usage comes from `GET https://cursor.com/api/usage-summary`, authenticated with Cursor's web session cookie built from the token. Observed shape on 2026-10-09:
+
+- `membershipType` is the plan name, for example `pro`.
+- `individualUsage.plan.totalPercentUsed` is the included-usage headline in percent units, matching Cursor's dashboard. It can differ from `plan.used / plan.limit` because bonus credit counts against the dollar figures.
+- `individualUsage.onDemand` carries on-demand spend in cents when `enabled` is true. A null `limit` means no cap is set.
+- `billingCycleStart` and `billingCycleEnd` are ISO 8601 timestamps. The end is the reset.
+
+CodexPill does not call `/api/auth/me`. Display-only usage needs no email or user ID.
+
+## States
+
+| State | Meaning | Menu copy |
+| --- | --- | --- |
+| Available | Fresh usage was read. | `Billing cycle` meter at 82%, `Resets Oct 30`, `On-demand: $12.34 of $50.00` |
+| Cursor not installed | Cursor's database does not exist on this Mac. | `Cursor isn't installed` |
+| Signed out | Cursor has no usable session token. | `Not signed in to Cursor`, `Sign in to Cursor to see usage.` |
+| Token expired | Cursor's saved session expired and Cursor has not refreshed it yet. | `Sign in to Cursor again`, last good values dimmed |
+| Unauthorized | cursor.com rejected the session. | Same as token expired |
+| Unavailable | Network failure, an unexpected response, or an unreadable local database. | `Can't reach cursor.com`, `Retrying in a few minutes.`, last good values dimmed |
+
+On-demand copy appears only when on-demand usage is enabled. With no cap, it shows the spend alone, for example `On-demand: $12.34`.
+
+## Refresh And Failure Behavior
+
+- Refresh no more often than every 5 minutes, and on menu open only when the last read is older than that.
+- A transient failure keeps the last good snapshot visible and marked stale.
+- Signed out, unauthorized, and not installed clear the last good snapshot, because the data may no longer belong to the current Cursor user.
+- Token expired keeps the last good snapshot internally, because it is still the same account, but the menu shows the expired state until Cursor refreshes its session.
+- Failures never raise alerts or notifications.
+
+## Mapping To Shared Usage Types
+
+Cursor maps onto the shared `UsageSnapshot` like this:
+
+- `provider`: Cursor.
+- `planName`: `membershipType`.
+- One window of kind `billingCycle`, with `usedPercent` from `totalPercentUsed`, `resetsAt` from `billingCycleEnd`, and `durationMinutes` from the cycle length.
+- `fetchedAt`: the read time.
+
+- `spend`: on-demand spend as a `UsageSpend` with `usedUSD` and an optional `limitUSD`, present only when on-demand usage is enabled.
+
+Spend is not a percent window. It is a dollar amount with an optional dollar cap and no percent when uncapped, so it has its own field.
+
+## Privacy
+
+The user-facing summary lives in [PRIVACY.md](../PRIVACY.md).
+
+## Out Of Scope
+
+- Team and enterprise pooled budgets and legacy request-count plans.
+- Browser cookie import, WebViews, and manual cookie entry.
+- Cursor account switching or sign-in.

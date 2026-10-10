@@ -45,6 +45,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     )
     private let providerUsageSources: [any UsageProviderSource]
     private let claudeCodeUsage: ClaudeCodeUsage?
+    private let cursorUsage: CursorUsage?
     private lazy var providerUsageRuntime = ProviderUsageRuntime(
         sources: providerUsageSources,
         onChange: { [weak self] in
@@ -69,6 +70,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         tokenUsageProvider: TokenUsageMenuProviding,
         providerUsageSources: [any UsageProviderSource],
         claudeCodeUsage: ClaudeCodeUsage?,
+        cursorUsage: CursorUsage?,
         allowsEmptyStatePrompt: Bool,
         now: @escaping () -> Date = Date.init
     ) {
@@ -88,6 +90,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.tokenUsageProvider = tokenUsageProvider
         self.providerUsageSources = providerUsageSources
         self.claudeCodeUsage = claudeCodeUsage
+        self.cursorUsage = cursorUsage
         self.allowsEmptyStatePrompt = allowsEmptyStatePrompt
         self.now = now
     }
@@ -429,6 +432,22 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         guard let claudeCodeUsage else { return }
         claudeCodeUsage.disconnect()
         refreshProviderUsageIfDue(forcing: .claude)
+    }
+
+    @objc
+    func connectCursor() {
+        recordMenuAction("connectCursor")
+        guard let cursorUsage, alertPresenter.presentConfirmation(alertFactory.makeConnectCursorRequest()) else { return }
+        cursorUsage.connect()
+        refreshProviderUsageIfDue(forcing: .cursor)
+    }
+
+    @objc
+    func disconnectCursor() {
+        recordMenuAction("disconnectCursor")
+        guard let cursorUsage else { return }
+        cursorUsage.disconnect()
+        refreshProviderUsageIfDue(forcing: .cursor)
     }
 
     @objc

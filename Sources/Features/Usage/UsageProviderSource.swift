@@ -26,6 +26,8 @@ enum UsageProviderReading: Equatable, Sendable {
 
 /// Why a connected provider shows no current usage. Each case has its own menu copy.
 enum UsageUnavailableReason: Equatable, Sendable {
+    /// The provider's app is not on this Mac.
+    case notInstalled
     case signedOut
     /// The sign-in is past its expiry, or the provider rejected it (HTTP 401).
     case signInExpired
@@ -46,6 +48,6 @@ enum UsageUnavailableReason: Equatable, Sendable {
 
     /// The last good numbers stay on screen only while they still belong to the same signed-in account.
     var keepsLastSnapshot: Bool {
-        self != .signedOut
+        self != .signedOut && self != .notInstalled
     }
 }
