@@ -225,7 +225,7 @@ struct MenuBarAlertFactory {
     func makeDiagnosticsExportRequest() -> MenuBarConfirmationAlertRequest {
         MenuBarConfirmationAlertRequest(
             messageText: "Export Diagnostics?",
-            informativeText: "CodexPill will create a redacted support file with app version, settings, account aliases, host aliases, limit freshness, and recent workflow events. It does not include auth tokens, emails, hostnames, local paths, or raw logs.",
+            informativeText: "CodexPill will create a redacted support file with app version, settings, account aliases, limit freshness, and recent workflow events. It does not include auth tokens, emails, hostnames, local paths, or raw logs.",
             confirmTitle: "Export",
             cancelTitle: "Cancel"
         )
