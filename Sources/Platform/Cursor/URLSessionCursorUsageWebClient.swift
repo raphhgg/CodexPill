@@ -40,14 +40,14 @@ final class URLSessionCursorUsageWebClient: CursorUsageWebClient {
             throw CursorUsageWebError.transport
         }
 
-        switch httpResponse.statusCode {
-        case 200:
-            return data
-        case 401, 403:
-            throw CursorUsageWebError.unauthorized
-        default:
-            throw CursorUsageWebError.httpStatus(httpResponse.statusCode)
+        if let error = CursorUsageWebError.error(
+            forStatus: httpResponse.statusCode,
+            retryAfter: httpResponse.value(forHTTPHeaderField: "Retry-After"),
+            now: Date()
+        ) {
+            throw error
         }
+        return data
     }
 }
 

@@ -2,9 +2,12 @@ import Foundation
 
 /// Reads Cursor's sign-in and fetches its usage, once per call. `ProviderUsageRuntime` keeps the last good snapshot.
 actor CursorUsageClient {
+    static let defaultRetryAfter: TimeInterval = 5 * 60
+
     private let tokenSource: any CursorAccessTokenSource
     private let webClient: any CursorUsageWebClient
     private let now: @Sendable () -> Date
+    private var rateLimitedUntil: Date?
 
     init(
         tokenSource: any CursorAccessTokenSource,
@@ -17,6 +20,10 @@ actor CursorUsageClient {
     }
 
     func refresh() async -> CursorUsageStatus {
+        if let rateLimitedUntil, now() < rateLimitedUntil {
+            return .unavailable(.rateLimited)
+        }
+
         let lookup: CursorAccessTokenLookup
         do {
             lookup = try tokenSource.lookup()
@@ -43,6 +50,9 @@ actor CursorUsageClient {
             data = try await webClient.usageSummary(using: token)
         } catch CursorUsageWebError.unauthorized {
             return .unauthorized
+        } catch let CursorUsageWebError.rateLimited(retryAfter) {
+            rateLimitedUntil = now().addingTimeInterval(retryAfter ?? Self.defaultRetryAfter)
+            return .unavailable(.rateLimited)
         } catch {
             return .unavailable(.network)
         }
