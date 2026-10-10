@@ -419,6 +419,83 @@ struct AccountsControllerTests {
         )
     }
 
+    @Test
+    func useResetCreditKeepsAnUnansweredAttemptPerAccount() async {
+        let personal = makeAccount(name: "Personal", fingerprint: "personal")
+        let work = makeAccount(name: "Work", fingerprint: "work")
+        let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [personal, work])
+        let liveIdentity = SwitchableLiveIdentity(fingerprint: "personal")
+        let resetCredits = ResetCreditClientProbe(results: [
+            .failure(TestFailure.backgroundRefreshFailed),
+            .success(.noCredit),
+            .success(.reset),
+        ])
+        let keys = [
+            UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
+            UUID(uuidString: "00000000-0000-0000-0000-000000000002")!,
+        ]
+        var nextKey = keys.makeIterator()
+        let controller = makeController(
+            repository: repository,
+            identityResolver: SavedAccountIdentityResolver(
+                liveIdentitySource: liveIdentity,
+                storedAccountReconciler: PassthroughIdentityReconciler()
+            ),
+            authService: NullAuthService(),
+            resetCreditClient: resetCredits,
+            makeIdempotencyKey: { nextKey.next()! }
+        )
+        controller.load()
+
+        let personalFailed = await controller.useResetCredit()
+        liveIdentity.fingerprint = "work"
+        controller.refreshActiveAccount()
+        let workAnswered = await controller.useResetCredit()
+        liveIdentity.fingerprint = "personal"
+        controller.refreshActiveAccount()
+        let personalRetried = await controller.useResetCredit()
+
+        #expect(personalFailed == .failed)
+        #expect(workAnswered == .noCredit)
+        #expect(personalRetried == .reset)
+        #expect(await resetCredits.receivedKeys == [keys[0], keys[1], keys[0]])
+    }
+
+    @Test
+    func switchingWaitsUntilAResetCreditFinishes() async {
+        let personal = makeAccount(name: "Personal", fingerprint: "live")
+        let work = makeAccount(name: "Work", fingerprint: "work")
+        let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [personal, work])
+        let codexApp = CodexAppProcessProbe()
+        let resetCredits = SuspendedResetCreditClient()
+        let controller = makeController(
+            repository: repository,
+            identityResolver: SavedAccountIdentityResolver(
+                liveIdentitySource: LiveIdentityStub(fingerprint: "live"),
+                storedAccountReconciler: PassthroughIdentityReconciler()
+            ),
+            authService: NullAuthService(),
+            codexAppProcessClient: codexApp,
+            resetCreditClient: resetCredits
+        )
+        controller.load()
+
+        let reset = Task { await controller.useResetCredit() }
+        await resetCredits.waitUntilCalled()
+        let switchedDuringReset = await controller.switchToAccount(work)
+
+        #expect(controller.isApplyingResetCredit)
+        #expect(switchedDuringReset == false)
+        #expect(codexApp.relaunchCount == 0)
+
+        await resetCredits.answer(.nothingToReset)
+        #expect(await reset.value == .nothingToReset)
+        _ = await controller.switchToAccount(work)
+
+        #expect(!controller.isApplyingResetCredit)
+        #expect(codexApp.relaunchCount == 1)
+    }
+
     private func makeController(
         repository: LoadingPersistingAccountCatalogProbe,
         identityResolver: SavedAccountIdentityResolver,
@@ -428,6 +505,7 @@ struct AccountsControllerTests {
         isolatedLoginClient: IsolatedCodexLoginClient = IsolatedAddAccountLoginClientProbe(
             session: IsolatedAddAccountLoginSessionProbe(authData: Data())
         ),
+        codexAppProcessClient: CodexAppProcessProbe = CodexAppProcessProbe(),
         resetCreditClient: CodexResetCreditClient = UnavailableResetCreditClient(),
         makeIdempotencyKey: @escaping () -> UUID = UUID.init,
         now: @escaping () -> Date = Date.init
@@ -457,7 +535,7 @@ struct AccountsControllerTests {
             switchAccountWorkflow: SwitchAccountWorkflow(
                 authService: authService,
                 repository: repository,
-                codexAppProcessClient: CodexAppProcessProbe(),
+                codexAppProcessClient: codexAppProcessClient,
                 identityResolver: identityResolver
             ),
             addAccountWorkflow: AddAccountWorkflow(
@@ -690,6 +768,18 @@ private final class IsolatedAddAccountLoginSessionProbe: IsolatedCodexLoginSessi
     func cancel() {}
     func cleanup() {
         cleanupCount += 1
+    }
+}
+
+private final class SwitchableLiveIdentity: LiveCodexAccountIdentitySource, @unchecked Sendable {
+    var fingerprint: String
+
+    init(fingerprint: String) {
+        self.fingerprint = fingerprint
+    }
+
+    func readCurrentLiveAccountIdentity() -> LiveCodexAccountIdentity {
+        LiveIdentityStub(fingerprint: fingerprint).identity
     }
 }
 

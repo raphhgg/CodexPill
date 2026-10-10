@@ -34,7 +34,8 @@ final class AccountsController {
     private var savedAccountsRefresh: Task<Void, Never>?
     private var isStoppingSavedAccountsRefresh = false
     private var lastInactiveSavedAccountsRefreshAt: Date?
-    private var pendingResetCreditKey: UUID?
+    private var pendingResetCreditKeys: [UUID: UUID] = [:]
+    private(set) var isApplyingResetCredit = false
 
     init(
         identityResolver: SavedAccountIdentityResolver,
@@ -83,6 +84,7 @@ final class AccountsController {
     }
 
     func switchToAccount(_ account: CodexAccount) async -> Bool {
+        guard !isApplyingResetCredit else { return false }
         var didRefreshAfterSwitch = false
         await perform("Switching to \(account.name)...") {
             try saveRotatedLiveAuth(switchingTo: account)
@@ -152,11 +154,14 @@ final class AccountsController {
     }
 
     /// Spends one reset credit on the live Codex account, then refreshes its limits.
-    /// One attempt keeps its idempotency key until Codex answers, so a retry after a lost
-    /// response cannot spend a second credit.
+    /// Each account keeps its attempt's idempotency key until Codex answers, so a retry after a
+    /// lost response cannot spend a second credit. Switching waits until the reset finishes.
     func useResetCredit() async -> ResetCreditResult {
-        let key = pendingResetCreditKey ?? makeIdempotencyKey()
-        pendingResetCreditKey = key
+        guard let accountID = activeAccountID, !isApplyingResetCredit else { return .failed }
+        isApplyingResetCredit = true
+        defer { isApplyingResetCredit = false }
+        let key = pendingResetCreditKeys[accountID] ?? makeIdempotencyKey()
+        pendingResetCreditKeys[accountID] = key
 
         let outcome: CodexResetCreditOutcome
         do {
@@ -167,8 +172,8 @@ final class AccountsController {
         }
 
         let result = ResetCreditResult(outcome)
-        if result != .unconfirmed, pendingResetCreditKey == key {
-            pendingResetCreditKey = nil
+        if result != .unconfirmed {
+            pendingResetCreditKeys[accountID] = nil
         }
         accountsControllerLogger.log("Reset credit outcome: \(outcome.rawValue, privacy: .public)")
         if result == .reset || result == .unconfirmed {

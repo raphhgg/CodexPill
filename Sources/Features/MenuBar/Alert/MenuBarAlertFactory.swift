@@ -240,6 +240,15 @@ struct MenuBarAlertFactory {
         )
     }
 
+    func makeResetInProgressRequest() -> MenuBarInfoAlertRequest {
+        MenuBarInfoAlertRequest(
+            messageText: "Reset in progress",
+            informativeText: "Switch accounts when it finishes.",
+            style: .informational,
+            buttonTitle: "OK"
+        )
+    }
+
     func makeErrorRequest(message: String) -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
             messageText: "CodexPill Error",

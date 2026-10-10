@@ -94,6 +94,30 @@ struct MenuBarCoordinatorTests {
     }
 
     @Test
+    func switchingWhileAResetCreditIsAppliedExplainsWhyInsteadOfAskingToSwitch() async throws {
+        let harness = try MenuBarCoordinatorHarness()
+        defer { harness.tearDown() }
+        let active = try harness.makeActiveAccount(named: "Personal", email: "personal@example.com")
+        let work = makeAccount(name: "Work")
+        try harness.repository.saveAccounts([active, work])
+        let resetCredits = SuspendedResetCreditClient()
+        let coordinator = harness.makeCoordinator(resetCreditClient: resetCredits)
+        coordinator.start()
+        await coordinator.waitForPendingWork()
+
+        let reset = Task { await harness.accountsController.useResetCredit() }
+        await resetCredits.waitUntilCalled()
+        coordinator.switchAccount(harness.menuItem(representing: work.id.uuidString))
+
+        #expect(harness.alertPresenter.confirmationRequests.isEmpty)
+        #expect(harness.alertPresenter.infoRequests.map(\.messageText) == ["Reset in progress"])
+        #expect(harness.alertPresenter.infoRequests.map(\.informativeText) == ["Switch accounts when it finishes."])
+
+        await resetCredits.answer(.nothingToReset)
+        _ = await reset.value
+    }
+
+    @Test
     func commonModeTimerFiresWhileAMenuIsTracking() {
         var fireCount = 0
         let timer = Timer.repeatingInCommonModes(interval: 0.01) { fireCount += 1 }
@@ -126,6 +150,7 @@ private final class MenuBarCoordinatorHarness {
 
     func makeCoordinator(
         providerUsageSources: [any UsageProviderSource] = [],
+        resetCreditClient: CodexResetCreditClient = UnavailableResetCreditClient(),
         now: @escaping () -> Date = Date.init
     ) -> MenuBarCoordinator {
         accountsController = AccountsFeatureFactory(
@@ -133,6 +158,7 @@ private final class MenuBarCoordinatorHarness {
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient(),
+            resetCreditClient: resetCreditClient,
             postSwitchRefreshDelay: .zero
         ).makeController()
         accountsController.load()

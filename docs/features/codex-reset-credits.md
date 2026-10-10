@@ -14,8 +14,9 @@ See how many Codex limit resets the active account has, when the next one expire
 ## Using A Reset
 
 - `account/rateLimitResetCredit/consume` spends one credit on the live account the local Codex app-server runs as, so it applies only to the active local account.
-- Each attempt sends one idempotency key. CodexPill reuses it when the call fails or Codex returns an outcome it does not know, so a retry cannot spend a second credit. It starts a new key once Codex answers.
+- Each attempt sends one idempotency key. CodexPill keeps one key per saved account and reuses it when the call fails or Codex returns an outcome it does not know, so a retry cannot spend a second credit. It starts a new key once Codex answers.
 - After a reset, CodexPill refreshes the active account's limits.
+- Switching accounts waits until the reset and that refresh finish. A switch asked for meanwhile shows "Reset in progress" instead of switching.
 
 | Codex outcome | Message |
 |---|---|
