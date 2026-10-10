@@ -2,7 +2,6 @@ import Foundation
 
 /// Every word the menu shows for one tool, in one table. In-app copy is a title plus at most one short line.
 struct ProviderCopy: Sendable {
-    /// The tool's name in section headers and messages.
     let name: String
     /// Who answers usage requests, for "Can't reach …" style messages.
     let serviceName: String

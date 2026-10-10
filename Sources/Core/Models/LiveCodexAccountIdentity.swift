@@ -1,6 +1,6 @@
 import Foundation
 
-/// Who the live `auth.json` belongs to, read from its tokens and, when known, from Codex.
+/// The account the live `auth.json` signs in to.
 struct LiveCodexAccountIdentity: Equatable {
     let stableAccountID: String?
     let authPrincipalIdentity: CodexAuthPrincipalIdentity?
