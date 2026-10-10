@@ -118,6 +118,73 @@ struct CodexAppServerSessionCommand {
 
 struct CodexAppServerSessionRunner {
     func readAccountStatus(command: CodexAppServerSessionCommand) async throws -> CodexAppServerStatus {
+        let state = CodexAppServerSessionState()
+        return try await run(
+            executableURL: command.executableURL,
+            arguments: command.arguments,
+            environment: command.environment,
+            timeout: command.timeout,
+            requests: CodexAppServerSession.makeRequests(
+                refreshToken: command.refreshToken,
+                clientInfo: command.clientInfo
+            ),
+            state: state,
+            consume: { data, decoder in
+                try CodexAppServerSession.consumeOutputData(data, decoder: decoder, state: state)
+            },
+            cleanExit: {
+                if !command.requireRateLimitResponse, let partialStatus = state.partialStatus() {
+                    return .success(partialStatus)
+                }
+                if command.requireRateLimitResponse, !state.hasRateLimitResponse() {
+                    return .failure(CodexAppServerError.server(command.prematureRateLimitExitMessage))
+                }
+                return nil
+            },
+            timeoutFallback: {
+                command.requireRateLimitResponse ? nil : state.partialStatus()
+            },
+            failure: command.failure
+        )
+    }
+
+    func consumeResetCredit(command: CodexResetCreditConsumeCommand) async throws -> CodexResetCreditOutcome {
+        let state = CodexAppServerSessionState()
+        return try await run(
+            executableURL: command.executableURL,
+            arguments: command.arguments,
+            environment: command.environment,
+            timeout: command.timeout,
+            requests: CodexAppServerSession.makeResetCreditConsumeRequests(
+                idempotencyKey: command.idempotencyKey,
+                clientInfo: command.clientInfo
+            ),
+            state: state,
+            consume: { data, decoder in
+                try CodexAppServerSession.consumeResetCreditOutput(data, decoder: decoder, state: state)
+            },
+            cleanExit: {
+                .failure(CodexAppServerError.server("Codex app-server ended before using the reset."))
+            },
+            timeoutFallback: { nil },
+            failure: command.failure
+        )
+    }
+
+    /// Starts `codex app-server`, writes the requests, and finishes with the first response that
+    /// `consume` returns, a clean-exit or timeout fallback, or `failure`.
+    private func run<Response: Sendable>(
+        executableURL: URL?,
+        arguments: [String],
+        environment: [String: String]?,
+        timeout: Duration,
+        requests: [String],
+        state: CodexAppServerSessionState,
+        consume: @escaping @Sendable (Data, JSONDecoder) throws -> Response?,
+        cleanExit: @escaping @Sendable () -> Result<Response, Error>?,
+        timeoutFallback: @escaping @Sendable () -> Response?,
+        failure: @escaping @Sendable (_ stderr: String?, _ terminationStatus: Int?, _ timedOut: Bool) -> Error
+    ) async throws -> Response {
         try await withCheckedThrowingContinuation { continuation in
             let process = Process()
             let inputPipe = Pipe()
@@ -126,9 +193,8 @@ struct CodexAppServerSessionRunner {
             let errorPipe = Pipe()
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
-            let state = CodexAppServerSessionState()
 
-            let finish: @Sendable (Result<CodexAppServerStatus, Error>) -> Void = { result in
+            let finish: @Sendable (Result<Response, Error>) -> Void = { result in
                 guard state.markFinished() else { return }
                 outputPipe.fileHandleForReading.readabilityHandler = nil
                 errorPipe.fileHandleForReading.readabilityHandler = nil
@@ -144,17 +210,17 @@ struct CodexAppServerSessionRunner {
                 guard !data.isEmpty else { return }
 
                 do {
-                    if let snapshot = try CodexAppServerSession.consumeOutputData(data, decoder: decoder, state: state) {
-                        finish(.success(snapshot))
+                    if let response = try consume(data, decoder) {
+                        finish(.success(response))
                     }
                 } catch {
                     finish(.failure(error))
                 }
             }
 
-            process.executableURL = command.executableURL
-            process.arguments = command.arguments
-            process.environment = command.environment
+            process.executableURL = executableURL
+            process.arguments = arguments
+            process.environment = environment
             process.standardInput = inputPipe
             process.standardOutput = outputPipe
             process.standardError = errorPipe
@@ -162,12 +228,8 @@ struct CodexAppServerSessionRunner {
                 let trailingOutput = outputPipe.fileHandleForReading.readDataToEndOfFile()
                 if !trailingOutput.isEmpty {
                     do {
-                        if let snapshot = try CodexAppServerSession.consumeOutputData(
-                            trailingOutput,
-                            decoder: decoder,
-                            state: state
-                        ) {
-                            finish(.success(snapshot))
+                        if let response = try consume(trailingOutput, decoder) {
+                            finish(.success(response))
                             return
                         }
                     } catch {
@@ -181,22 +243,14 @@ struct CodexAppServerSessionRunner {
                     state.appendErrorOutput(trailingError)
                 }
 
-                if process.terminationStatus == 0,
-                   !command.requireRateLimitResponse,
-                   let partialStatus = state.partialStatus() {
-                    finish(.success(partialStatus))
+                if process.terminationStatus == 0 {
+                    if let result = cleanExit() {
+                        finish(result)
+                    }
                     return
                 }
 
-                if process.terminationStatus == 0,
-                   command.requireRateLimitResponse,
-                   !state.hasRateLimitResponse() {
-                    finish(.failure(CodexAppServerError.server(command.prematureRateLimitExitMessage)))
-                    return
-                }
-
-                guard process.terminationStatus != 0 else { return }
-                finish(.failure(command.failure(
+                finish(.failure(failure(
                     state.capturedStderr(),
                     Int(process.terminationStatus),
                     false
@@ -205,20 +259,16 @@ struct CodexAppServerSessionRunner {
 
             do {
                 try process.run()
-                let requests = CodexAppServerSession.makeRequests(
-                    refreshToken: command.refreshToken,
-                    clientInfo: command.clientInfo
-                )
                 let payload = requests.joined(separator: "\n") + "\n"
                 inputHandle.write(Data(payload.utf8))
 
                 Task {
-                    try? await Task.sleep(for: command.timeout)
-                    if !command.requireRateLimitResponse, let partialStatus = state.partialStatus() {
-                        finish(.success(partialStatus))
+                    try? await Task.sleep(for: timeout)
+                    if let response = timeoutFallback() {
+                        finish(.success(response))
                         return
                     }
-                    finish(.failure(command.failure(
+                    finish(.failure(failure(
                         state.capturedStderr(),
                         nil,
                         true
@@ -242,6 +292,45 @@ struct CodexAppServerSession {
             #"{"method":"account/read","id":2,"params":{"refreshToken":\#(refreshToken ? "true" : "false")}}"#,
             #"{"method":"account/rateLimits/read","id":3,"params":null}"#
         ]
+    }
+
+    static func makeResetCreditConsumeRequests(
+        idempotencyKey: UUID,
+        clientInfo: CodexAppServerClientInfo = .codexPill
+    ) -> [String] {
+        [
+            initializeRequest(clientInfo: clientInfo),
+            #"{"method":"initialized","params":{}}"#,
+            #"{"method":"account/rateLimitResetCredit/consume","id":2,"params":{"idempotencyKey":"\#(idempotencyKey.uuidString)"}}"#
+        ]
+    }
+
+    static func consumeResetCreditOutput(
+        _ data: Data,
+        decoder: JSONDecoder,
+        state: CodexAppServerSessionState
+    ) throws -> CodexResetCreditOutcome? {
+        for line in state.appendOutput(data) {
+            guard let lineData = line.data(using: .utf8) else { continue }
+
+            do {
+                let envelope = try decoder.decode(AppServerEnvelope.self, from: lineData)
+                guard envelope.id == 2 else { continue }
+
+                if let error = envelope.error {
+                    throw CodexAppServerError.server(error.message)
+                }
+                guard let result = envelope.result else {
+                    throw CodexAppServerError.server("Codex returned an incomplete app-server response.")
+                }
+                let response = try decoder.decode(AppServerResetCreditConsumeResponse.self, from: result)
+                return CodexResetCreditOutcome(rawValue: response.outcome) ?? .unrecognized
+            } catch let error as DecodingError {
+                throw CodexAppServerError.server(friendlyAppServerDecodingMessage(for: error))
+            }
+        }
+
+        return nil
     }
 
     private static func initializeRequest(clientInfo: CodexAppServerClientInfo) -> String {

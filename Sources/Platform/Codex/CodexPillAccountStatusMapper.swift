@@ -14,12 +14,14 @@ struct CodexPillAccountStatusMapper {
     }
 
     func usage(from appServerRateLimits: CodexAppServerRateLimits) -> UsageSnapshot {
-        UsageSnapshot.codex(
+        var usage = UsageSnapshot.codex(
             planName: appServerRateLimits.planType,
             primary: appServerRateLimits.primary.map(reportedWindow),
             secondary: appServerRateLimits.secondary.map(reportedWindow),
             fetchedAt: appServerRateLimits.fetchedAt
         )
+        usage.resetCredits = appServerRateLimits.resetCredits
+        return usage
     }
 
     private func reportedWindow(from window: CodexAppServerRateLimitWindow) -> UsageSnapshot.CodexReportedWindow {

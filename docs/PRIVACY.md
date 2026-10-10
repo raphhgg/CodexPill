@@ -7,7 +7,7 @@ CodexPill is a local macOS menubar utility for Codex account switching, limit vi
 During normal use, CodexPill may read:
 
 - `~/.codex/auth.json` to identify and save the currently active Codex account.
-- Codex account metadata exposed by Codex, such as email address, plan type, account identity, and rate-limit windows.
+- Codex account metadata exposed by Codex, such as email address, plan type, account identity, rate-limit windows, and limit reset credits.
 - Local Codex app-server status to refresh account and limit information.
 - Local process information to detect running Codex CLI sessions when a switch may require a restart or user action.
 - CodexPill-owned state under `~/Library/Application Support/CodexPill`.

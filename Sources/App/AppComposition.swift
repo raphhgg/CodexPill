@@ -19,12 +19,14 @@ struct AppComposition {
         } else {
             remoteHostClient = SSHRemoteHostClient(snapshotLocator: repository)
         }
+        let codexAppServerClient = CodexAppServerClient()
         accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: authService,
             codexAppProcessClient: processClient,
-            accountStatusClient: CodexAppServerClient(),
-            remoteHostSwitchOperations: remoteHostClient
+            accountStatusClient: codexAppServerClient,
+            remoteHostSwitchOperations: remoteHostClient,
+            resetCreditClient: codexAppServerClient
         ).makeController()
 
         let claudeCodeUsage = Self.makeClaudeCodeUsage(environment: environment, defaults: defaults, isolatedRootDirectory: isolatedRootDirectory)

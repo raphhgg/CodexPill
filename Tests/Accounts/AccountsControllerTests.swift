@@ -627,6 +627,98 @@ struct AccountsControllerTests {
         #expect(repository.savedAccounts == controller.accounts)
     }
 
+    @Test
+    func useResetCreditRefreshesLimitsAfterReset() async {
+        let account = makeAccount(name: "Business 4", email: "business@example.com", fingerprint: "live")
+        let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [account])
+        var refreshedUsage = makeUsageSnapshot()
+        refreshedUsage.resetCredits = UsageResetCredits(availableCount: 1, nextExpiry: nil)
+        let resetCredits = ResetCreditClientProbe(results: [.success(.reset)])
+        let controller = makeController(
+            repository: repository,
+            identityResolver: SavedAccountIdentityResolver(
+                liveIdentitySource: LiveIdentityStub(fingerprint: "live"),
+                storedAccountReconciler: PassthroughIdentityReconciler()
+            ),
+            authService: NullAuthService(),
+            accountStatusClient: StubAccountStatusClient(
+                status: CodexAccountStatus(email: "business@example.com", planType: "pro", usage: refreshedUsage)
+            ),
+            resetCreditClient: resetCredits
+        )
+        controller.load()
+
+        let result = await controller.useResetCredit()
+
+        #expect(result == .reset)
+        #expect(result.message == "Your Codex limits are reset.")
+        #expect(controller.accounts[0].usage?.resetCredits == UsageResetCredits(availableCount: 1, nextExpiry: nil))
+        #expect(repository.savedAccounts == controller.accounts)
+    }
+
+    @Test
+    func useResetCreditRetriesWithTheSameKeyUntilCodexAnswers() async {
+        let account = makeAccount(name: "Business 4", fingerprint: "live")
+        let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [account])
+        let resetCredits = ResetCreditClientProbe(results: [
+            .failure(TestFailure.backgroundRefreshFailed),
+            .success(.alreadyRedeemed),
+            .success(.noCredit),
+        ])
+        let keys = [
+            UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
+            UUID(uuidString: "00000000-0000-0000-0000-000000000002")!,
+        ]
+        var nextKey = keys.makeIterator()
+        let controller = makeController(
+            repository: repository,
+            identityResolver: SavedAccountIdentityResolver(
+                liveIdentitySource: LiveIdentityStub(fingerprint: "live"),
+                storedAccountReconciler: PassthroughIdentityReconciler()
+            ),
+            authService: NullAuthService(),
+            resetCreditClient: resetCredits,
+            makeIdempotencyKey: { nextKey.next()! }
+        )
+        controller.load()
+
+        let failed = await controller.useResetCredit()
+        let retried = await controller.useResetCredit()
+        let nextAttempt = await controller.useResetCredit()
+
+        #expect(failed == .failed)
+        #expect(failed.message == "Couldn't use a reset. Try again.")
+        #expect(retried == .reset)
+        #expect(nextAttempt == .noCredit)
+        #expect(nextAttempt.message == "No resets left on this account.")
+        #expect(await resetCredits.receivedKeys == [keys[0], keys[0], keys[1]])
+    }
+
+    @Test
+    func useResetCreditWithNothingToResetKeepsLimitsAsTheyAre() async {
+        let account = makeAccount(name: "Business 4", fingerprint: "live", usage: makeUsageSnapshot())
+        let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [account])
+        let controller = makeController(
+            repository: repository,
+            identityResolver: SavedAccountIdentityResolver(
+                liveIdentitySource: LiveIdentityStub(fingerprint: "live"),
+                storedAccountReconciler: PassthroughIdentityReconciler()
+            ),
+            authService: NullAuthService(),
+            accountStatusClient: StubAccountStatusClient(
+                status: CodexAccountStatus(email: "business@example.com", planType: "pro", usage: makeUsage())
+            ),
+            resetCreditClient: ResetCreditClientProbe(results: [.success(.nothingToReset)])
+        )
+        controller.load()
+
+        let result = await controller.useResetCredit()
+
+        #expect(result == .nothingToReset)
+        #expect(result.message == "Nothing to reset right now. Your reset is still available.")
+        #expect(controller.accounts == [account])
+    }
+
     private func makeAddAccountWorkflow(
         repository: AccountCatalogStore,
         identityResolver: SavedAccountIdentityResolver
@@ -647,6 +739,8 @@ struct AccountsControllerTests {
         isolatedLoginClient: IsolatedCodexLoginClient = IsolatedAddAccountLoginClientProbe(
             session: IsolatedAddAccountLoginSessionProbe(authData: Data())
         ),
+        resetCreditClient: CodexResetCreditClient = UnavailableResetCreditClient(),
+        makeIdempotencyKey: @escaping () -> UUID = UUID.init,
         now: @escaping () -> Date = Date.init
     ) -> AccountsController {
         AccountsController(
@@ -685,6 +779,8 @@ struct AccountsControllerTests {
                 identityResolver: identityResolver,
                 isolatedLoginClient: isolatedLoginClient
             ),
+            resetCreditClient: resetCreditClient,
+            makeIdempotencyKey: makeIdempotencyKey,
             now: now,
             postSwitchRefreshDelay: .zero
         )
@@ -922,4 +1018,18 @@ private final class RemoteHostRecordingStatusFixture: RemoteHostSwitchWorkflowOp
     func signOut(on host: RemoteHost) async throws {}
     func refreshCodexAppServer(on host: RemoteHost) async throws {}
     func readCurrentAccountStatus(on host: RemoteHost) async throws -> CodexAccountStatus { status }
+}
+
+private actor ResetCreditClientProbe: CodexResetCreditClient {
+    private var results: [Result<CodexResetCreditOutcome, Error>]
+    private(set) var receivedKeys: [UUID] = []
+
+    init(results: [Result<CodexResetCreditOutcome, Error>]) {
+        self.results = results
+    }
+
+    func consumeResetCredit(idempotencyKey: UUID) async throws -> CodexResetCreditOutcome {
+        receivedKeys.append(idempotencyKey)
+        return try results.removeFirst().get()
+    }
 }

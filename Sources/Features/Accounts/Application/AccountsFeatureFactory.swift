@@ -7,6 +7,7 @@ struct AccountsFeatureFactory {
     private let codexAppProcessClient: CodexAppProcessClient
     private let accountStatusClient: CodexAccountStatusClient & SavedCodexAccountStatusClient
     private let remoteHostSwitchOperations: RemoteHostSwitchWorkflowOperations
+    private let resetCreditClient: CodexResetCreditClient
     private let postSwitchRefreshDelay: Duration
 
     init(
@@ -15,6 +16,7 @@ struct AccountsFeatureFactory {
         codexAppProcessClient: CodexAppProcessClient,
         accountStatusClient: CodexAccountStatusClient & SavedCodexAccountStatusClient,
         remoteHostSwitchOperations: RemoteHostSwitchWorkflowOperations = UnavailableRemoteHostClient(),
+        resetCreditClient: CodexResetCreditClient = UnavailableResetCreditClient(),
         postSwitchRefreshDelay: Duration = .seconds(2)
     ) {
         self.repository = repository
@@ -22,6 +24,7 @@ struct AccountsFeatureFactory {
         self.codexAppProcessClient = codexAppProcessClient
         self.accountStatusClient = accountStatusClient
         self.remoteHostSwitchOperations = remoteHostSwitchOperations
+        self.resetCreditClient = resetCreditClient
         self.postSwitchRefreshDelay = postSwitchRefreshDelay
     }
 
@@ -78,6 +81,7 @@ struct AccountsFeatureFactory {
                 repository: repository,
                 identityResolver: identityResolver
             ),
+            resetCreditClient: resetCreditClient,
             postSwitchRefreshDelay: postSwitchRefreshDelay
         )
     }

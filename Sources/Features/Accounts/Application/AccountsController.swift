@@ -33,12 +33,15 @@ final class AccountsController {
     private let switchAccountOnHostWorkflow: SwitchAccountOnHostWorkflow
     private let remoteHostAccountVerifier: RemoteHostAccountVerifier
     private let addAccountWorkflow: AddAccountWorkflow
+    private let resetCreditClient: CodexResetCreditClient
+    private let makeIdempotencyKey: () -> UUID
     private let now: () -> Date
     private let postSwitchRefreshDelay: Duration
 
     private var catalogState = AccountCatalogState()
     private var isHydratingSavedAccountsMetadata = false
     private var lastInactiveSavedAccountsRefreshAt: Date?
+    private var pendingResetCreditKey: UUID?
 
     init(
         identityResolver: SavedAccountIdentityResolver,
@@ -56,6 +59,8 @@ final class AccountsController {
         ),
         remoteHostAccountVerifier: RemoteHostAccountVerifier = RemoteHostAccountVerifier(),
         addAccountWorkflow: AddAccountWorkflow,
+        resetCreditClient: CodexResetCreditClient = UnavailableResetCreditClient(),
+        makeIdempotencyKey: @escaping () -> UUID = UUID.init,
         now: @escaping () -> Date = Date.init,
         postSwitchRefreshDelay: Duration = .seconds(2)
     ) {
@@ -72,6 +77,8 @@ final class AccountsController {
         self.switchAccountOnHostWorkflow = switchAccountOnHostWorkflow
         self.remoteHostAccountVerifier = remoteHostAccountVerifier
         self.addAccountWorkflow = addAccountWorkflow
+        self.resetCreditClient = resetCreditClient
+        self.makeIdempotencyKey = makeIdempotencyKey
         self.now = now
         self.postSwitchRefreshDelay = postSwitchRefreshDelay
     }
@@ -206,6 +213,32 @@ final class AccountsController {
             accountsControllerLogger.log("Background refresh skipped for \(account.name, privacy: .public): \(error.localizedDescription, privacy: .public)")
             return .failed(error.localizedDescription)
         }
+    }
+
+    /// Spends one reset credit on the live Codex account, then refreshes its limits.
+    /// One attempt keeps its idempotency key until Codex answers, so a retry after a lost
+    /// response cannot spend a second credit.
+    func useResetCredit() async -> ResetCreditResult {
+        let key = pendingResetCreditKey ?? makeIdempotencyKey()
+        pendingResetCreditKey = key
+
+        let outcome: CodexResetCreditOutcome
+        do {
+            outcome = try await resetCreditClient.consumeResetCredit(idempotencyKey: key)
+        } catch {
+            accountsControllerLogger.log("Reset credit not used: \(error.localizedDescription, privacy: .public)")
+            return .failed
+        }
+
+        let result = ResetCreditResult(outcome)
+        if result != .unconfirmed, pendingResetCreditKey == key {
+            pendingResetCreditKey = nil
+        }
+        accountsControllerLogger.log("Reset credit outcome: \(outcome.rawValue, privacy: .public)")
+        if result == .reset || result == .unconfirmed {
+            _ = await applySilentPostActionRefresh(after: .zero)
+        }
+        return result
     }
 
     func persistAccountMetadata(_ account: CodexAccount) {

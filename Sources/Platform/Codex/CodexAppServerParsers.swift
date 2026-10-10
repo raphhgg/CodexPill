@@ -16,11 +16,27 @@ struct CodexAppServerAccountParser {
 
 struct CodexAppServerRateLimitParser {
     func parse(_ response: AppServerRateLimitsResponse, fetchedAt: Date = Date()) -> CodexAppServerRateLimits? {
+        var rateLimits: CodexAppServerRateLimits?
         if let codex = response.rateLimitsByLimitId?["codex"].flatMap({ parseSnapshot($0, fetchedAt: fetchedAt) }),
            codex.isComplete {
-            return codex
+            rateLimits = codex
+        } else {
+            rateLimits = response.rateLimits.flatMap { parseSnapshot($0, fetchedAt: fetchedAt) }
         }
-        return response.rateLimits.flatMap { parseSnapshot($0, fetchedAt: fetchedAt) }
+        rateLimits?.resetCredits = response.rateLimitResetCredits.map(parseResetCredits)
+        return rateLimits
+    }
+
+    /// Codex may list fewer credits than `availableCount`, or none at all when it only knows the count.
+    private func parseResetCredits(_ summary: RateLimitResetCreditsSummary) -> UsageResetCredits {
+        let nextExpiry = (summary.credits ?? [])
+            .filter { $0.status == "available" }
+            .compactMap(\.expiresAt)
+            .min()
+        return UsageResetCredits(
+            availableCount: max(summary.availableCount, 0),
+            nextExpiry: nextExpiry.map { Date(timeIntervalSince1970: TimeInterval($0)) }
+        )
     }
 
     private func parseSnapshot(_ snapshot: RateLimitSnapshot, fetchedAt: Date) -> CodexAppServerRateLimits {
@@ -66,14 +82,29 @@ struct AppServerAccountResponse: Decodable {
 struct AppServerRateLimitsResponse: Decodable {
     let rateLimits: RateLimitSnapshot?
     let rateLimitsByLimitId: [String: RateLimitSnapshot]?
+    /// Absent before Codex added reset credits.
+    let rateLimitResetCredits: RateLimitResetCreditsSummary?
 
     init(
         rateLimits: RateLimitSnapshot?,
-        rateLimitsByLimitId: [String: RateLimitSnapshot]? = nil
+        rateLimitsByLimitId: [String: RateLimitSnapshot]? = nil,
+        rateLimitResetCredits: RateLimitResetCreditsSummary? = nil
     ) {
         self.rateLimits = rateLimits
         self.rateLimitsByLimitId = rateLimitsByLimitId
+        self.rateLimitResetCredits = rateLimitResetCredits
     }
+}
+
+struct RateLimitResetCreditsSummary: Decodable {
+    let availableCount: Int
+    let credits: [RateLimitResetCredit]?
+}
+
+/// Status stays a string so a status added by a later Codex does not fail the whole rate-limit read.
+struct RateLimitResetCredit: Decodable {
+    let status: String?
+    let expiresAt: Int?
 }
 
 struct RateLimitSnapshot: Decodable {
