@@ -67,16 +67,16 @@ struct ProviderUsageRuntimeTests {
 
     @Test
     func refreshThatIsNotDueKeepsTheLastReadingAndDoesNotNotify() async {
-        let cursor = UsageProviderSourceProbe(provider: .cursor, reading: .awaitingUsage)
+        let claude = UsageProviderSourceProbe(provider: .claude, reading: .awaitingUsage)
         var changeCount = 0
-        let runtime = ProviderUsageRuntime(sources: [cursor], now: { start }, onChange: { changeCount += 1 })
+        let runtime = ProviderUsageRuntime(sources: [claude], now: { start }, onChange: { changeCount += 1 })
 
         await runtime.refreshIfDue()
-        cursor.reading = .unavailable(.unreachable)
+        claude.reading = .unavailable(.unreachable)
         await runtime.refreshIfDue()
 
         #expect(changeCount == 1)
-        #expect(runtime.states == [ProviderUsageState(provider: .cursor, status: .awaitingUsage)])
+        #expect(runtime.states == [ProviderUsageState(provider: .claude, status: .awaitingUsage)])
     }
 
     @Test

@@ -17,8 +17,7 @@ struct ProviderUsageMenuContent: View {
             case .notConnected:
                 EmptyView()
             case .awaitingUsage:
-                let text = provider.awaitingUsageMessage
-                message(title: text.title, detail: text.detail)
+                message(title: "Waiting for \(provider.menuTitle) usage", detail: nil)
             case let .unavailable(reason, lastSnapshot):
                 let text = provider.unavailableMessage(for: reason)
                 message(title: text.title, detail: text.detail)
@@ -126,13 +125,6 @@ extension UsageProvider {
         switch self {
         case .claude: "Anthropic"
         case .codex, .cursor: menuTitle
-        }
-    }
-
-    fileprivate var awaitingUsageMessage: (title: String, detail: String?) {
-        switch self {
-        case .claude: ("Waiting for Claude usage", nil)
-        case .codex, .cursor: ("Waiting for \(menuTitle)", "Usage appears after the next update.")
         }
     }
 }

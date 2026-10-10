@@ -45,6 +45,16 @@ struct CursorUsageTests {
     }
 
     @Test
+    func anUnlimitedPlanHasNoBillingCycleMeterRatherThanZeroPercent() async {
+        let reading = await connectedReading(summary: #"""
+        {"billingCycleStart":"2026-09-30T15:23:08.000Z","billingCycleEnd":"2026-10-30T15:23:08.000Z","membershipType":"enterprise","isUnlimited":true,
+         "individualUsage":{"plan":{"enabled":true,"totalPercentUsed":0}}}
+        """#)
+
+        #expect(reading == .snapshot(UsageSnapshot(provider: .cursor, planName: "enterprise", windows: [], fetchedAt: now)))
+    }
+
+    @Test
     func onDemandSpendKeepsItsCapOrNone() async {
         let capped = await connectedReading(summary: CursorUsageFixture.proPlanWithCappedOnDemand)
         let uncapped = await connectedReading(summary: #"""
