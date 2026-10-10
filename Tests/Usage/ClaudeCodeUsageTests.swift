@@ -134,6 +134,41 @@ struct ClaudeCodeUsageTests {
     }
 
     @Test
+    func aRejectedOwnTokenIsRefreshedOnceAndTheReadRetried() async {
+        let fixture = ClaudeUsageFixture()
+        defer { fixture.remove() }
+        fixture.settings.connection = .codexPill
+        fixture.response = .success(Data(ClaudeUsageFixture.usageResponse.utf8))
+        fixture.ownSignIn = ClaudeUsageFixture.ownSignIn(expiresAt: now.addingTimeInterval(3_600))
+        let rotated = ClaudeUsageFixture.ownSignIn(expiresAt: now.addingTimeInterval(28_800), rotated: true)
+        fixture.refreshResult = .success(rotated)
+        fixture.rejectedAccessTokens = [ClaudeUsageFixture.fakeOwnAccessToken]
+
+        guard case .snapshot = await fixture.usage.readUsage(now: now) else {
+            Issue.record("Expected usage after one refresh")
+            return
+        }
+        #expect(fixture.refreshRequestTokens == [ClaudeUsageFixture.fakeOwnRefreshToken])
+        #expect(fixture.usageRequestTokens == [ClaudeUsageFixture.fakeOwnAccessToken, ClaudeUsageFixture.fakeRotatedAccessToken])
+        #expect(fixture.ownSignIn == rotated)
+    }
+
+    @Test
+    func aTokenStillRejectedAfterTheRefreshAsksForANewSignIn() async {
+        let fixture = ClaudeUsageFixture()
+        defer { fixture.remove() }
+        fixture.settings.connection = .codexPill
+        fixture.response = .success(Data(ClaudeUsageFixture.usageResponse.utf8))
+        fixture.ownSignIn = ClaudeUsageFixture.ownSignIn(expiresAt: now.addingTimeInterval(3_600))
+        fixture.refreshResult = .success(ClaudeUsageFixture.ownSignIn(expiresAt: now.addingTimeInterval(28_800), rotated: true))
+        fixture.rejectedAccessTokens = [ClaudeUsageFixture.fakeOwnAccessToken, ClaudeUsageFixture.fakeRotatedAccessToken]
+
+        #expect(await fixture.usage.readUsage(now: now) == .unavailable(.signInRequired))
+        #expect(fixture.refreshRequestTokens == [ClaudeUsageFixture.fakeOwnRefreshToken])
+        #expect(fixture.usageRequestTokens == [ClaudeUsageFixture.fakeOwnAccessToken, ClaudeUsageFixture.fakeRotatedAccessToken])
+    }
+
+    @Test
     func aRefreshThatCannotReachAnthropicKeepsUsingTheTokenUntilItExpires() async {
         let fixture = ClaudeUsageFixture()
         defer { fixture.remove() }
@@ -235,6 +270,7 @@ struct ClaudeCodeUsageTests {
         fixture.signInToKeychain(expiresAt: now.addingTimeInterval(3_600))
         fixture.response = .failure(.unauthorized)
         #expect(await fixture.usage.readUsage(now: now) == .unavailable(.signInExpired))
+        #expect(fixture.refreshRequestTokens == [])
 
         fixture.response = .failure(.forbidden)
         #expect(await fixture.usage.readUsage(now: now) == .unavailable(.accessDenied))
