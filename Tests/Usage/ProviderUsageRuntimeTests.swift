@@ -72,7 +72,7 @@ struct ProviderUsageRuntimeTests {
         let runtime = ProviderUsageRuntime(sources: [cursor], now: { start }, onChange: { changeCount += 1 })
 
         await runtime.refreshIfDue()
-        cursor.reading = .unavailable(.readFailed)
+        cursor.reading = .unavailable(.unreachable)
         await runtime.refreshIfDue()
 
         #expect(changeCount == 1)
@@ -91,10 +91,10 @@ struct ProviderUsageRuntimeTests {
         let runtime = ProviderUsageRuntime(sources: [claude], now: { start }, onChange: {})
         await runtime.refreshIfDue()
 
-        claude.reading = .unavailable(.readFailed)
+        claude.reading = .unavailable(.unreachable)
         await runtime.refreshIfDue(forcing: .claude)
 
-        #expect(runtime.states == [ProviderUsageState(provider: .claude, status: .unavailable(.readFailed, lastSnapshot: snapshot))])
+        #expect(runtime.states == [ProviderUsageState(provider: .claude, status: .unavailable(.unreachable, lastSnapshot: snapshot))])
 
         claude.reading = .unavailable(.signInExpired)
         await runtime.refreshIfDue(forcing: .claude)
@@ -103,9 +103,9 @@ struct ProviderUsageRuntimeTests {
 
         claude.reading = .unavailable(.signedOut)
         await runtime.refreshIfDue(forcing: .claude)
-        claude.reading = .unavailable(.readFailed)
+        claude.reading = .unavailable(.unreachable)
         await runtime.refreshIfDue(forcing: .claude)
 
-        #expect(runtime.states == [ProviderUsageState(provider: .claude, status: .unavailable(.readFailed, lastSnapshot: nil))])
+        #expect(runtime.states == [ProviderUsageState(provider: .claude, status: .unavailable(.unreachable, lastSnapshot: nil))])
     }
 }

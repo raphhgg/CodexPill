@@ -42,8 +42,13 @@ struct ClaudeCodeUsage: UsageProviderSource {
         switch status {
         case .signedOut: return .unavailable(.signedOut)
         case .keychainAccessNeeded: return .unavailable(.keychainAccessNeeded)
+        case .signInUnreadable: return .unavailable(.signInUnreadable)
         case .signInExpired: return .unavailable(.signInExpired)
-        case .unavailable: return .unavailable(.readFailed)
+        case .forbidden: return .unavailable(.accessDenied)
+        case .rateLimited: return .unavailable(.rateLimited)
+        case .unreachable: return .unavailable(.unreachable)
+        case .serviceError: return .unavailable(.serviceError)
+        case .unexpectedResponse: return .unavailable(.unexpectedResponse)
         case let .available(report, planName):
             let windows = [
                 report.fiveHour.map { usageWindow(.session, $0, durationMinutes: 300) },

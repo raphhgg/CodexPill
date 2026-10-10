@@ -82,11 +82,21 @@ struct ClaudeCodeUsageTests {
         fixture.response = .failure(.unauthorized)
         #expect(await fixture.usage.readUsage(now: now) == .unavailable(.signInExpired))
 
+        fixture.response = .failure(.forbidden)
+        #expect(await fixture.usage.readUsage(now: now) == .unavailable(.accessDenied))
+
+        fixture.response = .failure(.httpStatus(503))
+        #expect(await fixture.usage.readUsage(now: now) == .unavailable(.serviceError))
+
         fixture.response = .failure(.transport)
-        #expect(await fixture.usage.readUsage(now: now) == .unavailable(.readFailed))
+        #expect(await fixture.usage.readUsage(now: now) == .unavailable(.unreachable))
 
         fixture.response = .success(Data("<html>".utf8))
-        #expect(await fixture.usage.readUsage(now: now) == .unavailable(.readFailed))
+        #expect(await fixture.usage.readUsage(now: now) == .unavailable(.unexpectedResponse))
+
+        fixture.keychainItem = Data("not json".utf8)
+        #expect(await fixture.usage.readUsage(now: now) == .unavailable(.signInUnreadable))
+        fixture.signInToKeychain(expiresAt: now.addingTimeInterval(3_600))
 
         fixture.response = .success(Data(#"{"five_hour":null,"seven_day":null}"#.utf8))
         #expect(await fixture.usage.readUsage(now: now) == .awaitingUsage)
@@ -100,9 +110,9 @@ struct ClaudeCodeUsageTests {
         fixture.signInToKeychain(expiresAt: now.addingTimeInterval(7_200))
         fixture.response = .failure(.rateLimited(retryAfter: 900))
 
-        #expect(await fixture.usage.readUsage(now: now) == .unavailable(.readFailed))
+        #expect(await fixture.usage.readUsage(now: now) == .unavailable(.rateLimited))
         fixture.response = .success(Data(ClaudeUsageFixture.usageResponse.utf8))
-        #expect(await fixture.usage.readUsage(now: now.addingTimeInterval(899)) == .unavailable(.readFailed))
+        #expect(await fixture.usage.readUsage(now: now.addingTimeInterval(899)) == .unavailable(.rateLimited))
         #expect(fixture.requestCount == 1)
 
         guard case .snapshot = await fixture.usage.readUsage(now: now.addingTimeInterval(900)) else {

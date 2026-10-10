@@ -12,11 +12,12 @@ struct ClaudeUsageReport: Equatable, Sendable {
 }
 
 protocol ClaudeUsageWebClient: Sendable {
-    func usage(using token: ClaudeAccessToken) async throws -> Data
+    func usage(using token: ClaudeAccessToken) async throws(ClaudeUsageWebError) -> Data
 }
 
 enum ClaudeUsageWebError: Error, Equatable {
     case unauthorized
+    case forbidden
     case rateLimited(retryAfter: TimeInterval?)
     case httpStatus(Int)
     case transport
@@ -45,6 +46,7 @@ enum ClaudeUsageAPI {
         switch statusCode {
         case 200: nil
         case 401: .unauthorized
+        case 403: .forbidden
         case 429: .rateLimited(retryAfter: retryAfter.flatMap { TimeInterval($0.trimmingCharacters(in: .whitespaces)) })
         default: .httpStatus(statusCode)
         }
@@ -100,7 +102,7 @@ final class URLSessionClaudeUsageWebClient: ClaudeUsageWebClient {
         session.finishTasksAndInvalidate()
     }
 
-    func usage(using token: ClaudeAccessToken) async throws -> Data {
+    func usage(using token: ClaudeAccessToken) async throws(ClaudeUsageWebError) -> Data {
         let data: Data
         let response: URLResponse
         do {

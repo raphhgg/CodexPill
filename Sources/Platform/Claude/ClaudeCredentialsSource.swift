@@ -31,16 +31,35 @@ struct ClaudeCredentialsSource: Sendable {
         configDirectory.appendingPathComponent(".credentials.json")
     }
 
+    /// A credentials file without a Claude sign-in, for example one with only `mcpOAuth`, falls through to the Keychain.
     func lookup(allowingPrompt: Bool) -> ClaudeCredentialsLookup {
-        if let data = try? Data(contentsOf: credentialsFileURL), let credentials = ClaudeCredentials(json: data) {
-            return .credentials(credentials)
+        do {
+            if let data = try Self.contentsIfPresent(of: credentialsFileURL), let credentials = try ClaudeCredentials(json: data) {
+                return .credentials(credentials)
+            }
+        } catch {
+            return .unreadable
         }
         guard let keychain else { return .signedOut }
         switch keychain.credentialsData(allowingPrompt: allowingPrompt) {
         case .notFound: return .signedOut
         case .needsPermission: return .keychainAccessNeeded
         case .failed: return .unreadable
-        case let .found(data): return ClaudeCredentials(json: data).map(ClaudeCredentialsLookup.credentials) ?? .signedOut
+        case let .found(data):
+            do {
+                return try ClaudeCredentials(json: data).map(ClaudeCredentialsLookup.credentials) ?? .signedOut
+            } catch {
+                return .unreadable
+            }
+        }
+    }
+
+    /// Nil when the file does not exist. Any other read failure throws.
+    static func contentsIfPresent(of url: URL) throws -> Data? {
+        do {
+            return try Data(contentsOf: url)
+        } catch CocoaError.fileReadNoSuchFile {
+            return nil
         }
     }
 

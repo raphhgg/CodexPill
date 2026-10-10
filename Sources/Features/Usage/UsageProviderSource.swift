@@ -24,18 +24,28 @@ enum UsageProviderReading: Equatable, Sendable {
     case snapshot(UsageSnapshot)
 }
 
+/// Why a connected provider shows no current usage. Each case has its own menu copy.
 enum UsageUnavailableReason: Equatable, Sendable {
     case signedOut
+    /// The sign-in is past its expiry, or the provider rejected it (HTTP 401).
     case signInExpired
     /// The sign-in exists, but macOS needs the user to allow CodexPill to read it.
     case keychainAccessNeeded
-    case readFailed
+    /// The sign-in exists but could not be read or parsed.
+    case signInUnreadable
+    /// The provider knows the sign-in but refuses to share usage with it (HTTP 403).
+    case accessDenied
+    /// The provider asked CodexPill to slow down (HTTP 429).
+    case rateLimited
+    /// No answer at all: offline, DNS, TLS, or a timeout.
+    case unreachable
+    /// The provider answered with a server error or another unexpected status.
+    case serviceError
+    /// The provider answered, but not in the shape CodexPill reads.
+    case unexpectedResponse
 
     /// The last good numbers stay on screen only while they still belong to the same signed-in account.
     var keepsLastSnapshot: Bool {
-        switch self {
-        case .signedOut: false
-        case .signInExpired, .keychainAccessNeeded, .readFailed: true
-        }
+        self != .signedOut
     }
 }

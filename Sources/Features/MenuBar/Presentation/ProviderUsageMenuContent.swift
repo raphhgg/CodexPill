@@ -91,23 +91,26 @@ extension UsageProvider {
         }
     }
 
-    fileprivate func unavailableMessage(for reason: UsageUnavailableReason) -> (title: String, detail: String?) {
-        switch reason {
-        case .signedOut:
-            ("Not signed in to \(menuTitle)", "Sign in to \(menuTitle) to see usage.")
-        case .signInExpired:
-            ("Sign in to \(menuTitle) again", self == .claude ? "Open Claude Code to sign in again." : nil)
-        case .keychainAccessNeeded:
-            ("Allow Keychain access", nil)
-        case .readFailed:
-            readFailedMessage
+    func unavailableMessage(for reason: UsageUnavailableReason) -> (title: String, detail: String?) {
+        let retrying = "Retrying in a few minutes."
+        return switch reason {
+        case .signedOut: ("Not signed in to \(menuTitle)", "Sign in to \(menuTitle) to see usage.")
+        case .signInExpired: ("\(menuTitle) sign-in expired", "Open \(menuTitle) to renew it.")
+        case .keychainAccessNeeded: ("Allow Keychain access", nil)
+        case .signInUnreadable: ("Can't read the \(menuTitle) sign-in", "Sign in to \(menuTitle) again.")
+        case .accessDenied: ("\(serviceName) won't share usage", "Sign in to \(menuTitle) again.")
+        case .rateLimited: ("\(serviceName) asked to wait", retrying)
+        case .unreachable: ("Can't reach \(serviceName)", retrying)
+        case .serviceError: ("\(serviceName) is having trouble", retrying)
+        case .unexpectedResponse: ("Unexpected reply from \(serviceName)", retrying)
         }
     }
 
-    private var readFailedMessage: (title: String, detail: String) {
+    /// Who answers the usage request.
+    private var serviceName: String {
         switch self {
-        case .claude: ("Can't reach Anthropic", "Retrying in a few minutes.")
-        case .codex, .cursor: ("Can't read \(menuTitle) usage", "Retrying soon.")
+        case .claude: "Anthropic"
+        case .codex, .cursor: menuTitle
         }
     }
 
