@@ -63,7 +63,6 @@ struct DiagnosticReport: Codable, Equatable {
 
 struct DiagnosticEnvironmentMetadata: Codable, Equatable {
     let refreshIntervalMinutes: Int
-    let visibleInactiveAccountCount: Int
     let statusBarDisplayMode: String
 }
 
@@ -195,7 +194,6 @@ struct DiagnosticReportBuilder {
             system: systemMetadata,
             environment: DiagnosticEnvironmentMetadata(
                 refreshIntervalMinutes: state.refreshIntervalMinutes,
-                visibleInactiveAccountCount: state.visibleInactiveAccountCount,
                 statusBarDisplayMode: state.effectiveStatusBarDisplayMode.rawValue
             ),
             accounts: accounts,

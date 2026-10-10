@@ -47,7 +47,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private lazy var providerUsageRuntime = ProviderUsageRuntime(
         connections: providerConnections,
         onChange: { [weak self] in
-            self?.rebuildMenuWhenSafe()
+            guard let self else { return }
+            statusItemRuntime.update(presentation: statusItemPresentation(for: menuState()))
+            rebuildMenuWhenSafe()
         }
     )
 
@@ -162,33 +164,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     @objc
-    func renameAccount(_ sender: NSMenuItem) {
-        recordMenuAction("renameAccount")
-        guard
-            let idString = sender.representedObject as? String,
-            let id = UUID(uuidString: idString),
-            let account = accountsController.accounts.first(where: { $0.id == id })
-        else {
-            return
-        }
-
-        let request = alertFactory.makeRenameAccountRequest(accountName: account.name)
-        guard let newName = alertPresenter.presentTextInput(request) else { return }
-        tasks.start { [accountsController] in await accountsController.renameSavedAccount(account, to: newName) }
-    }
-
-    @objc
     func selectRefreshInterval(_ sender: NSMenuItem) {
         recordMenuAction("selectRefreshInterval")
         guard let minutes = sender.representedObject as? Int else { return }
         menuDisplaySettings.refreshIntervalMinutes = minutes
-    }
-
-    @objc
-    func selectVisibleInactiveAccountCount(_ sender: NSMenuItem) {
-        recordMenuAction("selectVisibleInactiveAccountCount")
-        guard let count = sender.representedObject as? Int else { return }
-        menuDisplaySettings.visibleInactiveAccountCount = count
     }
 
     @objc
@@ -238,57 +217,16 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     @objc
-    func selectTokenUsagePeriod(_ sender: NSMenuItem) {
-        recordMenuAction("selectTokenUsagePeriod")
-        guard
-            let rawValue = sender.representedObject as? Int,
-            let period = CodexTokenUsagePeriod(rawValue: rawValue)
-        else {
-            return
-        }
-        tokenUsagePreferences.period = period
-        tokenUsageRuntime.handlePeriodChange(period: period, peakScope: tokenUsagePreferences.peakScope)
-        rebuildMenu()
+    func toggleMasksEmails(_ sender: NSMenuItem) {
+        recordMenuAction("toggleMasksEmails")
+        menuDisplaySettings.masksEmails.toggle()
     }
 
     @objc
-    func selectTokenUsagePeakScope(_ sender: NSMenuItem) {
-        recordMenuAction("selectTokenUsagePeakScope")
-        guard
-            let rawValue = sender.representedObject as? String,
-            let peakScope = TokenUsagePeakScope(rawValue: rawValue)
-        else {
-            return
-        }
-        tokenUsagePreferences.peakScope = peakScope
-        tokenUsageRuntime.handlePeriodChange(period: tokenUsagePreferences.period, peakScope: peakScope)
-        rebuildMenu()
-    }
-
-    @objc
-    func selectTokenUsageChartStyle(_ sender: NSMenuItem) {
-        recordMenuAction("selectTokenUsageChartStyle")
-        guard
-            let rawValue = sender.representedObject as? String,
-            let style = TokenUsageChartStyle(rawValue: rawValue)
-        else {
-            return
-        }
-        tokenUsagePreferences.chartStyle = style
-        rebuildMenu()
-    }
-
-    @objc
-    func selectTokenUsageLoadingAnimationStyle(_ sender: NSMenuItem) {
-        recordMenuAction("selectTokenUsageLoadingAnimationStyle")
-        guard
-            let rawValue = sender.representedObject as? String,
-            let style = TokenUsageLoadingAnimationStyle(rawValue: rawValue)
-        else {
-            return
-        }
-        tokenUsagePreferences.loadingAnimationStyle = style
-        rebuildMenu()
+    func reorderTools(_ sender: NSMenuItem) {
+        recordMenuAction("reorderTools")
+        guard let order = sender.representedObject as? [UsageProvider] else { return }
+        menuDisplaySettings.toolOrder = order
     }
 
     @objc
@@ -539,8 +477,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         MenuBarMenuState(
             activeAccount: accountsController.activeAccount,
             inactiveAccounts: accountsController.sortedInactiveAccounts,
-            visibleInactiveAccountCount: menuDisplaySettings.visibleInactiveAccountCount,
-            visibleInactiveAccountCountOptions: menuDisplaySettings.visibleInactiveAccountCountOptions,
             refreshIntervalMinutes: menuDisplaySettings.refreshIntervalMinutes,
             refreshIntervalOptions: menuDisplaySettings.refreshIntervalOptions,
             statusBarMonochrome: statusItemSettings.statusBarMonochrome,
@@ -558,12 +494,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             statusMessage: accountsController.statusMessage,
             loginItemState: loginItemController.state(),
             tokenUsageEnabled: tokenUsagePreferences.isEnabled,
-            tokenUsagePeriod: tokenUsagePreferences.period,
-            tokenUsageChartStyle: tokenUsagePreferences.chartStyle,
-            tokenUsageLoadingAnimationStyle: tokenUsagePreferences.loadingAnimationStyle,
-            tokenUsagePeakScope: tokenUsagePreferences.peakScope,
             tokenUsageCard: makeTokenUsageCard(),
             providerUsage: providerUsageRuntime.states,
+            toolOrder: menuDisplaySettings.toolOrder,
+            masksEmails: menuDisplaySettings.masksEmails,
             now: now()
         )
     }
@@ -839,7 +773,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             _ = statusItemSettings.statusBarIndicatorStyle
             _ = statusItemSettings.statusBarMonochrome
             _ = statusItemSettings.statusBarDisplayMode
-            _ = menuDisplaySettings.visibleInactiveAccountCount
+            _ = menuDisplaySettings.toolOrder
+            _ = menuDisplaySettings.masksEmails
             _ = statusItemSettings.sessionAccentColor
             _ = statusItemSettings.weeklyAccentColor
             _ = statusItemSettings.usesOneUsageColor
@@ -889,7 +824,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     private func statusItemPresentation(for state: MenuBarMenuState) -> StatusItemRuntimePresentation {
         StatusItemRuntimePresentation(
-            activeAccount: accountsController.activeAccount,
+            source: state.statusItemSource,
             indicatorStyle: statusItemSettings.statusBarIndicatorStyle,
             monochrome: statusItemSettings.statusBarMonochrome,
             displayMode: state.effectiveStatusBarDisplayMode,

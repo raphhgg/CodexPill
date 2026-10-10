@@ -1,7 +1,7 @@
 import AppKit
 
 struct StatusItemRuntimePresentation {
-    let activeAccount: CodexAccount?
+    let source: StatusItemSource
     let indicatorStyle: StatusBarIndicatorStyle
     let monochrome: Bool
     let displayMode: StatusBarDisplayMode
@@ -10,7 +10,7 @@ struct StatusItemRuntimePresentation {
     let weeklyAccentColor: NSColor
 
     init(
-        activeAccount: CodexAccount?,
+        source: StatusItemSource,
         indicatorStyle: StatusBarIndicatorStyle,
         monochrome: Bool,
         displayMode: StatusBarDisplayMode,
@@ -18,7 +18,7 @@ struct StatusItemRuntimePresentation {
         sessionAccentColor: NSColor = StatusBarProgressColorDefaults.accent,
         weeklyAccentColor: NSColor = StatusBarProgressColorDefaults.accent
     ) {
-        self.activeAccount = activeAccount
+        self.source = source
         self.indicatorStyle = indicatorStyle
         self.monochrome = monochrome
         self.displayMode = displayMode
@@ -72,7 +72,7 @@ final class StatusItemRuntime {
     private let hoverPollingInterval: TimeInterval
 
     private var presentation = StatusItemRuntimePresentation(
-        activeAccount: nil,
+        source: .nothingConnected,
         indicatorStyle: .twinPills,
         monochrome: true,
         displayMode: .iconOnly
@@ -192,20 +192,24 @@ final class StatusItemRuntime {
 
     private func updateAppearance() {
         guard let button = statusItem.button else { return }
-        let barPercents = statusItemBarPercents(for: presentation.activeAccount, mode: presentation.percentMode)
-
-        button.image = iconRenderer.makeImage(
-            style: presentation.indicatorStyle,
-            primaryPercent: barPercents.session,
-            secondaryPercent: barPercents.weekly,
-            monochrome: presentation.monochrome,
-            primaryColor: presentation.sessionAccentColor,
-            secondaryColor: presentation.weeklyAccentColor
-        )
+        switch presentation.source {
+        case .nothingConnected:
+            button.image = iconRenderer.makeAppGlyph()
+        case let .tool(section):
+            let barPercents = statusItemBarPercents(for: section.card.windows, mode: presentation.percentMode)
+            button.image = iconRenderer.makeImage(
+                style: presentation.indicatorStyle,
+                primaryPercent: barPercents.primary,
+                secondaryPercent: barPercents.secondary,
+                monochrome: presentation.monochrome,
+                primaryColor: presentation.sessionAccentColor,
+                secondaryColor: presentation.weeklyAccentColor
+            )
+        }
         button.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .medium)
 
         if shouldShowStatusTitle {
-            let title = statusItemHoverTitle(for: presentation.activeAccount, percentMode: presentation.percentMode)
+            let title = statusItemTitle(for: presentation.source.windows, percentMode: presentation.percentMode)
             button.imagePosition = .imageLeading
             button.title = title
             button.attributedTitle = NSAttributedString(
@@ -221,7 +225,7 @@ final class StatusItemRuntime {
             button.attributedTitle = NSAttributedString(string: "")
         }
 
-        button.toolTip = statusItemTooltipText(for: presentation.activeAccount)
+        button.toolTip = statusItemTooltipText(for: presentation.source)
         recordStatusTitleVisibilityTransition(
             isVisible: shouldShowStatusTitle,
             displayedTitle: shouldShowStatusTitle ? button.title : nil
