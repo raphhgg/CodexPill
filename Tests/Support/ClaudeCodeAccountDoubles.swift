@@ -50,3 +50,18 @@ struct FileClaudeCodeAccountItems: ClaudeCodeAccountItemStoring {
         rootDirectory.appendingPathComponent("claude-code-account-\(id.uuidString).json")
     }
 }
+
+/// A Claude Code process table the test sets.
+final class ClaudeCodeProcessProbe: ClaudeCodeProcessDetecting, @unchecked Sendable {
+    private let lock = NSLock()
+    private var running = false
+
+    var isRunning: Bool {
+        get { lock.withLock { running } }
+        set { lock.withLock { running = newValue } }
+    }
+
+    func isClaudeCodeRunning() -> Bool {
+        isRunning
+    }
+}

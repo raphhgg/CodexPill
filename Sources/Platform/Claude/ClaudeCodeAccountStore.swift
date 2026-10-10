@@ -22,6 +22,8 @@ enum ClaudeCodeAccountError: Error, Equatable, Sendable {
     case claudeCodeSignedOut
     /// Claude Code's sign-in is not saved in CodexPill, so switching away would lose it.
     case currentSignInNotSaved
+    /// A running Claude Code would write its old sign-in back, so switching waits until it quits.
+    case claudeCodeRunning
     case keychainAccessNeeded
     case unreadable
     case writeFailed
@@ -44,6 +46,7 @@ struct ClaudeCodeAccountStore: Sendable {
     let catalogFile: URL
     let items: any ClaudeCodeAccountItemStoring
     let claudeCode: ClaudeCodeSignInStore
+    let processes: any ClaudeCodeProcessDetecting
     var now: @Sendable () -> Date = Date.init
 
     func accounts() -> [ClaudeCodeAccount] {
@@ -85,6 +88,7 @@ struct ClaudeCodeAccountStore: Sendable {
     /// Signs Claude Code in to a saved account. The outgoing sign-in is saved again first; a sign-in that is not
     /// saved is never overwritten.
     func activate(_ id: UUID) throws(ClaudeCodeAccountError) {
+        guard !processes.isClaudeCodeRunning() else { throw .claudeCodeRunning }
         var catalog = accounts()
         guard let targetIndex = catalog.firstIndex(where: { $0.id == id }) else { throw .unknownAccount }
         guard let target = items.read(id).flatMap(ClaudeCodeSignInSnapshot.init(itemData:)) else {

@@ -150,6 +150,42 @@ struct ClaudeCodeAccountStoreTests {
     }
 
     @Test
+    func switchingWaitsUntilClaudeCodeQuits() throws {
+        let fixture = try ClaudeCodeAccountFixture()
+        defer { fixture.remove() }
+        try fixture.signIn(.team, refreshToken: "fake-team-refresh-1")
+        let team = try fixture.store.captureCurrent()
+        try fixture.signIn(.personal, refreshToken: "fake-personal-refresh-1")
+        _ = try fixture.store.captureCurrent()
+        let keychainBefore = try Data(contentsOf: fixture.keychainFile)
+        let configBefore = try Data(contentsOf: fixture.globalConfigFile)
+        fixture.processes.isRunning = true
+
+        #expect(throws: ClaudeCodeAccountError.claudeCodeRunning) { try fixture.store.activate(team.id) }
+        #expect(try Data(contentsOf: fixture.keychainFile) == keychainBefore)
+        #expect(try Data(contentsOf: fixture.globalConfigFile) == configBefore)
+
+        fixture.processes.isRunning = false
+        try fixture.store.activate(team.id)
+        #expect(fixture.store.activeAccountID() == team.id)
+    }
+
+    @Test
+    func claudeCodeIsSpottedInEveryWayItIsInstalled() {
+        let executables = [
+            "/Users/someone/.local/share/claude/versions/2.1.294",
+            "/opt/homebrew/bin/claude",
+            "/Users/someone/Library/Application Support/Claude/claude-code/2.1.295/abc/claude.app/Contents/MacOS/claude",
+        ]
+        #expect(executables.allSatisfy(SystemClaudeCodeProcessDetector.isClaudeCodeExecutable))
+        #expect(SystemClaudeCodeProcessDetector.isClaudeCodeCommandLine("claude --resume"))
+
+        let others = ["/Applications/Claude.app/Contents/MacOS/Claude", "/usr/local/bin/node", "/usr/bin/claude-helper"]
+        #expect(others.contains(where: SystemClaudeCodeProcessDetector.isClaudeCodeExecutable) == false)
+        #expect(SystemClaudeCodeProcessDetector.isClaudeCodeCommandLine("vim claude.md") == false)
+    }
+
+    @Test
     func deletingForgetsTheSavedSignInAndLeavesClaudeCodeAlone() throws {
         let fixture = try ClaudeCodeAccountFixture()
         defer { fixture.remove() }
@@ -213,6 +249,7 @@ private enum FakeClaudeAccount {
 private struct ClaudeCodeAccountFixture {
     let root: URL
     let store: ClaudeCodeAccountStore
+    let processes = ClaudeCodeProcessProbe()
 
     init() throws {
         root = FileManager.default.temporaryDirectory
@@ -227,13 +264,15 @@ private struct ClaudeCodeAccountFixture {
                 configDirectory: root.appendingPathComponent(".claude", isDirectory: true),
                 globalConfigFile: ClaudeCodeSignInStore.globalConfigFile(environment: [:], homeDirectory: root),
                 keychain: FileClaudeCodeKeychain(fileURL: root.appendingPathComponent(FileClaudeCodeKeychain.fileName))
-            )
+            ),
+            processes: processes
         )
     }
 
     var keychainFile: URL { root.appendingPathComponent(FileClaudeCodeKeychain.fileName) }
     var credentialsFile: URL { root.appendingPathComponent(".claude/.credentials.json") }
     var catalogFile: URL { root.appendingPathComponent("claude-code-accounts.json") }
+    var globalConfigFile: URL { root.appendingPathComponent(".claude.json") }
 
     /// What Claude Code leaves behind after `/login`: the Keychain item, with an MCP sign-in, and the account record.
     func signIn(_ account: FakeClaudeAccount, refreshToken: String, plan: String = "max", recordsAccount: Bool = true) throws {
