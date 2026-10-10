@@ -12,6 +12,10 @@ enum CursorUsageStatus: Equatable, Sendable {
 enum CursorUsageFailure: Equatable, Sendable {
     case localStateUnreadable
     case network
+    /// cursor.com knows the session but refuses to share usage with it (403).
+    case forbidden
+    /// cursor.com answered with a server error or another unexpected status.
+    case serviceError
     /// cursor.com answered 429, or its `Retry-After` has not passed yet.
     case rateLimited
     case unexpectedResponse

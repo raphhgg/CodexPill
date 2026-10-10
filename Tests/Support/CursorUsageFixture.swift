@@ -12,6 +12,7 @@ final class CursorUsageFixture: CursorAccessTokenSource, CursorUsageWebClient, @
     private var currentLookup: CursorAccessTokenLookup = .cursorNotInstalled
     private var currentResponse: Result<Data, CursorUsageWebError> = .failure(.transport)
     private var requests = 0
+    private var currentDatabaseUnreadable = false
 
     /// Synthetic usage summary: 82.29% of the plan used while dollars show 2000 of 2000 (bonus credit),
     /// with $12.34 of a $50.00 on-demand cap spent.
@@ -49,8 +50,14 @@ final class CursorUsageFixture: CursorAccessTokenSource, CursorUsageWebClient, @
         response = .success(Data(summary.utf8))
     }
 
+    var databaseUnreadable: Bool {
+        get { lock.withLock { currentDatabaseUnreadable } }
+        set { lock.withLock { currentDatabaseUnreadable = newValue } }
+    }
+
     func lookup() throws -> CursorAccessTokenLookup {
-        tokenLookup
+        if databaseUnreadable { throw CursorStateDatabaseError.sqlite(code: 11) }
+        return tokenLookup
     }
 
     func usageSummary(using _: CursorAccessToken) async throws -> Data {

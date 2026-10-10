@@ -96,6 +96,15 @@ struct CursorUsageClientTests {
     }
 
     @Test
+    func eachHTTPStatusHasItsOwnError() {
+        let now = now
+
+        #expect(CursorUsageWebError.error(forStatus: 401, retryAfter: nil, now: now) == .unauthorized)
+        #expect(CursorUsageWebError.error(forStatus: 403, retryAfter: nil, now: now) == .forbidden)
+        #expect(CursorUsageWebError.error(forStatus: 500, retryAfter: nil, now: now) == .httpStatus(500))
+    }
+
+    @Test
     func expiredTokenIsNotFetched() async {
         let webClient = CursorUsageWebClientHarness([.success(CursorUsageSummaryFixtures.proPlan)])
         let client = makeClient(

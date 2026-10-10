@@ -87,12 +87,22 @@ struct CursorUsageTests {
         fixture.tokenLookup = .signedOut
         #expect(await fixture.usage.readUsage(now: now) == .unavailable(.signedOut))
 
+        fixture.databaseUnreadable = true
+        #expect(await fixture.usage.readUsage(now: now) == .unavailable(.signInUnreadable))
+        fixture.databaseUnreadable = false
+
         fixture.signIn(expiresAt: now.addingTimeInterval(30), summary: CursorUsageFixture.proPlanWithCappedOnDemand)
         #expect(await fixture.usage.readUsage(now: now) == .unavailable(.signInExpired))
 
         fixture.signIn(expiresAt: now.addingTimeInterval(3_600), summary: "")
         fixture.response = .failure(.unauthorized)
         #expect(await fixture.usage.readUsage(now: now) == .unavailable(.signInExpired))
+
+        fixture.response = .failure(.forbidden)
+        #expect(await fixture.usage.readUsage(now: now) == .unavailable(.accessDenied))
+
+        fixture.response = .failure(.httpStatus(503))
+        #expect(await fixture.usage.readUsage(now: now) == .unavailable(.serviceError))
 
         fixture.response = .failure(.transport)
         #expect(await fixture.usage.readUsage(now: now) == .unavailable(.unreachable))
