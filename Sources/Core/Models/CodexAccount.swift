@@ -197,25 +197,34 @@ private struct StoredCodexRateLimits: Codable {
         var windowDurationMinutes: Int?
     }
 
+    struct ResetCredits: Codable {
+        var availableCount: Int
+        var nextExpiry: Date?
+    }
+
     var planType: String?
     var primary: Window?
     var secondary: Window?
     var fetchedAt: Date
+    var resetCredits: ResetCredits?
 
     init(_ usage: UsageSnapshot) {
         planType = usage.planName
         primary = usage.window(.session).map(Window.init)
         secondary = usage.window(.weekly).map(Window.init)
         fetchedAt = usage.fetchedAt
+        resetCredits = usage.resetCredits.map { ResetCredits(availableCount: $0.availableCount, nextExpiry: $0.nextExpiry) }
     }
 
     var usage: UsageSnapshot {
-        UsageSnapshot.codex(
+        var usage = UsageSnapshot.codex(
             planName: planType,
             primary: primary.map { ($0.usedPercent, $0.resetsAt, $0.windowDurationMinutes) },
             secondary: secondary.map { ($0.usedPercent, $0.resetsAt, $0.windowDurationMinutes) },
             fetchedAt: fetchedAt
         )
+        usage.resetCredits = resetCredits.map { UsageResetCredits(availableCount: $0.availableCount, nextExpiry: $0.nextExpiry) }
+        return usage
     }
 }
 

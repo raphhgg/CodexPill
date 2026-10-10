@@ -418,6 +418,74 @@ struct CodexAppServerClientTests {
     }
 
     @Test
+    func consumeOutputDataReadsResetCreditsWithTheEarliestAvailableExpiry() throws {
+        let status = try readStatus(rateLimitsResult: #"{"rateLimits":{"primary":{"usedPercent":90,"windowDurationMins":300},"secondary":{"usedPercent":40,"windowDurationMins":10080}},"rateLimitResetCredits":{"availableCount":2,"credits":[{"id":"a","grantedAt":1,"resetType":"codexRateLimits","status":"available","expiresAt":2000900000},{"id":"b","grantedAt":1,"resetType":"codexRateLimits","status":"redeemed","expiresAt":2000100000},{"id":"c","grantedAt":1,"resetType":"unknown","status":"available","expiresAt":2000500000},{"id":"d","grantedAt":1,"resetType":"codexRateLimits","status":"available","expiresAt":null}]}}"#)
+
+        #expect(status?.usage?.resetCredits == UsageResetCredits(
+            availableCount: 2,
+            nextExpiry: Date(timeIntervalSince1970: 2_000_500_000)
+        ))
+    }
+
+    @Test
+    func consumeOutputDataKeepsTheResetCountWhenCodexOmitsCreditDetails() throws {
+        let status = try readStatus(rateLimitsResult: #"{"rateLimits":{"primary":{"usedPercent":90,"windowDurationMins":300}},"rateLimitResetCredits":{"availableCount":3,"credits":null}}"#)
+
+        #expect(status?.usage?.resetCredits == UsageResetCredits(availableCount: 3, nextExpiry: nil))
+    }
+
+    @Test
+    func consumeOutputDataReadsOlderCodexWithoutResetCredits() throws {
+        let status = try readStatus(rateLimitsResult: #"{"rateLimits":{"primary":{"usedPercent":90,"windowDurationMins":300}},"rateLimitResetCredits":null}"#)
+        let olderStatus = try readStatus(rateLimitsResult: #"{"rateLimits":{"primary":{"usedPercent":90,"windowDurationMins":300}}}"#)
+
+        #expect(status?.usage?.window(.session)?.usedPercent == 90)
+        #expect(status?.usage?.resetCredits == nil)
+        #expect(olderStatus?.usage?.window(.session)?.usedPercent == 90)
+        #expect(olderStatus?.usage?.resetCredits == nil)
+    }
+
+    @Test(arguments: [
+        ("reset", CodexResetCreditOutcome.reset),
+        ("nothingToReset", .nothingToReset),
+        ("noCredit", .noCredit),
+        ("alreadyRedeemed", .alreadyRedeemed),
+        ("somethingNew", .unrecognized),
+    ])
+    func consumeResetCreditSendsTheIdempotencyKeyAndReadsTheOutcome(rawOutcome: String, outcome: CodexResetCreditOutcome) async throws {
+        let fixture = try AppServerFixture(output: #"{"id":2,"result":{"outcome":"\#(rawOutcome)"}}"#)
+        defer { fixture.remove() }
+        let key = UUID(uuidString: "6F9619FF-8B86-D011-B42D-00CF4FC964FF")!
+
+        let result = try await fixture.client.consumeResetCredit(idempotencyKey: key)
+
+        #expect(result == outcome)
+        let requests = try fixture.requests()
+        #expect(requests.contains(#""method":"initialize""#))
+        #expect(requests.contains(#"{"method":"account/rateLimitResetCredit/consume","id":2,"params":{"idempotencyKey":"6F9619FF-8B86-D011-B42D-00CF4FC964FF"}}"#))
+    }
+
+    @Test
+    func consumeResetCreditSurfacesCodexErrors() async throws {
+        let fixture = try AppServerFixture(output: #"{"id":2,"error":{"code":-32600,"message":"not signed in"}}"#)
+        defer { fixture.remove() }
+
+        await #expect(throws: CodexAppServerError.server("not signed in")) {
+            _ = try await fixture.client.consumeResetCredit(idempotencyKey: UUID())
+        }
+    }
+
+    @Test
+    func consumeResetCreditFailsWhenCodexExitsWithoutAnswering() async throws {
+        let fixture = try AppServerFixture(output: #"{"id":1,"result":{}}"#)
+        defer { fixture.remove() }
+
+        await #expect(throws: CodexAppServerError.server("Codex app-server ended before using the reset.")) {
+            _ = try await fixture.client.consumeResetCredit(idempotencyKey: UUID())
+        }
+    }
+
+    @Test
     func readSavedAccountStatusTreatsPrematureExitBeforeRateLimitResponseAsSessionFailure() async throws {
         let fileManager = FileManager.default
         let directory = fileManager.temporaryDirectory
@@ -555,6 +623,15 @@ struct CodexAppServerClientTests {
         }
     }
 
+    private func readStatus(rateLimitsResult: String) throws -> CodexAccountStatus? {
+        let state = AppServerSessionState()
+        let lines = [
+            #"{"id":2,"result":{"account":{"email":"user@example.com","planType":"team"}}}"#,
+            #"{"id":3,"result":"# + rateLimitsResult + "}",
+        ]
+        return try consumeOutputData(Data((lines.joined(separator: "\n") + "\n").utf8), decoder: JSONDecoder(), state: state)
+    }
+
     private func makeUsageSnapshot() -> UsageSnapshot {
         UsageSnapshot.codex(
             planName: "plus",
@@ -608,4 +685,37 @@ private actor SleepRecorder {
 private enum StatusReadError: Error {
     case transientFailure
     case noStubbedResult
+}
+
+/// A stand-in `codex app-server` that records the requests it receives and prints one canned line.
+private struct AppServerFixture {
+    let directory: URL
+    let client: CodexAppServerClient
+    private let requestsFile: URL
+
+    init(output: String) throws {
+        let fileManager = FileManager.default
+        directory = fileManager.temporaryDirectory
+            .appendingPathComponent("CodexPill-AppServerClientTests-\(UUID().uuidString)", isDirectory: true)
+        try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+        requestsFile = directory.appendingPathComponent("requests.jsonl")
+        let script = directory.appendingPathComponent("codex-fixture.sh")
+        let scriptBody = """
+        #!/bin/sh
+        head -n 3 > "\(requestsFile.path)"
+        printf '%s\\n' '\(output)'
+        exit 0
+        """
+        try Data(scriptBody.utf8).write(to: script)
+        try fileManager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
+        client = CodexAppServerClient(environment: ["CODEX_CLI_PATH": script.path])
+    }
+
+    func requests() throws -> String {
+        try String(contentsOf: requestsFile, encoding: .utf8)
+    }
+
+    func remove() {
+        try? FileManager.default.removeItem(at: directory)
+    }
 }
