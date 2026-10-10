@@ -83,10 +83,10 @@ It coordinates cache-first loading, scan-task identity, duplicate-scan preventio
 Key boundaries:
 
 - `ProviderConnection`, the port one tool conforms to. See "How a tool plugs in" below.
-- `UsageProviderSource`, the read half of that port. It returns a `UsageProviderReading`: not connected, unavailable with a `UsageUnavailableReason`, awaiting usage, or a `UsageSnapshot`. The reasons are not installed, signed out, sign-in expired (401 or past expiry), Keychain access needed, sign-in unreadable, sign-in busy (the tool is writing it right now), access denied (403), rate limited (429), unreachable, service error (other status), and unexpected response.
-- `ProviderCopy`, the one table of every word the menu shows for a tool: its name, who answers its usage requests, the confirmation before connecting or switching, and the message for each unavailable reason. Each tool's switch errors map to a short `ProviderNotice` next to it.
-- `ClaudeCodeUsage` and `CursorUsage`, the two connections. Each wraps its Platform adapter, maps its values onto `UsageSnapshot`, and owns the opt-in setting.
-- `ProviderUsageRuntime`, which reads each connection at most once per its `refreshInterval` (5 minutes by default), however often the menu opens, and publishes one `ProviderUsageState` per tool: its status, its saved accounts, and whether a browser sign-in is waiting. A snapshot older than `staleAfter` is published as `.stale`. When a tool is unavailable for a reason that keeps the same account, the runtime keeps the last good snapshot next to the reason. It also runs the actions the menu sends.
+- `UsageProviderSource`, the read half of that port. It returns a `UsageProviderReading`: not connected, unavailable with a `UsageUnavailableReason`, awaiting usage, or a `UsageSnapshot`. The reasons are not installed, signed out, sign-in expired (401 or past expiry), sign in again (CodexPill's own sign-in is gone or rejected), Keychain access needed, sign-in unreadable, sign-in busy (the tool is writing it right now), access denied (403), rate limited (429), unreachable, service error (other status), and unexpected response.
+- `ProviderCopy`, the one table of every word the menu shows for a tool: its name, who answers its usage requests, the confirmation before connecting or switching, and the message for each unavailable reason. Each tool's switch and sign-in errors map to a short `ProviderNotice` next to it.
+- `ClaudeCodeUsage` and `CursorUsage`, the two connections. Each wraps its Platform adapter, maps its values onto `UsageSnapshot`, and owns the opt-in setting. `ClaudeCodeUsage` also owns which sign-in Claude reads with and supplies CodexPill's own browser sign-in as its `signIn`.
+- `ProviderUsageRuntime`, which reads each connection at most once per its `refreshInterval` (5 minutes by default), however often the menu opens, and publishes one `ProviderUsageState` per tool: its status, its saved accounts, and whether a browser sign-in is waiting or offered. A snapshot older than `staleAfter` is published as `.stale`. When a tool is unavailable for a reason that keeps the same account, the runtime keeps the last good snapshot next to the reason. It also runs the actions the menu sends.
 
 Tool states only feed menu sections. They never reach `AccountAvailability` or `InactiveAccountAvailabilityRanking`: those read `CodexAccount.usage`. The runtime refuses a connection for `.codex`.
 
@@ -166,10 +166,11 @@ Local app-server reads enter this session runner through `CodexAppServerClient`,
 
 - reading its sign-in from `.credentials.json` and the `Claude Code-credentials` Keychain item, with the Keychain prompt shown only after a user action (`ClaudeCredentialsSource`, `SystemClaudeKeychain`);
 - the `api.anthropic.com/api/oauth/usage` request, its redirect rule, its rate-limit wait, and parsing its response (`ClaudeUsageAPI`, `ClaudeUsageClient`);
+- CodexPill's own "Sign in with Claude": OAuth with PKCE and a loopback redirect (`ClaudeOAuth`, `ClaudeBrowserSignIn`, `LoopbackClaudeOAuthReceiver`), the token endpoint (`ClaudeTokenEndpoint`), its Keychain item (`SystemClaudeSignInKeychain`), and one refresh at a time (`ClaudeUsageClient`);
 - saved Claude Code accounts and switching (`ClaudeCodeAccountStore`, `ClaudeCodeSignInStore`, `SystemClaudeCodeAccountItems`). A switch writes CodexPill's own item and list, then Claude Code's credentials, then `oauthAccount` in Claude Code's global config, and puts every earlier step back when a later one fails. Accounts match by Claude Code's account record, never by token;
 - whether Claude Code is running, behind the `ClaudeCodeProcessDetecting` port. A switch is refused while it runs.
 
-The access token leaves this module only as the usage request's `Authorization` header. Nothing in it reads, sends, or renews Claude Code's refresh token; a test scans the Claude sources to keep it that way.
+An access token leaves this module only as the usage request's `Authorization` header. Only CodexPill's own refresh token is ever sent, to Claude's token endpoint. Nothing reads, sends, or renews Claude Code's refresh token; a test scans the Claude sources to keep refresh code inside the files that own CodexPill's sign-in.
 
 `Platform/Cursor` owns everything CodexPill knows about Cursor:
 
@@ -212,7 +213,7 @@ Settings persistence is split by feature boundary:
 - `MenuDisplaySettingsStore` owns menu refresh cadence and visible inactive-account count options.
 - `StatusItemSettingsStore` owns status-item indicator style, monochrome mode, display mode, pacing marker visibility, progress accent color helpers, and persisted reveal-shortcut values.
 - `TokenUsagePreferencesStore` owns token-usage visibility and the fixed 30-day period. Its stored chart style, loading animation and peak scope have no menu control anymore and keep their defaults.
-- `ClaudeUsageSettingsStore` owns whether Claude Code usage is connected (`claudeUsageEnabled`). It is off by default.
+- `ClaudeUsageSettingsStore` owns whether Claude usage is connected and with which sign-in (`claudeUsageEnabled`, `claudeUsageSignInSource`). It is off by default.
 - `CursorUsageSettingsStore` owns whether Cursor usage is connected (`cursorUsageEnabled`). It is off by default.
 
 App startup builds each store from one `UserDefaults` instance and injects the ones each runtime boundary needs. There is no shared settings facade.
@@ -256,7 +257,8 @@ The current truth sources are split by concern:
 - CodexPill catalog and saved snapshots: `~/Library/Application Support/CodexPill`;
 - local account metadata and rate limits: local `codex app-server`;
 - running CLI session observation: local process table inspection;
-- Claude Code usage: `api.anthropic.com/api/oauth/usage`, authenticated with Claude Code's local sign-in token;
+- Claude usage: `api.anthropic.com/api/oauth/usage`, authenticated with Claude Code's local sign-in token or CodexPill's own sign-in, never falling back from one to the other;
+- CodexPill's own Claude sign-in: the `CodexPill Claude sign-in` Keychain item, renewed at `platform.claude.com/v1/oauth/token`;
 - active Claude Code account: `oauthAccount` in Claude Code's global config, `~/.claude.json`;
 - Cursor usage: `cursor.com/api/usage-summary`, authenticated with Cursor's local sign-in token;
 - active Cursor account: the `cursorAuth/*` rows in Cursor's `state.vscdb`;

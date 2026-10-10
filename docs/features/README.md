@@ -8,7 +8,7 @@ Feature docs are organized by product feature area. Each area can contain behavi
 - [Status Bar](status-bar.md): closed-state icon, label, hover behavior, and usage indicators.
 - [Accounts](accounts/00-accounts.md): saved accounts, current account, switching, adding, removing, renaming, and account refresh.
 - [Codex Reset Credits](codex-reset-credits.md): how many Codex limit resets the active account has, when the next expires, and using one.
-- [Claude Usage](claude-usage.md): opt-in, read-only Claude Code 5-hour and weekly limits, read with Claude Code's own sign-in.
+- [Claude Usage](claude-usage.md): opt-in, read-only Claude 5-hour and weekly limits, read with Claude Code's sign-in or CodexPill's own "Sign in with Claude".
 - [Cursor Usage](cursor-usage.md): opt-in Cursor plan usage, on-demand spend, and billing-cycle reset, plus saving and switching Cursor sign-ins.
 - [Token Usage History](token-usage.md): opt-in local Codex token usage card and its source contract.
 - [Token Usage Incremental Cache](token-usage-cache.md): persistent cache and background scanner contract for large local Codex histories.

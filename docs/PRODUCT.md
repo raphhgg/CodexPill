@@ -9,7 +9,7 @@ It is for people who use more than one account in these tools and want to see, a
 - see current usage (session, weekly, or billing cycle) before choosing which account to use;
 - spend a Codex reset credit when one is available.
 
-Codex is always on. Claude Code and Cursor are opt-in: each is read only after the user connects it.
+Codex is always on. Claude Code and Cursor are opt-in: each is read only after the user connects it. Claude can also be read with CodexPill's own sign-in, made in the browser, for people who don't use the `claude` terminal app. CodexPill never renews Claude Code's sign-in.
 
 Detailed product behavior and UX contracts live in [features](features/README.md).
 

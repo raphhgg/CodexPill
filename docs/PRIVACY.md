@@ -11,7 +11,8 @@ During normal use, CodexPill may read:
 - Local Codex app-server status to refresh account and limit information.
 - Local process information to detect running Codex CLI sessions when a switch may require a restart or user action.
 - CodexPill-owned state under `~/Library/Application Support/CodexPill`.
-- Claude Code's sign-in, from `~/.claude/.credentials.json` or the `Claude Code-credentials` Keychain item, while Claude Code usage is connected or when you save or switch a Claude Code account. See [Claude Code](#claude-code).
+- Claude Code's sign-in, from `~/.claude/.credentials.json` or the `Claude Code-credentials` Keychain item, while Claude Code usage is connected with it or when you save or switch a Claude Code account. See [Claude Code](#claude-code).
+- CodexPill's own Claude sign-in, from its `CodexPill Claude sign-in` Keychain item, while Claude usage is connected with it.
 - Local process information to detect a running Claude Code before switching Claude Code accounts.
 - Cursor's access token from Cursor's local database, while Cursor usage is connected, and Cursor's sign-in rows from the same database when you save or switch a Cursor account. See [Cursor](#cursor).
 
@@ -25,6 +26,7 @@ CodexPill writes and stores:
 - Temporary isolated `CODEX_HOME` state when capturing a new Codex sign-in without mutating the current account.
 - Saved Claude Code accounts in `CodexPill Claude Code account` Keychain items and `claude-code-accounts.json`, and Claude Code's own sign-in when you switch Claude Code accounts. See [Claude Code](#claude-code).
 - Saved Cursor accounts in one `CodexPill Cursor accounts` Keychain item, and Cursor's sign-in rows in its local database when you switch Cursor accounts. See [Cursor](#cursor).
+- CodexPill's own Claude sign-in, after you choose "Sign in with Claude": one login Keychain generic password, service `CodexPill Claude sign-in`, account `Claude`, holding its access token, refresh token, and expiry. Never a file. Disconnecting deletes it.
 
 Saved auth snapshots contain authentication material and must be handled like credentials. They should not be printed, logged, attached to issues, or committed to git.
 
@@ -34,15 +36,16 @@ CodexPill never copies Codex auth snapshots or Codex tokens to another machine o
 
 ## Claude Code
 
-CodexPill never signs in to Claude, never asks Anthropic for a new token, and never reads, sends, or renews Claude Code's refresh token. It only uses the sign-in Claude Code already has.
+CodexPill never asks Anthropic for a new Claude Code token, and never reads, sends, or renews Claude Code's refresh token. It refreshes only its own sign-in.
 
-**Usage (optional, off by default).** `Settings › Add Account › Claude…` asks for consent before anything is read. While it is connected, each read:
+**Usage (optional, off by default).** `Settings › Add Account › Claude…` asks for consent before anything is read. Claude usage then reads with exactly one sign-in, and never falls back to the other:
 
-- reads `.credentials.json` in Claude Code's config folder (`CLAUDE_CONFIG_DIR`, or `~/.claude`), and if that file holds no Claude sign-in, the login Keychain generic password with service `Claude Code-credentials` and your macOS user name as the account;
-- uses only the access token, its expiry, and the plan name from that sign-in;
-- sends the access token to one place, `GET https://api.anthropic.com/api/oauth/usage`, to fetch your 5-hour and weekly limits. Redirects to any other host, or to plain HTTP, are refused. The request has no cookies and no cache.
+- **Claude Code's sign-in**, when it is there and unexpired. Each read reads `.credentials.json` in Claude Code's config folder (`CLAUDE_CONFIG_DIR`, or `~/.claude`), and if that file holds no Claude sign-in, the login Keychain generic password with service `Claude Code-credentials` and your macOS user name as the account. It uses only the access token, its expiry, and the plan name.
+- **CodexPill's own sign-in**, otherwise. CodexPill opens your browser on `claude.com` to sign in, with OAuth and PKCE. Claude sends the browser back to a one-time listener on `http://localhost:<port>/callback`, on a free port the system picks, that accepts loopback connections only and stops after one callback. CodexPill exchanges the code at `platform.claude.com`, saves the result in its Keychain item, and refreshes it there shortly before it expires or once after Anthropic rejects it.
 
-macOS may ask you to allow Keychain access. CodexPill shows that prompt only right after you connect or choose `Allow Keychain access…`. CodexPill never stores, logs, or displays the token, and it never reads browser cookies or Claude conversations. `Disconnect Claude Code…` turns usage off and stops all reads.
+Each read sends one access token to `GET https://api.anthropic.com/api/oauth/usage` to fetch your 5-hour and weekly limits. CodexPill's own sign-in also talks to `https://platform.claude.com/v1/oauth/token` (code exchange and refresh) and `https://platform.claude.com/v1/oauth/token/revoke` (on disconnect). Redirects to any other host, or to plain HTTP, are refused. These requests have no cookies and no cache. CodexPill asks only for the `user:profile` scope.
+
+macOS may ask you to allow Keychain access. CodexPill shows that prompt only right after you connect, finish a sign-in, or choose `Allow Keychain access…`. CodexPill never logs or displays a token, and it never reads browser cookies or Claude conversations. `Disconnect Claude` turns usage off, stops all reads, deletes CodexPill's own Claude sign-in, and asks Anthropic to revoke it.
 
 **Saved Claude Code accounts.** CodexPill can save Claude Code sign-ins and switch between them. Only a user action does this; nothing runs in the background. Saving one:
 
@@ -96,7 +99,7 @@ Accessibility may still be useful for development or validation tooling that ins
 
 ## Network And External Services
 
-CodexPill talks to Codex through local Codex surfaces. When Claude Code usage is on, it also calls api.anthropic.com with Claude Code's own sign-in token. When Cursor usage is on, it calls cursor.com with Cursor's own sign-in token. Switching Claude Code or Cursor accounts makes no network call. It must not send Codex auth snapshots, raw auth payloads, or tokens to analytics services, crash-reporting systems, issue trackers, or any other third-party API. A token may go only to the service that issued it.
+CodexPill talks to Codex through local Codex surfaces. When Claude usage is on, it also calls api.anthropic.com with Claude Code's sign-in token or CodexPill's own, and CodexPill's own sign-in calls claude.com in your browser and platform.claude.com for its tokens. When Cursor usage is on, it calls cursor.com with Cursor's own sign-in token. Switching Claude Code or Cursor accounts makes no network call. It must not send Codex auth snapshots, raw auth payloads, or tokens to analytics services, crash-reporting systems, issue trackers, or any other third-party API. A token may go only to the service that issued it.
 
 If future features add status-page checks, diagnostics export, or usage statistics, they must keep the same rule: aggregate or redact data before it leaves the machine, and never include raw auth payloads or tokens.
 

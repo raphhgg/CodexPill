@@ -35,9 +35,10 @@ Every tool uses the same card. It is one hover cell with a side menu and no chev
   | Read failed with no earlier reading | the failure title | the failure line |
   | No Codex account in use | `No saved account in use` | `Pick one in this menu.` |
   | Signing in (Claude) | `Finish signing in in your browser` | none |
+  | Sign in again (Claude) | `Sign in to Claude again` | none |
 
   Failure titles come from `ProviderCopy`, for example `Can't reach Anthropic` / `Retrying in a few minutes.`, `Cursor is busy`, `Cursor isn't installed`, `Allow Keychain access`. A Codex reading older than two refreshes, and at least 15 minutes, is stale.
-- **Action rows.** While a state lasts, one row sits under the card: `Allow Keychain access…` or `Cancel Sign-In`.
+- **Action rows.** While a state lasts, one row sits under the card: `Allow Keychain access…`, `Cancel Sign-In`, or `Sign In…` when Claude's sign-in is gone, expired, or signed out. A Claude sign-in started from `Add Account › Claude…` shows its card before Claude is connected.
 
 ## Side Menu
 
