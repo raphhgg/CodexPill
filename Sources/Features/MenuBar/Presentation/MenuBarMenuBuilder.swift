@@ -201,7 +201,6 @@ struct MenuBarMenuBuilder {
         state.activeAccount?.id == entry.account.id ? "In use on This Mac" : "Not currently in use"
     }
 
-    /// Every tool action goes through one selector. The item carries which tool and what to do.
     private func providerItem(title: String, _ action: ProviderAction, for provider: UsageProvider, target: MenuBarCoordinator) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: #selector(MenuBarCoordinator.performProviderAction(_:)), keyEquivalent: "")
         item.target = target
