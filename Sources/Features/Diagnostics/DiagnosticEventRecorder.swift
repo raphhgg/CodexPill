@@ -35,17 +35,6 @@ final class DiagnosticEventRecorder {
         ))
     }
 
-    func recordRemoteHostSwitch(targetAccountID: UUID, hostDestination: String) {
-        record(DiagnosticWorkflowEvent(
-            name: "switch_account_on_host",
-            category: .switchAccount,
-            fields: [
-                .account(targetAccountID, redaction: .accountAlias),
-                .hostDestination(hostDestination, redaction: .hostAlias)
-            ]
-        ))
-    }
-
     func recordRefresh(resultCategory: String) {
         record(DiagnosticWorkflowEvent(
             name: "refresh",
@@ -60,12 +49,8 @@ final class DiagnosticEventRecorder {
             return "add_account"
         case "removeAccount":
             return "remove_account"
-        case "addHost":
-            return "add_host"
         case "switchAccount":
             return "switch_account_menu"
-        case "enableNotifications", "toggleNotificationsWhenBlocked", "toggleNotificationsWhenOut":
-            return "notification_setting_changed"
         default:
             return "menu_action"
         }
@@ -77,12 +62,8 @@ final class DiagnosticEventRecorder {
             return .addAccount
         case "removeAccount":
             return .removeAccount
-        case "addHost":
-            return .addHost
         case "switchAccount":
             return .switchAccount
-        case "enableNotifications", "toggleNotificationsWhenBlocked", "toggleNotificationsWhenOut":
-            return .notificationEvaluation
         default:
             return .menuAction
         }

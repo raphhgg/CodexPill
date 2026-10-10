@@ -8,8 +8,8 @@ struct InactiveAccountAvailabilityRanking {
     }
 
     func compare(_ lhs: CodexAccount, _ rhs: CodexAccount) -> Bool {
-        let leftKey = sortKey(for: availabilityService.snapshot(for: lhs, now: .now).localAvailability, now: .now)
-        let rightKey = sortKey(for: availabilityService.snapshot(for: rhs, now: .now).localAvailability, now: .now)
+        let leftKey = sortKey(for: availabilityService.availability(for: lhs), now: .now)
+        let rightKey = sortKey(for: availabilityService.availability(for: rhs), now: .now)
 
         if leftKey.weeklyConstraintRank != rightKey.weeklyConstraintRank {
             return leftKey.weeklyConstraintRank < rightKey.weeklyConstraintRank

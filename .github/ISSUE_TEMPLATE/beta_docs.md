@@ -19,7 +19,7 @@ assignees: ""
 
 ## Why It Matters
 
-<!-- Did this affect install, trust, account switching, diagnostics, or remote hosts? -->
+<!-- Did this affect install, trust, account switching, or diagnostics? -->
 
 
 ## Redaction Check

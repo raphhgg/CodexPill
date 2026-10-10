@@ -27,16 +27,6 @@ struct MenuBarValidationSnapshot: Codable, Equatable {
         let identityDigest: String?
     }
 
-    struct RemoteHostState: Codable, Equatable {
-        let name: String
-        let connectionState: String
-        let desiredAccount: AccountIdentity?
-        let activeAccount: AccountIdentity?
-        let detectedAccount: AccountIdentity?
-        let verificationStatus: String
-        let lastVerificationError: String?
-    }
-
     struct MenuItem: Codable, Equatable {
         let title: String
         let isEnabled: Bool
@@ -68,7 +58,6 @@ struct MenuBarValidationSnapshot: Codable, Equatable {
     let sections: [Section]
     let statusMessage: String?
     let currentAccount: AccountIdentity?
-    let remoteHosts: [RemoteHostState]
     let hasStatusItemContentData: Bool
     let effectiveStatusBarDisplayMode: String
     let statusItem: StatusItemState?
@@ -113,7 +102,6 @@ enum MenuBarValidationSupport {
             sections: sections,
             statusMessage: state.shouldShowStatusMessage ? state.statusMessage : nil,
             currentAccount: state.activeAccount.map(accountIdentity(for:)),
-            remoteHosts: state.connectedRemoteHosts.map(remoteHostState(for:)),
             hasStatusItemContentData: state.hasStatusItemContentData,
             effectiveStatusBarDisplayMode: state.effectiveStatusBarDisplayMode.rawValue,
             statusItem: statusItemState.map(statusItemState(from:)),
@@ -208,11 +196,7 @@ enum MenuBarValidationSupport {
     }
 
     private static func inactiveAccountSummary(for entry: MenuBarAccountCatalogEntry, now: Date) -> String {
-        let detail = compactMenuRowUsageSummary(for: entry.account, now: now)
-        guard let placement = entry.placement else {
-            return "\(entry.account.name) • \(detail)"
-        }
-        return "\(entry.account.name) • \(detail) • \(placement.badgeText)"
+        "\(entry.account.name) • \(compactMenuRowUsageSummary(for: entry.account, now: now))"
     }
 
     private static func activeAccountLocationLine(for card: ActiveAccountCard, now: Date) -> String {
@@ -264,18 +248,6 @@ enum MenuBarValidationSupport {
             email: account.email,
             planType: account.effectivePlanType,
             identityDigest: identityDigest(for: account)
-        )
-    }
-
-    private static func remoteHostState(for remoteHost: RemoteHostMenuState) -> MenuBarValidationSnapshot.RemoteHostState {
-        .init(
-            name: remoteHost.name,
-            connectionState: remoteHost.connectionState.rawValue,
-            desiredAccount: remoteHost.desiredAccount.map(accountIdentity(for:)),
-            activeAccount: remoteHost.activeAccount.map(accountIdentity(for:)),
-            detectedAccount: remoteHost.detectedAccount.map(accountIdentity(for:)),
-            verificationStatus: remoteHost.verificationStatus.rawValue,
-            lastVerificationError: remoteHost.lastVerificationError
         )
     }
 

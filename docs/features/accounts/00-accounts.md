@@ -14,7 +14,7 @@ See [Add Account](01-add-account.md).
 
 ### 02. Switch Account
 
-Activate a saved account on This Mac or on a configured remote host through the explicit switch actions.
+Activate a saved account on This Mac through the explicit switch action.
 
 See [Switch Account](02-switch-account.md).
 
@@ -32,15 +32,9 @@ See [Rename Account](04-rename-account.md).
 
 ### 05. Refresh Accounts
 
-Refresh account metadata, plan, and rate-limit snapshots for the full account surface: current local account, saved catalog accounts, and configured remote accounts.
+Refresh account metadata, plan, and rate-limit snapshots for the full account surface: the current local account and saved catalog accounts.
 
 See [Refresh Accounts](05-refresh-accounts.md).
-
-## Related Account Operations
-
-### Remote Account Setup
-
-Remote host setup installs and switches saved account snapshots on configured remote hosts. It is related to account switching, but host management has its own feature surface.
 
 ## UX Ownership
 
@@ -48,12 +42,9 @@ The whole menubar layout, including section ordering and the lower App Controls 
 
 ## Active Account UX
 
-Active account presentation answers: "Which account am I using right now, and where?"
+Active account presentation answers: "Which account am I using right now?"
 
-CodexPill shows active accounts in one unified top section:
-
-- `Active Account`: one active account card.
-- `Active Accounts`: multiple active account cards.
+CodexPill shows the active account in the top `Active Account` section.
 
 ### Local Active Account
 
@@ -63,56 +54,21 @@ The card should show:
 
 - Display name.
 - Plan as a compact pill.
-- Location or freshness metadata, such as `This Mac`, `workstation`, `This Mac + workstation`, or `Updated 1min ago`.
+- Freshness metadata, such as `Updated 1min ago`.
 - Session usage and reset timing when Codex returns a shorter session-like quota window.
 - Weekly usage and reset timing when Codex returns a weekly quota window.
 - A neutral expected-pace marker inside each usage bar when reset-window duration is available and `Preferences > Usage Bars > Show Pace Markers` is enabled. This marker is visual only; it must not add pacing text to the card.
 
 If CodexPill cannot match the live local Codex auth to a saved account, it should show a clear unmatched or empty state instead of displaying stale saved-account data as current.
 
-### Remote Active Account Cards
-
-Remote active account cards appear in the same top section for connected verified remote hosts.
-
-The card should show:
-
-- Saved account display name.
-- Remote host name or destination.
-- Plan as a compact pill.
-- Session and weekly usage values from the remote target, classified by returned quota-window duration.
-- The same neutral expected-pace marker as the local current account when reset-window duration is available and `Preferences > Usage Bars > Show Pace Markers` is enabled.
-
-Remote cards must prefer remote target values over local catalog values when the remote active account is verified. The user should not see the local catalog's stale limits as if they represented the remote host.
-
-### Duplicate Local And Remote Accounts
-
-If the same saved account is active locally and on a connected verified remote host, CodexPill renders one active account card and shows compact location context in the metadata line, such as `This Mac + workstation`. The card continues to show local current-account limits; remote host management and troubleshooting remain under `Hosts`.
-
-If only the local account is active, the metadata line shows freshness, such as `Updated 1min ago`. If local and remote accounts are different and therefore render as separate cards, the local card shows `This Mac` and each remote card shows its host context.
-
-If the same saved account is active on multiple connected verified remote hosts and not active locally, CodexPill renders one active account card with the host names joined in the metadata line, such as `workstation + linux-box`.
-
-The user must be able to answer:
-
-- Is this account active on This Mac?
-- Is this account active on a remote host?
-- Where do I inspect or manage the remote host if it needs attention?
-
-### Error And Pending States
-
-Remote pending, failed, disconnected, or unverified states should not be presented as verified current-account facts.
-
-When the app cannot verify a remote account, it should either hide the remote account card or show an explicit recovery state owned by the Remote Hosts feature.
-
 ## Account Menu And Catalog UX
 
-CodexPill adapts the saved-account menu to the account and host setup:
+CodexPill adapts the saved-account menu to the number of saved accounts:
 
-- With one saved account and no configured host, CodexPill hides the saved-account list and shows `Account > Add Account…, Rename…, Remove…`.
-- With multiple saved accounts and no configured host, CodexPill shows `Other Accounts` rows excluding the active local account. The active local account is managed through `Account > Add Account…, Rename…, Remove…` so account actions stay grouped.
-- With configured hosts, CodexPill keeps the visible saved-account row design because each row can expose local and remote target actions.
+- With one saved account, CodexPill hides the saved-account list and shows `Account > Add Account…, Rename…, Remove…`.
+- With multiple saved accounts, CodexPill shows `Other Accounts` rows excluding the active local account. The active local account is managed through `Account > Add Account…, Rename…, Remove…` so account actions stay grouped.
 
-The catalog is not the same as active-account presentation. It shows saved options, while `Active Account(s)` shows active targets. Management actions for the active local account should not force an otherwise duplicate row to appear in the saved-account list.
+The catalog is not the same as active-account presentation. It shows saved options, while `Active Account` shows the account in use. Management actions for the active local account should not force an otherwise duplicate row to appear in the saved-account list.
 
 ### Row Content
 
@@ -128,8 +84,6 @@ Rows should stay compact. Detailed target actions belong in the account submenu.
 ### Row Data Source
 
 Catalog rows primarily use saved catalog metadata and latest known rate-limit snapshots.
-
-If an account is currently active on a remote host and that remote value is fresher or target-specific, the row may prefer that remote target's values, as long as the UI remains clear about where those values came from.
 
 ### Ordering
 
@@ -182,11 +136,6 @@ Switch on This Mac:
 - Uses the normal local switch path.
 - Presents the local switch confirmation unless the caller is an explicit no-second-confirmation path such as Add Account success.
 
-Switch on remote host:
-
-- Uses the normal remote switch/install flow for that host.
-- Must verify or surface remote errors instead of silently assuming success.
-
 Rename:
 
 - Uses a native text-input alert.
@@ -195,8 +144,8 @@ Rename:
 Remove:
 
 - Uses a destructive confirmation alert.
-- If the removed account is active locally or on a connected remote host, CodexPill signs out those active targets before deleting the saved snapshot.
-- If any required sign-out fails, CodexPill keeps the saved account so the user does not lose the main control surface for an active login.
+- If the removed account is active on This Mac, CodexPill signs it out before deleting the saved snapshot.
+- If the sign-out fails, CodexPill keeps the saved account so the user does not lose the main control surface for an active login.
 
 ### Visual Contract
 

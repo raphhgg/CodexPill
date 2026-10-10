@@ -6,8 +6,7 @@ The product replaces manual auth-file swapping and repeated app restarts with a 
 
 - save Codex accounts as reusable local snapshots;
 - switch the active Codex account from the menubar;
-- see current session and weekly Codex usage before choosing which account to use;
-- use the same saved accounts on configured remote hosts.
+- see current session and weekly Codex usage before choosing which account to use.
 
 Detailed product behavior and UX contracts live in [features](features/README.md).
 
@@ -28,7 +27,7 @@ Secondary user:
 ## Core Outcomes
 
 1. Add another Codex account without disrupting the current local session.
-2. See which saved account is active locally and remotely.
+2. See which saved account is active on this Mac.
 3. Switch accounts from the menubar with a clear, bounded flow.
 4. Refresh Codex account metadata and rate limits from Codex app-server surfaces.
 5. Understand when the app cannot confidently match live auth to a saved account.
@@ -58,11 +57,7 @@ A stored copy of Codex auth state used for later re-activation. A snapshot is no
 
 ### Rate-Limit Snapshot
 
-The most recently fetched local or remote view of Codex session and weekly availability.
-
-### Remote Host
-
-A user-configured SSH target where CodexPill can install saved account snapshots, switch remote Codex auth, and verify the remote active account.
+The most recently fetched view of Codex session and weekly availability.
 
 ## Non-Goals
 

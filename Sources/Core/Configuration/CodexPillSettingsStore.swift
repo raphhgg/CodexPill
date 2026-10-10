@@ -6,17 +6,11 @@ import Observation
 final class CodexPillSettingsStore {
     let menuDisplaySettings: MenuDisplaySettingsStore
     let statusItemSettings: StatusItemSettingsStore
-    let remoteHostSettings: RemoteHostSettingsStore
-    let notificationPreferences: NotificationPreferencesStore
-    let notificationState: NotificationStateStore
     let tokenUsagePreferences: TokenUsagePreferencesStore
 
     init(userDefaults: UserDefaults = .standard) {
         menuDisplaySettings = MenuDisplaySettingsStore(userDefaults: userDefaults)
         statusItemSettings = StatusItemSettingsStore(userDefaults: userDefaults)
-        remoteHostSettings = RemoteHostSettingsStore(userDefaults: userDefaults)
-        notificationPreferences = NotificationPreferencesStore(userDefaults: userDefaults)
-        notificationState = NotificationStateStore(userDefaults: userDefaults)
         tokenUsagePreferences = TokenUsagePreferencesStore(userDefaults: userDefaults)
     }
 
@@ -64,41 +58,6 @@ final class CodexPillSettingsStore {
         statusItemSettings.hasCustomProgressAccentColor
     }
 
-    var remoteHostStates: [PersistedRemoteHostState] {
-        get { remoteHostSettings.remoteHostStates }
-        set { remoteHostSettings.remoteHostStates = newValue }
-    }
-
-    var configuredRemoteHost: RemoteHost? {
-        get { remoteHostSettings.configuredRemoteHost }
-        set { remoteHostSettings.configuredRemoteHost = newValue }
-    }
-
-    var remoteHostInstalledAccountIDs: [UUID] {
-        get { remoteHostSettings.remoteHostInstalledAccountIDs }
-        set { remoteHostSettings.remoteHostInstalledAccountIDs = newValue }
-    }
-
-    var remoteHostActiveAccount: CodexAccount? {
-        get { remoteHostSettings.remoteHostActiveAccount }
-        set { remoteHostSettings.remoteHostActiveAccount = newValue }
-    }
-
-    var remoteHostDesiredAccountID: UUID? {
-        get { remoteHostSettings.remoteHostDesiredAccountID }
-        set { remoteHostSettings.remoteHostDesiredAccountID = newValue }
-    }
-
-    var notificationsWhenBlockedEnabled: Bool {
-        get { notificationPreferences.notificationsWhenBlockedEnabled }
-        set { notificationPreferences.notificationsWhenBlockedEnabled = newValue }
-    }
-
-    var notificationsWhenOutEnabled: Bool {
-        get { notificationPreferences.notificationsWhenOutEnabled }
-        set { notificationPreferences.notificationsWhenOutEnabled = newValue }
-    }
-
     var tokenUsageEnabled: Bool {
         get { tokenUsagePreferences.isEnabled }
         set { tokenUsagePreferences.isEnabled = newValue }
@@ -124,11 +83,6 @@ final class CodexPillSettingsStore {
         set { tokenUsagePreferences.peakScope = newValue }
     }
 
-    var accountNotificationStates: [PersistedAccountNotificationState] {
-        get { notificationState.accountNotificationStates }
-        set { notificationState.accountNotificationStates = newValue }
-    }
-
     var refreshIntervalOptions: [Int] {
         menuDisplaySettings.refreshIntervalOptions
     }
@@ -139,32 +93,5 @@ final class CodexPillSettingsStore {
 
     func resetProgressAccentColor() {
         statusItemSettings.resetProgressAccentColor()
-    }
-
-    func upsertRemoteHost(_ host: RemoteHost) {
-        remoteHostSettings.upsertRemoteHost(host)
-    }
-
-    func removeRemoteHost(destination: String) {
-        remoteHostSettings.removeRemoteHost(destination: destination)
-    }
-
-    func remoteHostState(for destination: String) -> PersistedRemoteHostState? {
-        remoteHostSettings.remoteHostState(for: destination)
-    }
-
-    func updateRemoteHostState(for host: RemoteHost, mutate: (inout PersistedRemoteHostState) -> Void) {
-        remoteHostSettings.updateRemoteHostState(for: host, mutate: mutate)
-    }
-
-    func accountNotificationState(for accountID: UUID) -> PersistedAccountNotificationState? {
-        notificationState.accountNotificationState(for: accountID)
-    }
-
-    func updateAccountNotificationState(
-        for accountID: UUID,
-        mutate: (inout PersistedAccountNotificationState) -> Void
-    ) {
-        notificationState.updateAccountNotificationState(for: accountID, mutate: mutate)
     }
 }

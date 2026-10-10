@@ -24,9 +24,9 @@ It is fine if `defaults delete` says the domain does not exist.
 This does not delete `~/.codex/auth.json`. Do not remove or edit that file unless
 you intentionally want to sign out of Codex or repair Codex itself.
 
-## Remote Hosts
+## Remote Hosts From Earlier Versions
 
-If you used remote hosts, CodexPill may have copied selected snapshots to:
+Earlier versions could copy selected snapshots to SSH hosts. If you used that, CodexPill may have left them in:
 
 ```text
 ~/.codexpill/snapshots

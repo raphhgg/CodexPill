@@ -90,8 +90,6 @@ Actions:
 
 If Codex terminals are running, the success alert should include the same restart warning used by normal local switch confirmations before the user chooses `Use on This Mac`.
 
-Remote host actions are intentionally omitted from the v0 success alert. Users can switch the new account on a remote host from the normal account menu.
-
 ## Acceptance Criteria
 
 ### Unique Display Name
