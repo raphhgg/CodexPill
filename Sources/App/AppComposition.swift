@@ -19,7 +19,12 @@ struct AppComposition {
             resetCreditClient: codexAppServerClient
         ).makeController()
 
-        let claudeCodeUsage = Self.makeClaudeCodeUsage(environment: environment, defaults: defaults, isolatedRootDirectory: isolatedRootDirectory)
+        let claudeCodeUsage = Self.makeClaudeCodeUsage(
+            environment: environment,
+            defaults: defaults,
+            isolatedRootDirectory: isolatedRootDirectory,
+            appSupportDirectory: repository.paths.appSupportDirectory
+        )
         coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(),
             shortcutRuntime: GlobalShortcutRuntime(),
@@ -43,28 +48,50 @@ struct AppComposition {
         )
     }
 
-    /// An isolated run never reads the real Claude sign-in: it reads `.credentials.json` from `CLAUDE_CONFIG_DIR`, or from
-    /// `.claude` inside the isolated root, and skips the Keychain.
+    /// An isolated run never touches the real Claude sign-in: it reads `.credentials.json` from `CLAUDE_CONFIG_DIR`, or
+    /// from `.claude` inside the isolated root, skips the Keychain, and has no account switching.
     private static func makeClaudeCodeUsage(
         environment: [String: String],
         defaults: UserDefaults,
-        isolatedRootDirectory: URL?
+        isolatedRootDirectory: URL?,
+        appSupportDirectory: URL
     ) -> ClaudeCodeUsage {
-        let credentials: ClaudeCredentialsSource
+        let settings = ClaudeUsageSettingsStore(userDefaults: defaults)
+        let webClient = URLSessionClaudeUsageWebClient()
         if let isolatedRootDirectory {
             let configDirectory = environment["CLAUDE_CONFIG_DIR"]?.isEmpty == false
                 ? ClaudeCredentialsSource.configDirectory(environment: environment)
                 : isolatedRootDirectory.appendingPathComponent(".claude", isDirectory: true)
-            credentials = ClaudeCredentialsSource(configDirectory: configDirectory, keychain: nil)
-        } else {
-            credentials = ClaudeCredentialsSource(
-                configDirectory: ClaudeCredentialsSource.configDirectory(environment: environment),
-                keychain: SystemClaudeKeychain()
+            return ClaudeCodeUsage(
+                settings: settings,
+                client: ClaudeUsageClient(
+                    credentials: ClaudeCredentialsSource(configDirectory: configDirectory, keychain: nil),
+                    webClient: webClient
+                )
             )
         }
+
+        let configDirectory = ClaudeCredentialsSource.configDirectory(environment: environment)
+        let keychain = SystemClaudeKeychain()
         return ClaudeCodeUsage(
-            settings: ClaudeUsageSettingsStore(userDefaults: defaults),
-            client: ClaudeUsageClient(credentials: credentials, webClient: URLSessionClaudeUsageWebClient())
+            settings: settings,
+            client: ClaudeUsageClient(
+                credentials: ClaudeCredentialsSource(configDirectory: configDirectory, keychain: keychain),
+                webClient: webClient
+            ),
+            accounts: ClaudeCodeAccountStore(
+                catalogFile: appSupportDirectory.appendingPathComponent("claude-code-accounts.json"),
+                items: SystemClaudeCodeAccountItems(),
+                claudeCode: ClaudeCodeSignInStore(
+                    configDirectory: configDirectory,
+                    globalConfigFile: ClaudeCodeSignInStore.globalConfigFile(
+                        environment: environment,
+                        homeDirectory: FileManager.default.homeDirectoryForCurrentUser
+                    ),
+                    keychain: keychain
+                ),
+                processes: SystemClaudeCodeProcessDetector()
+            )
         )
     }
 }
