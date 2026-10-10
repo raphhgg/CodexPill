@@ -32,35 +32,13 @@ struct CursorUsageClientTests {
     }
 
     @Test
-    func transportErrorAfterSuccessKeepsLastGood() async throws {
+    func transportErrorIsANetworkFailure() async {
         let client = makeClient(
             tokenSource: CursorAccessTokenSourceFixture(result: .token(usableToken())),
-            webClient: CursorUsageWebClientHarness([
-                .success(CursorUsageSummaryFixtures.proPlan),
-                .failure(.transport),
-            ])
+            webClient: CursorUsageWebClientHarness([.failure(.transport)])
         )
 
-        _ = await client.refresh()
-
-        #expect(await client.refresh() == .unavailable(.network, lastGood: try proSnapshot))
-    }
-
-    @Test
-    func unauthorizedClearsLastGood() async throws {
-        let client = makeClient(
-            tokenSource: CursorAccessTokenSourceFixture(result: .token(usableToken())),
-            webClient: CursorUsageWebClientHarness([
-                .success(CursorUsageSummaryFixtures.proPlan),
-                .failure(.unauthorized),
-                .failure(.transport),
-            ])
-        )
-
-        _ = await client.refresh()
-
-        #expect(await client.refresh() == .unauthorized)
-        #expect(await client.refresh() == .unavailable(.network, lastGood: nil))
+        #expect(await client.refresh() == .unavailable(.network))
     }
 
     @Test
@@ -78,34 +56,13 @@ struct CursorUsageClientTests {
     }
 
     @Test
-    func signedOutClearsLastGood() async throws {
-        let tokenSource = CursorAccessTokenSourceHarness([
-            .token(usableToken()),
-            .signedOut,
-            .token(usableToken()),
-        ])
-        let client = makeClient(
-            tokenSource: tokenSource,
-            webClient: CursorUsageWebClientHarness([
-                .success(CursorUsageSummaryFixtures.proPlan),
-                .failure(.transport),
-            ])
-        )
-
-        _ = await client.refresh()
-
-        #expect(await client.refresh() == .signedOut)
-        #expect(await client.refresh() == .unavailable(.network, lastGood: nil))
-    }
-
-    @Test
     func unreadableLocalStateIsUnavailable() async {
         let client = makeClient(
             tokenSource: CursorAccessTokenSourceErrorCase(),
             webClient: CursorUsageWebClientHarness([])
         )
 
-        #expect(await client.refresh() == .unavailable(.localStateUnreadable, lastGood: nil))
+        #expect(await client.refresh() == .unavailable(.localStateUnreadable))
     }
 
     @Test
@@ -115,7 +72,7 @@ struct CursorUsageClientTests {
             webClient: CursorUsageWebClientHarness([.success(Data("<html>".utf8))])
         )
 
-        #expect(await client.refresh() == .unavailable(.unexpectedResponse, lastGood: nil))
+        #expect(await client.refresh() == .unavailable(.unexpectedResponse))
     }
 
     private func makeClient(
@@ -142,19 +99,6 @@ private struct CursorAccessTokenSourceFixture: CursorAccessTokenSource {
 private struct CursorAccessTokenSourceErrorCase: CursorAccessTokenSource {
     func lookup() throws -> CursorAccessTokenLookup {
         throw CursorStateDatabaseError.sqlite(code: 14)
-    }
-}
-
-private final class CursorAccessTokenSourceHarness: CursorAccessTokenSource, @unchecked Sendable {
-    private let lock = NSLock()
-    private var lookups: [CursorAccessTokenLookup]
-
-    init(_ lookups: [CursorAccessTokenLookup]) {
-        self.lookups = lookups
-    }
-
-    func lookup() throws -> CursorAccessTokenLookup {
-        lock.withLock { lookups.removeFirst() }
     }
 }
 

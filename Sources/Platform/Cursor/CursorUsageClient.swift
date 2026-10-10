@@ -1,10 +1,10 @@
 import Foundation
 
+/// Reads Cursor's sign-in and fetches its usage, once per call. `ProviderUsageRuntime` keeps the last good snapshot.
 actor CursorUsageClient {
     private let tokenSource: any CursorAccessTokenSource
     private let webClient: any CursorUsageWebClient
     private let now: @Sendable () -> Date
-    private var lastGood: CursorUsageSnapshot?
 
     init(
         tokenSource: any CursorAccessTokenSource,
@@ -21,22 +21,19 @@ actor CursorUsageClient {
         do {
             lookup = try tokenSource.lookup()
         } catch {
-            return .unavailable(.localStateUnreadable, lastGood: lastGood)
+            return .unavailable(.localStateUnreadable)
         }
 
         let token: CursorAccessToken
         switch lookup {
         case .cursorNotInstalled:
-            lastGood = nil
             return .cursorNotInstalled
         case .signedOut:
-            lastGood = nil
             return .signedOut
         case .token(let foundToken):
             token = foundToken
         }
 
-        // An expired token still belongs to the same account, so lastGood stays.
         guard token.isUsable(at: now()) else {
             return .tokenExpired
         }
@@ -45,18 +42,15 @@ actor CursorUsageClient {
         do {
             data = try await webClient.usageSummary(using: token)
         } catch CursorUsageWebError.unauthorized {
-            lastGood = nil
             return .unauthorized
         } catch {
-            return .unavailable(.network, lastGood: lastGood)
+            return .unavailable(.network)
         }
 
         do {
-            let snapshot = try CursorUsageSummaryParser.parse(data, fetchedAt: now())
-            lastGood = snapshot
-            return .available(snapshot)
+            return .available(try CursorUsageSummaryParser.parse(data, fetchedAt: now()))
         } catch {
-            return .unavailable(.unexpectedResponse, lastGood: lastGood)
+            return .unavailable(.unexpectedResponse)
         }
     }
 }

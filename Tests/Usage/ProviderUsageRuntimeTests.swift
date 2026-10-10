@@ -108,4 +108,22 @@ struct ProviderUsageRuntimeTests {
 
         #expect(runtime.states == [ProviderUsageState(provider: .claude, status: .unavailable(.unreachable, lastSnapshot: nil))])
     }
+
+    @Test
+    func uninstallingTheProviderAppDropsTheLastGoodSnapshot() async {
+        let snapshot = UsageSnapshot(
+            provider: .cursor,
+            planName: "pro",
+            windows: [UsageWindow(kind: .billingCycle, usedPercent: 82, resetsAt: nil, durationMinutes: 43_200)],
+            fetchedAt: start
+        )
+        let cursor = UsageProviderSourceProbe(provider: .cursor, reading: .snapshot(snapshot))
+        let runtime = ProviderUsageRuntime(sources: [cursor], now: { start }, onChange: {})
+        await runtime.refreshIfDue()
+
+        cursor.reading = .unavailable(.notInstalled)
+        await runtime.refreshIfDue(forcing: .cursor)
+
+        #expect(runtime.states == [ProviderUsageState(provider: .cursor, status: .unavailable(.notInstalled, lastSnapshot: nil))])
+    }
 }

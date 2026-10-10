@@ -6,7 +6,7 @@ enum CursorUsageStatus: Equatable, Sendable {
     case tokenExpired
     case unauthorized
     case available(CursorUsageSnapshot)
-    case unavailable(CursorUsageFailure, lastGood: CursorUsageSnapshot?)
+    case unavailable(CursorUsageFailure)
 }
 
 enum CursorUsageFailure: Equatable, Sendable {

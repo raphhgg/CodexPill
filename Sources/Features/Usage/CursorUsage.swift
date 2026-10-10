@@ -32,15 +32,14 @@ struct CursorUsage: UsageProviderSource {
         return Self.reading(from: await client.refresh())
     }
 
-    /// The runtime keeps the last good snapshot, so the client's own copy is not needed here.
     static func reading(from status: CursorUsageStatus) -> UsageProviderReading {
         switch status {
         case .cursorNotInstalled: .unavailable(.notInstalled)
         case .signedOut: .unavailable(.signedOut)
         case .tokenExpired, .unauthorized: .unavailable(.signInExpired)
-        case .unavailable(.localStateUnreadable, _): .unavailable(.signInUnreadable)
-        case .unavailable(.network, _): .unavailable(.unreachable)
-        case .unavailable(.unexpectedResponse, _): .unavailable(.unexpectedResponse)
+        case .unavailable(.localStateUnreadable): .unavailable(.signInUnreadable)
+        case .unavailable(.network): .unavailable(.unreachable)
+        case .unavailable(.unexpectedResponse): .unavailable(.unexpectedResponse)
         case let .available(snapshot): .snapshot(usage(from: snapshot))
         }
     }
