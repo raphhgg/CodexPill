@@ -21,6 +21,16 @@ defaults delete com.raphhgg.codexpill
 
 It is fine if `defaults delete` says the domain does not exist.
 
+If you saved Claude Code accounts, also remove CodexPill's Keychain items for
+them. Run this until it says the item could not be found:
+
+```sh
+security delete-generic-password -s "CodexPill Claude Code account"
+```
+
+This leaves Claude Code's own sign-in, the `Claude Code-credentials` item, as it
+is. CodexPill never deletes that item.
+
 This does not delete `~/.codex/auth.json`. Do not remove or edit that file unless
 you intentionally want to sign out of Codex or repair Codex itself.
 

@@ -75,8 +75,8 @@ It coordinates cache-first loading, scan-task identity, duplicate-scan preventio
 
 Key boundaries:
 
-- `UsageProviderSource`, the port for one provider. It returns a `UsageProviderReading`: not connected, unavailable (signed out, sign-in expired, Keychain access needed, or read failed), awaiting usage, or a `UsageSnapshot`.
-- `ClaudeCodeUsage`, the Claude Code source. It wraps the `Platform/Claude` adapter, maps its values onto `UsageSnapshot`, and owns the opt-in setting and the connect and disconnect steps.
+- `UsageProviderSource`, the port for one provider. It returns a `UsageProviderReading`: not connected, unavailable with a `UsageUnavailableReason`, awaiting usage, or a `UsageSnapshot`. The reasons are signed out, sign-in expired (401 or past expiry), Keychain access needed, sign-in unreadable, access denied (403), rate limited (429), unreachable, service error (other status), and unexpected response. Each has its own menu copy.
+- `ClaudeCodeUsage`, the Claude Code source. It wraps the `Platform/Claude` adapter, maps its values onto `UsageSnapshot`, and owns the opt-in setting and the connect and disconnect steps. It also carries the saved-account store and `switchAccount(to:)`, so a menu can switch Claude Code sign-ins without reaching into `Platform`.
 - `ProviderUsageRuntime`, which reads each source at most once per the source's `refreshInterval`, however often the menu opens, and publishes `ProviderUsageState` values. The default interval is 5 minutes. A snapshot older than the source's `staleAfter` is published as `.stale`. When a source is unavailable for a reason that keeps the same account, such as an expired sign-in or a failed read, the runtime keeps the last good snapshot next to the reason.
 
 Provider states only feed menu sections. They never reach `AccountAvailability` or `InactiveAccountAvailabilityRanking`: those read `CodexAccount.usage`, and the runtime reports changes through a menu-rebuild callback instead of the account store. The runtime refuses a source for `.codex`.
@@ -125,7 +125,14 @@ Reusable Codex app-server access is split into these platform boundaries:
 
 Local app-server reads enter this session runner through `CodexAppServerClient`, which keeps local executable, environment, client-info, timeout, and saved-account strict rate-limit requirements in `CodexAppServerConfiguration`.
 
-`Platform/Claude` owns everything CodexPill knows about Claude Code: the read-only sign-in lookup in `.credentials.json` and the `Claude Code-credentials` Keychain item, the Keychain prompt rule (only after a user action), the `api.anthropic.com/api/oauth/usage` request, its redirect rule, its rate-limit wait, and parsing its response. The token never leaves this module except as the request's `Authorization` header.
+`Platform/Claude` owns everything CodexPill knows about Claude Code:
+
+- reading its sign-in from `.credentials.json` and the `Claude Code-credentials` Keychain item, with the Keychain prompt shown only after a user action (`ClaudeCredentialsSource`, `SystemClaudeKeychain`);
+- the `api.anthropic.com/api/oauth/usage` request, its redirect rule, its rate-limit wait, and parsing its response (`ClaudeUsageAPI`, `ClaudeUsageClient`);
+- saved Claude Code accounts and switching (`ClaudeCodeAccountStore`, `ClaudeCodeSignInStore`, `SystemClaudeCodeAccountItems`). A switch writes CodexPill's own item and list, then Claude Code's credentials, then `oauthAccount` in Claude Code's global config, and puts every earlier step back when a later one fails. Accounts match by Claude Code's account record, never by token;
+- whether Claude Code is running, behind the `ClaudeCodeProcessDetecting` port. A switch is refused while it runs.
+
+The access token leaves this module only as the usage request's `Authorization` header. Nothing in it reads, sends, or renews Claude Code's refresh token; a test scans the Claude sources to keep it that way.
 
 `Platform/Persistence` owns:
 
@@ -154,6 +161,7 @@ Settings persistence is split by feature boundary:
 - `MenuDisplaySettingsStore` owns menu refresh cadence and visible inactive-account count options.
 - `StatusItemSettingsStore` owns status-item indicator style, monochrome mode, display mode, pacing marker visibility, progress accent color helpers, and persisted reveal-shortcut values.
 - `TokenUsagePreferencesStore` owns token-usage visibility, chart style, loading animation, peak scope, and the fixed 30-day period.
+- `ClaudeUsageSettingsStore` owns whether Claude Code usage is connected (`claudeUsageEnabled`). It is off by default.
 
 App startup builds each store from one `UserDefaults` instance and injects the ones each runtime boundary needs. There is no shared settings facade.
 
@@ -196,7 +204,8 @@ The current truth sources are split by concern:
 - CodexPill catalog and saved snapshots: `~/Library/Application Support/CodexPill`;
 - local account metadata and rate limits: local `codex app-server`;
 - running CLI session observation: local process table inspection;
-- Claude Code usage: `api.anthropic.com/api/oauth/usage`, authenticated with Claude Code's local sign-in token.
+- Claude Code usage: `api.anthropic.com/api/oauth/usage`, authenticated with Claude Code's local sign-in token;
+- active Claude Code account: `oauthAccount` in Claude Code's global config, `~/.claude.json`.
 
 Rules:
 

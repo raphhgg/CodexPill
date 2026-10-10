@@ -7,7 +7,7 @@ The product replaces manual auth-file swapping and repeated app restarts with a 
 - save Codex accounts as reusable local snapshots;
 - switch the active Codex account from the menubar;
 - see current session and weekly Codex usage before choosing which account to use;
-- optionally see Claude Code usage next to Codex.
+- optionally see Claude Code usage next to Codex, and switch Claude Code between saved sign-ins.
 
 Detailed product behavior and UX contracts live in [features](features/README.md).
 
@@ -62,7 +62,7 @@ The most recently fetched view of Codex session and weekly availability.
 
 ### Display-Only Provider
 
-A non-Codex tool whose usage CodexPill shows. Claude Code is one. It is opt-in and has its own menu section below the saved accounts. Its usage never affects Codex account availability, ranking, or notifications.
+A non-Codex tool whose usage CodexPill shows. Claude Code is one. It is opt-in and has its own menu section below the saved accounts. Its usage never affects Codex account availability, ranking, or notifications. CodexPill can also save Claude Code sign-ins and switch between them, through Claude Code's own credentials; the menu for that is not built yet. CodexPill never signs in to Claude itself and never renews Claude Code's sign-in.
 
 ## Non-Goals
 
