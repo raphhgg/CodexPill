@@ -18,18 +18,18 @@ struct ProviderUsageMenuContent: View {
                 EmptyView()
             case .awaitingUsage:
                 message(
-                    title: "Waiting for \(provider.menuTitle)…",
+                    title: "Waiting for \(provider.menuTitle)",
                     detail: provider.awaitingUsageDetail
                 )
             case .unavailable:
                 message(
-                    title: "\(provider.menuTitle) usage unavailable",
-                    detail: "CodexPill could not read the saved usage."
+                    title: "Can't read \(provider.menuTitle) usage",
+                    detail: "Retrying soon."
                 )
             case let .current(snapshot):
                 meters(for: snapshot, freshness: "As of \(usageAsOfText(snapshot.fetchedAt, now: now))")
             case let .stale(snapshot):
-                meters(for: snapshot, freshness: "Stale, as of \(usageAsOfText(snapshot.fetchedAt, now: now))")
+                meters(for: snapshot, freshness: "As of \(usageAsOfText(snapshot.fetchedAt, now: now))")
                     .opacity(0.55)
             }
         }
@@ -81,7 +81,7 @@ extension UsageProvider {
 
     fileprivate var awaitingUsageDetail: String {
         switch self {
-        case .claude: "Usage appears after your next Claude Code message on a Pro or Max plan."
+        case .claude: "Send a message in Claude Code to see usage."
         case .codex, .cursor: "Usage appears after the next update."
         }
     }

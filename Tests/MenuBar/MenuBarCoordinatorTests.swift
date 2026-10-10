@@ -1081,6 +1081,8 @@ struct MenuBarCoordinatorTests {
         await coordinator.waitForPendingWork()
 
         #expect(harness.alertPresenter.confirmationRequests.map(\.messageText) == ["Connect Claude Code?"])
+        let consentDetail = try #require(harness.alertPresenter.confirmationRequests.first?.detail)
+        #expect(consentDetail.contains("Before:\n{\n  \"command\" : \"~/.claude/statusline.sh\""))
         #expect(try String(contentsOf: fixture.settingsURL, encoding: .utf8) == originalSettings)
         #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .claude, status: .notConnected)])
 
