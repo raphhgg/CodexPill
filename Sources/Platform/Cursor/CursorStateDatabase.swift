@@ -3,7 +3,7 @@ import SQLite3
 
 enum CursorStateDatabaseError: Error, Equatable {
     case sqlite(code: Int32)
-    /// Another process still has the database open, so CodexPill did not write.
+    /// Another process holds the database or left a write unfinished. Nothing was read or written.
     case busy
 }
 
@@ -81,6 +81,7 @@ private final class Connection {
             code = sqlite3_open_v2(uri, &database, SQLITE_OPEN_READONLY | SQLITE_OPEN_URI, nil)
         }
         handle = try Self.opened(database, code: code)
+        sqlite3_extended_result_codes(handle, 1)
         sqlite3_busy_timeout(handle, 250)
     }
 
@@ -184,11 +185,16 @@ private final class Connection {
     }
 
     private static func error(for code: Int32) -> CursorStateDatabaseError {
-        switch code & 0xFF {
+        // A hot rollback journal means a writer is mid-write or crashed. Cursor rolls it back when it next opens it.
+        if code == readOnlyRollback { return .busy }
+        return switch code & 0xFF {
         case SQLITE_BUSY, SQLITE_LOCKED: .busy
         default: .sqlite(code: code)
         }
     }
+
+    /// `SQLITE_READONLY_ROLLBACK`, which Swift does not import.
+    private static let readOnlyRollback = SQLITE_READONLY | (3 << 8)
 
     private static func opened(_ database: OpaquePointer?, code: Int32) throws -> OpaquePointer {
         guard code == SQLITE_OK, let database else {

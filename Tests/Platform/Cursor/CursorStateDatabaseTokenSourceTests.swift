@@ -115,9 +115,9 @@ struct CursorStateDatabaseTokenSourceTests {
         let uncommitted = CursorAccessTokenFixtures.jwt(subject: "github|user_uncommitted", expiresAt: CursorAccessTokenFixtures.referenceDate)
         let crashCopy = try harness.copyWithHotJournal(replacingAccessTokenWith: uncommitted)
 
-        let lookup = try? CursorStateDatabaseTokenSource(databaseURL: crashCopy).lookup()
-
-        #expect(lookup.flatMap(userID(from:)) != "user_uncommitted")
+        #expect(throws: CursorStateDatabaseError.busy) {
+            try CursorStateDatabaseTokenSource(databaseURL: crashCopy).lookup()
+        }
     }
 
     @Test

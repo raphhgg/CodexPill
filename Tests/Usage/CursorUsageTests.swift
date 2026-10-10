@@ -87,9 +87,11 @@ struct CursorUsageTests {
         fixture.tokenLookup = .signedOut
         #expect(await fixture.usage.readUsage(now: now) == .unavailable(.signedOut))
 
-        fixture.databaseUnreadable = true
+        fixture.databaseError = .sqlite(code: 11)
         #expect(await fixture.usage.readUsage(now: now) == .unavailable(.signInUnreadable))
-        fixture.databaseUnreadable = false
+        fixture.databaseError = .busy
+        #expect(await fixture.usage.readUsage(now: now) == .unavailable(.signInBusy))
+        fixture.databaseError = nil
 
         fixture.signIn(expiresAt: now.addingTimeInterval(30), summary: CursorUsageFixture.proPlanWithCappedOnDemand)
         #expect(await fixture.usage.readUsage(now: now) == .unavailable(.signInExpired))
