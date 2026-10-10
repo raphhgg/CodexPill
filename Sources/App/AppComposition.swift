@@ -97,14 +97,29 @@ struct AppComposition {
         )
     }
 
-    /// An isolated run never reads Cursor's real sign-in: it reads `Cursor/state.vscdb` inside the isolated root.
+    /// An isolated run never touches the real Cursor: it reads `Cursor/state.vscdb` inside the isolated root and has
+    /// no account switching, so it never quits Cursor or writes its database.
     private static func makeCursorUsage(defaults: UserDefaults, isolatedRootDirectory: URL?) -> CursorUsage {
-        let tokenSource = isolatedRootDirectory.map {
-            CursorStateDatabaseTokenSource(databaseURL: CursorStateDatabase.isolatedURL(root: $0))
-        } ?? CursorStateDatabaseTokenSource()
+        let settings = CursorUsageSettingsStore(userDefaults: defaults)
+        let webClient = URLSessionCursorUsageWebClient()
+        if let isolatedRootDirectory {
+            return CursorUsage(
+                settings: settings,
+                client: CursorUsageClient(
+                    tokenSource: CursorStateDatabaseTokenSource(databaseURL: CursorStateDatabase.isolatedURL(root: isolatedRootDirectory)),
+                    webClient: webClient
+                )
+            )
+        }
+
         return CursorUsage(
-            settings: CursorUsageSettingsStore(userDefaults: defaults),
-            client: CursorUsageClient(tokenSource: tokenSource, webClient: URLSessionCursorUsageWebClient())
+            settings: settings,
+            client: CursorUsageClient(tokenSource: CursorStateDatabaseTokenSource(), webClient: webClient),
+            accounts: CursorAccounts(
+                database: CursorStateDatabase(url: CursorStateDatabase.defaultURL),
+                store: SystemCursorAccountKeychain(),
+                app: SystemCursorAppProcessClient()
+            )
         )
     }
 }

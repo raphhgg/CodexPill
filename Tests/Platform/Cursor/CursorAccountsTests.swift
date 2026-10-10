@@ -190,7 +190,7 @@ struct CursorAccountsTests {
         let before = try Data(contentsOf: scenario.harness.databaseURL)
         scenario.app.quitError = CursorAppProcessClientError.didNotQuit
 
-        await #expect(throws: CursorAppProcessClientError.didNotQuit) {
+        await #expect(throws: CursorAccountsError.cursorDidNotQuit) {
             try await scenario.accounts.activate(work.id)
         }
 
@@ -207,7 +207,7 @@ struct CursorAccountsTests {
         scenario.app.onQuit = nil
         try scenario.harness.holdWriteLock()
 
-        await #expect(throws: CursorStateDatabaseError.busy) {
+        await #expect(throws: CursorAccountsError.cursorBusy) {
             try await scenario.accounts.activate(work.id)
         }
 
@@ -223,7 +223,7 @@ struct CursorAccountsTests {
         let garbage = Data(repeating: 0x5A, count: 8192)
         try garbage.write(to: scenario.harness.databaseURL)
 
-        await #expect(throws: CursorStateDatabaseError.self) {
+        await #expect(throws: CursorAccountsError.stateUnreadable) {
             try await scenario.accounts.activate(work.id)
         }
 
@@ -340,43 +340,5 @@ private extension CursorStateDatabaseHarness {
             guard case .text(let text) = value else { return nil }
             return text
         }
-    }
-}
-
-final class CursorAccountStoreHarness: CursorAccountStore, @unchecked Sendable {
-    private let lock = NSLock()
-    private var accounts: [CursorSavedAccount] = []
-
-    func load() throws -> [CursorSavedAccount] {
-        lock.withLock { accounts }
-    }
-
-    func save(_ accounts: [CursorSavedAccount]) throws {
-        lock.withLock { self.accounts = accounts }
-    }
-}
-
-final class CursorAppProcessProbe: CursorAppProcessClient, @unchecked Sendable {
-    enum Event: Equatable {
-        case quit
-        case open
-    }
-
-    private let lock = NSLock()
-    private var recorded: [Event] = []
-    var quitError: (any Error)?
-    var onQuit: (() throws -> Void)?
-
-    var events: [Event] { lock.withLock { recorded } }
-    var isRunning: Bool { true }
-
-    func quit() async throws {
-        lock.withLock { recorded.append(.quit) }
-        try onQuit?()
-        if let quitError { throw quitError }
-    }
-
-    func open() async throws {
-        lock.withLock { recorded.append(.open) }
     }
 }
