@@ -122,8 +122,8 @@ CodexPill.
 
 ## Validation
 
-Behavior and invariant requirements live in [VALIDATION.md](VALIDATION.md). Run
-`make test` before opening a pull request.
+[VALIDATION.md](VALIDATION.md) lists the automated gate, `make test`, and a short
+manual checklist. Run `make test` before opening a pull request.
 
 ## Local Assumptions
 
