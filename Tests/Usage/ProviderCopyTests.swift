@@ -4,7 +4,7 @@ import Testing
 
 struct ProviderCopyTests {
     private let reasons: [UsageUnavailableReason] = [
-        .signedOut, .signInExpired, .keychainAccessNeeded, .signInUnreadable, .signInBusy, .accessDenied,
+        .signedOut, .signInExpired, .signInRequired, .keychainAccessNeeded, .signInUnreadable, .signInBusy, .accessDenied,
         .rateLimited, .unreachable, .serviceError, .unexpectedResponse,
     ]
 
@@ -54,5 +54,17 @@ struct ProviderCopyTests {
             #expect(notices.allSatisfy { $0.title.count <= 32 && ($0.detail?.count ?? 0) <= 40 })
             #expect(notices.allSatisfy { $0.detail?.filter { $0 == "." }.count == 1 })
         }
+    }
+
+    @Test
+    func everyClaudeSignInFailureGetsAShortAlert() {
+        let errors: [ClaudeSignInError] = [
+            .denied, .timedOut, .stateMismatch, .listenerFailed,
+            .token(.invalidGrant), .token(.transport), .token(.rejected(status: 500)), .token(.malformedResponse),
+        ]
+        let notices = errors.map(\.notice)
+
+        #expect(notices.allSatisfy { $0.title.count <= 32 && ($0.detail?.count ?? 0) <= 40 })
+        #expect(notices.allSatisfy { $0.detail?.filter { $0 == "." }.count == 1 })
     }
 }

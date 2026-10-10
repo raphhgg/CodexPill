@@ -67,7 +67,7 @@ final class ProviderUsageRuntime {
                     try await signIn(on: connection)
                 }
             case .disconnect:
-                await connection.disconnect()
+                try await connection.disconnect()
             case let .switchAccount(id):
                 discardReading(for: provider)
                 defer { discardReading(for: provider) }

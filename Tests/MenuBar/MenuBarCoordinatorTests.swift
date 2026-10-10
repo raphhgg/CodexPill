@@ -154,6 +154,14 @@ struct MenuBarCoordinatorTests {
 
         harness.click("Claude…")
         await fixture.waitUntilSignInStarted()
+        fixture.finishSignIn(with: .failure(ClaudeSignInError.denied))
+        await coordinator.waitForPendingWork()
+
+        #expect(harness.alertPresenter.infoRequests.map(\.messageText) == ["Claude sign-in declined"])
+        #expect(fixture.settings.connection == nil)
+
+        harness.click("Claude…")
+        await fixture.waitUntilSignInStarted()
         fixture.finishSignIn(with: .success(ClaudeUsageFixture.ownSignIn(expiresAt: Date().addingTimeInterval(3_600))))
         await coordinator.waitForPendingWork()
 
@@ -187,7 +195,7 @@ struct MenuBarCoordinatorTests {
         harness.click("Disconnect Claude")
         await coordinator.waitForPendingWork()
 
-        #expect(harness.alertPresenter.confirmationRequests.count == 3)
+        #expect(harness.alertPresenter.confirmationRequests.count == 4)
         #expect(fixture.settings.connection == nil)
         #expect(fixture.ownSignIn == nil)
         #expect(fixture.revokedRefreshTokens == [ClaudeUsageFixture.fakeOwnRefreshToken])

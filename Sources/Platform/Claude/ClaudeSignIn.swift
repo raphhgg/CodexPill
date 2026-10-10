@@ -59,7 +59,9 @@ protocol ClaudeSignInStoring: Sendable {
     func read(allowingPrompt: Bool) -> ClaudeKeychainRead
     @discardableResult
     func save(_ signIn: ClaudeSignIn, allowingPrompt: Bool) -> Bool
-    func delete()
+    /// True when no item is left.
+    @discardableResult
+    func delete() -> Bool
 }
 
 /// The `CodexPill Claude sign-in` generic password in the login Keychain.
@@ -91,8 +93,9 @@ struct SystemClaudeSignInKeychain: ClaudeSignInStoring {
         return SecItemAdd(item as CFDictionary, nil) == errSecSuccess
     }
 
-    func delete() {
-        SecItemDelete(Self.itemQuery as CFDictionary)
+    func delete() -> Bool {
+        let status = SecItemDelete(Self.itemQuery as CFDictionary)
+        return status == errSecSuccess || status == errSecItemNotFound
     }
 
     private static var itemQuery: [CFString: Any] {
@@ -118,7 +121,8 @@ final class InMemoryClaudeSignInStore: ClaudeSignInStoring, @unchecked Sendable 
         return true
     }
 
-    func delete() {
+    func delete() -> Bool {
         lock.withLock { data = nil }
+        return true
     }
 }

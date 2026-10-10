@@ -43,10 +43,12 @@ struct ClaudeCodeUsage: ProviderConnection {
     }
 
     /// Forgets the opt-in and deletes CodexPill's own sign-in. Claude Code's sign-in is untouched.
-    func disconnect() async {
+    func disconnect() async throws(ProviderNotice) {
         await browserSignIn.cancel()
         settings.connection = nil
-        await client.forgetSignIn()
+        guard await client.forgetSignIn() else {
+            throw ProviderNotice(title: "Claude sign-in not removed", detail: "Remove it in Keychain Access.")
+        }
     }
 
     func savedAccounts() async throws(ProviderNotice) -> [ProviderAccount] {
@@ -146,7 +148,16 @@ actor ClaudeUsageSignIn: ProviderSignIn {
         let task = Task { [flow] in try await flow.signIn() }
         running = task
         defer { running = nil }
-        guard let signIn = try? await task.value, !task.isCancelled else { return false }
+        let signIn: ClaudeSignIn
+        do {
+            signIn = try await task.value
+        } catch let error as ClaudeSignInError {
+            throw error.notice
+        } catch {
+            // Only cancellation gets here: the user cancelled the sign-in or disconnected.
+            return false
+        }
+        guard !task.isCancelled else { return false }
         await client.store(signIn)
         settings.connection = .codexPill
         return true

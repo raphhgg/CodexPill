@@ -12,7 +12,7 @@ protocol ProviderConnection: UsageProviderSource {
     /// has no sign-in to read, so the user has to sign in with `signIn` first.
     @discardableResult
     func connect() async -> Bool
-    func disconnect() async
+    func disconnect() async throws(ProviderNotice)
     /// CodexPill's own browser sign-in for this tool, or nil when it reads only the tool's sign-in.
     var signIn: (any ProviderSignIn)? { get }
 

@@ -115,3 +115,17 @@ extension CursorAccountsError {
         return ProviderNotice(title: title, detail: detail)
     }
 }
+
+extension ClaudeSignInError {
+    var notice: ProviderNotice {
+        let (title, detail) = switch self {
+        case .denied: ("Claude sign-in declined", "Sign in again to see your limits.")
+        case .timedOut: ("Claude sign-in timed out", "Start it again from the menu.")
+        case .stateMismatch, .token(.invalidGrant): ("Claude sign-in didn't finish", "Start it again from the menu.")
+        case .listenerFailed: ("Couldn't start Claude sign-in", "Try again in a moment.")
+        case .token(.transport): ("Can't reach Claude", "Check your connection and retry.")
+        case .token(.rejected), .token(.malformedResponse): ("Claude sign-in failed", "Try again in a moment.")
+        }
+        return ProviderNotice(title: title, detail: detail)
+    }
+}
