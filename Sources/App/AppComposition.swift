@@ -10,11 +10,13 @@ struct AppComposition {
         let suppressesInteractivePrompts = AppRuntimeEnvironment.isRunningAutomatedTests(environment: environment)
         let repository = try! AccountRepository(isolatedRootDirectory: isolatedRootDirectory)
         let authService = CodexAuthSnapshotService(repository: repository)
+        let codexAppServerClient = CodexAppServerClient()
         accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: authService,
             codexAppProcessClient: SystemCodexAppProcessClient(),
-            accountStatusClient: CodexAppServerClient()
+            accountStatusClient: codexAppServerClient,
+            resetCreditClient: codexAppServerClient
         ).makeController()
 
         coordinator = MenuBarCoordinator(

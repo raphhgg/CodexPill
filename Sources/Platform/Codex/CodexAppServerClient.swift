@@ -55,6 +55,7 @@ final class CodexAppServerClient {
                         planType: usage.planName,
                         primary: usage.window(.session).map(Self.appServerWindow),
                         secondary: usage.window(.weekly).map(Self.appServerWindow),
+                        resetCredits: usage.resetCredits,
                         fetchedAt: usage.fetchedAt
                     )
                 }
@@ -156,6 +157,20 @@ final class CodexAppServerClient {
         )
     }
 
+    func consumeResetCredit(idempotencyKey: UUID) async throws -> CodexResetCreditOutcome {
+        try await CodexAppServerSessionRunner().consumeResetCredit(command: CodexResetCreditConsumeCommand(
+            executableURL: configuration.command.executableURL,
+            arguments: configuration.command.arguments,
+            environment: configuration.environment,
+            timeout: configuration.responseTimeout,
+            clientInfo: configuration.clientInfo,
+            idempotencyKey: idempotencyKey,
+            failure: { stderr, terminationStatus, timedOut in
+                appServerFailure(stderr: stderr, terminationStatus: terminationStatus, timedOut: timedOut)
+            }
+        ))
+    }
+
     private static func readAppServerStatus(
         configuration: CodexAppServerConfiguration,
         refreshToken: Bool,
@@ -237,3 +252,4 @@ final class CodexAppServerClient {
 
 extension CodexAppServerClient: CodexAccountStatusClient {}
 extension CodexAppServerClient: SavedCodexAccountStatusClient {}
+extension CodexAppServerClient: CodexResetCreditClient {}

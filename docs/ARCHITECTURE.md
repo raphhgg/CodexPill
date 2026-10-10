@@ -117,7 +117,7 @@ Reusable Codex app-server access is split into these platform boundaries:
 - `CodexAppServerClient` is the production facade used by CodexPill account reads. It turns a local `CodexAppServerConfiguration` into a session command for the shared session runner.
 - `CodexAppServerConfiguration` owns executable path, environment, and timeout policy.
 - `CodexAppServerSession` owns JSON-RPC request construction and response sequencing.
-- `CodexAppServerSessionRunner` owns the reusable app-server session execution loop used by local reads: process launch, stdin/stdout/stderr pipe wiring, request writing, output draining, timeout completion, partial-status completion, and finish-once coordination.
+- `CodexAppServerSessionRunner` owns the reusable app-server session execution loop used by local reads: process launch, stdin/stdout/stderr pipe wiring, request writing, output draining, timeout completion, partial-status completion, and finish-once coordination. It also runs the one-request `account/rateLimitResetCredit/consume` session that spends a Codex reset credit.
 - `CodexAppServerAccountParser` and `CodexAppServerRateLimitParser` map raw app-server payload DTOs into generic app-server DTOs.
 - `CodexPillAccountStatusMapper` maps generic app-server DTOs into CodexPill account and rate-limit models.
 

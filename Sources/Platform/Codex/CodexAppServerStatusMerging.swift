@@ -52,7 +52,8 @@ func mergeAppServerUsage(
         windows: [UsageWindowKind.session, .weekly].compactMap { kind in
             mergeAppServerUsageWindow(previous: previous.window(kind), current: current.window(kind))
         },
-        fetchedAt: max(previous.fetchedAt, current.fetchedAt)
+        fetchedAt: max(previous.fetchedAt, current.fetchedAt),
+        resetCredits: current.resetCredits ?? previous.resetCredits
     )
 }
 

@@ -98,4 +98,15 @@ struct CodexAccountTests {
 
         #expect(account.lastRemoteRefreshAt == Date(timeIntervalSince1970: 2_000))
     }
+
+    @Test
+    func savedAccountKeepsResetCredits() throws {
+        var usage = makeUsage(fetchedAt: Date(timeIntervalSince1970: 1_776_200_000))
+        usage.resetCredits = UsageResetCredits(availableCount: 2, nextExpiry: Date(timeIntervalSince1970: 1_778_000_000))
+        let account = makeAccount(name: "Personal", usage: usage)
+
+        let decoded = try JSONDecoder().decode(CodexAccount.self, from: JSONEncoder().encode(account))
+
+        #expect(decoded.usage?.resetCredits == usage.resetCredits)
+    }
 }
