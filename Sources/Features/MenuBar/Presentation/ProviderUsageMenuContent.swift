@@ -106,7 +106,6 @@ extension UsageProvider {
         }
     }
 
-    /// Who answers the usage request.
     private var serviceName: String {
         switch self {
         case .claude: "Anthropic"

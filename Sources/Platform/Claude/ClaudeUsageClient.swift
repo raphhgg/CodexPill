@@ -12,9 +12,7 @@ enum ClaudeUsageStatus: Equatable, Sendable {
     /// Anthropic answered 429, or its `Retry-After` has not passed yet.
     case rateLimited
     case unreachable
-    /// Any other HTTP status.
     case serviceError
-    /// A 200 whose body is not the usage shape.
     case unexpectedResponse
     case available(ClaudeUsageReport, planName: String?)
 }
