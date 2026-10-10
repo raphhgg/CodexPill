@@ -11,7 +11,8 @@ During normal use, CodexPill may read:
 - Local Codex app-server status to refresh account and limit information.
 - Local process information to detect running Codex CLI sessions when a switch may require a restart or user action.
 - CodexPill-owned state under `~/Library/Application Support/CodexPill`.
-- Claude Code's sign-in, from `~/.claude/.credentials.json` or the `Claude Code-credentials` Keychain item, only while Claude Code usage is connected.
+- Claude Code's sign-in, from `~/.claude/.credentials.json` or the `Claude Code-credentials` Keychain item, while Claude Code usage is connected or when you save or switch a Claude Code account. See [Claude Code](#claude-code).
+- Local process information to detect a running Claude Code before switching Claude Code accounts.
 
 ## What CodexPill Writes Or Stores
 
@@ -21,6 +22,7 @@ CodexPill writes and stores:
 - Saved Codex auth snapshots under `~/Library/Application Support/CodexPill/snapshots`.
 - `~/.codex/auth.json` when switching the active local Codex account.
 - Temporary isolated `CODEX_HOME` state when capturing a new Codex sign-in without mutating the current account.
+- Saved Claude Code accounts in `CodexPill Claude Code account` Keychain items and `claude-code-accounts.json`, and Claude Code's own sign-in when you switch Claude Code accounts. See [Claude Code](#claude-code).
 
 Saved auth snapshots contain authentication material and must be handled like credentials. They should not be printed, logged, attached to issues, or committed to git.
 
@@ -28,9 +30,31 @@ Saved auth snapshots contain authentication material and must be handled like cr
 
 CodexPill never copies Codex auth snapshots or Codex tokens to another machine or service. Earlier versions could copy a selected snapshot to an SSH host you configured. That feature is gone. [Uninstall And Reset](UNINSTALL_RESET.md) explains how to remove what it left on a host.
 
-## Claude Code Usage
+## Claude Code
 
-**Claude Code usage (optional).** Claude Code usage is off by default. `Connect Claude Code…` asks for consent before anything is read. While it is on, CodexPill reads Claude Code's sign-in read-only, from `~/.claude/.credentials.json` (or `CLAUDE_CONFIG_DIR`) when that file exists, otherwise from the `Claude Code-credentials` item in your Keychain. It never changes Claude Code's files or Keychain item. macOS may ask you to allow Keychain access, and CodexPill shows that prompt only right after you connect or choose `Allow Keychain access…`. CodexPill sends the token only to api.anthropic.com, to fetch your 5-hour and weekly limits. It refuses redirects to other hosts, so the token never goes anywhere else. It never stores, logs, displays, or refreshes the token, and it never reads the refresh token, browser cookies, or Claude conversation data. `Disconnect Claude Code…` turns the feature off and stops all reads.
+CodexPill never signs in to Claude, never asks Anthropic for a new token, and never reads, sends, or renews Claude Code's refresh token. It only uses the sign-in Claude Code already has.
+
+**Usage (optional, off by default).** `Connect Claude Code…` asks for consent before anything is read. While it is connected, each read:
+
+- reads `.credentials.json` in Claude Code's config folder (`CLAUDE_CONFIG_DIR`, or `~/.claude`), and if that file holds no Claude sign-in, the login Keychain generic password with service `Claude Code-credentials` and your macOS user name as the account;
+- uses only the access token, its expiry, and the plan name from that sign-in;
+- sends the access token to one place, `GET https://api.anthropic.com/api/oauth/usage`, to fetch your 5-hour and weekly limits. Redirects to any other host, or to plain HTTP, are refused. The request has no cookies and no cache.
+
+macOS may ask you to allow Keychain access. CodexPill shows that prompt only right after you connect or choose `Allow Keychain access…`. CodexPill never stores, logs, or displays the token, and it never reads browser cookies or Claude conversations. `Disconnect Claude Code…` turns usage off and stops all reads.
+
+**Saved Claude Code accounts.** CodexPill can save Claude Code sign-ins and switch between them. Only a user action does this; nothing runs in the background. Saving one:
+
+- reads Claude Code's sign-in as above, and `oauthAccount` from Claude Code's global config (`$CLAUDE_CONFIG_DIR/.claude.json`, or `~/.claude.json`);
+- writes a copy of the `claudeAiOauth` and `oauthAccount` objects to a login Keychain item CodexPill owns, service `CodexPill Claude Code account`, one item per saved account, with the account's CodexPill ID as the Keychain account;
+- writes the account's name, email, organization name, plan, and Claude account IDs, but no tokens, to `~/Library/Application Support/CodexPill/claude-code-accounts.json`.
+
+Switching also writes Claude Code's own sign-in:
+
+- it updates the existing `Claude Code-credentials` Keychain item, or `.credentials.json` when the sign-in lives there. Only `claudeAiOauth` changes; other keys, such as MCP sign-ins, stay as they were. CodexPill never creates or deletes Claude Code's Keychain item;
+- it replaces `oauthAccount` in Claude Code's global config and keeps every other key;
+- it reads the process table first and refuses to switch while any `claude` process runs, including Claude Code inside the Claude desktop app.
+
+If any step fails, CodexPill puts back every file and item it had already changed.
 
 ## What CodexPill Does Not Require By Default
 

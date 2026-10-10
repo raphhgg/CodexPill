@@ -15,7 +15,7 @@ The menu is ordered as:
 1. `Active Account`
 2. `Accounts`, when saved catalog entries are visible
 3. `More Accounts…`, when saved catalog entries overflow the visible limit
-4. `Claude Code`, usage from [Claude Usage](claude-usage.md)
+4. `Claude Code`: `Connect Claude Code…` until connected, then usage or a short failure message, from [Claude Usage](claude-usage.md)
 5. App Controls
 6. Status message, when needed
 7. `Quit`
