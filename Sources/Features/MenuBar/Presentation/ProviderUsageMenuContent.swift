@@ -113,6 +113,7 @@ extension UsageProvider {
         case .signInExpired: ("\(menuTitle) sign-in expired", "Open \(menuTitle) to renew it.")
         case .keychainAccessNeeded: ("Allow Keychain access", nil)
         case .signInUnreadable: ("Can't read the \(menuTitle) sign-in", "Sign in to \(menuTitle) again.")
+        case .signInBusy: ("\(menuTitle) is busy", retrying)
         case .accessDenied: ("\(serviceName) won't share usage", "Sign in to \(menuTitle) again.")
         case .rateLimited: ("\(serviceName) asked to wait", retrying)
         case .unreachable: ("Can't reach \(serviceName)", retrying)

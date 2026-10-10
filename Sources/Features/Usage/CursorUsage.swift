@@ -48,6 +48,7 @@ struct CursorUsage: UsageProviderSource {
         case .signedOut: .unavailable(.signedOut)
         case .tokenExpired, .unauthorized: .unavailable(.signInExpired)
         case .unavailable(.localStateUnreadable): .unavailable(.signInUnreadable)
+        case .unavailable(.localStateBusy): .unavailable(.signInBusy)
         case .unavailable(.network): .unavailable(.unreachable)
         case .unavailable(.forbidden): .unavailable(.accessDenied)
         case .unavailable(.rateLimited): .unavailable(.rateLimited)
