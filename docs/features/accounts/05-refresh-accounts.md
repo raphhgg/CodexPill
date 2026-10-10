@@ -20,6 +20,8 @@ Inactive refresh runs on the scheduled refresh tick after the active refresh, at
 
 Switch, remove, rename, and add wait for the account being read to finish, then the refresh stops. A rotated token is saved before the operation touches auth. Each result merges into the current account list by account id. It never replaces the list or the active account, so a removed account stays removed and a new name stays.
 
+Before switching away from the active account, CodexPill saves the live `~/.codex/auth.json` to that account's snapshot if Codex rotated it since it was saved.
+
 ### Evidence
 
 Sanitized manual probe:
