@@ -9,7 +9,7 @@ final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
         try? IsolatedCodexHomeSession.cleanupStaleSessions()
 
         let environment = ProcessInfo.processInfo.environment
-        let defaults = AppRuntimeEnvironment.validationUserDefaultsSuiteName(environment: environment)
+        let defaults = AppRuntimeEnvironment.isolatedDefaultsSuiteName(environment: environment)
             .flatMap(UserDefaults.init(suiteName:))
             ?? .standard
 

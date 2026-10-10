@@ -1,65 +1,14 @@
 import Foundation
 
 enum AppRuntimeEnvironment {
-    static let suppressEmptyStatePromptEnvironmentKey = "CODEXPILL_SUPPRESS_EMPTY_STATE_PROMPT"
-    static let validationAutoRefreshIntervalSecondsEnvironmentKey = "CODEXPILL_VALIDATION_AUTO_REFRESH_INTERVAL_SECONDS"
-    static let validationAppSupportDirectoryEnvironmentKey = "CODEXPILL_VALIDATION_APP_SUPPORT_DIR"
-    static let validationUserDefaultsSuiteEnvironmentKey = "CODEXPILL_VALIDATION_USER_DEFAULTS_SUITE"
-    static let validationCodexProcessClientEnvironmentKey = "CODEXPILL_VALIDATION_CODEX_PROCESS_CLIENT"
+    static let isolatedAppSupportDirectoryEnvironmentKey = "CODEXPILL_ISOLATED_APP_SUPPORT_DIR"
+    static let isolatedDefaultsSuiteEnvironmentKey = "CODEXPILL_ISOLATED_DEFAULTS_SUITE"
     static let xctestConfigurationFilePathEnvironmentKey = "XCTestConfigurationFilePath"
 
-    static func shouldSuppressEmptyStatePrompt(
-        environment: [String: String] = ProcessInfo.processInfo.environment
-    ) -> Bool {
-        guard let rawValue = environment[suppressEmptyStatePromptEnvironmentKey]?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased() else {
-            return false
-        }
-        return ["1", "true", "yes"].contains(rawValue)
-    }
-
-    static func validationAutoRefreshIntervalSeconds(
-        environment: [String: String] = ProcessInfo.processInfo.environment
-    ) -> TimeInterval? {
-        guard let rawValue = environment[validationAutoRefreshIntervalSecondsEnvironmentKey]?
-            .trimmingCharacters(in: .whitespacesAndNewlines),
-              let seconds = TimeInterval(rawValue),
-              seconds > 0 else {
-            return nil
-        }
-
-        return seconds
-    }
-
-    static func validationAppSupportDirectory(
-        environment: [String: String] = ProcessInfo.processInfo.environment
-    ) -> URL? {
-        trimmedURLValue(for: validationAppSupportDirectoryEnvironmentKey, environment: environment)
-            .map(URL.init(fileURLWithPath:))
-    }
-
-    static func validationUserDefaultsSuiteName(
+    static func isolatedDefaultsSuiteName(
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) -> String? {
-        trimmedURLValue(for: validationUserDefaultsSuiteEnvironmentKey, environment: environment)
-    }
-
-    static func shouldUseValidationCodexProcessClient(
-        environment: [String: String] = ProcessInfo.processInfo.environment
-    ) -> Bool {
-        validationModeIsEnabled(environment[validationCodexProcessClientEnvironmentKey])
-    }
-
-    private static func validationModeIsEnabled(_ rawValue: String?) -> Bool {
-        if let rawValue = rawValue?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased(),
-           ["1", "true", "yes", "memory"].contains(rawValue) {
-            return true
-        }
-
-        return false
+        trimmedValue(for: isolatedDefaultsSuiteEnvironmentKey, environment: environment)
     }
 
     static func isRunningAutomatedTests(
@@ -80,8 +29,8 @@ enum AppRuntimeEnvironment {
     static func isolatedAppSupportDirectory(
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) -> URL? {
-        if let validationDirectory = validationAppSupportDirectory(environment: environment) {
-            return validationDirectory
+        if let launchDirectory = trimmedValue(for: isolatedAppSupportDirectoryEnvironmentKey, environment: environment) {
+            return URL(fileURLWithPath: launchDirectory)
         }
         guard isRunningAutomatedTests(environment: environment) else { return nil }
 
@@ -96,7 +45,7 @@ enum AppRuntimeEnvironment {
         !isRunningAutomatedTests(environment: environment, classLookup: classLookup)
     }
 
-    private static func trimmedURLValue(
+    private static func trimmedValue(
         for key: String,
         environment: [String: String]
     ) -> String? {

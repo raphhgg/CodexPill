@@ -10,13 +10,10 @@ struct AppComposition {
         let suppressesInteractivePrompts = AppRuntimeEnvironment.isRunningAutomatedTests(environment: environment)
         let repository = try! AccountRepository(isolatedRootDirectory: isolatedRootDirectory)
         let authService = CodexAuthSnapshotService(repository: repository)
-        let processClient: CodexAppProcessClient = AppRuntimeEnvironment.shouldUseValidationCodexProcessClient(environment: environment)
-            ? ValidationCodexAppProcessClient()
-            : SystemCodexAppProcessClient()
         accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: authService,
-            codexAppProcessClient: processClient,
+            codexAppProcessClient: SystemCodexAppProcessClient(),
             accountStatusClient: CodexAppServerClient()
         ).makeController()
 
@@ -37,8 +34,7 @@ struct AppComposition {
             tokenUsageProvider: LocalCodexSessionTokenUsageMenuProvider(
                 cacheFile: AppPaths.tokenUsageCacheFile(isolatedRootDirectory: isolatedRootDirectory)
             ),
-            allowsEmptyStatePrompt: !AppRuntimeEnvironment.shouldSuppressEmptyStatePrompt(environment: environment),
-            autoRefreshIntervalOverride: AppRuntimeEnvironment.validationAutoRefreshIntervalSeconds(environment: environment)
+            allowsEmptyStatePrompt: true
         )
     }
 }
