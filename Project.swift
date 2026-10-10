@@ -30,6 +30,7 @@ let project = Project(
             resources: [
                 "Resources/AppIcon.icns",
                 "Resources/AppIcon.png",
+                "Resources/Assets.xcassets",
             ],
             dependencies: [],
             settings: .settings(base: [
