@@ -27,9 +27,9 @@ struct AppComposition {
             remoteHostSwitchOperations: remoteHostClient
         ).makeController()
 
-        let claudeCodeUsage = Self.makeClaudeCodeUsage(environment: environment, isolatedRootDirectory: isolatedRootDirectory)
+        let claudeCodeUsage = Self.makeClaudeCodeUsage(environment: environment, defaults: defaults, isolatedRootDirectory: isolatedRootDirectory)
         let cursorUsage = Self.makeCursorUsage(environment: environment, defaults: defaults, isolatedRootDirectory: isolatedRootDirectory)
-        let providerUsageSources: [any UsageProviderSource] = (claudeCodeUsage.map { [$0] } ?? []) + [cursorUsage]
+        let providerUsageSources: [any UsageProviderSource] = [claudeCodeUsage, cursorUsage]
         coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(),
             shortcutRuntime: GlobalShortcutRuntime(),
@@ -62,31 +62,40 @@ struct AppComposition {
         )
     }
 
-    /// An isolated run never touches the real `~/.claude`: it uses `CLAUDE_CONFIG_DIR` or a folder inside the isolated root.
+    /// An isolated run never reads the real Claude sign-in or calls Anthropic: it reads `CLAUDE_CONFIG_DIR` or a folder
+    /// inside the isolated root, a fixture file instead of the Keychain, and a fixture usage response.
     private static func makeClaudeCodeUsage(
         environment: [String: String],
+        defaults: UserDefaults,
         isolatedRootDirectory: URL?
-    ) -> ClaudeCodeUsage? {
-        guard let relaySourceURL = Bundle.main.url(forResource: "codexpill-claude-usage-relay", withExtension: "sh") else {
-            return nil
-        }
-        let usageFileURL = isolatedRootDirectory?.appendingPathComponent(ClaudeUsageReader.fileName)
-            ?? ClaudeUsageReader.defaultFileURL()
-        let claudeConfigDirectory: URL
-        if let isolatedRootDirectory, environment["CLAUDE_CONFIG_DIR"]?.isEmpty ?? true {
-            claudeConfigDirectory = isolatedRootDirectory.appendingPathComponent(".claude", isDirectory: true)
+    ) -> ClaudeCodeUsage {
+        let credentials: ClaudeCredentialsSource
+        let webClient: any ClaudeUsageWebClient
+        if let isolatedRootDirectory {
+            let configDirectory = environment["CLAUDE_CONFIG_DIR"]?.isEmpty == false
+                ? ClaudeCredentialsSource.configDirectory(environment: environment)
+                : isolatedRootDirectory.appendingPathComponent(".claude", isDirectory: true)
+            credentials = ClaudeCredentialsSource(
+                configDirectory: configDirectory,
+                keychain: ValidationClaudeKeychain(
+                    fileURL: isolatedRootDirectory.appendingPathComponent(ValidationClaudeKeychain.fileName)
+                )
+            )
+            webClient = ValidationClaudeUsageWebClient(
+                fileURL: isolatedRootDirectory.appendingPathComponent(ValidationClaudeUsageWebClient.fileName)
+            )
         } else {
-            claudeConfigDirectory = ClaudeStatusLineInstaller.defaultClaudeConfigDirectory(environment: environment)
+            credentials = ClaudeCredentialsSource(
+                configDirectory: ClaudeCredentialsSource.configDirectory(environment: environment),
+                keychain: SystemClaudeKeychain()
+            )
+            webClient = URLSessionClaudeUsageWebClient()
         }
         return ClaudeCodeUsage(
-            installer: ClaudeStatusLineInstaller(
-                relaySourceURL: relaySourceURL,
-                claudeConfigDirectory: claudeConfigDirectory,
-                relayInstallURL: usageFileURL.deletingLastPathComponent()
-                    .appendingPathComponent("bin", isDirectory: true)
-                    .appendingPathComponent(ClaudeStatusLineInstallPlanner.relayFileName)
-            ),
-            reader: ClaudeUsageReader(fileURL: usageFileURL)
+            settings: ClaudeUsageSettingsStore(userDefaults: defaults),
+            client: ClaudeUsageClient(credentials: credentials, webClient: webClient),
+            refreshInterval: AppRuntimeEnvironment.validationAutoRefreshIntervalSeconds(environment: environment)
+                ?? ProviderUsageRuntime.refreshInterval
         )
     }
 

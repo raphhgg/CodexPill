@@ -17,10 +17,8 @@ struct ProviderUsageMenuContent: View {
             case .notConnected:
                 EmptyView()
             case .awaitingUsage:
-                message(
-                    title: "Waiting for \(provider.menuTitle)",
-                    detail: provider.awaitingUsageDetail
-                )
+                let text = provider.awaitingUsageMessage
+                message(title: text.title, detail: text.detail)
             case let .unavailable(reason, lastSnapshot):
                 let text = provider.unavailableMessage(for: reason)
                 message(title: text.title, detail: text.detail)
@@ -118,7 +116,9 @@ extension UsageProvider {
         case .signedOut:
             ("Not signed in to \(menuTitle)", "Sign in to \(menuTitle) to see usage.")
         case .signInExpired:
-            ("Sign in to \(menuTitle) again", nil)
+            ("Sign in to \(menuTitle) again", self == .claude ? "Open Claude Code to sign in again." : nil)
+        case .keychainAccessNeeded:
+            ("Allow Keychain access", nil)
         case .readFailed:
             readFailedMessage
         }
@@ -126,15 +126,16 @@ extension UsageProvider {
 
     private var readFailedMessage: (title: String, detail: String) {
         switch self {
+        case .claude: ("Can't reach Anthropic", "Retrying in a few minutes.")
         case .cursor: ("Can't reach cursor.com", "Retrying in a few minutes.")
-        case .codex, .claude: ("Can't read \(menuTitle) usage", "Retrying soon.")
+        case .codex: ("Can't read \(menuTitle) usage", "Retrying soon.")
         }
     }
 
-    fileprivate var awaitingUsageDetail: String {
+    fileprivate var awaitingUsageMessage: (title: String, detail: String?) {
         switch self {
-        case .claude: "Send a message in Claude Code to see usage."
-        case .codex, .cursor: "Usage appears after the next update."
+        case .claude: ("Waiting for Claude usage", nil)
+        case .codex, .cursor: ("Waiting for \(menuTitle)", "Usage appears after the next update.")
         }
     }
 }

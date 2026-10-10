@@ -52,8 +52,6 @@ struct MenuBarConfirmationAlertRequest {
     let informativeText: String
     let confirmTitle: String
     let cancelTitle: String
-    /// Extra text kept behind a "Show Change" disclosure.
-    var detail: String? = nil
 }
 
 struct MenuBarInfoAlertRequest {

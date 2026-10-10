@@ -571,6 +571,9 @@ struct MenuBarMenuBuilder {
                 state: state,
                 target: target
             )
+        } else if case .unavailable(.keychainAccessNeeded, _) = providerUsage.status,
+                  let action = providerUsage.provider.allowKeychainAccessAction {
+            content = actionItem(title: "Allow Keychain access…", systemImage: "key", action: action, state: state, target: target)
         } else {
             content = NSMenuItem()
             content.view = configuredHostedMenuView(
@@ -832,6 +835,13 @@ private extension UsageProvider {
         case .codex: nil
         case .claude: #selector(MenuBarCoordinator.disconnectClaudeCode)
         case .cursor: #selector(MenuBarCoordinator.disconnectCursor)
+        }
+    }
+
+    var allowKeychainAccessAction: Selector? {
+        switch self {
+        case .claude: #selector(MenuBarCoordinator.allowClaudeKeychainAccess)
+        case .codex, .cursor: nil
         }
     }
 }

@@ -28,13 +28,15 @@ enum UsageUnavailableReason: Equatable, Sendable {
     case notInstalled
     case signedOut
     case signInExpired
+    /// The sign-in exists, but macOS needs the user to allow CodexPill to read it.
+    case keychainAccessNeeded
     case readFailed
 
     /// The last good numbers stay on screen only while they still belong to the same signed-in account.
     var keepsLastSnapshot: Bool {
         switch self {
         case .notInstalled, .signedOut: false
-        case .signInExpired, .readFailed: true
+        case .signInExpired, .keychainAccessNeeded, .readFailed: true
         }
     }
 }

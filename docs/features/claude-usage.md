@@ -2,110 +2,84 @@
 
 ## User Story
 
-As a CodexPill user who also works in Claude Code on a Pro or Max plan, I want to see my Claude 5-hour session and weekly limits next to my Codex limits, so I can pick the tool with headroom without opening Claude Code's `/usage` screen.
+As a CodexPill user who also works in Claude Code on a Pro or Max plan, I want to see my Claude 5-hour and weekly limits next to my Codex limits, so I can pick the tool with headroom without opening Claude Code's `/usage` screen.
 
 ## Product Contract
 
-Claude Usage is an optional, read-only, local-first feature. CodexPill shows the Claude subscription limit windows that Claude Code already reports to its own status line. CodexPill does not switch Claude accounts, sign in to Claude, or contact any Anthropic service.
+Claude Usage is an optional, display-only menu bar feature. When connected, CodexPill shows the 5-hour and weekly limits of the Claude account that Claude Code is signed in to.
 
-The feature has one setup step that changes a file outside CodexPill: it points Claude Code's `statusLine.command` at a small relay script. CodexPill must ask for consent before it writes, with the exact change one click away, and it must offer an uninstall that restores the previous status line.
+CodexPill does not switch Claude accounts, sign in to Claude, refresh Claude Code's sign-in, or change anything in Claude Code. If Claude Code's sign-in is missing or expired, CodexPill says so and points the user back to Claude Code.
+
+The feature is off by default. Connecting it is the user's consent for CodexPill to read Claude Code's sign-in and send it to Anthropic.
 
 Claude usage is display-only. It never feeds account availability, ranking, or notifications, which stay Codex-only.
 
+This replaces the earlier status line relay. The relay only saw sessions that ran Claude Code's status line, so it never updated from the Claude desktop app or remote sessions. CodexPill no longer reads or writes Claude Code's `settings.json`. Anyone who installed the relay removes it from Claude Code's `statusLine` setting by hand.
+
+## Menu
+
+A `Claude Code` section sits below the saved accounts and above `Cursor`. It has no switching actions.
+
+- **Not connected.** The section shows `Connect Claude Code…`. Choosing it opens a consent alert first. Nothing is read until the user confirms.
+- **Consent alert.** One short alert:
+
+  > **Connect Claude Code?**
+  > CodexPill will read Claude Code's sign-in from your Keychain to show your 5-hour and weekly limits. It never stores or shares it.
+
+  Confirming saves the choice and reads at once. That first read may show the macOS Keychain prompt.
+- **Connected.** The choice is saved in user defaults (`claudeUsageEnabled`, off by default). `Preferences` gains `Disconnect Claude Code…`, which turns the feature off at once with no alert, because it changes nothing outside CodexPill.
+- **Current.** A caption with the plan and the read time (`Max plan · As of 10:42`), then `Session` and `Weekly` meters with their reset times. The meters use the same percent mode, layout, colors, and pacing markers as the Codex card.
+- **Waiting.** `Waiting for Claude usage`, with no second line. Anthropic answered but sent neither window, for example on a plan without subscription limits.
+- **Keychain access needed.** One action, `Allow Keychain access…`. It reads again with the macOS Keychain prompt allowed. Claude Code rewrites its Keychain item when it renews its sign-in, which can reset an earlier `Always Allow`, so this state can come back.
+- **Signed out.** `Not signed in to Claude Code` / `Sign in to Claude Code to see usage.` Last good values are cleared.
+- **Sign-in expired or rejected.** `Sign in to Claude Code again` / `Open Claude Code to sign in again.`, with the last good values dimmed below it.
+- **Read failed** (network, rate limit, unexpected response). `Can't reach Anthropic` / `Retrying in a few minutes.`, with the last good values dimmed below it and their `As of` time.
+- **Stale.** A snapshot older than 15 minutes is dimmed. Its label still reads `As of …` until the next read.
+
+Reads happen when the menu opens or on the scheduled refresh, at most every 5 minutes. Connecting, `Allow Keychain access…`, and disconnecting read at once.
+
 ## Source Contract
 
-The source is Claude Code's documented status line input (<https://code.claude.com/docs/en/statusline>, read 2026-10-09). Claude Code runs the configured command with session JSON on stdin. For claude.ai Pro and Max subscribers, after the session's first API response, that JSON includes:
+All knowledge of Claude Code's sign-in and of Anthropic's usage endpoint lives in `Sources/Platform/Claude`. Feature and UI code see parsed values only.
 
-- `rate_limits.five_hour.used_percentage` and `rate_limits.five_hour.resets_at`;
-- `rate_limits.seven_day.used_percentage` and `rate_limits.seven_day.resets_at`.
+**Sign-in.** CodexPill looks in two places, in order, and never writes either:
 
-`used_percentage` runs from 0 to 100. `resets_at` is Unix epoch seconds. Either window can be absent. Claude Code re-runs the status line when a new assistant message arrives and when a window it last reported reaches `resets_at`.
+1. `.credentials.json` in Claude Code's config folder: `CLAUDE_CONFIG_DIR` when CodexPill's environment sets it, otherwise `~/.claude`.
+2. The login Keychain generic password with service `Claude Code-credentials` and account set to the macOS user name.
 
-CodexPill must not use Anthropic's undocumented OAuth usage endpoint, the `Claude Code-credentials` Keychain item, `~/.claude/.credentials.json`, browser cookies, hidden WebViews, or terminal scraping of the Claude CLI.
+Both hold the same JSON. CodexPill decodes only `claudeAiOauth.accessToken`, `claudeAiOauth.expiresAt` (milliseconds since 1970), and `claudeAiOauth.subscriptionType`. It never decodes the refresh token. An item with no `claudeAiOauth`, for example one with only `mcpOAuth`, means signed out.
 
-All knowledge of the status line payload and of `~/.claude/settings.json` lives in `Sources/Platform/Claude`. Feature and UI code consume parsed values only.
+**Keychain prompts.** Only a user action may show the macOS Keychain prompt: confirming `Connect Claude Code?` or choosing `Allow Keychain access…`. Every other read first checks that the item exists by asking for its attributes, which needs no decryption. It then asks for the data with an `LAContext` whose `interactionNotAllowed` is set and `kSecUseAuthenticationUI` set to skip. If macOS still needs approval, the read reports Keychain access needed instead of prompting.
 
-## How It Works
+**Request.** `GET https://api.anthropic.com/api/oauth/usage` with `Authorization: Bearer <token>` and `anthropic-beta: oauth-2025-04-20`. The HTTP session has no cookie store and no URL cache. It follows a redirect only to the same host over HTTPS, so the token never reaches another host.
 
-1. Claude Code runs `codexpill-claude-usage-relay.sh` as its status line command, with the user's previous command as the relay's only argument.
-2. The relay copies the two window values into `~/Library/Application Support/CodexPill/claude-usage.json` with a capture timestamp. It writes a temporary file and renames it, with owner-only permissions.
-3. The relay passes the unchanged stdin to the previous command and prints its output and exit status unchanged. If the CodexPill write fails, the status line still behaves as before.
-4. CodexPill reads the snapshot file and evaluates it against the current time. It treats Claude Code as connected only while `statusLine.command` runs the CodexPill relay.
-5. `ClaudeCodeUsage` maps the snapshot onto the shared usage model: the 5-hour window becomes `Session`, the 7-day window becomes `Weekly`, and the capture time becomes the fetch time. Claude has no plan name. Because both files are small and local, CodexPill reads them on every menu refresh instead of on the 5-minute provider cadence.
+**Response.** `five_hour` and `seven_day` are each `{utilization, resets_at}`: `utilization` runs from 0 to 100 and `resets_at` is ISO 8601. CodexPill maps `five_hour` to `Session` (300 minutes) and `seven_day` to `Weekly` (10,080 minutes). It ignores other windows such as `seven_day_opus` and `seven_day_sonnet`. A null or missing window is left out. The plan name comes from `subscriptionType`, for example `max`.
 
-The relay is a POSIX `sh` script that uses `/usr/bin/plutil` to read JSON. Both ship with macOS, so the relay needs no `jq`, Python, or Node. `/usr/bin/python3` was rejected because on a Mac without the Command Line Tools it opens an install prompt. A Swift helper binary was rejected for now because it needs a new build target and adds a signed executable for a job that takes four field reads.
+## Read Policy
 
-The relay copy that Claude Code runs lives in `~/Library/Application Support/CodexPill/bin/`, not inside `CodexPill.app`, so the user's status line keeps working if the app is moved or deleted.
+- Expired token (`expiresAt` in the past): no request. The menu shows sign-in expired. Claude Code renews the token the next time it runs.
+- `401`: sign-in expired.
+- `429`: no request until `Retry-After` seconds pass, or 5 minutes when the header is missing or not a number. The menu shows read failed meanwhile.
+- Network failure, another status, or an unreadable body: read failed. The shared provider runtime keeps the last good values.
+- CodexPill holds the token only for the length of one read. It never stores, logs, displays, or refreshes it. `ClaudeAccessToken` prints as `ClaudeAccessToken(redacted)` and reflects no children.
 
-## Snapshot File
+## Isolated Runs
 
-CodexPill owns this format:
+With `CODEXPILL_VALIDATION_APP_SUPPORT_DIR` set, CodexPill never reads the real Claude sign-in or calls Anthropic:
 
-```json
-{"schema":1,"captured_at":1791565823,"rate_limits":{"five_hour":{"used_percentage":42.5,"resets_at":1760050000},"seven_day":{"used_percentage":18,"resets_at":1760500000}}}
-```
-
-The relay writes only allowlisted numeric fields. When Claude Code sends no `rate_limits`, the relay creates a file with `"rate_limits":{}` if none exists, and otherwise leaves the last good snapshot in place, so a new session's first status line run does not erase known limits.
-
-When several Claude Code sessions run at once, the last one to update wins. They report the same subscription, so this is safe.
-
-## States And Copy
-
-The menu shows a `Claude Code` section below the saved accounts. It has no switching actions.
-
-- **Not connected.** The status line does not run the relay. The section shows one `Connect Claude Code…` action.
-- **Waiting for usage.** The relay is set up, but no snapshot exists yet or it has no windows. The user is not on Pro or Max, or no Claude Code session has received an API response since setup. Copy: `Waiting for Claude Code` / `Send a message in Claude Code to see usage.`
-- **Current.** Windows present and captured within the freshness limit. `Session` and `Weekly` rows use the same meters, percent mode, layout, colors, and pacing markers as the Codex card, with `As of <time>` above them.
-- **Stale.** Windows present but captured more than one hour ago. The rows are dimmed and the label still reads `As of <time>`.
-- **Unreadable.** The file exists but does not parse. Copy: `Can't read Claude Code usage` / `Retrying soon.` CodexPill keeps the file untouched. Error messages never include file contents.
-
-`<time>` is the time alone for today, otherwise the date and time. When connected, `Preferences` > `Disconnect Claude Code…` undoes the setup.
-
-## Freshness Rules
-
-- A window whose `resets_at` is in the past is shown as reset: 0% used and no reset time, until Claude Code reports a new window.
-- Snapshot age is measured from `captured_at`. Older than one hour is stale.
-- Claude Code updates the snapshot only while a session is active. Usage from claude.ai, the desktop app, or another Mac does not reach the relay, so an old snapshot can undercount. Stale tells the user that, and it never hides the values.
-
-## Consent, Install, And Uninstall
-
-Setup follows "a human step is one guided command": one `Connect Claude Code…` action asks for consent in one short alert:
-
-> **Connect Claude Code?**
-> CodexPill will add a small script to Claude Code's status line to read your usage limits. You can disconnect in Preferences.
-
-A collapsed `Show Change` disclosure in the same alert reveals the settings path and the exact `statusLine` entry before and after the change, as the planner computes it. It shows only that entry, never the rest of `settings.json`, because the file can hold secrets in `env`. If `settings.json` changes between the alert and the write, CodexPill writes nothing and says so. On consent, CodexPill:
-
-1. Copies the relay into its app-support `bin` folder with owner-only permissions.
-2. Writes a one-time backup, `settings.json.codexpill-backup`, next to the settings file.
-3. Sets `statusLine.type` to `command` and `statusLine.command` to the quoted relay path followed by the quoted previous command. Other keys, including `padding` and `refreshInterval`, stay as they were.
-
-CodexPill honors `CLAUDE_CONFIG_DIR` from its own environment, and it writes through a symlinked `settings.json` instead of replacing the link. The settings file is rewritten with sorted keys, so key order can change. An isolated validation run (`CODEXPILL_VALIDATION_APP_SUPPORT_DIR`) uses `<isolated root>/.claude` unless `CLAUDE_CONFIG_DIR` is set, so it never edits the real `~/.claude`.
-
-If a write fails, CodexPill shows `Could Not Update Claude Code` with one sentence for the cause, for example `CodexPill could not read Claude Code's settings, so nothing changed.`
-
-`Disconnect Claude Code…` asks `Disconnect Claude Code?` / `CodexPill will restore your previous Claude Code status line.`, with the same `Show Change` disclosure, then restores the previous command, or removes the `statusLine` entry when there was none. It removes the relay copy and the saved `claude-usage.json`. If the user changed `statusLine.command` after setup, CodexPill no longer treats Claude Code as connected and leaves the setting alone.
-
-The alert stays short, so these known effects live in this doc rather than in the alert:
-
-- Users with no previous status line get a custom status line that prints nothing. Claude Code hides most footer keyboard hints whenever a custom status line is configured.
-- `disableAllHooks` or a managed `allowManagedHooksOnly` policy stops the relay from running. CodexPill then stays in Not connected or Stale.
-- Claude Code runs the status line only in trusted workspaces.
+- The config folder is `CLAUDE_CONFIG_DIR` when set, otherwise `<root>/.claude`.
+- The Keychain is replaced by `<root>/claude-keychain-item.json`. A background read reports Keychain access needed until one read allows the prompt, so the `Allow Keychain access…` flow can be exercised.
+- The usage response is read from `<root>/claude-usage-response.json`. A missing file reads as a network failure.
+- `CODEXPILL_VALIDATION_AUTO_REFRESH_INTERVAL_SECONDS` also shortens the Claude read interval.
 
 ## Privacy
-
-Only the two limit windows leave Claude Code. The relay never writes the working directory, transcript path, session ID, session name, model, cost, repository, pull request, prompt cache, or spend-limit fields. The relay holds the full payload in memory only long enough to extract four numbers and pass stdin to the previous command.
 
 The user-facing summary lives in [PRIVACY.md](../PRIVACY.md).
 
 ## Validation
 
-- Relay tests run the real script with literal payloads and prove that no field other than the two windows is written, that stdin, stdout, and exit status pass through, and that a failed write does not change the status line.
-- Reader tests cover every state above and the typed parse errors.
-- Planner and installer tests cover install, re-install, uninstall round trips, preserved keys, symlinked settings, and refusal on invalid settings. They run against fixtures and temp directories, never the real `~/.claude/settings.json`.
-- `ClaudeCodeUsageTests` map literal relay JSON to the shared usage model and run connect and disconnect against a temp `settings.json` with an existing status line, with none, and after the settings change under an open consent alert.
-- A coordinator test walks the menu from `Connect Claude Code…` through declined consent, waiting, current, stale, and disconnect, reading the built `NSMenu`.
-
-## Follow-Ups
-
-- The relay writes to the real app-support path. An isolated validation run reads its own folder, so it must use a fixture snapshot file instead of the relay.
+- `ClaudeCredentialsTests` parse literal credentials, including the `mcpOAuth`-only case, prove the file wins over the Keychain, and prove the token appears in no `String(describing:)`, `String(reflecting:)`, or `dump` output of the credentials or the request.
+- `ClaudeUsageAPITests` cover the response mapping, the request headers, the redirect rule, and status mapping for `401` and `429` with and without `Retry-After`.
+- `ClaudeCodeUsageTests` cover opt-in, the Keychain prompt only after a user action, the expiry gate, each failure state, and the rate-limit wait.
+- A coordinator test walks the menu from `Connect Claude Code…` through declined consent, current usage, `Allow Keychain access…`, and disconnect, reading the built `NSMenu`.
+- No test touches the network or the real Keychain.

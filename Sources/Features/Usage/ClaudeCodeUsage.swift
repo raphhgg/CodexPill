@@ -1,70 +1,65 @@
 import Foundation
 
-/// Claude Code usage from its status line relay: the provider source for the menu, plus the
-/// opt-in connect and disconnect steps that edit Claude Code's `settings.json`.
+/// Claude Code subscription limits for the menu, read from Claude Code's sign-in only after the user connects it.
 struct ClaudeCodeUsage: UsageProviderSource {
     let provider = UsageProvider.claude
-    let staleAfter: TimeInterval = 3_600
-    /// Reading two small local files is cheap, so every refresh reads them.
-    let refreshInterval: TimeInterval = 0
+    let staleAfter: TimeInterval = 15 * 60
+    let refreshInterval: TimeInterval
 
-    let installer: ClaudeStatusLineInstaller
-    let reader: ClaudeUsageReader
+    let settings: ClaudeUsageSettingsStore
+    let client: ClaudeUsageClient
+
+    init(
+        settings: ClaudeUsageSettingsStore,
+        client: ClaudeUsageClient,
+        refreshInterval: TimeInterval = ProviderUsageRuntime.refreshInterval
+    ) {
+        self.settings = settings
+        self.client = client
+        self.refreshInterval = refreshInterval
+    }
+
+    /// Turns the feature on and lets the next read ask for Keychain access, since the user just chose to connect.
+    func connect() async {
+        settings.isEnabled = true
+        await client.allowKeychainPromptOnNextRead()
+    }
+
+    func allowKeychainAccess() async {
+        await client.allowKeychainPromptOnNextRead()
+    }
+
+    func disconnect() {
+        settings.isEnabled = false
+    }
 
     func readUsage(now: Date) async -> UsageProviderReading {
-        guard installer.isInstalled else { return .notConnected }
-        do {
-            switch try reader.read(now: now) {
-            case .notConnected, .awaitingUsage:
-                return .awaitingUsage
-            case let .current(snapshot), let .stale(snapshot):
-                return .snapshot(Self.usage(from: snapshot))
-            }
-        } catch {
-            return .unavailable(.readFailed)
+        guard settings.isEnabled else { return .notConnected }
+        return Self.reading(from: await client.refresh(now: now), fetchedAt: now)
+    }
+
+    static func reading(from status: ClaudeUsageStatus, fetchedAt: Date) -> UsageProviderReading {
+        switch status {
+        case .signedOut: return .unavailable(.signedOut)
+        case .keychainAccessNeeded: return .unavailable(.keychainAccessNeeded)
+        case .signInExpired: return .unavailable(.signInExpired)
+        case .unavailable: return .unavailable(.readFailed)
+        case let .available(report, planName):
+            let windows = [
+                report.fiveHour.map { usageWindow(.session, $0, durationMinutes: 300) },
+                report.sevenDay.map { usageWindow(.weekly, $0, durationMinutes: 10_080) },
+            ].compactMap(\.self)
+            guard !windows.isEmpty else { return .awaitingUsage }
+            return .snapshot(UsageSnapshot(provider: .claude, planName: planName, windows: windows, fetchedAt: fetchedAt))
         }
     }
 
-    func connectionChange() throws(ClaudeStatusLineInstallError) -> ClaudeStatusLineChange? {
-        try installer.previewInstall()
-    }
-
-    func disconnectionChange() throws(ClaudeStatusLineInstallError) -> ClaudeStatusLineChange? {
-        try installer.previewUninstall()
-    }
-
-    func connect(confirming change: ClaudeStatusLineChange) throws(ClaudeStatusLineInstallError) {
-        try installer.install(confirming: change)
-    }
-
-    /// Restores the previous status line and deletes the saved usage, so nothing stays behind.
-    func disconnect(confirming change: ClaudeStatusLineChange) throws(ClaudeStatusLineInstallError) {
-        try installer.uninstall(confirming: change)
-        try? FileManager.default.removeItem(at: reader.fileURL)
-    }
-
-    static func usage(from snapshot: ClaudeUsageSnapshot) -> UsageSnapshot {
-        UsageSnapshot(
-            provider: .claude,
-            planName: nil,
-            windows: snapshot.windows.map { window in
-                UsageWindow(
-                    kind: window.kind.usageWindowKind,
-                    usedPercent: Int(window.usedPercent.rounded()),
-                    resetsAt: window.resetsAt,
-                    durationMinutes: window.kind.durationMinutes
-                )
-            },
-            fetchedAt: snapshot.capturedAt
+    private static func usageWindow(_ kind: UsageWindowKind, _ window: ClaudeUsageReport.Window, durationMinutes: Int) -> UsageWindow {
+        UsageWindow(
+            kind: kind,
+            usedPercent: Int(window.usedPercent.rounded()),
+            resetsAt: window.resetsAt,
+            durationMinutes: durationMinutes
         )
-    }
-}
-
-private extension ClaudeUsageWindowKind {
-    var usageWindowKind: UsageWindowKind {
-        switch self {
-        case .fiveHour: .session
-        case .sevenDay: .weekly
-        }
     }
 }

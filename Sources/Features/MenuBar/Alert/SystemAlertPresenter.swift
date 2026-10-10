@@ -52,8 +52,6 @@ final class SystemAlertPresenter {
         alert.messageText = request.messageText
         alert.informativeText = request.informativeText
         alert.alertStyle = .informational
-        let disclosure = request.detail.map { AlertDisclosureView(title: "Show Change", detail: $0, alert: alert) }
-        alert.accessoryView = disclosure
         alert.addButton(withTitle: request.confirmTitle)
         alert.addButton(withTitle: request.cancelTitle)
         return alert.runModal() == .alertFirstButtonReturn
@@ -135,78 +133,6 @@ final class SystemAlertPresenter {
 }
 
 extension SystemAlertPresenter: AlertPresenter {}
-
-/// A collapsed disclosure row that reveals detail text inside an `NSAlert`.
-@MainActor
-private final class AlertDisclosureView: NSView {
-    private let triangle = NSButton()
-    private let detailField: NSTextField
-    private let stack = NSStackView()
-    private weak var alert: NSAlert?
-
-    init(title: String, detail: String, alert: NSAlert) {
-        detailField = NSTextField(wrappingLabelWithString: detail)
-        self.alert = alert
-        super.init(frame: .zero)
-
-        triangle.bezelStyle = .disclosure
-        triangle.setButtonType(.pushOnPushOff)
-        triangle.title = ""
-        triangle.state = .off
-        triangle.target = self
-        triangle.action = #selector(toggle)
-
-        let label = NSButton(title: title, target: self, action: #selector(toggleFromLabel))
-        label.isBordered = false
-        label.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
-
-        let row = NSStackView(views: [triangle, label])
-        row.orientation = .horizontal
-        row.spacing = 2
-
-        detailField.font = .monospacedSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
-        detailField.textColor = .secondaryLabelColor
-        detailField.isSelectable = true
-        detailField.preferredMaxLayoutWidth = Self.width
-        detailField.isHidden = true
-
-        stack.orientation = .vertical
-        stack.alignment = .leading
-        stack.spacing = 6
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        stack.addArrangedSubview(row)
-        stack.addArrangedSubview(detailField)
-        addSubview(stack)
-        NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: leadingAnchor),
-            stack.topAnchor.constraint(equalTo: topAnchor),
-            detailField.widthAnchor.constraint(lessThanOrEqualToConstant: Self.width)
-        ])
-        resizeToFit()
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    private static let width: CGFloat = 300
-
-    @objc private func toggleFromLabel() {
-        triangle.state = triangle.state == .on ? .off : .on
-        toggle()
-    }
-
-    @objc private func toggle() {
-        detailField.isHidden = triangle.state == .off
-        resizeToFit()
-        alert?.layout()
-    }
-
-    private func resizeToFit() {
-        setFrameSize(NSSize(width: Self.width, height: stack.fittingSize.height))
-    }
-}
 
 @MainActor
 private final class TextInputAlertValidator: NSObject, NSTextFieldDelegate {

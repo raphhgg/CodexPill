@@ -30,7 +30,6 @@ let project = Project(
             resources: [
                 "Resources/AppIcon.icns",
                 "Resources/AppIcon.png",
-                "Resources/codexpill-claude-usage-relay.sh",
             ],
             dependencies: [],
             settings: .settings(base: [

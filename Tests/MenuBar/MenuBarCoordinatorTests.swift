@@ -1061,15 +1061,15 @@ struct MenuBarCoordinatorTests {
     }
 
     @Test
-    func claudeSectionMovesFromConnectThroughWaitingCurrentAndStaleBackToConnect() async throws {
+    func claudeSectionAsksForConsentThenAsksForKeychainAccessAndShowsUsage() async throws {
         let harness = try MenuBarCoordinatorHarness()
-        let fixture = try ClaudeCodeFixture()
+        let fixture = ClaudeUsageFixture(refreshInterval: 0)
         defer {
             harness.tearDown()
             fixture.remove()
         }
-        let originalSettings = #"{"statusLine": {"command": "~/.claude/statusline.sh", "type": "command"}}"#
-        try fixture.writeSettings(originalSettings)
+        fixture.signInToKeychain(expiresAt: Date().addingTimeInterval(3_600), needsPermission: true)
+        fixture.response = .success(Data(ClaudeUsageFixture.usageResponse.utf8))
         let coordinator = harness.makeCoordinator(providerUsageSources: [fixture.usage], claudeCodeUsage: fixture.usage)
         coordinator.start()
         await coordinator.waitForPendingWork()
@@ -1081,52 +1081,45 @@ struct MenuBarCoordinatorTests {
         await coordinator.waitForPendingWork()
 
         #expect(harness.alertPresenter.confirmationRequests.map(\.messageText) == ["Connect Claude Code?"])
-        let consentDetail = try #require(harness.alertPresenter.confirmationRequests.first?.detail)
-        #expect(consentDetail.contains("Before:\n{\n  \"command\" : \"~/.claude/statusline.sh\""))
-        #expect(try String(contentsOf: fixture.settingsURL, encoding: .utf8) == originalSettings)
-        #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .claude, status: .notConnected)])
+        #expect(fixture.settings.isEnabled == false)
+        #expect(fixture.keychainReadPrompts == [])
 
         harness.alertPresenter.confirmationResponse = true
         coordinator.connectClaudeCode()
         await coordinator.waitForPendingWork()
 
-        #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .claude, status: .awaitingUsage)])
+        #expect(fixture.keychainReadPrompts == [true])
+        guard case .current = coordinator.menuState().providerUsage.first?.status else {
+            Issue.record("Expected current Claude usage right after connecting")
+            return
+        }
         #expect(claudeMenuTitles(coordinator) == ["Disconnect Claude Code…"])
-
-        let now = Int(Date().timeIntervalSince1970)
-        try fixture.writeRelayOutput(#"{"schema":1,"captured_at":\#(now - 60),"rate_limits":{"five_hour":{"used_percentage":64,"resets_at":\#(now + 3_600)},"seven_day":{"used_percentage":21,"resets_at":\#(now + 86_400)}}}"#)
-        await coordinator.performScheduledRefresh()
-        await coordinator.waitForPendingWork()
-
-        let current = UsageSnapshot(
-            provider: .claude,
-            planName: nil,
-            windows: [
-                UsageWindow(kind: .session, usedPercent: 64, resetsAt: Date(timeIntervalSince1970: TimeInterval(now + 3_600)), durationMinutes: 300),
-                UsageWindow(kind: .weekly, usedPercent: 21, resetsAt: Date(timeIntervalSince1970: TimeInterval(now + 86_400)), durationMinutes: 10_080)
-            ],
-            fetchedAt: Date(timeIntervalSince1970: TimeInterval(now - 60))
-        )
-        #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .claude, status: .current(current))])
-
-        try fixture.writeRelayOutput(#"{"schema":1,"captured_at":\#(now - 7_200),"rate_limits":{"seven_day":{"used_percentage":21,"resets_at":\#(now + 86_400)}}}"#)
-        await coordinator.performScheduledRefresh()
-        await coordinator.waitForPendingWork()
-
-        let stale = UsageSnapshot(
-            provider: .claude,
-            planName: nil,
-            windows: [UsageWindow(kind: .weekly, usedPercent: 21, resetsAt: Date(timeIntervalSince1970: TimeInterval(now + 86_400)), durationMinutes: 10_080)],
-            fetchedAt: Date(timeIntervalSince1970: TimeInterval(now - 7_200))
-        )
-        #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .claude, status: .stale(stale))])
         #expect(coordinator.menuState().availabilitySnapshots.isEmpty)
+
+        fixture.signInToKeychain(expiresAt: Date().addingTimeInterval(3_600), needsPermission: true)
+        await coordinator.performScheduledRefresh()
+        await coordinator.waitForPendingWork()
+
+        guard case .unavailable(.keychainAccessNeeded, lastSnapshot: .some) = coordinator.menuState().providerUsage.first?.status else {
+            Issue.record("Expected the Allow Keychain access state with the last usage kept")
+            return
+        }
+        #expect(claudeMenuTitles(coordinator) == ["Allow Keychain access…", "Disconnect Claude Code…"])
+
+        coordinator.allowClaudeKeychainAccess()
+        await coordinator.waitForPendingWork()
+
+        guard case .current = coordinator.menuState().providerUsage.first?.status else {
+            Issue.record("Expected current Claude usage after allowing Keychain access")
+            return
+        }
+        #expect(fixture.keychainReadPrompts.suffix(2) == [false, true])
 
         coordinator.disconnectClaudeCode()
         await coordinator.waitForPendingWork()
 
-        #expect(harness.alertPresenter.confirmationRequests.map(\.messageText).last == "Disconnect Claude Code?")
-        #expect(try fixture.settingsObject() == ["statusLine": ["command": "~/.claude/statusline.sh", "type": "command"]])
+        #expect(harness.alertPresenter.confirmationRequests.count == 2)
+        #expect(fixture.settings.isEnabled == false)
         #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .claude, status: .notConnected)])
         #expect(claudeMenuTitles(coordinator) == ["Connect Claude Code…"])
     }
@@ -1196,7 +1189,7 @@ struct MenuBarCoordinatorTests {
     private func claudeMenuTitles(_ coordinator: MenuBarCoordinator) -> [String] {
         let menu = MenuBarMenuBuilder().makeMenu(state: coordinator.menuState(), target: coordinator)
         let preferences = menu.items.first { $0.title == "Preferences" }?.submenu?.items ?? []
-        return (menu.items + preferences).map(\.title).filter { $0.contains("Claude") }
+        return (menu.items + preferences).map(\.title).filter { $0.contains("Claude") || $0.contains("Keychain") }
     }
 
     private func remoteStatus(for account: CodexAccount, usage: UsageSnapshot?) -> CodexAccountStatus {

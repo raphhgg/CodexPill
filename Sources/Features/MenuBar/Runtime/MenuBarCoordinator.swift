@@ -586,31 +586,30 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     @objc
     func connectClaudeCode() {
         recordMenuAction("connectClaudeCode")
-        guard let claudeCodeUsage else { return }
-        do {
-            if let change = try claudeCodeUsage.connectionChange() {
-                guard alertPresenter.presentConfirmation(alertFactory.makeConnectClaudeCodeRequest(change: change)) else { return }
-                try claudeCodeUsage.connect(confirming: change)
-            }
-        } catch {
-            alertPresenter.presentInfo(alertFactory.makeClaudeCodeSettingsFailureRequest(error))
+        guard let claudeCodeUsage, alertPresenter.presentConfirmation(alertFactory.makeConnectClaudeCodeRequest()) else { return }
+        tasks.start { [weak self] in
+            await claudeCodeUsage.connect()
+            await self?.providerUsageRuntime.refreshIfDue(forcing: .claude)
         }
-        refreshProviderUsageIfDue()
+    }
+
+    /// Retries the read with the Keychain prompt allowed, because the user asked for it.
+    @objc
+    func allowClaudeKeychainAccess() {
+        recordMenuAction("allowClaudeKeychainAccess")
+        guard let claudeCodeUsage else { return }
+        tasks.start { [weak self] in
+            await claudeCodeUsage.allowKeychainAccess()
+            await self?.providerUsageRuntime.refreshIfDue(forcing: .claude)
+        }
     }
 
     @objc
     func disconnectClaudeCode() {
         recordMenuAction("disconnectClaudeCode")
         guard let claudeCodeUsage else { return }
-        do {
-            if let change = try claudeCodeUsage.disconnectionChange() {
-                guard alertPresenter.presentConfirmation(alertFactory.makeDisconnectClaudeCodeRequest(change: change)) else { return }
-                try claudeCodeUsage.disconnect(confirming: change)
-            }
-        } catch {
-            alertPresenter.presentInfo(alertFactory.makeClaudeCodeSettingsFailureRequest(error))
-        }
-        refreshProviderUsageIfDue()
+        claudeCodeUsage.disconnect()
+        refreshProviderUsageIfDue(forcing: .claude)
     }
 
     @objc
