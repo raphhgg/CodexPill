@@ -126,9 +126,9 @@ struct TokenUsageMenuContent: View {
                             Text("Unavailable")
                                 .foregroundStyle(.secondary)
                         } else {
-                            Text("Today \(formattedTokenCount(summary.todayTokenCount))")
+                            Text("Today \(formattedShortTokenCount(summary.todayTokenCount))")
                                 .foregroundStyle(.secondary)
-                            Text(formattedTokenCount(summary.periodTokenCount))
+                            Text(formattedShortTokenCount(summary.periodTokenCount))
                                 .foregroundStyle(.primary)
                                 .frame(minWidth: 44, alignment: .trailing)
                         }
