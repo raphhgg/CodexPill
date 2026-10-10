@@ -69,6 +69,8 @@ All knowledge of Cursor's database and of cursor.com lives in `Sources/Platform/
 
 **Mapping.** One `UsageWindow` of kind `billingCycle`, with `usedPercent` from the percent, `resetsAt` from `billingCycleEnd`, and `durationMinutes` from the cycle length. No percent means no window. On-demand spend goes to `UsageSnapshot.spend` as dollars with an optional cap, because it is money, not a percent of a limit.
 
+When Token Usage is also on, Refill reads daily tokens by model from `POST https://cursor.com/api/dashboard/get-filtered-usage-events` with the same token and rules. See [Token Usage](token-usage.md#other-tools).
+
 ## Read Policy
 
 - Token within 60 seconds of expiry: no request. Cursor renews it the next time it runs.

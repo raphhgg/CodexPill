@@ -51,8 +51,11 @@ struct AppComposition {
             loginItemController: SystemLoginItemController(),
             loginItemsSettingsLauncher: SystemLoginItemsSettingsLauncher(),
             diagnosticReportPresenter: SystemDiagnosticReportPresenter(),
-            tokenUsageProvider: LocalCodexSessionTokenUsageMenuProvider(
-                cacheFile: AppPaths.tokenUsageCacheFile(isolatedRootDirectory: isolatedRootDirectory)
+            tokenUsageProvider: Self.makeTokenUsageProvider(
+                environment: environment,
+                isolatedRootDirectory: isolatedRootDirectory,
+                claudeSettings: claudeCodeUsage.settings,
+                cursorUsage: cursorUsage
             ),
             providerConnections: [claudeCodeUsage, cursorUsage],
             allowsEmptyStatePrompt: true
@@ -154,6 +157,33 @@ struct AppComposition {
     /// An isolated run never touches the real Cursor: it reads `Cursor/state.vscdb` inside the isolated root, keeps
     /// saved accounts in a file there, switches by rewriting only that database, and signs in through a stand-in
     /// `cursor` placed in `bin` inside the isolated root instead of opening Cursor.
+    /// Codex scans its local sessions. Claude Code adds its local transcripts and Cursor its account's usage
+    /// events, each only while that tool is connected. An isolated run reads Claude transcripts from
+    /// `CLAUDE_CONFIG_DIR`, or from `.claude` inside the isolated root.
+    private static func makeTokenUsageProvider(
+        environment: [String: String],
+        isolatedRootDirectory: URL?,
+        claudeSettings: ClaudeUsageSettingsStore,
+        cursorUsage: CursorUsage
+    ) -> any TokenUsageMenuProviding {
+        let cacheFile = AppPaths.tokenUsageCacheFile(isolatedRootDirectory: isolatedRootDirectory)
+        let claudeConfigDirectory = isolatedRootDirectory != nil && environment["CLAUDE_CONFIG_DIR"]?.isEmpty != false
+            ? isolatedRootDirectory!.appendingPathComponent(".claude", isDirectory: true)
+            : ClaudeCredentialsSource.configDirectory(environment: environment)
+        let claudeHistory = ClaudeCodeTokenUsageHistory(
+            projectsDirectory: claudeConfigDirectory.appendingPathComponent("projects", isDirectory: true),
+            cacheFile: cacheFile.deletingLastPathComponent().appendingPathComponent("claude-token-usage-cache.json")
+        )
+        var otherTools: [TokenUsageToolSource] = [.claudeCode(history: claudeHistory, settings: claudeSettings)]
+        if let cursorClient = cursorUsage.tokenUsageClient {
+            otherTools.append(.cursor(client: cursorClient, settings: cursorUsage.settings))
+        }
+        return AllToolsTokenUsageMenuProvider(
+            codex: LocalCodexSessionTokenUsageMenuProvider(cacheFile: cacheFile),
+            otherTools: otherTools
+        )
+    }
+
     private static func makeCursorUsage(defaults: UserDefaults, isolatedRootDirectory: URL?, appSupportDirectory: URL) -> CursorUsage {
         let settings = CursorUsageSettingsStore(userDefaults: defaults)
         let webClient = URLSessionCursorUsageWebClient()
@@ -164,6 +194,10 @@ struct AppComposition {
             usage = CursorUsage(
                 settings: settings,
                 client: CursorUsageClient(tokenSource: CursorStateDatabaseTokenSource(databaseURL: databaseURL), webClient: webClient),
+                tokenUsageClient: CursorTokenUsageClient(
+                    tokenSource: CursorStateDatabaseTokenSource(databaseURL: databaseURL),
+                    webClient: webClient
+                ),
                 accounts: CursorAccounts(
                     database: CursorStateDatabase(url: databaseURL),
                     store: IsolatedCursorAccountFile(file: isolatedRootDirectory.appendingPathComponent("cursor-accounts.json")),
@@ -178,6 +212,7 @@ struct AppComposition {
             usage = CursorUsage(
                 settings: settings,
                 client: CursorUsageClient(tokenSource: CursorStateDatabaseTokenSource(), webClient: webClient),
+                tokenUsageClient: CursorTokenUsageClient(tokenSource: CursorStateDatabaseTokenSource(), webClient: webClient),
                 accounts: CursorAccounts(
                     database: CursorStateDatabase(url: CursorStateDatabase.defaultURL),
                     store: SystemCursorAccountKeychain(),

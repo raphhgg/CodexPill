@@ -30,6 +30,13 @@ struct MenuBarMenuBuilder {
             }
         }
 
+        if let tokenUsageCard = state.tokenUsageCard {
+            addSeparatorIfNeeded(to: menu)
+            let item = NSMenuItem(title: "Token Usage", action: nil, keyEquivalent: "")
+            item.view = hostedView(TokenUsageMenuContent(card: tokenUsageCard).padding(.vertical, 8), width: Self.menuContentWidth)
+            menu.addItem(item)
+        }
+
         addSeparatorIfNeeded(to: menu)
         menu.addItem(addAccountMenuItem(state: state, target: target))
         menu.addItem(.separator())
@@ -99,14 +106,6 @@ struct MenuBarMenuBuilder {
                 expiry.indentationLevel = 1
                 menu.addItem(expiry)
             }
-        }
-
-        if provider == .codex, let tokenUsageCard = state.tokenUsageCard {
-            let tokenUsage = NSMenu(title: "Token Usage")
-            let chart = NSMenuItem()
-            chart.view = hostedView(TokenUsageMenuContent(card: tokenUsageCard).padding(.vertical, 12), width: 340)
-            tokenUsage.addItem(chart)
-            menu.addItem(submenuItem(tokenUsage))
         }
 
         let moves = ToolSectionMove.allCases.map { move in

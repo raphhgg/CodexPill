@@ -51,6 +51,8 @@ struct CodexSessionTokenUsageFileMetadata: Equatable, Sendable {
 }
 
 struct CodexSessionTokenUsageScanner: Sendable {
+    /// Tokens counted before a session names its model.
+    static let unknownModel = "unknown"
     private static let defaultMaximumScannableFileByteCount = 0
     private static let defaultMaximumDailyScanByteBudget = 0
     private static let defaultMaximumLineByteCount = 1 * 1024 * 1024
@@ -284,12 +286,12 @@ struct CodexSessionTokenUsageScanner: Sendable {
         in dayRange: DateInterval,
         from buckets: [CodexDailyTokenUsage]
     ) -> [CodexDailyTokenUsage] {
-        var usageByDay = Dictionary(uniqueKeysWithValues: buckets.map { ($0.day, $0.usage) })
+        var bucketsByDay = Dictionary(uniqueKeysWithValues: buckets.map { ($0.day, $0) })
         var days: [CodexDailyTokenUsage] = []
         var day = dayRange.start
 
         while day < dayRange.end {
-            days.append(CodexDailyTokenUsage(day: day, usage: usageByDay.removeValue(forKey: day) ?? .zero))
+            days.append(bucketsByDay.removeValue(forKey: day) ?? CodexDailyTokenUsage(day: day, usage: .zero))
             guard let nextDay = calendar.date(byAdding: .day, value: 1, to: day) else {
                 break
             }
@@ -406,6 +408,8 @@ private struct CodexSessionTokenUsageFileParser: CodexSessionTokenUsageFileParsi
     private static let throttleChunkInterval = 1
     private static let throttleSleepInterval: TimeInterval = 0.025
     private static let tokenCountNeedle = Data(#""token_count""#.utf8)
+    private static let turnContextNeedle = Data(#""turn_context""#.utf8)
+    private static let sessionMetaNeedle = Data(#""session_meta""#.utf8)
 
     private let maximumLineByteCount: Int
 
@@ -422,6 +426,7 @@ private struct CodexSessionTokenUsageFileParser: CodexSessionTokenUsageFileParsi
         var summary = CodexSessionTokenUsageScanSummary.empty
         var accumulator = BucketAccumulator()
         var highestTotalUsage: CodexTokenUsageTotals?
+        var currentModel = CodexSessionTokenUsageScanner.unknownModel
 
         var buffer = Data()
         var discardingOversizedLine = false
@@ -444,7 +449,8 @@ private struct CodexSessionTokenUsageFileParser: CodexSessionTokenUsageFileParsi
                         day: day,
                         summary: &summary,
                         accumulator: &accumulator,
-                        highestTotalUsage: &highestTotalUsage
+                        highestTotalUsage: &highestTotalUsage,
+                        currentModel: &currentModel
                     )
                 } else {
                     summary.malformedRowsIgnored += 1
@@ -471,7 +477,8 @@ private struct CodexSessionTokenUsageFileParser: CodexSessionTokenUsageFileParsi
                 day: day,
                 summary: &summary,
                 accumulator: &accumulator,
-                highestTotalUsage: &highestTotalUsage
+                highestTotalUsage: &highestTotalUsage,
+                currentModel: &currentModel
             )
         }
 
@@ -486,7 +493,8 @@ private struct CodexSessionTokenUsageFileParser: CodexSessionTokenUsageFileParsi
         day: Date,
         summary: inout CodexSessionTokenUsageScanSummary,
         accumulator: inout BucketAccumulator,
-        highestTotalUsage: inout CodexTokenUsageTotals?
+        highestTotalUsage: inout CodexTokenUsageTotals?,
+        currentModel: inout String
     ) {
         autoreleasepool {
             processLineWithAutoreleaseBoundary(
@@ -494,7 +502,8 @@ private struct CodexSessionTokenUsageFileParser: CodexSessionTokenUsageFileParsi
                 day: day,
                 summary: &summary,
                 accumulator: &accumulator,
-                highestTotalUsage: &highestTotalUsage
+                highestTotalUsage: &highestTotalUsage,
+                currentModel: &currentModel
             )
         }
     }
@@ -504,9 +513,21 @@ private struct CodexSessionTokenUsageFileParser: CodexSessionTokenUsageFileParsi
         day: Date,
         summary: inout CodexSessionTokenUsageScanSummary,
         accumulator: inout BucketAccumulator,
-        highestTotalUsage: inout CodexTokenUsageTotals?
+        highestTotalUsage: inout CodexTokenUsageTotals?,
+        currentModel: inout String
     ) {
         guard !lineData.isEmpty else { return }
+        if lineData.range(of: Self.tokenCountNeedle) == nil,
+           lineData.range(of: Self.turnContextNeedle) != nil || lineData.range(of: Self.sessionMetaNeedle) != nil {
+            let line = String(decoding: lineData, as: UTF8.self)
+            if containsStringValue("turn_context", forKey: "type", in: line)
+                || containsStringValue("session_meta", forKey: "type", in: line),
+               let model = stringValue(forKey: "model", in: line), !model.isEmpty {
+                currentModel = model
+            }
+            summary.nonUsageRowsIgnored += 1
+            return
+        }
         guard lineData.range(of: Self.tokenCountNeedle) != nil else {
             summary.nonUsageRowsIgnored += 1
             return
@@ -519,11 +540,11 @@ private struct CodexSessionTokenUsageFileParser: CodexSessionTokenUsageFileParsi
 
         summary.tokenCountRowsRead += 1
         if let usage = usagePayload(named: "last_token_usage", in: line), usage.hasPositiveTotal {
-            accumulator.add(usage, day: day)
+            accumulator.add(usage, model: currentModel, day: day)
         } else if let totalUsage = usagePayload(named: "total_token_usage", in: line) {
             let delta = highestTotalUsage.map { totalUsage - $0 } ?? totalUsage
             if delta.hasPositiveTotal {
-                accumulator.add(safeCumulativeDelta(delta), day: day)
+                accumulator.add(safeCumulativeDelta(delta), model: currentModel, day: day)
                 summary.cumulativeRowsUsed += 1
                 highestTotalUsage = totalUsage
             } else {
@@ -612,6 +633,33 @@ private struct CodexSessionTokenUsageFileParser: CodexSessionTokenUsageFileParsi
         return Int(text[index..<endIndex]) ?? 0
     }
 
+    /// The first string value stored under `key` anywhere in the line.
+    private func stringValue(forKey key: String, in line: String) -> String? {
+        var searchStart = line.startIndex
+        while let keyRange = line[searchStart...].range(of: #""\#(key)""#) {
+            var index = keyRange.upperBound
+            while index < line.endIndex, line[index].isWhitespace {
+                index = line.index(after: index)
+            }
+            guard index < line.endIndex, line[index] == ":" else {
+                searchStart = keyRange.upperBound
+                continue
+            }
+            index = line.index(after: index)
+            while index < line.endIndex, line[index].isWhitespace {
+                index = line.index(after: index)
+            }
+            guard index < line.endIndex, line[index] == "\"" else {
+                searchStart = keyRange.upperBound
+                continue
+            }
+            let valueStart = line.index(after: index)
+            guard let valueEnd = line[valueStart...].firstIndex(of: "\"") else { return nil }
+            return String(line[valueStart..<valueEnd])
+        }
+        return nil
+    }
+
     private func containsStringValue(_ expectedValue: String, forKey key: String, in line: String) -> Bool {
         var searchStart = line.startIndex
         while let keyRange = line[searchStart...].range(of: #""\#(key)""#) {
@@ -654,14 +702,19 @@ private struct CodexSessionTokenUsageFileParser: CodexSessionTokenUsageFileParsi
 
 private struct BucketAccumulator {
     private var usageByDay: [Date: CodexTokenUsageTotals] = [:]
+    private var modelsByDay: [Date: [String: Int]] = [:]
 
-    mutating func add(_ usage: CodexTokenUsageTotals, day: Date) {
+    mutating func add(_ usage: CodexTokenUsageTotals, model: String, day: Date) {
         usageByDay[day, default: .zero] = usageByDay[day, default: .zero] + usage
+        modelsByDay[day, default: [:]][model, default: 0] += usage.totalTokens
     }
 
     mutating func merge(_ buckets: [CodexDailyTokenUsage]) {
         for bucket in buckets {
             usageByDay[bucket.day, default: .zero] = usageByDay[bucket.day, default: .zero] + bucket.usage
+            if let models = bucket.tokensByModel {
+                modelsByDay[bucket.day, default: [:]].merge(models, uniquingKeysWith: +)
+            }
         }
     }
 
@@ -669,7 +722,8 @@ private struct BucketAccumulator {
         usageByDay.keys.sorted().map { day in
             CodexDailyTokenUsage(
                 day: day,
-                usage: usageByDay[day, default: .zero]
+                usage: usageByDay[day, default: .zero],
+                tokensByModel: modelsByDay[day]
             )
         }
     }

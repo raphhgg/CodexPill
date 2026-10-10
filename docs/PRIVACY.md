@@ -112,6 +112,13 @@ While a Cursor account is being added, switching Cursor is refused, because a sw
 
 Removing a saved account deletes it from Refill's Keychain item only. Cursor stays signed in as it is.
 
+## Token Usage
+
+When Token Usage is on and a tool is connected, the Token Usage card adds that tool's daily tokens:
+
+- Claude Code: Refill reads Claude Code's session transcripts under `~/.claude/projects` (or `CLAUDE_CONFIG_DIR`) on this Mac. From each assistant row it keeps only the response IDs, timestamp, model name, and token counts. It never keeps prompts, responses, tool output, or file paths from the transcripts. The derived rows are cached in `~/Library/Caches/Refill/claude-token-usage-cache.json`, keyed by the transcript's path relative to the projects folder, so history survives Claude Code's 30-day transcript cleanup. Nothing leaves the Mac.
+- Cursor: Refill sends Cursor's sign-in token to cursor.com's dashboard usage-events endpoint, the one Cursor's own usage page uses, and keeps only each event's timestamp, model, and token counts in memory. This endpoint is not a documented public API and may change.
+
 ## What Refill Does Not Require By Default
 
 Normal Refill usage does not require:

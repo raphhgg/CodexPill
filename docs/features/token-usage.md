@@ -12,7 +12,7 @@ The scan should be treated as a background data-loading job, not as work owned b
 
 The feature is about local Codex usage history, not saved-account usage history. V1 must not imply that the graph is split by saved account, workspace, organization, or remote host.
 
-Refill must not use undocumented backend usage endpoints, browser cookies, hidden WebViews, ChatGPT dashboard scraping, or manual prompt token counters for this feature.
+For Codex, Refill must not use undocumented backend usage endpoints, browser cookies, hidden WebViews, ChatGPT dashboard scraping, or manual prompt token counters for this feature. Cursor is the one exception, described in [Other Tools](#other-tools): Cursor keeps usage only on its servers, so Refill reads it the way Cursor's own dashboard does.
 
 Refill may read local Codex session logs as an observation surface, but it must not expose prompt content, raw session rows, file paths, auth payloads, account identifiers, emails, hostnames, or raw log bodies in UI, diagnostics, tracker comments, or test fixtures.
 
@@ -32,6 +32,37 @@ Useful field classes in the local session rows:
 - nearby model context when a `turn_context` row is present.
 
 Token Usage treats daily buckets as local-session scoped. It does not promise a safe account boundary. Account-specific history remains deferred unless Codex session data exposes a stable, privacy-safe account marker or an official local API provides account-scoped usage history.
+
+## Other Tools
+
+When Claude Code or Cursor is connected in Refill, the Token Usage card adds its daily tokens. Each tool is read only while it is connected, and a tool that can't be read shows `Unavailable` on its own line without hiding the others.
+
+Every tool counts the same way so days compare: input, cached input, cache writes, and output, all included. Dollars are not shown, because Codex and Claude plans are flat subscriptions.
+
+| Tool | Source | Scope | Model |
+| --- | --- | --- | --- |
+| Codex | Local session JSONL, as above. | This Mac | `payload.model` of the latest `turn_context` (or `session_meta`) row before each `token_count`. Earlier rows count as `unknown`. |
+| Claude Code | Local transcripts under `<CLAUDE_CONFIG_DIR or ~/.claude>/projects/**/*.jsonl`, through `Platform/Claude`. | This Mac | `message.model` of each assistant row. |
+| Cursor | `POST https://cursor.com/api/dashboard/get-filtered-usage-events` with Cursor's session cookie and `Origin: https://cursor.com`, through `Platform/Cursor`. Undocumented: it is the endpoint Cursor's usage page calls. | Cursor account | `model` of each event. |
+
+Claude Code rules:
+
+- Only assistant rows with `message.usage` are decoded, and only the type, timestamp, `requestId`, `message.id`, `message.model`, and the four token counts are kept. Content is never kept.
+- A response is identified by `message.id` and `requestId`. Claude Code writes a response once per content block and copies it into resumed sessions, so each response counts once across all files.
+- The day is the local day of the row's `timestamp`.
+- Rows are cached per transcript (path relative to the projects folder, size, and modification date), so unchanged transcripts are not read again. Claude Code deletes transcripts after 30 days by default. Cached rows for deleted transcripts are kept for 400 days.
+
+Cursor rules:
+
+- The request body is `{startDate, endDate, page, pageSize}`, with Unix milliseconds as strings and pages of 1,000. Refill reads at most 20 pages and shows Cursor as unavailable rather than undercount.
+- Each event's tokens are `inputTokens + outputTokens + cacheWriteTokens + cacheReadTokens`. Events without `tokenUsage` count as zero.
+- The day is the local day of the event's `timestamp`.
+
+Card:
+
+- With another tool connected, daily bars stack each tool in its own color, Codex at the bottom. The tooltip lists each tool's tokens for the day.
+- Under the totals, one line per tool: `Codex  Today 3.4M  62M`, then its top three models by share, for example `gpt-6.1-sol 82% · gpt-5.5 18%`.
+- `All-time peak` uses the larger of Codex's all-time peak and the busiest combined day in the period, because only Codex has all-time history.
 
 ## Happy Path
 
@@ -56,7 +87,7 @@ Default:
 
 Menu card:
 
-- Position: inside the active account area, directly below the Session and Weekly limit rows and before the divider/account-action sections.
+- Position: in the main menu, after the tool cards and before `Add Account`.
 - Title: `Token Usage`
 - Scope label: `This Mac`
 - Chart: compact chart for the selected period.
@@ -159,7 +190,7 @@ RGR-360 compared chart variants with synthetic fixture data inside the active ac
 - Click-through detail panel.
 - Inspecting an individual day.
 - Secondary metrics such as average per day.
-- Model breakdown.
+- Model breakdown beyond the top three models per tool.
 - Saved-account attribution.
 - Remote-host usage history.
 - User-selectable periods.
@@ -167,7 +198,7 @@ RGR-360 compared chart variants with synthetic fixture data inside the active ac
 - Exporting usage data.
 - Browser dashboard scraping.
 - Hidden WebView/cookie import.
-- Backend private endpoint integration.
+- Backend private endpoint integration for Codex.
 - Cloud sync or telemetry upload.
 
 ## Open Questions

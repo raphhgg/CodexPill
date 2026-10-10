@@ -206,4 +206,8 @@ private final class CursorUsageWebClientHarness: CursorUsageWebClient, @unchecke
         }
         return try response.get()
     }
+
+    func usageEvents(using _: CursorAccessToken, from _: Date, to _: Date, page _: Int, pageSize _: Int) async throws -> Data {
+        Data("{}".utf8)
+    }
 }

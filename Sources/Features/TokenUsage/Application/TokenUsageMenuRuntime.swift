@@ -173,6 +173,10 @@ struct TokenUsageMenuLoadedData: Equatable {
     var buckets: [CodexDailyTokenUsage]
     var allTimePeak: CodexDailyTokenUsage?
     var allTimePeakProgress: TokenUsageScanProgress? = nil
+    /// Each tool's daily tokens by model for the visible period. Empty when only Codex buckets were loaded.
+    var tools: [ToolTokenUsageSeries] = []
+    /// Connected tools whose usage could not be read this time.
+    var unavailableTools: [TokenUsageTool] = []
 }
 
 private struct TokenUsageMenuLoadRequest: Equatable {
@@ -202,7 +206,8 @@ struct LocalCodexSessionTokenUsageMenuProvider: TokenUsageMenuProviding {
         cache = LocalCodexSessionTokenUsageCache(
             scanner: scanner,
             sessionsDirectory: sessionsDirectory,
-            cacheStore: TokenUsageCacheFileStore(cacheFile: cacheFile, schemaVersion: 1),
+            // Version 2 adds per-model totals, so older caches rescan once.
+            cacheStore: TokenUsageCacheFileStore(cacheFile: cacheFile, schemaVersion: 2),
             now: now,
             calendar: calendar
         )

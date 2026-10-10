@@ -13,18 +13,22 @@ struct CursorUsage: ProviderConnection {
     let accounts: CursorAccounts?
     /// Cursor's own sign-in in a separate window. Nil when this build can't add accounts.
     let login: CursorIsolatedLogin?
+    /// Daily tokens for the Token Usage card, read from the same sign-in.
+    let tokenUsageClient: CursorTokenUsageClient?
 
     init(
         settings: CursorUsageSettingsStore,
         client: CursorUsageClient,
         accounts: CursorAccounts? = nil,
         login: CursorIsolatedLogin? = nil,
+        tokenUsageClient: CursorTokenUsageClient? = nil,
         refreshInterval: TimeInterval = ProviderUsageRuntime.refreshInterval
     ) {
         self.settings = settings
         self.client = client
         self.accounts = accounts
         self.login = login
+        self.tokenUsageClient = tokenUsageClient
         self.refreshInterval = refreshInterval
     }
 
