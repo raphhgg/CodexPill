@@ -107,52 +107,78 @@ struct ClaudeCodeCredentialsItem: RedactedClaudeSecret {
 struct ClaudeCodeSignInStore: Sendable {
     let configDirectory: URL
     let globalConfigFile: URL
-    let keychain: any ClaudeCodeKeychainItem
+    /// Nil in isolated runs, so they never touch the real Keychain item.
+    let keychain: (any ClaudeCodeKeychainItem)?
 
     var credentialsFileURL: URL {
         configDirectory.appendingPathComponent(".credentials.json")
     }
 
     func current(allowingPrompt: Bool) -> ClaudeCodeSignInRead {
-        let item: ClaudeCodeCredentialsItem
-        if let data = try? Data(contentsOf: credentialsFileURL), Self.jsonObject(data)?[ClaudeCodeSignInSnapshot.oauthKey] != nil {
-            item = ClaudeCodeCredentialsItem(data: data, isFile: true)
-        } else {
-            switch keychain.credentialsData(allowingPrompt: allowingPrompt) {
-            case .notFound: return .signedOut
-            case .needsPermission: return .keychainAccessNeeded
-            case .failed: return .unreadable
-            case let .found(data): item = ClaudeCodeCredentialsItem(data: data, isFile: false)
+        do {
+            let item: ClaudeCodeCredentialsItem
+            if let data = try ClaudeCredentialsSource.contentsIfPresent(of: credentialsFileURL),
+               try Self.jsonObject(data)[ClaudeCodeSignInSnapshot.oauthKey] != nil {
+                item = ClaudeCodeCredentialsItem(data: data, isFile: true)
+            } else {
+                guard let keychain else { return .signedOut }
+                switch keychain.credentialsData(allowingPrompt: allowingPrompt) {
+                case .notFound: return .signedOut
+                case .needsPermission: return .keychainAccessNeeded
+                case .failed: return .unreadable
+                case let .found(data): item = ClaudeCodeCredentialsItem(data: data, isFile: false)
+                }
             }
+            guard
+                let oauth = try Self.jsonObject(item.data)[ClaudeCodeSignInSnapshot.oauthKey] as? [String: Any],
+                let snapshot = ClaudeCodeSignInSnapshot(oauth: oauth, account: try currentAccount())
+            else {
+                return .signedOut
+            }
+            return .signedIn(snapshot, item)
+        } catch {
+            return .unreadable
         }
-        guard
-            let oauth = Self.jsonObject(item.data)?[ClaudeCodeSignInSnapshot.oauthKey] as? [String: Any],
-            let snapshot = ClaudeCodeSignInSnapshot(oauth: oauth, account: currentAccount())
-        else {
-            return .signedOut
-        }
-        return .signedIn(snapshot, item)
     }
 
-    /// Puts `snapshot` in place of the sign-in in `item`, keeping the item's other keys. When the global config
-    /// cannot be written, the credentials go back to what they were.
+    /// Puts `snapshot` in place of the sign-in in `item`, keeping the item's other keys. Both new contents are built
+    /// before anything is written. When the global config can't be written, the credentials go back to `item`.
     func replace(_ item: ClaudeCodeCredentialsItem, with snapshot: ClaudeCodeSignInSnapshot) throws(ClaudeCodeAccountError) {
-        guard var credentials = Self.jsonObject(item.data) else { throw .writeFailed }
-        credentials[ClaudeCodeSignInSnapshot.oauthKey] = snapshot.oauth
-        guard let updated = try? JSONSerialization.data(withJSONObject: credentials) else { throw .writeFailed }
-
-        try writeCredentials(updated, toFile: item.isFile)
+        let updatedCredentials: Data
+        let updatedConfig: Data
         do {
-            try writeAccount(snapshot.account)
+            var credentials = try Self.jsonObject(item.data)
+            credentials[ClaudeCodeSignInSnapshot.oauthKey] = snapshot.oauth
+            updatedCredentials = try JSONSerialization.data(withJSONObject: credentials)
+
+            var config = try ClaudeCredentialsSource.contentsIfPresent(of: globalConfigFile).map(Self.jsonObject) ?? [:]
+            config[ClaudeCodeSignInSnapshot.accountKey] = snapshot.account
+            updatedConfig = try JSONSerialization.data(withJSONObject: config, options: [.prettyPrinted, .withoutEscapingSlashes])
         } catch {
-            try? writeCredentials(item.data, toFile: item.isFile)
-            throw error
+            throw .unreadable
+        }
+
+        try writeCredentials(updatedCredentials, toFile: item.isFile)
+        do {
+            try updatedConfig.write(to: globalConfigFile, options: .atomic)
+            try FilePermissionHardening.repairPrivateFile(at: globalConfigFile)
+        } catch {
+            do {
+                try writeCredentials(item.data, toFile: item.isFile)
+            } catch {
+                throw .restoreFailed
+            }
+            throw .writeFailed
         }
     }
 
     /// The account Claude Code's global config records, read without touching the Keychain.
-    func currentIdentity() -> ClaudeCodeAccountIdentity? {
-        currentAccount().flatMap(ClaudeCodeSignInSnapshot.identity(in:))
+    func currentIdentity() throws(ClaudeCodeAccountError) -> ClaudeCodeAccountIdentity? {
+        do {
+            return try currentAccount().flatMap(ClaudeCodeSignInSnapshot.identity(in:))
+        } catch {
+            throw .unreadable
+        }
     }
 
     /// `<CLAUDE_CONFIG_DIR>/.claude.json` when set, otherwise `~/.claude.json`, matching Claude Code.
@@ -172,33 +198,20 @@ struct ClaudeCodeSignInStore: Sendable {
             } catch {
                 throw .writeFailed
             }
-        } else if !keychain.updateCredentialsData(data) {
+        } else if keychain?.updateCredentialsData(data) != true {
             throw .writeFailed
         }
     }
 
-    private func currentAccount() -> [String: Any]? {
-        guard let data = try? Data(contentsOf: globalConfigFile) else { return nil }
-        return Self.jsonObject(data)?[ClaudeCodeSignInSnapshot.accountKey] as? [String: Any]
+    private func currentAccount() throws -> [String: Any]? {
+        guard let data = try ClaudeCredentialsSource.contentsIfPresent(of: globalConfigFile) else { return nil }
+        return try Self.jsonObject(data)[ClaudeCodeSignInSnapshot.accountKey] as? [String: Any]
     }
 
-    private func writeAccount(_ account: [String: Any]?) throws(ClaudeCodeAccountError) {
-        var config: [String: Any] = [:]
-        if let data = try? Data(contentsOf: globalConfigFile) {
-            guard let object = Self.jsonObject(data) else { throw .writeFailed }
-            config = object
+    private static func jsonObject(_ data: Data) throws -> [String: Any] {
+        guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw CocoaError(.propertyListReadCorrupt)
         }
-        config[ClaudeCodeSignInSnapshot.accountKey] = account
-        do {
-            let data = try JSONSerialization.data(withJSONObject: config, options: [.prettyPrinted, .withoutEscapingSlashes])
-            try data.write(to: globalConfigFile, options: .atomic)
-            try FilePermissionHardening.repairPrivateFile(at: globalConfigFile)
-        } catch {
-            throw .writeFailed
-        }
-    }
-
-    private static func jsonObject(_ data: Data) -> [String: Any]? {
-        (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        return object
     }
 }
