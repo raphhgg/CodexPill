@@ -64,7 +64,6 @@ struct MenuBarMenuBuilder {
         return item
     }
 
-    /// The account in use, switching, Codex resets and token usage, section moves, add and remove, then Disconnect.
     private func sideMenu(for section: ToolSection, state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenu {
         let provider = section.provider
         let title = provider.copy.sectionTitle
@@ -143,7 +142,6 @@ struct MenuBarMenuBuilder {
         return menu
     }
 
-    /// Setup and rare choices. Everyday actions live in each card's side menu.
     private func settingsMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
         let menu = NSMenu(title: "Settings")
         menu.addItem(addAccountMenuItem(state: state, target: target))
