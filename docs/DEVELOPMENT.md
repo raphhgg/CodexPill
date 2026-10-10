@@ -117,6 +117,8 @@ open -n \
   `auth.json`.
 - Claude usage reads `.credentials.json` from `CLAUDE_CONFIG_DIR`, or from
   `<root>/.claude`, and never the Keychain. Claude account switching is off.
+- Cursor usage reads `<root>/Cursor/state.vscdb`, never Cursor's real database.
+  Cursor account switching is off, so an isolated run never quits Cursor.
 
 Switching still asks the real Codex app to relaunch. Quit the isolated app by
 its process ID, not with `scripts/stop_menubar.sh`, which stops every running

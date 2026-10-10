@@ -31,6 +31,14 @@ security delete-generic-password -s "CodexPill Claude Code account"
 This leaves Claude Code's own sign-in, the `Claude Code-credentials` item, as it
 is. CodexPill never deletes that item.
 
+If you saved Cursor accounts, remove the one Keychain item that holds them all:
+
+```sh
+security delete-generic-password -s "CodexPill Cursor accounts"
+```
+
+Cursor stays signed in as it is. CodexPill never deletes Cursor's own data.
+
 This does not delete `~/.codex/auth.json`. Do not remove or edit that file unless
 you intentionally want to sign out of Codex or repair Codex itself.
 
