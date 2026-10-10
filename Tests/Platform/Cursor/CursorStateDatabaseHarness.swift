@@ -6,11 +6,16 @@ final class CursorStateDatabaseHarness {
     let databaseURL: URL
     private(set) var connection: OpaquePointer?
 
-    init() throws {
+    /// `databasePath` is relative to a fresh temporary root, for example `Cursor/state.vscdb` to match the
+    /// layout an isolated run (`CODEXPILL_VALIDATION_APP_SUPPORT_DIR`) uses.
+    init(databasePath: String = "state.vscdb") throws {
         directoryURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("CursorStateDatabaseTests-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
-        databaseURL = directoryURL.appendingPathComponent("state.vscdb")
+        databaseURL = directoryURL.appendingPathComponent(databasePath)
+        try FileManager.default.createDirectory(
+            at: databaseURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
     }
 
     deinit {
@@ -19,11 +24,46 @@ final class CursorStateDatabaseHarness {
     }
 
     func create(walMode: Bool = false) throws {
-        try check(sqlite3_open(databaseURL.path, &connection))
+        try open()
         if walMode {
             try execute("PRAGMA journal_mode=WAL")
         }
         try execute("CREATE TABLE ItemTable (key TEXT UNIQUE ON CONFLICT REPLACE, value BLOB)")
+        try execute("CREATE TABLE cursorDiskKV (key TEXT UNIQUE ON CONFLICT REPLACE, value BLOB)")
+    }
+
+    func open() throws {
+        guard connection == nil else { return }
+        try check(sqlite3_open(databaseURL.path, &connection))
+    }
+
+    func insertText(_ values: [String: String]) throws {
+        for (key, value) in values {
+            try insertText(value, key: key)
+        }
+    }
+
+    func insertDiskKV(_ value: String, key: String) throws {
+        try execute("INSERT INTO cursorDiskKV (key, value) VALUES ('\(key)', '\(value)')")
+    }
+
+    /// Every `ItemTable` row as text, read through the harness connection.
+    func itemTable() throws -> [String: String] {
+        try rows("SELECT key, CAST(value AS TEXT) FROM ItemTable")
+    }
+
+    func diskKV() throws -> [String: String] {
+        try rows("SELECT key, CAST(value AS TEXT) FROM cursorDiskKV")
+    }
+
+    /// Takes the write lock and keeps it, the way a Cursor process that still has the database open would.
+    func holdWriteLock() throws {
+        try execute("BEGIN IMMEDIATE")
+    }
+
+    func fileSize(suffix: String = "") -> Int? {
+        let attributes = try? FileManager.default.attributesOfItem(atPath: databaseURL.path + suffix)
+        return (attributes?[.size] as? NSNumber)?.intValue
     }
 
     func insertText(_ value: String, key: String = "cursorAuth/accessToken") throws {
@@ -60,6 +100,18 @@ final class CursorStateDatabaseHarness {
 
     func directoryListing() throws -> [String] {
         try FileManager.default.contentsOfDirectory(atPath: directoryURL.path).sorted()
+    }
+
+    private func rows(_ sql: String) throws -> [String: String] {
+        var statement: OpaquePointer?
+        defer { sqlite3_finalize(statement) }
+        try check(sqlite3_prepare_v2(connection, sql, -1, &statement, nil))
+        var rows: [String: String] = [:]
+        while sqlite3_step(statement) == SQLITE_ROW {
+            let key = String(cString: sqlite3_column_text(statement, 0))
+            rows[key] = sqlite3_column_text(statement, 1).map { String(cString: $0) }
+        }
+        return rows
     }
 
     private static let transient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)

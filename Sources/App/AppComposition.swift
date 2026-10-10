@@ -139,7 +139,7 @@ struct AppComposition {
         let webClient: any CursorUsageWebClient
         if let isolatedRootDirectory {
             tokenSource = CursorStateDatabaseTokenSource(
-                databaseURL: isolatedRootDirectory.appendingPathComponent("Cursor/state.vscdb")
+                databaseURL: CursorStateDatabase.isolatedURL(root: isolatedRootDirectory)
             )
             webClient = ValidationCursorUsageWebClient(
                 fileURL: isolatedRootDirectory.appendingPathComponent(ValidationCursorUsageWebClient.fileName)

@@ -158,7 +158,17 @@ Local app-server reads enter this shared session runner through `CodexAppServerC
 
 Tokens are `RedactedClaudeSecret` values that print as `<Type>(redacted)`. They never leave this module except in a request to Anthropic or in CodexPill's own Keychain item.
 
-`Platform/Cursor` owns everything CodexPill knows about Cursor: the read-only token lookup in Cursor's `state.vscdb`, the `cursor.com/api/usage-summary` request, and parsing its response. The token never leaves this module except as the request's cookie.
+`Platform/Cursor` owns everything CodexPill knows about Cursor:
+
+- `CursorStateDatabase`, keyed reads and the one write path for `state.vscdb`. It never scans. A write folds the WAL into the database, refuses while another connection holds it, and replaces only the named rows in one transaction.
+- `CursorStateDatabaseTokenSource`, the read-only token lookup used for usage.
+- `CursorSignIn`, the eight `cursorAuth/*` rows that are a Cursor sign-in, and `CursorSavedAccount`, a named copy of one.
+- `CursorAccountStore` and `SystemCursorAccountKeychain`, the `CodexPill Cursor accounts` Keychain item holding every saved account.
+- `CursorAccounts`, capture, rename, remove, and activate. Activation quits Cursor, re-captures the outgoing sign-in, writes the saved one, and reopens Cursor.
+- `CursorAppProcessClient` and `SystemCursorAppProcessClient`, quitting and opening Cursor.app. It never force-quits and knows nothing about Cursor's files.
+- The `cursor.com/api/usage-summary` request and parsing its response.
+
+Tokens never leave this module except as the usage request's cookie or in CodexPill's Keychain item.
 
 `Platform/Hosts` owns host-client implementations used by validation or host adapters.
 
@@ -249,7 +259,9 @@ The current truth sources are split by concern:
 - remote account metadata and rate limits: remote `codex app-server` through the host adapter;
 - running CLI session observation: local process table inspection;
 - Claude usage: `api.anthropic.com/api/oauth/usage`, authenticated with CodexPill's own Claude sign-in (Keychain item `CodexPill Claude sign-in`, refreshed at `platform.claude.com`), or with Claude Code's local sign-in token as a read-only fallback;
-- Cursor usage: `cursor.com/api/usage-summary`, authenticated with Cursor's local sign-in token.
+- Cursor usage: `cursor.com/api/usage-summary`, authenticated with Cursor's local sign-in token;
+- active Cursor account: the `cursorAuth/*` rows in Cursor's `state.vscdb`;
+- saved Cursor accounts: CodexPill's `CodexPill Cursor accounts` Keychain item.
 
 Rules:
 

@@ -8,7 +8,8 @@ The product replaces manual auth-file swapping and repeated app restarts with a 
 - switch the active Codex account from the menubar;
 - see current session and weekly Codex usage before choosing which account to use;
 - use the same saved accounts on configured remote hosts;
-- optionally see Claude and Cursor usage next to Codex.
+- optionally see Claude and Cursor usage next to Codex;
+- save several Cursor sign-ins and switch Cursor between them.
 
 Detailed product behavior and UX contracts live in [features](features/README.md).
 
@@ -61,9 +62,12 @@ A stored copy of Codex auth state used for later re-activation. A snapshot is no
 
 The most recently fetched local or remote view of Codex session and weekly availability.
 
-### Display-Only Provider
+### Other Providers
 
-A non-Codex tool whose usage CodexPill shows but never manages. Claude and Cursor are display-only providers. Each one is opt-in and has its own menu section below the saved accounts. CodexPill does not switch or save accounts for them. For Claude it keeps one sign-in of its own, used only to read usage. Their usage never affects Codex account availability, ranking, or notifications.
+Claude and Cursor are optional providers next to Codex. Each one is opt-in and has its own menu section below the saved accounts. Their usage never affects Codex account availability, ranking, or notifications.
+
+- **Claude.** CodexPill keeps one sign-in of its own, used only to read usage. Switching Claude accounts is planned but not built yet.
+- **Cursor.** CodexPill reads Cursor's sign-in to show usage, and can save several Cursor sign-ins and switch Cursor between them. A switch quits Cursor, puts the saved sign-in back into Cursor's local database, and reopens Cursor. See [Cursor Usage](features/cursor-usage.md#account-switching).
 
 ### Remote Host
 
@@ -72,7 +76,8 @@ A user-configured SSH target where CodexPill can install saved account snapshots
 ## Non-Goals
 
 - Browser-based ChatGPT account switching.
-- Account switching for Claude, Cursor, or other non-Codex tools, and sign-in or session refresh for anything but CodexPill's own read-only Claude sign-in.
+- Account switching for non-Codex tools other than Cursor and, later, Claude.
+- Signing in to or refreshing the session of a non-Codex tool on its behalf. Cursor switching only puts back a sign-in Cursor itself created.
 - Cloud sync or multi-device account storage.
 - Team/shared account management.
 - Background telemetry pipeline.

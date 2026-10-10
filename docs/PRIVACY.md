@@ -14,6 +14,7 @@ During normal use, CodexPill may read:
 - CodexPill's own Claude sign-in, in the `CodexPill Claude sign-in` Keychain item, only while Claude usage is connected.
 - Claude Code's sign-in, from `~/.claude/.credentials.json` or the `Claude Code-credentials` Keychain item, read-only and only as a fallback while Claude usage is connected.
 - Cursor's sign-in token from Cursor's local database, only while Cursor usage is turned on.
+- Cursor's sign-in rows (`cursorAuth/*`, listed below) from the same database, only when you save a Cursor account or switch Cursor accounts.
 
 When a remote host is configured, CodexPill may also read:
 
@@ -29,16 +30,20 @@ CodexPill writes and stores:
 - Saved Codex auth snapshots under `~/Library/Application Support/CodexPill/snapshots`.
 - `~/.codex/auth.json` when switching the active local Codex account.
 - Temporary isolated `CODEX_HOME` state when capturing a new Codex sign-in without mutating the current account.
+- Saved Cursor accounts in one login Keychain item, `CodexPill Cursor accounts`, never in a file.
+- Cursor's sign-in rows in `state.vscdb` when switching Cursor accounts.
 
 Saved auth snapshots contain authentication material and must be handled like credentials. They should not be printed, logged, attached to issues, or committed to git.
 
-## Claude And Cursor Usage
+## Claude And Cursor
 
-These features are display-only. CodexPill does not switch or manage Claude or Cursor accounts. It signs in to Claude only to read usage, and never signs in to Cursor.
+Claude usage and Cursor usage are display-only. Cursor account switching, described below, is the one place CodexPill changes another tool's sign-in. CodexPill signs in to Claude only to read usage, and never signs in to Cursor.
 
 **Claude usage (optional).** Claude usage is off by default. `Connect Claude…` asks for consent first. Confirming opens your browser on Claude's own sign-in page (`claude.com`), using the same public OAuth client as Claude Code with PKCE and a one-time listener on `localhost` for the answer. CodexPill asks only for the `user:profile` scope. It stores the resulting access token, refresh token, and expiry in one item in your login Keychain (`CodexPill Claude sign-in`), never in a file. It sends them only to Anthropic: the tokens to `platform.claude.com` to refresh or revoke the sign-in, and the access token to `api.anthropic.com` to fetch your 5-hour and weekly limits. Requests that carry a token refuse redirects to other hosts. If you have no CodexPill sign-in, CodexPill falls back to Claude Code's sign-in, read-only, from `~/.claude/.credentials.json` (or `CLAUDE_CONFIG_DIR`) or the `Claude Code-credentials` Keychain item, and only while that token is unexpired. It never changes, refreshes, or stores Claude Code's sign-in. macOS may ask you to allow Keychain access, and CodexPill shows that prompt only right after you sign in or choose `Allow Keychain access…`. CodexPill never logs or displays a token, and never reads browser cookies or Claude conversation data. `Disconnect Claude…` deletes CodexPill's Keychain item, asks Anthropic to revoke that sign-in, and stops all reads.
 
 **Cursor usage (optional).** Cursor usage is off by default. `Connect Cursor…` asks for consent before anything is read. While it is on, CodexPill reads Cursor's sign-in token from `~/Library/Application Support/Cursor/User/globalStorage/state.vscdb`. It opens that database read-only, reads only the token, and never changes Cursor's files. CodexPill sends the token only to cursor.com, to fetch your plan usage, on-demand spend, and billing cycle. It refuses redirects, so the token never goes to another host. It never stores, logs, displays, or refreshes the token, and it never reads browser cookies. `Disconnect Cursor…` turns the feature off and stops all reads.
+
+**Cursor account switching.** Saving a Cursor account copies Cursor's eight sign-in rows from `state.vscdb` (`cursorAuth/accessToken`, `refreshToken`, `cachedEmail`, `cachedScopedProfile`, `cachedSignUpType`, `stripeMembershipAuthId`, `stripeMembershipType`, `stripeSubscriptionStatus`) into CodexPill's `CodexPill Cursor accounts` Keychain item, together with the name you give it. Those rows include Cursor's access and refresh tokens and your Cursor email. Switching asks Cursor to quit, waits for it to exit, saves the outgoing account's current rows again (Cursor may have refreshed its tokens), writes the chosen account's rows into `state.vscdb` in one transaction, and reopens Cursor. CodexPill writes no other row and no other Cursor file, and never sends these values anywhere. Removing a saved account deletes it from the Keychain item only; Cursor stays signed in as it is.
 
 ## Remote Hosts
 
@@ -65,7 +70,7 @@ Accessibility may still be useful for development or validation tooling that ins
 
 ## Network And External Services
 
-CodexPill talks to Codex through local Codex surfaces and user-configured SSH destinations. When Claude usage is on, it also calls Anthropic (`platform.claude.com` for CodexPill's own sign-in, `api.anthropic.com` for usage) with CodexPill's own Claude sign-in, or with Claude Code's sign-in as a fallback. When Cursor usage is on, it calls cursor.com with Cursor's own sign-in token. It must not send Codex auth snapshots, raw auth payloads, or tokens to analytics services, crash-reporting systems, issue trackers, or any other third-party API. A token may go only to the service that issued it.
+CodexPill talks to Codex through local Codex surfaces and user-configured SSH destinations. When Claude usage is on, it also calls Anthropic (`platform.claude.com` for CodexPill's own sign-in, `api.anthropic.com` for usage) with CodexPill's own Claude sign-in, or with Claude Code's sign-in as a fallback. When Cursor usage is on, it calls cursor.com with Cursor's own sign-in token. Cursor account switching makes no network calls. It must not send Codex auth snapshots, raw auth payloads, or tokens to analytics services, crash-reporting systems, issue trackers, or any other third-party API. A token may go only to the service that issued it.
 
 If future features add status-page checks, diagnostics export, or usage statistics, they must keep the same rule: aggregate or redact data before it leaves the machine, and never include raw auth payloads or tokens.
 
