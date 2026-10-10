@@ -3,9 +3,9 @@ import Foundation
 extension MenuBarAlertFactory {
     func makeConnectClaudeCodeRequest() -> MenuBarConfirmationAlertRequest {
         MenuBarConfirmationAlertRequest(
-            messageText: "Connect Claude Code?",
-            informativeText: "CodexPill will read Claude Code's sign-in from your Keychain to show your 5-hour and weekly limits. It never stores or shares it.",
-            confirmTitle: "Connect",
+            messageText: "Sign in with Claude?",
+            informativeText: "CodexPill will open your browser to sign in to Claude and show your 5-hour and weekly limits. Your sign-in stays in your Keychain.",
+            confirmTitle: "Sign In",
             cancelTitle: "Cancel"
         )
     }

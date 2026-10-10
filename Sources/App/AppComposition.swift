@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 
 @MainActor
 struct AppComposition {
@@ -62,38 +62,67 @@ struct AppComposition {
         )
     }
 
-    /// An isolated run never reads the real Claude sign-in or calls Anthropic: it reads `CLAUDE_CONFIG_DIR` or a folder
-    /// inside the isolated root, a fixture file instead of the Keychain, and a fixture usage response.
+    /// An isolated run never reads a real Claude sign-in, opens a browser, or calls Anthropic. Claude Code's sign-in
+    /// comes from `CLAUDE_CONFIG_DIR` or a folder inside the isolated root and a fixture file instead of the Keychain.
+    /// CodexPill's own sign-in, the token endpoint, the browser callback, and the usage response are fixture files.
     private static func makeClaudeCodeUsage(
         environment: [String: String],
         defaults: UserDefaults,
         isolatedRootDirectory: URL?
     ) -> ClaudeCodeUsage {
-        let credentials: ClaudeCredentialsSource
+        let claudeCode: ClaudeCredentialsSource
+        let signInStore: any ClaudeSignInStoring
+        let tokenEndpoint: any ClaudeTokenEndpoint
         let webClient: any ClaudeUsageWebClient
+        let signInFlow: ClaudeBrowserSignIn
         if let isolatedRootDirectory {
             let configDirectory = environment["CLAUDE_CONFIG_DIR"]?.isEmpty == false
                 ? ClaudeCredentialsSource.configDirectory(environment: environment)
                 : isolatedRootDirectory.appendingPathComponent(".claude", isDirectory: true)
-            credentials = ClaudeCredentialsSource(
+            claudeCode = ClaudeCredentialsSource(
                 configDirectory: configDirectory,
                 keychain: ValidationClaudeKeychain(
                     fileURL: isolatedRootDirectory.appendingPathComponent(ValidationClaudeKeychain.fileName)
                 )
             )
+            signInStore = ValidationClaudeSignInKeychain(
+                fileURL: isolatedRootDirectory.appendingPathComponent(ValidationClaudeSignInKeychain.fileName)
+            )
+            tokenEndpoint = ValidationClaudeTokenEndpoint(
+                fileURL: isolatedRootDirectory.appendingPathComponent(ValidationClaudeTokenEndpoint.fileName)
+            )
             webClient = ValidationClaudeUsageWebClient(
                 fileURL: isolatedRootDirectory.appendingPathComponent(ValidationClaudeUsageWebClient.fileName)
             )
+            let receiver = ValidationClaudeRedirectReceiver(rootDirectory: isolatedRootDirectory)
+            signInFlow = ClaudeBrowserSignIn(
+                tokenEndpoint: tokenEndpoint,
+                startReceiver: { receiver },
+                openURL: { receiver.recordAuthorizeURL($0) }
+            )
         } else {
-            credentials = ClaudeCredentialsSource(
+            claudeCode = ClaudeCredentialsSource(
                 configDirectory: ClaudeCredentialsSource.configDirectory(environment: environment),
                 keychain: SystemClaudeKeychain()
             )
+            signInStore = SystemClaudeSignInKeychain()
+            tokenEndpoint = URLSessionClaudeTokenEndpoint()
             webClient = URLSessionClaudeUsageWebClient()
+            signInFlow = ClaudeBrowserSignIn(
+                tokenEndpoint: tokenEndpoint,
+                startReceiver: { try await LoopbackClaudeOAuthReceiver.start() },
+                openURL: { url in Task { @MainActor in NSWorkspace.shared.open(url) } }
+            )
         }
         return ClaudeCodeUsage(
             settings: ClaudeUsageSettingsStore(userDefaults: defaults),
-            client: ClaudeUsageClient(credentials: credentials, webClient: webClient),
+            client: ClaudeUsageClient(
+                claudeCode: claudeCode,
+                signInStore: signInStore,
+                tokenEndpoint: tokenEndpoint,
+                webClient: webClient
+            ),
+            signInFlow: signInFlow,
             refreshInterval: AppRuntimeEnvironment.validationAutoRefreshIntervalSeconds(environment: environment)
                 ?? ProviderUsageRuntime.refreshInterval
         )

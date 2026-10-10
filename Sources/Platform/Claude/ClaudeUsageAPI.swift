@@ -41,6 +41,16 @@ enum ClaudeUsageAPI {
         return target.scheme?.lowercased() == "https" && target.host?.lowercased() == host
     }
 
+    /// No cookies, no cache, and redirects only to the same host, for every request that carries a Claude token.
+    static func makeSession() -> URLSession {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.httpShouldSetCookies = false
+        configuration.httpCookieStorage = nil
+        configuration.urlCache = nil
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        return URLSession(configuration: configuration, delegate: SameHostRedirectDelegate(), delegateQueue: nil)
+    }
+
     static func error(forStatus statusCode: Int, retryAfter: String?) -> ClaudeUsageWebError? {
         switch statusCode {
         case 200: nil
@@ -88,12 +98,7 @@ final class URLSessionClaudeUsageWebClient: ClaudeUsageWebClient {
     private let session: URLSession
 
     init() {
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.httpShouldSetCookies = false
-        configuration.httpCookieStorage = nil
-        configuration.urlCache = nil
-        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
-        session = URLSession(configuration: configuration, delegate: SameHostRedirectDelegate(), delegateQueue: nil)
+        session = ClaudeUsageAPI.makeSession()
     }
 
     deinit {

@@ -16,6 +16,8 @@ struct ProviderUsageMenuContent: View {
             switch status {
             case .notConnected:
                 EmptyView()
+            case .signingIn:
+                message(title: "Finish signing in in your browser", detail: nil)
             case .awaitingUsage:
                 let text = provider.awaitingUsageMessage
                 message(title: text.title, detail: text.detail)
@@ -104,7 +106,7 @@ extension UsageProvider {
     var menuTitle: String {
         switch self {
         case .codex: "Codex"
-        case .claude: "Claude Code"
+        case .claude: "Claude"
         case .cursor: "Cursor"
         }
     }
@@ -113,10 +115,10 @@ extension UsageProvider {
         switch reason {
         case .notInstalled:
             ("\(menuTitle) isn't installed", nil)
+        case .signedOut where self == .claude, .signInExpired:
+            ("Sign in to \(menuTitle) again", nil)
         case .signedOut:
             ("Not signed in to \(menuTitle)", "Sign in to \(menuTitle) to see usage.")
-        case .signInExpired:
-            ("Sign in to \(menuTitle) again", self == .claude ? "Open Claude Code to sign in again." : nil)
         case .keychainAccessNeeded:
             ("Allow Keychain access", nil)
         case .readFailed:

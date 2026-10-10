@@ -2,13 +2,16 @@ import Foundation
 import LocalAuthentication
 import Security
 
-/// Reads the `Claude Code-credentials` generic password. It never writes, updates, or deletes the item.
+/// Reads one generic password, by default Claude Code's `Claude Code-credentials` item. It never writes,
+/// updates, or deletes that item.
 struct SystemClaudeKeychain: ClaudeKeychainReading {
-    static let service = "Claude Code-credentials"
+    static let claudeCodeService = "Claude Code-credentials"
 
+    let service: String
     let account: String
 
-    init(account: String = NSUserName()) {
+    init(service: String = Self.claudeCodeService, account: String = NSUserName()) {
+        self.service = service
         self.account = account
     }
 
@@ -41,7 +44,7 @@ struct SystemClaudeKeychain: ClaudeKeychainReading {
     private func copyMatching(returning key: CFString, allowingPrompt: Bool) -> (status: OSStatus, result: AnyObject?) {
         var query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
-            kSecAttrService: Self.service,
+            kSecAttrService: service,
             kSecAttrAccount: account,
             kSecMatchLimit: kSecMatchLimitOne,
             key: true,
