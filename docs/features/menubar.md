@@ -1,67 +1,81 @@
 # Menubar
 
-The menubar feature owns the overall `MenuBarExtra` popup composition.
+The menubar feature owns the menu's composition: which sections appear, in what order, and what each card and side menu offers. The behavior behind each item belongs to its own feature doc.
 
-It does not own every behavior behind each row. Instead, it defines where feature entry points appear, how sections are ordered, and how menu-level states such as busy/status/quit are presented.
+## Main Menu
 
-## Purpose
+Top to bottom, nothing else:
 
-The menubar popup is CodexPill's primary product surface. It combines account status, saved account actions, and app-level controls in one native menu.
+1. One card per tool that has a saved account or a connection: `Claude`, `Codex`, `Cursor` by default. Separators sit between cards.
+2. `Settings ›`
+3. The status message, only while an account operation runs.
+4. `Quit ⌘Q`
 
-## Section Order
+A tool with nothing set up has no card. Codex has a card once one account is saved. Claude and Cursor have one once connected ([Claude Usage](claude-usage.md), [Cursor Usage](cursor-usage.md)).
 
-The menu is ordered as:
+With nothing set up at all, the menu is `Add Account ›` (Codex…, Claude…, Cursor…), `Settings ›` and `Quit`.
 
-1. `Active Account`
-2. `Accounts`, when saved catalog entries are visible
-3. `More Accounts…`, when saved catalog entries overflow the visible limit
-4. `Claude Code`: `Connect Claude Code…` until connected, then usage or a short failure message, from [Claude Usage](claude-usage.md)
-5. `Cursor`: `Connect Cursor…` until connected, then usage or a short failure message, from [Cursor Usage](cursor-usage.md)
-6. App Controls
-7. Status message, when needed
-8. `Quit`
+The user orders the cards from each side menu. The first card drives the menu bar icon ([Status Bar](status-bar.md)).
 
-## Active Account Section
+## Card
 
-Owned behavior: [Accounts](accounts/00-accounts.md).
+Every tool uses the same card. It is one hover cell with a side menu and no chevron.
 
-UX responsibility here:
+- **Header.** The tool's monochrome mark, its name, and the plan tag on the right: `Pro x20` or `Pro x5` for Codex, `Max x20` or `Max x5` for Claude, `Pro` for Cursor. The marks come from Lobe Icons (MIT, see `THIRD_PARTY_NOTICES.md`).
+- **Meters.** One per window the tool reports: `Session`, `Weekly`, or `Billing cycle`. A window the tool does not report has no meter. Codex Pro and Pro Lite hide the session window. Each meter shows the bar with an even-pace tick, `11% used` on the left and `Resets in 2h53` (or `Resets 30 Oct` for a billing cycle) in grey on the right. Meters follow the `Usage Bars` settings.
+- **Codex resets.** `2 resets available` with `Next expires 5 Nov` on the right, or `Expires 5 Nov` for one credit ([Codex Reset Credits](codex-reset-credits.md)). Claude has no reset row.
+- **Cursor spend.** `On-demand: $12.34 of $50.00` under the meter. An unlimited plan has no meter.
+- **States.** A title and at most one short line replace or precede the meters:
 
-- Use `Active Account` for the one active account card.
-- Show enough plan and session/weekly usage information to answer "what am I using right now?"
-- Session and weekly meters follow the `Usage Bars` preferences owned by [Status Bar](status-bar.md): percent used or left, session and weekly colors, and layout. `Classic Layout` stacks title, bar, then percent and reset text for each window. `Compact Layout` puts both windows in one grid with the columns label, bar, percent, and reset, so both bars have the same width and the percent and reset text line up between rows. The account name and plan header keeps the same spacing in both layouts.
-- If no saved account matches any live active account, show a clear empty state instead of pretending an account is active.
+  | State | Title | Line |
+  |---|---|---|
+  | Waiting for the first read | `Waiting for Codex usage` (or the tool's name) | none |
+  | Stale | none, meters dimmed | `As of 10:26` |
+  | Read failed with an earlier reading | the failure title, meters dimmed | `As of 10:26` |
+  | Read failed with no earlier reading | the failure title | the failure line |
+  | No Codex account in use | `No saved account in use` | `Pick one in this menu.` |
+  | Signing in (Claude) | `Finish signing in in your browser` | none |
 
-## Accounts Section
+  Failure titles come from `ProviderCopy`, for example `Can't reach Anthropic` / `Retrying in a few minutes.`, `Cursor is busy`, `Cursor isn't installed`, `Allow Keychain access`. A Codex reading older than two refreshes, and at least 15 minutes, is stale.
+- **Action rows.** While a state lasts, one row sits under the card: `Allow Keychain access…` or `Cancel Sign-In`.
 
-Owned behavior: [Accounts](accounts/00-accounts.md).
+## Side Menu
 
-UX responsibility here:
+Hovering a card opens its side menu:
 
-- Show saved catalog rows below the active account card.
-- Keep rows compact: account display name plus session/weekly summary. The summary percentages follow the `Show % Used` / `Show % Left` preference.
-- Use a submenu per row for switching and account management.
-- Use `More Accounts…` when the visible-account limit hides additional saved accounts.
+1. The email of the account in use, disabled.
+2. `Use <email>` when exactly one other account is saved, or `Use Another <Tool> Account ›` listing them.
+3. Codex only: `Use a Reset…`, then one disabled `Expires <date>` line per credit Codex listed, and `Token Usage ›` when token usage is on ([Token Usage](token-usage.md)).
+4. `Move to Top`, `Move Up`, `Move Down`, when there is more than one card. Moves that do not apply are disabled.
+5. `Add <Tool> Account…` and `Remove <Tool> Account ›` listing every saved account.
+6. Claude and Cursor only: `Disconnect <Tool>`, last.
 
-## App Controls Section
+`Hide Emails` masks every email the menu and the tooltip show: `alex.side@example.com` reads `al•••e@example.com`. The domain stays visible.
 
-The lower section is called App Controls in product docs. It is not called Preferences because it contains both settings and feature entry points.
+Every tool item carries a `ProviderMenuAction` and goes through `MenuBarCoordinator.performProviderAction(_:)`.
 
-Entries:
+## Settings
 
-- `Add Account…`: entry point owned by [Accounts](accounts/00-accounts.md).
-- `Refresh Interval`: setting that controls scheduled refresh cadence.
-- `Preferences`: visual settings owned by [Status Bar](status-bar.md), plus app-level controls such as [Launch at Login](app-controls/01-launch-at-login.md) and, while connected, `Disconnect Claude Code…` from [Claude Usage](claude-usage.md) and `Disconnect Cursor…` from [Cursor Usage](cursor-usage.md).
-- `Diagnostics…`: user-initiated support artifact export. CodexPill first explains what the export contains, then writes a redacted JSON file only if the user confirms. The report is built from allowlisted diagnostic fields, per-export account aliases, summarized freshness/result states, and recent CodexPill-owned workflow events. It must not include raw logs, auth JSON, saved snapshots, raw UserDefaults, emails, hostnames, local paths, tokens, stable account IDs, prompt/session content, or raw stderr.
-- `About`: app-level informational alert.
-- `Quit`: app-level quit command, separated from status and controls.
+```text
+Add Account ›        Codex…  Claude…  Cursor…
+─────
+Appearance ›         Menu Bar Label ›  Icon Style ›  Usage Bars ›  ─  Show Token Usage
+Hide Emails
+Refresh Every ›      1 minute … 30 minutes
+Launch at Login
+─────
+Diagnostics…
+About
+```
 
-## Busy And Status States
+`Claude…` and `Cursor…` connect a tool that is not connected yet, and otherwise save the sign-in the tool uses now as another account.
 
-When CodexPill is busy, menu actions that would conflict with the active workflow should be disabled or routed through their existing confirmation flow.
+`Diagnostics…` first explains what the export contains, then writes a redacted JSON file only if the user confirms. The report holds allowlisted fields, per-export account aliases, summarized freshness states and recent CodexPill workflow events. It never includes raw logs, auth JSON, snapshots, raw UserDefaults, emails, hostnames, local paths, tokens, stable account IDs, prompt or session content, or raw stderr.
 
-If `statusMessage` is visible, it appears below App Controls and above `Quit`.
+## Rendering
+
+The menu is a native `NSMenu`. Each card is an `NSMenuItem` whose view is a `MenuCardItemView` hosting the SwiftUI `ToolCardView`, with the side menu as its submenu. `MenuCardItemView` draws the hover highlight, because AppKit draws none for view-based items. Views do no I/O: `MenuBarMenuState.toolSections` turns the state into one `ToolSection` per card.
 
 ## Validation Notes
 
-Menu tests build the `NSMenu` with `MenuBarMenuBuilder` and assert section ordering, direct-row versus submenu placement, action wiring, disabled states during busy work, and the presence or absence of optional sections. Coordinator flow tests live in `MenuBarCoordinatorTests`.
+`ToolSectionTests` cover the card model per state: order, hidden windows, titles and lines, plan tags, masked emails and moves. `MenuBarMenuBuilderTests` build the `NSMenu` and assert item titles, order, submenus and the action each item sends. Coordinator flows live in `MenuBarCoordinatorTests`.

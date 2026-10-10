@@ -35,23 +35,19 @@ Token Usage treats daily buckets as local-session scoped. It does not promise a 
 
 ## Happy Path
 
-1. User enables Token Usage from Preferences.
+1. User enables `Settings › Appearance › Show Token Usage`.
 2. CodexPill starts scanning recent local Codex session JSONL files in the background.
 3. User can close the menu or continue working while the scan completes.
 4. CodexPill aggregates safe token totals by day and stores them in a derived cache.
-5. The main menu shows a compact Token Usage card inside the active account area, directly below the Session and Weekly limit rows.
-6. Chart-style changes update the visible card from cached aggregate data.
+5. The Codex side menu gains `Token Usage ›`, which shows the card.
 
 ## UI / Copy / States
 
-Preferences:
+Settings › Appearance:
 
-- `Token Usage`
 - `Show Token Usage`
-- `Chart Style`
-- `Daily Bars`
-- `Heat Strip`
-- `Sparkline`
+
+The card uses daily bars. Chart style, loading animation and peak-day scope have no menu control.
 
 Default:
 
@@ -120,7 +116,7 @@ Expected behavior:
 
 ## Acceptance Criteria
 
-- Token Usage can be enabled and disabled from Preferences.
+- Token Usage can be enabled and disabled from `Settings › Appearance`.
 - When disabled, the main menu does not show the Token Usage card.
 - When enabled, the main menu shows a compact Token Usage card inside the active account area, directly below the Session and Weekly limit rows.
 - The card displays the selected chart style for the selected period.
