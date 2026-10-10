@@ -143,9 +143,9 @@ App startup builds each store from one `UserDefaults` instance and injects the o
 
 ## Boundary Notes
 
-`AppComposition` is the App composition root. It chooses production or validation adapters, builds the `AccountsController`, and constructs `MenuBarCoordinator` with every collaborator passed in. `MenuBarCoordinator.init` has no production defaults, so a new collaborator is wired in one place. Tests build the coordinator through `Tests/Support/MenuBarCoordinatorTestFactory.swift`.
+`AppComposition` is the App composition root. It chooses the production adapters, builds the `AccountsController`, and constructs `MenuBarCoordinator` with every collaborator passed in. `MenuBarCoordinator.init` has no production defaults, so a new collaborator is wired in one place. Tests build the coordinator through `Tests/Support/MenuBarCoordinatorTestFactory.swift`.
 
-`AppRuntimeEnvironment` is read only in `Sources/App`. App turns the process environment into plain values and passes them in: the isolated app-support root for `AccountRepository` and the token-usage cache, whether system alerts and panels suppress interactive prompts, the validation auto-refresh interval, and which process client to use. Features and Platform code never read `AppRuntimeEnvironment`.
+`AppRuntimeEnvironment` is read only in `Sources/App`. App turns the process environment into plain values and passes them in: the isolated app-support root for `AccountRepository` and the token-usage cache, the isolated defaults suite, and whether system alerts and panels suppress interactive prompts. Features and Platform code never read `AppRuntimeEnvironment`.
 
 `AccountsFeatureFactory` is the production composition boundary for the account feature. App startup chooses platform adapters such as `AccountRepository`, `CodexAuthSnapshotService`, `CodexAppProcessClient`, and `CodexAccountStatusClient`, then asks the factory for an `AccountsController`. App hands that controller to `MenuBarCoordinator` as `MenuBarAccounts`; the factory builds no MenuBar types.
 
@@ -184,7 +184,7 @@ Rules:
 - `~/Library/Application Support/CodexPill` is CodexPill-owned state, not the source of truth for the live Codex account.
 - `~/Library/Application Support/Codex` is only an observation surface when needed.
 - Rate limits should come from app-server surfaces, not manual counters.
-- Tests and validation harnesses must use temp paths and injected process clients unless a live mutation scenario explicitly opts in.
+- Tests must use temp paths and injected process clients.
 
 ## Naming Conventions
 
@@ -241,4 +241,4 @@ If a change touches file paths, snapshot storage, Codex process control, app-ser
 
 If a type is shared domain data or app-wide configuration, it belongs in `Core`.
 
-If a change is only for startup, shutdown, validation bootstrap, or dependency wiring, it belongs in `App`.
+If a change is only for startup, shutdown, isolated launch, or dependency wiring, it belongs in `App`.

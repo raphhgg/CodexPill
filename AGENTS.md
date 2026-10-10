@@ -12,7 +12,7 @@
 1. Read this file first.
 2. Read `docs/PRODUCT.md` and `docs/features/README.md` for product truth.
 3. Read `docs/DEVELOPMENT.md` before build, run, or validation commands.
-4. Read `docs/PRIVACY.md` before touching account, auth, logging, or remote-host code.
+4. Read `docs/PRIVACY.md` before touching account, auth, or logging code.
 
 ## Architecture Defaults
 

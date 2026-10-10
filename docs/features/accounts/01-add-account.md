@@ -217,7 +217,7 @@ Given CodexPill crashes during isolated sign-in, when CodexPill next launches, t
 
 ## Validation Targets
 
-The Add Account acceptance criteria should drive unit, integration, and live UI validation. At minimum, validation should cover:
+The Add Account acceptance criteria should drive unit and integration tests. At minimum, tests should cover:
 
 - `add_account_duplicate_display_name_blocks_before_sign_in`
 - `add_account_shows_device_code_and_copy_action`

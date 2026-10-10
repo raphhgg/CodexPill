@@ -88,10 +88,10 @@ Reset local state before testing the signed release install:
 ```
 
 The reset script is dry-run by default. It removes CodexPill app state,
-preferences, local build artifacts, isolated temporary login homes, and optional
-remote `~/.codexpill` cache when called with `--remote <host>`. Use
-`--remote-sign-out` only when you intentionally want to remove the remote
-host's active Codex login.
+preferences, local build artifacts, and isolated temporary login homes. With
+`--remote <host>` it also removes the `~/.codexpill` cache that earlier versions
+copied to an SSH host. Use `--remote-sign-out` only when you intentionally want
+to remove that host's active Codex login.
 
 ## Isolated Launch
 
@@ -129,6 +129,6 @@ manual checklist. Run `make test` before opening a pull request.
 
 - Codex is installed as `com.openai.codex`.
 - The primary live auth file is `~/.codex/auth.json`.
-- Rate-limit reads come from local or remote `codex app-server` surfaces.
+- Rate-limit reads come from the local `codex app-server`.
 - Tuist must be installed locally before build validation can succeed.
 - Privacy and data-handling expectations live in [PRIVACY.md](PRIVACY.md).
