@@ -149,19 +149,31 @@ extension MenuBarMenuState {
             }
         }
 
+        let accounts = accountLabels(usage.accounts)
         return ToolSection(
             provider: usage.provider,
             planTag: snapshot.flatMap { planTag(for: usage.provider, planName: $0.planName) },
             card: card,
-            accounts: (usage.accounts.filter(\.isActive) + usage.accounts.filter { !$0.isActive }).map { account in
-                ToolAccount(
-                    id: account.id,
-                    label: account.email.map { displayedEmail($0, masked: masksEmails) } ?? "Saved account",
-                    isActive: account.isActive
-                )
-            },
+            accounts: accounts.filter(\.isActive) + accounts.filter { !$0.isActive },
             followUp: followUp
         )
+    }
+
+    /// An account reads as its email, else its organization, else "Saved account". Labels that would repeat get
+    /// a number in saved order, so it does not move when the user switches: "Saved account", "Saved account 2".
+    /// An organization name with an @ in it is skipped, because Claude names personal organizations after the email.
+    private func accountLabels(_ accounts: [ProviderAccount]) -> [ToolAccount] {
+        let baseLabels = accounts.map { account in
+            if let email = account.email { return displayedEmail(email, masked: masksEmails) }
+            if let name = account.name, !name.contains("@") { return name }
+            return "Saved account"
+        }
+        var seen: [String: Int] = [:]
+        return zip(accounts, baseLabels).map { account, label in
+            seen[label, default: 0] += 1
+            let count = seen[label] ?? 1
+            return ToolAccount(id: account.id, label: count > 1 ? "\(label) \(count)" : label, isActive: account.isActive)
+        }
     }
 
     /// A reading that is not current keeps its meters, dimmed, under the time it was read.

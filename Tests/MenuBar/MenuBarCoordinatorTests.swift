@@ -26,6 +26,24 @@ struct MenuBarCoordinatorTests {
     }
 
     @Test
+    func firstRunAsksToAddACodexAccountOnlyWhenNoToolIsConnected() async throws {
+        for (claudeReading, expectedPrompts) in [(UsageProviderReading.notConnected, 1), (.awaitingUsage, 0)] {
+            let harness = try MenuBarCoordinatorHarness()
+            defer { harness.tearDown() }
+            let coordinator = harness.makeCoordinator(
+                providerConnections: [ProviderConnectionProbe(provider: .claude, reading: claudeReading)],
+                allowsEmptyStatePrompt: true
+            )
+
+            coordinator.start()
+            await coordinator.waitForPendingWork()
+            await withCheckedContinuation { continuation in DispatchQueue.main.async { continuation.resume() } }
+
+            #expect(harness.alertPresenter.textInputRequests.count == expectedPrompts)
+        }
+    }
+
+    @Test
     func fullyUsedProviderDoesNotChangeAccountRanking() async throws {
         let harness = try MenuBarCoordinatorHarness()
         defer { harness.tearDown() }
@@ -357,6 +375,7 @@ private final class MenuBarCoordinatorHarness {
 
     func makeCoordinator(
         providerConnections: [any ProviderConnection] = [],
+        allowsEmptyStatePrompt: Bool = false,
         resetCreditClient: CodexResetCreditClient = UnavailableResetCreditClient(),
         now: @escaping () -> Date = Date.init
     ) -> MenuBarCoordinator {
@@ -376,7 +395,7 @@ private final class MenuBarCoordinatorHarness {
             alertPresenter: alertPresenter,
             panelPresenter: panelPresenter,
             providerConnections: providerConnections,
-            allowsEmptyStatePrompt: false,
+            allowsEmptyStatePrompt: allowsEmptyStatePrompt,
             now: now
         )
         self.coordinator = coordinator

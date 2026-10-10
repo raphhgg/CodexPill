@@ -29,6 +29,10 @@ struct ClaudeCodeUsage: ProviderConnection {
         await client.allowKeychainPromptOnNextRead()
     }
 
+    var isConnected: Bool {
+        settings.isEnabled
+    }
+
     func disconnect() async {
         settings.isEnabled = false
     }
@@ -39,7 +43,9 @@ struct ClaudeCodeUsage: ProviderConnection {
         guard let accounts else { return [] }
         do {
             let activeID = try accounts.activeAccountID()
-            return try accounts.accounts().map { ProviderAccount(id: $0.id, email: $0.email, isActive: $0.id == activeID) }
+            return try accounts.accounts().map {
+                ProviderAccount(id: $0.id, email: $0.email, name: $0.organizationName, isActive: $0.id == activeID)
+            }
         } catch {
             throw error.notice
         }

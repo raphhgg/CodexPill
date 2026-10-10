@@ -28,12 +28,14 @@ final class ProviderUsageRuntime {
         self.onChange = onChange
     }
 
-    /// Tools read at least once, in registration order, with staleness judged now.
+    /// Tools read at least once or connected, in registration order, with staleness judged now. A connected tool
+    /// waits for its first read instead of looking unconnected.
     var states: [ProviderUsageState] {
         let date = now()
         return connections.compactMap { connection in
             let provider = connection.provider
-            return readings[provider].map {
+            let reading = readings[provider] ?? (connection.isConnected ? .awaitingUsage : nil)
+            return reading.map {
                 ProviderUsageState(
                     provider: provider,
                     status: ProviderUsageStatus(
@@ -47,6 +49,10 @@ final class ProviderUsageRuntime {
                 )
             }
         }
+    }
+
+    var hasConnectedTool: Bool {
+        connections.contains(where: \.isConnected)
     }
 
     func connection(for provider: UsageProvider) -> (any ProviderConnection)? {

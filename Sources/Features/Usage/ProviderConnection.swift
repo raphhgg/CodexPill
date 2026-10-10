@@ -7,6 +7,8 @@ import Foundation
 /// its usage lives on each saved `CodexAccount` and adding a Codex account is an interactive sign-in panel. The
 /// coordinator routes `.codex` actions to `AccountsController` instead.
 protocol ProviderConnection: UsageProviderSource {
+    /// The user connected this tool, so the menu shows its card before its first read lands.
+    var isConnected: Bool { get }
     /// Reads with the tool's sign-in from now on, and lets the next read show a macOS prompt because the user asked.
     /// Calling it again, as "Allow Keychain access…" does, only allows the prompt again.
     func connect() async
@@ -34,6 +36,8 @@ protocol ProviderSignIn: Sendable {
 struct ProviderAccount: Equatable, Identifiable, Sendable {
     let id: UUID
     var email: String?
+    /// What to call a sign-in without an email, such as its organization.
+    var name: String? = nil
     var isActive: Bool
 }
 

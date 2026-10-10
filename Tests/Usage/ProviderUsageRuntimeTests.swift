@@ -48,13 +48,14 @@ struct ProviderUsageRuntimeTests {
     }
 
     @Test
-    func publishesUnreadProvidersOnlyAfterTheirFirstReadAndReportsEachState() async {
+    func connectedToolWaitsForItsFirstReadThenEachToolReportsItsState() async {
         let claude = ProviderConnectionProbe(provider: .claude, reading: .notConnected)
         let cursor = ProviderConnectionProbe(provider: .cursor, reading: .unavailable(.signInExpired))
         var changeCount = 0
         let runtime = ProviderUsageRuntime(connections: [claude, cursor], now: { start }, onChange: { changeCount += 1 })
 
-        #expect(runtime.states == [])
+        #expect(runtime.states == [ProviderUsageState(provider: .cursor, status: .awaitingUsage)])
+        #expect(runtime.hasConnectedTool)
 
         await runtime.refreshIfDue()
 
