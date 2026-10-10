@@ -55,10 +55,11 @@ struct ActiveAccountMenuContent: View {
                 .padding(.top, -2)
 
             UsageMeters(
-                meters: [
-                    UsageMeter(title: "Session", window: account.usage?.window(.session), tintColor: sessionAccentColor),
-                    UsageMeter(title: "Weekly", window: account.usage?.window(.weekly), tintColor: weeklyAccentColor)
-                ],
+                meters: UsageMeter.codexMeters(
+                    for: account.usage,
+                    sessionTint: sessionAccentColor,
+                    weeklyTint: weeklyAccentColor
+                ),
                 layout: meterLayout,
                 percentMode: percentMode,
                 showsPacingMarkers: showsPacingMarkers,

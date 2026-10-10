@@ -67,9 +67,11 @@ func compactMenuRowUsageSummary(
     percentMode: UsagePercentMode = .used,
     now: Date = .now
 ) -> String {
-    let session = compactLimitDetail(prefix: "S", window: account.usage?.window(.session), percentMode: percentMode, now: now)
-    let weekly = compactLimitDetail(prefix: "W", window: account.usage?.window(.weekly), percentMode: percentMode, now: now)
-    return "\(session)  \(weekly)"
+    [("S", UsageWindowKind.session), ("W", .weekly)]
+        .compactMap { prefix, kind in
+            account.usage?.window(kind).map { compactLimitDetail(prefix: prefix, window: $0, percentMode: percentMode, now: now) }
+        }
+        .joined(separator: "  ")
 }
 
 func compactElapsedTime(since date: Date, now: Date = .now) -> String {
@@ -93,15 +95,15 @@ func compactElapsedTime(since date: Date, now: Date = .now) -> String {
 
 private func compactLimitDetail(
     prefix: String,
-    window: UsageWindow?,
+    window: UsageWindow,
     percentMode: UsagePercentMode,
     now: Date
 ) -> String {
-    let percentText = window.map { "\(displayedPercent(of: $0, mode: percentMode, now: now))%" } ?? "--"
-    if window?.displayedUsedPercent(at: now) == 0 {
+    let percentText = "\(displayedPercent(of: window, mode: percentMode, now: now))%"
+    if window.displayedUsedPercent(at: now) == 0 {
         return "\(prefix) \(percentText)"
     }
-    guard let window, let resetText = compactResetText(for: window, now: now) else {
+    guard let resetText = compactResetText(for: window, now: now) else {
         return "\(prefix) \(percentText)"
     }
     return "\(prefix) \(percentText) (\(resetText))"
@@ -111,9 +113,8 @@ func displayedPercent(of window: UsageWindow, mode: UsagePercentMode, now: Date 
     mode.percent(forUsedPercent: window.displayedUsedPercent(at: now))
 }
 
-func usageMeterPercentText(for window: UsageWindow?, mode: UsagePercentMode, now: Date = .now) -> String {
-    guard let window else { return "--" }
-    return "\(displayedPercent(of: window, mode: mode, now: now))% \(mode.label)"
+func usageMeterPercentText(for window: UsageWindow, mode: UsagePercentMode, now: Date = .now) -> String {
+    "\(displayedPercent(of: window, mode: mode, now: now))% \(mode.label)"
 }
 
 func statusItemBarPercents(
