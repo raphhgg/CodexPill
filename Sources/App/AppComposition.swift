@@ -100,7 +100,7 @@ struct AppComposition {
     /// An isolated run never reads Cursor's real sign-in: it reads `Cursor/state.vscdb` inside the isolated root.
     private static func makeCursorUsage(defaults: UserDefaults, isolatedRootDirectory: URL?) -> CursorUsage {
         let tokenSource = isolatedRootDirectory.map {
-            CursorStateDatabaseTokenSource(databaseURL: $0.appendingPathComponent("Cursor/state.vscdb"))
+            CursorStateDatabaseTokenSource(databaseURL: CursorStateDatabase.isolatedURL(root: $0))
         } ?? CursorStateDatabaseTokenSource()
         return CursorUsage(
             settings: CursorUsageSettingsStore(userDefaults: defaults),
