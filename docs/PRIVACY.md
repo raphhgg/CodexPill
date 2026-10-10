@@ -1,6 +1,6 @@
 # Privacy And Data Handling
 
-CodexPill is a local macOS menubar utility for Codex account switching and limit visibility. Its most sensitive data is Codex authentication state. Treat saved account snapshots as secrets.
+CodexPill is a local macOS menubar utility for Codex account switching and limit visibility. It can also show Claude Code usage if you connect it. Its most sensitive data is Codex authentication state. Treat saved account snapshots as secrets.
 
 ## What CodexPill Reads
 
@@ -11,6 +11,7 @@ During normal use, CodexPill may read:
 - Local Codex app-server status to refresh account and limit information.
 - Local process information to detect running Codex CLI sessions when a switch may require a restart or user action.
 - CodexPill-owned state under `~/Library/Application Support/CodexPill`.
+- Claude Code's sign-in, from `~/.claude/.credentials.json` or the `Claude Code-credentials` Keychain item, only while Claude Code usage is connected.
 
 ## What CodexPill Writes Or Stores
 
@@ -27,6 +28,10 @@ Saved auth snapshots contain authentication material and must be handled like cr
 
 CodexPill never copies Codex auth snapshots or Codex tokens to another machine or service. Earlier versions could copy a selected snapshot to an SSH host you configured. That feature is gone. [Uninstall And Reset](UNINSTALL_RESET.md) explains how to remove what it left on a host.
 
+## Claude Code Usage
+
+**Claude Code usage (optional).** Claude Code usage is off by default. `Connect Claude Code…` asks for consent before anything is read. While it is on, CodexPill reads Claude Code's sign-in read-only, from `~/.claude/.credentials.json` (or `CLAUDE_CONFIG_DIR`) when that file exists, otherwise from the `Claude Code-credentials` item in your Keychain. It never changes Claude Code's files or Keychain item. macOS may ask you to allow Keychain access, and CodexPill shows that prompt only right after you connect or choose `Allow Keychain access…`. CodexPill sends the token only to api.anthropic.com, to fetch your 5-hour and weekly limits. It refuses redirects to other hosts, so the token never goes anywhere else. It never stores, logs, displays, or refreshes the token, and it never reads the refresh token, browser cookies, or Claude conversation data. `Disconnect Claude Code…` turns the feature off and stops all reads.
+
 ## What CodexPill Does Not Require By Default
 
 Normal CodexPill usage does not require:
@@ -42,7 +47,7 @@ Accessibility may still be useful for development or validation tooling that ins
 
 ## Network And External Services
 
-CodexPill talks to Codex through local Codex surfaces. It must not send auth snapshots, raw auth payloads, or tokens to analytics services, crash-reporting systems, issue trackers, or third-party APIs.
+CodexPill talks to Codex through local Codex surfaces. When Claude Code usage is on, it also calls api.anthropic.com with Claude Code's own sign-in token. It must not send Codex auth snapshots, raw auth payloads, or tokens to analytics services, crash-reporting systems, issue trackers, or any other third-party API. A token may go only to the service that issued it.
 
 If future features add status-page checks, diagnostics export, or usage statistics, they must keep the same rule: aggregate or redact data before it leaves the machine, and never include raw auth payloads or tokens.
 

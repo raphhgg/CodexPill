@@ -6,7 +6,8 @@ The product replaces manual auth-file swapping and repeated app restarts with a 
 
 - save Codex accounts as reusable local snapshots;
 - switch the active Codex account from the menubar;
-- see current session and weekly Codex usage before choosing which account to use.
+- see current session and weekly Codex usage before choosing which account to use;
+- optionally see Claude Code usage next to Codex.
 
 Detailed product behavior and UX contracts live in [features](features/README.md).
 
@@ -35,7 +36,7 @@ Secondary user:
 ## Product Principles
 
 - Menubar-first, not settings-first.
-- Local-first, no cloud dependency.
+- Local-first, no CodexPill cloud service.
 - Fast account switching over broad account administration.
 - Explicit boundaries around file I/O, process control, and Codex integration.
 - Do not expose raw auth payloads, tokens, or secrets in UI or logs.
@@ -58,6 +59,10 @@ A stored copy of Codex auth state used for later re-activation. A snapshot is no
 ### Rate-Limit Snapshot
 
 The most recently fetched view of Codex session and weekly availability.
+
+### Display-Only Provider
+
+A non-Codex tool whose usage CodexPill shows. Claude Code is one. It is opt-in and has its own menu section below the saved accounts. Its usage never affects Codex account availability, ranking, or notifications.
 
 ## Non-Goals
 
