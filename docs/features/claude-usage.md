@@ -8,7 +8,7 @@ As a CodexPill user who also works in Claude Code on a Pro or Max plan, I want t
 
 Claude Usage is an optional, read-only, local-first feature. CodexPill shows the Claude subscription limit windows that Claude Code already reports to its own status line. CodexPill does not switch Claude accounts, sign in to Claude, or contact any Anthropic service.
 
-The feature has one setup step that changes a file outside CodexPill: it points Claude Code's `statusLine.command` at a small relay script. CodexPill must show the exact change and ask for consent before it writes, and it must offer an uninstall that restores the previous status line.
+The feature has one setup step that changes a file outside CodexPill: it points Claude Code's `statusLine.command` at a small relay script. CodexPill must ask for consent before it writes, with the exact change one click away, and it must offer an uninstall that restores the previous status line.
 
 Claude usage is display-only. It never feeds account availability, ranking, or notifications, which stay Codex-only.
 
@@ -54,10 +54,10 @@ When several Claude Code sessions run at once, the last one to update wins. They
 The menu shows a `Claude Code` section below the saved accounts. It has no switching actions.
 
 - **Not connected.** The status line does not run the relay. The section shows one `Connect Claude Code…` action.
-- **Waiting for usage.** The relay is set up, but no snapshot exists yet or it has no windows. The user is not on Pro or Max, or no Claude Code session has received an API response since setup. Copy: `Waiting for Claude Code…` / `Usage appears after your next Claude Code message on a Pro or Max plan.`
+- **Waiting for usage.** The relay is set up, but no snapshot exists yet or it has no windows. The user is not on Pro or Max, or no Claude Code session has received an API response since setup. Copy: `Waiting for Claude Code` / `Send a message in Claude Code to see usage.`
 - **Current.** Windows present and captured within the freshness limit. `Session` and `Weekly` rows use the same meters, percent mode, layout, colors, and pacing markers as the Codex card, with `As of <time>` above them.
-- **Stale.** Windows present but captured more than one hour ago. The rows are dimmed and the label reads `Stale, as of <time>`.
-- **Unreadable.** The file exists but does not parse. Copy: `Claude Code usage unavailable` / `CodexPill could not read the saved usage.` CodexPill keeps the file untouched. Error messages never include file contents.
+- **Stale.** Windows present but captured more than one hour ago. The rows are dimmed and the label still reads `As of <time>`.
+- **Unreadable.** The file exists but does not parse. Copy: `Can't read Claude Code usage` / `Retrying soon.` CodexPill keeps the file untouched. Error messages never include file contents.
 
 `<time>` is the time alone for today, otherwise the date and time. When connected, `Preferences` > `Disconnect Claude Code…` undoes the setup.
 
@@ -69,7 +69,12 @@ The menu shows a `Claude Code` section below the saved accounts. It has no switc
 
 ## Consent, Install, And Uninstall
 
-Setup follows "a human step is one guided command": one `Connect Claude Code…` action shows the exact `statusLine` entry before and after the change, as the planner computes it, and asks for consent in one alert. It shows only that entry, never the rest of `settings.json`, because the file can hold secrets in `env`. If `settings.json` changes between the alert and the write, CodexPill writes nothing and asks the user to try again. On consent, CodexPill:
+Setup follows "a human step is one guided command": one `Connect Claude Code…` action asks for consent in one short alert:
+
+> **Connect Claude Code?**
+> CodexPill will add a small script to Claude Code's status line to read your usage limits. You can disconnect in Preferences.
+
+A collapsed `Show Change` disclosure in the same alert reveals the settings path and the exact `statusLine` entry before and after the change, as the planner computes it. It shows only that entry, never the rest of `settings.json`, because the file can hold secrets in `env`. If `settings.json` changes between the alert and the write, CodexPill writes nothing and says so. On consent, CodexPill:
 
 1. Copies the relay into its app-support `bin` folder with owner-only permissions.
 2. Writes a one-time backup, `settings.json.codexpill-backup`, next to the settings file.
@@ -77,9 +82,11 @@ Setup follows "a human step is one guided command": one `Connect Claude Code…`
 
 CodexPill honors `CLAUDE_CONFIG_DIR` from its own environment, and it writes through a symlinked `settings.json` instead of replacing the link. The settings file is rewritten with sorted keys, so key order can change. An isolated validation run (`CODEXPILL_VALIDATION_APP_SUPPORT_DIR`) uses `<isolated root>/.claude` unless `CLAUDE_CONFIG_DIR` is set, so it never edits the real `~/.claude`.
 
-`Disconnect Claude Code…` shows the same before and after view, then restores the previous command, or removes the `statusLine` entry when there was none. It removes the relay copy and the saved `claude-usage.json`. If the user changed `statusLine.command` after setup, CodexPill no longer treats Claude Code as connected and leaves the setting alone.
+If a write fails, CodexPill shows `Could Not Update Claude Code` with one sentence for the cause, for example `CodexPill could not read Claude Code's settings, so nothing changed.`
 
-Known effects the consent view must state:
+`Disconnect Claude Code…` asks `Disconnect Claude Code?` / `CodexPill will restore your previous Claude Code status line.`, with the same `Show Change` disclosure, then restores the previous command, or removes the `statusLine` entry when there was none. It removes the relay copy and the saved `claude-usage.json`. If the user changed `statusLine.command` after setup, CodexPill no longer treats Claude Code as connected and leaves the setting alone.
+
+The alert stays short, so these known effects live in this doc rather than in the alert:
 
 - Users with no previous status line get a custom status line that prints nothing. Claude Code hides most footer keyboard hints whenever a custom status line is configured.
 - `disableAllHooks` or a managed `allowManagedHooksOnly` policy stops the relay from running. CodexPill then stays in Not connected or Stale.

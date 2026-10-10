@@ -19,13 +19,19 @@ The data contract shipped in the Cursor data-layer PR. The menu section below sh
 A `Cursor` section sits below `Claude Code`. It never affects account availability, ranking, switching, or notifications.
 
 - **Not connected.** The section shows `Connect Cursor…`. Choosing it opens a consent alert first. Nothing is read until the user confirms.
-- **Consent alert.** Title `Connect Cursor?`. It says that CodexPill reads the Cursor sign-in from Cursor's app data on this Mac without changing Cursor's files, sends it only to cursor.com to fetch plan usage, on-demand spend, and billing cycle, and does not store, log, or show it. It names `Disconnect Cursor` in Preferences as the way to stop.
+- **Consent alert.** One short alert:
+
+  > **Connect Cursor?**
+  > CodexPill will read Cursor's sign-in on this Mac to show your plan usage from cursor.com. You can disconnect in Preferences.
+
+  The alert stays short. The read and send rules live in the Source Contract below and in [PRIVACY.md](../PRIVACY.md).
 - **Connected.** The choice is saved in user defaults (`cursorUsageEnabled`, off by default). `Preferences` gains `Disconnect Cursor…`, which turns the feature off at once with no alert, because it changes nothing outside CodexPill.
 - **Current.** A caption with the plan and the read time (`Pro plan · As of 10:42`), one `Billing cycle` meter with `Resets Oct 30`, and, when on-demand usage is enabled, a text line: `On-demand: $12.34 of $50.00`, or `On-demand: $12.34` with no cap. Spend is never drawn as a bar. The meter follows the `% used` or `% left` setting, the meter layout, pacing markers, and the weekly color.
-- **Cursor not installed or signed out.** A short message (`Cursor isn't installed`, `Not signed in to Cursor`) with a one-line hint. Last good values are cleared.
-- **Sign-in expired or rejected.** `Sign in to Cursor again`, with the last good values dimmed below it and their `As of` time.
-- **Read failed** (network, unexpected response, unreadable database). `Cursor usage unavailable`, with the last good values dimmed below it and their `As of` time.
-- **Stale.** A snapshot older than 15 minutes is dimmed and labeled `Stale, as of …` until the next read.
+- **Cursor not installed.** `Cursor isn't installed`, with no second line. Last good values are cleared.
+- **Signed out.** `Not signed in to Cursor` / `Sign in to Cursor to see usage.` Last good values are cleared.
+- **Sign-in expired or rejected.** `Sign in to Cursor again`, with no second line, and the last good values dimmed below it with their `As of` time.
+- **Read failed** (network, unexpected response, unreadable database). `Can't reach cursor.com` / `Retrying in a few minutes.`, with the last good values dimmed below it and their `As of` time.
+- **Stale.** A snapshot older than 15 minutes is dimmed. Its label still reads `As of …` until the next read.
 
 Reads happen when the menu opens or on the scheduled refresh, at most every 5 minutes. Connecting or disconnecting reads at once.
 
@@ -61,11 +67,11 @@ CodexPill does not call `/api/auth/me`. Display-only usage needs no email or use
 | State | Meaning | Menu copy |
 | --- | --- | --- |
 | Available | Fresh usage was read. | `Billing cycle` meter at 82%, `Resets Oct 30`, `On-demand: $12.34 of $50.00` |
-| Cursor not installed | Cursor's database does not exist on this Mac. | `Cursor isn't installed`, `Install Cursor and sign in to see your plan usage.` |
-| Signed out | Cursor has no usable session token. | `Not signed in to Cursor`, `Sign in to Cursor on this Mac to see your plan usage.` |
-| Token expired | Cursor's saved session expired and Cursor has not refreshed it yet. | `Sign in to Cursor again`, `Cursor's sign-in expired. Open Cursor to renew it.` |
+| Cursor not installed | Cursor's database does not exist on this Mac. | `Cursor isn't installed` |
+| Signed out | Cursor has no usable session token. | `Not signed in to Cursor`, `Sign in to Cursor to see usage.` |
+| Token expired | Cursor's saved session expired and Cursor has not refreshed it yet. | `Sign in to Cursor again`, last good values dimmed |
 | Unauthorized | cursor.com rejected the session. | Same as token expired |
-| Unavailable | Network failure, an unexpected response, or an unreadable local database. | `Cursor usage unavailable`, `CodexPill could not get usage from cursor.com. It tries again in a few minutes.` |
+| Unavailable | Network failure, an unexpected response, or an unreadable local database. | `Can't reach cursor.com`, `Retrying in a few minutes.`, last good values dimmed |
 
 On-demand copy appears only when on-demand usage is enabled. With no cap, it shows the spend alone, for example `On-demand: $12.34`.
 
