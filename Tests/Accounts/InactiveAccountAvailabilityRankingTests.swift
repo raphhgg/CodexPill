@@ -1023,9 +1023,7 @@ struct InactiveAccountAvailabilityRankingTests {
             ),
             hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
                 authService: RankingNullAuthService(),
-                accountStatusClient: RankingAccountStatusErrorCase(error: RankingTestFailure.backgroundRefreshFailed),
                 savedAccountStatusClient: DisabledAccountStatusClient(),
-                identityResolver: identityResolver,
                 repository: repository
             ),
             deleteSavedAccountUseCase: DeleteSavedAccountUseCase(
@@ -1186,5 +1184,6 @@ private struct RankingNullAuthService: CodexAuthSessionStore, CodexSignInAuthSto
         )
     }
 
+    func replaceAuthSnapshot(_ authData: Data, ifUnchangedFrom expected: Data, for account: CodexAccount) throws -> CodexAccount? { nil }
     func deleteAuthSnapshot(for account: CodexAccount) throws {}
 }

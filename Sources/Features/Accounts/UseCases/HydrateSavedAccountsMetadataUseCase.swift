@@ -4,106 +4,113 @@ protocol CodexAuthSessionStore: CodexAuthActivator {
     func readCurrentAuthData() throws -> Data
     func restoreCurrentAuthData(_ data: Data) throws
     func readAuthSnapshot(for account: CodexAccount) throws -> Data
-    func saveAuthSnapshot(_ authData: Data, named name: String, existing: CodexAccount?) throws -> CodexAccount
+    func replaceAuthSnapshot(_ authData: Data, ifUnchangedFrom expected: Data, for account: CodexAccount) throws -> CodexAccount?
     func liveIdentity(forAuthData authData: Data) -> LiveCodexAccountIdentity
 }
 
 extension CodexAuthSnapshotService: CodexAuthSessionStore {
 }
 
-struct HydrateSavedAccountsMetadataResult {
-    let accounts: [CodexAccount]
-    let activeAccountID: UUID?
-    let hydratedAccountIDs: [UUID]
+struct SavedAccountMetadataUpdate: Equatable {
+    let accountID: UUID
+    let email: String?
+    let planType: String?
+    let rateLimits: CodexRateLimitSnapshot?
+    let updatedAt: Date
+    let identity: CodexAccountIdentity
+
+    init(_ account: CodexAccount) {
+        accountID = account.id
+        email = account.email
+        planType = account.planType
+        rateLimits = account.rateLimits
+        updatedAt = account.updatedAt
+        identity = account.identity
+    }
+}
+
+extension CodexAccount {
+    mutating func apply(_ update: SavedAccountMetadataUpdate) {
+        email = update.email
+        planType = update.planType
+        rateLimits = update.rateLimits
+        updatedAt = update.updatedAt
+        identity = update.identity
+    }
 }
 
 struct HydrateSavedAccountsMetadataUseCase: Sendable {
     private let authService: CodexAuthSessionStore
     private let savedAccountStatusClient: SavedCodexAccountStatusClient
-    private let identityResolver: SavedAccountIdentityResolver
     private let repository: AccountCatalogStore
 
     init(
         authService: CodexAuthSessionStore,
-        accountStatusClient: CodexAccountStatusClient,
         savedAccountStatusClient: SavedCodexAccountStatusClient,
-        identityResolver: SavedAccountIdentityResolver,
         repository: AccountCatalogStore
     ) {
         self.authService = authService
         self.savedAccountStatusClient = savedAccountStatusClient
-        self.identityResolver = identityResolver
         self.repository = repository
     }
 
-    func run(
-        accounts: [CodexAccount],
+    func accountIDsToRefresh(
+        in accounts: [CodexAccount],
         activeAccountID: UUID?,
-        refreshExistingMetadata: Bool = false
-    ) async throws -> HydrateSavedAccountsMetadataResult {
-        let candidateAccountIDs = accounts
+        refreshExistingMetadata: Bool
+    ) -> [UUID] {
+        accounts
             .filter { account in
                 account.id != activeAccountID &&
                     (refreshExistingMetadata || account.rateLimits == nil)
             }
             .map(\.id)
+    }
 
-        guard !candidateAccountIDs.isEmpty else {
-            return HydrateSavedAccountsMetadataResult(
-                accounts: accounts,
-                activeAccountID: activeAccountID,
-                hydratedAccountIDs: []
-            )
+    func refresh(_ account: CodexAccount, among accounts: [CodexAccount]) async -> SavedAccountMetadataUpdate? {
+        guard let snapshot = try? authService.readAuthSnapshot(for: account) else { return nil }
+        let read = await savedAccountStatusClient.readSavedAccountStatus(authData: snapshot)
+
+        var refreshed = account
+        if let rotatedAuthData = read.rotatedAuthData,
+           let rewrittenAccount = writeBackRotatedAuthData(
+               rotatedAuthData,
+               replacing: snapshot,
+               for: account,
+               accounts: accounts
+           ) {
+            refreshed = rewrittenAccount
         }
 
-        var updatedAccounts = accounts
-        var hydratedAccountIDs: [UUID] = []
-
-        for accountID in candidateAccountIDs {
-            guard let index = updatedAccounts.firstIndex(where: { $0.id == accountID }) else { continue }
-
-            guard let snapshot = try? authService.readAuthSnapshot(for: updatedAccounts[index]) else { continue }
-            let read = await savedAccountStatusClient.readSavedAccountStatus(authData: snapshot)
-
-            if let rotatedAuthData = read.rotatedAuthData,
-               let rewrittenAccount = writeBackRotatedAuthData(
-                   rotatedAuthData,
-                   for: updatedAccounts[index],
-                   accounts: updatedAccounts
-               ) {
-                updatedAccounts[index] = rewrittenAccount
-            }
-
-            guard case .success(let remote) = read.status else { continue }
+        if case .success(let remote) = read.status {
             let hasFreshRateLimits = appServerRateLimitsHaveUsableWindow(remote.rateLimits)
                 && !appServerRateLimitsLookSuspiciouslyZeroed(remote.rateLimits)
 
-            updatedAccounts[index].applyRemoteMetadata(
-                email: remote.email ?? updatedAccounts[index].email,
-                planType: remote.planType ?? updatedAccounts[index].planType,
-                rateLimits: hasFreshRateLimits ? remote.rateLimits : updatedAccounts[index].rateLimits,
+            refreshed.applyRemoteMetadata(
+                email: remote.email ?? refreshed.email,
+                planType: remote.planType ?? refreshed.planType,
+                rateLimits: hasFreshRateLimits ? remote.rateLimits : refreshed.rateLimits,
                 preferRateLimitPlan: hasFreshRateLimits
             )
-
             if hasFreshRateLimits {
-                updatedAccounts[index].updatedAt = .now
-                hydratedAccountIDs.append(accountID)
+                refreshed.updatedAt = .now
             }
         }
 
-        if updatedAccounts != accounts {
-            try repository.saveAccounts(updatedAccounts)
-        }
+        return refreshed == account ? nil : SavedAccountMetadataUpdate(refreshed)
+    }
 
-        return HydrateSavedAccountsMetadataResult(
-            accounts: updatedAccounts,
-            activeAccountID: identityResolver.resolveCurrentAccountID(accounts: updatedAccounts),
-            hydratedAccountIDs: hydratedAccountIDs
-        )
+    func save(_ update: SavedAccountMetadataUpdate, into accounts: [CodexAccount]) throws -> [CodexAccount]? {
+        guard let index = accounts.firstIndex(where: { $0.id == update.accountID }) else { return nil }
+        var updatedAccounts = accounts
+        updatedAccounts[index].apply(update)
+        try repository.saveAccounts(updatedAccounts)
+        return updatedAccounts
     }
 
     private func writeBackRotatedAuthData(
         _ rotatedAuthData: Data,
+        replacing readSnapshot: Data,
         for account: CodexAccount,
         accounts: [CodexAccount]
     ) -> CodexAccount? {
@@ -118,7 +125,11 @@ struct HydrateSavedAccountsMetadataUseCase: Sendable {
         )
         guard outcome.isSafeForOverwrite,
               outcome.matchedAccountID == account.id,
-              var rewrittenAccount = try? authService.saveAuthSnapshot(rotatedAuthData, named: account.name, existing: account)
+              var rewrittenAccount = try? authService.replaceAuthSnapshot(
+                  rotatedAuthData,
+                  ifUnchangedFrom: readSnapshot,
+                  for: account
+              )
         else {
             return nil
         }

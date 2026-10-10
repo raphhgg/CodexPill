@@ -5,13 +5,14 @@ private let silentPostActionRefreshLogger = Logger(subsystem: "com.raphhgg.codex
 
 struct SilentPostActionRefresh: Sendable {
     private let refreshActiveAccountUseCase: RefreshActiveAccountUseCase
+    private let delay: Duration
 
-    init(refreshActiveAccountUseCase: RefreshActiveAccountUseCase) {
+    init(refreshActiveAccountUseCase: RefreshActiveAccountUseCase, delay: Duration = .seconds(2)) {
         self.refreshActiveAccountUseCase = refreshActiveAccountUseCase
+        self.delay = delay
     }
 
     func run(
-        after delay: Duration,
         activeAccountID: UUID?,
         accounts: [CodexAccount]
     ) async -> RefreshActiveAccountResult? {

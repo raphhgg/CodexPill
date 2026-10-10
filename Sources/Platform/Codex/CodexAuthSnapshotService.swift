@@ -49,6 +49,15 @@ struct CodexAuthSnapshotService: Sendable {
         return account
     }
 
+    func replaceAuthSnapshot(
+        _ authData: Data,
+        ifUnchangedFrom expected: Data,
+        for account: CodexAccount
+    ) throws -> CodexAccount? {
+        guard try repository.readSnapshot(for: account) == expected else { return nil }
+        return try saveAuthSnapshot(authData, named: account.name, existing: account)
+    }
+
     func deleteAuthSnapshot(for account: CodexAccount) throws {
         try repository.deleteSnapshot(for: account)
     }

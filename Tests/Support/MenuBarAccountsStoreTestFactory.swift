@@ -33,9 +33,7 @@ extension MenuBarAccountsStore {
                 ),
                 hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
                     authService: authService,
-                    accountStatusClient: accountStatusClient,
                     savedAccountStatusClient: accountStatusClient,
-                    identityResolver: identityResolver,
                     repository: repository
                 ),
                 deleteSavedAccountUseCase: DeleteSavedAccountUseCase(

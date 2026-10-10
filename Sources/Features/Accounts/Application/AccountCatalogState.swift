@@ -36,11 +36,6 @@ struct AccountCatalogState {
         accounts = result.accounts
     }
 
-    mutating func applyHydrated(_ result: HydrateSavedAccountsMetadataResult) {
-        accounts = result.accounts
-        activeAccountID = result.activeAccountID
-    }
-
     mutating func applyRefreshed(_ result: RefreshActiveAccountResult) {
         accounts = result.accounts
         activeAccountID = result.refreshedAccountID

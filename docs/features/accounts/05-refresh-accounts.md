@@ -14,9 +14,11 @@ For each inactive saved account, CodexPill creates a temporary isolated `CODEX_H
 
 Meaningful previous rate-limit data remains authoritative when the isolated read fails or returns partial, missing, zeroed, or otherwise suspicious rate-limit data. CodexPill must not introduce background live-auth switch-and-restore for this refresh path.
 
-Inactive reads send `account/read` with `refreshToken: false`. Codex can still rotate tokens during the read when the access token is near expiry. Refresh tokens are single-use, so CodexPill reads the isolated `auth.json` back before cleanup. If it changed, CodexPill writes it to that account's saved snapshot only when its identity resolves exactly, by stable or scoped account id, to the same saved account. Otherwise it discards the rotated auth. The write-back also runs when the status read fails.
+Inactive reads send `account/read` with `refreshToken: false`. Codex can still rotate tokens during the read when the access token is near expiry. Refresh tokens are single-use, so CodexPill reads the isolated `auth.json` back before cleanup. If it changed, CodexPill writes it to that account's saved snapshot only when its identity resolves exactly, by stable or scoped account id, to the same saved account, and only when the saved snapshot still matches the one the read started from. Otherwise it discards the rotated auth. The write-back also runs when the status read fails.
 
-Inactive refresh runs on the scheduled refresh tick after the active refresh, at most once every 15 minutes. Accounts are read one at a time. The refresh is skipped while another account operation is busy.
+Inactive refresh runs on the scheduled refresh tick after the active refresh, at most once every 15 minutes. Accounts are read one at a time. The refresh does not start while another account operation is busy.
+
+Switch, remove, rename, and add wait for the account being read to finish, then the refresh stops. A rotated token is saved before the operation touches auth. Each result merges into the current account list by account id. It never replaces the list or the active account, so a removed account stays removed and a new name stays.
 
 ### Evidence
 

@@ -59,16 +59,6 @@ struct AccountCatalogStateTests {
         #expect(state.accounts == [active])
         #expect(state.activeAccountID == active.id)
 
-        state.applyHydrated(
-            HydrateSavedAccountsMetadataResult(
-                accounts: [active, other],
-                activeAccountID: active.id,
-                hydratedAccountIDs: [other.id]
-            )
-        )
-        #expect(state.accounts == [active, other])
-        #expect(state.activeAccountID == active.id)
-
         state.applyRefreshed(
             RefreshActiveAccountResult(
                 accounts: [refreshed, other],
