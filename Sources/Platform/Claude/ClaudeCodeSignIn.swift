@@ -67,16 +67,6 @@ struct ClaudeCodeSignInSnapshot: RedactedClaudeSecret {
     var organizationName: String? {
         (account?["organizationName"] as? String).flatMap { $0.isEmpty ? nil : $0 }
     }
-
-    /// The same sign-in: the same Claude account and organization, or, when Claude Code recorded no account,
-    /// the same refresh token.
-    func isSameAccount(as other: Self) -> Bool {
-        if let identity, let otherIdentity = other.identity {
-            return identity == otherIdentity
-        }
-        guard let refreshToken = oauth["refreshToken"] as? String, !refreshToken.isEmpty else { return false }
-        return refreshToken == other.oauth["refreshToken"] as? String
-    }
 }
 
 /// The Claude user and organization of a sign-in, from Claude Code's `oauthAccount`. One person can sign in to

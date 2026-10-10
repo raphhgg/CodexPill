@@ -87,20 +87,33 @@ struct ClaudeCodeAccountStoreTests {
     }
 
     @Test
-    func aSignInWithoutAnAccountRecordMatchesByItsRefreshToken() throws {
+    func aSignInWithoutAnAccountRecordIsNeverGuessedFromItsTokens() throws {
         let fixture = try ClaudeCodeAccountFixture()
         defer { fixture.remove() }
+        try fixture.signIn(.team, refreshToken: "fake-team-refresh-1")
+        let team = try fixture.store.captureCurrent()
         try fixture.signIn(.team, refreshToken: "fake-team-refresh-1", recordsAccount: false)
-        let unnamed = try fixture.store.captureCurrent()
-        #expect(unnamed.name == "Claude Account")
-        #expect(try fixture.store.captureCurrent().id == unnamed.id)
+        let before = try fixture.allFiles()
 
-        try fixture.signIn(.personal, refreshToken: "fake-personal-refresh-1")
-        _ = try fixture.store.captureCurrent()
-        try fixture.store.activate(unnamed.id)
+        #expect(throws: ClaudeCodeAccountError.claudeCodeAccountUnknown) { try fixture.store.captureCurrent() }
+        #expect(throws: ClaudeCodeAccountError.claudeCodeAccountUnknown) { try fixture.store.activate(team.id) }
+        #expect(try fixture.allFiles() == before)
+    }
 
-        #expect(try fixture.currentRefreshToken() == "fake-team-refresh-1")
-        #expect(try fixture.globalConfig()["oauthAccount"] == nil)
+    @Test
+    func noClaudeCodeIsEverAskedToRenewItsSignIn() throws {
+        let repository = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let sources = try #require(FileManager.default.enumerator(at: repository.appendingPathComponent("Sources"), includingPropertiesForKeys: nil))
+        let claudeFiles = sources.compactMap { $0 as? URL }.filter { $0.pathExtension == "swift" && $0.path.contains("Claude") }
+        #expect(claudeFiles.count > 5)
+
+        let refreshMarkers = ["refreshToken", "refresh_token", "grant_type", "/oauth/token"]
+        let offenders = try claudeFiles.filter { file in
+            let source = try String(contentsOf: file, encoding: .utf8)
+            return refreshMarkers.contains { source.contains($0) }
+        }
+        #expect(offenders.map(\.lastPathComponent) == [])
     }
 
     @Test
