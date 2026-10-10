@@ -131,8 +131,14 @@ final class AccountsController {
             accounts: accounts,
             targetAccountID: outgoingAccountID
         ) {
-            catalogState.applyRefreshed(result)
+            try applyRefreshed(result)
         }
+    }
+
+    private func applyRefreshed(_ result: RefreshActiveAccountResult) throws {
+        guard let updatedAccounts = try refreshActiveAccountUseCase.save(result, into: accounts) else { return }
+        catalogState.applyPersistedMetadata(updatedAccounts)
+        catalogState.setActiveAccountID(result.update.accountID)
     }
 
     func switchToAccountOnHost(_ account: CodexAccount, on host: RemoteHost) async -> RemoteHostSwitchOutcome {
@@ -177,7 +183,7 @@ final class AccountsController {
         guard account.id == activeAccountID else { return account }
         do {
             let result = try await refreshActiveAccountUseCase.run(accounts: accounts)
-            catalogState.applyRefreshed(result)
+            try applyRefreshed(result)
             return accounts.first(where: { $0.id == account.id }) ?? account
         } catch {
             do {
@@ -185,7 +191,7 @@ final class AccountsController {
                     accounts: accounts,
                     targetAccountID: account.id
                 ) {
-                    catalogState.applyRefreshed(result)
+                    try applyRefreshed(result)
                     return accounts.first(where: { $0.id == account.id }) ?? account
                 }
             } catch {
@@ -233,7 +239,7 @@ final class AccountsController {
     func refreshAccountData(for account: CodexAccount) async -> BackgroundRefreshOutcome {
         do {
             let result = try await refreshActiveAccountUseCase.run(accounts: accounts)
-            catalogState.applyRefreshed(result)
+            try applyRefreshed(result)
             accountsControllerLogger.log("Background refresh completed for \(account.name, privacy: .public)")
             return .refreshed
         } catch {
@@ -440,8 +446,12 @@ final class AccountsController {
             activeAccountID: activeAccountID,
             accounts: accounts
         ) {
-            catalogState.applyRefreshed(result)
-            return true
+            do {
+                try applyRefreshed(result)
+                return true
+            } catch {
+                accountsControllerLogger.log("Silent post-action refresh save skipped: \(error.localizedDescription, privacy: .public)")
+            }
         }
         return false
     }

@@ -39,6 +39,16 @@ extension CodexAccount {
     }
 }
 
+extension AccountCatalogStore {
+    func save(_ update: SavedAccountMetadataUpdate, into accounts: [CodexAccount]) throws -> [CodexAccount]? {
+        guard let index = accounts.firstIndex(where: { $0.id == update.accountID }) else { return nil }
+        var updatedAccounts = accounts
+        updatedAccounts[index].apply(update)
+        try saveAccounts(updatedAccounts)
+        return updatedAccounts
+    }
+}
+
 struct HydrateSavedAccountsMetadataUseCase: Sendable {
     private let authService: CodexAuthSessionStore
     private let savedAccountStatusClient: SavedCodexAccountStatusClient
@@ -101,11 +111,7 @@ struct HydrateSavedAccountsMetadataUseCase: Sendable {
     }
 
     func save(_ update: SavedAccountMetadataUpdate, into accounts: [CodexAccount]) throws -> [CodexAccount]? {
-        guard let index = accounts.firstIndex(where: { $0.id == update.accountID }) else { return nil }
-        var updatedAccounts = accounts
-        updatedAccounts[index].apply(update)
-        try repository.saveAccounts(updatedAccounts)
-        return updatedAccounts
+        try repository.save(update, into: accounts)
     }
 
     private func writeBackRotatedAuthData(

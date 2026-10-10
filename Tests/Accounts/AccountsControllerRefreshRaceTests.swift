@@ -78,6 +78,46 @@ struct AccountsControllerRefreshRaceTests {
         #expect(controller.activeAccountID == fixture.backup.id)
     }
 
+    @Test
+    func removingAnAccountDuringAnActiveRefreshKeepsItRemoved() async throws {
+        let fixture = RefreshRaceFixture()
+        await fixture.activeStatusClient.holdReads()
+        let controller = fixture.makeController()
+        controller.load()
+
+        let refresh = Task { await controller.refreshAccountData(for: fixture.personal) }
+        await fixture.activeStatusClient.waitUntilReading()
+        await controller.removeSavedAccount(fixture.backup)
+        await fixture.activeStatusClient.finishRead(with: fixture.refreshedStatus)
+        #expect(await refresh.value == .refreshed)
+
+        let personal = try #require(controller.accounts.first(where: { $0.id == fixture.personal.id }))
+        #expect(controller.accounts.map(\.name) == ["Personal"])
+        #expect(fixture.catalog.savedAccounts.map(\.name) == ["Personal"])
+        #expect(personal.rateLimits?.primary?.usedPercent == 70)
+        #expect(controller.activeAccountID == fixture.personal.id)
+    }
+
+    @Test
+    func renamingAnAccountDuringAnActiveRefreshKeepsTheNewName() async throws {
+        let fixture = RefreshRaceFixture()
+        await fixture.activeStatusClient.holdReads()
+        let controller = fixture.makeController()
+        controller.load()
+
+        let refresh = Task { await controller.refreshAccountData(for: fixture.personal) }
+        await fixture.activeStatusClient.waitUntilReading()
+        await controller.renameSavedAccount(fixture.backup, to: "Side project")
+        await fixture.activeStatusClient.finishRead(with: fixture.refreshedStatus)
+        #expect(await refresh.value == .refreshed)
+
+        let personal = try #require(controller.accounts.first(where: { $0.id == fixture.personal.id }))
+        #expect(controller.accounts.map(\.name) == ["Personal", "Side project"])
+        #expect(fixture.catalog.savedAccounts.map(\.name) == ["Personal", "Side project"])
+        #expect(personal.rateLimits?.primary?.usedPercent == 70)
+        #expect(controller.activeAccountID == fixture.personal.id)
+    }
+
     private func startOperation(
         on controller: AccountsController,
         _ operation: @escaping @MainActor () async -> Void
@@ -109,6 +149,7 @@ private final class RefreshRaceFixture {
     let backup = makeRaceAccount(name: "Backup", stableAccountID: "backup")
     let authStore = InMemoryCodexAuthStore()
     let statusClient = SuspendedSavedStatusClient()
+    let activeStatusClient = SuspendedActiveStatusClient()
     let catalog: InMemoryAccountCatalog
     let refreshedStatus = CodexAccountStatus(
         email: "backup@example.com",
@@ -143,7 +184,7 @@ private final class RefreshRaceFixture {
             storedAccountReconciler: RaceStoredIdentityAdapter()
         )
         let refreshActiveAccountUseCase = RefreshActiveAccountUseCase(
-            accountStatusClient: RaceUnavailableAccountStatusClient(),
+            accountStatusClient: activeStatusClient,
             identityResolver: identityResolver,
             repository: catalog,
             activeAuthSnapshotRelinker: authStore
@@ -303,9 +344,33 @@ private final class InMemoryAccountCatalog: AccountCatalogLoader, AccountSnapsho
     func deleteSnapshot(for account: CodexAccount) throws {}
 }
 
-private struct RaceUnavailableAccountStatusClient: CodexAccountStatusClient {
+// Fails reads until a test holds them, so switch tests skip the post-switch refresh.
+private actor SuspendedActiveStatusClient: CodexAccountStatusClient {
+    private var isHoldingReads = false
+    private var pendingRead: CheckedContinuation<CodexAccountStatus, Never>?
+    private var readStarted: CheckedContinuation<Void, Never>?
+
+    func holdReads() {
+        isHoldingReads = true
+    }
+
     func readCurrentAccountStatus() async throws -> CodexAccountStatus {
-        throw RefreshRaceFailure.readFailed
+        guard isHoldingReads else { throw RefreshRaceFailure.readFailed }
+        return await withCheckedContinuation { continuation in
+            pendingRead = continuation
+            readStarted?.resume()
+            readStarted = nil
+        }
+    }
+
+    func waitUntilReading() async {
+        guard pendingRead == nil else { return }
+        await withCheckedContinuation { readStarted = $0 }
+    }
+
+    func finishRead(with status: CodexAccountStatus) {
+        pendingRead?.resume(returning: status)
+        pendingRead = nil
     }
 }
 

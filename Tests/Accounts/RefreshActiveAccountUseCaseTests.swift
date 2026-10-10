@@ -5,7 +5,7 @@ import Testing
 
 struct RefreshActiveAccountUseCaseTests {
     @Test
-    func runRefreshesMatchedAccountAndPersistsUpdatedState() async throws {
+    func runRefreshesMatchedAccountWithoutSavingTheCatalog() async throws {
         let refreshedRateLimits = CodexRateLimitSnapshot(
             limitID: "codex",
             limitName: nil,
@@ -55,12 +55,12 @@ struct RefreshActiveAccountUseCaseTests {
 
         let result = try await useCase.run(accounts: [accountWithRateLimits])
 
-        #expect(result.refreshedAccountID == account.id)
-        #expect(result.accounts.first?.email == "new@example.com")
-        #expect(result.accounts.first?.planType == "prolite")
-        #expect(result.accounts.first?.rateLimits == refreshedRateLimits)
-        #expect(repository.savedAccounts == result.accounts)
-        #expect(result.accounts.first?.updatedAt != .distantPast)
+        #expect(result.update.accountID == account.id)
+        #expect(result.update.email == "new@example.com")
+        #expect(result.update.planType == "prolite")
+        #expect(result.update.rateLimits == refreshedRateLimits)
+        #expect(repository.savedAccounts == nil)
+        #expect(result.update.updatedAt != .distantPast)
     }
 
     @Test
@@ -101,12 +101,12 @@ struct RefreshActiveAccountUseCaseTests {
 
         let result = try await useCase.run(accounts: [account])
 
-        #expect(result.refreshedAccountID == account.id)
-        #expect(result.accounts.first?.identity.snapshotFingerprint == "fresh-fingerprint")
+        #expect(result.update.accountID == account.id)
+        #expect(result.update.identity.snapshotFingerprint == "fresh-fingerprint")
         #expect(relinker.savedAuthData == Data("fresh-auth".utf8))
         #expect(relinker.savedExistingAccount?.id == account.id)
-        #expect(result.accounts.first?.updatedAt == account.updatedAt)
-        #expect(repository.savedAccounts == result.accounts)
+        #expect(result.update.updatedAt == account.updatedAt)
+        #expect(repository.savedAccounts == nil)
     }
 
     @Test
@@ -145,11 +145,11 @@ struct RefreshActiveAccountUseCaseTests {
 
         let result = try await useCase.run(accounts: [account])
 
-        #expect(result.accounts.first?.email == "new@example.com")
-        #expect(result.accounts.first?.planType == "pro")
-        #expect(result.accounts.first?.rateLimits == existingRateLimits)
-        #expect(result.accounts.first?.updatedAt == existingUpdatedAt)
-        #expect(repository.savedAccounts == result.accounts)
+        #expect(result.update.email == "new@example.com")
+        #expect(result.update.planType == "pro")
+        #expect(result.update.rateLimits == existingRateLimits)
+        #expect(result.update.updatedAt == existingUpdatedAt)
+        #expect(repository.savedAccounts == nil)
     }
 
     @Test

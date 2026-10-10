@@ -46,8 +46,6 @@ struct AccountCatalogStateTests {
     @Test
     func applyResultHelpersReplaceCatalogAndActiveAccount() {
         let active = makeAccount(name: "Active", fingerprint: "a")
-        let other = makeAccount(name: "Other", fingerprint: "b")
-        let refreshed = makeAccount(name: "Refreshed", fingerprint: "c")
         var state = AccountCatalogState()
 
         state.applyDeleted(
@@ -58,15 +56,6 @@ struct AccountCatalogStateTests {
         )
         #expect(state.accounts == [active])
         #expect(state.activeAccountID == active.id)
-
-        state.applyRefreshed(
-            RefreshActiveAccountResult(
-                accounts: [refreshed, other],
-                refreshedAccountID: refreshed.id
-            )
-        )
-        #expect(state.accounts == [refreshed, other])
-        #expect(state.activeAccountID == refreshed.id)
     }
 
     @Test
