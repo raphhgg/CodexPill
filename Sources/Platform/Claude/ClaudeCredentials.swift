@@ -1,5 +1,22 @@
 import Foundation
 
+/// A Claude OAuth secret. It prints as `<Type>(redacted)` and reflects no children, so it never reaches a log or `dump`.
+protocol RedactedClaudeSecret: Sendable, Equatable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {}
+
+extension RedactedClaudeSecret {
+    var description: String {
+        "\(Self.self)(redacted)"
+    }
+
+    var debugDescription: String {
+        description
+    }
+
+    var customMirror: Mirror {
+        Mirror(self, children: EmptyCollection<Mirror.Child>())
+    }
+}
+
 /// Claude Code's OAuth access token. It is only ever placed in the `Authorization` header and never printed.
 struct ClaudeAccessToken: Sendable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
     private let value: String
