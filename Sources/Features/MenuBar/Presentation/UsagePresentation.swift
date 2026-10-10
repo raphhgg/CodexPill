@@ -16,7 +16,7 @@ func resetStatusText(for window: UsageWindow, now: Date) -> String? {
 
     // A billing cycle runs for weeks, so its reset reads better as a date than a countdown.
     if window.kind == .billingCycle {
-        return "Resets \(resetsAt.formatted(.dateTime.month(.abbreviated).day()))"
+        return "Resets \(shortDate(resetsAt))"
     }
     return "Resets in \(cardResetText(until: resetsAt, now: now))"
 }

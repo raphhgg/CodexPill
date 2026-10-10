@@ -56,14 +56,16 @@ struct ToolSectionTests {
         let two = UsageResetCredits(availableCount: 2, credits: [UsageResetCredit(expiresAt: nov20), UsageResetCredit(expiresAt: nov5)])
         let one = UsageResetCredits(availableCount: 1, credits: [UsageResetCredit(expiresAt: nov5)])
         let countOnly = UsageResetCredits(availableCount: 3, credits: nil)
+        let gb = Locale(identifier: "en_GB")
+        let gmt = TimeZone(identifier: "GMT")!
 
         #expect(try card(credits: two).resetCredits == two)
         #expect(try card(credits: UsageResetCredits(availableCount: 0, credits: [])).resetCredits == nil)
         #expect(resetCreditsCountText(two) == "2 resets available")
-        #expect(resetCreditsExpiryText(two) == "Next expires 5 Nov")
+        #expect(resetCreditsExpiryText(two, locale: gb, timeZone: gmt) == "Next expires 5 Nov")
         #expect(resetCreditsCountText(one) == "1 reset available")
-        #expect(resetCreditsExpiryText(one) == "Expires 5 Nov")
-        #expect(resetCreditsExpiryText(countOnly) == nil)
+        #expect(resetCreditsExpiryText(one, locale: gb, timeZone: gmt) == "Expires 5 Nov")
+        #expect(resetCreditsExpiryText(countOnly, locale: gb, timeZone: gmt) == nil)
     }
 
     @Test

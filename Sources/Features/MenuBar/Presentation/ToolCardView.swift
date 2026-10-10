@@ -111,13 +111,21 @@ func resetCreditsCountText(_ credits: UsageResetCredits) -> String {
 }
 
 /// "Expires 17 Oct" for one credit, "Next expires 5 Nov" for several, nil when Codex sent no expiry.
-func resetCreditsExpiryText(_ credits: UsageResetCredits) -> String? {
+func resetCreditsExpiryText(
+    _ credits: UsageResetCredits,
+    locale: Locale = .autoupdatingCurrent,
+    timeZone: TimeZone = .autoupdatingCurrent
+) -> String? {
     guard let expiry = credits.nextExpiry else { return nil }
-    return credits.availableCount > 1 ? "Next expires \(shortDate(expiry))" : "Expires \(shortDate(expiry))"
+    let date = shortDate(expiry, locale: locale, timeZone: timeZone)
+    return credits.availableCount > 1 ? "Next expires \(date)" : "Expires \(date)"
 }
 
-func shortDate(_ date: Date) -> String {
-    date.formatted(.dateTime.day().month(.abbreviated))
+/// "5 Nov" or "Nov 5", in the given locale's order and calendar.
+func shortDate(_ date: Date, locale: Locale = .autoupdatingCurrent, timeZone: TimeZone = .autoupdatingCurrent) -> String {
+    var calendar = locale.calendar
+    calendar.timeZone = timeZone
+    return date.formatted(Date.FormatStyle(locale: locale, calendar: calendar, timeZone: timeZone).day().month(.abbreviated))
 }
 
 /// Spend is a dollar amount, never a percent: "On-demand: $12.34 of $50.00", or the amount alone when uncapped.

@@ -5,6 +5,8 @@ import SwiftUI
 @MainActor
 struct MenuBarMenuBuilder {
     static let menuContentWidth: CGFloat = 372
+    var locale: Locale = .autoupdatingCurrent
+    var timeZone: TimeZone = .autoupdatingCurrent
 
     func makeMenu(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenu {
         let menu = NSMenu()
@@ -95,7 +97,7 @@ struct MenuBarMenuBuilder {
             use.isEnabled = accountActionsEnabled
             menu.addItem(use)
             for credit in (credits.credits ?? []).sorted(by: { ($0.expiresAt ?? .distantFuture) < ($1.expiresAt ?? .distantFuture) }) {
-                let expiry = disabledItem(credit.expiresAt.map { "Expires \(shortDate($0))" } ?? "No expiry")
+                let expiry = disabledItem(credit.expiresAt.map { "Expires \(shortDate($0, locale: locale, timeZone: timeZone))" } ?? "No expiry")
                 expiry.indentationLevel = 1
                 menu.addItem(expiry)
             }
