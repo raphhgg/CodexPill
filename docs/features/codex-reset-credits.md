@@ -5,10 +5,11 @@ See how many Codex limit resets the active account has, when the next one expire
 ## Data Contract
 
 - Source: `account/rateLimits/read` on the local Codex app-server, field `rateLimitResetCredits`.
-- CodexPill keeps `availableCount` and the earliest `expiresAt` among credits with status `available`, as `UsageSnapshot.resetCredits`. Credits that never expire do not set the date.
-- `credits: null` means Codex knows only the count. CodexPill shows the count without a date.
+- Codex sends `availableCount` and a `credits` list with one `expiresAt` per credit (`null` for a credit that never expires). The list can be shorter than the count.
+- CodexPill keeps the count and the expiry of each listed credit with status `available`, as `UsageSnapshot.resetCredits`. `nextExpiry` is the earliest of those dates.
+- `credits: null` means Codex knows only the count. CodexPill keeps `credits` as `nil` and shows the count without a date.
 - Codex versions without the field keep working. `resetCredits` stays `nil` and nothing about resets is shown.
-- The last known count and date are saved with the account, like its limits.
+- The last known count and expiries are saved with the account, like its limits.
 
 ## Using A Reset
 
