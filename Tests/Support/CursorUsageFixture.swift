@@ -26,6 +26,7 @@ final class CursorUsageFixture: CursorAccessTokenSource, CursorUsageWebClient, @
         usage = CursorUsage(
             settings: settings,
             client: CursorUsageClient(tokenSource: self, webClient: self, now: now),
+            tokenUsageClient: CursorTokenUsageClient(tokenSource: self, webClient: self, now: now),
             refreshInterval: refreshInterval
         )
     }
@@ -51,6 +52,10 @@ final class CursorUsageFixture: CursorAccessTokenSource, CursorUsageWebClient, @
 
     func lookup() throws -> CursorAccessTokenLookup {
         tokenLookup
+    }
+
+    func usageEvents(using _: CursorAccessToken, from _: Date, to _: Date, page _: Int, pageSize _: Int) async throws -> Data {
+        Data("{}".utf8)
     }
 
     func usageSummary(using _: CursorAccessToken) async throws -> Data {

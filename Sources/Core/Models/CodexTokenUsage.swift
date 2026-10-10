@@ -84,6 +84,8 @@ struct TokenUsageScanProgress: Equatable, Sendable {
 struct CodexDailyTokenUsage: Codable, Equatable {
     var day: Date
     var usage: CodexTokenUsageTotals
+    /// Total tokens per model, from the session's latest `turn_context`. Nil in caches written before models were read.
+    var tokensByModel: [String: Int]? = nil
 }
 
 struct CodexTokenUsageTotals: Equatable, Codable {

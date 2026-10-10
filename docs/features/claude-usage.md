@@ -74,6 +74,10 @@ Both hold the same JSON. CodexPill decodes only `claudeAiOauth.accessToken`, `cl
 
 **Response.** `five_hour` and `seven_day` are each `{utilization, resets_at}`: `utilization` runs from 0 to 100 and `resets_at` is ISO 8601. CodexPill maps `five_hour` to `Session` (300 minutes) and `seven_day` to `Weekly` (10,080 minutes). It ignores other windows such as `seven_day_opus` and `seven_day_sonnet`. A null or missing window is left out. The plan name comes from Claude Code's `subscriptionType`, for example `max`. CodexPill's own sign-in has no plan name.
 
+## Token Usage
+
+When Token Usage is also on, the Token Usage card adds Claude Code's daily tokens by model from its local transcripts. That read uses no sign-in and no network. See [Token Usage](token-usage.md#other-tools).
+
 ## Read Policy
 
 - CodexPill's sign-in within 5 minutes of expiry: refresh first. `invalid_grant` deletes the item and shows sign in again. A network failure keeps using the current access token until it expires, then shows read failed.

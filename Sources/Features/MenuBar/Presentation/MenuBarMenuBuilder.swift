@@ -42,7 +42,8 @@ struct MenuBarMenuBuilder {
                 if index > 0 {
                     menu.addItem(activeAccountDividerItem(width: menuContentWidth))
                 }
-                let tokenUsageCard = index == 0 ? state.tokenUsageCard : nil
+                // With other tools connected, the card covers more than Codex and moves below the tool sections.
+                let tokenUsageCard = index == 0 && state.tokenUsageCard?.showsTools != true ? state.tokenUsageCard : nil
                 menu.addItem(activeAccountItem(
                     for: activeAccountCard,
                     state: state,
@@ -72,6 +73,11 @@ struct MenuBarMenuBuilder {
 
         for providerUsage in state.providerUsage {
             addProviderUsageSection(providerUsage, to: menu, state: state, target: target, width: menuContentWidth)
+        }
+
+        if let tokenUsageCard = state.tokenUsageCard, tokenUsageCard.showsTools {
+            menu.addItem(.separator())
+            menu.addItem(tokenUsageItem(for: tokenUsageCard, width: menuContentWidth))
         }
 
         menu.addItem(.separator())
@@ -124,6 +130,13 @@ struct MenuBarMenuBuilder {
                 now: now
             )
         )
+        item.view = configuredHostedMenuView(view, width: width)
+        return item
+    }
+
+    private func tokenUsageItem(for card: TokenUsageMenuCard, width: CGFloat) -> NSMenuItem {
+        let item = NSMenuItem()
+        let view = NSHostingView(rootView: TokenUsageMenuContent(card: card).padding(.top, 4).padding(.bottom, 8))
         item.view = configuredHostedMenuView(view, width: width)
         return item
     }

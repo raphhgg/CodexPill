@@ -62,6 +62,8 @@ Usage comes from `GET https://cursor.com/api/usage-summary`, authenticated with 
 
 CodexPill does not call `/api/auth/me`. Display-only usage needs no email or user ID.
 
+When Token Usage is also on, CodexPill reads daily tokens by model from `POST https://cursor.com/api/dashboard/get-filtered-usage-events` with the same token and rules. See [Token Usage](token-usage.md#other-tools).
+
 ## States
 
 | State | Meaning | Menu copy |

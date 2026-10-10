@@ -51,8 +51,11 @@ struct AppComposition {
             loginItemController: SystemLoginItemController(),
             loginItemsSettingsLauncher: SystemLoginItemsSettingsLauncher(),
             diagnosticReportPresenter: SystemDiagnosticReportPresenter(),
-            tokenUsageProvider: LocalCodexSessionTokenUsageMenuProvider(
-                cacheFile: AppPaths.tokenUsageCacheFile(isolatedRootDirectory: isolatedRootDirectory)
+            tokenUsageProvider: Self.makeTokenUsageProvider(
+                environment: environment,
+                defaults: defaults,
+                isolatedRootDirectory: isolatedRootDirectory,
+                cursorUsage: cursorUsage
             ),
             providerUsageSources: providerUsageSources,
             claudeCodeUsage: claudeCodeUsage,
@@ -128,6 +131,35 @@ struct AppComposition {
         )
     }
 
+    /// Codex scans its local sessions. Claude Code adds its local transcripts and Cursor its account's usage
+    /// events, each only while that tool is connected. An isolated run reads Claude transcripts from
+    /// `CLAUDE_CONFIG_DIR` or `<root>/Claude`, and Cursor events from a fixture file.
+    private static func makeTokenUsageProvider(
+        environment: [String: String],
+        defaults: UserDefaults,
+        isolatedRootDirectory: URL?,
+        cursorUsage: CursorUsage
+    ) -> any TokenUsageMenuProviding {
+        let cacheFile = AppPaths.tokenUsageCacheFile(isolatedRootDirectory: isolatedRootDirectory)
+        let claudeProjectsDirectory: URL
+        if let isolatedRootDirectory, environment["CLAUDE_CONFIG_DIR"]?.isEmpty != false {
+            claudeProjectsDirectory = isolatedRootDirectory.appendingPathComponent("Claude/projects", isDirectory: true)
+        } else {
+            claudeProjectsDirectory = ClaudeSessionTokenUsageScanner.defaultProjectsDirectory(environment: environment)
+        }
+        let claudeHistory = ClaudeCodeTokenUsageHistory(
+            projectsDirectory: claudeProjectsDirectory,
+            cacheFile: cacheFile.deletingLastPathComponent().appendingPathComponent("claude-token-usage-cache.json")
+        )
+        return AllToolsTokenUsageMenuProvider(
+            codex: LocalCodexSessionTokenUsageMenuProvider(cacheFile: cacheFile),
+            otherTools: [
+                .claudeCode(history: claudeHistory, settings: ClaudeUsageSettingsStore(userDefaults: defaults)),
+                .cursor(client: cursorUsage.tokenUsageClient, settings: cursorUsage.settings)
+            ]
+        )
+    }
+
     /// An isolated run never reads the real Cursor sign-in or calls cursor.com: it reads a fixture database
     /// and a fixture usage summary inside the isolated root.
     private static func makeCursorUsage(
@@ -151,6 +183,7 @@ struct AppComposition {
         return CursorUsage(
             settings: CursorUsageSettingsStore(userDefaults: defaults),
             client: CursorUsageClient(tokenSource: tokenSource, webClient: webClient),
+            tokenUsageClient: CursorTokenUsageClient(tokenSource: tokenSource, webClient: webClient),
             refreshInterval: AppRuntimeEnvironment.validationAutoRefreshIntervalSeconds(environment: environment)
                 ?? ProviderUsageRuntime.refreshInterval
         )

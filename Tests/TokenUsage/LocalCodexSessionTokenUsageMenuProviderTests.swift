@@ -87,7 +87,7 @@ struct LocalCodexSessionTokenUsageMenuProviderTests {
             """
         }.joined(separator: ",")
         try Data("""
-        {"entries":{"7":{"buckets":[\(buckets)],"generatedAt":800928000,"period":7}},"schemaVersion":1}
+        {"entries":{"7":{"buckets":[\(buckets)],"generatedAt":800928000,"period":7}},"schemaVersion":2}
         """.utf8).write(to: cacheFile)
         let provider = LocalCodexSessionTokenUsageMenuProvider(
             scanner: CodexSessionTokenUsageScanner(calendar: utcCalendar()),

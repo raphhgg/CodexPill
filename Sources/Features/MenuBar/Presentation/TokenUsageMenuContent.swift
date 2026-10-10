@@ -63,6 +63,9 @@ struct TokenUsageMenuContent: View {
                     chart
                         .frame(height: 38)
                     summary
+                    if card.showsTools {
+                        toolRows
+                    }
                 }
             } else {
                 stateText("No token usage found yet")
@@ -77,6 +80,7 @@ struct TokenUsageMenuContent: View {
             MinimalDailyBarsChart(
                 buckets: card.buckets,
                 maximumTokenCount: maximumTokenCount,
+                stacksTools: card.showsTools,
                 hoveredBucket: $hoveredBucket
             )
         case .heatStrip:
@@ -105,6 +109,44 @@ struct TokenUsageMenuContent: View {
         .font(.caption)
         .monospacedDigit()
         .padding(.top, 6)
+    }
+
+    private var toolRows: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            ForEach(card.toolSummaries) { summary in
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Circle()
+                            .fill(summary.tool.chartColor)
+                            .frame(width: 7, height: 7)
+                        Text(summary.tool.displayName)
+                            .foregroundStyle(.primary)
+                        Spacer(minLength: 10)
+                        if summary.isUnavailable {
+                            Text("Unavailable")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text("Today \(formattedTokenCount(summary.todayTokenCount))")
+                                .foregroundStyle(.secondary)
+                            Text(formattedTokenCount(summary.periodTokenCount))
+                                .foregroundStyle(.primary)
+                                .frame(minWidth: 44, alignment: .trailing)
+                        }
+                    }
+                    .font(.caption)
+                    if let models = summary.modelsSummary {
+                        Text(models)
+                            .font(.system(size: 10.5))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .padding(.leading, 13)
+                    }
+                }
+            }
+        }
+        .monospacedDigit()
+        .padding(.top, 12)
     }
 
     private func stateText(_ text: String) -> some View {
@@ -383,16 +425,21 @@ private struct TokenUsageLoadingHeatStripChart: View {
 private struct MinimalDailyBarsChart: View {
     let buckets: [TokenUsageDayBucket]
     let maximumTokenCount: Int
+    var stacksTools = false
     @Binding var hoveredBucket: TokenUsageDayBucket?
 
     var body: some View {
         GeometryReader { geometry in
             HStack(alignment: .bottom, spacing: 2) {
                 ForEach(buckets) { bucket in
-                    Capsule()
-                        .fill(barColor(for: bucket))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: barHeight(for: bucket, in: geometry.size.height))
+                    if stacksTools {
+                        stackedBar(for: bucket, height: barHeight(for: bucket, in: geometry.size.height))
+                    } else {
+                        Capsule()
+                            .fill(barColor(for: bucket))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: barHeight(for: bucket, in: geometry.size.height))
+                    }
                 }
             }
             .overlay(
@@ -413,6 +460,26 @@ private struct MinimalDailyBarsChart: View {
 
     private func barHeight(for bucket: TokenUsageDayBucket, in height: CGFloat) -> CGFloat {
         max(5, height * CGFloat(bucket.tokenCount) / CGFloat(maximumTokenCount))
+    }
+
+    /// The first tool sits at the bottom. Empty days keep a faint stub so the 30 slots stay visible.
+    private func stackedBar(for bucket: TokenUsageDayBucket, height: CGFloat) -> some View {
+        let isEmphasized = hoveredBucket.map { $0.id == bucket.id } ?? (bucket.id == buckets.last?.id)
+        let visibleSegments = bucket.segments.filter { $0.tokenCount > 0 }
+        return VStack(spacing: 0) {
+            if visibleSegments.isEmpty {
+                Rectangle().fill(Color.secondary.opacity(0.25))
+            } else {
+                ForEach(Array(visibleSegments.reversed().enumerated()), id: \.offset) { _, segment in
+                    Rectangle()
+                        .fill(segment.tool.chartColor.opacity(isEmphasized ? 1 : 0.72))
+                        .frame(height: height * CGFloat(segment.tokenCount) / CGFloat(max(bucket.tokenCount, 1)))
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: height)
+        .clipShape(RoundedRectangle(cornerRadius: 2, style: .continuous))
     }
 
 }
@@ -588,6 +655,28 @@ private extension TokenUsageDayBucket {
     var tooltipTokenCount: String {
         formattedTokenCount(tokenCount).replacingOccurrences(of: ".", with: ",")
     }
+
+    var tooltipText: String {
+        let total = "\(tooltipTokenCount) tokens (\(tooltipDateLabel))"
+        let tools = segments
+            .filter { $0.tokenCount > 0 }
+            .map { "\($0.tool.displayName) \(formattedTokenCount($0.tokenCount))" }
+        guard segments.count > 1, !tools.isEmpty else { return total }
+        return total + "\n" + tools.joined(separator: " · ")
+    }
+}
+
+extension TokenUsageTool {
+    var chartColor: Color {
+        switch self {
+        case .codex:
+            return Color(nsColor: .systemTeal)
+        case .claudeCode:
+            return Color(nsColor: .systemOrange)
+        case .cursor:
+            return Color(nsColor: .systemIndigo)
+        }
+    }
 }
 
 private struct TokenUsageTooltipOverlay: NSViewRepresentable {
@@ -693,7 +782,7 @@ private final class TokenUsageTooltipView: NSView {
     private func updateHoveredBucket(for event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         let bucket = bucket(at: point)
-        toolTip = bucket.map { "\($0.tooltipTokenCount) tokens (\($0.tooltipDateLabel))" }
+        toolTip = bucket.map { $0.tooltipText }
         onBucketHover(bucket)
     }
 
