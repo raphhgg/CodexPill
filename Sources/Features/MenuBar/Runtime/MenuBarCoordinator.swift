@@ -119,7 +119,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     /// Waits until the tasks started by menu actions and store or settings changes finish, including tasks they started.
     func waitForPendingWork() async {
         await tasks.waitUntilIdle()
-        if let claudeSignIn {
+        while let claudeSignIn {
             await claudeSignIn.value
             await tasks.waitUntilIdle()
         }
@@ -444,7 +444,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
                 alertPresenter.presentInfo(alertFactory.makeClaudeSignInErrorRequest(error))
             }
             self?.claudeSignIn = nil
-            await self?.providerUsageRuntime.refreshIfDue(forcing: .claude)
+            self?.refreshProviderUsageIfDue(forcing: .claude)
         }
         rebuildMenuWhenSafe()
     }

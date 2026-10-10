@@ -15,6 +15,8 @@ final class TrackedTasks: Sendable {
         }
     }
 
+    /// Main-actor isolated so the caller reads its own state in the same turn as the last idle check.
+    @MainActor
     func waitUntilIdle() async {
         while let task = running.withLock({ $0.values.first }) {
             await task.value
