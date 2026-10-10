@@ -8,14 +8,18 @@ struct ClaudeCodeUsage: UsageProviderSource {
 
     let settings: ClaudeUsageSettingsStore
     let client: ClaudeUsageClient
+    /// Saved Claude Code sign-ins to switch between. Nil in isolated runs, which never write the real Keychain.
+    let accounts: ClaudeCodeAccountStore?
 
     init(
         settings: ClaudeUsageSettingsStore,
         client: ClaudeUsageClient,
+        accounts: ClaudeCodeAccountStore? = nil,
         refreshInterval: TimeInterval = ProviderUsageRuntime.refreshInterval
     ) {
         self.settings = settings
         self.client = client
+        self.accounts = accounts
         self.refreshInterval = refreshInterval
     }
 
@@ -26,6 +30,14 @@ struct ClaudeCodeUsage: UsageProviderSource {
     }
 
     func allowKeychainAccess() async {
+        await client.allowKeychainPromptOnNextRead()
+    }
+
+    /// Signs Claude Code in to a saved account. The switch rewrote Claude Code's sign-in, which can reset its Keychain
+    /// access rule, so the next read may show the Keychain prompt: the user just asked for this.
+    func switchAccount(to id: UUID) async throws(ClaudeCodeAccountError) {
+        guard let accounts else { throw .switchingUnavailable }
+        try accounts.activate(id)
         await client.allowKeychainPromptOnNextRead()
     }
 

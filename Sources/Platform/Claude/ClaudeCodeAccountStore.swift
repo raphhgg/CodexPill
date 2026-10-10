@@ -35,6 +35,8 @@ enum ClaudeCodeAccountError: Error, Equatable, Sendable {
     case writeFailed
     /// A write failed and putting the earlier state back failed too.
     case restoreFailed
+    /// This build has no account switching, as in isolated runs.
+    case switchingUnavailable
 }
 
 /// CodexPill's saved-account items, one per saved Claude Code account.
