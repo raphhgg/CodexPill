@@ -28,6 +28,8 @@ struct MenuBarMenuState {
     let tokenUsagePeakScope: TokenUsagePeakScope
     let tokenUsageCard: TokenUsageMenuCard?
     let providerUsage: [ProviderUsageState]
+    /// The moment reset countdowns and elapsed times in the menu are measured from.
+    let now: Date
 
     init(
         activeAccount: CodexAccount?,
@@ -56,7 +58,8 @@ struct MenuBarMenuState {
         tokenUsageLoadingAnimationStyle: TokenUsageLoadingAnimationStyle = .waves,
         tokenUsagePeakScope: TokenUsagePeakScope = .currentPeriod,
         tokenUsageCard: TokenUsageMenuCard? = nil,
-        providerUsage: [ProviderUsageState] = []
+        providerUsage: [ProviderUsageState] = [],
+        now: Date = .now
     ) {
         self.activeAccount = activeAccount
         self.inactiveAccounts = inactiveAccounts
@@ -85,6 +88,7 @@ struct MenuBarMenuState {
         self.tokenUsagePeakScope = tokenUsagePeakScope
         self.tokenUsageCard = tokenUsageCard
         self.providerUsage = providerUsage
+        self.now = now
     }
 
     var canAddAccount: Bool {
