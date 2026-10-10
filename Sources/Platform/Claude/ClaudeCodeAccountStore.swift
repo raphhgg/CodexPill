@@ -22,6 +22,8 @@ enum ClaudeCodeAccountError: Error, Equatable, Sendable {
     case savedAccountsUnreadable
     /// Claude Code has no sign-in on this Mac. Signing in once with `claude` creates the item a switch updates.
     case claudeCodeSignedOut
+    /// Claude Code's global config records no account for its sign-in, so CodexPill can't tell which account it is.
+    case claudeCodeAccountUnknown
     /// Claude Code's sign-in is not saved in CodexPill, so switching away would lose it.
     case currentSignInNotSaved
     /// A running Claude Code would write its old sign-in back, so switching waits until it quits.
@@ -79,7 +81,7 @@ struct ClaudeCodeAccountStore: Sendable {
         let (current, _) = try currentSignIn()
         var catalog = try accounts()
         let index: Int
-        if let existing = try savedIndex(of: current, in: catalog) {
+        if let existing = savedIndex(of: current, in: catalog) {
             index = existing
         } else {
             catalog.append(ClaudeCodeAccount(
@@ -112,7 +114,7 @@ struct ClaudeCodeAccountStore: Sendable {
         guard let target = ClaudeCodeSignInSnapshot(itemData: targetData) else { throw .savedAccountsUnreadable }
 
         let (current, item) = try currentSignIn()
-        guard let outgoingIndex = try savedIndex(of: current, in: catalog) else {
+        guard let outgoingIndex = savedIndex(of: current, in: catalog) else {
             throw .currentSignInNotSaved
         }
 
@@ -151,24 +153,15 @@ struct ClaudeCodeAccountStore: Sendable {
         case .signedOut: throw .claudeCodeSignedOut
         case .keychainAccessNeeded: throw .keychainAccessNeeded
         case .unreadable: throw .unreadable
-        case let .signedIn(snapshot, item): return (snapshot, item)
+        case let .signedIn(snapshot, item):
+            guard snapshot.identity != nil else { throw .claudeCodeAccountUnknown }
+            return (snapshot, item)
         }
     }
 
-    private func savedIndex(of current: ClaudeCodeSignInSnapshot, in catalog: [ClaudeCodeAccount]) throws(ClaudeCodeAccountError) -> Int? {
-        for (index, account) in catalog.enumerated() where try matches(account, current) {
-            return index
-        }
-        return nil
-    }
-
-    private func matches(_ account: ClaudeCodeAccount, _ current: ClaudeCodeSignInSnapshot) throws(ClaudeCodeAccountError) -> Bool {
-        if let identity = account.identity, let currentIdentity = current.identity {
-            return identity == currentIdentity
-        }
-        return try items.read(account.id)
-            .flatMap(ClaudeCodeSignInSnapshot.init(itemData:))
-            .map { $0.isSameAccount(as: current) } ?? false
+    /// Accounts match by Claude Code's account record only. Tokens are never compared.
+    private func savedIndex(of current: ClaudeCodeSignInSnapshot, in catalog: [ClaudeCodeAccount]) -> Int? {
+        catalog.firstIndex { $0.identity != nil && $0.identity == current.identity }
     }
 
     private func save(
