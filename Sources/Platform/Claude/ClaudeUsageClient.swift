@@ -63,7 +63,8 @@ actor ClaudeUsageClient {
     }
 
     /// Deletes CodexPill's own sign-in and asks Anthropic to revoke it. Claude Code's sign-in is untouched.
-    func forgetSignIn() async {
+    /// Returns false when the Keychain item could not be deleted.
+    func forgetSignIn() async -> Bool {
         let stored: ClaudeSignIn? = if case let .found(data) = signInStore.read(allowingPrompt: false) {
             ClaudeSignIn(keychainData: data)
         } else {
@@ -71,10 +72,11 @@ actor ClaudeUsageClient {
         }
         let signIn = unsavedSignIn ?? stored
         unsavedSignIn = nil
-        signInStore.delete()
+        let deleted = signInStore.delete()
         if let signIn {
             await tokenEndpoint.revoke(signIn.refreshToken)
         }
+        return deleted
     }
 
     func refresh(now: Date, using source: ClaudeSignInSource) async -> ClaudeUsageStatus {
@@ -98,10 +100,10 @@ actor ClaudeUsageClient {
 
         var response = await usage(using: token)
         if case .failure(.unauthorized) = response, let renewable {
-            guard case let .success(refreshed) = await refreshOnce(renewable, now: now, allowingPrompt: allowingPrompt) else {
-                return .signInExpired
+            switch await refreshOnce(renewable, now: now, allowingPrompt: allowingPrompt) {
+            case let .success(refreshed): response = await usage(using: refreshed.accessToken)
+            case let .failure(error): return ClaudeUsageStatus(refreshFailure: error)
             }
-            response = await usage(using: refreshed.accessToken)
         }
 
         let data: Data
@@ -158,8 +160,10 @@ actor ClaudeUsageClient {
             return .token(refreshed.accessToken, planName: nil, renewable: nil)
         case .failure(.invalidGrant):
             return .stop(.signInExpired)
-        case .failure:
-            return signIn.isExpired(at: now) ? .stop(.unreachable) : .token(signIn.accessToken, planName: nil, renewable: nil)
+        case let .failure(error):
+            return signIn.isExpired(at: now)
+                ? .stop(ClaudeUsageStatus(refreshFailure: error))
+                : .token(signIn.accessToken, planName: nil, renewable: nil)
         }
     }
 
@@ -201,6 +205,17 @@ actor ClaudeUsageClient {
             break
         }
         return outcome
+    }
+}
+
+private extension ClaudeUsageStatus {
+    init(refreshFailure error: ClaudeTokenError) {
+        self = switch error {
+        case .invalidGrant: .signInExpired
+        case .rejected: .serviceError
+        case .transport: .unreachable
+        case .malformedResponse: .unexpectedResponse
+        }
     }
 }
 

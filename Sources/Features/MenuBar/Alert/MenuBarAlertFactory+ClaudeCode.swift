@@ -10,6 +10,27 @@ extension MenuBarAlertFactory {
         )
     }
 
+    func makeClaudeSignInErrorRequest(_ error: ClaudeSignInError) -> MenuBarInfoAlertRequest {
+        let (title, detail) = switch error {
+        case .denied: ("Claude sign-in declined", "Sign in again to see your limits.")
+        case .timedOut: ("Claude sign-in timed out", "Start it again from the menu.")
+        case .stateMismatch, .token(.invalidGrant): ("Claude sign-in didn't finish", "Start it again from the menu.")
+        case .listenerFailed: ("Couldn't start Claude sign-in", "Try again in a moment.")
+        case .token(.transport): ("Can't reach Claude", "Check your connection and retry.")
+        case .token(.rejected), .token(.malformedResponse): ("Claude sign-in failed", "Try again in a moment.")
+        }
+        return MenuBarInfoAlertRequest(messageText: title, informativeText: detail, style: .warning, buttonTitle: "OK")
+    }
+
+    func makeClaudeSignInNotRemovedRequest() -> MenuBarInfoAlertRequest {
+        MenuBarInfoAlertRequest(
+            messageText: "Claude sign-in not removed",
+            informativeText: "Remove it in Keychain Access.",
+            style: .warning,
+            buttonTitle: "OK"
+        )
+    }
+
     func makeClaudeCodeAccountErrorRequest(_ error: ClaudeCodeAccountError) -> MenuBarInfoAlertRequest {
         let (title, detail) = switch error {
         case .unknownAccount: ("Account not found", "It may have been removed.")

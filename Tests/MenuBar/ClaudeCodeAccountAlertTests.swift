@@ -17,4 +17,16 @@ struct ClaudeCodeAccountAlertTests {
         #expect(alerts.allSatisfy { $0.messageText.count <= 32 && $0.informativeText.count <= 40 })
         #expect(alerts.allSatisfy { $0.informativeText.filter { $0 == "." }.count == 1 })
     }
+
+    @Test
+    func everyClaudeSignInFailureGetsAShortAlert() {
+        let errors: [ClaudeSignInError] = [
+            .denied, .timedOut, .stateMismatch, .listenerFailed,
+            .token(.invalidGrant), .token(.transport), .token(.rejected(status: 500)), .token(.malformedResponse),
+        ]
+        let alerts = errors.map(MenuBarAlertFactory().makeClaudeSignInErrorRequest) + [MenuBarAlertFactory().makeClaudeSignInNotRemovedRequest()]
+
+        #expect(alerts.allSatisfy { $0.messageText.count <= 32 && $0.informativeText.count <= 40 })
+        #expect(alerts.allSatisfy { $0.informativeText.filter { $0 == "." }.count == 1 })
+    }
 }

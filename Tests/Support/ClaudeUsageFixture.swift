@@ -33,6 +33,7 @@ final class ClaudeUsageFixture: ClaudeKeychainReading, ClaudeUsageWebClient, Cla
     private var keychainReads: [Bool] = []
     private var sentTokens: [String] = []
     private var rejectedTokens: Set<String> = []
+    private var keepsOwnItemOnDelete = false
     private var ownItem: Data?
     private var currentRefreshResult: Result<ClaudeSignIn, ClaudeTokenError> = .failure(.transport)
     private var refreshedTokens: [String] = []
@@ -103,6 +104,11 @@ final class ClaudeUsageFixture: ClaudeKeychainReading, ClaudeUsageWebClient, Cla
         set { lock.withLock { currentResponse = newValue } }
     }
 
+    /// Makes deleting CodexPill's own sign-in item fail, like a Keychain that refuses the change.
+    func failDeletes() {
+        lock.withLock { keepsOwnItemOnDelete = true }
+    }
+
     /// Access tokens the usage endpoint answers with 401.
     var rejectedAccessTokens: Set<String> {
         get { lock.withLock { rejectedTokens } }
@@ -167,8 +173,12 @@ final class ClaudeUsageFixture: ClaudeKeychainReading, ClaudeUsageWebClient, Cla
         return true
     }
 
-    func delete() {
-        lock.withLock { ownItem = nil }
+    func delete() -> Bool {
+        lock.withLock {
+            guard !keepsOwnItemOnDelete else { return false }
+            ownItem = nil
+            return true
+        }
     }
 
     func exchange(code _: String, pkce _: ClaudePKCE, state _: String, redirectURI _: URL, now _: Date) async throws(ClaudeTokenError) -> ClaudeSignIn {

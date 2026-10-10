@@ -37,12 +37,18 @@ struct ClaudeCodeUsage: UsageProviderSource {
 
     /// Runs "Sign in with Claude" in the browser. The connection changes only if the sign-in succeeds, so a cancelled
     /// first sign-in leaves Claude not connected and a cancelled sign-in again keeps asking for one.
-    @discardableResult
-    func signIn() async -> Bool {
-        guard let signIn = try? await signInFlow.signIn() else { return false }
+    func signIn() async throws(ClaudeSignInError) {
+        let signIn: ClaudeSignIn
+        do {
+            signIn = try await signInFlow.signIn()
+        } catch let error as ClaudeSignInError {
+            throw error
+        } catch {
+            // Only cancellation gets here: the user cancelled the sign-in or disconnected.
+            return
+        }
         await client.store(signIn)
         settings.connection = .codexPill
-        return true
     }
 
     func allowKeychainAccess() async {
@@ -58,9 +64,11 @@ struct ClaudeCodeUsage: UsageProviderSource {
     }
 
     /// Forgets the opt-in and deletes CodexPill's own sign-in. Claude Code's sign-in is untouched.
-    func disconnect() async {
+    /// Returns false when CodexPill's own sign-in is still in the Keychain.
+    @discardableResult
+    func disconnect() async -> Bool {
         settings.connection = nil
-        await client.forgetSignIn()
+        return await client.forgetSignIn()
     }
 
     func readUsage(now: Date) async -> UsageProviderReading {

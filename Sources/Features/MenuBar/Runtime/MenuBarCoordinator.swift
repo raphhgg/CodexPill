@@ -437,7 +437,12 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private func startClaudeSignIn() {
         guard let claudeCodeUsage, claudeSignIn == nil else { return }
         claudeSignIn = Task { [weak self] in
-            await claudeCodeUsage.signIn()
+            do throws(ClaudeSignInError) {
+                try await claudeCodeUsage.signIn()
+            } catch {
+                guard let self else { return }
+                alertPresenter.presentInfo(alertFactory.makeClaudeSignInErrorRequest(error))
+            }
             self?.claudeSignIn = nil
             await self?.providerUsageRuntime.refreshIfDue(forcing: .claude)
         }
@@ -461,7 +466,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         guard let claudeCodeUsage else { return }
         claudeSignIn?.cancel()
         tasks.start { [weak self] in
-            await claudeCodeUsage.disconnect()
+            let removed = await claudeCodeUsage.disconnect()
+            if !removed, let self {
+                alertPresenter.presentInfo(alertFactory.makeClaudeSignInNotRemovedRequest())
+            }
             await self?.providerUsageRuntime.refreshIfDue(forcing: .claude)
         }
     }
