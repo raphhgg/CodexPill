@@ -118,6 +118,25 @@ struct AccountsControllerRefreshRaceTests {
         #expect(controller.activeAccountID == fixture.personal.id)
     }
 
+    @Test
+    func removingTheActiveAccountDuringAnActiveRefreshLeavesNoSnapshotForIt() async {
+        let fixture = RefreshRaceFixture()
+        fixture.authStore.liveAuth = "personal:2"
+        await fixture.activeStatusClient.holdReads()
+        let controller = fixture.makeController()
+        controller.load()
+
+        let refresh = Task { await controller.refreshAccountData(for: fixture.personal) }
+        await fixture.activeStatusClient.waitUntilReading()
+        await controller.removeSavedAccount(fixture.personal)
+        await fixture.activeStatusClient.finishRead(with: fixture.refreshedStatus)
+        _ = await refresh.value
+
+        #expect(fixture.authStore.snapshots == [fixture.backup.id: "backup:1"])
+        #expect(controller.accounts.map(\.name) == ["Backup"])
+        #expect(fixture.catalog.savedAccounts.map(\.name) == ["Backup"])
+    }
+
     private func startOperation(
         on controller: AccountsController,
         _ operation: @escaping @MainActor () async -> Void
@@ -173,7 +192,7 @@ private final class RefreshRaceFixture {
     )
 
     init() {
-        catalog = InMemoryAccountCatalog(accounts: [personal, backup])
+        catalog = InMemoryAccountCatalog(accounts: [personal, backup], authStore: authStore)
         authStore.liveAuth = "personal:1"
         authStore.snapshots = [personal.id: "personal:1", backup.id: "backup:1"]
     }
@@ -329,9 +348,11 @@ private actor SuspendedSavedStatusClient: SavedCodexAccountStatusClient {
 private final class InMemoryAccountCatalog: AccountCatalogLoader, AccountSnapshotRemover, @unchecked Sendable {
     private let lock = NSLock()
     private var accounts: [CodexAccount]
+    private let authStore: InMemoryCodexAuthStore
 
-    init(accounts: [CodexAccount]) {
+    init(accounts: [CodexAccount], authStore: InMemoryCodexAuthStore) {
         self.accounts = accounts
+        self.authStore = authStore
     }
 
     var savedAccounts: [CodexAccount] {
@@ -341,7 +362,7 @@ private final class InMemoryAccountCatalog: AccountCatalogLoader, AccountSnapsho
     func bootstrapStorage() throws {}
     func loadAccounts() throws -> [CodexAccount] { savedAccounts }
     func saveAccounts(_ accounts: [CodexAccount]) throws { lock.withLock { self.accounts = accounts } }
-    func deleteSnapshot(for account: CodexAccount) throws {}
+    func deleteSnapshot(for account: CodexAccount) throws { try authStore.deleteAuthSnapshot(for: account) }
 }
 
 // Fails reads until a test holds them, so switch tests skip the post-switch refresh.
