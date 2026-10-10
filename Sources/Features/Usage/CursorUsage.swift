@@ -27,6 +27,10 @@ struct CursorUsage: ProviderConnection {
         settings.isEnabled = true
     }
 
+    var isConnected: Bool {
+        settings.isEnabled
+    }
+
     func disconnect() async {
         settings.isEnabled = false
     }

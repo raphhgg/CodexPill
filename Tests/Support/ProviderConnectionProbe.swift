@@ -54,6 +54,8 @@ final class ProviderConnectionProbe: ProviderConnection {
         return reading
     }
 
+    var isConnected: Bool { reading != .notConnected }
+
     func connect() async {}
     func disconnect() async {}
 

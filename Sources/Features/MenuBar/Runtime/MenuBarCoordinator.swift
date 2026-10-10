@@ -812,12 +812,14 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         promptForEmptyStateIfNeeded()
     }
 
+    /// Asks to add a Codex account only on a first run: no saved Codex account and no other tool connected.
     private func promptForEmptyStateIfNeeded() {
-        guard allowsEmptyStatePrompt else { return }
+        guard allowsEmptyStatePrompt, !providerUsageRuntime.hasConnectedTool else { return }
         guard accountsController.accounts.isEmpty, !accountsController.isBusy, !hasPromptedForEmptyState else { return }
         hasPromptedForEmptyState = true
         DispatchQueue.main.async { [weak self] in
-            guard let self, self.accountsController.accounts.isEmpty, !self.accountsController.isBusy else { return }
+            guard let self, self.accountsController.accounts.isEmpty, !self.accountsController.isBusy,
+                  !self.providerUsageRuntime.hasConnectedTool else { return }
             self.addCodexAccount()
         }
     }

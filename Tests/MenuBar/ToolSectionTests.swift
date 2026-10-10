@@ -188,6 +188,21 @@ struct ToolSectionTests {
     }
 
     @Test
+    func accountsWithoutEmailReadAsTheirOrganizationOrANumberedSavedAccount() throws {
+        let claudeAccounts = [
+            ProviderAccount(id: UUID(), email: nil, isActive: false),
+            ProviderAccount(id: UUID(), email: nil, name: "Acme", isActive: false),
+            ProviderAccount(id: UUID(), email: nil, name: "sam@acme.dev's Organization", isActive: true),
+            ProviderAccount(id: UUID(), email: nil, name: "Acme", isActive: false),
+        ]
+        let claude = ProviderUsageState(provider: .claude, status: .current(claudeSnapshot()), accounts: claudeAccounts)
+
+        let section = try #require(state(providerUsage: [claude], masksEmails: true).toolSections.first)
+
+        #expect(section.accounts.map(\.label) == ["Saved account 2", "Saved account", "Acme", "Acme 2"])
+    }
+
+    @Test
     func displayedEmailKeepsTheDomainAndTheEndsOfTheName() {
         #expect(displayedEmail("alex.side@example.com", masked: true) == "al•••e@example.com")
         #expect(displayedEmail("alex@example.com", masked: true) == "a•••x@example.com")

@@ -55,4 +55,4 @@ Remove:
 - If the removed account is active on This Mac, CodexPill signs it out before deleting the saved snapshot.
 - If the sign-out fails, CodexPill keeps the saved account so the user does not lose the main control surface for an active login.
 
-With no saved account and no other tool connected, the menu offers `Add Account ›` directly. Account actions are disabled while another account operation runs.
+With no saved account and no other tool connected, the menu offers `Add Account ›` directly, and launch asks to add a Codex account once. Account actions are disabled while another account operation runs.

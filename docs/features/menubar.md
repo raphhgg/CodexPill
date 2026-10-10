@@ -29,7 +29,7 @@ Every tool uses the same card. It is one hover cell with a side menu and no chev
 
   | State | Title | Line |
   |---|---|---|
-  | Waiting for the first read | `Waiting for Codex usage` (or the tool's name) | none |
+  | Waiting for the first read, from the moment a tool is connected | `Waiting for Codex usage` (or the tool's name) | none |
   | Stale | none, meters dimmed | `As of 10:26` |
   | Read failed with an earlier reading | the failure title, meters dimmed | `As of 10:26` |
   | Read failed with no earlier reading | the failure title | the failure line |
@@ -45,6 +45,7 @@ Hovering a card opens its side menu:
 
 1. The email of the account in use, disabled.
 2. `Use <email>` when exactly one other account is saved, or `Use Another <Tool> Account ›` listing them.
+   An account without an email reads as its organization, else `Saved account`. Repeated labels get a number in saved order: `Saved account 2`.
 3. Codex only: `Use a Reset…`, then one disabled `Expires <date>` line per credit Codex listed, and `Token Usage ›` when token usage is on ([Token Usage](token-usage.md)).
 4. `Move to Top`, `Move Up`, `Move Down`, when there is more than one card. Moves that do not apply are disabled.
 5. `Add <Tool> Account…` and `Remove <Tool> Account ›` listing every saved account.
