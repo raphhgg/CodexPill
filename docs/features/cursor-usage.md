@@ -36,6 +36,7 @@ A `Cursor` section sits below `Claude Code`. It has no switching actions yet.
   | No usable access token | `Not signed in to Cursor` | `Sign in to Cursor to see usage.` |
   | Token within a minute of expiry, or `401` | `Cursor sign-in expired` | `Open Cursor to renew it.` |
   | `state.vscdb` unreadable | `Can't read the Cursor sign-in` | `Sign in to Cursor again.` |
+  | `state.vscdb` locked, or a hot journal | `Cursor is busy` | `Retrying in a few minutes.` |
   | `403` | `Cursor won't share usage` | `Sign in to Cursor again.` |
   | `429`, or waiting out `Retry-After` | `Cursor asked to wait` | `Retrying in a few minutes.` |
   | No answer (offline, DNS, TLS, timeout) | `Can't reach Cursor` | `Retrying in a few minutes.` |
@@ -55,7 +56,7 @@ All knowledge of Cursor's database and of cursor.com lives in `Sources/Platform/
 
 - Read-only, with one keyed lookup per row. Never a scan: on a typical Mac the database is several gigabytes.
 - With no `-wal`, `-shm`, or `-journal` next to the database, it is idle, and CodexPill opens it with SQLite's `immutable=1`, so it never creates a file in Cursor's folder.
-- With any of them present, Cursor has it open or crashed mid-write. CodexPill then opens it normally read-only, so SQLite reads only committed data, or refuses a hot journal and the read is retried later. `immutable=1` would read the uncommitted pages.
+- With any of them present, Cursor has it open or crashed mid-write. CodexPill then opens it normally read-only, so SQLite reads only committed data, or refuses a hot journal. Either way a locked database or a hot journal shows "Cursor is busy" and keeps the last numbers until a later read. `immutable=1` would read the uncommitted pages.
 
 **Request.** `GET https://cursor.com/api/usage-summary` with Cursor's web session cookie built from the token. The HTTP session has no cookie store and no URL cache, and refuses every redirect, so the token never reaches another host. CodexPill does not call `/api/auth/me`.
 
@@ -171,8 +172,8 @@ The user-facing summary lives in [PRIVACY.md](../PRIVACY.md).
 
 ## Validation
 
-- `CursorAccessTokenTests` and `CursorStateDatabaseTokenSourceTests` parse literal tokens in every storage class, prove no files appear next to an idle database, read a live WAL database, and prove a hot rollback journal never yields the uncommitted token.
-- `CursorUsageSummaryParserTests` and `CursorUsageClientTests` cover the response mapping, the expiry gate, each HTTP status, and the `Retry-After` wait in seconds and as an HTTP date.
+- `CursorAccessTokenTests` and `CursorStateDatabaseTokenSourceTests` parse literal tokens in every storage class, prove no files appear next to an idle database, read a live WAL database, and prove a hot rollback journal is reported as busy and never yields the uncommitted token.
+- `CursorUsageSummaryParserTests` and `CursorUsageClientTests` cover the response mapping, the expiry gate, each HTTP status, and the `Retry-After` wait.
 - `CursorUsageTests` cover opt-in, each failure reason, the unlimited plan with no meter, on-demand spend, and switching through `CursorUsage`.
 - `CursorAccountsTests` cover saving, switching only the 8 rows, quitting before writing, Cursor that won't quit, a database another process holds, a corrupted database, and the Keychain payload printing redacted.
 - `CursorAlertTests` check that every switch failure reads differently and stays a title plus one short line.

@@ -69,7 +69,7 @@ Both hold the same JSON. CodexPill decodes only `claudeAiOauth.accessToken`, `cl
 - Expired token (`expiresAt` in the past): no request. The menu shows sign-in expired. Claude Code renews the token the next time it runs.
 - `401`: sign-in expired.
 - `403`: access denied. Anthropic knows the token but won't share usage with it, for example a token without the profile scope.
-- `429`: no request until `Retry-After` seconds pass, or 5 minutes when the header is missing or not a number. The menu shows rate limited meanwhile.
+- `429`: no request until `Retry-After` passes, given as seconds or an HTTP date, or 5 minutes when the header is missing or unreadable. The menu shows rate limited meanwhile.
 - Network failure: unreachable. Another status: service error. An unreadable body: unexpected response. The shared provider runtime keeps the last good values for all of these.
 - CodexPill holds the token only for the length of one read. It never stores, logs, displays, or refreshes it. `ClaudeAccessToken` prints as `ClaudeAccessToken(redacted)` and reflects no children.
 
@@ -99,7 +99,7 @@ The user-facing summary lives in [PRIVACY.md](../PRIVACY.md).
 ## Validation
 
 - `ClaudeCredentialsTests` parse literal credentials, including the `mcpOAuth`-only case, prove the file wins over the Keychain, and prove the token appears in no `String(describing:)`, `String(reflecting:)`, or `dump` output of the credentials or the request.
-- `ClaudeUsageAPITests` cover the response mapping, the request headers, the redirect rule, and status mapping for `401` and `429` with and without `Retry-After`.
+- `ClaudeUsageAPITests` cover the response mapping, the request headers, the redirect rule, and status mapping for `401` and `429`. `RetryAfterTests` cover the shared `Retry-After` parser.
 - `ClaudeCodeUsageTests` cover opt-in, the Keychain prompt only after a user action, the expiry gate, each failure state, the rate-limit wait, and that a switch changes whose limits the next read shows.
 - `ClaudeCodeAccountStoreTests` cover saving, matching by account record, switching in the Keychain item and the credentials file, refusing while Claude Code runs, rollback with a failure injected at each step, and a scan proving no Claude source uses a refresh token.
 - `ProviderUsageMenuCopyTests` and `ClaudeCodeAccountAlertTests` check that every failure reads differently and stays a title plus one short line.
