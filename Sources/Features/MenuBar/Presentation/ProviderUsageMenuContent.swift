@@ -41,14 +41,16 @@ struct ProviderUsageMenuContent: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func message(title: String, detail: String) -> some View {
+    private func message(title: String, detail: String?) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
-            Text(detail)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            if let detail {
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
@@ -109,14 +111,14 @@ extension UsageProvider {
         }
     }
 
-    fileprivate func unavailableMessage(for reason: UsageUnavailableReason) -> (title: String, detail: String) {
+    fileprivate func unavailableMessage(for reason: UsageUnavailableReason) -> (title: String, detail: String?) {
         switch reason {
         case .notInstalled:
-            ("\(menuTitle) isn't installed", "Install \(menuTitle) and sign in to see your plan usage.")
+            ("\(menuTitle) isn't installed", nil)
         case .signedOut:
-            ("Not signed in to \(menuTitle)", "Sign in to \(menuTitle) on this Mac to see your plan usage.")
+            ("Not signed in to \(menuTitle)", "Sign in to \(menuTitle) to see usage.")
         case .signInExpired:
-            ("Sign in to \(menuTitle) again", "\(menuTitle)'s sign-in expired. Open \(menuTitle) to renew it.")
+            ("Sign in to \(menuTitle) again", nil)
         case .readFailed:
             readFailedMessage
         }
@@ -124,7 +126,7 @@ extension UsageProvider {
 
     private var readFailedMessage: (title: String, detail: String) {
         switch self {
-        case .cursor: ("\(menuTitle) usage unavailable", "CodexPill could not get usage from cursor.com. It tries again in a few minutes.")
+        case .cursor: ("Can't reach cursor.com", "Retrying in a few minutes.")
         case .codex, .claude: ("Can't read \(menuTitle) usage", "Retrying soon.")
         }
     }
