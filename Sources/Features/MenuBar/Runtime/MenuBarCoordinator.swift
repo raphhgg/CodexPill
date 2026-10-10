@@ -615,6 +615,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     private func requestSwitch(to account: CodexAccount) {
+        guard !accountsController.isApplyingResetCredit else {
+            alertPresenter.presentInfo(alertFactory.makeResetInProgressRequest())
+            return
+        }
         let runningCLISessions = cliProcessInspector.runningCLISessionCount()
         let request = alertFactory.makeSwitchAccountRequest(accountName: account.name, runningCLISessions: runningCLISessions)
 
