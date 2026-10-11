@@ -320,7 +320,7 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func settingsIncludesDiagnosticReportExportActionNearAbout() throws {
+    func mainMenuIncludesDiagnosticReportExportActionNearAbout() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
@@ -328,10 +328,9 @@ struct MenuBarMenuBuilderTests {
             target: coordinator
         )
 
-        let settings = try settingsMenu(in: menu)
-        let exportIndex = try #require(settings.items.firstIndex(where: { $0.title == "Diagnostics…" }))
-        let aboutIndex = try #require(settings.items.firstIndex(where: { $0.title == "About" }))
-        let export = settings.items[exportIndex]
+        let exportIndex = try #require(menu.items.firstIndex(where: { $0.title == "Diagnostics…" }))
+        let aboutIndex = try #require(menu.items.firstIndex(where: { $0.title == "About" }))
+        let export = menu.items[exportIndex]
 
         #expect(exportIndex < aboutIndex)
         #expect(export.action == #selector(MenuBarCoordinator.exportDiagnosticReport))
@@ -541,7 +540,7 @@ struct MenuBarMenuBuilderTests {
         let usageBarTitles = usageBarsMenu.items.map(\.title)
         let showMarkers = try #require(usageBarsMenu.items.first(where: { $0.title == "Show Pace Markers" }))
 
-        #expect(preferencesMenu.items.map(\.title) == ["Menu Bar Label", "Icon Style", "Usage Bars", "App Icon", "", "Show Token Usage", "Show Model Limits"])
+        #expect(preferencesMenu.items.map(\.title) == ["Show Tools", "Menu Bar Label", "Icon Style", "Usage Bars", "App Icon", "", "Show Token Usage", "Show Model Limits"])
         #expect(usageBarTitles == [
             "Show % Used", "Show % Left", "",
             "Classic Layout", "Compact Layout", "",
@@ -880,7 +879,7 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func mainMenuShowsOneCardPerToolThenSettingsAndQuit() throws {
+    func mainMenuShowsOneCardPerToolThenTheAppItemsAndQuit() throws {
         let menu = MenuBarMenuBuilder().makeMenu(
             state: makeState(
                 activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
@@ -892,7 +891,12 @@ struct MenuBarMenuBuilderTests {
             target: try makeCoordinator()
         )
 
-        #expect(menu.items.map(\.title) == ["Claude", "", "Codex", "", "Cursor", "", "Settings", "", "Quit"])
+        #expect(menu.items.map(\.title) == [
+            "Claude", "", "Codex", "", "Cursor", "",
+            "Add Account", "", "Appearance", "Refresh Every", "Hide Emails", "Launch at Login", "", "Diagnostics…", "About", "",
+            "Quit",
+        ])
+        #expect(!menu.items.contains { $0.title == "Settings" })
         #expect(menu.items.filter { $0.view is MenuCardItemView }.map(\.title) == ["Claude", "Codex", "Cursor"])
         #expect(menu.items.filter { $0.view is MenuCardItemView }.allSatisfy { $0.submenu != nil })
         #expect(menu.items.last?.keyEquivalent == "q")
@@ -912,7 +916,9 @@ struct MenuBarMenuBuilderTests {
         )
         let addAccount = try #require(menu.items.first?.submenu)
 
-        #expect(menu.items.map(\.title) == ["Add Account", "", "Settings", "", "Quit"])
+        #expect(menu.items.map(\.title) == [
+            "Add Account", "", "Appearance", "Refresh Every", "Hide Emails", "Launch at Login", "", "Diagnostics…", "About", "", "Quit",
+        ])
         #expect(addAccount.items.map(\.title) == ["Codex…", "Claude…", "Cursor…"])
         #expect(addAccount.items.map(providerAction) == [.addAccount, .connect, .connect])
     }
@@ -979,7 +985,7 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func settingsDisconnectsEachConnectedTool() throws {
+    func showToolsChecksEachVisibleToolAndUncheckingIsDisconnect() throws {
         let menu = MenuBarMenuBuilder().makeMenu(
             state: makeState(
                 activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
@@ -991,12 +997,13 @@ struct MenuBarMenuBuilderTests {
             target: try makeCoordinator()
         )
 
-        let settings = try settingsMenu(in: menu)
-        let disconnects = settings.items.filter { $0.title.hasPrefix("Disconnect") }
+        let tools = try #require(try appearanceMenu(in: menu).items.first { $0.title == "Show Tools" }?.submenu)
 
-        #expect(disconnects.map(\.title) == ["Disconnect Claude"])
-        #expect(disconnects.map(providerAction) == [.disconnect])
-        #expect(try #require(menu.items.first?.submenu).items.allSatisfy { !$0.title.hasPrefix("Disconnect") })
+        #expect(tools.items.map(\.title) == ["Claude", "Codex", "Cursor"])
+        #expect(tools.items.map(\.state) == [.on, .on, .off])
+        #expect(tools.items.map(providerAction) == [.disconnect, .disconnect, .connect])
+        #expect(tools.items.allSatisfy { $0.isEnabled })
+        #expect(!menu.items.contains { $0.title.hasPrefix("Disconnect") })
     }
 
     @Test
@@ -1052,7 +1059,7 @@ struct MenuBarMenuBuilderTests {
 
         let side = try #require(menu.items.first?.submenu)
 
-        #expect(menu.items.map(\.title) == ["Claude", "Allow Keychain access…", "", "Codex", "", "Settings", "", "Quit"])
+        #expect(menu.items.map(\.title) == ["Claude", "Allow Keychain access…", "", "Codex", "", "Add Account", "", "Appearance", "Refresh Every", "Hide Emails", "Launch at Login", "", "Diagnostics…", "About", "", "Quit"])
         #expect(providerAction(menu.items[1]) == .allowKeychainAccess)
         #expect(side.items.map(\.title) == [
             "a•••x@example.com", "s•••m@acme.dev\nSession 12% · Weekly 40% used", "",
@@ -1077,7 +1084,7 @@ struct MenuBarMenuBuilderTests {
         let side = try #require(menu.items.first?.submenu)
         let add = try #require(side.items.first { $0.title == "Add Claude Account…" })
 
-        #expect(menu.items.map(\.title) == ["Claude", "", "Settings", "", "Quit"])
+        #expect(menu.items.map(\.title) == ["Claude", "", "Add Account", "", "Appearance", "Refresh Every", "Hide Emails", "Launch at Login", "", "Diagnostics…", "About", "", "Quit"])
         #expect(add.isEnabled == false)
         #expect(side.items.map(\.title) == ["Add Claude Account…", "Install Claude Code first"])
     }
@@ -1101,9 +1108,9 @@ struct MenuBarMenuBuilderTests {
             target: try makeCoordinator()
         )
 
-        #expect(signedOut.items.map(\.title) == ["Claude", "Sign In…", "", "Settings", "", "Quit"])
+        #expect(signedOut.items.map(\.title) == ["Claude", "Sign In…", "", "Add Account", "", "Appearance", "Refresh Every", "Hide Emails", "Launch at Login", "", "Diagnostics…", "About", "", "Quit"])
         #expect(providerAction(signedOut.items[1]) == .addAccount)
-        #expect(signingIn.items.map(\.title) == ["Claude", "Cancel Sign-In", "", "Settings", "", "Quit"])
+        #expect(signingIn.items.map(\.title) == ["Claude", "Cancel Sign-In", "", "Add Account", "", "Appearance", "Refresh Every", "Hide Emails", "Launch at Login", "", "Diagnostics…", "About", "", "Quit"])
         #expect(providerAction(signingIn.items[1]) == .cancelSignIn)
     }
 
@@ -1117,11 +1124,11 @@ struct MenuBarMenuBuilderTests {
             target: try makeCoordinator()
         )
 
-        #expect(menu.items.map(\.title) == ["Cursor", "", "Settings", "", "Quit"])
+        #expect(menu.items.map(\.title) == ["Cursor", "", "Add Account", "", "Appearance", "Refresh Every", "Hide Emails", "Launch at Login", "", "Diagnostics…", "About", "", "Quit"])
     }
 
     @Test
-    func settingsHoldsSetupAndRareChoices() throws {
+    func mainMenuHoldsSetupAndRareChoicesUnderTheCards() throws {
         let menu = MenuBarMenuBuilder().makeMenu(
             state: makeState(
                 activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
@@ -1131,14 +1138,11 @@ struct MenuBarMenuBuilderTests {
             target: try makeCoordinator()
         )
 
-        let settings = try settingsMenu(in: menu)
-        let addAccount = try #require(settings.items.first { $0.title == "Add Account" }?.submenu)
-        let refresh = try #require(settings.items.first { $0.title == "Refresh Every" }?.submenu)
+        let addAccount = try #require(menu.items.first { $0.title == "Add Account" }?.submenu)
+        let refresh = try #require(menu.items.first { $0.title == "Refresh Every" }?.submenu)
 
-        #expect(settings.items.map(\.title) == [
-            "Add Account", "Disconnect Claude", "", "Appearance", "Hide Emails", "Refresh Every", "Launch at Login", "", "Diagnostics…", "About",
-        ])
-        #expect(settings.items.first { $0.title == "Hide Emails" }?.state == .on)
+        #expect(menu.items.map(\.title) == ["Claude", "", "Codex", "", "Add Account", "", "Appearance", "Refresh Every", "Hide Emails", "Launch at Login", "", "Diagnostics…", "About", "", "Quit"])
+        #expect(menu.items.first { $0.title == "Hide Emails" }?.state == .on)
         #expect(addAccount.items.map(providerAction) == [.addAccount, .addAccount, .connect])
         #expect(refresh.items.map(\.title) == ["1 minute", "2 minutes", "5 minutes", "10 minutes", "15 minutes", "30 minutes"])
         #expect(refresh.items.first { $0.state == .on }?.title == "5 minutes")
@@ -1185,12 +1189,8 @@ struct MenuBarMenuBuilderTests {
         )
     }
 
-    private func settingsMenu(in menu: NSMenu) throws -> NSMenu {
-        try #require(menu.items.first(where: { $0.title == "Settings" })?.submenu)
-    }
-
     private func appearanceMenu(in menu: NSMenu) throws -> NSMenu {
-        try #require(settingsMenu(in: menu).items.first(where: { $0.title == "Appearance" })?.submenu)
+        try #require(menu.items.first(where: { $0.title == "Appearance" })?.submenu)
     }
 
     private func statusItemContentMenu(in menu: NSMenu) -> NSMenu? {
@@ -1198,7 +1198,7 @@ struct MenuBarMenuBuilderTests {
     }
 
     private func launchAtLoginItem(in menu: NSMenu) throws -> NSMenuItem {
-        try #require(settingsMenu(in: menu).items.first(where: { $0.title.hasPrefix("Launch at Login") }))
+        try #require(menu.items.first(where: { $0.title.hasPrefix("Launch at Login") }))
     }
 
     private func makeCoordinator() throws -> MenuBarCoordinator {

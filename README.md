@@ -34,17 +34,17 @@ Refill was called CodexPill before this release. See
 - Stay local-first: no cloud sync, no hidden browser automation, no account data upload.
 
 Claude Code and Cursor are optional. Refill reads them only after you connect
-them from `Settings › Add Account`.
+them from `Add Account`.
 
 ## What's New
 
 - Claude Code and Cursor: see their limits and switch between saved accounts,
   next to Codex.
-- One card per tool, with account actions in side menus and all settings under
-  `Settings`.
+- One card per tool, with account actions in side menus and the app's own
+  items right under the cards.
 - Codex reset credits: see how many you have and use one from the Codex menu.
 - A new name, a new capsule icon, and six icon colours under
-  `Settings › Appearance › App Icon`.
+  `Appearance › App Icon`.
 - Remote Hosts and Notifications are gone.
 
 See the [Changelog](CHANGELOG.md) for earlier releases.
@@ -91,8 +91,8 @@ for maintainer packaging details.
 ## Prerequisite
 
 Install and sign in to at least one tool on your Mac: Codex (the app, the CLI or
-both), Claude Code or Cursor. Refill always shows a Codex card. Claude Code and
-Cursor appear once you connect them from `Settings › Add Account`.
+both), Claude Code or Cursor. Refill shows a Codex card once you save a Codex account. Claude Code and
+Cursor appear once you connect them from `Add Account`.
 
 Token Usage is optional and local to this Mac. It reads local Codex session
 history, stores derived aggregate buckets, and does not upload prompt content,
@@ -103,10 +103,6 @@ session rows or auth data.
 | Add Account | Codex Side Menu |
 | --- | --- |
 | <img src="docs/assets/refill-add-account.png" width="420" alt="Refill Add Account dialog with the capsule icon"> | <img src="docs/assets/refill-account-actions.png" width="420" alt="Refill Codex side menu with account, reset and section actions"> |
-
-| Settings |
-| --- |
-| <img src="docs/assets/refill-settings.png" width="420" alt="Refill Settings submenu"> |
 
 ## Local-First
 

@@ -18,17 +18,17 @@ Refill never reads or writes Claude Code's `settings.json`. Reading limits from 
 
 ## Menu
 
-The `Claude` card follows the shared card and side menu in [Menubar](menubar.md). The side menu marks the account in use, lists the other saved accounts with their last limits, and adds accounts. `Disconnect Claude` is in Settings.
+The `Claude` card follows the shared card and side menu in [Menubar](menubar.md). The side menu marks the account in use, lists the other saved accounts with their last limits, and adds accounts. `Appearance › Show Tools › Claude` disconnects it.
 
-- **Not connected.** There is no card. `Settings › Add Account › Claude…` (and the first-run `Add Account ›`) connects. Choosing it opens a consent alert first. Nothing is read until the user confirms.
+- **Not connected.** There is no card. `Add Account › Claude…` (and the first-run `Add Account ›`) connects. Choosing it opens a consent alert first. Nothing is read until the user confirms.
 - **Consent alert.** One short alert:
 
   > **Connect Claude Code?**
   > Uses Claude Code's sign-in to read your limits.
 
   Confirming saves the choice and reads at once. That first read may show the macOS Keychain prompt.
-- **Connected.** The choice is saved in user defaults (`claudeUsageEnabled`, off by default). `Disconnect Claude` in Settings turns the feature off at once with no alert, because it changes nothing outside Refill.
-- **Current.** The plan tag (`Max x20`, read from `organizationRateLimitTier`, else `userRateLimitTier`, in Claude Code's `oauthAccount`, because the credentials' `rateLimitTier` keeps the tier from sign-in time; that one is used only when the account record has none), then `Session` and `Weekly` meters with their reset times, then one meter per model with its own weekly limit, such as `Fable this week`, unless `Settings › Appearance › Show Model Limits` is off. There is no reset-credit row. The meters use the same percent mode, layout, colors, and pacing markers as the Codex card.
+- **Connected.** The choice is saved in user defaults (`claudeUsageEnabled`, off by default). Unchecking `Appearance › Show Tools › Claude` turns the feature off at once with no alert, because it changes nothing outside Refill. Checking it again connects through the same consent alert.
+- **Current.** The plan tag (`Max x20`, read from `organizationRateLimitTier`, else `userRateLimitTier`, in Claude Code's `oauthAccount`, because the credentials' `rateLimitTier` keeps the tier from sign-in time; that one is used only when the account record has none), then `Session` and `Weekly` meters with their reset times, then one meter per model with its own weekly limit, such as `Fable this week`, unless `Appearance › Show Model Limits` is off. There is no reset-credit row. The meters use the same percent mode, layout, colors, and pacing markers as the Codex card.
 - **Waiting.** `Waiting for Claude Code usage`, with no second line. Anthropic answered but sent neither window, for example on a plan without subscription limits.
 - **Keychain access needed.** The card says `Allow Keychain access` and one row under it, `Allow Keychain access…`, It reads again with the macOS Keychain prompt allowed. Claude Code rewrites its Keychain item when it renews its sign-in, which can reset an earlier `Always Allow`, so this state can come back.
 - **Failures.** Each failure shows a title and one short line. Except for signed out, the last good values stay dimmed below it with their `As of` time.

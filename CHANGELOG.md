@@ -13,10 +13,10 @@
 ### Added
 
 - Claude Code and Cursor usage limits, with switching between saved accounts.
-- One card per tool, with account actions in side menus and settings under
-  `Settings`.
+- One card per tool, with account actions in side menus and the app's own
+  items right under the cards. `Appearance › Show Tools` hides a tool.
 - Codex reset credits.
-- App Icon colour setting under `Settings › Appearance`, with six colours. It
+- App Icon colour setting under `Appearance`, with six colours. It
   changes the icon in About and in alerts. Finder keeps Cobalt.
 
 ### Removed

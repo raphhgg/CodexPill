@@ -41,14 +41,14 @@ Refill never copies Codex auth snapshots or Codex tokens to another machine or s
 
 Refill never signs in to Claude with its own code, never calls Anthropic's token endpoint, and never reads, sends, or renews a refresh token itself. Signing in and renewing are done by Claude Code, through the commands listed below. Refill may run `claude doctor` so Claude Code renews its own sign-in, but only when that sign-in has expired and no terminal `claude` session runs. The Claude desktop app's own Claude Code is ignored because it keeps its own sign-in.
 
-**Usage (optional, off by default).** `Settings › Add Account › Claude…` asks for consent before anything is read. While it is connected, each read:
+**Usage (optional, off by default).** `Add Account › Claude…` asks for consent before anything is read. While it is connected, each read:
 
 - reads `.credentials.json` in Claude Code's config folder (`CLAUDE_CONFIG_DIR`, or `~/.claude`), and if that file holds no Claude sign-in, the login Keychain generic password with service `Claude Code-credentials` and your macOS user name as the account;
 - uses only the access token, its expiry, and the plan name from that sign-in;
 - reads the plan tier from `oauthAccount` in Claude Code's global config (`$CLAUDE_CONFIG_DIR/.claude.json`, or `~/.claude.json`);
 - sends the access token to one place, `GET https://api.anthropic.com/api/oauth/usage`, to fetch your 5-hour and weekly limits. Redirects to any other host, or to plain HTTP, are refused. The request has no cookies and no cache.
 
-macOS may ask you to allow Keychain access. Refill shows that prompt only right after you connect or choose `Allow Keychain access…`. Refill never logs or displays the token, and it never reads browser cookies or Claude conversations. `Disconnect Claude` turns usage off and stops all reads.
+macOS may ask you to allow Keychain access. Refill shows that prompt only right after you connect or choose `Allow Keychain access…`. Refill never logs or displays the token, and it never reads browser cookies or Claude conversations. Unchecking `Appearance › Show Tools › Claude` turns usage off and stops all reads.
 
 **What Refill stores for each saved Claude account.** Each saved account is that account's Claude Code sign-in:
 
@@ -78,13 +78,13 @@ If any step fails, Refill puts back every file and item it had already changed.
 
 Refill never signs in to Cursor with its own code, never asks Cursor for a new token, and never sends Cursor's refresh token anywhere. A new account is signed in by Cursor itself, in a separate Cursor window. Cursor keeps its sign-in in a SQLite database, `~/Library/Application Support/Cursor/User/globalStorage/state.vscdb`, and Refill reads it only by key, never by scanning.
 
-**Usage (optional, off by default).** `Settings › Add Account › Cursor…` asks for consent before anything is read. While it is connected, each read:
+**Usage (optional, off by default).** `Add Account › Cursor…` asks for consent before anything is read. While it is connected, each read:
 
 - opens that database read-only and reads one row, `cursorAuth/accessToken`. When Cursor is closed, the database is opened so that no file is created next to it; when Cursor has it open, SQLite reads only committed data;
 - uses the token only while it is more than a minute from expiry;
 - sends the token to one place, `GET https://cursor.com/api/usage-summary`, as Cursor's session cookie, to fetch your plan usage, on-demand spend, and billing cycle. Redirects are refused, and the request has no cookie store and no cache. After a `429`, nothing is read or sent until cursor.com's `Retry-After` passes.
 
-Refill never stores, logs, or displays the token, and it never reads browser cookies or Cursor projects. `Disconnect Cursor` turns usage off and stops all reads.
+Refill never stores, logs, or displays the token, and it never reads browser cookies or Cursor projects. Unchecking `Appearance › Show Tools › Cursor` turns usage off and stops all reads.
 
 **Saved Cursor accounts.** Refill can save Cursor sign-ins and switch between them. Once Cursor is connected, Refill saves the account Cursor is signed in to automatically when its user is not saved yet. Only a user action adds another, switches or removes one, and switching makes no network call. Saving one copies the eight `cursorAuth/*` rows that are a Cursor sign-in (`accessToken`, `refreshToken`, `cachedEmail`, `cachedScopedProfile`, `cachedSignUpType`, `stripeMembershipAuthId`, `stripeMembershipType`, `stripeSubscriptionStatus`) into one login Keychain item Refill owns, service `Refill Cursor accounts`, under its email. Those rows include Cursor's tokens and your Cursor email. The same item keeps each account's last limits (plan, percent used, on-demand spend, billing cycle, and when they were read). Nothing about them goes to a file.
 

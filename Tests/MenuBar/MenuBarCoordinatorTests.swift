@@ -173,9 +173,9 @@ struct MenuBarCoordinatorTests {
         await coordinator.waitForPendingWork()
 
         #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .claude, status: .notConnected)])
-        #expect(mainMenuTitles(coordinator) == ["Add Account", "", "Settings", "", "Quit"])
+        #expect(cardAreaTitles(coordinator) == [])
 
-        harness.click("Claude…")
+        harness.click("Add Account", "Claude…")
         await coordinator.waitForPendingWork()
 
         #expect(harness.alertPresenter.confirmationRequests.map(\.messageText) == ["Connect Claude Code?"])
@@ -183,7 +183,7 @@ struct MenuBarCoordinatorTests {
         #expect(fixture.keychainReadPrompts == [])
 
         harness.alertPresenter.confirmationResponse = true
-        harness.click("Claude…")
+        harness.click("Add Account", "Claude…")
         await coordinator.waitForPendingWork()
 
         #expect(fixture.keychainReadPrompts == [true])
@@ -191,7 +191,7 @@ struct MenuBarCoordinatorTests {
             Issue.record("Expected current Claude usage right after connecting")
             return
         }
-        #expect(mainMenuTitles(coordinator) == ["Claude", "", "Settings", "", "Quit"])
+        #expect(cardAreaTitles(coordinator) == ["Claude"])
 
         fixture.signInToKeychain(expiresAt: Date().addingTimeInterval(3_600), needsPermission: true)
         await coordinator.performScheduledRefresh()
@@ -201,7 +201,7 @@ struct MenuBarCoordinatorTests {
             Issue.record("Expected the Allow Keychain access state with the last usage kept")
             return
         }
-        #expect(mainMenuTitles(coordinator) == ["Claude", "Allow Keychain access…", "", "Settings", "", "Quit"])
+        #expect(cardAreaTitles(coordinator) == ["Claude", "Allow Keychain access…"])
 
         harness.click("Allow Keychain access…")
         await coordinator.waitForPendingWork()
@@ -212,13 +212,13 @@ struct MenuBarCoordinatorTests {
         }
         #expect(fixture.keychainReadPrompts.suffix(2) == [false, true])
 
-        harness.click("Disconnect Claude")
+        harness.click("Appearance", "Show Tools", "Claude")
         await coordinator.waitForPendingWork()
 
         #expect(harness.alertPresenter.confirmationRequests.count == 2)
         #expect(fixture.settings.isEnabled == false)
         #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .claude, status: .notConnected)])
-        #expect(mainMenuTitles(coordinator) == ["Add Account", "", "Settings", "", "Quit"])
+        #expect(cardAreaTitles(coordinator) == [])
     }
 
     @Test
@@ -236,9 +236,9 @@ struct MenuBarCoordinatorTests {
         await coordinator.waitForPendingWork()
 
         #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .cursor, status: .notConnected)])
-        #expect(mainMenuTitles(coordinator) == ["Add Account", "", "Settings", "", "Quit"])
+        #expect(cardAreaTitles(coordinator) == [])
 
-        harness.click("Cursor…")
+        harness.click("Add Account", "Cursor…")
         await coordinator.waitForPendingWork()
 
         #expect(harness.alertPresenter.confirmationRequests.map(\.messageText) == ["Connect Cursor?"])
@@ -246,7 +246,7 @@ struct MenuBarCoordinatorTests {
         #expect(fixture.requestCount == 0)
 
         harness.alertPresenter.confirmationResponse = true
-        harness.click("Cursor…")
+        harness.click("Add Account", "Cursor…")
         await coordinator.waitForPendingWork()
 
         let current = UsageSnapshot(
@@ -257,7 +257,7 @@ struct MenuBarCoordinatorTests {
             spend: UsageSpend(usedUSD: Decimal(string: "12.34")!, limitUSD: 50)
         )
         #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .cursor, status: .current(current))])
-        #expect(mainMenuTitles(coordinator) == ["Cursor", "", "Settings", "", "Quit"])
+        #expect(cardAreaTitles(coordinator) == ["Cursor"])
 
         fixture.response = .failure(.transport)
         await coordinator.performScheduledRefresh()
@@ -267,12 +267,48 @@ struct MenuBarCoordinatorTests {
             ProviderUsageState(provider: .cursor, status: .unavailable(.unreachable, lastSnapshot: current))
         ])
 
-        harness.click("Disconnect Cursor")
+        harness.click("Appearance", "Show Tools", "Cursor")
         await coordinator.waitForPendingWork()
 
         #expect(fixture.settings.isEnabled == false)
         #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .cursor, status: .notConnected)])
-        #expect(mainMenuTitles(coordinator) == ["Add Account", "", "Settings", "", "Quit"])
+        #expect(cardAreaTitles(coordinator) == [])
+    }
+
+    @Test
+    func showToolsHidesAToolsCardAndStopsReadingItUntilCheckedAgain() async throws {
+        let harness = try MenuBarCoordinatorHarness()
+        defer { harness.tearDown() }
+        harness.alertPresenter.confirmationResponse = true
+        _ = try harness.makeActiveAccount(email: "business-4@example.com")
+        let codexReads = CountingAccountStatusClient()
+        let claude = ProviderConnectionProbe(provider: .claude, refreshInterval: 0, reading: .snapshot(UsageSnapshot(provider: .claude, planName: nil, windows: [], fetchedAt: Date())))
+        let coordinator = harness.makeCoordinator(providerConnections: [claude], accountStatusClient: codexReads)
+        coordinator.start()
+        await coordinator.performScheduledRefresh()
+        await coordinator.waitForPendingWork()
+        #expect(cardAreaTitles(coordinator) == ["Claude", "", "Codex"])
+
+        harness.click("Appearance", "Show Tools", "Claude")
+        harness.click("Appearance", "Show Tools", "Codex")
+        await coordinator.waitForPendingWork()
+        let (claudeReads, codexReadsWhenHidden) = (claude.readCount, codexReads.readCount)
+        await coordinator.performScheduledRefresh()
+        await coordinator.waitForPendingWork()
+
+        #expect(cardAreaTitles(coordinator) == [])
+        #expect(claude.readCount == claudeReads)
+        #expect(codexReads.readCount == codexReadsWhenHidden)
+        #expect(harness.settings.menuDisplaySettings.hidesCodex)
+
+        harness.click("Appearance", "Show Tools", "Codex")
+        harness.click("Appearance", "Show Tools", "Claude")
+        await coordinator.waitForPendingWork()
+
+        #expect(cardAreaTitles(coordinator) == ["Claude", "", "Codex"])
+        #expect(claude.readCount > claudeReads)
+        #expect(codexReads.readCount > codexReadsWhenHidden)
+        #expect(harness.alertPresenter.confirmationRequests.map(\.messageText) == ["Connect Claude Code?"])
     }
 
     @Test
@@ -371,8 +407,14 @@ struct MenuBarCoordinatorTests {
         #expect(fireCount > 0)
     }
 
-    private func mainMenuTitles(_ coordinator: MenuBarCoordinator) -> [String] {
-        MenuBarMenuBuilder().makeMenu(state: coordinator.menuState(), target: coordinator).items.map(\.title)
+    /// The main menu's titles above Add Account: the cards and their follow-up rows.
+    private func cardAreaTitles(_ coordinator: MenuBarCoordinator) -> [String] {
+        let titles = MenuBarMenuBuilder().makeMenu(state: coordinator.menuState(), target: coordinator).items.map(\.title)
+        var cardArea = Array(titles.prefix { $0 != "Add Account" })
+        if cardArea.last == "" {
+            cardArea.removeLast()
+        }
+        return cardArea
     }
 }
 
@@ -398,6 +440,7 @@ private final class MenuBarCoordinatorHarness {
     func makeCoordinator(
         providerConnections: [any ProviderConnection] = [],
         allowsEmptyStatePrompt: Bool = false,
+        accountStatusClient: CodexAccountStatusClient & SavedCodexAccountStatusClient = DisabledAccountStatusClient(),
         resetCreditClient: CodexResetCreditClient = UnavailableResetCreditClient(),
         now: @escaping () -> Date = Date.init
     ) -> MenuBarCoordinator {
@@ -405,7 +448,7 @@ private final class MenuBarCoordinatorHarness {
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
-            accountStatusClient: DisabledAccountStatusClient(),
+            accountStatusClient: accountStatusClient,
             resetCreditClient: resetCreditClient,
             postSwitchRefreshDelay: .zero
         ).makeController()
@@ -444,23 +487,20 @@ private final class MenuBarCoordinatorHarness {
         coordinator?.performProviderAction(item)
     }
 
-    /// Clicks the item titled `title`, in the menu or any submenu, as the coordinator would build it now.
-    func click(_ title: String) {
+    /// Clicks the enabled item at `path`, such as "Appearance", "Show Tools", "Claude", in the menu the coordinator would build now.
+    func click(_ path: String...) {
         guard let coordinator else { return }
-        let menu = MenuBarMenuBuilder().makeMenu(state: coordinator.menuState(), target: coordinator)
-        guard let item = Self.item(titled: title, in: menu), let action = item.action else {
-            Issue.record("No menu item titled \(title)")
+        var menu: NSMenu? = MenuBarMenuBuilder().makeMenu(state: coordinator.menuState(), target: coordinator)
+        var item: NSMenuItem?
+        for title in path {
+            item = menu?.items.first { $0.title == title }
+            menu = item?.submenu
+        }
+        guard let item, item.isEnabled, let action = item.action else {
+            Issue.record("No enabled menu item at \(path.joined(separator: " › "))")
             return
         }
         _ = (item.target as? NSObject)?.perform(action, with: item)
-    }
-
-    private static func item(titled title: String, in menu: NSMenu) -> NSMenuItem? {
-        for item in menu.items {
-            if item.title == title { return item }
-            if let submenu = item.submenu, let found = Self.item(titled: title, in: submenu) { return found }
-        }
-        return nil
     }
 
     func tearDown() {

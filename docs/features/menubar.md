@@ -6,14 +6,28 @@ The menubar feature owns the menu's composition: which sections appear, in what 
 
 Top to bottom, nothing else:
 
-1. One card per tool that has a saved account or a connection: `Claude`, `Codex`, `Cursor` by default. Separators sit between cards.
-2. `Settings ›`
+1. One card per visible tool: `Claude`, `Codex`, `Cursor` by default. Separators sit between cards.
+2. The app's own items:
+
+   ```text
+   ─────
+   Add Account ›        Codex…  Claude…  Cursor…
+   ─────
+   Appearance ›
+   Refresh Every ›      1 minute … 30 minutes
+   Hide Emails
+   Launch at Login
+   ─────
+   Diagnostics…
+   About
+   ```
+
 3. The status message, only while an account operation runs.
 4. `Quit ⌘Q`
 
-A tool with nothing set up has no card. Codex has a card once one account is saved. Claude and Cursor have one once connected ([Claude Usage](claude-usage.md), [Cursor Usage](cursor-usage.md)).
+There is no `Settings` submenu. A tool with nothing set up has no card. Codex has a card once one account is saved. Claude and Cursor have one once connected ([Claude Usage](claude-usage.md), [Cursor Usage](cursor-usage.md)). `Appearance › Show Tools` hides a card.
 
-With nothing set up at all, the menu is `Add Account ›` (Codex…, Claude…, Cursor…), `Settings ›` and `Quit`.
+With no card at all, on a first run or with every tool hidden, the menu starts at `Add Account ›`. It is the same list, so a new user sees where to begin first.
 
 The user orders the cards from each side menu. The first card drives the menu bar icon ([Status Bar](status-bar.md)).
 
@@ -54,28 +68,25 @@ Hovering a card opens its side menu:
    `Add <Tool> Account…` runs the tool's own sign-in without touching the account in use. Cursor's opens a second Cursor window with a throwaway profile. The account Claude Code or Cursor is signed in to is saved automatically once that tool is connected. Without the `claude` command or Cursor, the add item is disabled with `Install Claude Code first` or `Install Cursor first` under it.
    A switch while that tool's sign-in runs is refused: `Finish signing in first` / `Or cancel the sign-in.`
 
-The account in use has no remove item. Claude and Cursor save the live account automatically, so a removed one would come straight back. `Disconnect <Tool>` lives in Settings.
+The account in use has no remove item. Claude and Cursor save the live account automatically, so a removed one would come straight back. `Appearance › Show Tools` hides a tool instead.
 
 `Hide Emails` masks every email the menu, its alerts and the tooltip show: `alex.side@example.com` reads `al•••e@example.com`. The domain stays visible.
 
 Every tool item carries a `ProviderMenuAction` and goes through `MenuBarCoordinator.performProviderAction(_:)`.
 
-## Settings
+## App Items
+
+`Claude…` and `Cursor…` under `Add Account` connect a tool that is not connected yet. Otherwise they run `Add Claude Account…` and `Add Cursor Account…`. Adding a Codex account shows the Codex card again if it was hidden.
 
 ```text
-Add Account ›        Codex…  Claude…  Cursor…
-Disconnect Claude    (one per connected tool: Claude, Cursor)
-─────
-Appearance ›         Menu Bar Label ›  Icon Style ›  Usage Bars ›  App Icon ›  ─  Show Token Usage  Show Model Limits
-Hide Emails
-Refresh Every ›      1 minute … 30 minutes
-Launch at Login
-─────
-Diagnostics…
-About
+Appearance ›   Show Tools ›  Menu Bar Label ›  Icon Style ›  Usage Bars ›  App Icon ›  ─  Show Token Usage  Show Model Limits
 ```
 
-`Claude…` and `Cursor…` connect a tool that is not connected yet. Otherwise they run `Add Claude Account…` and `Add Cursor Account…`. `Disconnect Claude` and `Disconnect Cursor` appear only while that tool is connected, and hide its card. Codex has nothing to disconnect.
+`Show Tools` has one checkmark item each for `Claude`, `Codex` and `Cursor`, checked while that tool's card shows.
+
+- Unchecking `Claude` or `Cursor` disconnects it: the card goes and nothing is read, with no alert. Checking it connects again, through the same consent alert as `Add Account`.
+- Unchecking `Codex` hides its card and stops the Codex reads. Saved accounts and `auth.json` stay as they are. Checking it shows the card and reads it again. With no saved Codex account, checking it adds one. The choice is saved as `hidesCodex` in user defaults.
+- Every tool can be hidden. The menu bar icon then shows the app's own glyph, and the menu is the first-run one.
 
 `Show Model Limits` is on by default and checked while on. Turning it off hides Claude's per-model meters in the card and in each saved account's line. It never changes the menu bar icon, which uses only the session and weekly windows. It is saved as `claudeShowsModelLimits` in user defaults.
 

@@ -35,7 +35,7 @@ Token Usage treats daily buckets as local-session scoped. It does not promise a 
 
 ## Happy Path
 
-1. User enables `Settings › Appearance › Show Token Usage`.
+1. User enables `Appearance › Show Token Usage`.
 2. Refill starts scanning recent local Codex session JSONL files in the background.
 3. User can close the menu or continue working while the scan completes.
 4. Refill aggregates safe token totals by day and stores them in a derived cache.
@@ -43,7 +43,7 @@ Token Usage treats daily buckets as local-session scoped. It does not promise a 
 
 ## UI / Copy / States
 
-Settings › Appearance:
+Appearance:
 
 - `Show Token Usage`
 
@@ -116,7 +116,7 @@ Expected behavior:
 
 ## Acceptance Criteria
 
-- Token Usage can be enabled and disabled from `Settings › Appearance`.
+- Token Usage can be enabled and disabled from `Appearance`.
 - When disabled, the main menu does not show the Token Usage card.
 - When enabled, the main menu shows a compact Token Usage card inside the active account area, directly below the Session and Weekly limit rows.
 - The card displays the selected chart style for the selected period.

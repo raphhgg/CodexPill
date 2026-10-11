@@ -63,7 +63,7 @@ enum ToolSectionMove: CaseIterable {
 }
 
 extension MenuBarMenuState {
-    /// One section per tool with a saved account or a connection, in the user's order.
+    /// One section per tool with a saved account or a connection, in the user's order. Codex can be hidden.
     var toolSections: [ToolSection] {
         toolOrder.compactMap { provider in
             if provider == .codex {
@@ -103,7 +103,7 @@ extension MenuBarMenuState {
     }
 
     private var codexSection: ToolSection? {
-        guard !allSavedAccounts.isEmpty else { return nil }
+        guard !hidesCodex, !allSavedAccounts.isEmpty else { return nil }
         let accounts = accountLabels(allSavedAccounts.map { account in
             let planLabel = planTag(for: .codex, planName: account.effectivePlanType).map { "\($0) account" }
             return ProviderAccount(

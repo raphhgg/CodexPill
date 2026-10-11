@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// The main menu: one card per tool, Settings and Quit. Account actions live in each card's side menu.
+/// The main menu: one card per tool, then the app's own items and Quit. Account actions live in each card's side menu.
 @MainActor
 struct MenuBarMenuBuilder {
     static let menuContentWidth: CGFloat = 372
@@ -18,11 +18,7 @@ struct MenuBarMenuBuilder {
         menu.removeAllItems()
         menu.delegate = target
 
-        let sections = state.toolSections
-        if sections.isEmpty {
-            menu.addItem(addAccountMenuItem(state: state, target: target))
-        }
-        for (index, section) in sections.enumerated() {
+        for (index, section) in state.toolSections.enumerated() {
             if index > 0 {
                 menu.addItem(.separator())
             }
@@ -34,8 +30,16 @@ struct MenuBarMenuBuilder {
             }
         }
 
+        addSeparatorIfNeeded(to: menu)
+        menu.addItem(addAccountMenuItem(state: state, target: target))
         menu.addItem(.separator())
-        menu.addItem(settingsMenuItem(state: state, target: target))
+        menu.addItem(appearanceMenuItem(state: state, target: target))
+        menu.addItem(refreshIntervalMenuItem(state: state, target: target))
+        menu.addItem(toggleItem("Hide Emails", isOn: state.masksEmails, action: #selector(MenuBarCoordinator.toggleMasksEmails(_:)), target: target))
+        menu.addItem(launchAtLoginMenuItem(state: state, target: target))
+        menu.addItem(.separator())
+        menu.addItem(actionItem("Diagnostics…", action: #selector(MenuBarCoordinator.exportDiagnosticReport), isEnabled: !state.isBusy, target: target))
+        menu.addItem(actionItem("About", action: #selector(MenuBarCoordinator.showAbout), isEnabled: !state.isBusy, target: target))
 
         if state.shouldShowStatusMessage {
             menu.addItem(.separator())
@@ -128,34 +132,31 @@ struct MenuBarMenuBuilder {
         return menu
     }
 
-    private func settingsMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let menu = NSMenu(title: "Settings")
-        menu.addItem(addAccountMenuItem(state: state, target: target))
-        for usage in state.providerUsage where usage.status != .notConnected {
-            menu.addItem(providerItem(title: "Disconnect \(usage.provider.copy.sectionTitle)", .disconnect, for: usage.provider, target: target))
+    private func appearanceMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let menu = NSMenu(title: "Appearance")
+        menu.addItem(showToolsMenuItem(state: state, target: target))
+        menu.addItem(statusBarDisplayMenuItem(state: state, target: target))
+        menu.addItem(statusBarStyleMenuItem(state: state, target: target))
+        menu.addItem(usageBarsMenuItem(state: state, target: target))
+        menu.addItem(appIconMenuItem(state: state, target: target))
+        menu.addItem(.separator())
+        menu.addItem(toggleItem("Show Token Usage", isOn: state.tokenUsageEnabled, action: #selector(MenuBarCoordinator.toggleTokenUsage(_:)), target: target))
+        menu.addItem(toggleItem("Show Model Limits", isOn: state.showsModelLimits, action: #selector(MenuBarCoordinator.toggleShowsModelLimits(_:)), target: target))
+        return submenuItem(menu)
+    }
+
+    /// Unchecking a tool hides its card and stops reading it. With every tool hidden the menu is the first-run one.
+    private func showToolsMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let menu = NSMenu(title: "Show Tools")
+        let visible = state.toolSections.map(\.provider)
+        for provider in [UsageProvider.claude, .codex, .cursor] {
+            let isVisible = visible.contains(provider)
+            let item = providerItem(title: provider.copy.sectionTitle, isVisible ? .disconnect : .connect, for: provider, target: target)
+            item.state = isVisible ? .on : .off
+            item.isEnabled = isVisible || provider != .codex || !state.isBusy
+            menu.addItem(item)
         }
-        menu.addItem(.separator())
-
-        let appearance = NSMenu(title: "Appearance")
-        appearance.addItem(statusBarDisplayMenuItem(state: state, target: target))
-        appearance.addItem(statusBarStyleMenuItem(state: state, target: target))
-        appearance.addItem(usageBarsMenuItem(state: state, target: target))
-        appearance.addItem(appIconMenuItem(state: state, target: target))
-        appearance.addItem(.separator())
-        appearance.addItem(toggleItem("Show Token Usage", isOn: state.tokenUsageEnabled, action: #selector(MenuBarCoordinator.toggleTokenUsage(_:)), target: target))
-        appearance.addItem(toggleItem("Show Model Limits", isOn: state.showsModelLimits, action: #selector(MenuBarCoordinator.toggleShowsModelLimits(_:)), target: target))
-        menu.addItem(submenuItem(appearance))
-        menu.addItem(toggleItem("Hide Emails", isOn: state.masksEmails, action: #selector(MenuBarCoordinator.toggleMasksEmails(_:)), target: target))
-        menu.addItem(refreshIntervalMenuItem(state: state, target: target))
-        menu.addItem(launchAtLoginMenuItem(state: state, target: target))
-
-        menu.addItem(.separator())
-        menu.addItem(actionItem("Diagnostics…", action: #selector(MenuBarCoordinator.exportDiagnosticReport), isEnabled: !state.isBusy, target: target))
-        menu.addItem(actionItem("About", action: #selector(MenuBarCoordinator.showAbout), isEnabled: !state.isBusy, target: target))
-
-        let item = submenuItem(menu)
-        item.keyEquivalent = ","
-        return item
+        return submenuItem(menu)
     }
 
     /// Adds an account for any tool. A tool that is not connected yet connects instead.

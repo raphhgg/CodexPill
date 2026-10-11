@@ -24,6 +24,7 @@ struct MenuBarMenuState {
     let providerUsage: [ProviderUsageState]
     let toolOrder: [UsageProvider]
     let masksEmails: Bool
+    let hidesCodex: Bool
     let showsModelLimits: Bool
     let appIconColor: AppIconColor
     /// The moment reset countdowns and elapsed times in the menu are measured from.
@@ -52,6 +53,7 @@ struct MenuBarMenuState {
         providerUsage: [ProviderUsageState] = [],
         toolOrder: [UsageProvider] = MenuDisplaySettingsStore.defaultToolOrder,
         masksEmails: Bool = false,
+        hidesCodex: Bool = false,
         showsModelLimits: Bool = true,
         appIconColor: AppIconColor = .defaultColor,
         now: Date = .now
@@ -78,6 +80,7 @@ struct MenuBarMenuState {
         self.providerUsage = providerUsage
         self.toolOrder = toolOrder
         self.masksEmails = masksEmails
+        self.hidesCodex = hidesCodex
         self.showsModelLimits = showsModelLimits
         self.appIconColor = appIconColor
         self.now = now

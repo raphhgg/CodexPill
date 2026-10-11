@@ -140,6 +140,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     private func addCodexAccount() {
         recordMenuAction("addAccount")
+        menuDisplaySettings.hidesCodex = false
         menuBarCoordinatorLogger.log("Dispatching isolated add-account task to accounts controller")
         tasks.start { [weak self] in await self?.beginIsolatedAddAccount() }
     }
@@ -371,9 +372,25 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             removeCodexAccount(id)
         case .useResetCredit:
             useCodexResetCredit()
-        case .connect, .allowKeychainAccess, .cancelSignIn, .disconnect:
+        case .connect:
+            showCodex()
+        case .disconnect:
+            recordMenuAction("hideCodex")
+            menuDisplaySettings.hidesCodex = true
+        case .allowKeychainAccess, .cancelSignIn:
             break
         }
+    }
+
+    /// Shows a hidden Codex card and reads it again. With no saved Codex account, adds one.
+    private func showCodex() {
+        guard !accountsController.accounts.isEmpty else {
+            addCodexAccount()
+            return
+        }
+        recordMenuAction("showCodex")
+        menuDisplaySettings.hidesCodex = false
+        tasks.start { [weak self] in await self?.refreshCodex(includingSavedAccounts: true) }
     }
 
     private func useCodexResetCredit() {
@@ -518,6 +535,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             providerUsage: providerUsageRuntime.states,
             toolOrder: menuDisplaySettings.toolOrder,
             masksEmails: menuDisplaySettings.masksEmails,
+            hidesCodex: menuDisplaySettings.hidesCodex,
             showsModelLimits: claudeUsageSettings.showsModelLimits,
             appIconColor: appIconPreferences.appIconColor,
             now: now()
@@ -735,7 +753,12 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     func performScheduledRefresh() async {
         refreshProviderUsageIfDue()
         tasks.start { [weak self] in await self?.providerUsageRuntime.refreshInactiveAccountsIfDue() }
-        guard !accountsController.isBusy else { return }
+        await refreshCodex(includingSavedAccounts: true)
+    }
+
+    /// Reads the Codex limits unless the Codex card is hidden. At launch only the account in use is read.
+    func refreshCodex(includingSavedAccounts: Bool) async {
+        guard !menuDisplaySettings.hidesCodex, !accountsController.isBusy else { return }
         if let activeAccount = accountsController.activeAccount {
             switch await accountsController.refreshAccountData(for: activeAccount) {
             case .refreshed:
@@ -745,7 +768,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             }
         }
 
-        await accountsController.refreshInactiveSavedAccountsMetadata()
+        if includingSavedAccounts {
+            await accountsController.refreshInactiveSavedAccountsMetadata()
+        }
     }
 
     private func startObservingStore() {
@@ -794,6 +819,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             _ = statusItemSettings.statusBarDisplayMode
             _ = menuDisplaySettings.toolOrder
             _ = menuDisplaySettings.masksEmails
+            _ = menuDisplaySettings.hidesCodex
             _ = statusItemSettings.sessionAccentColor
             _ = statusItemSettings.weeklyAccentColor
             _ = statusItemSettings.usesOneUsageColor

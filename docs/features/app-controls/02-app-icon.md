@@ -12,7 +12,7 @@ The app icon is a porcelain-and-glass capsule built as an Icon Composer document
 asset catalog for macOS 26 and later, and generates an `AppIcon.icns` fallback
 for macOS 14 and 15.
 
-Refill exposes an `App Icon` submenu in `Settings › Appearance` with six colours:
+Refill exposes an `App Icon` submenu in `Appearance` with six colours:
 Cobalt, Deep teal, Emerald, Violet, Honey and Rose. Cobalt is the default. The
 choice persists and is applied at launch.
 
@@ -32,8 +32,8 @@ These surfaces always show Cobalt.
 ## UI / Copy / States
 
 ```text
-Settings
-  Appearance
+Appearance
+    Show Tools
     Menu Bar Label
     Icon Style
     Usage Bars
@@ -76,14 +76,14 @@ any `.icon` file. It renders the PNGs the app loads at runtime into
 ## Acceptance Criteria
 
 - The built app shows the Cobalt capsule icon in Finder and in the About alert.
-- `Settings › Appearance › App Icon` lists the six colours in order, with Cobalt checked by
+- `Appearance › App Icon` lists the six colours in order, with Cobalt checked by
   default.
 - Choosing a colour changes the About alert and other alert icons immediately.
 - The choice survives a relaunch.
 
 ## Validation Targets
 
-- Settings tests for the default, persistence, and unknown stored values.
+- Settings store tests for the default, persistence, and unknown stored values.
 - Mapping tests proving each non-default colour loads a bundled image.
 - Menu builder tests for the submenu order and checked state.
 - Coordinator tests proving a selection persists and applies the colour.

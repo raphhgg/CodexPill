@@ -4,11 +4,12 @@ import os
 @testable import Refill
 
 /// A tool connection whose reading and saved accounts the test sets. It counts reads, records switches and inactive
-/// reads in `events`, and lets a gate hold a sign-in or an inactive read.
+/// reads in `events`, and lets a gate hold a sign-in or an inactive read. Once disconnected it reads nothing.
 final class ProviderConnectionProbe: ProviderConnection {
     struct State {
         var reading: UsageProviderReading
         var readCount = 0
+        var isDisconnected = false
         var accounts: [ProviderAccount] = []
         var switchedTo: [UUID] = []
         var switchError: ProviderNotice?
@@ -29,17 +30,20 @@ final class ProviderConnectionProbe: ProviderConnection {
 
     let provider: UsageProvider
     let staleAfter: TimeInterval
+    let refreshInterval: TimeInterval
     let signInAvailability: ProviderSignInAvailability
     private let state: OSAllocatedUnfairLock<State>
 
     init(
         provider: UsageProvider,
         staleAfter: TimeInterval = 3_600,
+        refreshInterval: TimeInterval = ProviderUsageRuntime.refreshInterval,
         reading: UsageProviderReading,
         signInAvailability: ProviderSignInAvailability = .unsupported
     ) {
         self.provider = provider
         self.staleAfter = staleAfter
+        self.refreshInterval = refreshInterval
         self.signInAvailability = signInAvailability
         state = OSAllocatedUnfairLock(initialState: State(reading: reading))
     }
@@ -58,7 +62,8 @@ final class ProviderConnectionProbe: ProviderConnection {
     var events: [String] { state.withLock { $0.events } }
 
     func readUsage(now _: Date) async -> UsageProviderReading {
-        let (reading, gate) = state.withLock { state in
+        let (reading, gate) = state.withLock { state -> (UsageProviderReading, TestGate?) in
+            guard !state.isDisconnected else { return (.notConnected, nil) }
             state.readCount += 1
             return (state.reading, state.readGate)
         }
@@ -66,10 +71,10 @@ final class ProviderConnectionProbe: ProviderConnection {
         return reading
     }
 
-    var isConnected: Bool { reading != .notConnected }
+    var isConnected: Bool { state.withLock { !$0.isDisconnected && $0.reading != .notConnected } }
 
-    func connect() async {}
-    func disconnect() async {}
+    func connect() async { update { $0.isDisconnected = false } }
+    func disconnect() async { update { $0.isDisconnected = true } }
 
     func savedAccounts() async throws(ProviderNotice) -> [ProviderAccount] {
         state.withLock { $0.accounts }

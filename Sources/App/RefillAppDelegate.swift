@@ -18,7 +18,6 @@ final class RefillAppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let composition = AppComposition(environment: environment, defaults: defaults)
-        let accountsController = composition.accountsController
         coordinator = composition.coordinator
 
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
@@ -31,12 +30,10 @@ final class RefillAppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
-        accountsController.load()
+        composition.accountsController.load()
         coordinator?.start()
         Task { @MainActor in
-            if let activeAccount = accountsController.activeAccount {
-                _ = await accountsController.refreshAccountData(for: activeAccount)
-            }
+            await coordinator?.refreshCodex(includingSavedAccounts: false)
         }
     }
 
