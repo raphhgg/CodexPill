@@ -116,7 +116,10 @@ open -n \
 - `CODEX_HOME` points the `codex app-server` that CodexPill starts at the same
   `auth.json`.
 - Claude usage reads `.credentials.json` from `CLAUDE_CONFIG_DIR`, or from
-  `<root>/.claude`, and never the Keychain. Claude account switching is off.
+  `<root>/.claude`, and never the Keychain. Saved Claude accounts are files in
+  `<root>/claude-code-accounts`. Adding a Claude account runs only
+  `<root>/bin/claude`, so put a stand-in script there to try the sign-in card
+  without a real sign-in; without one, adding shows `Install Claude Code first`.
 - Cursor usage reads `<root>/Cursor/state.vscdb`, never Cursor's real database.
   Cursor account switching is off, so an isolated run never quits Cursor.
 

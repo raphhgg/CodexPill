@@ -31,6 +31,22 @@ security delete-generic-password -s "CodexPill Claude Code account"
 This leaves Claude Code's own sign-in, the `Claude Code-credentials` item, as it
 is. CodexPill never deletes that item.
 
+While you add a Claude account, or while Claude Code renews a saved one, Claude
+Code keeps that sign-in in a temporary `Claude Code-credentials-<8 characters>`
+item for a folder under `~/Library/Application Support/CodexPill/claude-sign-in`.
+CodexPill deletes both when the run ends, and on its next launch after a crash.
+If you remove CodexPill right after a crash, list what is left and delete each
+item by its exact name:
+
+```sh
+security dump-keychain | grep -o '"Claude Code-credentials-[0-9a-f]\{8\}"' | sort -u
+security delete-generic-password -s "Claude Code-credentials-<8 characters>"
+```
+
+Only delete names with the 8-character suffix. The plain `Claude Code-credentials`
+item is your real Claude Code sign-in. A suffixed item can also belong to a Claude
+Code you run yourself with `CLAUDE_CONFIG_DIR` set.
+
 If you saved Cursor accounts, remove the one Keychain item that holds them all:
 
 ```sh
