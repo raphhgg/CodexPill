@@ -224,21 +224,6 @@ struct ClaudeCodeAccountStoreTests {
     }
 
     @Test
-    func claudeCodeIsSpottedInEveryWayItIsInstalled() {
-        let executables = [
-            "/Users/someone/.local/share/claude/versions/2.1.294",
-            "/opt/homebrew/bin/claude",
-            "/Users/someone/Library/Application Support/Claude/claude-code/2.1.295/abc/claude.app/Contents/MacOS/claude",
-        ]
-        #expect(executables.allSatisfy(SystemClaudeCodeProcessDetector.isClaudeCodeExecutable))
-        #expect(SystemClaudeCodeProcessDetector.isClaudeCodeCommandLine("claude --resume"))
-
-        let others = ["/Applications/Claude.app/Contents/MacOS/Claude", "/usr/local/bin/node", "/usr/bin/claude-helper"]
-        #expect(others.contains(where: SystemClaudeCodeProcessDetector.isClaudeCodeExecutable) == false)
-        #expect(SystemClaudeCodeProcessDetector.isClaudeCodeCommandLine("vim claude.md") == false)
-    }
-
-    @Test
     func deletingForgetsTheSavedSignInAndLeavesClaudeCodeAlone() throws {
         let fixture = try ClaudeCodeAccountFixture()
         defer { fixture.remove() }

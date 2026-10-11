@@ -12,7 +12,7 @@ During normal use, CodexPill may read:
 - Local process information to detect running Codex CLI sessions when a switch may require a restart or user action.
 - CodexPill-owned state under `~/Library/Application Support/CodexPill`.
 - Claude Code's sign-in, from `~/.claude/.credentials.json` or the `Claude Code-credentials` Keychain item, while Claude Code usage is connected or when you save or switch a Claude Code account. See [Claude Code](#claude-code).
-- Local process information to detect a running Claude Code before switching Claude Code accounts.
+- Local process information to detect a running terminal Claude Code before switching Claude Code accounts or renewing the live sign-in.
 - Cursor's access token from Cursor's local database, while Cursor usage is connected, and Cursor's sign-in rows from the same database when you save or switch a Cursor account. See [Cursor](#cursor).
 - The sign-in rows of a temporary Cursor profile while you add a Cursor account. See [Cursor](#cursor).
 
@@ -37,7 +37,7 @@ CodexPill never copies Codex auth snapshots or Codex tokens to another machine o
 
 ## Claude Code
 
-CodexPill never signs in to Claude with its own code, never calls Anthropic's token endpoint, and never reads, sends, or renews a refresh token itself. Signing in and renewing are done by Claude Code, through the commands listed below. CodexPill may run `claude doctor` so Claude Code renews its own sign-in, but only when that sign-in has expired and Claude Code isn't running.
+CodexPill never signs in to Claude with its own code, never calls Anthropic's token endpoint, and never reads, sends, or renews a refresh token itself. Signing in and renewing are done by Claude Code, through the commands listed below. CodexPill may run `claude doctor` so Claude Code renews its own sign-in, but only when that sign-in has expired and no terminal `claude` session runs. The Claude desktop app's own Claude Code is ignored because it keeps its own sign-in.
 
 **Usage (optional, off by default).** `Settings › Add Account › Claude…` asks for consent before anything is read. While it is connected, each read:
 
@@ -67,7 +67,7 @@ When a run ends, whether it succeeded, failed, timed out, or you cancelled it, C
 
 - it updates the existing `Claude Code-credentials` Keychain item, or `.credentials.json` when the sign-in lives there. Only `claudeAiOauth` changes; other keys, such as MCP sign-ins, stay as they were. CodexPill never creates or deletes Claude Code's Keychain item;
 - it replaces `oauthAccount` in Claude Code's global config and keeps every other key;
-- it reads the process table first and refuses to switch while any `claude` process runs, including Claude Code inside the Claude desktop app.
+- it reads the process table first and refuses to switch while a terminal `claude` session runs. The Claude desktop app's own Claude Code, under `~/Library/Application Support/Claude/claude-code/`, is ignored because it keeps its own sign-in. If the process table can't be read, CodexPill treats Claude Code as running.
 
 If any step fails, CodexPill puts back every file and item it had already changed.
 
