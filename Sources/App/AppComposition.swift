@@ -74,7 +74,11 @@ struct AppComposition {
             return ClaudeCodeUsage(
                 settings: settings,
                 client: ClaudeUsageClient(
-                    credentials: ClaudeCredentialsSource(configDirectory: configDirectory, keychain: nil),
+                    credentials: ClaudeCredentialsSource(
+                        configDirectory: configDirectory,
+                        keychain: nil,
+                        globalConfigFile: configDirectory.appendingPathComponent(".claude.json")
+                    ),
                     webClient: webClient
                 ),
                 accounts: ClaudeCodeAccountStore(
@@ -101,6 +105,10 @@ struct AppComposition {
         }
 
         let configDirectory = ClaudeCredentialsSource.configDirectory(environment: environment)
+        let globalConfigFile = ClaudeCodeSignInStore.globalConfigFile(
+            environment: environment,
+            homeDirectory: FileManager.default.homeDirectoryForCurrentUser
+        )
         let keychain = SystemClaudeKeychain()
         let commands = ClaudeCodeCommands(
             processes: SystemClaudeCodeProcessRunner(),
@@ -111,7 +119,7 @@ struct AppComposition {
         return ClaudeCodeUsage(
             settings: settings,
             client: ClaudeUsageClient(
-                credentials: ClaudeCredentialsSource(configDirectory: configDirectory, keychain: keychain),
+                credentials: ClaudeCredentialsSource(configDirectory: configDirectory, keychain: keychain, globalConfigFile: globalConfigFile),
                 webClient: webClient
             ),
             accounts: ClaudeCodeAccountStore(
@@ -119,10 +127,7 @@ struct AppComposition {
                 items: SystemClaudeCodeAccountItems(),
                 claudeCode: ClaudeCodeSignInStore(
                     configDirectory: configDirectory,
-                    globalConfigFile: ClaudeCodeSignInStore.globalConfigFile(
-                        environment: environment,
-                        homeDirectory: FileManager.default.homeDirectoryForCurrentUser
-                    ),
+                    globalConfigFile: globalConfigFile,
                     keychain: keychain
                 ),
                 processes: SystemClaudeCodeProcessDetector()

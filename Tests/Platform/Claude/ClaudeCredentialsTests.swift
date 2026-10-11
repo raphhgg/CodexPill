@@ -32,6 +32,40 @@ struct ClaudeCredentialsTests {
         #expect(credentials.planName == planName)
     }
 
+    @Test(arguments: [
+        (#"{"oauthAccount":{"organizationRateLimitTier":"default_claude_max_20x"}}"#, "Max x20"),
+        (#"{"oauthAccount":{"userRateLimitTier":"default_claude_max_20x"}}"#, "Max x20"),
+        (#"{"oauthAccount":{"emailAddress":"person@example.com"}}"#, "Max x5"),
+        (nil, "Max x5"),
+    ])
+    func thePlanTagFollowsClaudeCodesAccountRecordOverTheTierFrozenInTheCredentials(globalConfig: String?, tag: String) throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("ClaudePlanTier-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try Data(#"{"claudeAiOauth":{"accessToken":"fake-claude-access-token","subscriptionType":"max","rateLimitTier":"default_claude_max_5x"}}"#.utf8)
+            .write(to: root.appendingPathComponent(".credentials.json"))
+        if let globalConfig {
+            try Data(globalConfig.utf8).write(to: root.appendingPathComponent(".claude.json"))
+        }
+        let source = ClaudeCredentialsSource(configDirectory: root, keychain: nil, globalConfigFile: root.appendingPathComponent(".claude.json"))
+
+        guard case let .credentials(credentials) = source.lookup(allowingPrompt: false) else {
+            Issue.record("expected credentials")
+            return
+        }
+        #expect(planTag(for: .claude, planName: credentials.planName) == tag)
+    }
+
+    @Test
+    func aSavedAccountsPlanTagComesFromTheAccountRecordSavedWithIt() throws {
+        let saved = try #require(try ClaudeCredentials(json: Data(#"""
+        {"claudeAiOauth":{"accessToken":"fake-claude-access-token","subscriptionType":"max","rateLimitTier":"default_claude_max_5x"},
+         "oauthAccount":{"accountUuid":"fake-user","organizationRateLimitTier":"default_claude_max_20x"}}
+        """#.utf8)))
+
+        #expect(planTag(for: .claude, planName: saved.planName) == "Max x20")
+    }
+
     @Test
     func anItemWithOnlyMCPSignInsIsSignedOutAndGarbageIsAnError() throws {
         #expect(try ClaudeCredentials(json: Data(#"{"mcpOAuth":{"some-server":{"accessToken":"fake-mcp-token"}}}"#.utf8)) == nil)
