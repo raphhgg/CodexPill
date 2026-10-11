@@ -127,14 +127,11 @@ struct MenuBarMenuBuilder {
 
         addSeparatorIfNeeded(to: menu)
         let availability = section.signInAvailability
-        let add = providerItem(title: "Add \(title) Account…", availability == .unsupported ? .saveCurrentAccount : .addAccount, for: provider, target: target)
+        let add = providerItem(title: "Add \(title) Account…", .addAccount, for: provider, target: target)
         add.isEnabled = accountActionsEnabled && availability != .notInstalled
         menu.addItem(add)
         if availability == .notInstalled {
             menu.addItem(disabledItem("Install \(provider.copy.name) first"))
-        }
-        if provider != .codex, availability != .unsupported {
-            menu.addItem(providerItem(title: "Save Current Sign-In", .saveCurrentAccount, for: provider, target: target))
         }
         if !section.accounts.isEmpty {
             let remove = NSMenu(title: "Remove \(title) Account")
@@ -186,8 +183,7 @@ struct MenuBarMenuBuilder {
             let action: ProviderAction = switch (provider, usage?.signInAvailability) {
             case (.codex, _): .addAccount
             case (_, nil): .connect
-            case (_, .unsupported): .saveCurrentAccount
-            case (_, .available), (_, .notInstalled): .addAccount
+            case (_, _?): .addAccount
             }
             let item = providerItem(title: "\(provider.copy.sectionTitle)…", action, for: provider, target: target)
             item.isEnabled = provider == .codex ? !state.isBusy : usage?.signInAvailability != .notInstalled

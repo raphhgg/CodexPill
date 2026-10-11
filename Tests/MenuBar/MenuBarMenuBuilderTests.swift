@@ -1014,14 +1014,14 @@ struct MenuBarMenuBuilderTests {
             "a•••x@example.com", "",
             "Use s•••m@acme.dev\nSession 12% · Weekly 40% used", "",
             "Move to Top", "Move Up", "Move Down", "",
-            "Add Claude Account…", "Save Current Sign-In", "Remove Claude Account", "",
+            "Add Claude Account…", "Remove Claude Account", "",
             "Disconnect Claude",
         ])
         #expect(side.items[0].state == .on)
         #expect(side.items.filter { $0.title.hasPrefix("Move") }.map(\.isEnabled) == [false, false, true])
         #expect(side.items[4...6].compactMap { $0.representedObject as? [UsageProvider] } == [[.codex, .claude, .cursor]])
         #expect(providerAction(side.items[2]) == .switchAccount(saved.id))
-        #expect([8, 9, 12].map { providerAction(side.items[$0]) } == [.addAccount, .saveCurrentAccount, .disconnect])
+        #expect([8, 11].map { providerAction(side.items[$0]) } == [.addAccount, .disconnect])
     }
 
     @Test
@@ -1039,7 +1039,7 @@ struct MenuBarMenuBuilderTests {
 
         #expect(menu.items.map(\.title) == ["Claude", "", "Settings", "", "Quit"])
         #expect(add.isEnabled == false)
-        #expect(side.items.map(\.title).suffix(5) == ["Add Claude Account…", "Install Claude Code first", "Save Current Sign-In", "", "Disconnect Claude"])
+        #expect(side.items.map(\.title).suffix(4) == ["Add Claude Account…", "Install Claude Code first", "", "Disconnect Claude"])
     }
 
     @Test

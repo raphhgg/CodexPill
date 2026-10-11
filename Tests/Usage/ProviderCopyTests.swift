@@ -10,7 +10,7 @@ struct ProviderCopyTests {
 
     private let switchNotices: [ProviderNotice] = [
         ClaudeCodeAccountError.unknownAccount, .savedSignInMissing, .savedAccountsUnreadable, .claudeCodeSignedOut,
-        .claudeCodeAccountUnknown, .currentSignInNotSaved, .claudeCodeRunning, .keychainAccessNeeded, .unreadable,
+        .claudeCodeAccountUnknown, .claudeCodeRunning, .keychainAccessNeeded, .unreadable,
         .writeFailed, .restoreFailed, .switchingUnavailable,
     ].map(\.notice)
 
