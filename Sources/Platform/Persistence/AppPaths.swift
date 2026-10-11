@@ -9,7 +9,7 @@ struct AppPaths {
     let snapshotsDirectory: URL
     let codexAuthFile: URL
 
-    private static let appSupportFolderName = "Refill"
+    static let appSupportFolderName = "Refill"
     private static let legacyAppSupportFolderName = "CodexSwitchboard"
 
     init(

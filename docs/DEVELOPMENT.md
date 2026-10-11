@@ -14,9 +14,20 @@ Generated `.xcodeproj` and `.xcworkspace` files are transient build artifacts fo
 Refill was called CodexPill before. Every identifier moved to the new name: the
 `com.raphhgg.refill` bundle IDs, `~/Library/Application Support/Refill`,
 `~/Library/Caches/Refill`, the `Refill …` Keychain items and the `REFILL_*`
-environment variables. Nothing migrates, so a CodexPill install's settings and
-saved accounts stay behind. [Uninstall And Reset](UNINSTALL_RESET.md) explains
-how to remove them.
+environment variables.
+
+`CodexPillMigration` (`Sources/Platform/Persistence`) runs once at launch,
+before anything reads the catalog or settings. It copies
+`Application Support/CodexPill` to `Application Support/Refill` when Refill has
+no data yet (no folder, or only an empty `[]` catalog and empty `snapshots`),
+copies preferences from the CodexPill domain of the same build
+(`com.raphhgg.codexpill` for release, `com.raphhgg.codexpill.dev` for
+`make build`) without overwriting set keys, and copies the
+`CodexPill Claude Code account` and `CodexPill Cursor accounts` Keychain items to
+their `Refill …` names. It never changes CodexPill's copies. The
+`codexPillMigrationDone` preference records that it ran. A failure is logged and
+shown once. Isolated runs skip it. [Uninstall And Reset](UNINSTALL_RESET.md)
+explains how to remove what CodexPill left.
 
 The GitHub repository is `raphhgg/Refill`. The Homebrew cask is still
 `raphhgg/tap/codexpill` until the first Refill release renames it to `refill`. A

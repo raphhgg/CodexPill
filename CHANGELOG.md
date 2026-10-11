@@ -5,9 +5,10 @@
 ### Changed
 
 - Renamed CodexPill to Refill, with the new bundle ID `com.raphhgg.refill`.
-  Settings and saved accounts don't carry over: add your accounts again.
-  [Uninstall And Reset](docs/UNINSTALL_RESET.md) explains how to remove
-  CodexPill's leftover data.
+  On its first launch Refill copies CodexPill's saved accounts, settings and
+  Keychain items, unless Refill already has data. CodexPill's copies stay as a
+  backup. [Uninstall And Reset](docs/UNINSTALL_RESET.md) explains how to remove
+  them.
 - New capsule app icon, built in Icon Composer.
 
 ### Added

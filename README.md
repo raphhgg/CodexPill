@@ -119,11 +119,13 @@ Access, Screen Recording or Accessibility permissions for normal use.
 
 ## Upgrading From CodexPill
 
-Refill is a new app to macOS, with its own bundle ID. It doesn't read
-CodexPill's settings or saved accounts, so add your accounts again and turn
-Launch at Login back on if you used it. Quit and delete `CodexPill.app` first.
-[Uninstall And Reset](docs/UNINSTALL_RESET.md#leftovers-from-codexpill) shows
-how to remove CodexPill's leftover data.
+Refill is a new app to macOS, with its own bundle ID. Quit and delete
+`CodexPill.app` first. On its first launch Refill copies CodexPill's saved
+accounts, settings and Keychain items, unless Refill already has accounts of its
+own. macOS may ask once per Keychain item whether Refill can read it. Turn
+Launch at Login back on if you used it. CodexPill's copies stay on this Mac as a
+backup. [Uninstall And Reset](docs/UNINSTALL_RESET.md#leftovers-from-codexpill)
+shows how to remove them.
 
 ## Product Docs
 

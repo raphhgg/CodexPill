@@ -115,6 +115,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         refreshMenuUsageIfNeeded()
     }
 
+    func presentNotice(_ notice: ProviderNotice) {
+        alertPresenter.presentInfo(alertFactory.makeNoticeRequest(notice))
+    }
+
     func invalidate() {
         autoRefreshTimer?.invalidate()
         wakeRefreshTask?.cancel()
@@ -354,7 +358,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         }
         tasks.start { [weak self] in
             guard let self, let notice = await providerUsageRuntime.perform(action, on: provider) else { return }
-            alertPresenter.presentInfo(alertFactory.makeNoticeRequest(notice))
+            presentNotice(notice)
         }
     }
 

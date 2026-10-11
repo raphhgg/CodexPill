@@ -32,6 +32,9 @@ final class RefillAppDelegate: NSObject, NSApplicationDelegate {
 
         composition.accountsController.load()
         coordinator?.start()
+        if let notice = composition.launchNotice {
+            coordinator?.presentNotice(notice)
+        }
         Task { @MainActor in
             await coordinator?.refreshCodex(includingSavedAccounts: false)
         }

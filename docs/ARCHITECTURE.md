@@ -208,6 +208,7 @@ Tokens leave this module only as the usage request's cookie or in Refill's Keych
 - account catalog persistence;
 - auth snapshot storage;
 - isolated `CODEX_HOME` session paths;
+- `CodexPillMigration`, the one-time copy of CodexPill's folder, preferences and Keychain items at launch;
 - the token-usage cache file, `TokenUsageCacheFileStore` at `AppPaths.tokenUsageCacheFile(isolatedRootDirectory:)`.
 
 Platform adapters are the only place where the app should know about live auth files, `codex app-server`, process inspection, or relaunch mechanics.

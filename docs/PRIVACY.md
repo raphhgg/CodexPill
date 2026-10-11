@@ -2,7 +2,7 @@
 
 Refill is a local macOS menubar utility that shows Codex usage limits and switches saved Codex accounts. It can also show Claude Code and Cursor usage if you connect them, and switch Claude Code or Cursor between sign-ins you saved. Its most sensitive data is saved sign-ins: Codex auth snapshots and the Claude Code and Cursor sign-ins in Refill's Keychain items. Treat them as secrets.
 
-Refill was called CodexPill before. Refill does not read CodexPill's data. [Uninstall And Reset](UNINSTALL_RESET.md) explains how to remove it.
+Refill was called CodexPill before. On its first launch Refill copies CodexPill's saved accounts, settings and Keychain items into its own folder, preferences and Keychain items, unless Refill already has data. It never changes or deletes CodexPill's copies. [Uninstall And Reset](UNINSTALL_RESET.md) explains how to remove them.
 
 ## What Refill Reads
 

@@ -19,7 +19,12 @@ preferences from this Mac:
 rm -rf "$HOME/Library/Application Support/Refill"
 rm -rf "$HOME/Library/Caches/Refill"
 defaults delete com.raphhgg.refill
+defaults delete com.raphhgg.refill.dev
 ```
+
+Clearing Refill state also clears the record that Refill already copied
+CodexPill's data. If CodexPill's folder is still there, the next launch copies
+it again.
 
 It is fine if `defaults delete` says the domain does not exist.
 
@@ -71,14 +76,17 @@ you intentionally want to sign out of Codex or repair Codex itself.
 
 ## Leftovers From CodexPill
 
-Refill was called CodexPill before, and it does not read CodexPill's data. If
-you used CodexPill, its saved accounts and settings stay on this Mac until you
-remove them:
+Refill was called CodexPill before. On its first launch Refill copies
+CodexPill's folder, preferences and Keychain items, then leaves the originals in
+place as a backup. So after an upgrade there are two copies: Refill's (above)
+and CodexPill's. CodexPill's copy also stays when Refill already had data and
+copied nothing. Once Refill shows your accounts, remove CodexPill's copy:
 
 ```sh
 rm -rf "$HOME/Library/Application Support/CodexPill"
 rm -rf "$HOME/Library/Caches/CodexPill"
 defaults delete com.raphhgg.codexpill
+defaults delete com.raphhgg.codexpill.dev
 security delete-generic-password -s "CodexPill Claude Code account"
 security delete-generic-password -s "CodexPill Cursor accounts"
 ```
