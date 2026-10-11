@@ -8,7 +8,7 @@ As a CodexPill user who also codes in Cursor, I want to see how much of my Curso
 
 Cursor Usage is an optional menu bar feature. When connected, CodexPill shows the signed-in Cursor account's included-plan usage, any on-demand spend, and the billing-cycle reset date.
 
-Reading usage never changes anything in Cursor. CodexPill never signs in to Cursor and never renews Cursor's session. If Cursor's sign-in is missing or expired, CodexPill says so and points the user back to Cursor. Switching Cursor between saved sign-ins is a separate, explicit action, described in [Cursor Account Switching](#cursor-account-switching).
+Reading usage never changes anything in Cursor. CodexPill never signs in to Cursor with its own code and never renews a Cursor token. If Cursor's sign-in is missing or expired, CodexPill says so and points the user back to Cursor. Adding an account runs Cursor's own sign-in in a separate window, described in [Adding A Cursor Account](#adding-a-cursor-account). Switching Cursor between saved sign-ins is a separate, explicit action, described in [Cursor Account Switching](#cursor-account-switching).
 
 The feature is off by default. Connecting it is the user's consent for CodexPill to read Cursor's local sign-in token and send it to cursor.com.
 
@@ -83,11 +83,12 @@ All knowledge of Cursor's database and of cursor.com lives in `Sources/Platform/
 With `CODEXPILL_ISOLATED_APP_SUPPORT_DIR` set, CodexPill never touches the real Cursor:
 
 - Usage reads `<root>/Cursor/state.vscdb`. A missing file reads as not installed. The request still goes to cursor.com with whatever token that file holds.
-- There is no account switching, so an isolated run never quits Cursor, writes a database, or writes the Keychain.
+- Saved accounts live in `<root>/cursor-accounts.json`, never the Keychain. A switch rewrites only `<root>/Cursor/state.vscdb` and never quits or opens Cursor.
+- `Add Cursor Account…` runs the stand-in executable `<root>/bin/cursor` with the same `--user-data-dir` and `--extensions-dir` arguments, instead of opening Cursor.app. Without it, the add item reads `Install Cursor first`. Profiles go under `<root>/cursor-sign-in`, so keep `<root>` short: the profile path plus 15 bytes must fit Cursor's 103-byte socket limit.
 
 ## Cursor Account Switching
 
-CodexPill can save Cursor sign-ins and switch Cursor between them. This is the data layer only. No menu shows it yet; `CursorUsage.accounts` and `CursorUsage.switchAccount(to:)` are the entry points a menu uses. It works whether or not Cursor usage is connected.
+CodexPill can save Cursor sign-ins and switch Cursor between them from the Cursor side menu ([Menubar](menubar.md)). It works whether or not Cursor usage is connected.
 
 ### User Story
 
@@ -95,7 +96,8 @@ As someone with a personal and a work Cursor account, I want to save both and sw
 
 ### Product Contract
 
-- **Save.** CodexPill saves Cursor's current sign-in under a name, with the plan Cursor cached (`stripeMembershipType`). Saving the same Cursor user again refreshes the saved copy and renames it instead of adding a second entry. Cursor need not quit to save.
+- **Add.** `Add Cursor Account…` signs in through Cursor in a separate window, described in [Adding A Cursor Account](#adding-a-cursor-account).
+- **Save.** `Save Current Sign-In` saves Cursor's current sign-in under a name, with the plan Cursor cached (`stripeMembershipType`). Saving the same Cursor user again refreshes the saved copy and renames it instead of adding a second entry. Cursor need not quit to save.
 - **Switch.** The menu asks first, then CodexPill quits Cursor, writes the saved sign-in, and reopens Cursor:
 
   > **Switch Cursor account?**
@@ -139,6 +141,36 @@ Rules:
 
 Tests use temporary fixture databases and an in-memory account store, and never open the real database or Keychain item.
 
+### Adding A Cursor Account
+
+`Add Cursor Account…` runs Cursor's own sign-in in a separate Cursor window, so the account in use is not touched. `CursorIsolatedLogin` owns it.
+
+1. Make a new folder, `<AppSupport>/cursor-sign-in/<8 hex>`, readable only by the user. Cursor names its IPC socket `<user-data-dir>/<version>-main.sock` and quits silently when that path passes macOS's 103-byte limit, so a longer path is refused before Cursor opens (`Couldn't prepare the sign-in`).
+2. Open Cursor.app as a new instance, like `open -n`, with `--user-data-dir=<folder>` and `--extensions-dir=<folder>/extensions`. `NSWorkspace.openApplication` returns the new instance's PID. The user's own Cursor keeps running. The card reads `Sign in in the new Cursor window` with `Cancel Sign-In`.
+3. Every second, read the folder's `state.vscdb` by key. It is in WAL mode while Cursor runs, so a busy or half-written read is tried again. Once `cursorAuth/accessToken` appears, wait up to 5 seconds for `cachedEmail`, which Cursor writes a moment later.
+4. Quit that instance by PID, never by bundle ID, and only if the process with that PID is Cursor. Force-quit it after 10 seconds. Read the rows again after it quits, since Cursor flushes its last writes then.
+5. Save the sign-in like `Save Current Sign-In` (the same Cursor user replaces its saved copy), connect Cursor usage, and read the new account's limits at once.
+6. Delete the folder, on every path: success, failure, a 5-minute timeout, the window closed before signing in, or `Cancel Sign-In`. Folders left by a crash are deleted at the next launch.
+
+| Outcome | Title | Second line |
+| --- | --- | --- |
+| Cursor not installed | `Install Cursor first` | none |
+| Cursor didn't open | `Couldn't open Cursor` | `Try again in a moment.` |
+| Window closed before signing in | `Cursor sign-in didn't finish` | `Nothing was saved.` |
+| No sign-in after 5 minutes | `Cursor sign-in timed out` | `Nothing was saved.` |
+| Folder could not be made | `Couldn't prepare the sign-in` | `Nothing was saved.` |
+| Cancelled | none | none |
+
+A switch of Cursor while the sign-in runs is refused (`Finish signing in first` / `Or cancel the sign-in.`), because a switch quits every Cursor, including the sign-in window.
+
+**Side effects on `~/.cursor`.** The temporary window is a full Cursor. A fresh `--user-data-dir` does not isolate `~/.cursor`, so while the window runs it starts the user's MCP servers from `~/.cursor/mcp.json` and writes `~/.cursor/ai-tracking`. Observed with Cursor 3.21 on 2026-10-11. This is the accepted cost of signing in through Cursor itself.
+
+### Inactive Accounts
+
+Every 15 minutes, one at a time, each saved account Cursor is not signed in to is read with its own saved access token, through the same request as the card. Its limits are saved on the account in the `CodexPill Cursor accounts` item, only if the saved sign-in is still the one read with. A switch may have saved tokens Cursor renewed meanwhile, and a stale read must not undo that.
+
+CodexPill never renews a saved token. Cursor renews by posting to its own `oauth/token` endpoint while it runs with that profile, and the refresh token changes on every renewal. Once a saved token is within a minute of expiry, nothing is sent, and the side menu keeps the account's last line with its time. A `429` on an inactive read does not hold back the card's read.
+
 ### Other Places Cursor Keeps Identity
 
 Observed on a maintainer's Mac on 2026-10-10 with Cursor 3.21.16, by key name only:
@@ -157,7 +189,8 @@ Not verified yet, because it needs a real switch against a real Cursor install:
 - that Cursor accepts swapped rows on launch without signing out, and refreshes the cached auth ID keys and the `applicationUser` blob for the new account;
 - whether a stale team privacy mode or team settings from the outgoing account show briefly before Cursor refreshes them;
 - how long a saved refresh token stays valid while its account is inactive;
-- whether Cursor Settings Sync, if turned on, carries anything account-specific between the two accounts.
+- whether Cursor Settings Sync, if turned on, carries anything account-specific between the two accounts;
+- the sign-in in a separate window against a real Cursor, the rows it writes, and the token lifetime. The maintainer check `cursor-accounts-check.sh` (kept outside the repo) covers it and has not run yet.
 
 ### Switching Risks
 
@@ -177,6 +210,7 @@ The user-facing summary lives in [PRIVACY.md](../PRIVACY.md).
 - `CursorUsageTests` cover opt-in, each failure reason, the unlimited plan with no meter, on-demand spend, and switching through `CursorUsage`.
 - `CursorAccountsTests` cover saving, switching only the 8 rows, quitting before writing, Cursor that won't quit, a database another process holds, a corrupted database, and the Keychain payload printing redacted.
 - `CursorAlertTests` check that every switch failure reads differently and stays a title plus one short line.
+- `CursorAccountsAddTests` drive the add flow against fake Cursor instances that keep a WAL database: the saved rows, waiting for the email row, only the sign-in PID quit, the profile deleted after quit on every path (cancel, timeout, early quit, launch failure), a cancelled sign-in waiting for a real stand-in process to quit, the socket path limit, leftover sweeping, inactive reads with the account's own token, no renewal of an expired token, and the compare and swap against a switch.
 - A coordinator test walks the menu from `Add Account › Cursor…` through declined consent, current usage, a failed read that keeps the last values, and disconnect, reading the built `NSMenu`.
 - No test touches the network, the real Cursor database, or the real Keychain.
 
@@ -184,5 +218,5 @@ The user-facing summary lives in [PRIVACY.md](../PRIVACY.md).
 
 - Team and enterprise pooled budgets and legacy request-count plans.
 - Browser cookie import, WebViews, and manual cookie entry.
-- Signing in to Cursor. A new Cursor account is added by signing in inside Cursor, then saving it in CodexPill.
+- Signing in to Cursor with CodexPill's own code, or renewing a Cursor token.
 - Switching the Cursor CLI (`cursor-agent`) sign-in.
