@@ -18,8 +18,8 @@ struct AccountsControllerRefreshRaceTests {
         await remove.value
         await refresh.value
 
-        #expect(controller.accounts.map(\.name) == ["Personal"])
-        #expect(fixture.catalog.savedAccounts.map(\.name) == ["Personal"])
+        #expect(controller.accounts.map(\.id) == [fixture.personal.id])
+        #expect(fixture.catalog.savedAccounts.map(\.id) == [fixture.personal.id])
     }
 
     @Test
@@ -73,8 +73,8 @@ struct AccountsControllerRefreshRaceTests {
         #expect(await refresh.value == .refreshed)
 
         let personal = try #require(controller.accounts.first(where: { $0.id == fixture.personal.id }))
-        #expect(controller.accounts.map(\.name) == ["Personal"])
-        #expect(fixture.catalog.savedAccounts.map(\.name) == ["Personal"])
+        #expect(controller.accounts.map(\.id) == [fixture.personal.id])
+        #expect(fixture.catalog.savedAccounts.map(\.id) == [fixture.personal.id])
         #expect(personal.usage?.window(.session)?.usedPercent == 70)
         #expect(controller.activeAccountID == fixture.personal.id)
     }
@@ -119,8 +119,8 @@ struct AccountsControllerRefreshRaceTests {
         _ = await refresh.value
 
         #expect(fixture.authStore.snapshots == [fixture.backup.id: "backup:1"])
-        #expect(controller.accounts.map(\.name) == ["Backup"])
-        #expect(fixture.catalog.savedAccounts.map(\.name) == ["Backup"])
+        #expect(controller.accounts.map(\.id) == [fixture.backup.id])
+        #expect(fixture.catalog.savedAccounts.map(\.id) == [fixture.backup.id])
     }
 
     private func startOperation(
@@ -150,8 +150,8 @@ private enum RefreshRaceFailure: Error {
 
 @MainActor
 private final class RefreshRaceFixture {
-    let personal = makeRaceAccount(name: "Personal", stableAccountID: "personal")
-    let backup = makeRaceAccount(name: "Backup", stableAccountID: "backup")
+    let personal = makeRaceAccount(stableAccountID: "personal")
+    let backup = makeRaceAccount(stableAccountID: "backup")
     let authStore = InMemoryCodexAuthStore()
     let statusClient = SuspendedSavedStatusClient()
     let activeStatusClient = SuspendedActiveStatusClient()
@@ -203,11 +203,10 @@ private final class RefreshRaceFixture {
     }
 }
 
-private func makeRaceAccount(name: String, stableAccountID: String) -> CodexAccount {
+private func makeRaceAccount(stableAccountID: String) -> CodexAccount {
     let id = UUID()
     return CodexAccount(
         id: id,
-        name: name,
         snapshotFileName: "\(id.uuidString).json",
         createdAt: .distantPast,
         updatedAt: .distantPast,
@@ -268,10 +267,9 @@ private final class InMemoryCodexAuthStore: CodexAuthSessionStore, CodexSignInAu
         return Data(snapshot.utf8)
     }
 
-    func saveAuthSnapshot(_ authData: Data, named name: String, existing: CodexAccount?) throws -> CodexAccount {
+    func saveAuthSnapshot(_ authData: Data, existing: CodexAccount?) throws -> CodexAccount {
         var account = try #require(existing)
         let payload = String(decoding: authData, as: UTF8.self)
-        account.name = name
         account.identity.snapshotFingerprint = payload
         snapshots[account.id] = payload
         return account
@@ -279,7 +277,7 @@ private final class InMemoryCodexAuthStore: CodexAuthSessionStore, CodexSignInAu
 
     func replaceAuthSnapshot(_ authData: Data, ifUnchangedFrom expected: Data, for account: CodexAccount) throws -> CodexAccount? {
         guard try readAuthSnapshot(for: account) == expected else { return nil }
-        return try saveAuthSnapshot(authData, named: account.name, existing: account)
+        return try saveAuthSnapshot(authData, existing: account)
     }
 
     func deleteAuthSnapshot(for account: CodexAccount) throws {

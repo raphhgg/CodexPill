@@ -46,7 +46,7 @@ Hovering a card opens its side menu:
 
 1. The email of the account in use, checked and disabled.
 2. One row per other saved account, by email. Each row opens `Use` and `Remove…`. `Remove…` asks first. Removing a Codex account also signs this Mac out when `auth.json` still uses it.
-   An account without an email reads as its organization, else `Saved account`. Repeated labels get a number in saved order: `Saved account 2`.
+   An account without an email reads as its organization, a Codex account then as its plan (`Plus account`), else `Saved account`. Repeated labels get a number in saved order: `Saved account 2`. Alerts name an account with the same label.
    Each one carries that account's last limits on a second, smaller line, in the user's % used or % left: `Session 12% · Weekly 40% used`, `Session 12% · Weekly 40% · Fable this week 8% used` for Claude with a model limit (none while `Show Model Limits` is off), `Weekly 17% used` for Codex Pro, or `Monthly 3% used` for Codex Free. Cursor's line is its billing cycle: `40% used`. A reading older than 30 minutes adds `· as of 10:26`. Every tool reads inactive accounts every 15 minutes. A Cursor account whose saved token expired keeps its last line, with its time.
 3. Codex only: `Use a Reset…`, then one disabled `Expires <date>` line per credit Codex listed, and `Token Usage ›` when token usage is on ([Token Usage](token-usage.md)).
 4. `Move to Top`, `Move Up`, `Move Down`, when there is more than one card. Moves that do not apply are disabled.
@@ -56,7 +56,7 @@ Hovering a card opens its side menu:
 
 The account in use has no remove item. Claude and Cursor save the live account automatically, so a removed one would come straight back. `Disconnect <Tool>` lives in Settings.
 
-`Hide Emails` masks every email the menu and the tooltip show: `alex.side@example.com` reads `al•••e@example.com`. The domain stays visible.
+`Hide Emails` masks every email the menu, its alerts and the tooltip show: `alex.side@example.com` reads `al•••e@example.com`. The domain stays visible.
 
 Every tool item carries a `ProviderMenuAction` and goes through `MenuBarCoordinator.performProviderAction(_:)`.
 

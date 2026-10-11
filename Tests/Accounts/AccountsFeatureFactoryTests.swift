@@ -10,7 +10,6 @@ struct AccountsFeatureFactoryTests {
         let repository = try makeRepository()
         let account = CodexAccount(
             id: UUID(),
-            name: "Business",
             snapshotFileName: "\(UUID().uuidString).json",
             createdAt: .distantPast,
             updatedAt: .distantPast,
@@ -34,7 +33,6 @@ struct AccountsFeatureFactoryTests {
 
         #expect(controller.accounts.count == 1)
         #expect(controller.accounts.first?.id == account.id)
-        #expect(controller.accounts.first?.name == "Business")
         #expect(controller.statusMessage == "Loaded 1 account(s)")
     }
 

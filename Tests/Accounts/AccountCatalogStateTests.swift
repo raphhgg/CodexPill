@@ -5,7 +5,7 @@ import Testing
 
 struct AccountCatalogStateTests {
     @Test
-    func applySavedAccountInsertsSortsAndUpdatesActiveAccount() {
+    func applySavedAccountInsertsByEmailAndUpdatesActiveAccount() {
         var state = AccountCatalogState()
         let existing = makeAccount(name: "Zulu", fingerprint: "z")
         state.applyLoad(
@@ -18,7 +18,7 @@ struct AccountCatalogStateTests {
 
         state.applySavedAccount(newAccount, activeAccountID: newAccount.id)
 
-        #expect(state.accounts.map(\.name) == ["Alpha", "Zulu"])
+        #expect(state.accounts.map(\.id) == [newAccount.id, existing.id])
         #expect(state.activeAccountID == newAccount.id)
         #expect(state.activeAccount?.id == newAccount.id)
         #expect(state.inactiveAccounts.map(\.id) == [existing.id])

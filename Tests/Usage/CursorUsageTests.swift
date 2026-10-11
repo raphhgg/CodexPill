@@ -128,7 +128,6 @@ struct CursorUsageTests {
         let app = CursorAppProcessProbe()
         let work = CursorSavedAccount(
             id: UUID(),
-            name: "Work",
             signIn: try #require(CursorSignIn(values: [CursorSignIn.accessTokenKey: .text(workToken)]))
         )
         try store.save([work])
@@ -144,7 +143,7 @@ struct CursorUsageTests {
 
         #expect(app.events == [.quit, .open])
         #expect(try CursorStateDatabaseTokenSource(databaseURL: harness.databaseURL).lookup().userID == "user_work")
-        #expect(try store.load().map(\.name).sorted() == ["Cursor", "Work"])
+        #expect(try store.load().count == 2)
         #expect(try await usage.savedAccounts().first { $0.isActive }?.id == work.id)
     }
 

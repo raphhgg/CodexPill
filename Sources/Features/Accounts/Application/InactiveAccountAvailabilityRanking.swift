@@ -31,7 +31,7 @@ struct InactiveAccountAvailabilityRanking {
             return leftKey.sessionUsedPercent < rightKey.sessionUsedPercent
         }
 
-        return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+        return CodexAccount.listOrder(lhs, rhs)
     }
 
     func compare(

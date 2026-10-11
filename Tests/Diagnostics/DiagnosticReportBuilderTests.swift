@@ -19,14 +19,12 @@ struct DiagnosticReportBuilderTests {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let active = makeAccount(
             id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
-            name: "Work Account",
             email: "person@example.com",
             stableAccountID: "acct_stable_secret",
             usage: makeUsage(fetchedAt: now.addingTimeInterval(-120))
         )
         let inactive = makeAccount(
             id: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
-            name: "Personal Account",
             email: "me@example.org",
             stableAccountID: "acct_other_secret",
             usage: makeUsage(fetchedAt: now.addingTimeInterval(-3600))
@@ -141,7 +139,6 @@ struct DiagnosticReportBuilderTests {
 
         let account = makeAccount(
             id: UUID(uuidString: "44444444-4444-4444-4444-444444444444")!,
-            name: rawValues.joined(separator: " "),
             email: "secret@example.com",
             stableAccountID: rawValues.last,
             usage: makeUsage()

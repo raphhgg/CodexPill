@@ -353,7 +353,7 @@ private final class CursorAddScenario: @unchecked Sendable {
 
     func save(_ rows: [String: String], usage: CursorUsageSnapshot? = nil) throws -> CursorSavedAccount {
         let signIn = try #require(CursorSignIn(values: rows.mapValues(CursorStateValue.text)))
-        let account = CursorSavedAccount(id: UUID(), name: signIn.email ?? "Cursor", signIn: signIn, usage: usage)
+        let account = CursorSavedAccount(id: UUID(), signIn: signIn, usage: usage)
         try store.save(try store.load() + [account])
         return account
     }

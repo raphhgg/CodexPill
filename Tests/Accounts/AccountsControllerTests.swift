@@ -36,7 +36,7 @@ struct AccountsControllerTests {
         )
 
         controller.load()
-        let session = try await controller.startIsolatedAddAccountFlow(named: "Backup")
+        let session = try await controller.startIsolatedAddAccountFlow()
         let savedAccount = try await controller.completeIsolatedAddAccount(session)
 
         let hydratedBackup = try #require(controller.accounts.first(where: { $0.id == savedAccount.id }))
@@ -70,10 +70,10 @@ struct AccountsControllerTests {
         )
 
         controller.load()
-        _ = try await controller.startIsolatedAddAccountFlow(named: "Backup")
+        _ = try await controller.startIsolatedAddAccountFlow()
 
         await #expect(throws: AccountsControllerError.operationAlreadyInProgress) {
-            _ = try await controller.startIsolatedAddAccountFlow(named: "Backup 2")
+            _ = try await controller.startIsolatedAddAccountFlow()
         }
         #expect(controller.isBusy)
         #expect(controller.statusMessage == "Adding account...")
@@ -101,9 +101,9 @@ struct AccountsControllerTests {
         )
 
         controller.load()
-        let session = try await controller.startIsolatedAddAccountFlow(named: "Business 2")
+        let session = try await controller.startIsolatedAddAccountFlow()
 
-        await #expect(throws: AddAccountWorkflowError.accountAlreadySaved("Business 1")) {
+        await #expect(throws: AddAccountWorkflowError.accountAlreadySaved(existing.id)) {
             _ = try await controller.completeIsolatedAddAccount(session)
         }
 
@@ -286,7 +286,7 @@ struct AccountsControllerTests {
 
     @Test
     func switchToAccountAppliesSilentRefreshResult() async {
-        let account = makeAccount(name: "Business 4", email: "business@example.com", fingerprint: "live")
+        let account = makeAccount(email: "business@example.com", fingerprint: "live")
         let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [account])
         let refreshedRateLimits = makeUsageSnapshot()
         let controller = makeController(
@@ -317,7 +317,7 @@ struct AccountsControllerTests {
 
     @Test
     func useResetCreditRefreshesLimitsAfterReset() async {
-        let account = makeAccount(name: "Business 4", email: "business@example.com", fingerprint: "live")
+        let account = makeAccount(email: "business@example.com", fingerprint: "live")
         let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [account])
         var refreshedUsage = makeUsageSnapshot()
         refreshedUsage.resetCredits = UsageResetCredits(availableCount: 1, credits: nil)
@@ -550,13 +550,13 @@ struct AccountsControllerTests {
         await resetCredits.waitUntilCalled()
         await controller.removeSavedAccount(work)
 
-        #expect(controller.accounts.map(\.name) == ["Personal", "Work"])
+        #expect(controller.accounts.map(\.email) == ["personal@example.com", "work@example.com"])
         #expect(controller.consumePendingErrorMessage() == "A reset is in progress. Try again when it finishes.")
 
         await resetCredits.answer(.nothingToReset)
         _ = await reset.value
         await controller.removeSavedAccount(work)
-        #expect(controller.accounts.map(\.name) == ["Personal"])
+        #expect(controller.accounts.map(\.email) == ["personal@example.com"])
     }
 
     private func makeController(
@@ -675,10 +675,9 @@ private final class ActiveSnapshotRelinkerProbe: ActiveAuthSnapshotRelinking {
         Data("fresh-auth".utf8)
     }
 
-    func saveAuthSnapshot(_ authData: Data, named name: String, existing: CodexAccount?) throws -> CodexAccount {
+    func saveAuthSnapshot(_ authData: Data, existing: CodexAccount?) throws -> CodexAccount {
         var account = existing ?? CodexAccount(
             id: UUID(),
-            name: name,
             snapshotFileName: "\(UUID().uuidString).json",
             createdAt: .distantPast,
             updatedAt: .distantPast,
@@ -702,7 +701,7 @@ private final class NullAuthService: CodexAuthSessionStore, CodexSignInAuthStore
     func liveIdentity(forAuthData authData: Data) -> LiveCodexAccountIdentity { .empty }
     func restoreCurrentAuthData(_ data: Data) throws {}
 
-    func saveAuthSnapshot(_ authData: Data, named name: String, existing: CodexAccount?) throws -> CodexAccount {
+    func saveAuthSnapshot(_ authData: Data, existing: CodexAccount?) throws -> CodexAccount {
         if let existing {
             return existing
         }
@@ -710,7 +709,6 @@ private final class NullAuthService: CodexAuthSessionStore, CodexSignInAuthStore
         let id = UUID()
         return CodexAccount(
             id: id,
-            name: name,
             snapshotFileName: "\(id.uuidString).json",
             createdAt: .distantPast,
             updatedAt: .distantPast,
@@ -739,7 +737,7 @@ private final class SignInAuthErrorCase: CodexAuthSessionStore, CodexSignInAuthS
     func liveIdentity(forAuthData authData: Data) -> LiveCodexAccountIdentity { .empty }
     func restoreCurrentAuthData(_ data: Data) throws {}
 
-    func saveAuthSnapshot(_ authData: Data, named name: String, existing: CodexAccount?) throws -> CodexAccount {
+    func saveAuthSnapshot(_ authData: Data, existing: CodexAccount?) throws -> CodexAccount {
         throw error
     }
 
@@ -768,11 +766,10 @@ private final class IsolatedAddAccountAuthProbe: CodexAuthSessionStore, CodexSig
         LiveCodexAccountIdentity(snapshotFingerprint: capturedFingerprint)
     }
     func restoreCurrentAuthData(_ data: Data) throws {}
-    func saveAuthSnapshot(_ authData: Data, named name: String, existing: CodexAccount?) throws -> CodexAccount {
+    func saveAuthSnapshot(_ authData: Data, existing: CodexAccount?) throws -> CodexAccount {
         let id = UUID()
         return CodexAccount(
             id: id,
-            name: name,
             snapshotFileName: "\(id.uuidString).json",
             createdAt: .distantPast,
             updatedAt: .distantPast,

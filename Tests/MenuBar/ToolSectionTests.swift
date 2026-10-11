@@ -165,8 +165,8 @@ struct ToolSectionTests {
 
     @Test
     func accountsListTheOneInUseFirstWithEmailsMaskedWhenHidden() throws {
-        let active = makeAccount(name: "Alex", email: "alex@example.com", usage: makeUsage(fetchedAt: now))
-        let other = makeAccount(name: "Side", email: "alex.side@example.com")
+        let active = makeAccount(email: "alex@example.com", usage: makeUsage(fetchedAt: now))
+        let other = makeAccount(email: "alex.side@example.com")
         let claudeAccounts = [
             ProviderAccount(id: UUID(), email: "sam@acme.dev", isActive: false),
             ProviderAccount(id: UUID(), email: nil, isActive: true),
@@ -189,8 +189,8 @@ struct ToolSectionTests {
 
     @Test
     func savedAccountsShowTheirLastLimitsOnOneLineAndSayWhenTheyAreOld() throws {
-        let active = makeAccount(name: "Alex", email: "alex@example.com", usage: makeUsage(fetchedAt: now))
-        let pro = makeAccount(name: "Pro", email: "pro@example.com", planType: "pro", usage: makeUsage(planType: "pro", fetchedAt: now))
+        let active = makeAccount(email: "alex@example.com", usage: makeUsage(fetchedAt: now))
+        let pro = makeAccount(email: "pro@example.com", planType: "pro", usage: makeUsage(planType: "pro", fetchedAt: now))
         let claudeAccounts = [
             ProviderAccount(id: UUID(), email: "alex@example.com", isActive: true),
             ProviderAccount(id: UUID(), email: "sam@acme.dev", isActive: false, usage: claudeSnapshot()),
@@ -225,6 +225,25 @@ struct ToolSectionTests {
         let section = try #require(state(providerUsage: [claude], masksEmails: true).toolSections.first)
 
         #expect(section.accounts.map(\.label) == ["Saved account 2", "Saved account", "Acme", "Acme 2"])
+    }
+
+    @Test
+    func codexAccountsWithoutEmailReadAsTheirWorkspaceThenTheirPlan() throws {
+        let workspace = makeAccount(
+            email: nil,
+            workspaceIdentity: CodexWorkspaceIdentity(workspaceAccountID: "org-1", workspaceLabel: "Acme"),
+            planType: "team"
+        )
+        let plus = makeAccount(email: nil, planType: "plus")
+        let otherPlus = makeAccount(email: nil, planType: "plus")
+        let unknown = makeAccount(email: nil)
+
+        let section = try #require(
+            state(activeAccount: workspace, inactiveAccounts: [plus, otherPlus, unknown]).toolSections.first { $0.provider == .codex }
+        )
+
+        #expect(section.accounts.map(\.label) == ["Acme", "Plus account", "Plus account 2", "Saved account"])
+        #expect(state(activeAccount: workspace, inactiveAccounts: [plus]).accountLabel(plus.id, of: .codex) == "Plus account")
     }
 
     @Test

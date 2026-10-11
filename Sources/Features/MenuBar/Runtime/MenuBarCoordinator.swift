@@ -133,20 +133,13 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     private func addCodexAccount() {
         recordMenuAction("addAccount")
-        menuBarCoordinatorLogger.log("addAccount action invoked")
-        let runningCLISessions = cliProcessInspector.runningCLISessionCount()
-        menuBarCoordinatorLogger.log("Running CLI sessions before add-account: \(runningCLISessions, privacy: .public)")
-
-        let request = alertFactory.makeAddAccountRequest(runningCLISessions: runningCLISessions)
-
-        menuBarCoordinatorLogger.log("Presenting add-account confirmation alert")
-        guard let name = alertPresenter.presentTextInput(request) else {
-            menuBarCoordinatorLogger.log("Add-account flow cancelled from alert")
-            return
-        }
-
         menuBarCoordinatorLogger.log("Dispatching isolated add-account task to accounts controller")
-        tasks.start { [weak self] in await self?.beginIsolatedAddAccount(named: name) }
+        tasks.start { [weak self] in await self?.beginIsolatedAddAccount() }
+    }
+
+    /// What alerts call a saved Codex account: the label its side menu shows.
+    private func codexAccountLabel(_ id: UUID) -> String {
+        menuState().accountLabel(id, of: .codex) ?? "Saved account"
     }
 
     private func removeCodexAccount(_ id: UUID) {
@@ -156,7 +149,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         let state = menuState()
         let shouldSignOutLocalAccount = state.isAccountActiveLocally(account)
         let request = alertFactory.makeRemoveAccountRequest(
-            accountName: account.name,
+            accountLabel: codexAccountLabel(account.id),
             activeTargets: shouldSignOutLocalAccount ? ["This Mac"] : []
         )
 
@@ -337,7 +330,11 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             return
         }
         recordMenuAction("\(provider).\(action.name)")
-        if let prompt = provider.copy.prompt(for: action) {
+        let accountID: UUID? = switch action {
+        case let .switchAccount(id), let .removeAccount(id): id
+        default: nil
+        }
+        if let prompt = provider.copy.prompt(for: action, accountLabel: accountID.flatMap { menuState().accountLabel($0, of: provider) }) {
             guard alertPresenter.presentConfirmation(alertFactory.makeConfirmationRequest(prompt)) else { return }
         }
         tasks.start { [weak self] in
@@ -592,15 +589,18 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             return
         }
         let runningCLISessions = cliProcessInspector.runningCLISessionCount()
-        let request = alertFactory.makeSwitchAccountRequest(accountName: account.name, runningCLISessions: runningCLISessions)
+        let request = alertFactory.makeSwitchAccountRequest(
+            accountLabel: codexAccountLabel(account.id),
+            runningCLISessions: runningCLISessions
+        )
 
         guard alertPresenter.presentConfirmation(request) else { return }
         beginLocalSwitch(to: account)
     }
 
-    private func beginIsolatedAddAccount(named name: String) async {
+    private func beginIsolatedAddAccount() async {
         do {
-            let session = try await accountsController.startIsolatedAddAccountFlow(named: name)
+            let session = try await accountsController.startIsolatedAddAccountFlow()
             activeIsolatedAddAccountSession = session
 
             let signInRequest = alertFactory.makeAddAccountSignInRequest(prompt: session.prompt)
@@ -622,11 +622,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
                 activeIsolatedAddAccountSession = nil
             }
 
-            handleAddAccountCompletion(result, retryName: name)
+            handleAddAccountCompletion(result)
         } catch {
-            handleAddAccountFailure(
-                accountActionFlow.resolveAddAccountStartFailure(error, retryName: name)
-            )
+            handleAddAccountFailure(accountActionFlow.resolveAddAccountStartFailure(error))
         }
     }
 
@@ -639,7 +637,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private func presentAddAccountSuccess(for account: CodexAccount) {
         let runningCLISessions = cliProcessInspector.runningCLISessionCount()
         let request = alertFactory.makeAddAccountSuccessRequest(
-            accountName: account.name,
+            accountLabel: codexAccountLabel(account.id),
             runningCLISessions: runningCLISessions
         )
         let accepted = alertPresenter.presentConfirmation(request)
@@ -651,7 +649,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         )
     }
 
-    private func handleAddAccountCompletion(_ result: MenuBarAddAccountSignInPanelResult, retryName: String) {
+    private func handleAddAccountCompletion(_ result: MenuBarAddAccountSignInPanelResult) {
         let flowResult: AccountActionFlow.AddAccountResult
         switch result {
         case .completed(let account):
@@ -662,7 +660,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             flowResult = .cancelled
         }
 
-        switch accountActionFlow.resolveAddAccountCompletion(flowResult, retryName: retryName) {
+        switch accountActionFlow.resolveAddAccountCompletion(flowResult) {
         case .offerLocalSwitch(let account):
             presentAddAccountSuccess(for: account)
         case .handleFailure(let step):
@@ -687,25 +685,18 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         switch step {
         case .showSignInFailure(let outcome):
             alertPresenter.presentInfo(alertFactory.makeAddAccountSignInFailureRequest(outcome: outcome))
-        case .offerSignInRetry(let outcome, let retryName):
+        case .offerSignInRetry(let outcome):
             let request = alertFactory.makeAddAccountSignInRetryRequest(outcome: outcome)
             guard alertPresenter.presentConfirmation(request) else { return }
-            tasks.start { [weak self] in await self?.beginIsolatedAddAccount(named: retryName) }
+            tasks.start { [weak self] in await self?.beginIsolatedAddAccount() }
         case .showError(let message):
             alertPresenter.presentInfo(alertFactory.makeErrorRequest(message: message))
-        case .showEmptyNameAndRetry(let message):
-            alertPresenter.presentInfo(alertFactory.makeErrorRequest(message: message))
-            addCodexAccount()
-        case .offerDuplicateNameRecovery:
-            let request = alertFactory.makeAddAccountDuplicateNameRequest()
-            guard alertPresenter.presentConfirmation(request) else { return }
-            addCodexAccount()
         case .showUnsafeAuthChange:
             alertPresenter.presentInfo(alertFactory.makeAddAccountUnsafeAuthChangeRequest())
         case .showSaveFailure:
             alertPresenter.presentInfo(alertFactory.makeAddAccountSaveFailureRequest())
-        case .showAccountAlreadySaved(let accountName):
-            alertPresenter.presentInfo(alertFactory.makeAccountAlreadySavedRequest(accountName: accountName))
+        case .showAccountAlreadySaved(let accountID):
+            alertPresenter.presentInfo(alertFactory.makeAccountAlreadySavedRequest(accountLabel: codexAccountLabel(accountID)))
         }
     }
 
@@ -834,7 +825,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         hasPromptedForEmptyState = true
         DispatchQueue.main.async { [weak self] in
             guard let self, self.accountsController.accounts.isEmpty, !self.accountsController.isBusy,
-                  !self.providerUsageRuntime.hasConnectedTool else { return }
+                  !self.providerUsageRuntime.hasConnectedTool,
+                  self.alertPresenter.presentConfirmation(self.alertFactory.makeFirstRunAddAccountRequest()) else { return }
             self.addCodexAccount()
         }
     }

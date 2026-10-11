@@ -20,14 +20,23 @@ struct ProviderCopy: Sendable {
     /// Whether a signed-out card offers `Sign In…`. Off when adding an account leaves the tool itself signed out.
     var offersSignInWhenSignedOut = true
 
-    /// What the menu asks before running `action`, or nil to run it right away.
-    func prompt(for action: ProviderAction) -> ProviderPrompt? {
+    /// What the menu asks before running `action`, or nil to run it right away. `accountLabel` names the account a
+    /// switch or remove acts on, as the side menu shows it.
+    func prompt(for action: ProviderAction, accountLabel: String? = nil) -> ProviderPrompt? {
         switch action {
-        case .connect: connectPrompt
-        case .switchAccount: switchPrompt
+        case .connect:
+            return connectPrompt
+        case .switchAccount:
+            guard let switchPrompt, let accountLabel else { return switchPrompt }
+            return ProviderPrompt(title: "Switch to \(accountLabel)?", detail: switchPrompt.detail, confirmTitle: switchPrompt.confirmTitle)
         case .removeAccount:
-            ProviderPrompt(title: "Remove this \(name) account?", detail: "CodexPill forgets its saved sign-in.", confirmTitle: "Remove")
-        case .allowKeychainAccess, .cancelSignIn, .disconnect, .addAccount, .useResetCredit: nil
+            return ProviderPrompt(
+                title: "Remove \(accountLabel ?? "this \(name) account")?",
+                detail: "CodexPill forgets its saved sign-in.",
+                confirmTitle: "Remove"
+            )
+        case .allowKeychainAccess, .cancelSignIn, .disconnect, .addAccount, .useResetCredit:
+            return nil
         }
     }
 

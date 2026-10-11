@@ -92,6 +92,11 @@ extension MenuBarMenuState {
         return order
     }
 
+    /// What the side menu calls a saved account, so alerts name it the same way, Hide Emails included.
+    func accountLabel(_ id: UUID, of provider: UsageProvider) -> String? {
+        toolSections.first { $0.provider == provider }?.accounts.first { $0.id == id }?.label
+    }
+
     /// A Codex reading older than two refreshes, and at least 15 minutes old, is stale.
     var codexStaleAfter: TimeInterval {
         max(15 * 60, TimeInterval(2 * refreshIntervalMinutes * 60))
@@ -99,14 +104,16 @@ extension MenuBarMenuState {
 
     private var codexSection: ToolSection? {
         guard !allSavedAccounts.isEmpty else { return nil }
-        let accounts = allSavedAccounts.map { account in
-            ToolAccount(
+        let accounts = accountLabels(allSavedAccounts.map { account in
+            let planLabel = planTag(for: .codex, planName: account.effectivePlanType).map { "\($0) account" }
+            return ProviderAccount(
                 id: account.id,
-                label: account.email.map { displayedEmail($0, masked: masksEmails) } ?? account.name,
+                email: account.email,
+                name: [account.identity.workspaceIdentity?.workspaceLabel, planLabel].compactMap(\.self).first { !$0.contains("@") },
                 isActive: account.id == activeAccount?.id,
-                usageLine: accountUsageLine(account.usage)
+                usage: account.usage
             )
-        }
+        })
 
         let card = if let activeAccount, let usage = activeAccount.usage {
             usageCard(usage, isStale: usage.freshness(at: now, staleAfter: codexStaleAfter) == .stale)
@@ -167,8 +174,8 @@ extension MenuBarMenuState {
         )
     }
 
-    /// An account reads as its email, else its organization, else "Saved account". Labels that would repeat get
-    /// a number in saved order, so it does not move when the user switches: "Saved account", "Saved account 2".
+    /// An account reads as its email, else its organization (or Codex plan), else "Saved account". Labels that would
+    /// repeat get a number in saved order, so it does not move when the user switches: "Saved account", "Saved account 2".
     /// An organization name with an @ in it is skipped, because Claude names personal organizations after the email.
     private func accountLabels(_ accounts: [ProviderAccount]) -> [ToolAccount] {
         let baseLabels = accounts.map { account in

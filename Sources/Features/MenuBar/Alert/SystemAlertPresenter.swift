@@ -13,35 +13,6 @@ final class SystemAlertPresenter {
         self.appIconSource = appIconSource ?? BundleAppIconSource()
     }
 
-    func presentTextInput(_ request: MenuBarTextInputAlertRequest) -> String? {
-        guard !suppressesInteractivePrompts else {
-            return nil
-        }
-
-        let field = NSTextField(string: "")
-        field.placeholderString = request.placeholder
-        let validator = TextInputAlertValidator(field: field, requiresNonEmptyValue: request.requiresNonEmptyValue)
-
-        let alert = NSAlert()
-        configure(alert: alert)
-        alert.messageText = request.messageText
-        alert.informativeText = request.informativeText
-        alert.alertStyle = .informational
-        alert.accessoryView = textFieldAccessoryView(
-            title: request.fieldTitle,
-            field: field,
-            statusText: nil,
-            statusColor: .secondaryLabelColor
-        )
-        alert.addButton(withTitle: request.confirmTitle)
-        alert.addButton(withTitle: request.cancelTitle)
-        validator.confirmButton = alert.buttons.first
-        validator.apply()
-
-        guard alert.runModal() == .alertFirstButtonReturn else { return nil }
-        return field.stringValue
-    }
-
     func presentConfirmation(_ request: MenuBarConfirmationAlertRequest) -> Bool {
         guard !suppressesInteractivePrompts else {
             return false
@@ -71,93 +42,9 @@ final class SystemAlertPresenter {
         alert.runModal()
     }
 
-    private func textFieldAccessoryView(
-        title: String,
-        field: NSTextField,
-        statusText: String?,
-        statusColor: NSColor
-    ) -> NSView {
-        configureAlertTextField(field)
-
-        let label = NSTextField(labelWithString: title)
-        label.font = .systemFont(ofSize: 12, weight: .medium)
-
-        let stack = NSStackView()
-        stack.orientation = .vertical
-        stack.alignment = .leading
-        stack.spacing = 6
-        stack.translatesAutoresizingMaskIntoConstraints = false
-
-        stack.addArrangedSubview(label)
-        stack.addArrangedSubview(field)
-
-        if let statusText {
-            let statusLabel = NSTextField(labelWithString: statusText)
-            statusLabel.lineBreakMode = .byWordWrapping
-            statusLabel.maximumNumberOfLines = 2
-            statusLabel.textColor = statusColor
-            statusLabel.font = .systemFont(ofSize: 12)
-            stack.addArrangedSubview(statusLabel)
-        }
-
-        let horizontalInset: CGFloat = 4
-        let fieldWidth: CGFloat = 340
-        let container = NSView(
-            frame: NSRect(
-                x: 0,
-                y: 0,
-                width: fieldWidth + horizontalInset * 2,
-                height: max(56, stack.fittingSize.height)
-            )
-        )
-        container.addSubview(stack)
-        NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: horizontalInset),
-            stack.topAnchor.constraint(equalTo: container.topAnchor),
-            stack.bottomAnchor.constraint(equalTo: container.bottomAnchor)
-        ])
-        return container
-    }
-
     private func configure(alert: NSAlert) {
         alert.icon = appIconSource.appIconImage()
-    }
-
-    private func configureAlertTextField(_ field: NSTextField) {
-        field.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            field.widthAnchor.constraint(equalToConstant: 340),
-            field.heightAnchor.constraint(equalToConstant: 26)
-        ])
     }
 }
 
 extension SystemAlertPresenter: AlertPresenter {}
-
-@MainActor
-private final class TextInputAlertValidator: NSObject, NSTextFieldDelegate {
-    private let field: NSTextField
-    private let requiresNonEmptyValue: Bool
-    weak var confirmButton: NSButton?
-
-    init(field: NSTextField, requiresNonEmptyValue: Bool) {
-        self.field = field
-        self.requiresNonEmptyValue = requiresNonEmptyValue
-        super.init()
-        field.delegate = self
-    }
-
-    func controlTextDidChange(_ notification: Notification) {
-        apply()
-    }
-
-    func apply() {
-        guard requiresNonEmptyValue else {
-            confirmButton?.isEnabled = true
-            return
-        }
-
-        let value = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        confirmButton?.isEnabled = !value.isEmpty
-    }
-}

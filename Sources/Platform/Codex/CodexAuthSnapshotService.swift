@@ -22,12 +22,10 @@ struct CodexAuthSnapshotService: Sendable {
 
     func saveAuthSnapshot(
         _ authData: Data,
-        named name: String,
         existing: CodexAccount? = nil
     ) throws -> CodexAccount {
         var account = existing ?? CodexAccount(
             id: UUID(),
-            name: name,
             snapshotFileName: "\(UUID().uuidString).json",
             createdAt: Date(),
             updatedAt: Date(),
@@ -36,7 +34,6 @@ struct CodexAuthSnapshotService: Sendable {
             usage: nil,
             identity: .empty
         )
-        account.name = name
         account.updatedAt = Date()
         account.identity.stableAccountID = Self.stableAccountID(for: authData)
         account.identity.authPrincipalIdentity = Self.authPrincipalIdentity(for: authData)
@@ -55,7 +52,7 @@ struct CodexAuthSnapshotService: Sendable {
         for account: CodexAccount
     ) throws -> CodexAccount? {
         guard try repository.readSnapshot(for: account) == expected else { return nil }
-        return try saveAuthSnapshot(authData, named: account.name, existing: account)
+        return try saveAuthSnapshot(authData, existing: account)
     }
 
     func deleteAuthSnapshot(for account: CodexAccount) throws {
@@ -63,7 +60,7 @@ struct CodexAuthSnapshotService: Sendable {
     }
 
     func activate(_ account: CodexAccount) throws {
-        authSnapshotLogger.log("Activating snapshot for account name: \(account.name, privacy: .public)")
+        authSnapshotLogger.log("Activating snapshot for account \(account.id.uuidString, privacy: .public)")
         let snapshot = try repository.readSnapshot(for: account)
         try snapshot.write(to: repository.paths.codexAuthFile, options: .atomic)
         try FilePermissionHardening.repairPrivateFile(at: repository.paths.codexAuthFile)

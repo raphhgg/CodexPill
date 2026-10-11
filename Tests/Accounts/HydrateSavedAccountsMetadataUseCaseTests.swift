@@ -267,10 +267,10 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
     }
 
     @Test
-    func saveMergesTheUpdateIntoTheCurrentAccountAndKeepsItsName() throws {
+    func saveMergesTheUpdateIntoTheCurrentAccountAndKeepsItsOtherFields() throws {
         let ready = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: false)
-        var renamed = ready
-        renamed.name = "Renamed"
+        var current = ready
+        current.snapshotFileName = "current.json"
         var refreshed = ready
         refreshed.email = "fresh@example.com"
         let repository = HydrationCatalogProbe()
@@ -280,11 +280,11 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
             repository: repository
         )
 
-        let saved = try useCase.save(SavedAccountMetadataUpdate(refreshed), into: [renamed])
+        let saved = try useCase.save(SavedAccountMetadataUpdate(refreshed), into: [current])
 
-        #expect(saved?.map(\.name) == ["Renamed"])
+        #expect(saved?.map(\.snapshotFileName) == ["current.json"])
         #expect(saved?.map(\.email) == ["fresh@example.com"])
-        #expect(repository.savedAccounts?.map(\.name) == ["Renamed"])
+        #expect(repository.savedAccounts?.map(\.snapshotFileName) == ["current.json"])
     }
 
     @Test
@@ -325,7 +325,6 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
         return CodexAccount(
             id: UUID(),
-            name: name,
             snapshotFileName: "\(UUID().uuidString).json",
             createdAt: now,
             updatedAt: now,

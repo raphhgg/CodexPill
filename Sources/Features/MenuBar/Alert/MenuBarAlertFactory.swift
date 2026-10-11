@@ -7,15 +7,12 @@ struct MenuBarAlertFactory {
         self.appVersionText = appVersionText
     }
 
-    func makeAddAccountRequest(runningCLISessions: Int) -> MenuBarTextInputAlertRequest {
-        MenuBarTextInputAlertRequest(
-            messageText: "Add account",
-            informativeText: addAccountInformativeText(runningCLISessions: runningCLISessions),
-            fieldTitle: "Account Name",
-            placeholder: "Work",
+    func makeFirstRunAddAccountRequest() -> MenuBarConfirmationAlertRequest {
+        MenuBarConfirmationAlertRequest(
+            messageText: "Add a Codex account?",
+            informativeText: "Sign in to Codex in your browser.",
             confirmTitle: "Continue",
-            cancelTitle: "Cancel",
-            requiresNonEmptyValue: true
+            cancelTitle: "Not Now"
         )
     }
 
@@ -34,7 +31,7 @@ struct MenuBarAlertFactory {
         )
     }
 
-    func makeAddAccountSuccessRequest(accountName: String, runningCLISessions: Int) -> MenuBarConfirmationAlertRequest {
+    func makeAddAccountSuccessRequest(accountLabel: String, runningCLISessions: Int) -> MenuBarConfirmationAlertRequest {
         let cliNotice: String
         if runningCLISessions == 1 {
             cliNotice = "\n\n1 Codex terminal is running. Restart it to use the new account."
@@ -46,18 +43,9 @@ struct MenuBarAlertFactory {
 
         return MenuBarConfirmationAlertRequest(
             messageText: "Account Added",
-            informativeText: "\(accountName) was saved. This Mac was not changed.\(cliNotice)",
+            informativeText: "\(accountLabel) was saved. This Mac was not changed.\(cliNotice)",
             confirmTitle: "Use on This Mac",
             cancelTitle: "Done"
-        )
-    }
-
-    func makeAddAccountDuplicateNameRequest() -> MenuBarConfirmationAlertRequest {
-        MenuBarConfirmationAlertRequest(
-            messageText: "Name Already Used",
-            informativeText: "Choose a different name for this saved account.",
-            confirmTitle: "Try Again",
-            cancelTitle: "Cancel"
         )
     }
 
@@ -86,10 +74,10 @@ struct MenuBarAlertFactory {
         }
     }
 
-    func makeAccountAlreadySavedRequest(accountName: String) -> MenuBarInfoAlertRequest {
-        return MenuBarInfoAlertRequest(
+    func makeAccountAlreadySavedRequest(accountLabel: String) -> MenuBarInfoAlertRequest {
+        MenuBarInfoAlertRequest(
             messageText: "Account Already Saved",
-            informativeText: "This Codex account is already saved as \(accountName).",
+            informativeText: "This Codex account is already saved as \(accountLabel).",
             style: .informational,
             buttonTitle: "OK"
         )
@@ -167,27 +155,27 @@ struct MenuBarAlertFactory {
         )
     }
 
-    func makeSwitchAccountRequest(accountName: String, runningCLISessions: Int) -> MenuBarConfirmationAlertRequest {
+    func makeSwitchAccountRequest(accountLabel: String, runningCLISessions: Int) -> MenuBarConfirmationAlertRequest {
         MenuBarConfirmationAlertRequest(
             messageText: "Switch account?",
-            informativeText: switchInformativeText(for: accountName, runningCLISessions: runningCLISessions),
+            informativeText: switchInformativeText(for: accountLabel, runningCLISessions: runningCLISessions),
             confirmTitle: "Switch",
             cancelTitle: "Cancel"
         )
     }
 
-    func makeRemoveAccountRequest(accountName: String, activeTargets: [String] = []) -> MenuBarConfirmationAlertRequest {
+    func makeRemoveAccountRequest(accountLabel: String, activeTargets: [String] = []) -> MenuBarConfirmationAlertRequest {
         guard !activeTargets.isEmpty else {
             return MenuBarConfirmationAlertRequest(
                 messageText: "Remove saved account?",
-                informativeText: "This removes \(accountName) from CodexPill.\n\nThis action cannot be undone.",
+                informativeText: "This removes \(accountLabel) from CodexPill.\n\nThis action cannot be undone.",
                 confirmTitle: "Remove",
                 cancelTitle: "Cancel"
             )
         }
 
         return MenuBarConfirmationAlertRequest(
-            messageText: "\(accountName) is in use",
+            messageText: "\(accountLabel) is in use",
             informativeText: "Sign out on \(formattedTargetList(activeTargets)) before removing it?",
             confirmTitle: "Sign Out and Remove",
             cancelTitle: "Cancel"
@@ -246,9 +234,9 @@ struct MenuBarAlertFactory {
         )
     }
 
-    private func switchInformativeText(for accountName: String, runningCLISessions: Int) -> String {
+    private func switchInformativeText(for accountLabel: String, runningCLISessions: Int) -> String {
         var lines = [
-            "This switches This Mac to \(accountName) and restarts Codex."
+            "This switches This Mac to \(accountLabel) and restarts Codex."
         ]
 
         if runningCLISessions > 0 {
@@ -257,10 +245,6 @@ struct MenuBarAlertFactory {
         }
 
         return lines.joined(separator: " ")
-    }
-
-    private func addAccountInformativeText(runningCLISessions _: Int) -> String {
-        "Choose a name for this saved account. You can change it later."
     }
 
     private func formattedTargetList(_ targets: [String]) -> String {

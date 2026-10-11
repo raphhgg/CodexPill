@@ -103,7 +103,7 @@ As someone with a personal and a work Cursor account, I want to save both and sw
   > **Switch Cursor account?**
   > Cursor will quit and reopen.
 
-- **Rename and remove** change only CodexPill's list. Removing the account Cursor is signed in as leaves Cursor signed in.
+- **Remove** changes only CodexPill's list. Removing the account Cursor is signed in as leaves Cursor signed in.
 - **Matching.** The account Cursor is signed in as is the saved account whose user ID, from the access token's `sub` claim, matches.
 - **Errors.** Each `CursorAccountsError` has a short alert from `MenuBarAlertFactory.makeCursorAccountErrorRequest`:
 

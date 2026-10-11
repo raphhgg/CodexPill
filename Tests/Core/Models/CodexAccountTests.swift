@@ -8,7 +8,6 @@ struct CodexAccountTests {
     func effectivePlanTypeUsesFreshRateLimitPlanWhenAccountPlanIsStale() {
         let account = CodexAccount(
             id: UUID(),
-            name: "Personal",
             snapshotFileName: "\(UUID().uuidString).json",
             createdAt: .distantPast,
             updatedAt: Date(timeIntervalSince1970: 1_000),
@@ -30,7 +29,6 @@ struct CodexAccountTests {
     func applyRemoteMetadataPersistsEffectivePlanFromRateLimits() {
         var account = CodexAccount(
             id: UUID(),
-            name: "Personal",
             snapshotFileName: "\(UUID().uuidString).json",
             createdAt: .distantPast,
             updatedAt: Date(timeIntervalSince1970: 1_000),
@@ -59,7 +57,6 @@ struct CodexAccountTests {
     func lastRemoteRefreshAtPrefersNewerUpdatedAtWhenRateLimitsAreStale() {
         let account = CodexAccount(
             id: UUID(),
-            name: "Work",
             snapshotFileName: "\(UUID().uuidString).json",
             createdAt: .distantPast,
             updatedAt: Date(timeIntervalSince1970: 2_000),
@@ -81,7 +78,6 @@ struct CodexAccountTests {
     func lastRemoteRefreshAtUsesRateLimitFetchTimeWhenItIsNewest() {
         let account = CodexAccount(
             id: UUID(),
-            name: "Work",
             snapshotFileName: "\(UUID().uuidString).json",
             createdAt: .distantPast,
             updatedAt: Date(timeIntervalSince1970: 1_000),

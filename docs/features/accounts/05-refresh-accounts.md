@@ -18,7 +18,7 @@ Inactive reads send `account/read` with `refreshToken: false`. Codex can still r
 
 Inactive refresh runs on the scheduled refresh tick after the active refresh, at most once every 15 minutes. Accounts are read one at a time. The refresh does not start while another account operation is busy.
 
-Switch, remove, rename, and add wait for the account being read to finish, then the refresh stops. A rotated token is saved before the operation touches auth. Each result merges into the current account list by account id. It never replaces the list or the active account, so a removed account stays removed and a new name stays.
+Switch, remove, and add wait for the account being read to finish, then the refresh stops. A rotated token is saved before the operation touches auth. Each result merges into the current account list by account id. It never replaces the list or the active account, so a removed account stays removed.
 
 Before switching away from the active account, CodexPill saves the live `~/.codex/auth.json` to that account's snapshot if Codex rotated it since it was saved.
 
@@ -91,7 +91,7 @@ For the active local account:
 - read current account identity and rate-limit status from the local Codex app-server;
 - resolve the returned identity to exactly one saved account;
 - if current live auth has a different fingerprint for that same saved account, overwrite that saved account's snapshot with current live auth;
-- preserve the saved account id, display name, and catalog position;
+- preserve the saved account id and catalog position;
 - then apply returned email, plan, and rate-limit metadata as normal.
 
 For inactive saved accounts, CodexPill must keep using isolated saved-account status reads with `refreshToken: false` and must not rotate inactive snapshots through the real local auth file. When Codex rotates tokens inside the isolated home anyway, CodexPill writes them back to that account's snapshot only on an exact stable or scoped account id match, and discards them otherwise.

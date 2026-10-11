@@ -18,7 +18,6 @@ struct AccountAvailabilityTests {
     func weeklyOnlyAccountHasNoSessionUsage() {
         let account = CodexAccount(
             id: UUID(),
-            name: "Free",
             snapshotFileName: "free.json",
             createdAt: .now,
             updatedAt: .now,
@@ -79,7 +78,6 @@ struct AccountAvailabilityTests {
     func accountNeverReadCountsAsUsedUp() {
         let account = CodexAccount(
             id: UUID(),
-            name: "Unread",
             snapshotFileName: "unread.json",
             createdAt: .now,
             updatedAt: .now,
@@ -110,11 +108,11 @@ struct InactiveAccountAvailabilityRankingTests {
 
         let sorted = ranking.sort([weeklyConstrained, weeklyHealthy])
 
-        #expect(sorted.map(\.name) == ["Weekly Healthy", "Weekly Constrained"])
+        #expect(sorted.map(\.email) == ["weekly healthy@example.com", "weekly constrained@example.com"])
     }
 
     @Test
-    func breaksTiesByNextAvailabilityThenUsageThenName() {
+    func breaksTiesByNextAvailabilityThenUsageThenEmail() {
         let ranking = InactiveAccountAvailabilityRanking()
         let now = Date()
         let laterReset = now.addingTimeInterval(7_200)
@@ -148,7 +146,7 @@ struct InactiveAccountAvailabilityRankingTests {
             earlierAvailable
         ])
 
-        #expect(sorted.map(\.name) == ["Earlier", "Alpha", "Zulu", "Later", "Higher Usage"])
+        #expect(sorted.map(\.email) == ["earlier@example.com", "alpha@example.com", "zulu@example.com", "later@example.com", "higher usage@example.com"])
     }
 
     @MainActor
@@ -199,8 +197,8 @@ struct InactiveAccountAvailabilityRankingTests {
 
         controller.load()
 
-        #expect(controller.activeAccount?.name == "Active")
-        #expect(controller.sortedInactiveAccounts.map(\.name) == ["Preferred", "Constrained"])
+        #expect(controller.activeAccount?.email == "active@example.com")
+        #expect(controller.sortedInactiveAccounts.map(\.email) == ["preferred@example.com", "constrained@example.com"])
     }
 }
 
@@ -241,10 +239,9 @@ private struct RankingNullAuthService: CodexAuthSessionStore, CodexSignInAuthSto
     func liveIdentity(forAuthData authData: Data) -> LiveCodexAccountIdentity { .empty }
     func restoreCurrentAuthData(_ data: Data) throws {}
 
-    func saveAuthSnapshot(_ authData: Data, named name: String, existing: CodexAccount?) throws -> CodexAccount {
+    func saveAuthSnapshot(_ authData: Data, existing: CodexAccount?) throws -> CodexAccount {
         existing ?? CodexAccount(
             id: UUID(),
-            name: name,
             snapshotFileName: "\(UUID().uuidString).json",
             createdAt: .distantPast,
             updatedAt: .distantPast,

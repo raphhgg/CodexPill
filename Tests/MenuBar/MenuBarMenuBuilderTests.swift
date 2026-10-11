@@ -7,17 +7,10 @@ import Testing
 
 @MainActor
 final class AlertPresenterProbe: AlertPresenter {
-    private(set) var textInputRequests: [MenuBarTextInputAlertRequest] = []
     private(set) var confirmationRequests: [MenuBarConfirmationAlertRequest] = []
     private(set) var infoRequests: [MenuBarInfoAlertRequest] = []
 
-    var textInputResponse: String?
     var confirmationResponse = false
-
-    func presentTextInput(_ request: MenuBarTextInputAlertRequest) -> String? {
-        textInputRequests.append(request)
-        return textInputResponse
-    }
 
     func presentConfirmation(_ request: MenuBarConfirmationAlertRequest) -> Bool {
         confirmationRequests.append(request)
@@ -175,17 +168,6 @@ struct MenuBarMenuBuilderTests {
         let alertPresenter = SystemAlertPresenter(suppressesInteractivePrompts: true)
         let panelPresenter = SystemPanelPresenter(suppressesInteractivePrompts: true)
 
-        let textValue = alertPresenter.presentTextInput(
-            MenuBarTextInputAlertRequest(
-                messageText: "Rename",
-                informativeText: "Rename account",
-                fieldTitle: "Name",
-                placeholder: "Business",
-                confirmTitle: "Save",
-                cancelTitle: "Cancel",
-                requiresNonEmptyValue: false
-            )
-        )
         let confirmation = alertPresenter.presentConfirmation(
             MenuBarConfirmationAlertRequest(
                 messageText: "Remove",
@@ -220,7 +202,6 @@ struct MenuBarMenuBuilderTests {
             onCancel: { signInCancelled = true }
         )
 
-        #expect(textValue == nil)
         #expect(confirmation == false)
         #expect(signInCancelled)
         guard case .cancelled = signInResult else {
@@ -944,9 +925,9 @@ struct MenuBarMenuBuilderTests {
             availableCount: 2,
             credits: [UsageResetCredit(expiresAt: nov5.addingTimeInterval(15 * 86_400)), UsageResetCredit(expiresAt: nov5)]
         )
-        let active = makeAccount(name: "Alex", email: "alex@example.com", usage: usage)
-        let first = makeAccount(name: "Side", email: "side@example.com")
-        let second = makeAccount(name: "Team", email: "team@example.com")
+        let active = makeAccount(email: "alex@example.com", usage: usage)
+        let first = makeAccount(email: "side@example.com")
+        let second = makeAccount(email: "team@example.com")
         let menu = MenuBarMenuBuilder(locale: Locale(identifier: "en_GB"), timeZone: TimeZone(identifier: "GMT")!).makeMenu(
             state: makeState(
                 activeAccount: active,

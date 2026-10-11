@@ -65,7 +65,7 @@ Key boundaries:
 - `AccountActionFlow`
 - `AddAccountWorkflow`
 - `SwitchAccountWorkflow`
-- account load/delete/rename/refresh/hydration use cases
+- account load/delete/refresh/hydration use cases
 - account identity matching and relinking utilities
 
 `Features/TokenUsage` owns local token-usage history lifecycle and cache policy.
@@ -194,7 +194,7 @@ The access token leaves this module only as the usage request's `Authorization` 
 - the `cursor.com/api/usage-summary` request, its redirect rule, its `Retry-After` wait, and parsing its response (`URLSessionCursorUsageWebClient`, `CursorUsageClient`, `CursorUsageSummaryParser`);
 - `CursorSignIn`, the eight `cursorAuth/*` rows that are a Cursor sign-in, and `CursorSavedAccount`, a named copy of one;
 - `CursorAccountStore` and `SystemCursorAccountKeychain`, the `CodexPill Cursor accounts` Keychain item holding every saved account;
-- `CursorAccounts`: capture, add a sign-in made in a throwaway profile, record an inactive account's limits (compare and swap on the saved sign-in), rename, remove, and activate. Activation quits Cursor, saves the outgoing sign-in again, writes the saved one, and reopens Cursor. It throws one `CursorAccountsError` per outcome the menu must tell apart;
+- `CursorAccounts`: capture, add a sign-in made in a throwaway profile, record an inactive account's limits (compare and swap on the saved sign-in), remove, and activate. Activation quits Cursor, saves the outgoing sign-in again, writes the saved one, and reopens Cursor. It throws one `CursorAccountsError` per outcome the menu must tell apart;
 - `CursorAppProcessClient` and `SystemCursorAppProcessClient`, quitting and opening Cursor.app. It never force-quits and knows nothing about Cursor's files;
 - `CursorIsolatedLogin`, Cursor's own sign-in in a separate Cursor instance with a throwaway `--user-data-dir` under `<AppSupport>/cursor-sign-in/<8 hex>`. It refuses a profile path that would push Cursor's IPC socket past macOS's 103-byte limit, polls the profile's `state.vscdb` for the `cursorAuth/*` rows, quits that instance by PID, and deletes the profile on every path. `CursorInstanceLaunching` starts and quits instances by PID: `SystemCursorInstanceLauncher` opens Cursor.app as a new instance and quits only a Cursor process with that PID, and `ExecutableCursorInstanceLauncher` runs a stand-in for isolated runs.
 

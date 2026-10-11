@@ -41,9 +41,8 @@ struct CursorAccountsTests {
     func captureSavesCurrentSignInWithPlanAndEmail() throws {
         let scenario = try Scenario(signedInAs: Self.work)
 
-        let account = try scenario.accounts.captureCurrent(named: "Work")
+        let account = try scenario.accounts.captureCurrent()
 
-        #expect(account.name == "Work")
         #expect(account.plan == "pro")
         #expect(account.email == "work@example.com")
         #expect(account.userID == "user_work")
@@ -56,7 +55,7 @@ struct CursorAccountsTests {
         let scenario = try Scenario(signedInAs: Self.work)
         let before = try Data(contentsOf: scenario.harness.databaseURL)
 
-        try scenario.accounts.captureCurrent(named: "Work")
+        try scenario.accounts.captureCurrent()
 
         #expect(try Data(contentsOf: scenario.harness.databaseURL) == before)
         let cursorDirectory = scenario.harness.databaseURL.deletingLastPathComponent().path
@@ -66,15 +65,15 @@ struct CursorAccountsTests {
     @Test
     func captureTwiceRefreshesTheSavedAccount() throws {
         let scenario = try Scenario(signedInAs: Self.work)
-        let first = try scenario.accounts.captureCurrent(named: "Work")
+        let first = try scenario.accounts.captureCurrent()
         try scenario.harness.open()
         try scenario.harness.insertText("work-refresh-2", key: CursorSignIn.refreshTokenKey)
         scenario.harness.close()
 
-        let second = try scenario.accounts.captureCurrent(named: "Day job")
+        let second = try scenario.accounts.captureCurrent()
 
         #expect(second.id == first.id)
-        #expect(try scenario.store.load().map(\.name) == ["Day job"])
+        #expect(try scenario.store.load().map(\.id) == [first.id])
         #expect(try scenario.store.load().first?.signIn.values[CursorSignIn.refreshTokenKey] == .text("work-refresh-2"))
     }
 
@@ -83,7 +82,7 @@ struct CursorAccountsTests {
         let scenario = try Scenario(signedInAs: [:])
 
         #expect(throws: CursorAccountsError.signedOut) {
-            try scenario.accounts.captureCurrent(named: "Work")
+            try scenario.accounts.captureCurrent()
         }
         #expect(try scenario.store.load().isEmpty)
     }
@@ -93,7 +92,7 @@ struct CursorAccountsTests {
         let scenario = try Scenario(signedInAs: nil)
 
         #expect(throws: CursorAccountsError.cursorNotInstalled) {
-            try scenario.accounts.captureCurrent(named: "Work")
+            try scenario.accounts.captureCurrent()
         }
     }
 
@@ -102,8 +101,8 @@ struct CursorAccountsTests {
     @Test
     func activateWritesOnlySignInRowsAndRemovesRowsTheTargetLacks() async throws {
         let scenario = try Scenario(signedInAs: Self.home)
-        try scenario.accounts.captureCurrent(named: "Home")
-        let work = try scenario.saveAccount(Self.work, named: "Work")
+        try scenario.accounts.captureCurrent()
+        let work = try scenario.saveAccount(Self.work)
 
         try await scenario.accounts.activate(work.id)
 
@@ -112,7 +111,7 @@ struct CursorAccountsTests {
         #expect(try scenario.harness.diskKV() == ["composerData:1": "conversation"])
         #expect(try scenario.accounts.activeAccountID() == work.id)
 
-        let home = try scenario.store.load().first { $0.name == "Home" }
+        let home = try scenario.store.load().first { $0.email == "home@example.com" }
         try await scenario.accounts.activate(try #require(home).id)
 
         #expect(try scenario.harness.itemTable()["cursorAuth/stripeSubscriptionStatus"] == nil)
@@ -122,7 +121,7 @@ struct CursorAccountsTests {
     @Test
     func activateQuitsCursorBeforeWritingAndOpensItAfter() async throws {
         let scenario = try Scenario(signedInAs: Self.home)
-        let work = try scenario.saveAccount(Self.work, named: "Work")
+        let work = try scenario.saveAccount(Self.work)
         scenario.app.onQuit = {
             // While Cursor runs, the database still holds the outgoing sign-in.
             let tokenWhileRunning = try scenario.harness.itemTableReadOnly()[CursorSignIn.accessTokenKey]
@@ -137,8 +136,8 @@ struct CursorAccountsTests {
     @Test
     func activateKeepsTokensCursorRotatedBeforeQuitting() async throws {
         let scenario = try Scenario(signedInAs: Self.home)
-        let home = try scenario.accounts.captureCurrent(named: "Home")
-        let work = try scenario.saveAccount(Self.work, named: "Work")
+        let home = try scenario.accounts.captureCurrent()
+        let work = try scenario.saveAccount(Self.work)
         scenario.app.onQuit = {
             // Cursor refreshed its session while running and saves the new token as it quits.
             try scenario.harness.open()
@@ -155,19 +154,19 @@ struct CursorAccountsTests {
     @Test
     func activateSavesAnUnsavedOutgoingSignIn() async throws {
         let scenario = try Scenario(signedInAs: Self.home)
-        let work = try scenario.saveAccount(Self.work, named: "Work")
+        let work = try scenario.saveAccount(Self.work)
 
         try await scenario.accounts.activate(work.id)
 
         let saved = try scenario.store.load()
-        #expect(saved.map(\.name) == ["Work", "home@example.com"])
+        #expect(saved.map(\.email) == ["work@example.com", "home@example.com"])
         #expect(saved.last?.userID == "user_home")
     }
 
     @Test
     func activateFoldsCursorsWALIntoTheDatabaseFile() async throws {
         let scenario = try Scenario(signedInAs: Self.home, walMode: true)
-        let work = try scenario.saveAccount(Self.work, named: "Work")
+        let work = try scenario.saveAccount(Self.work)
 
         try await scenario.accounts.activate(work.id)
 
@@ -186,7 +185,7 @@ struct CursorAccountsTests {
     @Test
     func activateWhenCursorDoesNotQuitChangesNothing() async throws {
         let scenario = try Scenario(signedInAs: Self.home)
-        let work = try scenario.saveAccount(Self.work, named: "Work")
+        let work = try scenario.saveAccount(Self.work)
         let before = try Data(contentsOf: scenario.harness.databaseURL)
         scenario.app.quitError = CursorAppProcessClientError.didNotQuit
 
@@ -196,13 +195,13 @@ struct CursorAccountsTests {
 
         #expect(try Data(contentsOf: scenario.harness.databaseURL) == before)
         #expect(scenario.app.events == [.quit])
-        #expect(try scenario.store.load().map(\.name) == ["Work"])
+        #expect(try scenario.store.load().map(\.id) == [work.id])
     }
 
     @Test
     func activateWhileAnotherProcessHoldsTheDatabaseWritesNothingAndReopensCursor() async throws {
         let scenario = try Scenario(signedInAs: Self.home, walMode: true)
-        let work = try scenario.saveAccount(Self.work, named: "Work")
+        let work = try scenario.saveAccount(Self.work)
         // A Cursor helper still has the database open after the app quit.
         scenario.app.onQuit = nil
         try scenario.harness.holdWriteLock()
@@ -219,7 +218,7 @@ struct CursorAccountsTests {
     @Test
     func activateOnACorruptedDatabaseLeavesItUntouchedAndReopensCursor() async throws {
         let scenario = try Scenario(signedInAs: nil)
-        let work = try scenario.saveAccount(Self.work, named: "Work")
+        let work = try scenario.saveAccount(Self.work)
         let garbage = Data(repeating: 0x5A, count: 8192)
         try garbage.write(to: scenario.harness.databaseURL)
 
@@ -234,7 +233,7 @@ struct CursorAccountsTests {
     @Test
     func activateTheActiveAccountOnlyReopensCursor() async throws {
         let scenario = try Scenario(signedInAs: Self.work)
-        let work = try scenario.accounts.captureCurrent(named: "Work")
+        let work = try scenario.accounts.captureCurrent()
         let before = try Data(contentsOf: scenario.harness.databaseURL)
 
         try await scenario.accounts.activate(work.id)
@@ -256,13 +255,10 @@ struct CursorAccountsTests {
     // MARK: - Saved accounts
 
     @Test
-    func renameAndRemoveChangeOnlyCodexPillsList() throws {
+    func removeChangesOnlyCodexPillsList() throws {
         let scenario = try Scenario(signedInAs: Self.work)
-        let work = try scenario.accounts.captureCurrent(named: "Work")
+        let work = try scenario.accounts.captureCurrent()
         let before = try Data(contentsOf: scenario.harness.databaseURL)
-
-        try scenario.accounts.rename(work.id, to: "Client")
-        #expect(try scenario.accounts.savedAccounts().map(\.name) == ["Client"])
 
         try scenario.accounts.remove(work.id)
         #expect(try scenario.accounts.savedAccounts().isEmpty)
@@ -273,7 +269,7 @@ struct CursorAccountsTests {
     @Test
     func keychainPayloadRoundTripsAndSignInPrintsRedacted() throws {
         let signIn = try #require(CursorSignIn(values: Self.work.mapValues(CursorStateValue.text)))
-        let account = CursorSavedAccount(id: UUID(), name: "Work", signIn: signIn)
+        let account = CursorSavedAccount(id: UUID(), signIn: signIn)
 
         let decoded = try SystemCursorAccountKeychain.decode(SystemCursorAccountKeychain.encode([account]))
 
@@ -281,6 +277,21 @@ struct CursorAccountsTests {
         #expect(String(describing: signIn) == "CursorSignIn(redacted)")
         #expect(!String(describing: account).contains("work-refresh-1"))
         #expect(!String(reflecting: account).contains("work@example.com"))
+    }
+
+    @Test
+    func keychainPayloadsSavedWithAccountNamesStillLoad() throws {
+        let token = CursorAccessTokenFixtures.jwt(subject: "auth0|user_work", expiresAt: CursorAccessTokenFixtures.referenceDate)
+        let payload = """
+        {"version":1,"accounts":[{"id":"11111111-2222-3333-4444-555555555555","name":"Day job","signIn":{\
+        "cursorAuth/accessToken":{"text":{"_0":"\(token)"}},"cursorAuth/cachedEmail":{"text":{"_0":"work@example.com"}}}}]}
+        """
+
+        let accounts = try SystemCursorAccountKeychain.decode(Data(payload.utf8))
+
+        #expect(accounts.map(\.id) == [UUID(uuidString: "11111111-2222-3333-4444-555555555555")])
+        #expect(accounts.map(\.email) == ["work@example.com"])
+        #expect(accounts.map(\.userID) == ["user_work"])
     }
 
     @Test
@@ -325,9 +336,9 @@ private final class Scenario: @unchecked Sendable {
         }
     }
 
-    func saveAccount(_ values: [String: String], named name: String) throws -> CursorSavedAccount {
+    func saveAccount(_ values: [String: String]) throws -> CursorSavedAccount {
         let signIn = try #require(CursorSignIn(values: values.mapValues(CursorStateValue.text)))
-        let account = CursorSavedAccount(id: UUID(), name: name, signIn: signIn)
+        let account = CursorSavedAccount(id: UUID(), signIn: signIn)
         try store.save(try store.load() + [account])
         return account
     }

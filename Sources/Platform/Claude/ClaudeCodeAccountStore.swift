@@ -1,10 +1,10 @@
 import Foundation
 
 /// A Claude Code sign-in CodexPill saved so the user can switch back to it. The tokens live in CodexPill's own
-/// Keychain item for this account, never in the catalog.
+/// Keychain item for this account, never in the catalog. Catalogs from earlier builds also hold a `name`, which
+/// decoding ignores.
 struct ClaudeCodeAccount: Codable, Equatable, Identifiable, Sendable {
     let id: UUID
-    var name: String
     var email: String?
     var organizationName: String?
     /// Claude Code's `subscriptionType`, for example `max` or `pro`.
@@ -82,12 +82,11 @@ struct ClaudeCodeAccountStore: Sendable {
         return try accounts().first { $0.identity == identity }?.id
     }
 
-    /// Saves Claude Code's current sign-in. Saving an account that is already saved refreshes its sign-in and plan
-    /// and keeps its name unless `name` is given.
+    /// Saves Claude Code's current sign-in. Saving an account that is already saved refreshes its sign-in and plan.
     @discardableResult
-    func captureCurrent(named name: String? = nil) throws(ClaudeCodeAccountError) -> ClaudeCodeAccount {
+    func captureCurrent() throws(ClaudeCodeAccountError) -> ClaudeCodeAccount {
         let (current, _) = try currentSignIn()
-        return try add(current, named: name)
+        return try add(current)
     }
 
     /// Saves Claude Code's current sign-in when its account is not saved yet, without the Keychain prompt. Nil when
@@ -107,11 +106,10 @@ struct ClaudeCodeAccountStore: Sendable {
 
     /// Saves a sign-in Claude Code made in a throwaway config folder, the same way as `captureCurrent`.
     @discardableResult
-    func add(_ signIn: ClaudeCodeSignInSnapshot, named name: String? = nil) throws(ClaudeCodeAccountError) -> ClaudeCodeAccount {
+    func add(_ signIn: ClaudeCodeSignInSnapshot) throws(ClaudeCodeAccountError) -> ClaudeCodeAccount {
         guard signIn.identity != nil else { throw .claudeCodeAccountUnknown }
         var catalog = try accounts()
         let index = entryIndex(for: signIn, in: &catalog)
-        if let name { catalog[index].name = name }
 
         var undo = Undo()
         do throws(ClaudeCodeAccountError) {
@@ -181,15 +179,6 @@ struct ClaudeCodeAccountStore: Sendable {
         }
     }
 
-    func rename(_ id: UUID, to name: String) throws(ClaudeCodeAccountError) {
-        var catalog = try accounts()
-        guard let index = catalog.firstIndex(where: { $0.id == id }) else { throw .unknownAccount }
-        catalog[index].name = name
-        catalog[index].updatedAt = now()
-        var undo = Undo()
-        try write(catalog, undo: &undo)
-    }
-
     /// Forgets a saved account. Claude Code's own sign-in is left as it is.
     func delete(_ id: UUID) throws(ClaudeCodeAccountError) {
         let catalog = try accounts()
@@ -218,7 +207,6 @@ struct ClaudeCodeAccountStore: Sendable {
         }
         catalog.append(ClaudeCodeAccount(
             id: UUID(),
-            name: signIn.email ?? signIn.organizationName ?? "Claude Account",
             createdAt: now(),
             updatedAt: now()
         ))

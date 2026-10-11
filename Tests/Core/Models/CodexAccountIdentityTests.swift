@@ -8,7 +8,6 @@ struct CodexAccountIdentityTests {
     func applyRemoteMetadataRefreshesCachedRemoteIdentity() {
         var account = CodexAccount(
             id: UUID(),
-            name: "Work",
             snapshotFileName: "\(UUID().uuidString).json",
             createdAt: .distantPast,
             updatedAt: .distantPast,

@@ -135,7 +135,9 @@ struct AccountRepositoryTests {
 
         #expect(try repository.loadAccounts() == [account])
         let saved = try String(contentsOf: repository.paths.accountsFile, encoding: .utf8)
-        #expect(saved == Self.accountsFileBeforeUsageWindows.replacingOccurrences(of: "      \"limitID\" : \"codex\",\n", with: ""))
+        #expect(saved == Self.accountsFileBeforeUsageWindows
+            .replacingOccurrences(of: "      \"limitID\" : \"codex\",\n", with: "")
+            .replacingOccurrences(of: "\"name\" : \"Work\"", with: "\"name\" : \"work@example.com\""))
     }
 
     @Test

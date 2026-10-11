@@ -14,7 +14,7 @@ struct MenuBarMenuStateTests {
 
         let state = makeState(inactiveAccounts: accounts)
 
-        #expect(state.allSavedAccounts.map(\.name) == ["A", "B", "C"])
+        #expect(state.allSavedAccounts.map(\.email) == ["a@example.com", "b@example.com", "c@example.com"])
     }
 
     @Test

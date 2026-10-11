@@ -7,13 +7,13 @@ import Testing
 /// CodexPill's saved accounts `<root>/claude-code-account-<id>.json`. All tokens are fake.
 struct ClaudeCodeAccountStoreTests {
     @Test
-    func capturingSavesTheSignInOnceAndNamesItAfterTheEmail() throws {
+    func capturingSavesTheSignInOnce() throws {
         let fixture = try ClaudeCodeAccountFixture()
         defer { fixture.remove() }
         try fixture.signIn(.personal, refreshToken: "fake-personal-refresh-1")
 
         let saved = try fixture.store.captureCurrent()
-        #expect(saved.name == "personal@example.com")
+        #expect(saved.email == "personal@example.com")
         #expect(saved.planName == "max")
         #expect(saved.organizationName == "Personal Org")
 
@@ -21,7 +21,7 @@ struct ClaudeCodeAccountStoreTests {
         let again = try fixture.store.captureCurrent()
 
         #expect(try fixture.store.accounts().map(\.id) == [saved.id])
-        #expect(again.name == "personal@example.com")
+        #expect(again.email == "personal@example.com")
         #expect(again.planName == "pro")
         #expect(fixture.savedRefreshToken(saved.id) == "fake-personal-refresh-2")
         #expect(try fixture.store.activeAccountID() == saved.id)
@@ -34,11 +34,41 @@ struct ClaudeCodeAccountStoreTests {
         try fixture.signIn(.personal, refreshToken: "fake-personal-refresh-1")
         let personal = try fixture.store.captureCurrent()
         try fixture.signIn(.team, refreshToken: "fake-team-refresh-1")
-        let team = try fixture.store.captureCurrent(named: "Work")
+        let team = try fixture.store.captureCurrent()
 
-        #expect(try fixture.store.accounts().map(\.name) == ["personal@example.com", "Work"])
+        #expect(try fixture.store.accounts().map(\.organizationName) == ["Personal Org", "Team Org"])
         #expect(personal.id != team.id)
         #expect(try fixture.store.activeAccountID() == team.id)
+    }
+
+    @Test
+    func catalogsSavedWithAccountNamesStillLoad() throws {
+        let fixture = try ClaudeCodeAccountFixture()
+        defer { fixture.remove() }
+        try Data("""
+        [
+          {
+            "createdAt" : "2026-10-10T09:00:00Z",
+            "email" : "team@example.com",
+            "id" : "11111111-2222-3333-4444-555555555555",
+            "identity" : {
+              "accountUUID" : "user-uuid",
+              "organizationUUID" : "team-org-uuid"
+            },
+            "name" : "Work",
+            "organizationName" : "Team Org",
+            "planName" : "max",
+            "updatedAt" : "2026-10-10T09:00:00Z"
+          }
+        ]
+        """.utf8).write(to: fixture.catalogFile)
+        try fixture.signIn(.team, refreshToken: "fake-team-refresh-1")
+
+        let accounts = try fixture.store.accounts()
+
+        #expect(accounts.map(\.email) == ["team@example.com"])
+        #expect(accounts.map(\.organizationName) == ["Team Org"])
+        #expect(try fixture.store.activeAccountID() == UUID(uuidString: "11111111-2222-3333-4444-555555555555"))
     }
 
     @Test
@@ -232,8 +262,7 @@ struct ClaudeCodeAccountStoreTests {
         defer { fixture.remove() }
         try fixture.signIn(.team, refreshToken: "fake-team-refresh-1")
         let team = try fixture.store.captureCurrent()
-        try fixture.store.rename(team.id, to: "Work")
-        #expect(try fixture.store.accounts().map(\.name) == ["Work"])
+        #expect(try fixture.store.accounts().map(\.id) == [team.id])
 
         try fixture.store.delete(team.id)
 

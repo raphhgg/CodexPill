@@ -37,17 +37,12 @@ extension CodexAccount {
         normalizedInspectableEmail != nil
             && normalizedInspectableEmail == other.normalizedInspectableEmail
             && normalizedCodexPlanType(effectivePlanType) == normalizedCodexPlanType(other.effectivePlanType)
-            && normalizedAccountName == other.normalizedAccountName
     }
 
     private var normalizedInspectableEmail: String? {
         guard let email else { return nil }
         let normalized = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         return normalized.isEmpty ? nil : normalized
-    }
-
-    private var normalizedAccountName: String {
-        name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
     private func normalizedIdentityValue(_ value: String?) -> String? {
