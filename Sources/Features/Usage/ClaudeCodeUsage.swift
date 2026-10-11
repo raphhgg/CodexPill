@@ -91,12 +91,7 @@ struct ClaudeCodeUsage: ProviderConnection {
         }
         guard let commands else { throw ClaudeCodeAccountError.switchingUnavailable.notice }
 
-        let signsInClaudeCode: Bool
-        if case .signedOut = store.claudeCode.current(allowingPrompt: false) {
-            signsInClaudeCode = true
-        } else {
-            signsInClaudeCode = false
-        }
+        let signsInClaudeCode = if case .signedOut = store.claudeCode.current(allowingPrompt: false) { true } else { false }
         let signIn: ClaudeCodeSignInSnapshot?
         do {
             if signsInClaudeCode {
