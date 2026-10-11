@@ -2,6 +2,9 @@ import Foundation
 
 /// Every word the menu shows for one tool, in one table. In-app copy is a title plus at most one short line.
 struct ProviderCopy: Sendable {
+    /// A switch would close the window the tool's own sign-in runs in, so it waits for the sign-in.
+    static let switchDuringSignIn = ProviderNotice(title: "Finish signing in first", detail: "Or cancel the sign-in.")
+
     let name: String
     /// The short tool name on its menu card and in its side menu, such as "Claude".
     let sectionTitle: String
@@ -12,6 +15,8 @@ struct ProviderCopy: Sendable {
     let switchPrompt: ProviderPrompt?
     /// What renews an expired sign-in. By default, opening the tool.
     var renewHint: String? = nil
+    /// The card's title while the tool's own sign-in waits for the user.
+    var signingInTitle = "Finish signing in in your browser"
 
     /// What the menu asks before running `action`, or nil to run it right away.
     func prompt(for action: ProviderAction) -> ProviderPrompt? {
@@ -74,7 +79,8 @@ extension UsageProvider {
                     title: "Switch Cursor account?",
                     detail: "Cursor will quit and reopen.",
                     confirmTitle: "Switch"
-                )
+                ),
+                signingInTitle: "Sign in in the new Cursor window"
             )
         }
     }
@@ -108,6 +114,19 @@ extension ClaudeCodeCommandError {
         case .cancelled, .signInFailed: ("Claude sign-in didn't finish", "Nothing was saved.")
         case .timedOut: ("Claude sign-in timed out", "Nothing was saved.")
         case .accountUnknown: ("Unknown Claude account", "Nothing was saved.")
+        case .folderUnavailable: ("Couldn't prepare the sign-in", "Nothing was saved.")
+        }
+        return ProviderNotice(title: title, detail: detail)
+    }
+}
+
+extension CursorSignInError {
+    var notice: ProviderNotice {
+        let (title, detail): (String, String?) = switch self {
+        case .notInstalled: ("Install Cursor first", nil)
+        case .launchFailed: ("Couldn't open Cursor", "Try again in a moment.")
+        case .cancelled, .closedBeforeSignIn: ("Cursor sign-in didn't finish", "Nothing was saved.")
+        case .timedOut: ("Cursor sign-in timed out", "Nothing was saved.")
         case .folderUnavailable: ("Couldn't prepare the sign-in", "Nothing was saved.")
         }
         return ProviderNotice(title: title, detail: detail)

@@ -270,6 +270,49 @@ struct ProviderUsageRuntimeTests {
         #expect(claude.events == ["read \(teamID)", "saved \(teamID)", "switch \(teamID)"])
     }
 
+    @Test
+    func noInactiveReadStartsWhileASwitchRuns() async {
+        let gate = TestGate()
+        let active = ProviderAccount(id: UUID(), email: "personal@example.com", isActive: true)
+        let team = ProviderAccount(id: UUID(), email: "team@example.com", isActive: false)
+        let cursor = ProviderConnectionProbe(provider: .cursor, reading: .awaitingUsage)
+        cursor.update {
+            $0.accounts = [active, team]
+            $0.switchGate = gate
+        }
+        let runtime = ProviderUsageRuntime(connections: [cursor], now: { [start] in start }, onChange: {})
+
+        let switchToTeam = Task { await runtime.perform(.switchAccount(team.id), on: .cursor) }
+        await gate.waitUntilReached()
+        await runtime.refreshInactiveAccountsIfDue()
+        await gate.open()
+        #expect(await switchToTeam.value == nil)
+
+        let teamID = team.id.uuidString.prefix(4)
+        #expect(cursor.events == ["switch \(teamID)"])
+    }
+
+    @Test
+    func aSwitchWaitsForTheToolsSignInToFinish() async {
+        let gate = TestGate()
+        let active = ProviderAccount(id: UUID(), email: "personal@example.com", isActive: true)
+        let team = ProviderAccount(id: UUID(), email: "team@example.com", isActive: false)
+        let cursor = ProviderConnectionProbe(provider: .cursor, reading: .awaitingUsage, signInAvailability: .available)
+        cursor.update {
+            $0.accounts = [active, team]
+            $0.signInGate = gate
+        }
+        let runtime = ProviderUsageRuntime(connections: [cursor], now: { [start] in start }, onChange: {})
+
+        let signIn = Task { await runtime.perform(.addAccount, on: .cursor) }
+        await gate.waitUntilReached()
+
+        #expect(await runtime.perform(.switchAccount(team.id), on: .cursor) == ProviderNotice(title: "Finish signing in first", detail: "Or cancel the sign-in."))
+        #expect(cursor.switchedTo == [])
+        await gate.open()
+        _ = await signIn.value
+    }
+
     private func claudeSnapshot(sessionPercent: Int) -> UsageSnapshot {
         UsageSnapshot(
             provider: .claude,
