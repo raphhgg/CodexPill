@@ -49,38 +49,6 @@ struct StatusBarIconRenderer {
         image.isTemplate = true
         return image
     }
-
-    /// The app's pill, for when no tool is set up yet: half filled, half outlined, tilted like the app icon.
-    func makeAppGlyph() -> NSImage {
-        let image = NSImage(size: Self.glyphSize, flipped: false) { rect in
-            let pillWidth: CGFloat = 7
-            let pillLength: CGFloat = 17
-            let outlineWidth: CGFloat = 1
-            let transform = NSAffineTransform()
-            transform.translateX(by: rect.midX, yBy: rect.midY)
-            transform.rotate(byDegrees: -45)
-            transform.concat()
-
-            let pill = NSRect(x: -pillWidth / 2, y: -pillLength / 2, width: pillWidth, height: pillLength)
-            let outline = NSBezierPath(
-                roundedRect: pill.insetBy(dx: outlineWidth / 2, dy: outlineWidth / 2),
-                xRadius: (pillWidth - outlineWidth) / 2,
-                yRadius: (pillWidth - outlineWidth) / 2
-            )
-            outline.lineWidth = outlineWidth * 1.4
-            NSColor.black.setStroke()
-            outline.stroke()
-
-            NSGraphicsContext.saveGraphicsState()
-            NSBezierPath(rect: NSRect(x: pill.minX, y: pill.minY, width: pill.width, height: pill.height / 2)).addClip()
-            NSColor.black.setFill()
-            NSBezierPath(roundedRect: pill, xRadius: pillWidth / 2, yRadius: pillWidth / 2).fill()
-            NSGraphicsContext.restoreGraphicsState()
-            return true
-        }
-        image.isTemplate = true
-        return image
-    }
 }
 
 private func ink(_ alpha: CGFloat = 1) -> CGColor {

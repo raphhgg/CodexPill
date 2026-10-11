@@ -30,6 +30,8 @@
   which keeps its CLI in a new place.
 - Switching Codex accounts no longer needs the Codex app. Without it, Refill
   switches and skips the restart.
+- With nothing connected, the menu bar icon draws the chosen Icon Style, so
+  changing it shows at once.
 
 ## v0.1.0-beta.2 - 2026-05-31
 

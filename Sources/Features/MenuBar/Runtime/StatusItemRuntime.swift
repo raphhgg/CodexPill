@@ -182,16 +182,11 @@ final class StatusItemRuntime {
 
     private func updateAppearance() {
         guard let button = statusItem.button else { return }
-        switch presentation.source {
-        case .nothingConnected:
-            button.image = iconRenderer.makeAppGlyph()
-        case .tool:
-            let used = statusItemBarPercents(for: presentation.source.windows, mode: .used)
-            button.image = iconRenderer.makeImage(
-                style: presentation.indicatorStyle,
-                reading: StatusBarGlyphReading(sessionUsedPercent: used.primary, weeklyUsedPercent: used.secondary)
-            )
-        }
+        let used = statusItemBarPercents(for: presentation.source.windows, mode: .used)
+        button.image = iconRenderer.makeImage(
+            style: presentation.indicatorStyle,
+            reading: StatusBarGlyphReading(sessionUsedPercent: used.primary, weeklyUsedPercent: used.secondary)
+        )
         button.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .medium)
 
         if shouldShowStatusTitle {

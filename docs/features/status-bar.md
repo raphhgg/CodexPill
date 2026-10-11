@@ -99,7 +99,7 @@ The icon follows the first card in the menu, so the user picks it by moving that
 
 - Two windows fill the glyph's session and weekly parts, the shorter window first. One window, such as Codex Pro's weekly limit, Codex Free's monthly limit, or Cursor's billing cycle, shows in the glyph's main element.
 - A window the tool does not report uses its own no-data look, never 0%. A card with no reading shows the no-data glyph.
-- With no card at all, the icon is Refill's pill.
+- With no card at all, the icon is the chosen style's no-data glyph, so a style change shows at once.
 - A stale reading is not dimmed.
 - The label reads `S 11% W 60%`, `W 17%` for one weekly window, `M 3%` for one monthly window, `8d 9%` for a window with no name, or `82%` for a billing cycle alone. A full window shows its countdown instead.
 - The tooltip names the tool and plan, the account in use (masked with Hide Emails), and the reset of any full window.
