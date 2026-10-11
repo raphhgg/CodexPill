@@ -100,9 +100,13 @@ session rows or auth data.
 
 ## Screenshots
 
-| Codex Side Menu | Settings |
+| Add Account | Codex Side Menu |
 | --- | --- |
-| <img src="docs/assets/refill-account-actions.png" width="420" alt="Refill Codex side menu with account, reset and section actions"> | <img src="docs/assets/refill-settings.png" width="420" alt="Refill Settings submenu"> |
+| <img src="docs/assets/refill-add-account.png" width="420" alt="Refill Add Account dialog with the capsule icon"> | <img src="docs/assets/refill-account-actions.png" width="420" alt="Refill Codex side menu with account, reset and section actions"> |
+
+| Settings |
+| --- |
+| <img src="docs/assets/refill-settings.png" width="420" alt="Refill Settings submenu"> |
 
 ## Local-First
 
