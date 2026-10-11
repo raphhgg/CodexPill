@@ -2,7 +2,7 @@ import Foundation
 
 /// Every word the menu shows for one tool, in one table. In-app copy is a title plus at most one short line.
 struct ProviderCopy: Sendable {
-    /// A switch would close the window the tool's own sign-in runs in, so it waits for the sign-in.
+    /// A switch would close the window the tool's own sign-in runs in, so it is refused until the sign-in ends.
     static let switchDuringSignIn = ProviderNotice(title: "Finish signing in first", detail: "Or cancel the sign-in.")
 
     let name: String
