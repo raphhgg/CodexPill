@@ -3,14 +3,11 @@ import Foundation
 func appServerStatusNeedsRetry(_ status: CodexAccountStatus?) -> Bool {
     guard let status else { return true }
     guard status.email != nil else { return true }
-    return !appServerUsageIsComplete(status.usage)
+    return !appServerUsageHasUsableWindow(status.usage)
 }
 
-func appServerUsageIsComplete(_ usage: UsageSnapshot?) -> Bool {
-    guard let usage else { return false }
-    return usage.window(.session) != nil && usage.window(.weekly) != nil
-}
-
+/// A read is complete once it carries any limit window. Plans differ in how many windows they have: a Pro plan
+/// reports only a weekly window and a free plan only a monthly one.
 func appServerUsageHasUsableWindow(_ usage: UsageSnapshot?) -> Bool {
     guard let usage else { return false }
     return !usage.windows.isEmpty

@@ -99,14 +99,14 @@ struct CodexAppServerClientTests {
             planType: "plus",
             usage: nil
         )
-        let fullStatus = CodexAccountStatus(
-            email: "user@example.com",
-            planType: "plus",
+        let windowsOnly = CodexAccountStatus(
+            email: nil,
+            planType: nil,
             usage: makeUsageSnapshot()
         )
         let reader = StatusSourceFixture(results: [
             .success(accountOnly),
-            .success(fullStatus)
+            .success(windowsOnly)
         ])
         let sleeper = SleepRecorder()
         let client = CodexAppServerClient(
@@ -119,7 +119,63 @@ struct CodexAppServerClientTests {
         #expect(await reader.recordedRefreshTokens() == [false, true])
         #expect(await sleeper.recordedDurations() == [.seconds(1)])
         #expect(status.email == "user@example.com")
-        #expect(status.usage == fullStatus.usage)
+        #expect(status.planType == "plus")
+        #expect(status.usage?.windows == [
+            UsageWindow(kind: .session, usedPercent: 12, resetsAt: Date(timeIntervalSince1970: 1_776_005_472), durationMinutes: 300),
+            UsageWindow(kind: .weekly, usedPercent: 32, resetsAt: Date(timeIntervalSince1970: 1_776_512_418), durationMinutes: 10_080)
+        ])
+    }
+
+    @Test(arguments: [
+        (minutes: 10_080, kind: UsageWindowKind.weekly),
+        (minutes: 43_200, kind: UsageWindowKind.monthly)
+    ])
+    func readCurrentAccountStatusReadsOnceWhenTheOnlyWindowIs(minutes: Int, kind: UsageWindowKind) async throws {
+        let singleWindow = CodexAccountStatus(
+            email: "user@example.com",
+            planType: "pro",
+            usage: UsageSnapshot.codex(
+                planName: "pro",
+                primary: nil,
+                secondary: (usedPercent: 16, resetsAt: Date(timeIntervalSince1970: 1_776_512_418), durationMinutes: minutes),
+                fetchedAt: Date(timeIntervalSince1970: 1_776_000_000)
+            )
+        )
+        let reader = StatusSourceFixture(results: [
+            .success(singleWindow)
+        ])
+        let sleeper = SleepRecorder()
+        let client = CodexAppServerClient(
+            statusSource: reader.read,
+            sleeper: sleeper.sleep
+        )
+
+        let status = try await client.readCurrentAccountStatus()
+
+        #expect(await reader.recordedRefreshTokens() == [false])
+        #expect(await sleeper.recordedDurations() == [])
+        #expect(status.usage?.windows == [
+            UsageWindow(kind: kind, usedPercent: 16, resetsAt: Date(timeIntervalSince1970: 1_776_512_418), durationMinutes: minutes)
+        ])
+    }
+
+    @Test
+    func readCurrentAccountStatusReadsOnceWithSessionAndWeeklyWindows() async throws {
+        let reader = StatusSourceFixture(results: [
+            .success(CodexAccountStatus(email: "user@example.com", planType: "plus", usage: makeUsageSnapshot()))
+        ])
+        let sleeper = SleepRecorder()
+        let client = CodexAppServerClient(
+            statusSource: reader.read,
+            sleeper: sleeper.sleep
+        )
+
+        let status = try await client.readCurrentAccountStatus()
+
+        #expect(await reader.recordedRefreshTokens() == [false])
+        #expect(await sleeper.recordedDurations() == [])
+        #expect(status.usage?.window(.session)?.usedPercent == 12)
+        #expect(status.usage?.window(.weekly)?.usedPercent == 32)
     }
 
     @Test
@@ -172,41 +228,6 @@ struct CodexAppServerClientTests {
     }
 
     @Test
-    func readCurrentAccountStatusRetriesWhenFirstResponseHasOnlyWeeklyRateLimits() async throws {
-        let weeklyOnly = CodexAccountStatus(
-            email: "user@example.com",
-            planType: "plus",
-            usage: UsageSnapshot.codex(
-                planName: "plus",
-                primary: nil,
-                secondary: (usedPercent: 16, resetsAt: Date(timeIntervalSince1970: 1_776_512_418), durationMinutes: 10_080),
-                fetchedAt: Date(timeIntervalSince1970: 1_776_000_000)
-            )
-        )
-        let fullStatus = CodexAccountStatus(
-            email: "user@example.com",
-            planType: "plus",
-            usage: makeUsageSnapshot()
-        )
-        let reader = StatusSourceFixture(results: [
-            .success(weeklyOnly),
-            .success(fullStatus)
-        ])
-        let sleeper = SleepRecorder()
-        let client = CodexAppServerClient(
-            statusSource: reader.read,
-            sleeper: sleeper.sleep
-        )
-
-        let status = try await client.readCurrentAccountStatus()
-
-        #expect(await reader.recordedRefreshTokens() == [false, true])
-        #expect(await sleeper.recordedDurations() == [.seconds(1)])
-        #expect(status.usage?.window(.session)?.usedPercent == 12)
-        #expect(status.usage?.window(.weekly)?.usedPercent == 32)
-    }
-
-    @Test
     func readCurrentAccountStatusDoesNotRetryWhenResponseIsLegitimatelyZeroed() async throws {
         let zeroedStatus = CodexAccountStatus(
             email: "user@example.com",
@@ -236,44 +257,6 @@ struct CodexAppServerClientTests {
     }
 
     @Test
-    func readCurrentAccountStatusMergesPartialRateLimitWindowsAcrossRetries() async throws {
-        let weeklyOnly = CodexAccountStatus(
-            email: "user@example.com",
-            planType: "plus",
-            usage: UsageSnapshot.codex(
-                planName: "plus",
-                primary: nil,
-                secondary: (usedPercent: 18, resetsAt: Date(timeIntervalSince1970: 1_776_512_418), durationMinutes: 10_080),
-                fetchedAt: Date(timeIntervalSince1970: 1_776_000_000)
-            )
-        )
-        let sessionOnly = CodexAccountStatus(
-            email: "user@example.com",
-            planType: "plus",
-            usage: UsageSnapshot.codex(
-                planName: "plus",
-                primary: (usedPercent: 69, resetsAt: Date(timeIntervalSince1970: 1_776_005_472), durationMinutes: 300),
-                secondary: nil,
-                fetchedAt: Date(timeIntervalSince1970: 1_776_000_100)
-            )
-        )
-        let reader = StatusSourceFixture(results: [
-            .success(weeklyOnly),
-            .success(sessionOnly)
-        ])
-        let client = CodexAppServerClient(
-            statusSource: reader.read,
-            sleeper: { _ in }
-        )
-
-        let status = try await client.readCurrentAccountStatus()
-
-        #expect(await reader.recordedRefreshTokens() == [false, true])
-        #expect(status.usage?.window(.session)?.usedPercent == 69)
-        #expect(status.usage?.window(.weekly)?.usedPercent == 18)
-    }
-
-    @Test
     func readCurrentAccountStatusReturnsPartialStatusWhenRetryStillHasNoRateLimits() async throws {
         let firstStatus = CodexAccountStatus(
             email: "user@example.com",
@@ -289,14 +272,16 @@ struct CodexAppServerClientTests {
             .success(firstStatus),
             .success(secondStatus)
         ])
+        let sleeper = SleepRecorder()
         let client = CodexAppServerClient(
             statusSource: reader.read,
-            sleeper: { _ in }
+            sleeper: sleeper.sleep
         )
 
         let status = try await client.readCurrentAccountStatus()
 
         #expect(await reader.recordedRefreshTokens() == [false, true])
+        #expect(await sleeper.recordedDurations() == [.seconds(1)])
         #expect(status.email == "user@example.com")
         #expect(status.planType == "team")
         #expect(status.usage == nil)
@@ -598,22 +583,6 @@ struct CodexAppServerClientTests {
         #expect(throws: CodexAppServerError.server("failed to fetch codex rate limits: network unavailable")) {
             _ = try consumeOutputData(Data((errorLine + "\n").utf8), decoder: decoder, state: state)
         }
-    }
-
-    @Test
-    func appServerStatusNeedsRetryWhenPrimaryWindowIsMissing() {
-        let status = CodexAccountStatus(
-            email: "user@example.com",
-            planType: "team",
-            usage: UsageSnapshot.codex(
-                planName: "team",
-                primary: nil,
-                secondary: (usedPercent: 18, resetsAt: Date(timeIntervalSince1970: 1_776_512_418), durationMinutes: 10_080),
-                fetchedAt: .now
-            )
-        )
-
-        #expect(appServerStatusNeedsRetry(status))
     }
 
     @Test
