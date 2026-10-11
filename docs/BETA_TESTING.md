@@ -21,11 +21,11 @@ Best-fit testers:
 
 Confirm:
 
-- Codex is installed and signed in on this Mac.
+- Codex, Claude Code or Cursor is installed and signed in on this Mac.
 - You have a current backup or recovery path for anything important.
 - You understand that Refill stores saved Codex auth snapshots locally under
-  `~/Library/Application Support/CodexPill`. The folder keeps the app's old
-  name so saved accounts survive the rename.
+  `~/Library/Application Support/Refill`, and saved Claude Code and Cursor
+  sign-ins in your login Keychain.
 - You will not share raw auth payloads, tokens, refresh tokens, complete logs,
   or screenshots containing private account or host details.
 

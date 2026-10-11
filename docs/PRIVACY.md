@@ -2,7 +2,7 @@
 
 Refill is a local macOS menubar utility that shows Codex usage limits and switches saved Codex accounts. It can also show Claude Code and Cursor usage if you connect them, and switch Claude Code or Cursor between sign-ins you saved. Its most sensitive data is saved sign-ins: Codex auth snapshots and the Claude Code and Cursor sign-ins in Refill's Keychain items. Treat them as secrets.
 
-Refill was called CodexPill before. Its data folder, `~/Library/Application Support/CodexPill`, and its Keychain item names keep the old name so existing data survives the rename.
+Refill was called CodexPill before. Refill does not read CodexPill's data. [Uninstall And Reset](UNINSTALL_RESET.md) explains how to remove it.
 
 ## What Refill Reads
 
@@ -12,7 +12,7 @@ During normal use, Refill may read:
 - Codex account metadata exposed by Codex, such as email address, plan type, account identity, rate-limit windows, and limit reset credits.
 - Local Codex app-server status to refresh account and limit information.
 - Local process information to detect running Codex CLI sessions when a switch may require a restart or user action.
-- Refill-owned state under `~/Library/Application Support/CodexPill`.
+- Refill-owned state under `~/Library/Application Support/Refill`.
 - Claude Code's sign-in, from `~/.claude/.credentials.json` or the `Claude Code-credentials` Keychain item, while Claude Code usage is connected or when you save or switch a Claude Code account. See [Claude Code](#claude-code).
 - Local process information to detect a running terminal Claude Code before switching Claude Code accounts or renewing the live sign-in.
 - Cursor's access token from Cursor's local database, while Cursor usage is connected, and Cursor's sign-in rows from the same database when you save or switch a Cursor account. See [Cursor](#cursor).
@@ -22,14 +22,14 @@ During normal use, Refill may read:
 
 Refill writes and stores:
 
-- A local account catalog under `~/Library/Application Support/CodexPill`.
-- Saved Codex auth snapshots under `~/Library/Application Support/CodexPill/snapshots`.
+- A local account catalog under `~/Library/Application Support/Refill`.
+- Saved Codex auth snapshots under `~/Library/Application Support/Refill/snapshots`.
 - `~/.codex/auth.json` when switching the active local Codex account.
 - Temporary isolated `CODEX_HOME` state when capturing a new Codex sign-in without mutating the current account.
-- Saved Claude Code accounts in `CodexPill Claude Code account` Keychain items and `claude-code-accounts.json`, and Claude Code's own sign-in when you switch Claude Code accounts. See [Claude Code](#claude-code).
-- Temporary Claude Code config folders under `~/Library/Application Support/CodexPill/claude-sign-in`, each with a `Claude Code-credentials-<hash>` Keychain item Claude Code creates, while you add a Claude account or while Claude Code renews a saved one. Refill deletes both when the run ends. See [Claude Code](#claude-code).
-- Saved Cursor accounts in one `CodexPill Cursor accounts` Keychain item, and Cursor's sign-in rows in its local database when you switch Cursor accounts. See [Cursor](#cursor).
-- Temporary Cursor profiles under `~/Library/Application Support/CodexPill/cursor-sign-in` while you add a Cursor account. Refill deletes each one when the sign-in ends. See [Cursor](#cursor).
+- Saved Claude Code accounts in `Refill Claude Code account` Keychain items and `claude-code-accounts.json`, and Claude Code's own sign-in when you switch Claude Code accounts. See [Claude Code](#claude-code).
+- Temporary Claude Code config folders under `~/Library/Application Support/Refill/claude-sign-in`, each with a `Claude Code-credentials-<hash>` Keychain item Claude Code creates, while you add a Claude account or while Claude Code renews a saved one. Refill deletes both when the run ends. See [Claude Code](#claude-code).
+- Saved Cursor accounts in one `Refill Cursor accounts` Keychain item, and Cursor's sign-in rows in its local database when you switch Cursor accounts. See [Cursor](#cursor).
+- Temporary Cursor profiles under `~/Library/Application Support/Refill/cursor-sign-in` while you add a Cursor account. Refill deletes each one when the sign-in ends. See [Cursor](#cursor).
 
 Saved auth snapshots contain authentication material and must be handled like credentials. They should not be printed, logged, attached to issues, or committed to git.
 
@@ -52,13 +52,13 @@ macOS may ask you to allow Keychain access. Refill shows that prompt only right 
 
 **What Refill stores for each saved Claude account.** Each saved account is that account's Claude Code sign-in:
 
-- a copy of the `claudeAiOauth` object (access token, refresh token, expiry, scopes, plan) and the `oauthAccount` object (account and organization IDs, email) in a login Keychain item Refill owns, service `CodexPill Claude Code account`, one item per saved account, with the account's Refill ID as the Keychain account. These tokens can use your Claude plan, so treat the items as secrets;
-- the account's name, email, organization name, plan, Claude account IDs, and last 5-hour and weekly limits, but no tokens, in `~/Library/Application Support/CodexPill/claude-code-accounts.json`.
+- a copy of the `claudeAiOauth` object (access token, refresh token, expiry, scopes, plan) and the `oauthAccount` object (account and organization IDs, email) in a login Keychain item Refill owns, service `Refill Claude Code account`, one item per saved account, with the account's Refill ID as the Keychain account. These tokens can use your Claude plan, so treat the items as secrets;
+- the account's name, email, organization name, plan, Claude account IDs, and last 5-hour and weekly limits, but no tokens, in `~/Library/Application Support/Refill/claude-code-accounts.json`.
 
 **Commands Refill runs.** Refill runs the `claude` command it finds in `~/.local/bin`, `~/.claude/local`, `/opt/homebrew/bin`, or `/usr/local/bin`, with only `HOME`, `USER`, `LOGNAME`, `PATH`, `TMPDIR`, and `CLAUDE_CONFIG_DIR` set, so none of your shell variables, such as an API key, reach it. Its output is discarded.
 
-- `claude auth login --claudeai` when you choose `Add Claude Account…` or `Sign In…`. Claude Code opens Claude's sign-in page in your browser. It runs in a new folder, `~/Library/Application Support/CodexPill/claude-sign-in/<random id>`, set as `CLAUDE_CONFIG_DIR`, so your current Claude Code sign-in is not touched. When Claude Code has no sign-in at all, it runs without `CLAUDE_CONFIG_DIR`, so Claude Code itself is signed in.
-- `claude doctor` in a new folder of the same kind, when a saved account that is not in use has an expired token. Refill first writes that account's saved sign-in into the folder as `.credentials.json` and `.claude.json` (readable only by you). Claude Code renews the token, makes no model call, and saves the result in the folder's Keychain item. Refill copies it into the account's `CodexPill Claude Code account` item, only if that item did not change meanwhile.
+- `claude auth login --claudeai` when you choose `Add Claude Account…` or `Sign In…`. Claude Code opens Claude's sign-in page in your browser. It runs in a new folder, `~/Library/Application Support/Refill/claude-sign-in/<random id>`, set as `CLAUDE_CONFIG_DIR`, so your current Claude Code sign-in is not touched. When Claude Code has no sign-in at all, it runs without `CLAUDE_CONFIG_DIR`, so Claude Code itself is signed in.
+- `claude doctor` in a new folder of the same kind, when a saved account that is not in use has an expired token. Refill first writes that account's saved sign-in into the folder as `.credentials.json` and `.claude.json` (readable only by you). Claude Code renews the token, makes no model call, and saves the result in the folder's Keychain item. Refill copies it into the account's `Refill Claude Code account` item, only if that item did not change meanwhile.
 - `claude doctor` with Claude Code's own config folder (no `CLAUDE_CONFIG_DIR` unless Claude Code itself uses one), when Claude Code usage is connected, Claude Code's live token has expired, and no `claude` process runs. Claude Code renews its own sign-in and saves it where it always does; Refill only reads the new expiry, then reads usage again. It runs at most once per expiry, and again for the same expiry only after 30 minutes.
 - `/usr/bin/security find-generic-password` and `delete-generic-password` for the folder's `Claude Code-credentials-<first 8 hex of sha256(folder path)>` item, to read it and then delete it.
 
@@ -86,11 +86,11 @@ Refill never signs in to Cursor with its own code, never asks Cursor for a new t
 
 Refill never stores, logs, or displays the token, and it never reads browser cookies or Cursor projects. `Disconnect Cursor` turns usage off and stops all reads.
 
-**Saved Cursor accounts.** Refill can save Cursor sign-ins and switch between them. Once Cursor is connected, Refill saves the account Cursor is signed in to automatically when its user is not saved yet. Only a user action adds another, switches or removes one, and switching makes no network call. Saving one copies the eight `cursorAuth/*` rows that are a Cursor sign-in (`accessToken`, `refreshToken`, `cachedEmail`, `cachedScopedProfile`, `cachedSignUpType`, `stripeMembershipAuthId`, `stripeMembershipType`, `stripeSubscriptionStatus`) into one login Keychain item Refill owns, service `CodexPill Cursor accounts`, under its email. Those rows include Cursor's tokens and your Cursor email. The same item keeps each account's last limits (plan, percent used, on-demand spend, billing cycle, and when they were read). Nothing about them goes to a file.
+**Saved Cursor accounts.** Refill can save Cursor sign-ins and switch between them. Once Cursor is connected, Refill saves the account Cursor is signed in to automatically when its user is not saved yet. Only a user action adds another, switches or removes one, and switching makes no network call. Saving one copies the eight `cursorAuth/*` rows that are a Cursor sign-in (`accessToken`, `refreshToken`, `cachedEmail`, `cachedScopedProfile`, `cachedSignUpType`, `stripeMembershipAuthId`, `stripeMembershipType`, `stripeSubscriptionStatus`) into one login Keychain item Refill owns, service `Refill Cursor accounts`, under its email. Those rows include Cursor's tokens and your Cursor email. The same item keeps each account's last limits (plan, percent used, on-demand spend, billing cycle, and when they were read). Nothing about them goes to a file.
 
 **Adding a Cursor account.** `Add Cursor Account…` opens a second Cursor window next to yours:
 
-- it starts a new Cursor instance with `--user-data-dir` and `--extensions-dir` set to a new folder, `~/Library/Application Support/CodexPill/cursor-sign-in/<8 random characters>`, readable only by you. Your own Cursor profile is not opened, read, or changed, and your own Cursor keeps running;
+- it starts a new Cursor instance with `--user-data-dir` and `--extensions-dir` set to a new folder, `~/Library/Application Support/Refill/cursor-sign-in/<8 random characters>`, readable only by you. Your own Cursor profile is not opened, read, or changed, and your own Cursor keeps running;
 - you sign in there. Refill reads the folder's `state.vscdb` once a second, by key, until the `cursorAuth/*` rows appear, then quits that window by its process ID. It never quits any other Cursor. If the window does not quit within 10 seconds, it is force-quit;
 - it saves those rows as described above, then deletes the folder.
 

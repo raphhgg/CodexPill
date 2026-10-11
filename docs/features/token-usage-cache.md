@@ -46,7 +46,7 @@ Progress should be deliberately low-key. This is a menubar app, not a migration 
 
 ## Cache Contract
 
-Persist cache under `~/Library/Caches/CodexPill`, not Application Support, because the data is derived and can be rebuilt.
+Persist cache under `~/Library/Caches/Refill`, not Application Support, because the data is derived and can be rebuilt.
 The cache directory and file are owner-only, like the account catalog.
 Isolated launches and automated-test runs keep the cache inside their isolated
 directory instead of the user's real cache.

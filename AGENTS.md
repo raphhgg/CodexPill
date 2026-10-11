@@ -6,8 +6,6 @@
 - UI: AppKit `NSMenu` and status item, with SwiftUI views inside menu items, plus AppKit alerts and panels.
 - Build system: Tuist.
 - Product: Refill (formerly CodexPill). Usage limits and account switching for Codex, Claude Code and Cursor on this Mac.
-- Old name kept on purpose: bundle IDs `com.raphhgg.codexpill*`, `~/Library/Application Support/CodexPill`, Keychain item names, and
-  `CODEXPILL_*` variables. Do not rename them without a migration.
 
 ## Read First
 

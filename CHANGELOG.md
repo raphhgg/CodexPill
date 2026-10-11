@@ -4,14 +4,24 @@
 
 ### Changed
 
-- Renamed CodexPill to Refill. The bundle ID stays the same, so saved accounts
-  and settings carry over.
+- Renamed CodexPill to Refill, with the new bundle ID `com.raphhgg.refill`.
+  Settings and saved accounts don't carry over: add your accounts again.
+  [Uninstall And Reset](docs/UNINSTALL_RESET.md) explains how to remove
+  CodexPill's leftover data.
 - New capsule app icon, built in Icon Composer.
 
 ### Added
 
+- Claude Code and Cursor usage limits, with switching between saved accounts.
+- One card per tool, with account actions in side menus and settings under
+  `Settings`.
+- Codex reset credits.
 - App Icon colour setting under `Settings › Appearance`, with six colours. It
   changes the icon in About and in alerts. Finder keeps Cobalt.
+
+### Removed
+
+- Remote Hosts and Notifications.
 
 ## v0.1.0-beta.2 - 2026-05-31
 
