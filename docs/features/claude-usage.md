@@ -28,7 +28,7 @@ The `Claude` card follows the shared card and side menu in [Menubar](menubar.md)
 
   Confirming saves the choice and reads at once. That first read may show the macOS Keychain prompt.
 - **Connected.** The choice is saved in user defaults (`claudeUsageEnabled`, off by default). The side menu ends with `Disconnect Claude`, which turns the feature off at once with no alert, because it changes nothing outside CodexPill.
-- **Current.** The plan tag (`Max x20`, read from Claude Code's `rateLimitTier`), then `Session` and `Weekly` meters with their reset times. There is no reset-credit row. The meters use the same percent mode, layout, colors, and pacing markers as the Codex card.
+- **Current.** The plan tag (`Max x20`, read from `organizationRateLimitTier`, else `userRateLimitTier`, in Claude Code's `oauthAccount`, because the credentials' `rateLimitTier` keeps the tier from sign-in time; that one is used only when the account record has none), then `Session` and `Weekly` meters with their reset times. There is no reset-credit row. The meters use the same percent mode, layout, colors, and pacing markers as the Codex card.
 - **Waiting.** `Waiting for Claude Code usage`, with no second line. Anthropic answered but sent neither window, for example on a plan without subscription limits.
 - **Keychain access needed.** The card says `Allow Keychain access` and one row under it, `Allow Keychain access…`, It reads again with the macOS Keychain prompt allowed. Claude Code rewrites its Keychain item when it renews its sign-in, which can reset an earlier `Always Allow`, so this state can come back.
 - **Failures.** Each failure shows a title and one short line. Except for signed out, the last good values stay dimmed below it with their `As of` time.
