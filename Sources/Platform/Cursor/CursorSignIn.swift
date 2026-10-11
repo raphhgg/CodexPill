@@ -39,6 +39,10 @@ struct CursorSignIn: Sendable, Equatable, Codable, CustomStringConvertible, Cust
 
     var email: String? { text(Self.emailKey) }
 
+    var accessToken: CursorAccessToken? {
+        values[Self.accessTokenKey].flatMap(Self.accessToken(from:))
+    }
+
     /// The plan Cursor cached at sign-in, for example `pro`.
     var membershipType: String? { text(Self.membershipTypeKey) }
 

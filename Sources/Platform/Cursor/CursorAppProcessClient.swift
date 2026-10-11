@@ -63,3 +63,10 @@ struct SystemCursorAppProcessClient: CursorAppProcessClient {
         NSRunningApplication.runningApplications(withBundleIdentifier: Self.bundleIdentifier)
     }
 }
+
+/// An isolated run's Cursor: there is none to quit or open, so a switch only rewrites the fixture database.
+struct IsolatedCursorAppProcessClient: CursorAppProcessClient {
+    let isRunning = false
+    func quit() async throws {}
+    func open() async throws {}
+}

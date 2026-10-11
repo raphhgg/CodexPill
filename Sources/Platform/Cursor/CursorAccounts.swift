@@ -47,7 +47,12 @@ struct CursorAccounts: Sendable {
     func captureCurrent(named name: String? = nil) throws(CursorAccountsError) -> CursorSavedAccount {
         guard database.exists else { throw .cursorNotInstalled }
         guard let signIn = try currentSignIn() else { throw .signedOut }
+        return try add(signIn, named: name)
+    }
 
+    /// Saves a sign-in Cursor made in a throwaway profile, the same way as `captureCurrent`.
+    @discardableResult
+    func add(_ signIn: CursorSignIn, named name: String? = nil) throws(CursorAccountsError) -> CursorSavedAccount {
         var accounts = try loadAccounts()
         let account: CursorSavedAccount
         if let index = accounts.firstIndex(where: { $0.userID == signIn.userID }) {
@@ -60,6 +65,25 @@ struct CursorAccounts: Sendable {
         }
         try saveAccounts(accounts)
         return account
+    }
+
+    func savedAccount(_ id: UUID) throws(CursorAccountsError) -> CursorSavedAccount {
+        guard let account = try loadAccounts().first(where: { $0.id == id }) else { throw .accountNotFound }
+        return account
+    }
+
+    /// Keeps limits read with a saved sign-in, but only while that saved sign-in is still `readWith`. Returns false
+    /// and changes nothing otherwise, for example when a switch saved tokens Cursor rotated in the meantime.
+    @discardableResult
+    func recordUsage(_ usage: CursorUsageSnapshot, for id: UUID, ifSignInUnchangedFrom readWith: CursorSignIn) -> Bool {
+        guard var accounts = try? loadAccounts(),
+              let index = accounts.firstIndex(where: { $0.id == id }),
+              accounts[index].signIn == readWith
+        else {
+            return false
+        }
+        accounts[index].usage = usage
+        return (try? saveAccounts(accounts)) != nil
     }
 
     func rename(_ id: UUID, to name: String) throws(CursorAccountsError) {

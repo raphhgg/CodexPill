@@ -43,6 +43,17 @@ actor CursorUsageClient {
             token = foundToken
         }
 
+        return await usage(with: token, holdingBackLaterReads: true)
+    }
+
+    /// Reads a saved account's usage with that account's own sign-in. A wait cursor.com asks for here does not hold
+    /// back the read of Cursor's live sign-in.
+    func refresh(savedSignIn: CursorSignIn) async -> CursorUsageStatus {
+        guard let token = savedSignIn.accessToken else { return .unavailable(.localStateUnreadable) }
+        return await usage(with: token, holdingBackLaterReads: false)
+    }
+
+    private func usage(with token: CursorAccessToken, holdingBackLaterReads: Bool) async -> CursorUsageStatus {
         guard token.isUsable(at: now()) else {
             return .tokenExpired
         }
@@ -55,7 +66,9 @@ actor CursorUsageClient {
         } catch CursorUsageWebError.forbidden {
             return .unavailable(.forbidden)
         } catch let CursorUsageWebError.rateLimited(retryAfter) {
-            rateLimitedUntil = now().addingTimeInterval(retryAfter ?? Self.defaultRetryAfter)
+            if holdingBackLaterReads {
+                rateLimitedUntil = now().addingTimeInterval(retryAfter ?? Self.defaultRetryAfter)
+            }
             return .unavailable(.rateLimited)
         } catch CursorUsageWebError.httpStatus {
             return .unavailable(.serviceError)

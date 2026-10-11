@@ -1,6 +1,6 @@
 import Foundation
 
-struct CursorUsageSnapshot: Equatable, Sendable {
+struct CursorUsageSnapshot: Codable, Equatable, Sendable {
     let planName: String?
     let includedUsagePercent: Double?
     let onDemand: CursorOnDemandSpend?
@@ -8,7 +8,7 @@ struct CursorUsageSnapshot: Equatable, Sendable {
     let fetchedAt: Date
 }
 
-struct CursorOnDemandSpend: Equatable, Sendable {
+struct CursorOnDemandSpend: Codable, Equatable, Sendable {
     let usedUSD: Decimal
     let limitUSD: Decimal?
 }
