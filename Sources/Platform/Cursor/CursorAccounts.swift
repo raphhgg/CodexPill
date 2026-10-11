@@ -50,6 +50,19 @@ struct CursorAccounts: Sendable {
         return try add(signIn, named: name)
     }
 
+    /// Saves Cursor's current sign-in when its user is not saved yet. Nil when there is nothing new to save: Cursor is
+    /// signed out or its user is saved already.
+    func saveCurrentIfNew() throws(CursorAccountsError) -> CursorSavedAccount? {
+        guard
+            database.exists,
+            let signIn = try currentSignIn(),
+            try !loadAccounts().contains(where: { $0.userID == signIn.userID })
+        else {
+            return nil
+        }
+        return try add(signIn)
+    }
+
     /// Saves a sign-in Cursor made in a throwaway profile, the same way as `captureCurrent`.
     @discardableResult
     func add(_ signIn: CursorSignIn, named name: String? = nil) throws(CursorAccountsError) -> CursorSavedAccount {

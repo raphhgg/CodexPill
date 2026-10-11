@@ -51,7 +51,7 @@ Hovering a card opens its side menu:
 3. Codex only: `Use a Reset…`, then one disabled `Expires <date>` line per credit Codex listed, and `Token Usage ›` when token usage is on ([Token Usage](token-usage.md)).
 4. `Move to Top`, `Move Up`, `Move Down`, when there is more than one card. Moves that do not apply are disabled.
 5. `Add <Tool> Account…` and `Remove <Tool> Account ›` listing every saved account.
-   `Add <Tool> Account…` runs the tool's own sign-in without touching the account in use. Cursor's opens a second Cursor window with a throwaway profile. The account Claude Code is signed in to is saved automatically once Claude is connected. Without the `claude` command or Cursor, the add item is disabled with `Install Claude Code first` or `Install Cursor first` under it.
+   `Add <Tool> Account…` runs the tool's own sign-in without touching the account in use. Cursor's opens a second Cursor window with a throwaway profile. The account Claude Code or Cursor is signed in to is saved automatically once that tool is connected. Without the `claude` command or Cursor, the add item is disabled with `Install Claude Code first` or `Install Cursor first` under it.
    A switch while that tool's sign-in runs is refused: `Finish signing in first` / `Or cancel the sign-in.`
 6. Claude and Cursor only: `Disconnect <Tool>`, last.
 

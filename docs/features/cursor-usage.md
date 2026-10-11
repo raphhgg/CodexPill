@@ -97,7 +97,7 @@ As someone with a personal and a work Cursor account, I want to save both and sw
 ### Product Contract
 
 - **Add.** `Add Cursor Account…` signs in through Cursor in a separate window, described in [Adding A Cursor Account](#adding-a-cursor-account).
-- **Save.** `Save Current Sign-In` saves Cursor's current sign-in under a name, with the plan Cursor cached (`stripeMembershipType`). Saving the same Cursor user again refreshes the saved copy and renames it instead of adding a second entry. Cursor need not quit to save.
+- **Saved automatically.** Once Cursor is connected, the account Cursor is signed in to is saved as soon as a read finds its user missing from the list: on connect, on each refresh, and after Cursor signs in to another account on its own. Accounts match by Cursor's user ID. A user who is saved already keeps the saved copy; a switch refreshes it. Cursor need not quit. There is no save item.
 - **Switch.** The menu asks first, then CodexPill quits Cursor, writes the saved sign-in, and reopens Cursor:
 
   > **Switch Cursor account?**
@@ -149,7 +149,7 @@ Tests use temporary fixture databases and an in-memory account store, and never 
 2. Open Cursor.app as a new instance, like `open -n`, with `--user-data-dir=<folder>` and `--extensions-dir=<folder>/extensions`. `NSWorkspace.openApplication` returns the new instance's PID. The user's own Cursor keeps running. The card reads `Sign in in the new Cursor window` with `Cancel Sign-In`.
 3. Every second, read the folder's `state.vscdb` by key. It is in WAL mode while Cursor runs, so a busy or half-written read is tried again. Once `cursorAuth/accessToken` appears, wait up to 5 seconds for `cachedEmail`, which Cursor writes a moment later.
 4. Quit that instance by PID, never by bundle ID, and only if the process with that PID is Cursor. Force-quit it after 10 seconds. Read the rows again after it quits, since Cursor flushes its last writes then.
-5. Save the sign-in like `Save Current Sign-In` (the same Cursor user replaces its saved copy), connect Cursor usage, and read the new account's limits at once.
+5. Save the sign-in (the same Cursor user replaces its saved copy), connect Cursor usage, and read the new account's limits at once.
 6. Delete the folder, on every path: success, failure, a 5-minute timeout, the window closed before signing in, or `Cancel Sign-In`. Folders left by a crash are deleted at the next launch.
 
 | Outcome | Title | Second line |

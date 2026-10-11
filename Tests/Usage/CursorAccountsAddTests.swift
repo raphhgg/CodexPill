@@ -252,6 +252,39 @@ struct CursorAccountsAddTests {
         #expect(saved.usage == nil)
     }
 
+    // MARK: - Live account
+
+    @Test @MainActor
+    func aConnectedCursorsLiveAccountIsSavedOnceAndAgainWhenCursorSignsInToAnother() async throws {
+        let scenario = try CursorAddScenario(liveSignIn: Self.home)
+        let runtime = ProviderUsageRuntime(connections: [scenario.usage], onChange: {})
+
+        #expect(await runtime.perform(.connect, on: .cursor) == nil)
+        await runtime.refreshIfDue(forcing: .cursor)
+        #expect(try scenario.store.load().map(\.email) == ["home@example.com"])
+
+        try scenario.harness.open()
+        try scenario.harness.insertText(Self.work)
+        scenario.harness.close()
+        await runtime.refreshIfDue(forcing: .cursor)
+        #expect(runtime.states.first?.accounts.map { "\($0.email ?? "") \($0.isActive)" } == ["home@example.com false", "work@example.com true"])
+    }
+
+    @Test @MainActor
+    func aSavedLiveAccountKeepsItsSavedCopy() async throws {
+        let scenario = try CursorAddScenario(liveSignIn: Self.home)
+        var olderHome = Self.home
+        olderHome[CursorSignIn.refreshTokenKey] = "home-refresh-0"
+        let home = try scenario.save(olderHome)
+        let runtime = ProviderUsageRuntime(connections: [scenario.usage], onChange: {})
+
+        #expect(await runtime.perform(.connect, on: .cursor) == nil)
+
+        let saved = try scenario.store.load()
+        #expect(saved.map(\.id) == [home.id])
+        #expect(saved.first?.signIn.values[CursorSignIn.refreshTokenKey] == .text("home-refresh-0"))
+    }
+
     @Test @MainActor
     func switchingThroughTheRuntimeSavesTheTokensCursorRotatedFirst() async throws {
         var rotatedHome = Self.home

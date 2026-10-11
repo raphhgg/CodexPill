@@ -46,7 +46,7 @@ enum ProviderSignInAvailability: Equatable, Sendable {
     case available
     /// The tool's command-line sign-in is not on this Mac.
     case notInstalled
-    /// The tool adds accounts only by saving its current sign-in.
+    /// This build can't add accounts, as in isolated runs.
     case unsupported
 }
 

@@ -66,12 +66,9 @@ struct CursorUsage: ProviderConnection {
         }
     }
 
-    func addCurrentAccount() async throws(ProviderNotice) {
-        do {
-            try store().captureCurrent()
-        } catch {
-            throw error.notice
-        }
+    func saveLiveAccountIfNew() async -> Bool {
+        guard settings.isEnabled, let accounts else { return false }
+        return ((try? accounts.saveCurrentIfNew()) ?? nil) != nil
     }
 
     /// Signs in through Cursor's own sign-in in a separate window with a throwaway profile, and saves the account.
