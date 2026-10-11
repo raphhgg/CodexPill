@@ -166,12 +166,9 @@ private enum MoonGlyph {
             context.addPath(litPhase(session))
             context.fillPath()
         } else {
-            context.saveGState()
             context.setLineWidth(1.1)
-            context.setLineDash(phase: 0, lengths: [1.5, 1.5])
-            context.setStrokeColor(ink())
+            context.setStrokeColor(ink(0.35))
             context.strokeEllipse(in: moonRect)
-            context.restoreGState()
         }
 
         guard let weekly = levels.weeklyRemainingPercent.map(fraction) else {
