@@ -50,7 +50,7 @@ Hovering a card opens its side menu:
 3. Codex only: `Use a Reset…`, then one disabled `Expires <date>` line per credit Codex listed, and `Token Usage ›` when token usage is on ([Token Usage](token-usage.md)).
 4. `Move to Top`, `Move Up`, `Move Down`, when there is more than one card. Moves that do not apply are disabled.
 5. `Add <Tool> Account…` and `Remove <Tool> Account ›` listing every saved account.
-   `Add Codex Account…` and `Add Claude Account…` run the tool's own sign-in without touching the account in use; `Add Cursor Account…` saves the sign-in Cursor uses now. Claude also has `Save Current Sign-In`. Without the `claude` command, `Add Claude Account…` is disabled with `Install Claude Code first` under it.
+   `Add Codex Account…` and `Add Claude Account…` run the tool's own sign-in without touching the account in use; `Add Cursor Account…` saves the sign-in Cursor uses now. The account Claude Code is signed in to is saved automatically once Claude is connected. Without the `claude` command, `Add Claude Account…` is disabled with `Install Claude Code first` under it.
 6. Claude and Cursor only: `Disconnect <Tool>`, last.
 
 `Hide Emails` masks every email the menu and the tooltip show: `alex.side@example.com` reads `al•••e@example.com`. The domain stays visible.

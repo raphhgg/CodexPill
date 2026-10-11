@@ -350,7 +350,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             removeCodexAccount(id)
         case .useResetCredit:
             useCodexResetCredit()
-        case .connect, .allowKeychainAccess, .cancelSignIn, .disconnect, .saveCurrentAccount:
+        case .connect, .allowKeychainAccess, .cancelSignIn, .disconnect:
             break
         }
     }

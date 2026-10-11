@@ -175,9 +175,9 @@ struct ClaudeCodeUsageTests {
         }
 
         try signIn(token: "fake-work-token", organization: "fake-work-org")
-        try await usage.addCurrentAccount()
+        try usage.accounts?.captureCurrent()
         try signIn(token: "fake-home-token", organization: "fake-home-org")
-        try await usage.addCurrentAccount()
+        try usage.accounts?.captureCurrent()
         await usage.connect()
         #expect(await weeklyPercent() == 15)
         let work = try #require(try await usage.savedAccounts().first { !$0.isActive })

@@ -61,7 +61,7 @@ When a run ends, whether it succeeded, failed, timed out, or you cancelled it, C
 
 **Inactive accounts' limits.** Every 15 minutes, for each saved account Claude Code is not signed in to, CodexPill sends that account's own access token to the usage address above. It never sends one account's token on behalf of another.
 
-**Saving the current sign-in and switching.** `Save Current Sign-In` reads Claude Code's sign-in as above, and `oauthAccount` from Claude Code's global config (`$CLAUDE_CONFIG_DIR/.claude.json`, or `~/.claude.json`), and saves them as described. Switching also writes Claude Code's own sign-in:
+**Saving the live account and switching.** Once Claude is connected, CodexPill saves the account Claude Code is signed in to automatically when it is not in the saved list yet. It reads Claude Code's sign-in as above, without a Keychain prompt, and `oauthAccount` from Claude Code's global config (`$CLAUDE_CONFIG_DIR/.claude.json`, or `~/.claude.json`), and saves them as described. A sign-in with no `oauthAccount` is not saved. Switching also writes Claude Code's own sign-in:
 
 - it updates the existing `Claude Code-credentials` Keychain item, or `.credentials.json` when the sign-in lives there. Only `claudeAiOauth` changes; other keys, such as MCP sign-ins, stay as they were. CodexPill never creates or deletes Claude Code's Keychain item;
 - it replaces `oauthAccount` in Claude Code's global config and keeps every other key;

@@ -32,8 +32,6 @@ enum ClaudeCodeAccountError: Error, Equatable, Sendable {
     case claudeCodeSignedOut
     /// Claude Code's global config records no account for its sign-in, so CodexPill can't tell which account it is.
     case claudeCodeAccountUnknown
-    /// Claude Code's sign-in is not saved in CodexPill, so switching away would lose it.
-    case currentSignInNotSaved
     /// A running Claude Code would write its old sign-in back, so switching waits until it quits.
     case claudeCodeRunning
     case keychainAccessNeeded
@@ -92,23 +90,27 @@ struct ClaudeCodeAccountStore: Sendable {
         return try add(current, named: name)
     }
 
+    /// Saves Claude Code's current sign-in when its account is not saved yet, without the Keychain prompt. Nil when
+    /// there is nothing new to save: the account is saved already, Claude Code records no account for its sign-in,
+    /// or the sign-in can't be read without a prompt.
+    func saveCurrentIfNew() throws(ClaudeCodeAccountError) -> ClaudeCodeAccount? {
+        guard
+            let identity = try claudeCode.currentIdentity(),
+            try !accounts().contains(where: { $0.identity == identity }),
+            case let .signedIn(current, _) = claudeCode.current(allowingPrompt: false),
+            current.identity == identity
+        else {
+            return nil
+        }
+        return try add(current)
+    }
+
     /// Saves a sign-in Claude Code made in a throwaway config folder, the same way as `captureCurrent`.
     @discardableResult
     func add(_ signIn: ClaudeCodeSignInSnapshot, named name: String? = nil) throws(ClaudeCodeAccountError) -> ClaudeCodeAccount {
         guard signIn.identity != nil else { throw .claudeCodeAccountUnknown }
         var catalog = try accounts()
-        let index: Int
-        if let existing = savedIndex(of: signIn, in: catalog) {
-            index = existing
-        } else {
-            catalog.append(ClaudeCodeAccount(
-                id: UUID(),
-                name: signIn.email ?? signIn.organizationName ?? "Claude Account",
-                createdAt: now(),
-                updatedAt: now()
-            ))
-            index = catalog.endIndex - 1
-        }
+        let index = entryIndex(for: signIn, in: &catalog)
         if let name { catalog[index].name = name }
 
         var undo = Undo()
@@ -155,8 +157,8 @@ struct ClaudeCodeAccountStore: Sendable {
         try write(catalog, undo: &undo)
     }
 
-    /// Signs Claude Code in to a saved account. The outgoing sign-in is saved again first; a sign-in that is not
-    /// saved is never overwritten.
+    /// Signs Claude Code in to a saved account. The outgoing sign-in is saved first, as a new account when it was not
+    /// saved yet, so a switch never loses it.
     func activate(_ id: UUID) throws(ClaudeCodeAccountError) {
         guard !processes.isClaudeCodeRunning() else { throw .claudeCodeRunning }
         var catalog = try accounts()
@@ -165,9 +167,7 @@ struct ClaudeCodeAccountStore: Sendable {
         guard let target = ClaudeCodeSignInSnapshot(itemData: targetData) else { throw .savedAccountsUnreadable }
 
         let (current, item) = try currentSignIn()
-        guard let outgoingIndex = savedIndex(of: current, in: catalog) else {
-            throw .currentSignInNotSaved
-        }
+        let outgoingIndex = entryIndex(for: current, in: &catalog)
 
         var undo = Undo()
         do throws(ClaudeCodeAccountError) {
@@ -210,9 +210,19 @@ struct ClaudeCodeAccountStore: Sendable {
         }
     }
 
-    /// Accounts match by Claude Code's account record only. Tokens are never compared.
-    private func savedIndex(of current: ClaudeCodeSignInSnapshot, in catalog: [ClaudeCodeAccount]) -> Int? {
-        catalog.firstIndex { $0.identity != nil && $0.identity == current.identity }
+    /// The saved entry for `signIn`'s account, appended when there is none. Accounts match by Claude Code's account
+    /// record only. Tokens are never compared.
+    private func entryIndex(for signIn: ClaudeCodeSignInSnapshot, in catalog: inout [ClaudeCodeAccount]) -> Int {
+        if let index = catalog.firstIndex(where: { $0.identity != nil && $0.identity == signIn.identity }) {
+            return index
+        }
+        catalog.append(ClaudeCodeAccount(
+            id: UUID(),
+            name: signIn.email ?? signIn.organizationName ?? "Claude Account",
+            createdAt: now(),
+            updatedAt: now()
+        ))
+        return catalog.endIndex - 1
     }
 
     private func save(

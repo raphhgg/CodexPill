@@ -104,7 +104,6 @@ final class ProviderConnectionProbe: ProviderConnection {
         return true
     }
 
-    func addCurrentAccount() async throws(ProviderNotice) {}
     func removeAccount(_: UUID) async throws(ProviderNotice) {}
 
     func refreshInactiveAccount(_ id: UUID, now _: Date) async {
