@@ -18,9 +18,9 @@ environment variables. Nothing migrates, so a CodexPill install's settings and
 saved accounts stay behind. [Uninstall And Reset](UNINSTALL_RESET.md) explains
 how to remove them.
 
-The GitHub repository and the Homebrew cask `raphhgg/tap/codexpill` still use
-the old name until they are renamed. A release installed before the rename is
-`CodexPill.app`.
+The GitHub repository is `raphhgg/Refill`. The Homebrew cask is still
+`raphhgg/tap/codexpill` until the first Refill release renames it to `refill`. A
+release installed before the rename is `CodexPill.app`.
 
 ## Commands
 
@@ -71,7 +71,7 @@ validation only, `PACKAGE_RELEASE_ALLOW_DIRTY=1` allows the command to continue
 and marks the artifact name with `DIRTY`.
 
 The first public beta was published as
-[`v0.1.0-beta.1`](https://github.com/raphhgg/CodexPill/releases/tag/v0.1.0-beta.1).
+[`v0.1.0-beta.1`](https://github.com/raphhgg/Refill/releases/tag/v0.1.0-beta.1).
 Future public beta releases should use the same signed/notarized artifact path
 until release automation replaces the manual GitHub Release flow.
 

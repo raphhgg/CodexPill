@@ -60,7 +60,7 @@ brew install --cask raphhgg/tap/codexpill
 The cask still uses the old name. It will be renamed in a later release.
 
 Or download the latest zip from
-[GitHub Releases](https://github.com/raphhgg/CodexPill/releases).
+[GitHub Releases](https://github.com/raphhgg/Refill/releases).
 
 ## Build From Source
 
