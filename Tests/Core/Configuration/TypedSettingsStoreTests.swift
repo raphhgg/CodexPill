@@ -178,6 +178,30 @@ struct TokenUsagePreferencesStoreTests {
     }
 }
 
+@MainActor
+struct AppIconPreferencesStoreTests {
+    @Test
+    func appIconColorDefaultsToCobalt() {
+        #expect(AppIconPreferencesStore(userDefaults: makeDefaults()).appIconColor == .cobalt)
+    }
+
+    @Test
+    func appIconColorPersistsAcrossInstances() {
+        let defaults = makeDefaults()
+        AppIconPreferencesStore(userDefaults: defaults).appIconColor = .emerald
+
+        #expect(AppIconPreferencesStore(userDefaults: defaults).appIconColor == .emerald)
+    }
+
+    @Test
+    func unknownAppIconColorFallsBackToCobalt() {
+        let defaults = makeDefaults()
+        defaults.set("tangerine", forKey: "appIconColor")
+
+        #expect(AppIconPreferencesStore(userDefaults: defaults).appIconColor == .cobalt)
+    }
+}
+
 private func makeDefaults() -> UserDefaults {
     let suiteName = "TypedSettingsStoreTests-\(UUID().uuidString)"
     let defaults = UserDefaults(suiteName: suiteName)!

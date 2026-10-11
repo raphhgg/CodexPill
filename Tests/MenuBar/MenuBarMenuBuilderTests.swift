@@ -122,48 +122,6 @@ final class DiagnosticReportPresenterProbe: DiagnosticReportPresenting {
 @MainActor
 struct MenuBarMenuBuilderTests {
     @Test
-    func appIconSourcePrefersBundledPngResource() throws {
-        let temporaryDirectory = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        try FileManager.default.createDirectory(
-            at: temporaryDirectory,
-            withIntermediateDirectories: true
-        )
-        defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
-
-        let bundleDirectory = temporaryDirectory.appendingPathComponent("IconFixture.bundle", isDirectory: true)
-        try FileManager.default.createDirectory(at: bundleDirectory, withIntermediateDirectories: true)
-        try """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-            <key>CFBundleIdentifier</key>
-            <string>com.raphhgg.codexpill.tests.iconfixture</string>
-            <key>CFBundlePackageType</key>
-            <string>BNDL</string>
-        </dict>
-        </plist>
-        """.write(to: bundleDirectory.appendingPathComponent("Info.plist"), atomically: true, encoding: .utf8)
-
-        let image = NSImage(size: NSSize(width: 12, height: 12))
-        image.lockFocus()
-        NSColor.systemBlue.setFill()
-        NSRect(x: 0, y: 0, width: 12, height: 12).fill()
-        image.unlockFocus()
-        let representation = try #require(image.tiffRepresentation.flatMap(NSBitmapImageRep.init(data:)))
-        let data = try #require(representation.representation(using: .png, properties: [:]))
-        try data.write(to: bundleDirectory.appendingPathComponent("AppIcon.png"))
-
-        let bundle = try #require(Bundle(url: bundleDirectory))
-
-        let icon = try #require(NSImage.codexPillAppIcon(bundle: bundle))
-
-        #expect(icon.size.width > 0)
-        #expect(icon.size.height > 0)
-    }
-
-    @Test
     func realPresentersCancelInteractivePromptsWhenSuppressed() async {
         let alertPresenter = SystemAlertPresenter(suppressesInteractivePrompts: true)
         let panelPresenter = SystemPanelPresenter(suppressesInteractivePrompts: true)
@@ -528,6 +486,48 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
+    func appIconMenuListsColorsWithCurrentOneChecked() throws {
+        let menu = MenuBarMenuBuilder().makeMenu(
+            state: makeState(activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)), appIconColor: .honey),
+            target: try makeCoordinator()
+        )
+
+        let appIconMenu = try #require(appearanceMenu(in: menu).items.first(where: { $0.title == "App Icon" })?.submenu)
+
+        #expect(appIconMenu.items.map(\.title) == ["Cobalt", "Deep teal", "Emerald", "Violet", "Honey", "Rose"])
+        #expect(appIconMenu.items.filter { $0.state == .on }.map(\.title) == ["Honey"])
+    }
+
+    @Test
+    func selectingAnAppIconColorSavesAndAppliesIt() throws {
+        let applier = AppIconApplierProbe()
+        let suiteName = "MenuBarMenuBuilderTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = SettingsStores(userDefaults: defaults)
+        let repository = try makeIsolatedRepository()
+        let coordinator = MenuBarCoordinator.makeForTesting(
+            statusItemRuntime: StatusItemRuntime(statusItem: NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)),
+            accountsController: AccountsFeatureFactory(
+                repository: repository,
+                authService: CodexAuthSnapshotService(repository: repository),
+                codexAppProcessClient: CodexAppProcessProbe(),
+                accountStatusClient: DisabledAccountStatusClient()
+            ).makeController(),
+            settings: settings,
+            alertPresenter: AlertPresenterProbe(),
+            appIconApplier: applier
+        )
+        let item = NSMenuItem()
+        item.representedObject = AppIconColor.violet.rawValue
+
+        coordinator.selectAppIconColor(item)
+
+        #expect(settings.appIconPreferences.appIconColor == .violet)
+        #expect(applier.appliedColors == [.violet])
+    }
+
+    @Test
     func appearanceMenuGroupsIconAndMarkerControls() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
@@ -541,7 +541,7 @@ struct MenuBarMenuBuilderTests {
         let usageBarTitles = usageBarsMenu.items.map(\.title)
         let showMarkers = try #require(usageBarsMenu.items.first(where: { $0.title == "Show Pace Markers" }))
 
-        #expect(preferencesMenu.items.map(\.title) == ["Menu Bar Label", "Icon Style", "Usage Bars", "", "Show Token Usage", "Show Model Limits"])
+        #expect(preferencesMenu.items.map(\.title) == ["Menu Bar Label", "Icon Style", "Usage Bars", "App Icon", "", "Show Token Usage", "Show Model Limits"])
         #expect(usageBarTitles == [
             "Show % Used", "Show % Left", "",
             "Classic Layout", "Compact Layout", "",
@@ -1292,6 +1292,7 @@ struct MenuBarMenuBuilderTests {
         providerUsage: [ProviderUsageState] = [],
         toolOrder: [UsageProvider] = [.claude, .codex, .cursor],
         masksEmails: Bool = false,
+        appIconColor: AppIconColor = .cobalt,
         now: Date = .now
     ) -> MenuBarMenuState {
         MenuBarMenuState(
@@ -1314,6 +1315,7 @@ struct MenuBarMenuBuilderTests {
             providerUsage: providerUsage,
             toolOrder: toolOrder,
             masksEmails: masksEmails,
+            appIconColor: appIconColor,
             now: now
         )
     }

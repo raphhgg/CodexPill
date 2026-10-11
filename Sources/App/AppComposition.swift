@@ -38,6 +38,8 @@ struct AppComposition {
             statusItemSettings: StatusItemSettingsStore(userDefaults: defaults),
             tokenUsagePreferences: TokenUsagePreferencesStore(userDefaults: defaults),
             claudeUsageSettings: claudeCodeUsage.settings,
+            appIconPreferences: AppIconPreferencesStore(userDefaults: defaults),
+            appIconApplier: SystemAppIconApplier(),
             cliProcessInspector: CodexCLIProcessInspector(),
             alertPresenter: SystemAlertPresenter(suppressesInteractivePrompts: suppressesInteractivePrompts),
             panelPresenter: SystemPanelPresenter(suppressesInteractivePrompts: suppressesInteractivePrompts),

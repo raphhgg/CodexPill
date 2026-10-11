@@ -13,6 +13,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let statusItemSettings: StatusItemSettingsStore
     private let tokenUsagePreferences: TokenUsagePreferencesStore
     private let claudeUsageSettings: ClaudeUsageSettingsStore
+    private let appIconPreferences: AppIconPreferencesStore
+    private let appIconApplier: AppIconApplying
     private let cliProcessInspector: CodexCLIProcessInspector
     private let alertPresenter: AlertPresenter
     private let panelPresenter: PanelPresenter
@@ -62,6 +64,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         statusItemSettings: StatusItemSettingsStore,
         tokenUsagePreferences: TokenUsagePreferencesStore,
         claudeUsageSettings: ClaudeUsageSettingsStore,
+        appIconPreferences: AppIconPreferencesStore,
+        appIconApplier: AppIconApplying,
         cliProcessInspector: CodexCLIProcessInspector,
         alertPresenter: AlertPresenter,
         panelPresenter: PanelPresenter,
@@ -81,6 +85,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.statusItemSettings = statusItemSettings
         self.tokenUsagePreferences = tokenUsagePreferences
         self.claudeUsageSettings = claudeUsageSettings
+        self.appIconPreferences = appIconPreferences
+        self.appIconApplier = appIconApplier
         self.cliProcessInspector = cliProcessInspector
         self.alertPresenter = alertPresenter
         self.panelPresenter = panelPresenter
@@ -95,6 +101,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     func start() {
+        appIconApplier.apply(appIconPreferences.appIconColor)
         shortcutRuntime.onShortcut = { [weak self] in
             self?.statusItemRuntime.revealTitleTemporarily(duration: 3)
         }
@@ -217,6 +224,19 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         recordMenuAction("toggleShowsModelLimits")
         claudeUsageSettings.showsModelLimits.toggle()
         rebuildMenu()
+    }
+
+    @objc
+    func selectAppIconColor(_ sender: NSMenuItem) {
+        recordMenuAction("selectAppIconColor")
+        guard
+            let rawValue = sender.representedObject as? String,
+            let color = AppIconColor(rawValue: rawValue)
+        else {
+            return
+        }
+        appIconPreferences.appIconColor = color
+        appIconApplier.apply(color)
     }
 
     @objc
@@ -506,6 +526,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             toolOrder: menuDisplaySettings.toolOrder,
             masksEmails: menuDisplaySettings.masksEmails,
             showsModelLimits: claudeUsageSettings.showsModelLimits,
+            appIconColor: appIconPreferences.appIconColor,
             now: now()
         )
     }
@@ -787,6 +808,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             _ = statusItemSettings.usagePercentMode
             _ = statusItemSettings.usageMeterLayout
             _ = statusItemSettings.pacingMarkersEnabled
+            _ = appIconPreferences.appIconColor
         } onChange: { [weak self] in
             self?.tasks.start { [weak self] in
                 guard let self else { return }

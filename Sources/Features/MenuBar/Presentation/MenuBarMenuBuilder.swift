@@ -140,6 +140,7 @@ struct MenuBarMenuBuilder {
         appearance.addItem(statusBarDisplayMenuItem(state: state, target: target))
         appearance.addItem(statusBarStyleMenuItem(state: state, target: target))
         appearance.addItem(usageBarsMenuItem(state: state, target: target))
+        appearance.addItem(appIconMenuItem(state: state, target: target))
         appearance.addItem(.separator())
         appearance.addItem(toggleItem("Show Token Usage", isOn: state.tokenUsageEnabled, action: #selector(MenuBarCoordinator.toggleTokenUsage(_:)), target: target))
         appearance.addItem(toggleItem("Show Model Limits", isOn: state.showsModelLimits, action: #selector(MenuBarCoordinator.toggleShowsModelLimits(_:)), target: target))
@@ -212,6 +213,14 @@ struct MenuBarMenuBuilder {
         menu.addItem(actionItem("Weekly Color…", action: #selector(MenuBarCoordinator.chooseWeeklyAccentColor(_:)), target: target))
         menu.addItem(toggleItem("Same Color for Both", isOn: state.usesOneUsageColor, action: #selector(MenuBarCoordinator.toggleOneUsageColor(_:)), target: target))
         menu.addItem(actionItem("Use Default Colors", action: #selector(MenuBarCoordinator.resetUsageColors(_:)), isEnabled: state.hasCustomUsageColors, target: target))
+        return submenuItem(menu)
+    }
+
+    private func appIconMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let menu = NSMenu(title: "App Icon")
+        for color in AppIconColor.allCases {
+            menu.addItem(optionItem(color.menuTitle, value: color.rawValue, isOn: state.appIconColor == color, action: #selector(MenuBarCoordinator.selectAppIconColor(_:)), target: target))
+        }
         return submenuItem(menu)
     }
 

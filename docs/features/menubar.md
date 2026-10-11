@@ -66,7 +66,7 @@ Every tool item carries a `ProviderMenuAction` and goes through `MenuBarCoordina
 Add Account ›        Codex…  Claude…  Cursor…
 Disconnect Claude    (one per connected tool: Claude, Cursor)
 ─────
-Appearance ›         Menu Bar Label ›  Icon Style ›  Usage Bars ›  ─  Show Token Usage  Show Model Limits
+Appearance ›         Menu Bar Label ›  Icon Style ›  Usage Bars ›  App Icon ›  ─  Show Token Usage  Show Model Limits
 Hide Emails
 Refresh Every ›      1 minute … 30 minutes
 Launch at Login
@@ -78,6 +78,8 @@ About
 `Claude…` and `Cursor…` connect a tool that is not connected yet. Otherwise they run `Add Claude Account…` and `Add Cursor Account…`. `Disconnect Claude` and `Disconnect Cursor` appear only while that tool is connected, and hide its card. Codex has nothing to disconnect.
 
 `Show Model Limits` is on by default and checked while on. Turning it off hides Claude's per-model meters in the card and in each saved account's line. It never changes the menu bar icon, which uses only the session and weekly windows. It is saved as `claudeShowsModelLimits` in user defaults.
+
+`App Icon` picks the app icon colour. [App Icon](app-controls/02-app-icon.md) owns it.
 
 `Diagnostics…` first explains what the export contains, then writes a redacted JSON file only if the user confirms. The report holds allowlisted fields, per-export account aliases, every limit window each account reported (its kind, its menu title and a used-share category: available, limited or exhausted), summarized freshness states and recent CodexPill workflow events. It never includes raw logs, auth JSON, snapshots, raw UserDefaults, emails, hostnames, local paths, tokens, stable account IDs, prompt or session content, or raw stderr.
 
