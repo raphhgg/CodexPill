@@ -3,28 +3,19 @@ import AppKit
 struct StatusItemRuntimePresentation {
     let source: StatusItemSource
     let indicatorStyle: StatusBarIndicatorStyle
-    let monochrome: Bool
     let displayMode: StatusBarDisplayMode
     let percentMode: UsagePercentMode
-    let sessionAccentColor: NSColor
-    let weeklyAccentColor: NSColor
 
     init(
         source: StatusItemSource,
         indicatorStyle: StatusBarIndicatorStyle,
-        monochrome: Bool,
         displayMode: StatusBarDisplayMode,
-        percentMode: UsagePercentMode = .used,
-        sessionAccentColor: NSColor = StatusBarProgressColorDefaults.accent,
-        weeklyAccentColor: NSColor = StatusBarProgressColorDefaults.accent
+        percentMode: UsagePercentMode = .used
     ) {
         self.source = source
         self.indicatorStyle = indicatorStyle
-        self.monochrome = monochrome
         self.displayMode = displayMode
         self.percentMode = percentMode
-        self.sessionAccentColor = sessionAccentColor
-        self.weeklyAccentColor = weeklyAccentColor
     }
 }
 
@@ -73,8 +64,7 @@ final class StatusItemRuntime {
 
     private var presentation = StatusItemRuntimePresentation(
         source: .nothingConnected,
-        indicatorStyle: .twinPills,
-        monochrome: true,
+        indicatorStyle: .hourglass,
         displayMode: .iconOnly
     )
     private var hoverActivationTimer: Timer?
@@ -196,14 +186,10 @@ final class StatusItemRuntime {
         case .nothingConnected:
             button.image = iconRenderer.makeAppGlyph()
         case .tool:
-            let barPercents = statusItemBarPercents(for: presentation.source.windows, mode: presentation.percentMode)
+            let used = statusItemBarPercents(for: presentation.source.windows, mode: .used)
             button.image = iconRenderer.makeImage(
                 style: presentation.indicatorStyle,
-                primaryPercent: barPercents.primary,
-                secondaryPercent: barPercents.secondary,
-                monochrome: presentation.monochrome,
-                primaryColor: presentation.sessionAccentColor,
-                secondaryColor: presentation.weeklyAccentColor
+                levels: StatusBarGlyphLevels(sessionUsedPercent: used.primary, weeklyUsedPercent: used.secondary)
             )
         }
         button.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .medium)

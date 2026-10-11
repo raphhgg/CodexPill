@@ -20,20 +20,31 @@ enum StatusBarDisplayMode: String, CaseIterable, Identifiable {
 }
 
 enum StatusBarIndicatorStyle: String, CaseIterable, Identifiable {
-    case dualArcBadge
-    case stackedBars
-    case twinPills
+    case hourglass
+    case moon
+    case punchCard
+
+    init(storedValue: String?) {
+        switch storedValue {
+        case "dualArcBadge":
+            self = .moon
+        case "stackedBars", "notchedSquare":
+            self = .punchCard
+        default:
+            self = storedValue.flatMap(Self.init(rawValue:)) ?? .hourglass
+        }
+    }
 
     var id: String { rawValue }
 
     var menuTitle: String {
         switch self {
-        case .dualArcBadge:
-            "Dual Arc Badge"
-        case .stackedBars:
-            "Stacked Bars"
-        case .twinPills:
-            "Twin Pills"
+        case .hourglass:
+            "Hourglass"
+        case .moon:
+            "Moon"
+        case .punchCard:
+            "Punch card"
         }
     }
 }

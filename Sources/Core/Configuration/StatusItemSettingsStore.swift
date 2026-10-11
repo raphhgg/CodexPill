@@ -17,12 +17,6 @@ final class StatusItemSettingsStore {
         }
     }
 
-    var statusBarMonochrome: Bool {
-        didSet {
-            userDefaults.set(statusBarMonochrome, forKey: Self.statusBarMonochromeKey)
-        }
-    }
-
     var statusBarDisplayMode: StatusBarDisplayMode {
         didSet {
             userDefaults.set(statusBarDisplayMode.rawValue, forKey: Self.statusBarDisplayModeKey)
@@ -74,7 +68,6 @@ final class StatusItemSettingsStore {
     private let userDefaults: UserDefaults
 
     private static let statusBarIndicatorStyleKey = "statusBarIndicatorStyle"
-    private static let statusBarMonochromeKey = "statusBarMonochrome"
     private static let statusBarDisplayModeKey = "statusBarDisplayMode"
     private static let sessionAccentColorKey = "progressAccentColor"
     private static let weeklyAccentColorKey = "weeklyAccentColor"
@@ -88,16 +81,9 @@ final class StatusItemSettingsStore {
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
 
-        let storedStyle = userDefaults.string(forKey: Self.statusBarIndicatorStyleKey)
-        if storedStyle == "notchedSquare" {
-            statusBarIndicatorStyle = .stackedBars
-        } else if storedStyle == "splitCapsule" {
-            statusBarIndicatorStyle = .twinPills
-        } else {
-            statusBarIndicatorStyle = storedStyle.flatMap(StatusBarIndicatorStyle.init(rawValue:)) ?? .twinPills
-        }
-
-        statusBarMonochrome = userDefaults.object(forKey: Self.statusBarMonochromeKey) as? Bool ?? true
+        statusBarIndicatorStyle = StatusBarIndicatorStyle(
+            storedValue: userDefaults.string(forKey: Self.statusBarIndicatorStyleKey)
+        )
         statusBarDisplayMode = userDefaults.string(forKey: Self.statusBarDisplayModeKey)
             .flatMap(StatusBarDisplayMode.init(rawValue:)) ?? .textOnHover
         sessionAccentColor = Self.loadColor(from: userDefaults, key: Self.sessionAccentColorKey)

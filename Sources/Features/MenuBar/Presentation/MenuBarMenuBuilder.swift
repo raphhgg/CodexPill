@@ -226,8 +226,6 @@ struct MenuBarMenuBuilder {
 
     private func statusBarStyleMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
         let menu = NSMenu(title: "Icon Style")
-        menu.addItem(toggleItem("Monochrome", isOn: state.statusBarMonochrome, action: #selector(MenuBarCoordinator.toggleStatusBarMonochrome(_:)), target: target))
-        menu.addItem(.separator())
         for style in StatusBarIndicatorStyle.allCases {
             menu.addItem(optionItem(style.menuTitle, value: style.rawValue, isOn: state.statusBarIndicatorStyle == style, action: #selector(MenuBarCoordinator.selectStatusBarStyle(_:)), target: target))
         }

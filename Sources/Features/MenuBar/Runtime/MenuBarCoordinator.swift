@@ -186,12 +186,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     @objc
-    func toggleStatusBarMonochrome(_ sender: NSMenuItem) {
-        recordMenuAction("toggleStatusBarMonochrome")
-        statusItemSettings.statusBarMonochrome.toggle()
-    }
-
-    @objc
     func selectStatusBarDisplayMode(_ sender: NSMenuItem) {
         recordMenuAction("selectStatusBarDisplayMode")
         guard
@@ -506,7 +500,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             inactiveAccounts: accountsController.sortedInactiveAccounts,
             refreshIntervalMinutes: menuDisplaySettings.refreshIntervalMinutes,
             refreshIntervalOptions: menuDisplaySettings.refreshIntervalOptions,
-            statusBarMonochrome: statusItemSettings.statusBarMonochrome,
             statusBarIndicatorStyle: statusItemSettings.statusBarIndicatorStyle,
             statusBarDisplayMode: statusItemSettings.statusBarDisplayMode,
             revealStatusItemTitleShortcut: statusItemSettings.revealStatusItemTitleShortcut,
@@ -798,7 +791,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         withObservationTracking {
             _ = menuDisplaySettings.refreshIntervalMinutes
             _ = statusItemSettings.statusBarIndicatorStyle
-            _ = statusItemSettings.statusBarMonochrome
             _ = statusItemSettings.statusBarDisplayMode
             _ = menuDisplaySettings.toolOrder
             _ = menuDisplaySettings.masksEmails
@@ -857,11 +849,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         StatusItemRuntimePresentation(
             source: state.statusItemSource,
             indicatorStyle: statusItemSettings.statusBarIndicatorStyle,
-            monochrome: statusItemSettings.statusBarMonochrome,
             displayMode: state.effectiveStatusBarDisplayMode,
-            percentMode: state.usagePercentMode,
-            sessionAccentColor: state.sessionAccentColor,
-            weeklyAccentColor: state.weeklyAccentColor
+            percentMode: state.usagePercentMode
         )
     }
 

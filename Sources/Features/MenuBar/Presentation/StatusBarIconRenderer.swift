@@ -1,70 +1,52 @@
 import AppKit
 
-/// One status-bar meter. A window Codex did not report is `.missing` and draws as an
-/// outline-only track, so it never looks like 0%.
-enum StatusBarMeter: Equatable {
-    case missing
-    case level(CGFloat)
+struct StatusBarGlyphLevels: Equatable, Sendable {
+    let sessionRemainingPercent: Int?
+    let weeklyRemainingPercent: Int?
 
-    init(percent: Int?) {
-        guard let percent else {
-            self = .missing
-            return
-        }
-        self = .level(max(0, min(CGFloat(percent) / 100, 1)))
+    static let punchSlotsPerRow = 5
+
+    init(sessionUsedPercent: Int?, weeklyUsedPercent: Int?) {
+        sessionRemainingPercent = sessionUsedPercent.map(Self.remainingPercent(used:))
+        weeklyRemainingPercent = weeklyUsedPercent.map(Self.remainingPercent(used:))
     }
 
-    var progress: CGFloat {
-        guard case .level(let progress) = self else { return 0 }
-        return progress
+    static func solidPunchSlots(remainingPercent: Int?) -> Int {
+        guard let remainingPercent else { return 0 }
+        return (remainingPercent * punchSlotsPerRow + 99) / 100
+    }
+
+    private static func remainingPercent(used: Int) -> Int {
+        100 - min(max(used, 0), 100)
     }
 }
 
 struct StatusBarIconRenderer {
-    func makeImage(
-        style: StatusBarIndicatorStyle,
-        primaryPercent: Int?,
-        secondaryPercent: Int?,
-        monochrome: Bool,
-        primaryColor: NSColor,
-        secondaryColor: NSColor
-    ) -> NSImage {
-        let size = NSSize(width: 19, height: 19)
-        let image = NSImage(size: size)
-        image.lockFocus()
+    static let glyphSize = NSSize(width: 18, height: 18)
 
-        let palette = palette(monochrome: monochrome, primaryColor: primaryColor, secondaryColor: secondaryColor)
-        let drawing = DrawingContext(
-            rect: NSRect(origin: .zero, size: size).insetBy(dx: 0.8, dy: 0.8),
-            primary: StatusBarMeter(percent: primaryPercent),
-            secondary: StatusBarMeter(percent: secondaryPercent),
-            trackColor: NSColor.tertiaryLabelColor.withAlphaComponent(0.45),
-            outlineColor: NSColor.secondaryLabelColor,
-            primaryColor: palette.primary,
-            secondaryColor: palette.secondary,
-            baseColor: NSColor.labelColor
-        )
-
-        switch style {
-        case .dualArcBadge:
-            drawDualArcBadge(in: drawing)
-        case .stackedBars:
-            drawStackedBars(in: drawing)
-        case .twinPills:
-            drawTwinPills(in: drawing)
+    func makeImage(style: StatusBarIndicatorStyle, levels: StatusBarGlyphLevels) -> NSImage {
+        let image = NSImage(size: Self.glyphSize, flipped: true) { _ in
+            guard let context = NSGraphicsContext.current?.cgContext else { return false }
+            switch style {
+            case .hourglass:
+                HourglassGlyph.draw(levels, in: context)
+            case .moon:
+                MoonGlyph.draw(levels, in: context)
+            case .punchCard:
+                PunchCardGlyph.draw(levels, in: context)
+            }
+            return true
         }
-
-        image.unlockFocus()
-        image.isTemplate = false
+        image.isTemplate = true
         return image
     }
 
     /// The app's pill, for when no tool is set up yet: half filled, half outlined, tilted like the app icon.
     func makeAppGlyph() -> NSImage {
-        let size = NSSize(width: 19, height: 19)
-        let image = NSImage(size: size, flipped: false) { rect in
+        let image = NSImage(size: Self.glyphSize, flipped: false) { rect in
             let pillWidth: CGFloat = 7
             let pillLength: CGFloat = 17
+            let outlineWidth: CGFloat = 1
             let transform = NSAffineTransform()
             transform.translateX(by: rect.midX, yBy: rect.midY)
             transform.rotate(byDegrees: -45)
@@ -72,11 +54,11 @@ struct StatusBarIconRenderer {
 
             let pill = NSRect(x: -pillWidth / 2, y: -pillLength / 2, width: pillWidth, height: pillLength)
             let outline = NSBezierPath(
-                roundedRect: pill.insetBy(dx: Self.outlineWidth / 2, dy: Self.outlineWidth / 2),
-                xRadius: (pillWidth - Self.outlineWidth) / 2,
-                yRadius: (pillWidth - Self.outlineWidth) / 2
+                roundedRect: pill.insetBy(dx: outlineWidth / 2, dy: outlineWidth / 2),
+                xRadius: (pillWidth - outlineWidth) / 2,
+                yRadius: (pillWidth - outlineWidth) / 2
             )
-            outline.lineWidth = Self.outlineWidth * 1.4
+            outline.lineWidth = outlineWidth * 1.4
             NSColor.black.setStroke()
             outline.stroke()
 
@@ -90,153 +72,165 @@ struct StatusBarIconRenderer {
         image.isTemplate = true
         return image
     }
+}
 
-    private func palette(
-        monochrome: Bool,
-        primaryColor: NSColor,
-        secondaryColor: NSColor
-    ) -> (primary: NSColor, secondary: NSColor) {
-        guard !monochrome else {
-            return (
-                primary: NSColor.labelColor,
-                secondary: NSColor.labelColor.withAlphaComponent(0.62)
-            )
-        }
-        return (primary: primaryColor, secondary: secondaryColor)
-    }
+private func ink(_ alpha: CGFloat = 1) -> CGColor {
+    CGColor(gray: 0, alpha: alpha)
+}
 
-    private func drawDualArcBadge(in context: DrawingContext) {
-        let center = CGPoint(x: context.rect.midX, y: context.rect.midY)
-        let radius = min(context.rect.width, context.rect.height) / 2 - 2.2
-        let lineWidth: CGFloat = 3.0
+private func fraction(_ percent: Int) -> CGFloat {
+    CGFloat(percent) / 100
+}
 
-        let halves: [(meter: StatusBarMeter, clockwise: Bool, color: NSColor)] = [
-            (context.primary, true, context.primaryColor),
-            (context.secondary, false, context.secondaryColor),
-        ]
-        for half in halves {
-            let track = arcPath(center: center, radius: radius, start: 270, end: 90, clockwise: half.clockwise)
-            guard half.meter != .missing else {
-                strokeOutline(of: track, lineWidth: lineWidth, color: context.outlineColor)
-                continue
-            }
-            stroke(track, lineWidth: lineWidth, color: context.trackColor)
-            if half.meter.progress > 0 {
-                let end = half.clockwise ? 270 - (180 * half.meter.progress) : 270 + (180 * half.meter.progress)
-                stroke(
-                    arcPath(center: center, radius: radius, start: 270, end: end, clockwise: half.clockwise),
-                    lineWidth: lineWidth,
-                    color: half.color
-                )
-            }
-        }
-    }
-
-    private func drawStackedBars(in context: DrawingContext) {
-        let box = context.rect.insetBy(dx: 1.1, dy: 2.1)
-        let topTrack = NSRect(x: box.minX, y: box.midY + 1.4, width: box.width, height: 4.8)
-        let bottomTrack = NSRect(x: box.minX, y: box.midY - 6.2, width: box.width, height: 4.8)
-
-        drawHorizontalBar(track: topTrack, meter: context.primary, fillColor: context.primaryColor, context: context)
-        drawHorizontalBar(track: bottomTrack, meter: context.secondary, fillColor: context.secondaryColor, context: context)
-
-        let divider = NSBezierPath(roundedRect: NSRect(x: box.minX + 2.4, y: box.midY - 0.7, width: box.width - 4.8, height: 1.4), xRadius: 0.7, yRadius: 0.7)
-        context.baseColor.withAlphaComponent(0.15).setFill()
-        divider.fill()
-    }
-
-    private func drawTwinPills(in context: DrawingContext) {
-        let leftRect = NSRect(x: context.rect.minX + 1.9, y: context.rect.minY + 1.9, width: 5.9, height: context.rect.height - 3.8)
-        let rightRect = NSRect(x: context.rect.maxX - 7.8, y: context.rect.minY + 1.9, width: 5.9, height: context.rect.height - 3.8)
-
-        drawVerticalPill(track: leftRect, meter: context.primary, fillColor: context.primaryColor, context: context)
-        drawVerticalPill(track: rightRect, meter: context.secondary, fillColor: context.secondaryColor, context: context)
-
-        let dividerRect = NSRect(x: context.rect.midX - 0.6, y: context.rect.minY + 2.8, width: 1.2, height: context.rect.height - 5.6)
-        let divider = NSBezierPath(roundedRect: dividerRect, xRadius: 0.6, yRadius: 0.6)
-        context.baseColor.withAlphaComponent(0.12).setFill()
-        divider.fill()
-    }
-
-    private func drawVerticalPill(track rect: NSRect, meter: StatusBarMeter, fillColor: NSColor, context: DrawingContext) {
-        guard meter != .missing else {
-            strokeOutline(ofRoundedRect: rect, color: context.outlineColor)
-            return
-        }
-        let track = NSBezierPath(roundedRect: rect, xRadius: rect.width / 2, yRadius: rect.width / 2)
-        context.trackColor.setFill()
-        track.fill()
-
-        let progress = meter.progress
-        let fillHeight = progress > 0 ? rect.height * (0.12 + 0.88 * progress) : 0
-        let fillRect = NSRect(x: rect.minX, y: rect.minY, width: rect.width, height: min(rect.height, fillHeight))
-        let fillRadius = min(fillRect.width, fillRect.height) / 2
-        let fill = NSBezierPath(roundedRect: fillRect, xRadius: fillRadius, yRadius: fillRadius)
-        fillColor.setFill()
-        fill.fill()
-    }
-
-    private func drawHorizontalBar(track rect: NSRect, meter: StatusBarMeter, fillColor: NSColor, context: DrawingContext) {
-        guard meter != .missing else {
-            strokeOutline(ofRoundedRect: rect, color: context.outlineColor)
-            return
-        }
-        let track = NSBezierPath(roundedRect: rect, xRadius: rect.height / 2, yRadius: rect.height / 2)
-        context.trackColor.setFill()
-        track.fill()
-
-        let fillRect = NSRect(x: rect.minX, y: rect.minY, width: max(rect.height, rect.width * meter.progress), height: rect.height)
-        let fill = NSBezierPath(roundedRect: fillRect, xRadius: rect.height / 2, yRadius: rect.height / 2)
-        fillColor.setFill()
-        fill.fill()
-    }
-
-    private func arcPath(center: CGPoint, radius: CGFloat, start: CGFloat, end: CGFloat, clockwise: Bool) -> NSBezierPath {
-        let path = NSBezierPath()
-        path.appendArc(withCenter: center, radius: radius, startAngle: start, endAngle: end, clockwise: clockwise)
+private enum HourglassGlyph {
+    static var outline: CGPath {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: 4.8, y: 2.9))
+        path.addLine(to: CGPoint(x: 13.2, y: 2.9))
+        path.addCurve(to: CGPoint(x: 9.7, y: 9), control1: CGPoint(x: 13.2, y: 6), control2: CGPoint(x: 10.1, y: 7.6))
+        path.addCurve(to: CGPoint(x: 13.2, y: 15.1), control1: CGPoint(x: 10.1, y: 10.4), control2: CGPoint(x: 13.2, y: 12))
+        path.addLine(to: CGPoint(x: 4.8, y: 15.1))
+        path.addCurve(to: CGPoint(x: 8.3, y: 9), control1: CGPoint(x: 4.8, y: 12), control2: CGPoint(x: 7.9, y: 10.4))
+        path.addCurve(to: CGPoint(x: 4.8, y: 2.9), control1: CGPoint(x: 7.9, y: 7.6), control2: CGPoint(x: 4.8, y: 6))
+        path.closeSubpath()
         return path
     }
 
-    private func stroke(_ path: NSBezierPath, lineWidth: CGFloat, color: NSColor) {
-        path.lineWidth = lineWidth
-        path.lineCapStyle = .round
-        color.setStroke()
-        path.stroke()
+    static var topBulb: CGPath { bulb(rimY: 4.1, neckY: 8.8, bulge: 6.3, shoulder: 7.7) }
+    static var bottomBulb: CGPath { bulb(rimY: 13.9, neckY: 9.2, bulge: 11.7, shoulder: 10.3) }
+
+    static func draw(_ levels: StatusBarGlyphLevels, in context: CGContext) {
+        context.setLineJoin(.round)
+        context.setLineWidth(1.2)
+        context.setStrokeColor(ink())
+        context.addPath(outline)
+        context.strokePath()
+
+        context.setLineCap(.round)
+        context.setLineWidth(1.4)
+        strokeLine(y: 1.6, to: 14.4, alpha: 1, in: context)
+        strokeLine(y: 16.6, to: 14.4, alpha: 0.3, in: context)
+
+        if let session = levels.sessionRemainingPercent.map(fraction) {
+            fill(topBulb, from: 8.8 - 4.7 * session, to: 9, in: context)
+            fill(bottomBulb, from: 13.9 - 4.7 * (1 - session), to: 14, in: context)
+        }
+
+        if let weekly = levels.weeklyRemainingPercent.map(fraction), weekly > 0 {
+            strokeLine(y: 16.6, to: 3.6 + 10.8 * weekly, alpha: 1, in: context)
+        }
     }
 
-    /// Strokes the edge of the band `path` would paint at `lineWidth`, leaving its inside empty.
-    private func strokeOutline(of path: NSBezierPath, lineWidth: CGFloat, color: NSColor) {
-        guard let cgContext = NSGraphicsContext.current?.cgContext else { return }
-        cgContext.saveGState()
-        cgContext.addPath(path.cgPath)
-        cgContext.setLineWidth(lineWidth)
-        cgContext.setLineCap(.round)
-        cgContext.replacePathWithStrokedPath()
-        cgContext.setLineWidth(Self.outlineWidth)
-        cgContext.setStrokeColor(color.cgColor)
-        cgContext.strokePath()
-        cgContext.restoreGState()
+    private static func bulb(rimY: CGFloat, neckY: CGFloat, bulge: CGFloat, shoulder: CGFloat) -> CGPath {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: 6, y: rimY))
+        path.addLine(to: CGPoint(x: 12, y: rimY))
+        path.addCurve(to: CGPoint(x: 9.25, y: neckY), control1: CGPoint(x: 12, y: bulge), control2: CGPoint(x: 9.6, y: shoulder))
+        path.addLine(to: CGPoint(x: 8.75, y: neckY))
+        path.addCurve(to: CGPoint(x: 6, y: rimY), control1: CGPoint(x: 8.4, y: shoulder), control2: CGPoint(x: 6, y: bulge))
+        path.closeSubpath()
+        return path
     }
 
-    private func strokeOutline(ofRoundedRect rect: NSRect, color: NSColor) {
-        let inset = rect.insetBy(dx: Self.outlineWidth / 2, dy: Self.outlineWidth / 2)
-        let radius = min(inset.width, inset.height) / 2
-        let path = NSBezierPath(roundedRect: inset, xRadius: radius, yRadius: radius)
-        path.lineWidth = Self.outlineWidth
-        color.setStroke()
-        path.stroke()
+    private static func fill(_ bulb: CGPath, from top: CGFloat, to bottom: CGFloat, in context: CGContext) {
+        context.saveGState()
+        context.addPath(bulb)
+        context.clip()
+        context.setFillColor(ink())
+        context.fill(CGRect(x: 5, y: top, width: 8, height: bottom - top))
+        context.restoreGState()
     }
 
-    private static let outlineWidth: CGFloat = 1
+    private static func strokeLine(y: CGFloat, to endX: CGFloat, alpha: CGFloat, in context: CGContext) {
+        context.setStrokeColor(ink(alpha))
+        context.move(to: CGPoint(x: 3.6, y: y))
+        context.addLine(to: CGPoint(x: endX, y: y))
+        context.strokePath()
+    }
 }
 
-private struct DrawingContext {
-    let rect: NSRect
-    let primary: StatusBarMeter
-    let secondary: StatusBarMeter
-    let trackColor: NSColor
-    let outlineColor: NSColor
-    let primaryColor: NSColor
-    let secondaryColor: NSColor
-    let baseColor: NSColor
+private enum MoonGlyph {
+    static let center = CGPoint(x: 9, y: 9)
+    static let moonRadius: CGFloat = 5.2
+    static let orbitRadius: CGFloat = 7.9
+    static let top = -CGFloat.pi / 2
+
+    static func draw(_ levels: StatusBarGlyphLevels, in context: CGContext) {
+        let moonRect = CGRect(x: center.x - moonRadius, y: center.y - moonRadius, width: moonRadius * 2, height: moonRadius * 2)
+        let orbitRect = moonRect.insetBy(dx: moonRadius - orbitRadius, dy: moonRadius - orbitRadius)
+
+        if let session = levels.sessionRemainingPercent.map(fraction) {
+            context.setFillColor(ink(0.25))
+            context.fillEllipse(in: moonRect)
+            context.setFillColor(ink())
+            context.addPath(litPhase(session))
+            context.fillPath()
+        } else {
+            context.saveGState()
+            context.setLineWidth(1.1)
+            context.setLineDash(phase: 0, lengths: [1.5, 1.5])
+            context.setStrokeColor(ink())
+            context.strokeEllipse(in: moonRect)
+            context.restoreGState()
+        }
+
+        guard let weekly = levels.weeklyRemainingPercent.map(fraction) else {
+            context.setLineWidth(1.1)
+            context.setStrokeColor(ink(0.3))
+            context.strokeEllipse(in: orbitRect)
+            return
+        }
+
+        context.setLineWidth(1.3)
+        context.setStrokeColor(ink(0.25))
+        context.strokeEllipse(in: orbitRect)
+        guard weekly > 0 else { return }
+        context.setLineCap(.round)
+        context.setStrokeColor(ink())
+        context.addArc(center: center, radius: orbitRadius, startAngle: top, endAngle: top + weekly * 2 * .pi, clockwise: false)
+        context.strokePath()
+    }
+
+    private static func litPhase(_ lit: CGFloat) -> CGPath {
+        let clamped = min(max(lit, 0.001), 0.999)
+        let terminatorWidth = max(abs(2 * clamped - 1), 0.001)
+        let path = CGMutablePath()
+        path.addArc(center: center, radius: moonRadius, startAngle: top, endAngle: -top, clockwise: false)
+        let terminator = CGAffineTransform(translationX: center.x, y: center.y).scaledBy(x: terminatorWidth, y: 1)
+        path.addArc(
+            center: .zero,
+            radius: moonRadius,
+            startAngle: -top,
+            endAngle: clamped > 0.5 ? 3 * -top : top,
+            clockwise: clamped <= 0.5,
+            transform: terminator
+        )
+        path.closeSubpath()
+        return path
+    }
+}
+
+private enum PunchCardGlyph {
+    static func draw(_ levels: StatusBarGlyphLevels, in context: CGContext) {
+        drawRow(y: 2.2, remainingPercent: levels.sessionRemainingPercent, in: context)
+        drawRow(y: 10.4, remainingPercent: levels.weeklyRemainingPercent, in: context)
+    }
+
+    private static func drawRow(y: CGFloat, remainingPercent: Int?, in context: CGContext) {
+        let solidSlots = StatusBarGlyphLevels.solidPunchSlots(remainingPercent: remainingPercent)
+        let hollowAlpha: CGFloat = remainingPercent == nil ? 0.35 : 0.55
+        context.setLineWidth(0.9)
+        for index in 0..<StatusBarGlyphLevels.punchSlotsPerRow {
+            let slot = CGRect(x: 1.9 + CGFloat(index) * 3, y: y, width: 2.4, height: 5.4)
+            if index < solidSlots {
+                context.setFillColor(ink())
+                context.addPath(CGPath(roundedRect: slot, cornerWidth: 1.2, cornerHeight: 1.2, transform: nil))
+                context.fillPath()
+            } else {
+                context.setStrokeColor(ink(hollowAlpha))
+                context.addPath(CGPath(roundedRect: slot.insetBy(dx: 0.45, dy: 0.45), cornerWidth: 0.75, cornerHeight: 0.75, transform: nil))
+                context.strokePath()
+            }
+        }
+    }
 }

@@ -8,12 +8,36 @@ The status bar gives the user a lightweight answer before opening the menu: how 
 
 ## Owned Surface
 
-- App icon or monochrome menubar icon.
+- The live menubar glyph.
 - Optional label text.
 - Hover-expanded and shortcut-revealed text behavior.
 - Compact indicators for the first menu card's windows (see below).
-- `Settings › Appearance` exposes `Menu Bar Label`, `Icon Style`, and `Usage Bars` controls for label mode, the reveal shortcut, icon style, usage percent mode, meter layout, pacing marker visibility, and usage colors. Other Settings items are owned by their own feature docs. Claude's per-model weekly limits (`Show Model Limits`) never reach the icon or its label.
+- `Settings › Appearance` exposes `Menu Bar Label`, `Icon Style`, and `Usage Bars` controls for label mode, the reveal shortcut, icon style, usage percent mode, meter layout, pacing marker visibility, and usage colors. Other Settings items are owned by their own feature docs. Its `Usage Bars` controls style the usage bars inside the menu, not the glyph. Claude's per-model weekly limits (`Show Model Limits`) never reach the icon or its label.
 - Tooltip text.
+
+## Menu Bar Glyph
+
+The glyph shows the active account's two limits at a glance. Each style shows
+what is left, not what is used, so a fuller glyph means more room.
+
+| Style | Session limit | Weekly limit | No data |
+| --- | --- | --- | --- |
+| Hourglass (default) | Sand in the top bulb falls as you use it, and the used share fills the bottom bulb. | A base bar under the glass, filled left to right. | Empty glass and a faint base. |
+| Moon | The lit phase of a moon, lit from the right: full at 100%, a thin crescent near 0. | An orbit ring, filled clockwise from 12 o'clock. | A dashed moon outline and a faint ring. |
+| Punch card | Top row of five slots. | Bottom row of five slots. | All slots hollow and faint. |
+
+Punch card rounds up, so any amount left shows at least one solid slot. A
+limit with no data uses its own no-data look while the other limit still shows
+its level.
+
+The glyph is a template image: black and clear, with partial transparency for
+tracks and used parts. macOS recolors it for light and dark menu bars, so the
+`Usage Bars` accent color does not apply to it. The glyph has no pace marker.
+Pace markers stay in the menu's usage bars, where there is room to read them.
+
+Saved styles from earlier builds map to the closest new style: `Dual Arc Badge`
+to Moon, `Stacked Bars` to Punch card, `Twin Pills` to Hourglass, and any
+unknown value to Hourglass.
 
 ## Menu Bar Label Reveal Shortcut
 
@@ -55,11 +79,10 @@ Settings › Appearance
 
 - `Show % Left` changes every usage percentage Refill shows (status item
   label, active account meters, saved account rows) to the share still
-  available. The status item bars invert with it: a full bar means the window
-  is untouched, an empty bar means it is used up. Pace markers move to the
+  available. The glyph always shows what is left. Pace markers move to the
   matching position. Countdowns for full windows are unchanged.
 - `Session Color…` and `Weekly Color…` color the session and weekly bars in the
-  menu and in the colored (non-monochrome) status item icon. With `Same Color
+  menu. With `Same Color
   for Both` on, the session color is used for both. Picking a weekly color turns
   `Same Color for Both` off.
 - An accent color chosen before this option existed becomes the session color,
@@ -70,8 +93,8 @@ Settings › Appearance
 
 The icon follows the first card in the menu, so the user picks it by moving that card to the top.
 
-- Two windows fill both meters, session first. One window, such as Codex Pro's weekly limit, Codex Free's monthly limit, or Cursor's billing cycle, fills the lower meter.
-- A window the tool does not report draws as an outline-only track, never as 0%. A card with no reading draws both tracks as outlines.
+- Two windows fill the glyph's session and weekly parts, the shorter window first. One window, such as Codex Pro's weekly limit, Codex Free's monthly limit, or Cursor's billing cycle, fills the weekly part.
+- A window the tool does not report uses its own no-data look, never 0%. A card with no reading shows the no-data glyph.
 - With no card at all, the icon is Refill's pill.
 - A stale reading is not dimmed.
 - The label reads `S 11% W 60%`, `W 17%` for one weekly window, `M 3%` for one monthly window, `8d 9%` for a window with no name, or `82%` for a billing cycle alone. A full window shows its countdown instead.

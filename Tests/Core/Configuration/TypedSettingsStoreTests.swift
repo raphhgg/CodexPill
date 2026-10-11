@@ -45,11 +45,29 @@ struct MenuDisplaySettingsStoreTests {
 
 @MainActor
 struct StatusItemSettingsStoreTests {
+    @Test
+    func defaultsUseCurrentStatusBarPreferences() {
+        let store = StatusItemSettingsStore(userDefaults: makeDefaults())
+
+        #expect(store.statusBarIndicatorStyle == .hourglass)
+        #expect(store.statusBarDisplayMode == .textOnHover)
+        #expect(store.pacingMarkersEnabled)
+        #expect(store.revealStatusItemTitleShortcut == .defaultRevealStatusItemTitle)
+        #expect(store.sessionAccentColor == nil)
+    }
+
     @Test(arguments: [
-        ("notchedSquare", StatusBarIndicatorStyle.stackedBars),
-        ("splitCapsule", StatusBarIndicatorStyle.twinPills)
+        ("dualArcBadge", StatusBarIndicatorStyle.moon),
+        ("stackedBars", .punchCard),
+        ("twinPills", .hourglass),
+        ("notchedSquare", .punchCard),
+        ("splitCapsule", .hourglass),
+        ("hourglass", .hourglass),
+        ("moon", .moon),
+        ("punchCard", .punchCard),
+        ("somethingUnknown", .hourglass)
     ])
-    func legacyStyleAliasesMigrate(rawValue: String, expectedStyle: StatusBarIndicatorStyle) {
+    func storedStyleValuesMapToCurrentStyles(rawValue: String, expectedStyle: StatusBarIndicatorStyle) {
         let defaults = makeDefaults()
         defaults.set(rawValue, forKey: "statusBarIndicatorStyle")
 

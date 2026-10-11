@@ -6,7 +6,6 @@ struct MenuBarMenuState {
     let inactiveAccounts: [CodexAccount]
     let refreshIntervalMinutes: Int
     let refreshIntervalOptions: [Int]
-    let statusBarMonochrome: Bool
     let statusBarIndicatorStyle: StatusBarIndicatorStyle
     let statusBarDisplayMode: StatusBarDisplayMode
     let revealStatusItemTitleShortcut: KeyboardShortcut?
@@ -35,8 +34,7 @@ struct MenuBarMenuState {
         inactiveAccounts: [CodexAccount],
         refreshIntervalMinutes: Int = 5,
         refreshIntervalOptions: [Int] = [1, 2, 5, 10, 15, 30],
-        statusBarMonochrome: Bool = true,
-        statusBarIndicatorStyle: StatusBarIndicatorStyle = .twinPills,
+        statusBarIndicatorStyle: StatusBarIndicatorStyle = .hourglass,
         statusBarDisplayMode: StatusBarDisplayMode = .iconOnly,
         revealStatusItemTitleShortcut: KeyboardShortcut? = .defaultRevealStatusItemTitle,
         sessionAccentColor: NSColor = StatusBarProgressColorDefaults.accent,
@@ -62,7 +60,6 @@ struct MenuBarMenuState {
         self.inactiveAccounts = inactiveAccounts
         self.refreshIntervalMinutes = refreshIntervalMinutes
         self.refreshIntervalOptions = refreshIntervalOptions
-        self.statusBarMonochrome = statusBarMonochrome
         self.statusBarIndicatorStyle = statusBarIndicatorStyle
         self.statusBarDisplayMode = statusBarDisplayMode
         self.revealStatusItemTitleShortcut = revealStatusItemTitleShortcut
