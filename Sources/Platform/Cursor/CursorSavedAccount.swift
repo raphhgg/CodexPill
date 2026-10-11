@@ -1,6 +1,6 @@
 import Foundation
 
-/// A Cursor sign-in CodexPill saved so it can put it back later.
+/// A Cursor sign-in Refill saved so it can put it back later.
 struct CursorSavedAccount: Sendable, Equatable, Identifiable, Codable {
     let id: UUID
     var name: String

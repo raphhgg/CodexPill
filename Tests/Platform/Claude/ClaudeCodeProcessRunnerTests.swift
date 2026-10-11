@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import CodexPill
+@testable import Refill
 
 /// The real runner, with a shell script standing in for `claude`.
 struct ClaudeCodeProcessRunnerTests {

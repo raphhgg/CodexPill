@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 import Testing
 
-@testable import CodexPill
+@testable import Refill
 
 @MainActor
 struct StatusItemHoverTrackerTests {

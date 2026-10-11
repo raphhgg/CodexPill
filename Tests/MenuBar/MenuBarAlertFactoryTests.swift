@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 import Testing
 
-@testable import CodexPill
+@testable import Refill
 
 struct MenuBarAlertFactoryTests {
     private let factory = MenuBarAlertFactory()
@@ -13,7 +13,7 @@ struct MenuBarAlertFactoryTests {
 
         let request = factory.makeAboutRequest()
 
-        #expect(request.messageText == "About CodexPill")
+        #expect(request.messageText == "About Refill")
         #expect(request.informativeText.contains("Version 0.1.0-beta.1"))
         #expect(!request.informativeText.contains("Version 0.1\n"))
     }
@@ -131,14 +131,14 @@ struct MenuBarAlertFactoryTests {
 
         let verification = factory.makeAddAccountSignInFailureRequest(outcome: .verificationFailed)
         #expect(verification.messageText == "Couldn't Add Account")
-        #expect(verification.informativeText == "CodexPill could not verify the signed-in account.")
+        #expect(verification.informativeText == "Refill could not verify the signed-in account.")
     }
 
     @Test
     func removeAccountRequestUsesPlainRemoveWhenAccountIsInactive() {
         let request = factory.makeRemoveAccountRequest(accountName: "Work")
 
-        #expect(request.informativeText.contains("removes Work from CodexPill"))
+        #expect(request.informativeText.contains("removes Work from Refill"))
         #expect(request.confirmTitle == "Remove")
     }
 
@@ -158,7 +158,7 @@ struct MenuBarAlertFactoryTests {
     func errorRequestUsesWarningStyle() {
         let request = factory.makeErrorRequest(message: "Boom")
 
-        #expect(request.messageText == "CodexPill Error")
+        #expect(request.messageText == "Refill Error")
         #expect(request.informativeText == "Boom")
         #expect(request.style == .warning)
     }
@@ -169,7 +169,7 @@ struct MenuBarAlertFactoryTests {
         Codex app-server error: failed to fetch codex rate limits: GET https://chatgpt.com/backend-api/wham/usage failed: 401 Unauthorized; body={"error":{"message":"Your authentication token has been invalidated. Please try signing in again.","code":"token_invalidated","status":401}}
         """)
 
-        #expect(request.messageText == "CodexPill Error")
+        #expect(request.messageText == "Refill Error")
         #expect(request.informativeText == "This saved Codex account needs to be signed in again before it can be used. Remove and add the account again, then retry.")
         #expect(!request.informativeText.contains("backend-api"))
         #expect(!request.informativeText.contains("token_invalidated"))

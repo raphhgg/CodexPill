@@ -7,7 +7,7 @@ enum CursorAccountsError: Error, Equatable, Sendable {
     case cursorNotInstalled
     case signedOut
     case accountNotFound
-    /// CodexPill's saved-account Keychain item could not be read or written.
+    /// Refill's saved-account Keychain item could not be read or written.
     case savedAccountsUnreadable
     case stateUnreadable
     /// Cursor is still running, for example because it is asking about unsaved changes. Nothing was written.

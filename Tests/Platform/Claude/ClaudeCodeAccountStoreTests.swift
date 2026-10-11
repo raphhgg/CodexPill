@@ -1,10 +1,10 @@
 import Foundation
 import Testing
 
-@testable import CodexPill
+@testable import Refill
 
 /// Claude Code's Keychain item is `<root>/claude-keychain-item.json`, its global config `<root>/.claude.json`, and
-/// CodexPill's saved accounts `<root>/claude-code-account-<id>.json`. All tokens are fake.
+/// Refill's saved accounts `<root>/claude-code-account-<id>.json`. All tokens are fake.
 struct ClaudeCodeAccountStoreTests {
     @Test
     func capturingSavesTheSignInOnceAndNamesItAfterTheEmail() throws {

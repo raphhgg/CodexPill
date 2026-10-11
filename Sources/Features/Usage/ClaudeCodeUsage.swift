@@ -1,6 +1,6 @@
 import Foundation
 
-/// Claude Code subscription limits for the menu, and the Claude accounts CodexPill saved. The card reads Claude
+/// Claude Code subscription limits for the menu, and the Claude accounts Refill saved. The card reads Claude
 /// Code's live sign-in once the user connects it; each saved account is read with its own saved sign-in.
 struct ClaudeCodeUsage: ProviderConnection {
     let provider = UsageProvider.claude

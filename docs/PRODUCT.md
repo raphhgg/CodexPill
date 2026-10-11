@@ -1,6 +1,6 @@
 # Product
 
-CodexPill is a native macOS menubar app for account switching and limits for Codex, Claude and Cursor on this Mac.
+Refill is a native macOS menubar app that shows Codex, Claude Code and Cursor usage limits and when they reset, and switches between saved accounts for each tool. Refill was called CodexPill before.
 
 It is for people who use more than one account in these tools and want to see, at a glance, how much of each limit is left and switch accounts without editing auth files or restarting apps by hand:
 
@@ -37,7 +37,7 @@ Secondary user:
 ## Product Principles
 
 - Menubar-first, not settings-first.
-- Local-first, no CodexPill cloud service.
+- Local-first, no Refill cloud service.
 - Fast account switching over broad account administration.
 - Every tool section works the same way: a header with the plan, the meters, and the same account actions.
 - In-app copy is a title plus at most one short line.
@@ -52,11 +52,11 @@ Codex, Claude Code or Cursor. Each has one menu card with its usage, and a side 
 
 ### Saved Account
 
-A locally stored sign-in managed by CodexPill, so the user can switch back to it.
+A locally stored sign-in managed by Refill, so the user can switch back to it.
 
 - **Codex.** A saved `auth.json` snapshot with a user-facing label, optional Codex metadata, and the latest known limits.
-- **Claude Code.** Claude Code's own sign-in for that account in a CodexPill Keychain item, matched by Claude Code's account record, with its latest known limits. It is added by running Claude Code's login in a throwaway folder, or by saving the sign-in Claude Code uses now. Switching is refused while Claude Code runs.
-- **Cursor.** A copy of Cursor's sign-in rows in a CodexPill Keychain item, with its latest known limits. It is added by signing in through Cursor in a separate window with a throwaway profile, or by saving the sign-in Cursor uses now. A switch quits Cursor, writes the saved sign-in back into Cursor's local database, and reopens Cursor. CodexPill never renews a saved Cursor sign-in, so an expired one keeps its last limits.
+- **Claude Code.** Claude Code's own sign-in for that account in a Refill Keychain item, matched by Claude Code's account record, with its latest known limits. It is added by running Claude Code's login in a throwaway folder, or by saving the sign-in Claude Code uses now. Switching is refused while Claude Code runs.
+- **Cursor.** A copy of Cursor's sign-in rows in a Refill Keychain item, with its latest known limits. It is added by signing in through Cursor in a separate window with a throwaway profile, or by saving the sign-in Cursor uses now. A switch quits Cursor, writes the saved sign-in back into Cursor's local database, and reopens Cursor. Refill never renews a saved Cursor sign-in, so an expired one keeps its last limits.
 
 ### Active Account
 
@@ -68,12 +68,12 @@ The most recent reading of a tool's limits: one window per limit the tool report
 
 ### Reset Credit
 
-A Codex credit that resets the current limits early. CodexPill shows how many are left and spends one only after the user confirms.
+A Codex credit that resets the current limits early. Refill shows how many are left and spends one only after the user confirms.
 
 ## Non-Goals
 
 - Browser-based ChatGPT account switching.
-- Signing in to Claude Code or Cursor, or renewing their sessions, with CodexPill's own code. CodexPill runs the tool's own login and lets the tool renew its sign-ins: Claude Code renews a saved copy in a throwaway folder, and its own expired sign-in when it isn't running. Switching only puts back a sign-in the tool itself created.
+- Signing in to Claude Code or Cursor, or renewing their sessions, with Refill's own code. Refill runs the tool's own login and lets the tool renew its sign-ins: Claude Code renews a saved copy in a throwaway folder, and its own expired sign-in when it isn't running. Switching only puts back a sign-in the tool itself created.
 - Cloud sync or multi-device account storage.
 - Team/shared account management.
 - Background telemetry pipeline.

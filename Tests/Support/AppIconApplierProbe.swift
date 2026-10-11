@@ -1,4 +1,4 @@
-@testable import CodexPill
+@testable import Refill
 
 @MainActor
 final class AppIconApplierProbe: AppIconApplying {

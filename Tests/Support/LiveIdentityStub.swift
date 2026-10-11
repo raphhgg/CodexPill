@@ -1,6 +1,6 @@
 import Foundation
 
-@testable import CodexPill
+@testable import Refill
 
 struct LiveIdentityStub: LiveCodexAccountIdentitySource {
     let identity: LiveCodexAccountIdentity

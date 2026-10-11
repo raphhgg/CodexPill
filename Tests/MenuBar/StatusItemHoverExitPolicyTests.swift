@@ -1,7 +1,7 @@
 import CoreGraphics
 import Testing
 
-@testable import CodexPill
+@testable import Refill
 
 struct StatusItemHoverExitPolicyTests {
     @Test

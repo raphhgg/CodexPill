@@ -1,7 +1,7 @@
 import Foundation
 
 /// Cursor's sign-in as it sits in `state.vscdb`: the `cursorAuth/*` rows that say who is signed in.
-/// It holds tokens, so it prints as `CursorSignIn(redacted)` and lives only in CodexPill's Keychain item.
+/// It holds tokens, so it prints as `CursorSignIn(redacted)` and lives only in Refill's Keychain item.
 struct CursorSignIn: Sendable, Equatable, Codable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
     static let accessTokenKey = "cursorAuth/accessToken"
     static let refreshTokenKey = "cursorAuth/refreshToken"

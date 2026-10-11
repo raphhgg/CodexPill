@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import CodexPill
+@testable import Refill
 
 struct CursorAccountsAddTests {
     private static let now = CursorAccessTokenFixtures.referenceDate
@@ -302,7 +302,7 @@ struct CursorAccountsAddTests {
     }
 }
 
-/// Cursor's live database signed in as one account, CodexPill's saved accounts, a separate-window sign-in with fake
+/// Cursor's live database signed in as one account, Refill's saved accounts, a separate-window sign-in with fake
 /// Cursor instances, and a settable usage-summary response.
 private final class CursorAddScenario: @unchecked Sendable {
     let harness: CursorStateDatabaseHarness
@@ -322,7 +322,7 @@ private final class CursorAddScenario: @unchecked Sendable {
         try harness.insertText(liveSignIn)
         harness.close()
 
-        // Short, like CodexPill's real folder: Cursor's socket path must fit in 103 bytes.
+        // Short, like Refill's real folder: Cursor's socket path must fit in 103 bytes.
         loginRoot = FileManager.default.temporaryDirectory.appendingPathComponent("cs-\(UUID().uuidString.prefix(8))", isDirectory: true)
         var login = CursorIsolatedLogin(launcher: instances, root: loginRoot)
         login.timeout = timeout

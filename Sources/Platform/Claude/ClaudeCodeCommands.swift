@@ -9,9 +9,9 @@ enum ClaudeCodeCommandError: Error, Equatable, Sendable {
     case timedOut
     /// Claude Code's login failed or saved no Claude sign-in.
     case signInFailed
-    /// The sign-in has no account record, so CodexPill can't tell which account it is.
+    /// The sign-in has no account record, so Refill can't tell which account it is.
     case accountUnknown
-    /// CodexPill could not make its throwaway config folder.
+    /// Refill could not make its throwaway config folder.
     case folderUnavailable
 }
 
@@ -29,7 +29,7 @@ protocol ClaudeCodeProcessRunning: Sendable {
     ) async throws(ClaudeCodeCommandError) -> Int32
 }
 
-/// Claude Code's Keychain items for throwaway config folders. CodexPill reads and deletes them through
+/// Claude Code's Keychain items for throwaway config folders. Refill reads and deletes them through
 /// `/usr/bin/security`, as Claude Code does. `security` created them, so macOS shows no prompt.
 protocol ClaudeCodeFolderKeychain: Sendable {
     func read(service: String) -> Data?
@@ -38,7 +38,7 @@ protocol ClaudeCodeFolderKeychain: Sendable {
 }
 
 /// Claude Code's own login and renewal. For saved accounts they run in a throwaway config folder so the user's Claude
-/// Code sign-in is never read or changed. CodexPill only copies out the sign-in Claude Code saved there, then deletes
+/// Code sign-in is never read or changed. Refill only copies out the sign-in Claude Code saved there, then deletes
 /// the folder and its Keychain item, also when the run fails or is cancelled.
 ///
 /// With `CLAUDE_CONFIG_DIR` set, Claude Code saves its sign-in in the Keychain item
@@ -53,7 +53,7 @@ struct ClaudeCodeCommands: Sendable {
 
     let processes: any ClaudeCodeProcessRunning
     let keychain: any ClaudeCodeFolderKeychain
-    /// Holds every throwaway config folder. CodexPill owns it.
+    /// Holds every throwaway config folder. Refill owns it.
     let root: URL
     var newFolderName: @Sendable () -> String = { UUID().uuidString }
 
@@ -126,7 +126,7 @@ struct ClaudeCodeCommands: Sendable {
         )
     }
 
-    /// Deletes folders and Keychain items an earlier run left behind when CodexPill quit in the middle of it.
+    /// Deletes folders and Keychain items an earlier run left behind when Refill quit in the middle of it.
     func removeLeftovers() {
         let folders = (try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? []
         folders.forEach(discard)
@@ -146,7 +146,7 @@ struct ClaudeCodeCommands: Sendable {
         return try await body(folder)
     }
 
-    /// Claude Code reads its Keychain item first and falls back to `.credentials.json`, so CodexPill does too.
+    /// Claude Code reads its Keychain item first and falls back to `.credentials.json`, so Refill does too.
     private func savedSignIn(in folder: URL) -> ClaudeCodeSignInSnapshot? {
         let credentials = keychain.read(service: Self.keychainService(forConfigDirectory: folder.path))
             ?? (try? ClaudeCredentialsSource.contentsIfPresent(of: folder.appendingPathComponent(".credentials.json")))

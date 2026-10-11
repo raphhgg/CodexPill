@@ -9,6 +9,23 @@
 
 Generated `.xcodeproj` and `.xcworkspace` files are transient build artifacts for the shell workflow, not source-of-truth files to open in Xcode during normal development.
 
+## Names Kept From CodexPill
+
+Refill was called CodexPill before. The app, the Xcode project, the scheme and
+the built app are now `Refill`. These keep the old name so existing data
+survives the rename:
+
+- bundle IDs `com.raphhgg.codexpill`, `.dev`, `.staging`, `.demo` and `.tests`,
+  and the preferences that use them;
+- `~/Library/Application Support/CodexPill` and `~/Library/Caches/CodexPill`;
+- the `CodexPill Claude Code account` and `CodexPill Cursor accounts` Keychain
+  items;
+- `CODEXPILL_*` environment variables;
+- the GitHub repository and the Homebrew cask `raphhgg/tap/codexpill`.
+
+A fresh dev build is `Refill.app`. A release installed before the rename is
+`CodexPill.app`.
+
 ## Commands
 
 Generate the project without opening Xcode:
@@ -29,14 +46,14 @@ Package a local release zip:
 make package-release
 ```
 
-`make package-release` builds `CodexPill.app` in Release configuration and, by
+`make package-release` builds `Refill.app` in Release configuration and, by
 default, requires local Developer ID signing and notarization configuration
 before it creates a public release artifact. Configure these environment
 variables locally:
 
 - `RELEASE_VERSION`: public release tag, for example `v0.1.0-beta.1`. Packaging
-  uses this for the artifact name and injects it into the app so `About` shows
-  the released version instead of `Dev`.
+  uses this for the artifact name, `Refill-<version>.zip`, and injects it into
+  the app so `About` shows the released version instead of `Dev`.
 - `DEVELOPER_ID_APPLICATION`: Developer ID Application signing identity name or
   SHA-1 hash.
 - `APPLE_TEAM_ID`: Apple Developer team ID.
@@ -87,7 +104,7 @@ Reset local state before testing the signed release install:
 ./scripts/reset_release_test_state.sh --apply --install
 ```
 
-The reset script is dry-run by default. It removes CodexPill app state,
+The reset script is dry-run by default. It removes Refill app state,
 preferences, local build artifacts, and isolated temporary login homes. With
 `--remote <host>` it also removes the `~/.codexpill` cache that earlier versions
 copied to an SSH host. Use `--remote-sign-out` only when you intentionally want
@@ -96,7 +113,7 @@ to remove that host's active Codex login.
 ## Isolated Launch
 
 Run a dev build without touching your real `~/.codex` login or your real
-CodexPill data:
+Refill data:
 
 ```bash
 make build AGENT_NAME=<name>
@@ -105,7 +122,7 @@ open -n \
   --env CODEXPILL_ISOLATED_APP_SUPPORT_DIR="$root" \
   --env CODEXPILL_ISOLATED_DEFAULTS_SUITE="codexpill-isolated-${root##*/}" \
   --env CODEX_HOME="$root" \
-  build/DerivedData/<name>/Build/Products/Debug/CodexPill.app
+  build/DerivedData/<name>/Build/Products/Debug/Refill.app
 ```
 
 - `CODEXPILL_ISOLATED_APP_SUPPORT_DIR` holds the account catalog, saved
@@ -113,7 +130,7 @@ open -n \
   writes.
 - `CODEXPILL_ISOLATED_DEFAULTS_SUITE` keeps preferences out of the real
   `UserDefaults` domain.
-- `CODEX_HOME` points the `codex app-server` that CodexPill starts at the same
+- `CODEX_HOME` points the `codex app-server` that Refill starts at the same
   `auth.json`.
 - Claude usage reads `.credentials.json` from `CLAUDE_CONFIG_DIR`, or from
   `<root>/.claude`, and never the Keychain. Saved Claude accounts are files in
@@ -129,7 +146,7 @@ open -n \
 
 Switching still asks the real Codex app to relaunch. Quit the isolated app by
 its process ID, not with `scripts/stop_menubar.sh`, which stops every running
-CodexPill.
+Refill. It does not stop an older `CodexPill.app`.
 
 ## Validation
 

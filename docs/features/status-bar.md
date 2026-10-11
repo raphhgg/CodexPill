@@ -1,6 +1,6 @@
 # Status Bar
 
-The status bar feature owns CodexPill's closed-state menubar presentation: icon, label, hover behavior, and compact usage indicators.
+The status bar feature owns Refill's closed-state menubar presentation: icon, label, hover behavior, and compact usage indicators.
 
 ## Purpose
 
@@ -17,7 +17,7 @@ The status bar gives the user a lightweight answer before opening the menu: how 
 
 ## Menu Bar Label Reveal Shortcut
 
-CodexPill ships with the global shortcut `⌃⌥⌘L` while the app is running.
+Refill ships with the global shortcut `⌃⌥⌘L` while the app is running.
 Pressing it temporarily reveals the same status item label that appears on hover
 for about three seconds without opening the menu and without changing the saved
 `Menu Bar Label` display mode. Pressing the shortcut again while the label is
@@ -31,7 +31,7 @@ Settings › Appearance
     Reveal Shortcut…    ⌃⌥⌘L
 ```
 
-If a configured shortcut cannot be registered, CodexPill keeps the previous
+If a configured shortcut cannot be registered, Refill keeps the previous
 working shortcut and shows an error.
 
 ## Usage Bars
@@ -53,7 +53,7 @@ Settings › Appearance
     Use Default Colors
 ```
 
-- `Show % Left` changes every usage percentage CodexPill shows (status item
+- `Show % Left` changes every usage percentage Refill shows (status item
   label, active account meters, saved account rows) to the share still
   available. The status item bars invert with it: a full bar means the window
   is untouched, an empty bar means it is used up. Pace markers move to the
@@ -72,7 +72,7 @@ The icon follows the first card in the menu, so the user picks it by moving that
 
 - Two windows fill both meters, session first. One window, such as Codex Pro's weekly limit, Codex Free's monthly limit, or Cursor's billing cycle, fills the lower meter.
 - A window the tool does not report draws as an outline-only track, never as 0%. A card with no reading draws both tracks as outlines.
-- With no card at all, the icon is CodexPill's pill.
+- With no card at all, the icon is Refill's pill.
 - A stale reading is not dimmed.
 - The label reads `S 11% W 60%`, `W 17%` for one weekly window, `M 3%` for one monthly window, `8d 9%` for a window with no name, or `82%` for a billing cycle alone. A full window shows its countdown instead.
 - The tooltip names the tool and plan, the account in use (masked with Hide Emails), and the reset of any full window.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_NAME="CodexPill"
+APP_NAME="Refill"
 PROJECT_PATH="${APP_NAME}.xcodeproj"
 SCHEME="${APP_NAME}"
 CONFIGURATION="Release"

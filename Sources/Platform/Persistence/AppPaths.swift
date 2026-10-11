@@ -9,6 +9,7 @@ struct AppPaths {
     let snapshotsDirectory: URL
     let codexAuthFile: URL
 
+    // Keeps the CodexPill name so saved accounts and settings survive the rename.
     private static let appSupportFolderName = "CodexPill"
     private static let legacyAppSupportFolderName = "CodexSwitchboard"
 

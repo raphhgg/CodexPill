@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import CodexPill
+@testable import Refill
 
 /// Claude accounts that work like Codex accounts: added through Claude Code's own login in a throwaway folder, read
 /// with their own saved sign-in, renewed by Claude Code, and switched with the live sign-in saved first.
@@ -577,7 +577,7 @@ private final class ClaudeAccountsFixture: @unchecked Sendable {
         try! JSONSerialization.data(withJSONObject: ["oauthAccount": account.record])
     }
 
-    /// What Claude Code leaves after `/login`: its Keychain item and the account record, saved in CodexPill unless
+    /// What Claude Code leaves after `/login`: its Keychain item and the account record, saved in Refill unless
     /// `saved` is false.
     func signInLive(_ account: ClaudeTestAccount, access: String, expiresAt: Date? = nil, saved: Bool = true) throws {
         try credentials(access: access, expiresAt: expiresAt).write(to: liveKeychainFile)

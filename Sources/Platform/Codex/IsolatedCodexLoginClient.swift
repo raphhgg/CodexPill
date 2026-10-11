@@ -37,7 +37,7 @@ enum IsolatedCodexLoginError: LocalizedError {
         case .authCaptureTimedOut:
             "The Codex sign-in code expired before the account was added."
         case .loginStatusVerificationFailed:
-            "CodexPill could not verify the signed-in account."
+            "Refill could not verify the signed-in account."
         }
     }
 }

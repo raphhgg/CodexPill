@@ -1,6 +1,6 @@
 # Beta Testing Guide
 
-CodexPill is in beta. The goal of beta testing is to verify that the signed app
+Refill is in beta. The goal of beta testing is to verify that the signed app
 installs cleanly, handles local Codex account snapshots carefully, and makes
 account switching easier without surprising the user.
 
@@ -23,22 +23,24 @@ Confirm:
 
 - Codex is installed and signed in on this Mac.
 - You have a current backup or recovery path for anything important.
-- You understand that CodexPill stores saved Codex auth snapshots locally under
-  `~/Library/Application Support/CodexPill`.
+- You understand that Refill stores saved Codex auth snapshots locally under
+  `~/Library/Application Support/CodexPill`. The folder keeps the app's old
+  name so saved accounts survive the rename.
 - You will not share raw auth payloads, tokens, refresh tokens, complete logs,
   or screenshots containing private account or host details.
 
-Do not test CodexPill on a machine where account switching disruption would be
+Do not test Refill on a machine where account switching disruption would be
 unacceptable.
 
 Read [Uninstall And Reset](UNINSTALL_RESET.md) before testing so you know how to
-remove CodexPill-owned beta state if needed.
+remove Refill-owned beta state if needed.
 
 ## What To Test First
 
 1. Download the signed beta from the GitHub Release.
 2. Or install it with `brew install --cask raphhgg/tap/codexpill`.
-3. Unzip and launch `CodexPill.app` if you used the GitHub Release zip.
+3. Unzip and launch `Refill.app` if you used the GitHub Release zip. Releases
+   from before the rename unzip to `CodexPill.app`.
 4. Confirm the app opens without Gatekeeper bypass steps.
 5. Confirm the menu bar item appears.
 6. Check whether the active account and usage limits look believable.
@@ -57,12 +59,12 @@ Useful beta feedback is specific and boring:
 - what you clicked or selected immediately before it happened;
 - whether the issue reproduced;
 - macOS version;
-- CodexPill version.
+- Refill version.
 
 Use the matching GitHub beta issue template for public bugs, confusion, or
 feedback.
 
-CodexPill also includes a diagnostics export. If a bug is hard to describe,
+Refill also includes a diagnostics export. If a bug is hard to describe,
 create a diagnostic report from the app and review it before sharing. The report
 is designed to be redacted, but you should still avoid posting anything publicly
 that contains account identity, hostnames, local paths, tokens, auth payloads, or

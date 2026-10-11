@@ -155,11 +155,11 @@ enum AddAccountWorkflowError: Equatable, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .liveAuthChanged:
-            "CodexPill could not verify that your current account stayed unchanged. No account was added."
+            "Refill could not verify that your current account stayed unchanged. No account was added."
         case .accountAlreadySaved(let name):
             "This Codex account is already saved as \(name)."
         case .catalogSaveFailed:
-            "The sign-in completed, but CodexPill could not save the account. Your current Codex account was not changed."
+            "The sign-in completed, but Refill could not save the account. Your current Codex account was not changed."
         }
     }
 }

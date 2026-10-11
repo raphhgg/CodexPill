@@ -1,17 +1,21 @@
 # Uninstall And Reset
 
-Use this if you want to remove CodexPill or clear its saved beta state.
+Use this if you want to remove Refill or clear its saved beta state.
 
 ## Uninstall The App
 
-1. Quit CodexPill from the menu bar.
-2. Delete `CodexPill.app` from `Applications` or wherever you installed it.
+1. Quit Refill from the menu bar.
+2. Delete `Refill.app` from `Applications` or wherever you installed it. A
+   release installed before the rename is `CodexPill.app`.
 
-This removes the app but keeps saved CodexPill accounts for a future reinstall.
+This removes the app but keeps saved Refill accounts for a future reinstall.
 
-## Clear CodexPill State
+Refill was called CodexPill before. Its data folder, preferences and Keychain
+items keep the old name, so the commands below still say `CodexPill`.
 
-Only do this if you want to delete CodexPill's saved accounts, snapshots, and
+## Clear Refill State
+
+Only do this if you want to delete Refill's saved accounts, snapshots, and
 preferences from this Mac:
 
 ```sh
@@ -21,7 +25,7 @@ defaults delete com.raphhgg.codexpill
 
 It is fine if `defaults delete` says the domain does not exist.
 
-If you saved Claude Code accounts, also remove CodexPill's Keychain items for
+If you saved Claude Code accounts, also remove Refill's Keychain items for
 them. Run this until it says the item could not be found:
 
 ```sh
@@ -29,13 +33,13 @@ security delete-generic-password -s "CodexPill Claude Code account"
 ```
 
 This leaves Claude Code's own sign-in, the `Claude Code-credentials` item, as it
-is. CodexPill never deletes that item.
+is. Refill never deletes that item.
 
 While you add a Claude account, or while Claude Code renews a saved one, Claude
 Code keeps that sign-in in a temporary `Claude Code-credentials-<8 characters>`
 item for a folder under `~/Library/Application Support/CodexPill/claude-sign-in`.
-CodexPill deletes both when the run ends, and on its next launch after a crash.
-If you remove CodexPill right after a crash, list what is left and delete each
+Refill deletes both when the run ends, and on its next launch after a crash.
+If you remove Refill right after a crash, list what is left and delete each
 item by its exact name:
 
 ```sh
@@ -53,11 +57,11 @@ If you saved Cursor accounts, remove the one Keychain item that holds them all:
 security delete-generic-password -s "CodexPill Cursor accounts"
 ```
 
-Cursor stays signed in as it is. CodexPill never deletes Cursor's own data.
+Cursor stays signed in as it is. Refill never deletes Cursor's own data.
 
 Adding a Cursor account uses a temporary Cursor profile under
-`~/Library/Application Support/CodexPill/cursor-sign-in`. CodexPill deletes it when
-the sign-in ends, and deletes any left by a crash at its next launch. If CodexPill is
+`~/Library/Application Support/CodexPill/cursor-sign-in`. Refill deletes it when
+the sign-in ends, and deletes any left by a crash at its next launch. If Refill is
 already uninstalled, quit any extra Cursor window first, then remove the folder:
 
 ```sh
@@ -69,13 +73,13 @@ you intentionally want to sign out of Codex or repair Codex itself.
 
 ## Remote Hosts From Earlier Versions
 
-Earlier versions could copy selected snapshots to SSH hosts. If you used that, CodexPill may have left them in:
+Earlier versions could copy selected snapshots to SSH hosts. If you used that, Refill may have left them in:
 
 ```text
 ~/.codexpill/snapshots
 ```
 
-On each remote host, remove CodexPill-owned remote state only if you no longer
+On each remote host, remove Refill-owned remote state only if you no longer
 need it:
 
 ```sh

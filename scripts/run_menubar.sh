@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${REPO_ROOT}"
 
-APP_NAME="CodexPill"
+APP_NAME="Refill"
 AGENT_NAME="${AGENT_NAME:-local}"
 DERIVED_DATA="build/DerivedData/${AGENT_NAME}"
 APP_PATH="${DERIVED_DATA}/Build/Products/Debug/${APP_NAME}.app"

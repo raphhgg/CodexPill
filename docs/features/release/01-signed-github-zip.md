@@ -2,7 +2,7 @@
 
 ## User Story
 
-As a macOS Codex user trying CodexPill for the first time, I want to download a
+As a macOS Codex user trying Refill for the first time, I want to download a
 release artifact from GitHub that macOS can verify, so I can evaluate the app
 without building from source or bypassing scary Gatekeeper warnings.
 
@@ -10,7 +10,7 @@ without building from source or bypassing scary Gatekeeper warnings.
 
 The first public beta distribution channels are:
 
-- a signed and notarized GitHub Release `.zip` containing `CodexPill.app`;
+- a signed and notarized GitHub Release `.zip` containing `Refill.app`;
 - a Homebrew cask that installs the same signed and notarized release artifact.
 
 The release artifact must be built from the public `main` branch, signed with a
@@ -27,16 +27,16 @@ It must not build from source or point at an unsigned app.
    truth.
 2. Maintainer runs `make package-release` from a clean `main` checkout with
    `RELEASE_VERSION` set to the public tag, for example `v0.1.0-beta.1`.
-3. Packaging builds `CodexPill.app` in release configuration.
+3. Packaging builds `Refill.app` in release configuration.
 4. Packaging signs the app with Developer ID and hardened runtime.
 5. Packaging submits the app for notarization.
 6. Packaging staples the notarization ticket.
 7. Packaging injects the release version into the copied app bundle so `About`
    displays the public release version.
-8. Packaging creates a `.zip` containing `CodexPill.app`.
+8. Packaging creates a `.zip` containing `Refill.app`.
 9. Maintainer creates a GitHub Release and attaches the zip.
 10. Maintainer updates the Homebrew cask to point at the released artifact.
-11. A user installs via Homebrew or downloads, unzips, and launches CodexPill
+11. A user installs via Homebrew or downloads, unzips, and launches Refill
    without manual Gatekeeper
    bypass instructions.
 
@@ -59,7 +59,7 @@ Signed beta downloads are not available yet. Build from source for now.
 The README should include a short first-run note:
 
 - Codex must already be installed.
-- CodexPill reads local Codex auth state and stores saved account snapshots
+- Refill reads local Codex auth state and stores saved account snapshots
   locally.
 
 ## Edge Cases
@@ -77,9 +77,9 @@ The README should include a short first-run note:
 
 ## Acceptance Criteria
 
-- A clean `main` checkout can produce `CodexPill.app` in release configuration.
+- A clean `main` checkout can produce `Refill.app` in release configuration.
 - `make package-release` produces a `.zip` artifact containing
-  `CodexPill.app`.
+  `Refill.app`.
 - The app is signed with Developer ID Application identity.
 - Hardened runtime is enabled for the signed app.
 - Apple notarization succeeds.

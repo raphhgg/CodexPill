@@ -1,6 +1,6 @@
 # Accounts
 
-CodexPill accounts are locally saved Codex authentication snapshots with user-facing metadata. Account features must preserve a clear distinction between catalog management and switching the active Codex account.
+Refill accounts are locally saved Codex authentication snapshots with user-facing metadata. Account features must preserve a clear distinction between catalog management and switching the active Codex account.
 
 Feature documents define what the account workflow must do. UX sections define how the user experiences those workflows in menus, alerts, and panels.
 
@@ -8,7 +8,7 @@ Feature documents define what the account workflow must do. UX sections define h
 
 ### 01. Add Account
 
-Add another Codex account to CodexPill's local catalog without changing the currently active local Codex account.
+Add another Codex account to Refill's local catalog without changing the currently active local Codex account.
 
 See [Add Account](01-add-account.md).
 
@@ -20,7 +20,7 @@ See [Switch Account](02-switch-account.md).
 
 ### 03. Remove Account
 
-Remove a saved account snapshot from CodexPill's local catalog.
+Remove a saved account snapshot from Refill's local catalog.
 
 See [Remove Account](03-remove-account.md).
 
@@ -36,7 +36,7 @@ The whole menu layout, including the Codex card and its side menu, is owned by [
 
 ## Menu UX
 
-The Codex card shows the account in use: its plan, its windows and its reset credits. When CodexPill cannot match the live `auth.json` to a saved account, the card says `No saved account in use` instead of showing a saved account's numbers as current.
+The Codex card shows the account in use: its plan, its windows and its reset credits. When Refill cannot match the live `auth.json` to a saved account, the card says `No saved account in use` instead of showing a saved account's numbers as current.
 
 The Codex side menu lists accounts by email, never by name:
 
@@ -52,7 +52,7 @@ Switch:
 Remove:
 
 - Uses a destructive confirmation alert.
-- If the removed account is active on This Mac, CodexPill signs it out before deleting the saved snapshot.
-- If the sign-out fails, CodexPill keeps the saved account so the user does not lose the main control surface for an active login.
+- If the removed account is active on This Mac, Refill signs it out before deleting the saved snapshot.
+- If the sign-out fails, Refill keeps the saved account so the user does not lose the main control surface for an active login.
 
 With no saved account and no other tool connected, the menu offers `Add Account ›` directly, and launch asks to add a Codex account once. Account actions are disabled while another account operation runs.

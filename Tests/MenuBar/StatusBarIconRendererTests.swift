@@ -2,7 +2,7 @@ import AppKit
 import CryptoKit
 import Testing
 
-@testable import CodexPill
+@testable import Refill
 
 struct StatusBarIconRendererTests {
     @Test

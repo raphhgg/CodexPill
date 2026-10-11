@@ -26,7 +26,7 @@ struct ProviderCopy: Sendable {
         case .connect: connectPrompt
         case .switchAccount: switchPrompt
         case .removeAccount:
-            ProviderPrompt(title: "Remove this \(name) account?", detail: "CodexPill forgets its saved sign-in.", confirmTitle: "Remove")
+            ProviderPrompt(title: "Remove this \(name) account?", detail: "Refill forgets its saved sign-in.", confirmTitle: "Remove")
         case .allowKeychainAccess, .cancelSignIn, .disconnect, .addAccount, .useResetCredit: nil
         }
     }
@@ -98,7 +98,7 @@ extension ClaudeCodeAccountError {
         case .claudeCodeSignedOut: ("Claude Code isn't signed in", "Run claude and sign in first.")
         case .claudeCodeAccountUnknown: ("Unknown Claude account", "Open Claude Code once, then retry.")
         case .claudeCodeRunning: ("Quit Claude Code first", "Close every claude session.")
-        case .keychainAccessNeeded: ("Allow Keychain access", "CodexPill needs it to switch.")
+        case .keychainAccessNeeded: ("Allow Keychain access", "Refill needs it to switch.")
         case .unreadable: ("Can't read the Claude sign-in", "Sign in to Claude Code again.")
         case .writeFailed: ("Couldn't switch", "Nothing was changed.")
         case .restoreFailed: ("Couldn't undo the switch", "Sign in to Claude Code again.")

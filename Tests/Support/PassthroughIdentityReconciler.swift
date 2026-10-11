@@ -1,6 +1,6 @@
 import Foundation
 
-@testable import CodexPill
+@testable import Refill
 
 struct PassthroughIdentityReconciler: StoredAccountIdentityReconciler {
     func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {

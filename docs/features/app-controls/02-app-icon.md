@@ -2,7 +2,7 @@
 
 ## User Story
 
-As a CodexPill user, I want to pick the colour of the CodexPill app icon, so the
+As a Refill user, I want to pick the colour of the Refill app icon, so the
 app's own windows and alerts match the look I prefer.
 
 ## Product Contract
@@ -12,16 +12,16 @@ The app icon is a porcelain-and-glass capsule built as an Icon Composer document
 asset catalog for macOS 26 and later, and generates an `AppIcon.icns` fallback
 for macOS 14 and 15.
 
-CodexPill exposes an `App Icon` submenu in `Settings › Appearance` with six colours:
+Refill exposes an `App Icon` submenu in `Settings › Appearance` with six colours:
 Cobalt, Deep teal, Emerald, Violet, Honey and Rose. Cobalt is the default. The
 choice persists and is applied at launch.
 
-macOS has no API that lets an app change its own Finder icon. CodexPill sets its
+macOS has no API that lets an app change its own Finder icon. Refill sets its
 in-app icon (`NSApplication.applicationIconImage`) instead. The choice changes:
 
-- The `About CodexPill` alert.
-- Every CodexPill alert and confirmation.
-- The title-bar icon of CodexPill panels, such as shortcut capture.
+- The `About Refill` alert.
+- Every Refill alert and confirmation.
+- The title-bar icon of Refill panels, such as shortcut capture.
 
 The choice does not change:
 

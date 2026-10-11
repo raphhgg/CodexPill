@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import CodexPill
+@testable import Refill
 
 struct CodexUsageTests {
     private let fetchedAt = Date(timeIntervalSince1970: 2_000_000_100)

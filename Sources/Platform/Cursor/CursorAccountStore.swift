@@ -1,7 +1,7 @@
 import Foundation
 import Security
 
-/// Where CodexPill keeps its saved Cursor accounts. Each account holds Cursor tokens, so the store is the
+/// Where Refill keeps its saved Cursor accounts. Each account holds Cursor tokens, so the store is the
 /// Keychain, never a file.
 protocol CursorAccountStore: Sendable {
     func load() throws -> [CursorSavedAccount]
@@ -16,6 +16,7 @@ enum CursorAccountStoreError: Error, Equatable {
 /// The `CodexPill Cursor accounts` generic password in the login Keychain. All saved accounts are one item,
 /// so capturing the outgoing account and the account list change together in one write.
 struct SystemCursorAccountKeychain: CursorAccountStore {
+    // Keeps the CodexPill name so accounts saved before the rename stay readable.
     static let service = "CodexPill Cursor accounts"
     static let account = "Cursor"
 

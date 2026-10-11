@@ -1,6 +1,6 @@
 import Foundation
 
-@testable import CodexPill
+@testable import Refill
 
 struct DisabledAccountStatusClient: CodexAccountStatusClient, SavedCodexAccountStatusClient {
     func readCurrentAccountStatus() async throws -> CodexAccountStatus {
