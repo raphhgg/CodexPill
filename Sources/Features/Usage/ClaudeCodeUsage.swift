@@ -1,6 +1,7 @@
 import Foundation
 
-/// Claude Code subscription limits for the menu, read from Claude Code's sign-in only after the user connects it.
+/// Claude Code subscription limits for the menu, and the Claude accounts CodexPill saved. The card reads Claude
+/// Code's live sign-in once the user connects it; each saved account is read with its own saved sign-in.
 struct ClaudeCodeUsage: ProviderConnection {
     let provider = UsageProvider.claude
     let staleAfter: TimeInterval = 15 * 60
@@ -8,18 +9,26 @@ struct ClaudeCodeUsage: ProviderConnection {
 
     let settings: ClaudeUsageSettingsStore
     let client: ClaudeUsageClient
-    /// Saved Claude Code sign-ins to switch between. Nil in isolated runs, which never write the real Keychain.
+    /// Saved Claude Code sign-ins to switch between. Nil when this build can't switch.
     let accounts: ClaudeCodeAccountStore?
+    /// Claude Code's own login and renewal. Nil when this build can't add accounts.
+    let commands: ClaudeCodeCommands?
+    /// `CLAUDE_CONFIG_DIR` for Claude Code's live sign-in, or nil for its default folder.
+    let liveConfigDirectory: String?
 
     init(
         settings: ClaudeUsageSettingsStore,
         client: ClaudeUsageClient,
         accounts: ClaudeCodeAccountStore? = nil,
+        commands: ClaudeCodeCommands? = nil,
+        liveConfigDirectory: String? = nil,
         refreshInterval: TimeInterval = ProviderUsageRuntime.refreshInterval
     ) {
         self.settings = settings
         self.client = client
         self.accounts = accounts
+        self.commands = commands
+        self.liveConfigDirectory = liveConfigDirectory
         self.refreshInterval = refreshInterval
     }
 
@@ -37,14 +46,23 @@ struct ClaudeCodeUsage: ProviderConnection {
         settings.isEnabled = false
     }
 
-    let signIn: (any ProviderSignIn)? = nil
+    var signInAvailability: ProviderSignInAvailability {
+        guard accounts != nil, let commands else { return .unsupported }
+        return commands.isInstalled ? .available : .notInstalled
+    }
 
     func savedAccounts() async throws(ProviderNotice) -> [ProviderAccount] {
         guard let accounts else { return [] }
         do {
             let activeID = try accounts.activeAccountID()
             return try accounts.accounts().map {
-                ProviderAccount(id: $0.id, email: $0.email, name: $0.organizationName, isActive: $0.id == activeID)
+                ProviderAccount(
+                    id: $0.id,
+                    email: $0.email,
+                    name: $0.organizationName,
+                    isActive: $0.id == activeID,
+                    usage: $0.usage.flatMap(Self.snapshot(from:))
+                )
             }
         } catch {
             throw error.notice
@@ -60,6 +78,52 @@ struct ClaudeCodeUsage: ProviderConnection {
             throw error.notice
         }
         await client.allowKeychainPromptOnNextRead()
+    }
+
+    /// Runs `claude auth login` in a throwaway config folder and saves the account it signed in to. When Claude Code
+    /// has no sign-in at all, it signs Claude Code itself in instead, so the new account can be used right away.
+    func addAccount() async throws(ProviderNotice) -> Bool {
+        let store: ClaudeCodeAccountStore
+        do {
+            store = try self.store()
+        } catch {
+            throw error.notice
+        }
+        guard let commands else { throw ClaudeCodeAccountError.switchingUnavailable.notice }
+
+        let signsInClaudeCode: Bool
+        if case .signedOut = store.claudeCode.current(allowingPrompt: false) {
+            signsInClaudeCode = true
+        } else {
+            signsInClaudeCode = false
+        }
+        let signIn: ClaudeCodeSignInSnapshot?
+        do {
+            if signsInClaudeCode {
+                try await commands.signInToClaudeCode(configDirectory: liveConfigDirectory)
+                signIn = nil
+            } else {
+                signIn = try await commands.signIn()
+            }
+        } catch {
+            if error == .cancelled { return false }
+            throw error.notice
+        }
+
+        do {
+            if let signIn {
+                try store.add(signIn)
+            } else {
+                try store.captureCurrent()
+            }
+        } catch {
+            throw error.notice
+        }
+        settings.isEnabled = true
+        if signsInClaudeCode {
+            await client.allowKeychainPromptOnNextRead()
+        }
+        return true
     }
 
     func addCurrentAccount() async throws(ProviderNotice) {
@@ -78,9 +142,34 @@ struct ClaudeCodeUsage: ProviderConnection {
         }
     }
 
+    /// An expired saved sign-in is renewed by Claude Code in a throwaway folder first, and saved again only if the
+    /// saved copy did not change meanwhile. When it can't be renewed, the account keeps its last limits.
+    func refreshInactiveAccount(_ id: UUID, now: Date) async {
+        guard let accounts, (try? accounts.activeAccountID()) != id, var signIn = try? accounts.savedSignIn(id) else { return }
+        let isExpired = ((try? ClaudeCredentials(json: signIn.itemData)) ?? nil)?.isExpired(at: now) ?? true
+        if isExpired {
+            guard
+                let renewed = try? await commands?.renew(signIn),
+                accounts.replaceSavedSignIn(id, with: renewed, ifUnchangedFrom: signIn)
+            else {
+                return
+            }
+            signIn = renewed
+        }
+        guard case let .available(report, planName) = await client.refresh(savedSignIn: signIn, now: now) else { return }
+        try? accounts.recordUsage(ClaudeCodeSavedUsage(report: report, planName: planName, fetchedAt: now), for: id)
+    }
+
     private func store() throws(ClaudeCodeAccountError) -> ClaudeCodeAccountStore {
         guard let accounts else { throw .switchingUnavailable }
         return accounts
+    }
+
+    private static func snapshot(from usage: ClaudeCodeSavedUsage) -> UsageSnapshot? {
+        guard case let .snapshot(snapshot) = reading(from: .available(usage.report, planName: usage.planName), fetchedAt: usage.fetchedAt) else {
+            return nil
+        }
+        return snapshot
     }
 
     func readUsage(now: Date) async -> UsageProviderReading {

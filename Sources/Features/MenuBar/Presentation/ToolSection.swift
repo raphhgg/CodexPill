@@ -9,6 +9,8 @@ struct ToolSection: Equatable {
     let accounts: [ToolAccount]
     /// An action row under the card while its state lasts, such as "Allow Keychain access…".
     let followUp: ToolFollowUp?
+    /// Whether "Add <Tool> Account…" can run the tool's own sign-in.
+    var signInAvailability: ProviderSignInAvailability = .available
 
     var activeAccount: ToolAccount? {
         accounts.first(where: \.isActive)
@@ -36,6 +38,8 @@ struct ToolAccount: Equatable {
     let id: UUID
     let label: String
     let isActive: Bool
+    /// The account's last limits on one line, such as "Session 12% · Weekly 40% used". Nil before the first read.
+    var usageLine: String? = nil
 }
 
 struct ToolFollowUp: Equatable {
@@ -99,7 +103,8 @@ extension MenuBarMenuState {
             ToolAccount(
                 id: account.id,
                 label: account.email.map { displayedEmail($0, masked: masksEmails) } ?? account.name,
-                isActive: account.id == activeAccount?.id
+                isActive: account.id == activeAccount?.id,
+                usageLine: accountUsageLine(account.usage)
             )
         }
 
@@ -145,6 +150,8 @@ extension MenuBarMenuState {
                 card.title = message.title
                 if reason == .keychainAccessNeeded {
                     followUp = ToolFollowUp(title: "Allow Keychain access…", systemImage: "key", action: .allowKeychainAccess)
+                } else if [.signedOut, .signInUnreadable].contains(reason), usage.signInAvailability == .available {
+                    followUp = ToolFollowUp(title: "Sign In…", systemImage: "person.crop.circle", action: .addAccount)
                 }
             }
         }
@@ -155,7 +162,8 @@ extension MenuBarMenuState {
             planTag: snapshot.flatMap { planTag(for: usage.provider, planName: $0.planName) },
             card: card,
             accounts: accounts.filter(\.isActive) + accounts.filter { !$0.isActive },
-            followUp: followUp
+            followUp: followUp,
+            signInAvailability: usage.signInAvailability
         )
     }
 
@@ -172,8 +180,28 @@ extension MenuBarMenuState {
         return zip(accounts, baseLabels).map { account, label in
             seen[label, default: 0] += 1
             let count = seen[label] ?? 1
-            return ToolAccount(id: account.id, label: count > 1 ? "\(label) \(count)" : label, isActive: account.isActive)
+            return ToolAccount(
+                id: account.id,
+                label: count > 1 ? "\(label) \(count)" : label,
+                isActive: account.isActive,
+                usageLine: accountUsageLine(account.usage)
+            )
         }
+    }
+
+    /// A saved account's limits for its side-menu item, in the user's % used or % left. A reading older than two
+    /// inactive refreshes says when it was read: "Session 12% · Weekly 40% used · as of 10:26".
+    func accountUsageLine(_ snapshot: UsageSnapshot?) -> String? {
+        guard let snapshot, !snapshot.displayedWindows.isEmpty else { return nil }
+        let percents = snapshot.displayedWindows.map { window in
+            let used = window.displayedUsedPercent(at: now)
+            return "\(window.kind.title) \(usagePercentMode == .used ? used : 100 - used)%"
+        }
+        var line = percents.joined(separator: " · ") + (usagePercentMode == .used ? " used" : " left")
+        if snapshot.freshness(at: now, staleAfter: 2 * ProviderUsageRuntime.inactiveRefreshInterval) == .stale {
+            line += " · as of \(usageAsOfText(snapshot.fetchedAt, now: now))"
+        }
+        return line
     }
 
     /// A reading that is not current keeps its meters, dimmed, under the time it was read.

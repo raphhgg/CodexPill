@@ -73,19 +73,21 @@ struct MenuBarMenuBuilder {
         let menu = NSMenu(title: title)
 
         if let active = section.activeAccount {
-            menu.addItem(disabledItem(active.label))
+            let item = disabledItem(active.label)
+            item.state = .on
+            menu.addItem(item)
             menu.addItem(.separator())
         }
 
         let others = section.otherAccounts
         if others.count == 1, let other = others.first {
-            let item = providerItem(title: "Use \(other.label)", .switchAccount(other.id), for: provider, target: target)
+            let item = accountItem(title: "Use \(other.label)", other, for: provider, target: target)
             item.isEnabled = accountActionsEnabled
             menu.addItem(item)
         } else if others.count > 1 {
             let accounts = NSMenu(title: "Use Another \(title) Account")
             for other in others {
-                let item = providerItem(title: other.label, .switchAccount(other.id), for: provider, target: target)
+                let item = accountItem(title: other.label, other, for: provider, target: target)
                 item.isEnabled = accountActionsEnabled
                 accounts.addItem(item)
             }
@@ -124,9 +126,16 @@ struct MenuBarMenuBuilder {
         }
 
         addSeparatorIfNeeded(to: menu)
-        let add = providerItem(title: "Add \(title) Account…", .addAccount, for: provider, target: target)
-        add.isEnabled = accountActionsEnabled
+        let availability = section.signInAvailability
+        let add = providerItem(title: "Add \(title) Account…", availability == .unsupported ? .saveCurrentAccount : .addAccount, for: provider, target: target)
+        add.isEnabled = accountActionsEnabled && availability != .notInstalled
         menu.addItem(add)
+        if availability == .notInstalled {
+            menu.addItem(disabledItem("Install \(provider.copy.name) first"))
+        }
+        if provider != .codex, availability != .unsupported {
+            menu.addItem(providerItem(title: "Save Current Sign-In", .saveCurrentAccount, for: provider, target: target))
+        }
         if !section.accounts.isEmpty {
             let remove = NSMenu(title: "Remove \(title) Account")
             for account in section.accounts {
@@ -173,9 +182,15 @@ struct MenuBarMenuBuilder {
     private func addAccountMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
         let menu = NSMenu(title: "Add Account")
         for provider in [UsageProvider.codex, .claude, .cursor] {
-            let isConnected = provider == .codex || state.providerUsage.contains { $0.provider == provider && $0.status != .notConnected }
-            let item = providerItem(title: "\(provider.copy.sectionTitle)…", isConnected ? .addAccount : .connect, for: provider, target: target)
-            item.isEnabled = provider != .codex || !state.isBusy
+            let usage = state.providerUsage.first { $0.provider == provider && $0.status != .notConnected }
+            let action: ProviderAction = switch (provider, usage?.signInAvailability) {
+            case (.codex, _): .addAccount
+            case (_, nil): .connect
+            case (_, .unsupported): .saveCurrentAccount
+            case (_, .available), (_, .notInstalled): .addAccount
+            }
+            let item = providerItem(title: "\(provider.copy.sectionTitle)…", action, for: provider, target: target)
+            item.isEnabled = provider == .codex ? !state.isBusy : usage?.signInAvailability != .notInstalled
             menu.addItem(item)
         }
         return submenuItem(menu)
@@ -255,6 +270,20 @@ struct MenuBarMenuBuilder {
                 item.keyEquivalent = keyEquivalent
                 item.keyEquivalentModifierMask = presentation.modifierFlags
             }
+        }
+        return item
+    }
+
+    /// A saved account to switch to, with its last limits on a second, smaller line.
+    private func accountItem(title: String, _ account: ToolAccount, for provider: UsageProvider, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = providerItem(title: title, .switchAccount(account.id), for: provider, target: target)
+        if let usageLine = account.usageLine {
+            let attributed = NSMutableAttributedString(string: title, attributes: [.font: NSFont.menuFont(ofSize: 0)])
+            attributed.append(NSAttributedString(
+                string: "\n" + usageLine,
+                attributes: [.font: NSFont.menuFont(ofSize: NSFont.smallSystemFontSize), .foregroundColor: NSColor.secondaryLabelColor]
+            ))
+            item.attributedTitle = attributed
         }
         return item
     }

@@ -2,9 +2,14 @@ import Foundation
 
 /// Owns every connected tool other than Codex: reads each at most once per its `refreshInterval`, keeps its latest
 /// reading, its last good snapshot and its saved accounts for the menu, and runs the actions the menu sends.
+///
+/// Saved accounts the tool is not signed in to are read every `inactiveRefreshInterval`, one at a time, the way
+/// `AccountsController` reads inactive Codex accounts. An action that changes accounts first lets the account being
+/// read finish and stops the rest, so a renewed sign-in is saved before the action touches any sign-in.
 @MainActor
 final class ProviderUsageRuntime {
     nonisolated static let refreshInterval: TimeInterval = 5 * 60
+    nonisolated static let inactiveRefreshInterval: TimeInterval = 15 * 60
 
     private let connections: [any ProviderConnection]
     private let now: () -> Date
@@ -13,9 +18,12 @@ final class ProviderUsageRuntime {
     private var lastSnapshots: [UsageProvider: UsageSnapshot] = [:]
     private var accounts: [UsageProvider: [ProviderAccount]] = [:]
     private var lastRefreshStartedAt: [UsageProvider: Date] = [:]
-    private var signingIn: Set<UsageProvider> = []
+    private var signIns: [UsageProvider: Task<Result<Bool, ProviderNotice>, Never>] = [:]
     /// Bumped when a tool's signed-in account changes, so a read that started before the change is dropped.
     private var generations: [UsageProvider: Int] = [:]
+    private var lastInactiveRefreshStartedAt: Date?
+    private var inactiveRefresh: Task<Void, Never>?
+    private var stopsInactiveRefresh = false
 
     init(
         connections: [any ProviderConnection],
@@ -45,7 +53,8 @@ final class ProviderUsageRuntime {
                         staleAfter: connection.staleAfter
                     ),
                     accounts: accounts[provider] ?? [],
-                    isSigningIn: signingIn.contains(provider)
+                    isSigningIn: signIns[provider] != nil,
+                    signInAvailability: connection.signInAvailability
                 )
             }
         }
@@ -60,9 +69,10 @@ final class ProviderUsageRuntime {
     }
 
     /// Runs `action` for one tool, then reads that tool again. Returns what to tell the user when it failed.
-    /// Switching or signing in drops the tool's reading first, so the previous account's numbers never show.
+    /// Switching drops the tool's reading first, so the previous account's numbers never show.
     func perform(_ action: ProviderAction, on provider: UsageProvider) async -> ProviderNotice? {
         guard let connection = connection(for: provider) else { return nil }
+        var readsNewAccounts = false
         var notice: ProviderNotice?
         do {
             switch action {
@@ -71,22 +81,33 @@ final class ProviderUsageRuntime {
             case .disconnect:
                 await connection.disconnect()
             case let .switchAccount(id):
+                await finishInactiveRefresh()
                 discardReading(for: provider)
                 defer { discardReading(for: provider) }
                 try await connection.switchAccount(to: id)
             case .addAccount:
+                guard signIns[provider] == nil else { return nil }
+                let signIn = Task { () -> Result<Bool, ProviderNotice> in
+                    await finishInactiveRefresh()
+                    do throws(ProviderNotice) {
+                        return .success(try await connection.addAccount())
+                    } catch {
+                        return .failure(error)
+                    }
+                }
+                signIns[provider] = signIn
+                onChange()
+                let result = await signIn.value
+                signIns[provider] = nil
+                readsNewAccounts = (try result.get())
+            case .saveCurrentAccount:
+                await finishInactiveRefresh()
                 try await connection.addCurrentAccount()
             case let .removeAccount(id):
+                await finishInactiveRefresh()
                 try await connection.removeAccount(id)
-            case .signIn:
-                guard let signIn = connection.signIn, signingIn.insert(provider).inserted else { return nil }
-                onChange()
-                defer { signingIn.remove(provider) }
-                if try await signIn.run() {
-                    discardReading(for: provider)
-                }
             case .cancelSignIn:
-                await connection.signIn?.cancel()
+                signIns[provider]?.cancel()
                 return nil
             case .useResetCredit:
                 return nil
@@ -95,6 +116,9 @@ final class ProviderUsageRuntime {
             notice = error
         }
         await refreshIfDue(forcing: provider)
+        if readsNewAccounts {
+            await refreshInactiveAccounts(of: connection, onlyUnread: true)
+        }
         return notice
     }
 
@@ -137,6 +161,49 @@ final class ProviderUsageRuntime {
             }
         }
         onChange()
+    }
+
+    /// Reads every connected tool's inactive saved accounts, at most once per `inactiveRefreshInterval`. It waits
+    /// while a sign-in runs, since the user may be adding the account it would read.
+    func refreshInactiveAccountsIfDue() async {
+        guard inactiveRefresh == nil, signIns.isEmpty else { return }
+        let startedAt = now()
+        if let lastInactiveRefreshStartedAt, startedAt.timeIntervalSince(lastInactiveRefreshStartedAt) < Self.inactiveRefreshInterval {
+            return
+        }
+        lastInactiveRefreshStartedAt = startedAt
+        for connection in connections where connection.isConnected {
+            await refreshInactiveAccounts(of: connection, onlyUnread: false)
+        }
+    }
+
+    /// `onlyUnread` reads only accounts with no limits yet, such as one the user just added.
+    private func refreshInactiveAccounts(of connection: any ProviderConnection, onlyUnread: Bool) async {
+        guard inactiveRefresh == nil else { return }
+        let provider = connection.provider
+        let refresh = Task {
+            guard let saved = try? await connection.savedAccounts() else { return }
+            for account in saved where !account.isActive && (!onlyUnread || account.usage == nil) {
+                guard !stopsInactiveRefresh else { return }
+                await connection.refreshInactiveAccount(account.id, now: now())
+            }
+        }
+        inactiveRefresh = refresh
+        let startGeneration = generations[provider]
+        await refresh.value
+        inactiveRefresh = nil
+        if generations[provider] == startGeneration, let updated = try? await connection.savedAccounts() {
+            accounts[provider] = updated
+            onChange()
+        }
+    }
+
+    /// Lets the account being read finish, so a renewed sign-in is saved before an action touches any sign-in.
+    private func finishInactiveRefresh() async {
+        guard let inactiveRefresh else { return }
+        stopsInactiveRefresh = true
+        await inactiveRefresh.value
+        stopsInactiveRefresh = false
     }
 
     private func discardReading(for provider: UsageProvider) {

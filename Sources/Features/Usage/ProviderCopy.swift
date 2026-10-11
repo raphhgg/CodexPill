@@ -18,7 +18,7 @@ struct ProviderCopy: Sendable {
         case .switchAccount: switchPrompt
         case .removeAccount:
             ProviderPrompt(title: "Remove this \(name) account?", detail: "CodexPill forgets its saved sign-in.", confirmTitle: "Remove")
-        case .allowKeychainAccess, .signIn, .cancelSignIn, .disconnect, .addAccount, .useResetCredit: nil
+        case .allowKeychainAccess, .cancelSignIn, .disconnect, .addAccount, .saveCurrentAccount, .useResetCredit: nil
         }
     }
 
@@ -92,6 +92,20 @@ extension ClaudeCodeAccountError {
         case .writeFailed: ("Couldn't switch", "Nothing was changed.")
         case .restoreFailed: ("Couldn't undo the switch", "Sign in to Claude Code again.")
         case .switchingUnavailable: ("Switching unavailable", "This build can't switch accounts.")
+        }
+        return ProviderNotice(title: title, detail: detail)
+    }
+}
+
+extension ClaudeCodeCommandError {
+    var notice: ProviderNotice {
+        let (title, detail): (String, String?) = switch self {
+        case .notInstalled: ("Install Claude Code first", nil)
+        case .launchFailed: ("Couldn't start Claude Code", "Try again in a moment.")
+        case .cancelled, .signInFailed: ("Claude sign-in didn't finish", "Nothing was saved.")
+        case .timedOut: ("Claude sign-in timed out", "Nothing was saved.")
+        case .accountUnknown: ("Unknown Claude account", "Nothing was saved.")
+        case .folderUnavailable: ("Couldn't prepare the sign-in", "Nothing was saved.")
         }
         return ProviderNotice(title: title, detail: detail)
     }

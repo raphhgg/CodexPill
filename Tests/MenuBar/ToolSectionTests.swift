@@ -188,6 +188,31 @@ struct ToolSectionTests {
     }
 
     @Test
+    func savedAccountsShowTheirLastLimitsOnOneLineAndSayWhenTheyAreOld() throws {
+        let active = makeAccount(name: "Alex", email: "alex@example.com", usage: makeUsage(fetchedAt: now))
+        let pro = makeAccount(name: "Pro", email: "pro@example.com", planType: "pro", usage: makeUsage(planType: "pro", fetchedAt: now))
+        let claudeAccounts = [
+            ProviderAccount(id: UUID(), email: "alex@example.com", isActive: true),
+            ProviderAccount(id: UUID(), email: "sam@acme.dev", isActive: false, usage: claudeSnapshot()),
+            ProviderAccount(id: UUID(), email: "old@acme.dev", isActive: false, usage: claudeSnapshot(fetchedAt: now.addingTimeInterval(-31 * 60))),
+            ProviderAccount(id: UUID(), email: "new@acme.dev", isActive: false),
+        ]
+        let claude = ProviderUsageState(provider: .claude, status: .current(claudeSnapshot()), accounts: claudeAccounts)
+
+        let used = state(activeAccount: active, inactiveAccounts: [pro], providerUsage: [claude])
+        let left = state(activeAccount: active, inactiveAccounts: [pro], providerUsage: [claude], usagePercentMode: .left)
+        let codexOthers = try #require(used.toolSections.first { $0.provider == .codex }).otherAccounts
+        let claudeOthers = try #require(used.toolSections.first { $0.provider == .claude }).otherAccounts
+        let claudeLeft = try #require(left.toolSections.first { $0.provider == .claude }).otherAccounts
+
+        #expect(codexOthers.map(\.usageLine) == ["Weekly 68% used"])
+        #expect(claudeOthers[0].usageLine == "Session 11% · Weekly 60% used")
+        #expect(claudeOthers[1].usageLine?.hasPrefix("Session 11% · Weekly 60% used · as of ") == true)
+        #expect(claudeOthers[2].usageLine == nil)
+        #expect(claudeLeft[0].usageLine == "Session 89% · Weekly 40% left")
+    }
+
+    @Test
     func accountsWithoutEmailReadAsTheirOrganizationOrANumberedSavedAccount() throws {
         let claudeAccounts = [
             ProviderAccount(id: UUID(), email: nil, isActive: false),
@@ -252,11 +277,13 @@ struct ToolSectionTests {
         inactiveAccounts: [CodexAccount] = [],
         providerUsage: [ProviderUsageState] = [],
         toolOrder: [UsageProvider] = [.claude, .codex, .cursor],
-        masksEmails: Bool = false
+        masksEmails: Bool = false,
+        usagePercentMode: UsagePercentMode = .used
     ) -> MenuBarMenuState {
         MenuBarMenuState(
             activeAccount: activeAccount,
             inactiveAccounts: inactiveAccounts,
+            usagePercentMode: usagePercentMode,
             providerUsage: providerUsage,
             toolOrder: toolOrder,
             masksEmails: masksEmails,

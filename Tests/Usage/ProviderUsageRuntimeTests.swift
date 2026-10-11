@@ -157,32 +157,130 @@ struct ProviderUsageRuntimeTests {
     }
 
     @Test
-    func signingInIsShownUntilTheBrowserSignInEndsThenTheToolIsReadAgain() async {
+    func signingInIsShownUntilTheSignInEndsThenTheNewAccountsLimitsAreRead() async throws {
         let gate = TestGate()
-        let claude = ProviderConnectionProbe(provider: .claude, reading: .unavailable(.signedOut), signIn: GatedSignIn(gate: gate))
+        let personal = ProviderAccount(id: UUID(), email: "personal@example.com", isActive: true)
+        let team = ProviderAccount(id: UUID(), email: "team@example.com", isActive: false)
+        let claude = ProviderConnectionProbe(provider: .claude, reading: .awaitingUsage, signInAvailability: .available)
+        let usage = claudeSnapshot(sessionPercent: 12)
+        claude.update {
+            $0.accounts = [personal]
+            $0.signInGate = gate
+            $0.accountAddedBySignIn = team
+            $0.usageAfterInactiveRead = usage
+        }
         let runtime = ProviderUsageRuntime(connections: [claude], now: { [start] in start }, onChange: {})
         await runtime.refreshIfDue()
 
-        let signIn = Task { await runtime.perform(.signIn, on: .claude) }
+        let signIn = Task { await runtime.perform(.addAccount, on: .claude) }
         await gate.waitUntilReached()
         #expect(runtime.states.map(\.isSigningIn) == [true])
 
-        claude.reading = .awaitingUsage
         await gate.open()
         #expect(await signIn.value == nil)
-        #expect(runtime.states == [ProviderUsageState(provider: .claude, status: .awaitingUsage)])
-        #expect(claude.readCount == 2)
+        let state = try #require(runtime.states.first)
+        #expect(state.isSigningIn == false)
+        #expect(state.accounts.map(\.email) == ["personal@example.com", "team@example.com"])
+        #expect(state.accounts.last?.usage?.window(.session)?.usedPercent == 12)
+        #expect(claude.events == ["read \(team.id.uuidString.prefix(4))", "saved \(team.id.uuidString.prefix(4))"])
     }
 
+    @Test
+    func cancellingTheSignInEndsItWithoutAnAlertOrANewAccount() async throws {
+        let gate = TestGate()
+        let personal = ProviderAccount(id: UUID(), email: "personal@example.com", isActive: true)
+        let claude = ProviderConnectionProbe(provider: .claude, reading: .awaitingUsage, signInAvailability: .available)
+        claude.update {
+            $0.accounts = [personal]
+            $0.signInGate = gate
+            $0.accountAddedBySignIn = ProviderAccount(id: UUID(), email: "team@example.com", isActive: false)
+        }
+        let runtime = ProviderUsageRuntime(connections: [claude], now: { [start] in start }, onChange: {})
+        await runtime.refreshIfDue()
+
+        let signIn = Task { await runtime.perform(.addAccount, on: .claude) }
+        await gate.waitUntilReached()
+        #expect(await runtime.perform(.cancelSignIn, on: .claude) == nil)
+
+        #expect(await signIn.value == nil)
+        let state = try #require(runtime.states.first)
+        #expect(state.isSigningIn == false)
+        #expect(state.accounts.map(\.email) == ["personal@example.com"])
+    }
+
+    @Test
+    func aFailedSignInIsReported() async {
+        let claude = ProviderConnectionProbe(provider: .claude, reading: .awaitingUsage, signInAvailability: .available)
+        let failure = ProviderNotice(title: "Claude sign-in didn't finish", detail: "Nothing was saved.")
+        claude.update { $0.signInError = failure }
+        let runtime = ProviderUsageRuntime(connections: [claude], now: { [start] in start }, onChange: {})
+
+        #expect(await runtime.perform(.addAccount, on: .claude) == failure)
+        #expect(runtime.states.map(\.isSigningIn) == [false])
+    }
+
+    @Test
+    func inactiveAccountsAreReadEveryFifteenMinutesAndTheActiveOneNever() async {
+        let active = ProviderAccount(id: UUID(), email: "personal@example.com", isActive: true)
+        let team = ProviderAccount(id: UUID(), email: "team@example.com", isActive: false)
+        let claude = ProviderConnectionProbe(provider: .claude, reading: .awaitingUsage)
+        claude.update { $0.accounts = [active, team] }
+        var now = start
+        let runtime = ProviderUsageRuntime(connections: [claude], now: { now }, onChange: {})
+        let read = ["read \(team.id.uuidString.prefix(4))", "saved \(team.id.uuidString.prefix(4))"]
+
+        await runtime.refreshInactiveAccountsIfDue()
+        now = start.addingTimeInterval(15 * 60 - 1)
+        await runtime.refreshInactiveAccountsIfDue()
+        #expect(claude.events == read)
+
+        now = start.addingTimeInterval(15 * 60)
+        await runtime.refreshInactiveAccountsIfDue()
+        #expect(claude.events == read + read)
+    }
+
+    @Test
+    func aSwitchWaitsForTheInactiveReadInFlightAndStopsTheRest() async {
+        let gate = TestGate()
+        let active = ProviderAccount(id: UUID(), email: "personal@example.com", isActive: true)
+        let team = ProviderAccount(id: UUID(), email: "team@example.com", isActive: false)
+        let side = ProviderAccount(id: UUID(), email: "side@example.com", isActive: false)
+        let claude = ProviderConnectionProbe(provider: .claude, reading: .awaitingUsage)
+        claude.update {
+            $0.accounts = [active, team, side]
+            $0.inactiveReadGate = gate
+        }
+        let runtime = ProviderUsageRuntime(connections: [claude], now: { [start] in start }, onChange: {})
+
+        let inactiveRefresh = Task { await runtime.refreshInactiveAccountsIfDue() }
+        await gate.waitUntilReached()
+        let switchStarted = Flag()
+        let switchToTeam = Task {
+            switchStarted.isSet = true
+            return await runtime.perform(.switchAccount(team.id), on: .claude)
+        }
+        while !switchStarted.isSet {
+            await Task.yield()
+        }
+        await gate.open()
+        #expect(await switchToTeam.value == nil)
+        await inactiveRefresh.value
+
+        let teamID = team.id.uuidString.prefix(4)
+        #expect(claude.events == ["read \(teamID)", "saved \(teamID)", "switch \(teamID)"])
+    }
+
+    private func claudeSnapshot(sessionPercent: Int) -> UsageSnapshot {
+        UsageSnapshot(
+            provider: .claude,
+            planName: "max",
+            windows: [UsageWindow(kind: .session, usedPercent: sessionPercent, resetsAt: nil, durationMinutes: 300)],
+            fetchedAt: start
+        )
+    }
 }
 
-private struct GatedSignIn: ProviderSignIn {
-    let gate: TestGate
-
-    func run() async throws(ProviderNotice) -> Bool {
-        await gate.pass()
-        return true
-    }
-
-    func cancel() async {}
+@MainActor
+private final class Flag {
+    var isSet = false
 }
