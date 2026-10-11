@@ -4,20 +4,21 @@ import Testing
 @testable import CodexPill
 
 struct StatusBarIconRendererTests {
-    @Test
-    func levelsShowWhatIsLeftAndKeepMissingLimitsEmpty() {
-        let levels = StatusBarGlyphLevels(sessionUsedPercent: 30, weeklyUsedPercent: nil)
+    @Test(arguments: [
+        (30, 60, StatusBarGlyphReading.both(sessionRemainingPercent: 70, weeklyRemainingPercent: 40)),
+        (30, nil, .single(remainingPercent: 70)),
+        (nil, 25, .single(remainingPercent: 75)),
+        (nil, nil, .noData),
+        (120, -5, .both(sessionRemainingPercent: 0, weeklyRemainingPercent: 100))
+    ] as [(Int?, Int?, StatusBarGlyphReading)])
+    func readingShowsWhatIsLeftForTheLimitsTheAccountHas(
+        sessionUsedPercent: Int?,
+        weeklyUsedPercent: Int?,
+        expected: StatusBarGlyphReading
+    ) {
+        let reading = StatusBarGlyphReading(sessionUsedPercent: sessionUsedPercent, weeklyUsedPercent: weeklyUsedPercent)
 
-        #expect(levels.sessionRemainingPercent == 70)
-        #expect(levels.weeklyRemainingPercent == nil)
-    }
-
-    @Test
-    func levelsClampOutOfRangeUsage() {
-        let levels = StatusBarGlyphLevels(sessionUsedPercent: 120, weeklyUsedPercent: -5)
-
-        #expect(levels.sessionRemainingPercent == 0)
-        #expect(levels.weeklyRemainingPercent == 100)
+        #expect(reading == expected)
     }
 
     @Test(arguments: [
@@ -33,14 +34,14 @@ struct StatusBarIconRendererTests {
         (100, 5)
     ] as [(Int?, Int)])
     func punchCardRoundsUpSoAnyAmountLeftShowsASolidSlot(remainingPercent: Int?, expectedSolidSlots: Int) {
-        #expect(StatusBarGlyphLevels.solidPunchSlots(remainingPercent: remainingPercent) == expectedSolidSlots)
+        #expect(StatusBarGlyphReading.solidPunchSlots(remainingPercent: remainingPercent) == expectedSolidSlots)
     }
 
     @Test(arguments: StatusBarIndicatorStyle.allCases)
     func glyphIsATemplateImageSoTheMenuBarRecolorsIt(style: StatusBarIndicatorStyle) {
         let image = StatusBarIconRenderer().makeImage(
             style: style,
-            levels: StatusBarGlyphLevels(sessionUsedPercent: 45, weeklyUsedPercent: 30)
+            reading: StatusBarGlyphReading(sessionUsedPercent: 45, weeklyUsedPercent: 30)
         )
 
         #expect(image.isTemplate)

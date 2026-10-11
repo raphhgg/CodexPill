@@ -176,7 +176,7 @@ final class StatusItemRuntime {
         let rateLimits = presentation.activeAccount?.rateLimits
         button.image = iconRenderer.makeImage(
             style: presentation.indicatorStyle,
-            levels: StatusBarGlyphLevels(
+            reading: StatusBarGlyphReading(
                 sessionUsedPercent: rateLimits?.sessionWindow?.displayedUsedPercent(),
                 weeklyUsedPercent: rateLimits?.weeklyWindow?.displayedUsedPercent()
             )

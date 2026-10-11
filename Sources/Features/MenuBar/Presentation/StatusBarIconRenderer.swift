@@ -1,14 +1,23 @@
 import AppKit
 
-struct StatusBarGlyphLevels: Equatable, Sendable {
-    let sessionRemainingPercent: Int?
-    let weeklyRemainingPercent: Int?
+enum StatusBarGlyphReading: Equatable, Sendable {
+    case noData
+    case single(remainingPercent: Int)
+    case both(sessionRemainingPercent: Int, weeklyRemainingPercent: Int)
 
     static let punchSlotsPerRow = 5
 
     init(sessionUsedPercent: Int?, weeklyUsedPercent: Int?) {
-        sessionRemainingPercent = sessionUsedPercent.map(Self.remainingPercent(used:))
-        weeklyRemainingPercent = weeklyUsedPercent.map(Self.remainingPercent(used:))
+        switch (sessionUsedPercent.map(Self.remainingPercent(used:)), weeklyUsedPercent.map(Self.remainingPercent(used:))) {
+        case let (session?, weekly?):
+            self = .both(sessionRemainingPercent: session, weeklyRemainingPercent: weekly)
+        case let (session?, nil):
+            self = .single(remainingPercent: session)
+        case let (nil, weekly?):
+            self = .single(remainingPercent: weekly)
+        case (nil, nil):
+            self = .noData
+        }
     }
 
     static func solidPunchSlots(remainingPercent: Int?) -> Int {
@@ -24,16 +33,16 @@ struct StatusBarGlyphLevels: Equatable, Sendable {
 struct StatusBarIconRenderer {
     static let glyphSize = NSSize(width: 18, height: 18)
 
-    func makeImage(style: StatusBarIndicatorStyle, levels: StatusBarGlyphLevels) -> NSImage {
+    func makeImage(style: StatusBarIndicatorStyle, reading: StatusBarGlyphReading) -> NSImage {
         let image = NSImage(size: Self.glyphSize, flipped: true) { _ in
             guard let context = NSGraphicsContext.current?.cgContext else { return false }
             switch style {
             case .hourglass:
-                HourglassGlyph.draw(levels, in: context)
+                HourglassGlyph.draw(reading, in: context)
             case .moon:
-                MoonGlyph.draw(levels, in: context)
+                MoonGlyph.draw(reading, in: context)
             case .punchCard:
-                PunchCardGlyph.draw(levels, in: context)
+                PunchCardGlyph.draw(reading, in: context)
             }
             return true
         }
@@ -67,7 +76,7 @@ private enum HourglassGlyph {
     static var topBulb: CGPath { bulb(rimY: 4.1, neckY: 8.8, bulge: 6.3, shoulder: 7.7) }
     static var bottomBulb: CGPath { bulb(rimY: 13.9, neckY: 9.2, bulge: 11.7, shoulder: 10.3) }
 
-    static func draw(_ levels: StatusBarGlyphLevels, in context: CGContext) {
+    static func draw(_ reading: StatusBarGlyphReading, in context: CGContext) {
         context.setLineJoin(.round)
         context.setLineWidth(1.2)
         context.setStrokeColor(ink())
@@ -77,16 +86,25 @@ private enum HourglassGlyph {
         context.setLineCap(.round)
         context.setLineWidth(1.4)
         strokeLine(y: 1.6, to: 14.4, alpha: 1, in: context)
-        strokeLine(y: 16.6, to: 14.4, alpha: 0.3, in: context)
 
-        if let session = levels.sessionRemainingPercent.map(fraction) {
-            fill(topBulb, from: 8.8 - 4.7 * session, to: 9, in: context)
-            fill(bottomBulb, from: 13.9 - 4.7 * (1 - session), to: 14, in: context)
+        switch reading {
+        case .noData:
+            strokeLine(y: 16.6, to: 14.4, alpha: 0.3, in: context)
+        case let .single(remaining):
+            fillSand(remaining, in: context)
+        case let .both(session, weekly):
+            fillSand(session, in: context)
+            strokeLine(y: 16.6, to: 14.4, alpha: 0.3, in: context)
+            if weekly > 0 {
+                strokeLine(y: 16.6, to: 3.6 + 10.8 * fraction(weekly), alpha: 1, in: context)
+            }
         }
+    }
 
-        if let weekly = levels.weeklyRemainingPercent.map(fraction), weekly > 0 {
-            strokeLine(y: 16.6, to: 3.6 + 10.8 * weekly, alpha: 1, in: context)
-        }
+    private static func fillSand(_ remainingPercent: Int, in context: CGContext) {
+        let remaining = fraction(remainingPercent)
+        fill(topBulb, from: 8.8 - 4.7 * remaining, to: 9, in: context)
+        fill(bottomBulb, from: 13.9 - 4.7 * (1 - remaining), to: 14, in: context)
     }
 
     private static func bulb(rimY: CGFloat, neckY: CGFloat, bulge: CGFloat, shoulder: CGFloat) -> CGPath {
@@ -123,27 +141,25 @@ private enum MoonGlyph {
     static let orbitRadius: CGFloat = 7.9
     static let top = -CGFloat.pi / 2
 
-    static func draw(_ levels: StatusBarGlyphLevels, in context: CGContext) {
+    static func draw(_ reading: StatusBarGlyphReading, in context: CGContext) {
         let moonRect = CGRect(x: center.x - moonRadius, y: center.y - moonRadius, width: moonRadius * 2, height: moonRadius * 2)
         let orbitRect = moonRect.insetBy(dx: moonRadius - orbitRadius, dy: moonRadius - orbitRadius)
 
-        if let session = levels.sessionRemainingPercent.map(fraction) {
-            context.setFillColor(ink(0.25))
-            context.fillEllipse(in: moonRect)
-            context.setFillColor(ink())
-            context.addPath(litPhase(session))
-            context.fillPath()
-        } else {
+        let weekly: CGFloat
+        switch reading {
+        case .noData:
             context.setLineWidth(1.1)
             context.setStrokeColor(ink(0.35))
             context.strokeEllipse(in: moonRect)
-        }
-
-        guard let weekly = levels.weeklyRemainingPercent.map(fraction) else {
-            context.setLineWidth(1.1)
             context.setStrokeColor(ink(0.3))
             context.strokeEllipse(in: orbitRect)
             return
+        case let .single(remaining):
+            fillPhase(remaining, in: moonRect, context: context)
+            return
+        case let .both(session, weeklyRemaining):
+            fillPhase(session, in: moonRect, context: context)
+            weekly = fraction(weeklyRemaining)
         }
 
         context.setLineWidth(1.3)
@@ -154,6 +170,14 @@ private enum MoonGlyph {
         context.setStrokeColor(ink())
         context.addArc(center: center, radius: orbitRadius, startAngle: top, endAngle: top + weekly * 2 * .pi, clockwise: false)
         context.strokePath()
+    }
+
+    private static func fillPhase(_ remainingPercent: Int, in moonRect: CGRect, context: CGContext) {
+        context.setFillColor(ink(0.25))
+        context.fillEllipse(in: moonRect)
+        context.setFillColor(ink())
+        context.addPath(litPhase(fraction(remainingPercent)))
+        context.fillPath()
     }
 
     private static func litPhase(_ lit: CGFloat) -> CGPath {
@@ -176,16 +200,24 @@ private enum MoonGlyph {
 }
 
 private enum PunchCardGlyph {
-    static func draw(_ levels: StatusBarGlyphLevels, in context: CGContext) {
-        drawRow(y: 2.2, remainingPercent: levels.sessionRemainingPercent, in: context)
-        drawRow(y: 10.4, remainingPercent: levels.weeklyRemainingPercent, in: context)
+    static func draw(_ reading: StatusBarGlyphReading, in context: CGContext) {
+        switch reading {
+        case .noData:
+            drawRow(y: 2.2, remainingPercent: nil, in: context)
+            drawRow(y: 10.4, remainingPercent: nil, in: context)
+        case let .single(remaining):
+            drawRow(y: 6.3, remainingPercent: remaining, in: context)
+        case let .both(session, weekly):
+            drawRow(y: 2.2, remainingPercent: session, in: context)
+            drawRow(y: 10.4, remainingPercent: weekly, in: context)
+        }
     }
 
     private static func drawRow(y: CGFloat, remainingPercent: Int?, in context: CGContext) {
-        let solidSlots = StatusBarGlyphLevels.solidPunchSlots(remainingPercent: remainingPercent)
+        let solidSlots = StatusBarGlyphReading.solidPunchSlots(remainingPercent: remainingPercent)
         let hollowAlpha: CGFloat = remainingPercent == nil ? 0.35 : 0.55
         context.setLineWidth(0.9)
-        for index in 0..<StatusBarGlyphLevels.punchSlotsPerRow {
+        for index in 0..<StatusBarGlyphReading.punchSlotsPerRow {
             let slot = CGRect(x: 1.9 + CGFloat(index) * 3, y: y, width: 2.4, height: 5.4)
             if index < solidSlots {
                 context.setFillColor(ink())
