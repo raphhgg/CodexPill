@@ -17,6 +17,8 @@ struct ProviderCopy: Sendable {
     var renewHint: String? = nil
     /// The card's title while the tool's own sign-in waits for the user.
     var signingInTitle = "Finish signing in in your browser"
+    /// Whether a signed-out card offers `Sign In…`. Off when adding an account leaves the tool itself signed out.
+    var offersSignInWhenSignedOut = true
 
     /// What the menu asks before running `action`, or nil to run it right away.
     func prompt(for action: ProviderAction) -> ProviderPrompt? {
@@ -80,7 +82,8 @@ extension UsageProvider {
                     detail: "Cursor will quit and reopen.",
                     confirmTitle: "Switch"
                 ),
-                signingInTitle: "Sign in in the new Cursor window"
+                signingInTitle: "Sign in in the new Cursor window",
+                offersSignInWhenSignedOut: false
             )
         }
     }

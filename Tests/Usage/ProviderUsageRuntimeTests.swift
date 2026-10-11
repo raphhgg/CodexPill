@@ -293,7 +293,7 @@ struct ProviderUsageRuntimeTests {
     }
 
     @Test
-    func aSwitchWaitsForTheToolsSignInToFinish() async {
+    func aSwitchIsRefusedWhileTheToolsSignInRuns() async {
         let gate = TestGate()
         let active = ProviderAccount(id: UUID(), email: "personal@example.com", isActive: true)
         let team = ProviderAccount(id: UUID(), email: "team@example.com", isActive: false)
