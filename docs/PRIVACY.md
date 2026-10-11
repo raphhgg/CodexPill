@@ -35,7 +35,7 @@ CodexPill never copies Codex auth snapshots or Codex tokens to another machine o
 
 ## Claude Code
 
-CodexPill never signs in to Claude with its own code, never calls Anthropic's token endpoint, and never reads, sends, or renews a refresh token itself. Signing in and renewing are done by Claude Code, through the commands listed below. Claude Code's live sign-in is never renewed by CodexPill.
+CodexPill never signs in to Claude with its own code, never calls Anthropic's token endpoint, and never reads, sends, or renews a refresh token itself. Signing in and renewing are done by Claude Code, through the commands listed below. CodexPill may run `claude doctor` so Claude Code renews its own sign-in, but only when that sign-in has expired and Claude Code isn't running.
 
 **Usage (optional, off by default).** `Settings › Add Account › Claude…` asks for consent before anything is read. While it is connected, each read:
 
@@ -54,6 +54,7 @@ macOS may ask you to allow Keychain access. CodexPill shows that prompt only rig
 
 - `claude auth login --claudeai` when you choose `Add Claude Account…` or `Sign In…`. Claude Code opens Claude's sign-in page in your browser. It runs in a new folder, `~/Library/Application Support/CodexPill/claude-sign-in/<random id>`, set as `CLAUDE_CONFIG_DIR`, so your current Claude Code sign-in is not touched. When Claude Code has no sign-in at all, it runs without `CLAUDE_CONFIG_DIR`, so Claude Code itself is signed in.
 - `claude doctor` in a new folder of the same kind, when a saved account that is not in use has an expired token. CodexPill first writes that account's saved sign-in into the folder as `.credentials.json` and `.claude.json` (readable only by you). Claude Code renews the token, makes no model call, and saves the result in the folder's Keychain item. CodexPill copies it into the account's `CodexPill Claude Code account` item, only if that item did not change meanwhile.
+- `claude doctor` with Claude Code's own config folder (no `CLAUDE_CONFIG_DIR` unless Claude Code itself uses one), when Claude Code usage is connected, Claude Code's live token has expired, and no `claude` process runs. Claude Code renews its own sign-in and saves it where it always does; CodexPill only reads the new expiry, then reads usage again. It runs at most once per expiry, and again for the same expiry only after 30 minutes.
 - `/usr/bin/security find-generic-password` and `delete-generic-password` for the folder's `Claude Code-credentials-<first 8 hex of sha256(folder path)>` item, to read it and then delete it.
 
 When a run ends, whether it succeeded, failed, timed out, or you cancelled it, CodexPill deletes the folder and its Keychain item. A folder left behind by a crash is deleted with its item the next time CodexPill launches.

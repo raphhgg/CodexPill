@@ -73,7 +73,7 @@ A Codex credit that resets the current limits early. CodexPill shows how many ar
 ## Non-Goals
 
 - Browser-based ChatGPT account switching.
-- Signing in to Claude Code or Cursor, or renewing their sessions, with CodexPill's own code. CodexPill runs the tool's own login and lets the tool renew a saved copy in a throwaway folder; it never renews the live sign-in. Switching only puts back a sign-in the tool itself created.
+- Signing in to Claude Code or Cursor, or renewing their sessions, with CodexPill's own code. CodexPill runs the tool's own login and lets the tool renew its sign-ins: Claude Code renews a saved copy in a throwaway folder, and its own expired sign-in when it isn't running. Switching only puts back a sign-in the tool itself created.
 - Cloud sync or multi-device account storage.
 - Team/shared account management.
 - Background telemetry pipeline.

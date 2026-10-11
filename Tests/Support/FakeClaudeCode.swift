@@ -6,7 +6,8 @@ import Foundation
 /// The `claude` command and its Keychain, as far as CodexPill uses them, following what Claude Code 2.1.294 does.
 /// A login with `CLAUDE_CONFIG_DIR` saves the sign-in in `Claude Code-credentials-<first 8 hex of sha256(dir)>` and the
 /// account record in `<dir>/.claude.json`. `doctor` renews an expired sign-in into that item and deletes
-/// `.credentials.json`. A login without `CLAUDE_CONFIG_DIR` signs Claude Code itself in through `signInClaudeCode`.
+/// `.credentials.json`. Without `CLAUDE_CONFIG_DIR`, a login signs Claude Code itself in through `signInClaudeCode` and
+/// `doctor` renews Claude Code's own sign-in through `renewClaudeCode`.
 final class FakeClaudeCode: ClaudeCodeProcessRunning, ClaudeCodeFolderKeychain, @unchecked Sendable {
     enum Login {
         case signsIn(credentials: Data, globalConfig: Data)
@@ -30,6 +31,7 @@ final class FakeClaudeCode: ClaudeCodeProcessRunning, ClaudeCodeFolderKeychain, 
     private var commandLog: [String] = []
     private var deleted: [String] = []
     var signInClaudeCode: (@Sendable () throws -> Void)?
+    var renewClaudeCode: (@Sendable () async -> Void)?
 
     var isInstalled: Bool {
         get { lock.withLock { installed } }
@@ -70,12 +72,19 @@ final class FakeClaudeCode: ClaudeCodeProcessRunning, ClaudeCodeFolderKeychain, 
             commandLog.append("\(arguments.joined(separator: " ")) in \(configDirectory.map { URL(fileURLWithPath: $0).lastPathComponent } ?? "default")")
         }
         guard let configDirectory else {
-            guard arguments == ["auth", "login", "--claudeai"] else { return 127 }
-            do {
-                try signInClaudeCode?()
+            switch arguments {
+            case ["auth", "login", "--claudeai"]:
+                do {
+                    try signInClaudeCode?()
+                    return 0
+                } catch {
+                    return 1
+                }
+            case ["doctor"]:
+                await renewClaudeCode?()
                 return 0
-            } catch {
-                return 1
+            default:
+                return 127
             }
         }
         let folder = URL(fileURLWithPath: configDirectory, isDirectory: true)

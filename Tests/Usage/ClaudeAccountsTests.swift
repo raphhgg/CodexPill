@@ -234,11 +234,193 @@ struct ClaudeAccountsTests {
         #expect(try fixture.savedAccessToken(of: "personal@example.com") == "personal-access-2")
         #expect(try fixture.liveAccessToken() == "team-access-1")
     }
+
+    @Test
+    func anExpiredLiveSignInIsRenewedByClaudeCodeThenReadAgain() async throws {
+        let fixture = try ClaudeAccountsFixture(now: now)
+        defer { fixture.remove() }
+        try fixture.signInLive(.personal, access: "personal-access-1", expiresAt: now.addingTimeInterval(-60))
+        fixture.claude.renewClaudeCode = { [fixture] in try? fixture.renewLive(access: "personal-access-2") }
+        fixture.server.answer("personal-access-2", sessionPercent: 40)
+        let runtime = ProviderUsageRuntime(connections: [fixture.usage], now: { [now] in now }, onChange: {})
+        await runtime.refreshIfDue()
+
+        await runtime.renewLiveSignInsIfNeeded()
+
+        #expect(fixture.claude.commands == ["doctor in default"])
+        #expect(fixture.server.requests == ["personal-access-2"])
+        #expect(runtime.states.map(\.sessionPercent) == [40])
+    }
+
+    @Test
+    func theLiveSignInIsNotRenewedWhileClaudeCodeRuns() async throws {
+        let fixture = try ClaudeAccountsFixture(now: now)
+        defer { fixture.remove() }
+        try fixture.signInLive(.personal, access: "personal-access-1", expiresAt: now.addingTimeInterval(-60))
+        fixture.claude.renewClaudeCode = { [fixture] in try? fixture.renewLive(access: "personal-access-2") }
+        fixture.processes.isRunning = true
+
+        #expect(await fixture.usage.renewLiveSignInIfNeeded(now: now) == false)
+        #expect(fixture.claude.commands == [])
+
+        fixture.processes.isRunning = false
+        #expect(await fixture.usage.renewLiveSignInIfNeeded(now: now) == true)
+        #expect(fixture.claude.commands == ["doctor in default"])
+    }
+
+    @Test
+    func theLiveSignInIsNotRenewedBeforeItExpires() async throws {
+        let fixture = try ClaudeAccountsFixture(now: now)
+        defer { fixture.remove() }
+        try fixture.signInLive(.personal, access: "personal-access-1", expiresAt: now.addingTimeInterval(60))
+
+        #expect(await fixture.usage.renewLiveSignInIfNeeded(now: now) == false)
+        #expect(fixture.claude.commands == [])
+
+        #expect(await fixture.usage.renewLiveSignInIfNeeded(now: now.addingTimeInterval(60)) == false)
+        #expect(fixture.claude.commands == ["doctor in default"])
+    }
+
+    @Test
+    func aLiveSignInClaudeCodeCannotRenewIsRetriedOnlyAfterHalfAnHour() async throws {
+        let fixture = try ClaudeAccountsFixture(now: now)
+        defer { fixture.remove() }
+        try fixture.signInLive(.personal, access: "personal-access-1", expiresAt: now.addingTimeInterval(-60))
+
+        _ = await fixture.usage.renewLiveSignInIfNeeded(now: now)
+        _ = await fixture.usage.renewLiveSignInIfNeeded(now: now.addingTimeInterval(10 * 60))
+        #expect(fixture.claude.commands == ["doctor in default"])
+
+        _ = await fixture.usage.renewLiveSignInIfNeeded(now: now.addingTimeInterval(31 * 60))
+        #expect(fixture.claude.commands == ["doctor in default", "doctor in default"])
+    }
+
+    @Test
+    func theLiveSignInIsNotRenewedWhileAnAccountIsBeingAdded() async throws {
+        let fixture = try ClaudeAccountsFixture(now: now)
+        defer { fixture.remove() }
+        try fixture.signInLive(.personal, access: "personal-access-1", expiresAt: now.addingTimeInterval(-60))
+        let gate = TestGate()
+        fixture.claude.login = .waitsForBrowser(gate, credentials: fixture.credentials(access: "team-access-1"), globalConfig: fixture.globalConfig(.team))
+        let runtime = ProviderUsageRuntime(connections: [fixture.usage], now: { [now] in now }, onChange: {})
+        await runtime.refreshIfDue()
+
+        let add = Task { await runtime.perform(.addAccount, on: .claude) }
+        await gate.waitUntilReached()
+        await runtime.renewLiveSignInsIfNeeded()
+        #expect(fixture.claude.commands == ["auth login --claudeai in sign-in-1"])
+
+        await gate.open()
+        #expect(await add.value == nil)
+        await runtime.renewLiveSignInsIfNeeded()
+        #expect(fixture.claude.commands == ["auth login --claudeai in sign-in-1", "doctor in default"])
+    }
+
+    @Test
+    func theLiveSignInIsNotRenewedWhileTheCurrentSignInIsBeingSaved() async throws {
+        let fixture = try ClaudeAccountsFixture(now: now)
+        defer { fixture.remove() }
+        try fixture.signInLive(.personal, access: "personal-access-1", expiresAt: now.addingTimeInterval(-60))
+        let runtime = ProviderUsageRuntime(connections: [fixture.usage], now: { [now] in now }, onChange: {})
+        await runtime.refreshIfDue()
+        let saveReached = LockedFlag()
+        let releaseSave = DispatchSemaphore(value: 0)
+        fixture.items.beforeSave = {
+            saveReached.set()
+            _ = releaseSave.wait(timeout: .now() + 5)
+        }
+
+        let save = Task { await runtime.perform(.saveCurrentAccount, on: .claude) }
+        while !saveReached.isSet {
+            await Task.yield()
+        }
+        await runtime.renewLiveSignInsIfNeeded()
+        fixture.items.beforeSave = nil
+        releaseSave.signal()
+
+        #expect(await save.value == nil)
+        #expect(fixture.claude.commands == [])
+    }
+
+    @Test
+    func inactiveAccountsAreNotReadWhileClaudeCodeRenewsItsLiveSignIn() async throws {
+        let fixture = try ClaudeAccountsFixture(now: now)
+        defer { fixture.remove() }
+        try fixture.signInLive(.personal, access: "personal-access-1", expiresAt: now.addingTimeInterval(-60))
+        try fixture.saveAccount(.team, access: "team-access-1", expiresAt: now.addingTimeInterval(3_600))
+        fixture.server.answer("team-access-1", sessionPercent: 64)
+        let gate = TestGate()
+        fixture.claude.renewClaudeCode = { await gate.pass() }
+        let runtime = ProviderUsageRuntime(connections: [fixture.usage], now: { [now] in now }, onChange: {})
+        await runtime.refreshIfDue()
+
+        let renewal = Task { await runtime.renewLiveSignInsIfNeeded() }
+        await gate.waitUntilReached()
+        await runtime.refreshInactiveAccountsIfDue()
+        #expect(fixture.server.requests == [])
+
+        await gate.open()
+        await renewal.value
+        await runtime.refreshInactiveAccountsIfDue()
+        #expect(fixture.server.requests == ["team-access-1"])
+    }
+
+    @Test
+    func switchingWaitsForClaudeCodeToRenewItsLiveSignInAndSavesTheRenewedOne() async throws {
+        let fixture = try ClaudeAccountsFixture(now: now)
+        defer { fixture.remove() }
+        try fixture.signInLive(.personal, access: "personal-access-1", expiresAt: now.addingTimeInterval(-60))
+        let team = try fixture.saveAccount(.team, access: "team-access-1", expiresAt: now.addingTimeInterval(3_600))
+        let gate = TestGate()
+        fixture.claude.renewClaudeCode = { [fixture] in
+            await gate.pass()
+            try? fixture.renewLive(access: "personal-access-2")
+        }
+        let runtime = ProviderUsageRuntime(connections: [fixture.usage], now: { [now] in now }, onChange: {})
+        await runtime.refreshIfDue()
+
+        let renewal = Task { await runtime.renewLiveSignInsIfNeeded() }
+        await gate.waitUntilReached()
+        let switchStarted = SwitchStarted()
+        let switchToTeam = Task {
+            switchStarted.value = true
+            return await runtime.perform(.switchAccount(team), on: .claude)
+        }
+        while !switchStarted.value {
+            await Task.yield()
+        }
+        // A switch that did not wait would finish here, before Claude Code writes its renewed sign-in.
+        try await Task.sleep(for: .milliseconds(100))
+        await gate.open()
+
+        #expect(await switchToTeam.value == nil)
+        await renewal.value
+        #expect(try fixture.savedAccessToken(of: "personal@example.com") == "personal-access-2")
+        #expect(try fixture.liveAccessToken() == "team-access-1")
+    }
+}
+
+private extension ProviderUsageState {
+    var sessionPercent: Int? {
+        guard case let .current(snapshot) = status else { return nil }
+        return snapshot.window(.session)?.usedPercent
+    }
 }
 
 @MainActor
 private final class SwitchStarted {
     var value = false
+}
+
+private final class LockedFlag: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value = false
+
+    var isSet: Bool { lock.withLock { value } }
+
+    func set() {
+        lock.withLock { value = true }
+    }
 }
 
 private enum ClaudeTestAccount {
@@ -267,6 +449,7 @@ private final class ClaudeAccountsFixture: @unchecked Sendable {
     let server = FakeClaudeUsageServer()
     let liveKeychain: FileClaudeCodeKeychain
     let items: FileClaudeCodeAccountItems
+    let processes = ClaudeCodeProcessProbe()
     let store: ClaudeCodeAccountStore
     let usage: ClaudeCodeUsage
     private let suiteName = "ClaudeAccountsFixture-\(UUID().uuidString)"
@@ -289,7 +472,7 @@ private final class ClaudeAccountsFixture: @unchecked Sendable {
                 globalConfigFile: home.appendingPathComponent(".claude.json"),
                 keychain: liveKeychain
             ),
-            processes: ClaudeCodeProcessProbe()
+            processes: processes
         )
         let settings = ClaudeUsageSettingsStore(userDefaults: UserDefaults(suiteName: suiteName)!)
         settings.isEnabled = true
@@ -331,10 +514,15 @@ private final class ClaudeAccountsFixture: @unchecked Sendable {
     }
 
     /// What Claude Code leaves after `/login`: its Keychain item and the account record, saved in CodexPill.
-    func signInLive(_ account: ClaudeTestAccount, access: String) throws {
-        try credentials(access: access).write(to: liveKeychainFile)
+    func signInLive(_ account: ClaudeTestAccount, access: String, expiresAt: Date? = nil) throws {
+        try credentials(access: access, expiresAt: expiresAt).write(to: liveKeychainFile)
         try globalConfig(account).write(to: globalConfigFile)
         try store.captureCurrent()
+    }
+
+    /// What Claude Code does when it renews its own sign-in: it rewrites its Keychain item.
+    func renewLive(access: String) throws {
+        try credentials(access: access).write(to: liveKeychainFile)
     }
 
     @discardableResult

@@ -15,6 +15,7 @@ struct ClaudeCodeUsage: ProviderConnection {
     let commands: ClaudeCodeCommands?
     /// `CLAUDE_CONFIG_DIR` for Claude Code's live sign-in, or nil for its default folder.
     let liveConfigDirectory: String?
+    private let liveRenewals = ClaudeLiveRenewalAttempts()
 
     init(
         settings: ClaudeUsageSettingsStore,
@@ -155,6 +156,24 @@ struct ClaudeCodeUsage: ProviderConnection {
         try? accounts.recordUsage(ClaudeCodeSavedUsage(report: report, planName: planName, fetchedAt: now), for: id)
     }
 
+    /// Runs `claude doctor` with Claude Code's own config once its live token has expired, so Claude Code renews its
+    /// own sign-in. Never early, never while a `claude` process runs, since that one renews the token itself.
+    func renewLiveSignInIfNeeded(now: Date) async -> Bool {
+        guard
+            settings.isEnabled,
+            let commands, commands.isInstalled,
+            let processes = accounts?.processes,
+            let expiry = await client.liveSignInExpiry(), expiry <= now,
+            !processes.isClaudeCodeRunning(),
+            await liveRenewals.claim(expiry: expiry, now: now)
+        else {
+            return false
+        }
+        try? await commands.renewClaudeCode(configDirectory: liveConfigDirectory)
+        guard let renewedExpiry = await client.liveSignInExpiry() else { return false }
+        return renewedExpiry != expiry
+    }
+
     private func store() throws(ClaudeCodeAccountError) -> ClaudeCodeAccountStore {
         guard let accounts else { throw .switchingUnavailable }
         return accounts
@@ -200,5 +219,23 @@ struct ClaudeCodeUsage: ProviderConnection {
             resetsAt: window.resetsAt,
             durationMinutes: durationMinutes
         )
+    }
+}
+
+/// One renewal per expiry, and another for the same expiry only after `retryAfter`, so a sign-in Claude Code can't
+/// renew does not run `claude doctor` on every read.
+actor ClaudeLiveRenewalAttempts {
+    static let retryAfter: TimeInterval = 30 * 60
+
+    private var lastExpiry: Date?
+    private var lastAttemptAt: Date?
+
+    func claim(expiry: Date, now: Date) -> Bool {
+        if expiry == lastExpiry, let lastAttemptAt, now.timeIntervalSince(lastAttemptAt) < Self.retryAfter {
+            return false
+        }
+        lastExpiry = expiry
+        lastAttemptAt = now
+        return true
     }
 }

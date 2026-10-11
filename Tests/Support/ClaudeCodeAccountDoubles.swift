@@ -37,11 +37,12 @@ final class FileClaudeCodeKeychain: ClaudeCodeKeychainItem, @unchecked Sendable 
 }
 
 /// CodexPill's saved Claude Code accounts as `claude-code-account-<id>.json` files. `failsSaves` makes every save fail,
-/// like a Keychain that refuses the change.
+/// like a Keychain that refuses the change. `beforeSave` runs on the saving thread, so a test can hold a save there.
 final class FileClaudeCodeAccountItems: ClaudeCodeAccountItemStoring, @unchecked Sendable {
     let rootDirectory: URL
     private let lock = NSLock()
     private var savesFail = false
+    private var saveHook: (@Sendable () -> Void)?
 
     init(rootDirectory: URL) {
         self.rootDirectory = rootDirectory
@@ -60,7 +61,13 @@ final class FileClaudeCodeAccountItems: ClaudeCodeAccountItemStoring, @unchecked
         }
     }
 
+    var beforeSave: (@Sendable () -> Void)? {
+        get { lock.withLock { saveHook } }
+        set { lock.withLock { saveHook = newValue } }
+    }
+
     func save(_ data: Data, for id: UUID) -> Bool {
+        beforeSave?()
         guard !failsSaves else { return false }
         return (try? data.write(to: fileURL(for: id), options: .atomic)) != nil
     }

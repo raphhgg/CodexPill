@@ -37,9 +37,9 @@ protocol ClaudeCodeFolderKeychain: Sendable {
     func delete(service: String) -> Bool
 }
 
-/// Claude Code's own login and renewal, run in a throwaway config folder so the user's Claude Code sign-in is never
-/// read or changed. CodexPill only copies out the sign-in Claude Code saved there, then deletes the folder and its
-/// Keychain item, also when the run fails or is cancelled.
+/// Claude Code's own login and renewal. For saved accounts they run in a throwaway config folder so the user's Claude
+/// Code sign-in is never read or changed. CodexPill only copies out the sign-in Claude Code saved there, then deletes
+/// the folder and its Keychain item, also when the run fails or is cancelled.
 ///
 /// With `CLAUDE_CONFIG_DIR` set, Claude Code saves its sign-in in the Keychain item
 /// `Claude Code-credentials-<first 8 hex of sha256(CLAUDE_CONFIG_DIR)>`, or in `.credentials.json` when the Keychain
@@ -114,6 +114,16 @@ struct ClaudeCodeCommands: Sendable {
             timeout: Self.loginTimeout
         )
         guard status == 0 else { throw .signInFailed }
+    }
+
+    /// Lets Claude Code renew its own live sign-in, in its own config folder. Claude Code writes the result itself.
+    func renewClaudeCode(configDirectory: String?) async throws(ClaudeCodeCommandError) {
+        _ = try await processes.run(
+            Self.renewalArguments,
+            configDirectory: configDirectory,
+            workingDirectory: FileManager.default.homeDirectoryForCurrentUser,
+            timeout: Self.renewalTimeout
+        )
     }
 
     /// Deletes folders and Keychain items an earlier run left behind when CodexPill quit in the middle of it.
