@@ -131,7 +131,7 @@ struct ClaudeCodeAccountStoreTests {
     }
 
     @Test
-    func codexPillNeverRenewsAClaudeSignInItself() throws {
+    func refillNeverRenewsAClaudeSignInItself() throws {
         let repository = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let sources = try #require(FileManager.default.enumerator(at: repository.appendingPathComponent("Sources"), includingPropertiesForKeys: nil))
@@ -334,15 +334,15 @@ private struct ClaudeCodeAccountFixture {
         root = FileManager.default.temporaryDirectory
             .appendingPathComponent("ClaudeCodeAccountFixture-\(UUID().uuidString)", isDirectory: true)
         let home = root.appendingPathComponent("home", isDirectory: true)
-        let codexPill = root.appendingPathComponent("codexpill", isDirectory: true)
+        let refill = root.appendingPathComponent("refill", isDirectory: true)
         try FileManager.default.createDirectory(at: home.appendingPathComponent(".claude"), withIntermediateDirectories: true)
-        try FileManager.default.createDirectory(at: codexPill, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: refill, withIntermediateDirectories: true)
         try JSONSerialization.data(withJSONObject: ["numStartups": 42, "projects": ["/fake/project": ["allowedTools": []]]])
             .write(to: home.appendingPathComponent(".claude.json"))
-        items = FileClaudeCodeAccountItems(rootDirectory: codexPill)
-        keychain = FileClaudeCodeKeychain(fileURL: codexPill.appendingPathComponent(FileClaudeCodeKeychain.fileName))
+        items = FileClaudeCodeAccountItems(rootDirectory: refill)
+        keychain = FileClaudeCodeKeychain(fileURL: refill.appendingPathComponent(FileClaudeCodeKeychain.fileName))
         store = ClaudeCodeAccountStore(
-            catalogFile: codexPill.appendingPathComponent("claude-code-accounts.json"),
+            catalogFile: refill.appendingPathComponent("claude-code-accounts.json"),
             items: items,
             claudeCode: ClaudeCodeSignInStore(
                 configDirectory: home.appendingPathComponent(".claude", isDirectory: true),
@@ -353,9 +353,9 @@ private struct ClaudeCodeAccountFixture {
         )
     }
 
-    var keychainFile: URL { root.appendingPathComponent("codexpill/\(FileClaudeCodeKeychain.fileName)") }
+    var keychainFile: URL { root.appendingPathComponent("refill/\(FileClaudeCodeKeychain.fileName)") }
     var credentialsFile: URL { root.appendingPathComponent("home/.claude/.credentials.json") }
-    var catalogFile: URL { root.appendingPathComponent("codexpill/claude-code-accounts.json") }
+    var catalogFile: URL { root.appendingPathComponent("refill/claude-code-accounts.json") }
     var globalConfigFile: URL { root.appendingPathComponent("home/.claude.json") }
 
     /// What Claude Code leaves behind after `/login`: the Keychain item, with an MCP sign-in, and the account record.
@@ -431,7 +431,7 @@ private struct ClaudeCodeAccountFixture {
     }
 
     func allowWrites() {
-        for directory in ["home", "home/.claude", "codexpill"] {
+        for directory in ["home", "home/.claude", "refill"] {
             try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: root.appendingPathComponent(directory).path)
         }
         try? FileManager.default.setAttributes([.immutable: false], ofItemAtPath: catalogFile.path)

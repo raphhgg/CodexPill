@@ -9,7 +9,7 @@ let project = Project(
             name: "Refill",
             destinations: .macOS,
             product: .app,
-            bundleId: "com.raphhgg.codexpill",
+            bundleId: "com.raphhgg.refill",
             deploymentTargets: .macOS("14.0"),
             infoPlist: .dictionary([
                 "CFBundleDevelopmentRegion": "en",
@@ -44,7 +44,7 @@ let project = Project(
             name: "RefillTests",
             destinations: .macOS,
             product: .unitTests,
-            bundleId: "com.raphhgg.codexpill.tests",
+            bundleId: "com.raphhgg.refill.tests",
             deploymentTargets: .macOS("14.0"),
             infoPlist: .default,
             sources: ["Tests/**"],

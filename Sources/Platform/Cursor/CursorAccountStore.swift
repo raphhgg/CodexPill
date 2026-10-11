@@ -13,11 +13,10 @@ enum CursorAccountStoreError: Error, Equatable {
     case unreadable
 }
 
-/// The `CodexPill Cursor accounts` generic password in the login Keychain. All saved accounts are one item,
+/// The `Refill Cursor accounts` generic password in the login Keychain. All saved accounts are one item,
 /// so capturing the outgoing account and the account list change together in one write.
 struct SystemCursorAccountKeychain: CursorAccountStore {
-    // Keeps the CodexPill name so accounts saved before the rename stay readable.
-    static let service = "CodexPill Cursor accounts"
+    static let service = "Refill Cursor accounts"
     static let account = "Cursor"
 
     func load() throws -> [CursorSavedAccount] {

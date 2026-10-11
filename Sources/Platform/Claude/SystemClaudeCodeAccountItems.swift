@@ -1,12 +1,11 @@
 import Foundation
 import Security
 
-/// Refill's saved Claude Code accounts: one `CodexPill Claude Code account` generic password per account in the
+/// Refill's saved Claude Code accounts: one `Refill Claude Code account` generic password per account in the
 /// login Keychain, with the account's id as the Keychain account. Refill creates these items, so reading them
 /// needs no prompt.
 struct SystemClaudeCodeAccountItems: ClaudeCodeAccountItemStoring {
-    // Keeps the CodexPill name so accounts saved before the rename stay readable.
-    static let service = "CodexPill Claude Code account"
+    static let service = "Refill Claude Code account"
 
     func read(_ id: UUID) throws(ClaudeCodeAccountError) -> Data? {
         var query = Self.itemQuery(for: id)

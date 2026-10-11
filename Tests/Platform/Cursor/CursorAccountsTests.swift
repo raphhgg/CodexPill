@@ -306,7 +306,7 @@ struct CursorAccountsTests {
 }
 
 /// A temporary isolated root with Cursor's database at `<root>/Cursor/state.vscdb`, the layout
-/// `CODEXPILL_ISOLATED_APP_SUPPORT_DIR` uses.
+/// `REFILL_ISOLATED_APP_SUPPORT_DIR` uses.
 private final class Scenario: @unchecked Sendable {
     let harness: CursorStateDatabaseHarness
     let store = CursorAccountStoreHarness()

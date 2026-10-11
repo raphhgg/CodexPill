@@ -202,7 +202,7 @@ private extension DiagnosticAppMetadata {
     static let fixture = DiagnosticAppMetadata(
         appVersion: "1.0",
         buildNumber: "1",
-        bundleIdentifier: "com.raphhgg.codexpill"
+        bundleIdentifier: "com.raphhgg.refill"
     )
 }
 

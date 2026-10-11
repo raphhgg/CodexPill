@@ -117,7 +117,7 @@ struct CodexAppServerSessionCommand {
         environment: [String: String]? = nil,
         timeout: Duration,
         refreshToken: Bool,
-        clientInfo: CodexAppServerClientInfo = .codexPill,
+        clientInfo: CodexAppServerClientInfo = .refill,
         requireRateLimitResponse: Bool,
         prematureRateLimitExitMessage: String = "Codex app-server ended before returning rate limits.",
         failure: @escaping @Sendable (_ stderr: String?, _ terminationStatus: Int?, _ timedOut: Bool) -> Error
@@ -301,7 +301,7 @@ struct CodexAppServerSessionRunner {
 struct CodexAppServerSession {
     static func makeRequests(
         refreshToken: Bool,
-        clientInfo: CodexAppServerClientInfo = .codexPill
+        clientInfo: CodexAppServerClientInfo = .refill
     ) -> [String] {
         [
             initializeRequest(clientInfo: clientInfo),
@@ -313,7 +313,7 @@ struct CodexAppServerSession {
 
     static func makeResetCreditConsumeRequests(
         idempotencyKey: UUID,
-        clientInfo: CodexAppServerClientInfo = .codexPill
+        clientInfo: CodexAppServerClientInfo = .refill
     ) -> [String] {
         [
             initializeRequest(clientInfo: clientInfo),
@@ -423,7 +423,7 @@ func consumeOutputData(
     state: AppServerSessionState
 ) throws -> CodexAccountStatus? {
     try CodexAppServerSession.consumeOutputData(data, decoder: decoder, state: state)
-        .map(CodexPillAccountStatusMapper().status)
+        .map(RefillAccountStatusMapper().status)
 }
 
 private func splitLines(from buffer: inout Data) -> [String] {

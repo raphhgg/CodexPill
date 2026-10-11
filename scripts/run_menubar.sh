@@ -12,7 +12,7 @@ APP_PATH="${DERIVED_DATA}/Build/Products/Debug/${APP_NAME}.app"
 PROJECT_PATH="${APP_NAME}.xcodeproj"
 LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
 BUILD_VERSION="$(date +%Y%m%d%H%M%S)"
-BUNDLE_ID_OVERRIDE="${CODEXPILL_BUNDLE_ID:-com.raphhgg.codexpill.dev}"
+BUNDLE_ID_OVERRIDE="${REFILL_BUNDLE_ID:-com.raphhgg.refill.dev}"
 
 command -v tuist >/dev/null || {
   echo "Tuist is not installed. Install it first."

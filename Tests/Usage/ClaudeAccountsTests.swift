@@ -523,13 +523,13 @@ private final class ClaudeAccountsFixture: @unchecked Sendable {
         self.now = now
         root = FileManager.default.temporaryDirectory.appendingPathComponent("ClaudeAccountsFixture-\(UUID().uuidString)", isDirectory: true)
         let home = root.appendingPathComponent("home", isDirectory: true)
-        let codexPill = root.appendingPathComponent("codexpill", isDirectory: true)
+        let refill = root.appendingPathComponent("refill", isDirectory: true)
         try FileManager.default.createDirectory(at: home.appendingPathComponent(".claude"), withIntermediateDirectories: true)
-        try FileManager.default.createDirectory(at: codexPill, withIntermediateDirectories: true)
-        liveKeychain = FileClaudeCodeKeychain(fileURL: codexPill.appendingPathComponent(FileClaudeCodeKeychain.fileName))
-        items = FileClaudeCodeAccountItems(rootDirectory: codexPill)
+        try FileManager.default.createDirectory(at: refill, withIntermediateDirectories: true)
+        liveKeychain = FileClaudeCodeKeychain(fileURL: refill.appendingPathComponent(FileClaudeCodeKeychain.fileName))
+        items = FileClaudeCodeAccountItems(rootDirectory: refill)
         store = ClaudeCodeAccountStore(
-            catalogFile: codexPill.appendingPathComponent("claude-code-accounts.json"),
+            catalogFile: refill.appendingPathComponent("claude-code-accounts.json"),
             items: items,
             claudeCode: ClaudeCodeSignInStore(
                 configDirectory: home.appendingPathComponent(".claude", isDirectory: true),
@@ -557,7 +557,7 @@ private final class ClaudeAccountsFixture: @unchecked Sendable {
         )
     }
 
-    var liveKeychainFile: URL { root.appendingPathComponent("codexpill/\(FileClaudeCodeKeychain.fileName)") }
+    var liveKeychainFile: URL { root.appendingPathComponent("refill/\(FileClaudeCodeKeychain.fileName)") }
     var globalConfigFile: URL { root.appendingPathComponent("home/.claude.json") }
 
     func folder(_ name: String) -> URL {

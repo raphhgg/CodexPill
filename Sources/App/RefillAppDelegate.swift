@@ -1,7 +1,7 @@
 import AppKit
 
 @MainActor
-final class CodexPillAppDelegate: NSObject, NSApplicationDelegate {
+final class RefillAppDelegate: NSObject, NSApplicationDelegate {
     private var coordinator: MenuBarCoordinator?
     private var wakeObserver: NSObjectProtocol?
 

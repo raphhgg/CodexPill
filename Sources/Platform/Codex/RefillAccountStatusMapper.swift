@@ -1,6 +1,6 @@
 import Foundation
 
-struct CodexPillAccountStatusMapper {
+struct RefillAccountStatusMapper {
     func status(from appServerStatus: CodexAppServerStatus) -> CodexAccountStatus {
         CodexAccountStatus(
             email: appServerStatus.account.email,
