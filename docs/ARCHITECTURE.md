@@ -181,7 +181,7 @@ Local app-server reads enter this session runner through `CodexAppServerClient`,
 - reading its sign-in from `.credentials.json` and the `Claude Code-credentials` Keychain item, with the Keychain prompt shown only after a user action (`ClaudeCredentialsSource`, `SystemClaudeKeychain`);
 - the `api.anthropic.com/api/oauth/usage` request, its redirect rule, its rate-limit wait, and parsing its response (`ClaudeUsageAPI`, `ClaudeUsageClient`);
 - saved Claude Code accounts and switching (`ClaudeCodeAccountStore`, `ClaudeCodeSignInStore`, `SystemClaudeCodeAccountItems`). A switch writes CodexPill's own item and list, then Claude Code's credentials, then `oauthAccount` in Claude Code's global config, and puts every earlier step back when a later one fails. Accounts match by Claude Code's account record, never by token;
-- whether Claude Code is running, behind the `ClaudeCodeProcessDetecting` port. A switch is refused while it runs.
+- whether terminal Claude Code is running, behind the `ClaudeCodeProcessDetecting` port. A switch or renewal waits while it runs. The Claude desktop app's own Claude Code is ignored.
 
 The access token leaves this module only as the usage request's `Authorization` header. Nothing in it reads, sends, or renews Claude Code's refresh token; a test scans the Claude sources to keep it that way. Renewal is always Claude Code's own, through `claude doctor`.
 
