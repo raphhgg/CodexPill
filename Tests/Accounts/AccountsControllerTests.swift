@@ -255,7 +255,7 @@ struct AccountsControllerTests {
         )
         controller.load()
 
-        let didRefresh = await controller.switchToAccount(account)
+        let didRefresh = await controller.switchToAccount(account).didRefresh
 
         #expect(didRefresh == false)
         #expect(controller.activeAccountID == nil)
@@ -276,7 +276,7 @@ struct AccountsControllerTests {
         )
         controller.load()
 
-        let didRefresh = await controller.switchToAccount(account)
+        let didRefresh = await controller.switchToAccount(account).didRefresh
 
         #expect(didRefresh == false)
         #expect(controller.activeAccountID == account.id)
@@ -306,7 +306,7 @@ struct AccountsControllerTests {
         )
         controller.load()
 
-        let didRefresh = await controller.switchToAccount(account)
+        let didRefresh = await controller.switchToAccount(account).didRefresh
 
         #expect(didRefresh == true)
         #expect(controller.accounts.count == 1)
@@ -484,7 +484,7 @@ struct AccountsControllerTests {
         let switchedDuringReset = await controller.switchToAccount(work)
 
         #expect(controller.isApplyingResetCredit)
-        #expect(switchedDuringReset == false)
+        #expect(switchedDuringReset == SwitchToAccountOutcome(didRefresh: false, relaunch: nil))
         #expect(codexApp.relaunchCount == 0)
 
         await resetCredits.answer(.nothingToReset)

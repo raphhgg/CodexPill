@@ -19,22 +19,21 @@ struct SwitchAccountWorkflowTests {
             identityResolver: makeResolver(auth: auth)
         )
 
-        let activeID = try await workflow.run(account: target, accounts: [target, other])
+        let result = try await workflow.run(account: target, accounts: [target, other])
 
         #expect(auth.activatedAccountID == target.id)
         #expect(repository.savedAccounts?.map(\.id) == [target.id, other.id])
-        #expect(codexAppProcessClient.relaunchCount == 1)
-        #expect(activeID == target.id)
+        #expect(result == SwitchAccountResult(activeAccountID: target.id, relaunch: .relaunched))
     }
 
     @Test
-    func runDoesNotActivateOrPersistWhenCodexIsUnavailable() async throws {
+    func runSwitchesWithoutTheCodexApp() async throws {
         let target = makeAccount(name: "Target", fingerprint: "live-fingerprint")
 
         let auth = AuthSnapshotProbe(currentFingerprint: "live-fingerprint", currentStableAccountID: nil)
         let repository = AccountCatalogProbe()
         let codexAppProcessClient = CodexAppProcessProbe()
-        codexAppProcessClient.availabilityError = CodexAppProcessClientError.applicationNotFound
+        codexAppProcessClient.relaunchResult = .appNotFound
         let workflow = SwitchAccountWorkflow(
             authService: auth,
             repository: repository,
@@ -42,13 +41,11 @@ struct SwitchAccountWorkflowTests {
             identityResolver: makeResolver(auth: auth)
         )
 
-        await #expect(throws: CodexAppProcessClientError.applicationNotFound) {
-            try await workflow.run(account: target, accounts: [target])
-        }
+        let result = try await workflow.run(account: target, accounts: [target])
 
-        #expect(auth.activatedAccountID == nil)
-        #expect(repository.savedAccounts == nil)
-        #expect(codexAppProcessClient.relaunchCount == 0)
+        #expect(auth.activatedAccountID == target.id)
+        #expect(repository.savedAccounts?.map(\.id) == [target.id])
+        #expect(result == SwitchAccountResult(activeAccountID: target.id, relaunch: .appNotFound))
     }
 
     @Test
@@ -65,10 +62,9 @@ struct SwitchAccountWorkflowTests {
             identityResolver: makeResolver(auth: auth)
         )
 
-        let activeID = try await workflow.run(account: target, accounts: [target])
+        let result = try await workflow.run(account: target, accounts: [target])
 
-        #expect(activeID == nil)
-        #expect(codexAppProcessClient.relaunchCount == 1)
+        #expect(result == SwitchAccountResult(activeAccountID: nil, relaunch: .relaunched))
     }
 }
 

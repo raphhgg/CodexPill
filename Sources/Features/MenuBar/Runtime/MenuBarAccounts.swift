@@ -11,7 +11,7 @@ protocol MenuBarAccounts: AnyObject {
     var isBusy: Bool { get }
     var isApplyingResetCredit: Bool { get }
 
-    func switchToAccount(_ account: CodexAccount) async -> Bool
+    func switchToAccount(_ account: CodexAccount) async -> SwitchToAccountOutcome
     func useResetCredit() async -> ResetCreditResult
     func removeSavedAccount(_ account: CodexAccount, signOutLocalAccount: Bool) async
     func refreshAccountData(for account: CodexAccount) async -> AccountsController.BackgroundRefreshOutcome

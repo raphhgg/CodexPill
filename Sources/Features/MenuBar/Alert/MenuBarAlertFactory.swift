@@ -225,6 +225,24 @@ struct MenuBarAlertFactory {
         )
     }
 
+    func makeCodexAppNotFoundForAddRequest() -> MenuBarInfoAlertRequest {
+        MenuBarInfoAlertRequest(
+            messageText: "Codex app not found",
+            informativeText: "Install the Codex app, then add the account again.",
+            style: .warning,
+            buttonTitle: "OK"
+        )
+    }
+
+    func makeCodexAppNotFoundAfterSwitchRequest() -> MenuBarInfoAlertRequest {
+        MenuBarInfoAlertRequest(
+            messageText: "Codex app not found",
+            informativeText: "Switched. Codex uses the account when it opens.",
+            style: .informational,
+            buttonTitle: "OK"
+        )
+    }
+
     func makeErrorRequest(message: String) -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
             messageText: "Refill Error",

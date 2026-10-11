@@ -48,7 +48,7 @@ struct CodexAppServerConfiguration: Equatable {
         }
         let fallbackPaths = [
             bundlePath,
-            "/Applications/Codex.app/Contents/Resources/codex"
+            CodexAppLocator.live.appURL().flatMap { CodexBundledCLI.executable(inAppAt: $0) }?.path
         ].compactMap { $0 }
 
         let fileManager = FileManager.default

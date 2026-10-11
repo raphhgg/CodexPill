@@ -372,8 +372,7 @@ private actor SuspendedActiveStatusClient: CodexAccountStatusClient {
 }
 
 private struct RaceCodexAppProcessClient: CodexAppProcessClient {
-    func assertCodexAvailable() throws {}
-    func relaunchCodex() async throws {}
+    func relaunchCodex() async throws -> CodexRelaunch { .relaunched }
 }
 
 private struct RaceStoredIdentityAdapter: StoredAccountIdentityReconciler {

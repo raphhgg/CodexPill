@@ -194,6 +194,10 @@ Body:
 The sign-in completed, but Refill could not save the account. This Mac was not changed.
 ```
 
+### Codex App Not Found
+
+Sign-in runs the Codex CLI that the Codex app ships (`Contents/Resources/codex-cli/bin/codex` in ChatGPT.app, `Contents/Resources/codex` in earlier Codex.app builds). Refill finds the app by bundle ID, so its name does not matter. Given no Codex app is found, when the user adds an account, then Refill shows `Codex app not found` / `Install the Codex app, then add the account again.`
+
 ### Quit During Sign-In
 
 Given isolated sign-in is in progress, when Refill quits, then Refill aborts the isolated Codex login process and cleans temporary auth state.

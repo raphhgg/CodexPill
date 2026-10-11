@@ -3,28 +3,31 @@ import OSLog
 
 private let codexAppProcessLogger = Logger(subsystem: "com.raphhgg.refill", category: "SystemCodexAppProcessClient")
 
+enum CodexRelaunch: Equatable, Sendable {
+    case relaunched
+    /// No Codex app on this Mac, so nothing was quit or opened. `auth.json` changes still apply.
+    case appNotFound
+}
+
 protocol CodexAppProcessClient: Sendable {
-    func assertCodexAvailable() throws
-    func relaunchCodex() async throws
+    func relaunchCodex() async throws -> CodexRelaunch
 }
 
 struct SystemCodexAppProcessClient: CodexAppProcessClient {
-    let bundleIdentifier = "com.openai.codex"
+    let bundleIdentifier = CodexAppLocator.bundleIdentifier
+    var locator = CodexAppLocator.live
 
-    func assertCodexAvailable() throws {
-        guard NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) != nil else {
-            codexAppProcessLogger.error("Could not resolve Codex application URL")
-            throw CodexAppProcessClientError.applicationNotFound
+    func relaunchCodex() async throws -> CodexRelaunch {
+        guard let appURL = locator.appURL() else {
+            codexAppProcessLogger.error("Codex app not found, skipping relaunch")
+            return .appNotFound
         }
-    }
-
-    func relaunchCodex() async throws {
         codexAppProcessLogger.log("Starting Codex relaunch flow")
-        try assertCodexAvailable()
         try await terminateForRelaunch()
         codexAppProcessLogger.log("Termination phase complete, launching Codex")
-        try await launchCodex()
+        try await launchCodex(at: appURL)
         codexAppProcessLogger.log("Launch request returned successfully")
+        return .relaunched
     }
 
     private func terminateRunningCodex() {
@@ -62,12 +65,7 @@ struct SystemCodexAppProcessClient: CodexAppProcessClient {
         codexAppProcessLogger.log("Codex terminated after forced shutdown")
     }
 
-    private func launchCodex() async throws {
-        try assertCodexAvailable()
-        guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) else {
-            throw CodexAppProcessClientError.applicationNotFound
-        }
-
+    private func launchCodex(at appURL: URL) async throws {
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.activates = true
         codexAppProcessLogger.log("Opening Codex app at \(appURL.path, privacy: .public)")
@@ -102,13 +100,10 @@ struct SystemCodexAppProcessClient: CodexAppProcessClient {
 }
 
 enum CodexAppProcessClientError: LocalizedError {
-    case applicationNotFound
     case relaunchTimedOut
 
     var errorDescription: String? {
         switch self {
-        case .applicationNotFound:
-            "Codex.app was not found on this Mac."
         case .relaunchTimedOut:
             "Codex did not quit in time to relaunch cleanly."
         }

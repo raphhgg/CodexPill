@@ -159,6 +159,28 @@ struct MenuBarCoordinatorTests {
     }
 
     @Test
+    func switchingWithoutTheCodexAppSwitchesAndSaysCodexWasNotRestarted() async throws {
+        let harness = try MenuBarCoordinatorHarness()
+        defer { harness.tearDown() }
+        let active = try harness.makeActiveAccount(email: "personal@example.com")
+        let workAuth = Data("work-auth".utf8)
+        let work = try CodexAuthSnapshotService(repository: harness.repository).saveAuthSnapshot(workAuth)
+        try harness.repository.saveAccounts([active, work])
+        harness.codexApp.relaunchResult = .appNotFound
+        harness.alertPresenter.confirmationResponse = true
+        let coordinator = harness.makeCoordinator()
+        coordinator.start()
+        await coordinator.waitForPendingWork()
+
+        harness.send(.switchAccount(work.id), for: .codex)
+        await coordinator.waitForPendingWork()
+
+        #expect(try Data(contentsOf: harness.repository.paths.codexAuthFile) == workAuth)
+        #expect(harness.alertPresenter.infoRequests.map(\.messageText) == ["Codex app not found"])
+        #expect(harness.alertPresenter.infoRequests.map(\.informativeText) == ["Switched. Codex uses the account when it opens."])
+    }
+
+    @Test
     func claudeSectionAsksForConsentThenAsksForKeychainAccessAndShowsUsage() async throws {
         let harness = try MenuBarCoordinatorHarness()
         let fixture = ClaudeUsageFixture(refreshInterval: 0)
@@ -424,6 +446,7 @@ private final class MenuBarCoordinatorHarness {
     let settings: SettingsStores
     let alertPresenter = AlertPresenterProbe()
     let panelPresenter = PanelPresenterProbe()
+    let codexApp = CodexAppProcessProbe()
     private(set) var accountsController: AccountsController!
     private var coordinator: MenuBarCoordinator?
     private let repositoryDirectory = FileManager.default.temporaryDirectory
@@ -447,7 +470,7 @@ private final class MenuBarCoordinatorHarness {
         accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: CodexAppProcessProbe(),
+            codexAppProcessClient: codexApp,
             accountStatusClient: accountStatusClient,
             resetCreditClient: resetCreditClient,
             postSwitchRefreshDelay: .zero

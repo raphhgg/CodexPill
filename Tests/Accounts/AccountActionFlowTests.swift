@@ -56,6 +56,13 @@ struct AccountActionFlowTests {
     }
 
     @Test
+    func missingCodexAppGetsItsOwnAlertInsteadOfAGenericError() {
+        let step = AccountActionFlow().resolveAddAccountStartFailure(CodexAppNotFoundError())
+
+        #expect(step == .showCodexAppNotFound)
+    }
+
+    @Test
     func expiredSignInCodeOffersRetry() {
         let step = AccountActionFlow().resolveAddAccountStartFailure(
             IsolatedCodexLoginError.authCaptureTimedOut

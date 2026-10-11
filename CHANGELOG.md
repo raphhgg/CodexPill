@@ -24,6 +24,13 @@
 
 - Remote Hosts and Notifications.
 
+### Fixed
+
+- Adding a Codex account works with the Codex app installed as ChatGPT.app,
+  which keeps its CLI in a new place.
+- Switching Codex accounts no longer needs the Codex app. Without it, Refill
+  switches and skips the restart.
+
 ## v0.1.0-beta.2 - 2026-05-31
 
 Second public beta of CodexPill.

@@ -727,6 +727,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             tasks.start { [weak self] in await self?.beginIsolatedAddAccount() }
         case .showError(let message):
             alertPresenter.presentInfo(alertFactory.makeErrorRequest(message: message))
+        case .showCodexAppNotFound:
+            alertPresenter.presentInfo(alertFactory.makeCodexAppNotFoundForAddRequest())
         case .showUnsafeAuthChange:
             alertPresenter.presentInfo(alertFactory.makeAddAccountUnsafeAuthChangeRequest())
         case .showSaveFailure:
@@ -737,8 +739,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     private func beginLocalSwitch(to account: CodexAccount) {
-        tasks.start { [accountsController] in
-            _ = await accountsController.switchToAccount(account)
+        tasks.start { [weak self] in
+            guard let self, await accountsController.switchToAccount(account).relaunch == .appNotFound else { return }
+            alertPresenter.presentInfo(alertFactory.makeCodexAppNotFoundAfterSwitchRequest())
         }
     }
 

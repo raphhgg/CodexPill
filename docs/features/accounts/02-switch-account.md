@@ -52,6 +52,10 @@ Given a saved account exists, when the user chooses `Switch on This Mac`, then R
 
 Given the user confirms a local switch, when Refill activates the selected snapshot, then Refill relaunches Codex and refreshes account data after the switch.
 
+### Switch Without The Codex App
+
+Given the Codex app (`com.openai.codex`, which may be named ChatGPT.app) is not found, when the user confirms a local switch, then Refill still switches `auth.json`, skips the relaunch and shows `Codex app not found` / `Switched. Codex uses the account when it opens.`
+
 ### Add Account Uses Existing Switch Path
 
 Given Add Account succeeds, when the user chooses `Use on This Mac`, then Refill switches through the existing local switch path and does not show a second switch confirmation.
