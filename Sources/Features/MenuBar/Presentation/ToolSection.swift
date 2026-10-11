@@ -150,7 +150,7 @@ extension MenuBarMenuState {
                 card.title = message.title
                 if reason == .keychainAccessNeeded {
                     followUp = ToolFollowUp(title: "Allow Keychain access…", systemImage: "key", action: .allowKeychainAccess)
-                } else if [.signedOut, .signInUnreadable].contains(reason), usage.signInAvailability == .available {
+                } else if [.signedOut, .signInUnreadable].contains(reason), usage.signInAvailability == .available, copy.offersSignInWhenSignedOut {
                     followUp = ToolFollowUp(title: "Sign In…", systemImage: "person.crop.circle", action: .addAccount)
                 }
             }

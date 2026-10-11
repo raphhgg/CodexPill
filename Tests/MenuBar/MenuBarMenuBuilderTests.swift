@@ -1068,6 +1068,19 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
+    func aSignedOutCursorOffersNoSignInBecauseAddingAnAccountLeavesCursorSignedOut() throws {
+        let menu = MenuBarMenuBuilder().makeMenu(
+            state: makeState(
+                activeAccount: nil,
+                providerUsage: [ProviderUsageState(provider: .cursor, status: .unavailable(.signedOut, lastSnapshot: nil), signInAvailability: .available)]
+            ),
+            target: try makeCoordinator()
+        )
+
+        #expect(menu.items.map(\.title) == ["Cursor", "", "Settings", "", "Quit"])
+    }
+
+    @Test
     func settingsHoldsSetupAndRareChoices() throws {
         let menu = MenuBarMenuBuilder().makeMenu(
             state: makeState(
