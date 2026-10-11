@@ -81,6 +81,36 @@ struct CursorAccountsAddTests {
     }
 
     @Test
+    func aCancelledSignInWaitsForTheWindowToQuit() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("cq-\(UUID().uuidString.prefix(8))", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let started = folder.appendingPathComponent("started")
+        let quit = folder.appendingPathComponent("quit")
+        let standIn = folder.appendingPathComponent("cursor")
+        try """
+        #!/bin/sh
+        trap 'sleep 0.3; touch "\(quit.path)"; exit 0' TERM
+        touch "\(started.path)"
+        while :; do sleep 0.05; done
+        """.write(to: standIn, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: standIn.path)
+        let login = CursorIsolatedLogin(
+            launcher: ExecutableCursorInstanceLauncher(executable: standIn),
+            root: folder.appendingPathComponent("p", isDirectory: true)
+        )
+
+        let signIn = Task { try await login.signIn() }
+        while !FileManager.default.fileExists(atPath: started.path) {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        signIn.cancel()
+
+        await #expect(throws: CursorSignInError.cancelled) { try await signIn.value }
+        #expect(FileManager.default.fileExists(atPath: quit.path))
+    }
+
+    @Test
     func aSignInThatNeverHappensTimesOutAndCleansUp() async throws {
         let scenario = try CursorAddScenario(liveSignIn: Self.home, timeout: .milliseconds(150))
         scenario.instances.behavior = .waits

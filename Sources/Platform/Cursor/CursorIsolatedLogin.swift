@@ -71,7 +71,8 @@ struct CursorIsolatedLogin: Sendable {
         cursorIsolatedLoginLogger.log("Opened a sign-in Cursor window")
         let database = Self.database(inProfile: profile)
         let result = await waitForSignIn(in: database, pid: pid)
-        await launcher.terminate(pid)
+        // A cancelled sign-in must still wait for the window to quit, and a cancelled task's sleeps return at once.
+        await Task { await launcher.terminate(pid) }.value
         cursorIsolatedLoginLogger.log("Closed the sign-in Cursor window")
 
         let signIn = try result.get()
