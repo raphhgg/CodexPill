@@ -62,9 +62,7 @@ enum ProviderAction: Hashable, Sendable {
     case cancelSignIn
     case disconnect
     case switchAccount(UUID)
-    /// Signs in through the tool's own login and saves the account.
     case addAccount
-    /// Saves the sign-in the tool uses now.
     case saveCurrentAccount
     case removeAccount(UUID)
     /// Codex only: spends one reset credit on the active account.
