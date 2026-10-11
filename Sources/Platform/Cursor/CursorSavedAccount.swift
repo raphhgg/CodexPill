@@ -1,6 +1,6 @@
 import Foundation
 
-/// A Cursor sign-in CodexPill saved so it can put it back later. Items from earlier builds also hold a `name`, which
+/// A Cursor sign-in Refill saved so it can put it back later. Items from earlier builds also hold a `name`, which
 /// decoding ignores.
 struct CursorSavedAccount: Sendable, Equatable, Identifiable, Codable {
     let id: UUID

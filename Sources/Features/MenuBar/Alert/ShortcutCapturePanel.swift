@@ -241,7 +241,7 @@ private struct ShortcutCapturePanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Press a shortcut to reveal CodexPill limits from anywhere.")
+            Text("Press a shortcut to reveal Refill limits from anywhere.")
                 .font(.system(size: 15))
                 .foregroundStyle(.primary)
 

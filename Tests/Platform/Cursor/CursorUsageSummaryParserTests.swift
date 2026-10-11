@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import CodexPill
+@testable import Refill
 
 struct CursorUsageSummaryParserTests {
     private let fetchedAt = Date(timeIntervalSince1970: 1_791_000_000)

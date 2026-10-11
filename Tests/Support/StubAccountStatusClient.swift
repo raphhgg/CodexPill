@@ -1,6 +1,6 @@
 import Foundation
 
-@testable import CodexPill
+@testable import Refill
 
 struct StubAccountStatusClient: CodexAccountStatusClient {
     private let result: Result<CodexAccountStatus, Error>

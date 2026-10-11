@@ -1,7 +1,7 @@
 import Foundation
 
 /// How the menu drives a tool other than Codex: Claude Code and Cursor. Each saved account is the tool's own sign-in,
-/// held by CodexPill; the tool's live sign-in is the account in use.
+/// held by Refill; the tool's live sign-in is the account in use.
 ///
 /// A tool plugs in by conforming once and being listed in `AppComposition`. The menu never names a tool: it sends a
 /// `ProviderAction`, and `ProviderUsageRuntime` runs it, then refreshes that tool. Codex is not a connection, because

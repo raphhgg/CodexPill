@@ -110,7 +110,7 @@ struct MenuBarAlertFactory {
         case .verificationFailed:
             return MenuBarInfoAlertRequest(
                 messageText: "Couldn't Add Account",
-                informativeText: "CodexPill could not verify the signed-in account.",
+                informativeText: "Refill could not verify the signed-in account.",
                 style: .warning,
                 buttonTitle: "OK"
             )
@@ -140,7 +140,7 @@ struct MenuBarAlertFactory {
     func makeAddAccountUnsafeAuthChangeRequest() -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
             messageText: "Couldn't Add Account",
-            informativeText: "CodexPill could not verify that This Mac stayed unchanged. No account was added.",
+            informativeText: "Refill could not verify that This Mac stayed unchanged. No account was added.",
             style: .warning,
             buttonTitle: "OK"
         )
@@ -149,7 +149,7 @@ struct MenuBarAlertFactory {
     func makeAddAccountSaveFailureRequest() -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
             messageText: "Couldn't Save Account",
-            informativeText: "The sign-in completed, but CodexPill could not save the account. This Mac was not changed.",
+            informativeText: "The sign-in completed, but Refill could not save the account. This Mac was not changed.",
             style: .warning,
             buttonTitle: "OK"
         )
@@ -168,7 +168,7 @@ struct MenuBarAlertFactory {
         guard !activeTargets.isEmpty else {
             return MenuBarConfirmationAlertRequest(
                 messageText: "Remove saved account?",
-                informativeText: "This removes \(accountLabel) from CodexPill.\n\nThis action cannot be undone.",
+                informativeText: "This removes \(accountLabel) from Refill.\n\nThis action cannot be undone.",
                 confirmTitle: "Remove",
                 cancelTitle: "Cancel"
             )
@@ -184,12 +184,12 @@ struct MenuBarAlertFactory {
 
     func makeAboutRequest() -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
-            messageText: "About CodexPill",
+            messageText: "About Refill",
             informativeText: """
-            CodexPill
+            Refill
             Version \(appVersionText)
 
-            A macOS menubar utility to switch Codex accounts and monitor active account limits.
+            A macOS menu bar app for your Codex, Claude Code and Cursor usage limits, with one-click account switching.
 
             Developed by Raphael Grau.
             """,
@@ -201,7 +201,7 @@ struct MenuBarAlertFactory {
     func makeDiagnosticsExportRequest() -> MenuBarConfirmationAlertRequest {
         MenuBarConfirmationAlertRequest(
             messageText: "Export Diagnostics?",
-            informativeText: "CodexPill will create a redacted support file with app version, settings, account aliases, limit freshness, and recent workflow events. It does not include auth tokens, emails, hostnames, local paths, or raw logs.",
+            informativeText: "Refill will create a redacted support file with app version, settings, account aliases, limit freshness, and recent workflow events. It does not include auth tokens, emails, hostnames, local paths, or raw logs.",
             confirmTitle: "Export",
             cancelTitle: "Cancel"
         )
@@ -209,8 +209,8 @@ struct MenuBarAlertFactory {
 
     func makeEnableLaunchAtLoginRequest() -> MenuBarConfirmationAlertRequest {
         MenuBarConfirmationAlertRequest(
-            messageText: "Launch CodexPill at Login?",
-            informativeText: "CodexPill will ask macOS to open it automatically when you log in. You can turn this off here or in System Settings.",
+            messageText: "Launch Refill at Login?",
+            informativeText: "Refill will ask macOS to open it automatically when you log in. You can turn this off here or in System Settings.",
             confirmTitle: "Enable",
             cancelTitle: "Cancel"
         )
@@ -227,7 +227,7 @@ struct MenuBarAlertFactory {
 
     func makeErrorRequest(message: String) -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
-            messageText: "CodexPill Error",
+            messageText: "Refill Error",
             informativeText: userFacingErrorMessage(for: message),
             style: .warning,
             buttonTitle: "OK"

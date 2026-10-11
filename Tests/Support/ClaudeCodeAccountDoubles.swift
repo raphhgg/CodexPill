@@ -1,6 +1,6 @@
 import Foundation
 
-@testable import CodexPill
+@testable import Refill
 
 /// Claude Code's Keychain item as a file. A background read is refused until one read that allows a prompt
 /// succeeds, like a fresh Keychain access rule. `failsUpdates` makes every update fail.
@@ -36,7 +36,7 @@ final class FileClaudeCodeKeychain: ClaudeCodeKeychainItem, @unchecked Sendable 
     }
 }
 
-/// CodexPill's saved Claude Code accounts as `claude-code-account-<id>.json` files. `failsSaves` makes every save fail,
+/// Refill's saved Claude Code accounts as `claude-code-account-<id>.json` files. `failsSaves` makes every save fail,
 /// like a Keychain that refuses the change. `beforeSave` runs on the saving thread, so a test can hold a save there.
 final class FileClaudeCodeAccountItems: ClaudeCodeAccountItemStoring, @unchecked Sendable {
     let rootDirectory: URL

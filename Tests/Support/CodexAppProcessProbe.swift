@@ -1,6 +1,6 @@
 import Foundation
 
-@testable import CodexPill
+@testable import Refill
 
 final class CodexAppProcessProbe: CodexAppProcessClient, @unchecked Sendable {
     var availabilityError: Error?

@@ -1,7 +1,7 @@
 import AppKit
 import Testing
 
-@testable import CodexPill
+@testable import Refill
 
 struct AppIconColorTests {
     private let appBundle = Bundle(for: MenuBarCoordinator.self)

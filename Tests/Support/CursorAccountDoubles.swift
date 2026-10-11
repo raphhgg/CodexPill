@@ -1,6 +1,6 @@
 import Foundation
 
-@testable import CodexPill
+@testable import Refill
 
 final class CursorAccountStoreHarness: CursorAccountStore, @unchecked Sendable {
     private let lock = NSLock()

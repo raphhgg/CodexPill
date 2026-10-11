@@ -12,7 +12,7 @@ enum CursorSignInError: Error, Equatable, Sendable {
     case timedOut
     /// The Cursor window quit before a sign-in appeared.
     case closedBeforeSignIn
-    /// CodexPill could not make its throwaway profile folder.
+    /// Refill could not make its throwaway profile folder.
     case folderUnavailable
 }
 
@@ -28,7 +28,7 @@ protocol CursorInstanceLaunching: Sendable {
 }
 
 /// Cursor's own sign-in, run in a separate Cursor window with a throwaway `--user-data-dir`, so the user's Cursor
-/// profile is never read or changed. CodexPill watches that profile's `state.vscdb` until the `cursorAuth/*` rows
+/// profile is never read or changed. Refill watches that profile's `state.vscdb` until the `cursorAuth/*` rows
 /// appear, closes that window by its PID, copies the rows out and deletes the folder, also when the sign-in fails,
 /// times out or is cancelled.
 struct CursorIsolatedLogin: Sendable {
@@ -85,7 +85,7 @@ struct CursorIsolatedLogin: Sendable {
         return final
     }
 
-    /// Deletes profiles an earlier run left behind when CodexPill quit in the middle of it.
+    /// Deletes profiles an earlier run left behind when Refill quit in the middle of it.
     func removeLeftovers() {
         let folders = (try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? []
         for folder in folders {

@@ -1,7 +1,7 @@
 import Foundation
 import SQLite3
 
-@testable import CodexPill
+@testable import Refill
 
 /// Cursor instances as far as `CursorIsolatedLogin` sees them, following what Cursor 3.21 does: an instance opened
 /// with `--user-data-dir=<profile>` keeps `state.vscdb` in WAL mode under `<profile>/User/globalStorage` while it
@@ -45,7 +45,7 @@ final class FakeCursorInstances: CursorInstanceLaunching, @unchecked Sendable {
     var launchedProfiles: [URL] { lock.withLock { launched } }
     var terminatedPIDs: [Int32] { lock.withLock { terminated } }
     var runningPIDs: Set<Int32> { lock.withLock { running } }
-    /// For each quit, whether the profile was still on disk, so CodexPill closed the window before deleting it.
+    /// For each quit, whether the profile was still on disk, so Refill closed the window before deleting it.
     var profileWasPresentAtQuit: [Bool] { lock.withLock { profileExistedAtQuit } }
 
     func launch(profile: URL) async throws(CursorSignInError) -> Int32 {

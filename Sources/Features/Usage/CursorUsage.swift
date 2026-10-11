@@ -1,6 +1,6 @@
 import Foundation
 
-/// Cursor plan usage for the menu, and the Cursor accounts CodexPill saved. The card reads Cursor's live sign-in once
+/// Cursor plan usage for the menu, and the Cursor accounts Refill saved. The card reads Cursor's live sign-in once
 /// the user connects it; each saved account is read with its own saved sign-in.
 struct CursorUsage: ProviderConnection {
     let provider = UsageProvider.cursor
@@ -106,7 +106,7 @@ struct CursorUsage: ProviderConnection {
         }
     }
 
-    /// Cursor renews a token only while it runs with that profile, so CodexPill never renews a saved sign-in. Once its
+    /// Cursor renews a token only while it runs with that profile, so Refill never renews a saved sign-in. Once its
     /// token expires, the account keeps its last limits, which the menu shows as stale.
     func refreshInactiveAccount(_ id: UUID, now _: Date) async {
         guard let accounts, (try? accounts.activeAccountID()) != id, let account = try? accounts.savedAccount(id) else { return }

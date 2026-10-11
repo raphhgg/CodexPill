@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import CodexPill
+@testable import Refill
 
 /// Each process is a `comm=` line and an `args=` line, as `ps -axww` prints them.
 struct ClaudeCodeProcessDetectorTests {

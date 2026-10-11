@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Renamed CodexPill to Refill. The bundle ID stays the same, so saved accounts
+  and settings carry over.
+- New capsule app icon, built in Icon Composer.
+
+### Added
+
+- App Icon colour setting under `Settings › Appearance`, with six colours. It
+  changes the icon in About and in alerts. Finder keeps Cobalt.
+
 ## v0.1.0-beta.2 - 2026-05-31
 
 Second public beta of CodexPill.

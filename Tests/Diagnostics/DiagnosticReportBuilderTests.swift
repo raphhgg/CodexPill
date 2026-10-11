@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import CodexPill
+@testable import Refill
 
 struct DiagnosticReportBuilderTests {
     @Test
@@ -11,7 +11,7 @@ struct DiagnosticReportBuilderTests {
 
         #expect(copy.panelTitle == "Export Diagnostics")
         #expect(copy.panelPrompt == "Export")
-        #expect(copy.defaultFilename(for: date) == "CodexPill-Diagnostics-20270115-080000.json")
+        #expect(copy.defaultFilename(for: date) == "Refill-Diagnostics-20270115-080000.json")
     }
 
     @Test

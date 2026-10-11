@@ -1,6 +1,6 @@
 import Testing
 
-@testable import CodexPill
+@testable import Refill
 
 struct ShortcutCapturePanelTests {
     @Test

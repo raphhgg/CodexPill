@@ -2,7 +2,7 @@ import Foundation
 import SQLite3
 import Testing
 
-@testable import CodexPill
+@testable import Refill
 
 struct CursorAccountsTests {
     private static let workToken = CursorAccessTokenFixtures.jwt(subject: "auth0|user_work", expiresAt: CursorAccessTokenFixtures.referenceDate)
@@ -255,7 +255,7 @@ struct CursorAccountsTests {
     // MARK: - Saved accounts
 
     @Test
-    func removeChangesOnlyCodexPillsList() throws {
+    func removeChangesOnlyRefillsList() throws {
         let scenario = try Scenario(signedInAs: Self.work)
         let work = try scenario.accounts.captureCurrent()
         let before = try Data(contentsOf: scenario.harness.databaseURL)

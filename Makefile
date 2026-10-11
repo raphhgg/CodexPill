@@ -1,4 +1,4 @@
-APP_NAME := CodexPill
+APP_NAME := Refill
 PROJECT_PATH := $(APP_NAME).xcodeproj
 AGENT_NAME ?= local
 BUILD_ROOT := build

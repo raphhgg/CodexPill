@@ -1,9 +1,9 @@
 import CryptoKit
 import Foundation
 
-@testable import CodexPill
+@testable import Refill
 
-/// The `claude` command and its Keychain, as far as CodexPill uses them, following what Claude Code 2.1.294 does.
+/// The `claude` command and its Keychain, as far as Refill uses them, following what Claude Code 2.1.294 does.
 /// A login with `CLAUDE_CONFIG_DIR` saves the sign-in in `Claude Code-credentials-<first 8 hex of sha256(dir)>` and the
 /// account record in `<dir>/.claude.json`. `doctor` renews an expired sign-in into that item and deletes
 /// `.credentials.json`. Without `CLAUDE_CONFIG_DIR`, a login signs Claude Code itself in through `signInClaudeCode` and

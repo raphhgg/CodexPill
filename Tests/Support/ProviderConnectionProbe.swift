@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-@testable import CodexPill
+@testable import Refill
 
 /// A tool connection whose reading and saved accounts the test sets. It counts reads, records switches and inactive
 /// reads in `events`, and lets a gate hold a sign-in or an inactive read.

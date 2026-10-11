@@ -2,14 +2,14 @@
 
 ## User Story
 
-As a CodexPill user, I want to switch a saved Codex account onto This Mac, so that I can continue working with an account that has available capacity.
+As a Refill user, I want to switch a saved Codex account onto This Mac, so that I can continue working with an account that has available capacity.
 
 ## Product Contract
 
 - Switching is always explicit. Adding, renaming, or removing an account must not implicitly switch the active account.
 - `Switch on This Mac` activates the selected saved snapshot as the local Codex auth state.
 - Local switching relaunches Codex so the app-server reads the newly active account.
-- CodexPill must not log or expose raw auth payloads during switch operations.
+- Refill must not log or expose raw auth payloads during switch operations.
 
 ## Entry Points
 
@@ -20,11 +20,11 @@ As a CodexPill user, I want to switch a saved Codex account onto This Mac, so th
 
 1. The user opens a saved account submenu.
 2. The user chooses `Switch on This Mac`.
-3. CodexPill asks for confirmation.
-4. CodexPill replaces the local Codex auth state with the saved snapshot.
-5. CodexPill persists the catalog state.
-6. CodexPill relaunches Codex.
-7. CodexPill refreshes account data after the switch.
+3. Refill asks for confirmation.
+4. Refill replaces the local Codex auth state with the saved snapshot.
+5. Refill persists the catalog state.
+6. Refill relaunches Codex.
+7. Refill refreshes account data after the switch.
 
 ## Confirmation Copy
 
@@ -46,15 +46,15 @@ If Codex terminals are running, the confirmation warns that they must be restart
 
 ### Explicit Local Switch
 
-Given a saved account exists, when the user chooses `Switch on This Mac`, then CodexPill asks for confirmation before activating the selected snapshot.
+Given a saved account exists, when the user chooses `Switch on This Mac`, then Refill asks for confirmation before activating the selected snapshot.
 
 ### Local Switch Relaunches Codex
 
-Given the user confirms a local switch, when CodexPill activates the selected snapshot, then CodexPill relaunches Codex and refreshes account data after the switch.
+Given the user confirms a local switch, when Refill activates the selected snapshot, then Refill relaunches Codex and refreshes account data after the switch.
 
 ### Add Account Uses Existing Switch Path
 
-Given Add Account succeeds, when the user chooses `Use on This Mac`, then CodexPill switches through the existing local switch path and does not show a second switch confirmation.
+Given Add Account succeeds, when the user chooses `Use on This Mac`, then Refill switches through the existing local switch path and does not show a second switch confirmation.
 
 ## Validation Targets
 

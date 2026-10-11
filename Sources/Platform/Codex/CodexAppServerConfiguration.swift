@@ -72,8 +72,8 @@ struct CodexAppServerClientInfo: Equatable {
     var version: String
 
     static let codexPill = CodexAppServerClientInfo(
-        name: "codexpill",
-        title: "CodexPill",
+        name: "refill",
+        title: "Refill",
         version: "0.1.0"
     )
 }

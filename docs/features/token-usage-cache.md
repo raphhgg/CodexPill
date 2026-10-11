@@ -2,11 +2,11 @@
 
 ## User Story
 
-As a CodexPill user with large local Codex history, I want Token Usage to become useful quickly and keep improving in the background, so the menu never sits on `Scanning local sessions...` for minutes before showing anything.
+As a Refill user with large local Codex history, I want Token Usage to become useful quickly and keep improving in the background, so the menu never sits on `Scanning local sessions...` for minutes before showing anything.
 
 ## Product Contract
 
-Token Usage scanning must be cache-first and incremental. CodexPill should not require a full replay of all selected local session files before the menu can display usage data.
+Token Usage scanning must be cache-first and incremental. Refill should not require a full replay of all selected local session files before the menu can display usage data.
 
 The first useful result should prioritize the currently selected visible period, currently `Last 30 Days` by default. Longer or heavier local history may continue scanning in the background, but the user should see either cached data, partial aggregate data, or explicit progress instead of an indefinite loading state.
 
@@ -17,9 +17,9 @@ This task exists because real power-user Codex histories can be several GB, incl
 ## Happy Path
 
 1. User enables Token Usage.
-2. CodexPill immediately checks the local Token Usage cache.
+2. Refill immediately checks the local Token Usage cache.
 3. If cached aggregate data exists for the selected period, the menu shows it immediately.
-4. If no cached aggregate data exists, CodexPill scans the selected period first.
+4. If no cached aggregate data exists, Refill scans the selected period first.
 5. The scan continues independently from the transient menu view.
 6. Reopening the menu shows cached state when available, not a restarted scan.
 
@@ -163,8 +163,8 @@ Runtime behavior:
 ## Acceptance Criteria
 
 - Enabling Token Usage does not require a full 90-day scan before showing the first useful card.
-- With no cache, CodexPill prioritizes the selected period and can publish partial aggregate data before all eligible files are scanned.
-- With cache, CodexPill shows cached aggregate data immediately.
+- With no cache, Refill prioritizes the selected period and can publish partial aggregate data before all eligible files are scanned.
+- With cache, Refill shows cached aggregate data immediately.
 - Reopening the menu does not restart or duplicate Token Usage scanning.
 - Changing chart style does not trigger scanning.
 - Changing period uses cached data when available and otherwise reprioritizes background scanning without blanking the existing chart.

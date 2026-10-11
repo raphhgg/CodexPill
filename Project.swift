@@ -1,19 +1,19 @@
 import ProjectDescription
 
 let project = Project(
-    name: "CodexPill",
+    name: "Refill",
     organizationName: "raphhgg",
     packages: [],
     targets: [
         .target(
-            name: "CodexPill",
+            name: "Refill",
             destinations: .macOS,
             product: .app,
             bundleId: "com.raphhgg.codexpill",
             deploymentTargets: .macOS("14.0"),
             infoPlist: .dictionary([
                 "CFBundleDevelopmentRegion": "en",
-                "CFBundleDisplayName": "CodexPill",
+                "CFBundleDisplayName": "Refill",
                 "CFBundleExecutable": "$(EXECUTABLE_NAME)",
                 "CFBundleIdentifier": "$(PRODUCT_BUNDLE_IDENTIFIER)",
                 "CFBundleInfoDictionaryVersion": "6.0",
@@ -41,7 +41,7 @@ let project = Project(
             ])
         ),
         .target(
-            name: "CodexPillTests",
+            name: "RefillTests",
             destinations: .macOS,
             product: .unitTests,
             bundleId: "com.raphhgg.codexpill.tests",
@@ -49,7 +49,7 @@ let project = Project(
             infoPlist: .default,
             sources: ["Tests/**"],
             dependencies: [
-                .target(name: "CodexPill")
+                .target(name: "Refill")
             ],
             settings: .settings(base: [
                 "SWIFT_VERSION": "6.0",

@@ -1,6 +1,6 @@
 import Foundation
 
-/// A Claude Code sign-in CodexPill saved so the user can switch back to it. The tokens live in CodexPill's own
+/// A Claude Code sign-in Refill saved so the user can switch back to it. The tokens live in Refill's own
 /// Keychain item for this account, never in the catalog. Catalogs from earlier builds also hold a `name`, which
 /// decoding ignores.
 struct ClaudeCodeAccount: Codable, Equatable, Identifiable, Sendable {
@@ -24,13 +24,13 @@ struct ClaudeCodeSavedUsage: Codable, Equatable, Sendable {
 
 enum ClaudeCodeAccountError: Error, Equatable, Sendable {
     case unknownAccount
-    /// CodexPill's item for this account is missing.
+    /// Refill's item for this account is missing.
     case savedSignInMissing
-    /// CodexPill's saved-account list or one of its Keychain items could not be read.
+    /// Refill's saved-account list or one of its Keychain items could not be read.
     case savedAccountsUnreadable
     /// Claude Code has no sign-in on this Mac. Signing in once with `claude` creates the item a switch updates.
     case claudeCodeSignedOut
-    /// Claude Code's global config records no account for its sign-in, so CodexPill can't tell which account it is.
+    /// Claude Code's global config records no account for its sign-in, so Refill can't tell which account it is.
     case claudeCodeAccountUnknown
     /// A running Claude Code would write its old sign-in back, so switching waits until it quits.
     case claudeCodeRunning
@@ -45,7 +45,7 @@ enum ClaudeCodeAccountError: Error, Equatable, Sendable {
     case switchingUnavailable
 }
 
-/// CodexPill's saved-account items, one per saved Claude Code account.
+/// Refill's saved-account items, one per saved Claude Code account.
 protocol ClaudeCodeAccountItemStoring: Sendable {
     /// Nil when there is no item. Throws when the item exists but can't be read.
     func read(_ id: UUID) throws(ClaudeCodeAccountError) -> Data?
@@ -58,7 +58,7 @@ protocol ClaudeCodeAccountItemStoring: Sendable {
 /// snapshots. Every call is a user action, so it may show the macOS Keychain prompt for Claude Code's item.
 ///
 /// A switch first saves the outgoing sign-in again, because Claude Code rotates its refresh token when it renews
-/// the access token: the copy CodexPill saved earlier may no longer work. A switch changes CodexPill's item and
+/// the access token: the copy Refill saved earlier may no longer work. A switch changes Refill's item and
 /// list, then Claude Code's credentials, then its global config. When any step fails, every earlier step is put back.
 struct ClaudeCodeAccountStore: Sendable {
     let catalogFile: URL
@@ -121,7 +121,7 @@ struct ClaudeCodeAccountStore: Sendable {
         return catalog[index]
     }
 
-    /// A saved account's sign-in, read from CodexPill's own item, so it never shows a prompt.
+    /// A saved account's sign-in, read from Refill's own item, so it never shows a prompt.
     func savedSignIn(_ id: UUID) throws(ClaudeCodeAccountError) -> ClaudeCodeSignInSnapshot {
         guard let data = try items.read(id) else { throw .savedSignInMissing }
         guard let signIn = ClaudeCodeSignInSnapshot(itemData: data) else { throw .savedAccountsUnreadable }

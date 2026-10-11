@@ -8,9 +8,9 @@ protocol ClaudeCodeKeychainItem: ClaudeKeychainReading {
 }
 
 /// One Claude Code sign-in as Claude Code stores it: the `claudeAiOauth` object of its credentials item and the
-/// `oauthAccount` object of its global config. Both stay opaque JSON, so fields CodexPill does not know survive a switch.
+/// `oauthAccount` object of its global config. Both stay opaque JSON, so fields Refill does not know survive a switch.
 struct ClaudeCodeSignInSnapshot: RedactedClaudeSecret {
-    /// `{"claudeAiOauth": …, "oauthAccount": …}`, the data of CodexPill's saved-account item.
+    /// `{"claudeAiOauth": …, "oauthAccount": …}`, the data of Refill's saved-account item.
     let itemData: Data
 
     init?(itemData: Data) {

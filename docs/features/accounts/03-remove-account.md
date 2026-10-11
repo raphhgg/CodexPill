@@ -2,15 +2,15 @@
 
 ## User Story
 
-As a CodexPill user, I want to remove a saved account from the local catalog, so that accounts I no longer want to use do not clutter the menu or get suggested.
+As a Refill user, I want to remove a saved account from the local catalog, so that accounts I no longer want to use do not clutter the menu or get suggested.
 
 ## Product Contract
 
-- Removing an account deletes CodexPill's saved local snapshot for that account.
-- If the removed account is currently active locally, CodexPill signs out the local Codex auth and relaunches Codex before deleting the saved snapshot.
-- If the sign-out fails, CodexPill keeps the saved account and reports the real failure.
+- Removing an account deletes Refill's saved local snapshot for that account.
+- If the removed account is currently active locally, Refill signs out the local Codex auth and relaunches Codex before deleting the saved snapshot.
+- If the sign-out fails, Refill keeps the saved account and reports the real failure.
 - The action is destructive for the local saved snapshot and must require confirmation.
-- CodexPill must not log or expose raw auth payloads during removal.
+- Refill must not log or expose raw auth payloads during removal.
 
 ## Entry Point
 
@@ -24,12 +24,12 @@ Remove…
 
 1. The user opens a saved account submenu.
 2. The user chooses `Remove…`.
-3. CodexPill shows a destructive confirmation.
+3. Refill shows a destructive confirmation.
 4. The user confirms `Remove` or `Sign Out and Remove`.
-5. If the account is active on This Mac, CodexPill signs it out.
-6. CodexPill deletes the saved snapshot for that account.
-7. CodexPill removes the account from the local catalog.
-8. CodexPill recomputes the active saved-account match.
+5. If the account is active on This Mac, Refill signs it out.
+6. Refill deletes the saved snapshot for that account.
+7. Refill removes the account from the local catalog.
+8. Refill recomputes the active saved-account match.
 
 ## Confirmation Copy
 
@@ -42,7 +42,7 @@ Remove saved account?
 Body:
 
 ```text
-This removes <account> from CodexPill.
+This removes <account> from Refill.
 
 This action cannot be undone.
 ```
@@ -71,15 +71,15 @@ Actions:
 
 ### Confirmation Required
 
-Given a saved account exists, when the user chooses `Remove…`, then CodexPill asks for confirmation before deleting the saved snapshot.
+Given a saved account exists, when the user chooses `Remove…`, then Refill asks for confirmation before deleting the saved snapshot.
 
 ### Cancel Does Not Mutate
 
-Given the remove confirmation is visible, when the user chooses `Cancel`, then CodexPill keeps the account, snapshot, active account match, and menu state unchanged.
+Given the remove confirmation is visible, when the user chooses `Cancel`, then Refill keeps the account, snapshot, active account match, and menu state unchanged.
 
 ### Remove Deletes Local Snapshot
 
-Given the user confirms removal, then CodexPill deletes the saved local snapshot for that account and removes the account from the catalog.
+Given the user confirms removal, then Refill deletes the saved local snapshot for that account and removes the account from the catalog.
 
 ### Active Account Removal Signs Out First
 
@@ -87,11 +87,11 @@ Given the removed account is the active local saved account, when removal comple
 
 ### Sign-Out Failure Does Not Remove
 
-Given the removed account is active locally, when the sign-out fails, then CodexPill keeps the saved snapshot and catalog row and shows the failure.
+Given the removed account is active locally, when the sign-out fails, then Refill keeps the saved snapshot and catalog row and shows the failure.
 
 ### Busy State Blocks Removal
 
-Given CodexPill is performing another account operation, then remove actions are disabled until the app returns to idle.
+Given Refill is performing another account operation, then remove actions are disabled until the app returns to idle.
 
 ## Validation Targets
 

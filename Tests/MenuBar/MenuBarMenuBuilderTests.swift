@@ -3,7 +3,7 @@ import Foundation
 import SwiftUI
 import Testing
 
-@testable import CodexPill
+@testable import Refill
 
 @MainActor
 final class AlertPresenterProbe: AlertPresenter {
@@ -115,7 +115,7 @@ final class DiagnosticReportPresenterProbe: DiagnosticReportPresenting {
 
     func export(report: DiagnosticReport) throws -> URL? {
         reports.append(report)
-        return URL(fileURLWithPath: "/tmp/CodexPill-Diagnostics.json")
+        return URL(fileURLWithPath: "/tmp/Refill-Diagnostics.json")
     }
 }
 
@@ -136,7 +136,7 @@ struct MenuBarMenuBuilderTests {
         )
         alertPresenter.presentInfo(
             MenuBarInfoAlertRequest(
-                messageText: "CodexPill Error",
+                messageText: "Refill Error",
                 informativeText: "Permission denied",
                 style: .warning,
                 buttonTitle: "OK"
@@ -640,7 +640,7 @@ struct MenuBarMenuBuilderTests {
 
         coordinator.toggleLaunchAtLogin(NSMenuItem())
 
-        #expect(alertPresenter.confirmationRequests.last?.messageText == "Launch CodexPill at Login?")
+        #expect(alertPresenter.confirmationRequests.last?.messageText == "Launch Refill at Login?")
         #expect(loginItemController.setEnabledCalls == [true])
     }
 
@@ -656,7 +656,7 @@ struct MenuBarMenuBuilderTests {
 
         coordinator.toggleLaunchAtLogin(NSMenuItem())
 
-        #expect(alertPresenter.confirmationRequests.last?.messageText == "Launch CodexPill at Login?")
+        #expect(alertPresenter.confirmationRequests.last?.messageText == "Launch Refill at Login?")
         #expect(loginItemController.setEnabledCalls.isEmpty)
         #expect(loginItemController.currentState == .disabled)
     }
@@ -720,7 +720,7 @@ struct MenuBarMenuBuilderTests {
         coordinator.toggleLaunchAtLogin(NSMenuItem())
 
         #expect(loginItemController.setEnabledCalls.isEmpty)
-        #expect(alertPresenter.confirmationRequests.last?.messageText == "Launch CodexPill at Login?")
+        #expect(alertPresenter.confirmationRequests.last?.messageText == "Launch Refill at Login?")
         #expect(loginItemController.currentState == .disabled)
         #expect(alertPresenter.infoRequests.last?.informativeText == "Could not update Launch at Login. Open System Settings and try again.")
     }
@@ -1285,7 +1285,7 @@ struct MenuBarMenuBuilderTests {
         hasCustomUsageColors: Bool = false,
         usagePercentMode: UsagePercentMode = .used,
         loginItemState: LoginItemState = .disabled,
-        revealStatusItemTitleShortcut: CodexPill.KeyboardShortcut? = .defaultRevealStatusItemTitle,
+        revealStatusItemTitleShortcut: Refill.KeyboardShortcut? = .defaultRevealStatusItemTitle,
         isBusy: Bool = false,
         tokenUsageEnabled: Bool = false,
         tokenUsageCard: TokenUsageMenuCard? = nil,
