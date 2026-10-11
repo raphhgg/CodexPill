@@ -55,7 +55,7 @@ Codex, Claude Code or Cursor. Each has one menu card with its usage, and a side 
 A locally stored sign-in managed by CodexPill, so the user can switch back to it.
 
 - **Codex.** A saved `auth.json` snapshot with a user-facing label, optional Codex metadata, and the latest known limits.
-- **Claude Code.** A copy of Claude Code's own sign-in in a CodexPill Keychain item, matched by Claude Code's account record. Switching is refused while Claude Code runs.
+- **Claude Code.** Claude Code's own sign-in for that account in a CodexPill Keychain item, matched by Claude Code's account record, with its latest known limits. It is added by running Claude Code's login in a throwaway folder, or by saving the sign-in Claude Code uses now. Switching is refused while Claude Code runs.
 - **Cursor.** A copy of Cursor's sign-in rows in a CodexPill Keychain item. A switch quits Cursor, writes the saved sign-in back into Cursor's local database, and reopens Cursor.
 
 ### Active Account
@@ -73,7 +73,7 @@ A Codex credit that resets the current limits early. CodexPill shows how many ar
 ## Non-Goals
 
 - Browser-based ChatGPT account switching.
-- Signing in to Claude Code or Cursor, or renewing their sessions, on their behalf. Switching only puts back a sign-in the tool itself created.
+- Signing in to Claude Code or Cursor, or renewing their sessions, with CodexPill's own code. CodexPill runs the tool's own login and lets the tool renew a saved copy in a throwaway folder; it never renews the live sign-in. Switching only puts back a sign-in the tool itself created.
 - Cloud sync or multi-device account storage.
 - Team/shared account management.
 - Background telemetry pipeline.
