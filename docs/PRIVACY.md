@@ -41,6 +41,7 @@ CodexPill never signs in to Claude with its own code, never calls Anthropic's to
 
 - reads `.credentials.json` in Claude Code's config folder (`CLAUDE_CONFIG_DIR`, or `~/.claude`), and if that file holds no Claude sign-in, the login Keychain generic password with service `Claude Code-credentials` and your macOS user name as the account;
 - uses only the access token, its expiry, and the plan name from that sign-in;
+- reads the plan tier from `oauthAccount` in Claude Code's global config (`$CLAUDE_CONFIG_DIR/.claude.json`, or `~/.claude.json`);
 - sends the access token to one place, `GET https://api.anthropic.com/api/oauth/usage`, to fetch your 5-hour and weekly limits. Redirects to any other host, or to plain HTTP, are refused. The request has no cookies and no cache.
 
 macOS may ask you to allow Keychain access. CodexPill shows that prompt only right after you connect or choose `Allow Keychain access…`. CodexPill never logs or displays the token, and it never reads browser cookies or Claude conversations. `Disconnect Claude` turns usage off and stops all reads.
