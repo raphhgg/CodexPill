@@ -25,6 +25,7 @@ struct MenuBarMenuState {
     let providerUsage: [ProviderUsageState]
     let toolOrder: [UsageProvider]
     let masksEmails: Bool
+    let showsModelLimits: Bool
     /// The moment reset countdowns and elapsed times in the menu are measured from.
     let now: Date
 
@@ -52,6 +53,7 @@ struct MenuBarMenuState {
         providerUsage: [ProviderUsageState] = [],
         toolOrder: [UsageProvider] = MenuDisplaySettingsStore.defaultToolOrder,
         masksEmails: Bool = false,
+        showsModelLimits: Bool = true,
         now: Date = .now
     ) {
         self.activeAccount = activeAccount
@@ -77,6 +79,7 @@ struct MenuBarMenuState {
         self.providerUsage = providerUsage
         self.toolOrder = toolOrder
         self.masksEmails = masksEmails
+        self.showsModelLimits = showsModelLimits
         self.now = now
     }
 

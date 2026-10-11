@@ -12,7 +12,7 @@ The status bar gives the user a lightweight answer before opening the menu: how 
 - Optional label text.
 - Hover-expanded and shortcut-revealed text behavior.
 - Compact indicators for the first menu card's windows (see below).
-- `Settings › Appearance` exposes `Menu Bar Label`, `Icon Style`, and `Usage Bars` controls for label mode, the reveal shortcut, icon style, usage percent mode, meter layout, pacing marker visibility, and usage colors. Other Settings items are owned by their own feature docs.
+- `Settings › Appearance` exposes `Menu Bar Label`, `Icon Style`, and `Usage Bars` controls for label mode, the reveal shortcut, icon style, usage percent mode, meter layout, pacing marker visibility, and usage colors. Other Settings items are owned by their own feature docs. Claude's per-model weekly limits (`Show Model Limits`) never reach the icon or its label.
 - Tooltip text.
 
 ## Menu Bar Label Reveal Shortcut

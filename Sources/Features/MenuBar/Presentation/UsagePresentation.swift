@@ -55,9 +55,10 @@ enum StatusItemSource: Equatable {
     case nothingConnected
     case tool(ToolSection)
 
+    /// The card's main windows. Claude's per-model limits stay in the card.
     var windows: [UsageWindow] {
         guard case let .tool(section) = self else { return [] }
-        return section.card.windows
+        return section.card.windows.filter { !$0.kind.isModelLimit }
     }
 }
 
@@ -96,7 +97,7 @@ func statusItemTooltipText(for source: StatusItemSource, now: Date = .now) -> St
     if let account = section.activeAccount {
         lines.append(account.label)
     }
-    for window in section.card.windows where window.displayedUsedPercent(at: now) >= 100 {
+    for window in source.windows where window.displayedUsedPercent(at: now) >= 100 {
         if let reset = tooltipResetStatusText(for: window, now: now) {
             lines.append("\(window.kind.title) \(reset.lowercased())")
         }

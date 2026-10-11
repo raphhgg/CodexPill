@@ -142,6 +142,7 @@ struct MenuBarMenuBuilder {
         appearance.addItem(usageBarsMenuItem(state: state, target: target))
         appearance.addItem(.separator())
         appearance.addItem(toggleItem("Show Token Usage", isOn: state.tokenUsageEnabled, action: #selector(MenuBarCoordinator.toggleTokenUsage(_:)), target: target))
+        appearance.addItem(toggleItem("Show Model Limits", isOn: state.showsModelLimits, action: #selector(MenuBarCoordinator.toggleShowsModelLimits(_:)), target: target))
         menu.addItem(submenuItem(appearance))
         menu.addItem(toggleItem("Hide Emails", isOn: state.masksEmails, action: #selector(MenuBarCoordinator.toggleMasksEmails(_:)), target: target))
         menu.addItem(refreshIntervalMenuItem(state: state, target: target))

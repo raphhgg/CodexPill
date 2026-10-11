@@ -192,8 +192,9 @@ extension MenuBarMenuState {
     /// A saved account's limits for its side-menu item, in the user's % used or % left. A reading older than two
     /// inactive refreshes says when it was read: "Session 12% · Weekly 40% used · as of 10:26".
     func accountUsageLine(_ snapshot: UsageSnapshot?) -> String? {
-        guard let snapshot, !snapshot.displayedWindows.isEmpty else { return nil }
-        let percents = snapshot.displayedWindows.map { window in
+        let windows = snapshot.map(displayedWindows) ?? []
+        guard let snapshot, !windows.isEmpty else { return nil }
+        let percents = windows.map { window in
             let used = window.displayedUsedPercent(at: now)
             return "\(window.kind.title) \(usagePercentMode == .used ? used : 100 - used)%"
         }
@@ -208,11 +209,16 @@ extension MenuBarMenuState {
     private func usageCard(_ snapshot: UsageSnapshot, isStale: Bool) -> ToolCard {
         ToolCard(
             detail: isStale ? "As of \(usageAsOfText(snapshot.fetchedAt, now: now))" : nil,
-            windows: snapshot.displayedWindows,
+            windows: displayedWindows(snapshot),
             isDimmed: isStale,
             resetCredits: snapshot.resetCredits.flatMap { $0.availableCount > 0 ? $0 : nil },
             spend: snapshot.spend
         )
+    }
+
+    /// Claude's per-model limits show unless Show Model Limits is off.
+    private func displayedWindows(_ snapshot: UsageSnapshot) -> [UsageWindow] {
+        snapshot.displayedWindows.filter { showsModelLimits || !$0.kind.isModelLimit }
     }
 }
 
@@ -233,13 +239,14 @@ extension UsageWindowKind {
         case .monthly: "Monthly"
         case .billingCycle: "Billing cycle"
         case .other(let durationMinutes): lengthTitle(durationMinutes)
+        case .modelWeekly(let modelName): "\(modelName) this week"
         }
     }
 
     /// The status bar title's label: "S", "W", "M", "B", or "8d" for a length with no name.
     var shortTitle: String {
         switch self {
-        case .session, .weekly, .monthly, .billingCycle: String(title.prefix(1))
+        case .session, .weekly, .monthly, .billingCycle, .modelWeekly: String(title.prefix(1))
         case .other(let durationMinutes): shortLengthTitle(durationMinutes)
         }
     }

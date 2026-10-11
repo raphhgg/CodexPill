@@ -12,6 +12,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let menuDisplaySettings: MenuDisplaySettingsStore
     private let statusItemSettings: StatusItemSettingsStore
     private let tokenUsagePreferences: TokenUsagePreferencesStore
+    private let claudeUsageSettings: ClaudeUsageSettingsStore
     private let cliProcessInspector: CodexCLIProcessInspector
     private let alertPresenter: AlertPresenter
     private let panelPresenter: PanelPresenter
@@ -60,6 +61,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         menuDisplaySettings: MenuDisplaySettingsStore,
         statusItemSettings: StatusItemSettingsStore,
         tokenUsagePreferences: TokenUsagePreferencesStore,
+        claudeUsageSettings: ClaudeUsageSettingsStore,
         cliProcessInspector: CodexCLIProcessInspector,
         alertPresenter: AlertPresenter,
         panelPresenter: PanelPresenter,
@@ -78,6 +80,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.menuDisplaySettings = menuDisplaySettings
         self.statusItemSettings = statusItemSettings
         self.tokenUsagePreferences = tokenUsagePreferences
+        self.claudeUsageSettings = claudeUsageSettings
         self.cliProcessInspector = cliProcessInspector
         self.alertPresenter = alertPresenter
         self.panelPresenter = panelPresenter
@@ -213,6 +216,13 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             period: tokenUsagePreferences.period,
             peakScope: tokenUsagePreferences.peakScope
         )
+        rebuildMenu()
+    }
+
+    @objc
+    func toggleShowsModelLimits(_ sender: NSMenuItem) {
+        recordMenuAction("toggleShowsModelLimits")
+        claudeUsageSettings.showsModelLimits.toggle()
         rebuildMenu()
     }
 
@@ -498,6 +508,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             providerUsage: providerUsageRuntime.states,
             toolOrder: menuDisplaySettings.toolOrder,
             masksEmails: menuDisplaySettings.masksEmails,
+            showsModelLimits: claudeUsageSettings.showsModelLimits,
             now: now()
         )
     }

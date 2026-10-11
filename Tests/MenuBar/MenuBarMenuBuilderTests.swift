@@ -560,7 +560,7 @@ struct MenuBarMenuBuilderTests {
         let usageBarTitles = usageBarsMenu.items.map(\.title)
         let showMarkers = try #require(usageBarsMenu.items.first(where: { $0.title == "Show Pace Markers" }))
 
-        #expect(preferencesMenu.items.map(\.title) == ["Menu Bar Label", "Icon Style", "Usage Bars", "", "Show Token Usage"])
+        #expect(preferencesMenu.items.map(\.title) == ["Menu Bar Label", "Icon Style", "Usage Bars", "", "Show Token Usage", "Show Model Limits"])
         #expect(usageBarTitles == [
             "Show % Used", "Show % Left", "",
             "Classic Layout", "Compact Layout", "",
@@ -1174,6 +1174,24 @@ struct MenuBarMenuBuilderTests {
 
         #expect(coordinator.menuState().masksEmails)
         #expect(coordinator.menuState().toolOrder == [.cursor, .codex, .claude])
+    }
+
+    @Test
+    func modelLimitsAreOnForANewUserAndTheToggleTurnsThemOff() throws {
+        let coordinator = try makeCoordinator()
+        func showModelLimits() throws -> NSMenuItem {
+            let menu = MenuBarMenuBuilder().makeMenu(state: coordinator.menuState(), target: coordinator)
+            return try #require(try appearanceMenu(in: menu).items.first { $0.title == "Show Model Limits" })
+        }
+
+        let before = try showModelLimits()
+        coordinator.toggleShowsModelLimits(NSMenuItem())
+        let after = try showModelLimits()
+
+        #expect(before.state == .on)
+        #expect(before.action == #selector(MenuBarCoordinator.toggleShowsModelLimits(_:)))
+        #expect(after.state == .off)
+        #expect(!coordinator.menuState().showsModelLimits)
     }
 
     private func providerSnapshot(_ provider: UsageProvider) -> UsageSnapshot {
