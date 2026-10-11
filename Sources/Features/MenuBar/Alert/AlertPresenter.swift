@@ -8,25 +8,7 @@ protocol AppIconSource {
 @MainActor
 struct BundleAppIconSource: AppIconSource {
     func appIconImage() -> NSImage? {
-        if let resourceIcon = NSImage.codexPillAppIcon() {
-            return resourceIcon
-        }
-
-        if let applicationIcon = NSApp.applicationIconImage {
-            return applicationIcon
-        }
-
-        return NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)
-    }
-}
-
-extension NSImage {
-    static func codexPillAppIcon(bundle: Bundle = .main) -> NSImage? {
-        guard let iconURL = bundle.url(forResource: "AppIcon", withExtension: "png") else {
-            return nil
-        }
-
-        return NSImage(contentsOf: iconURL)
+        NSApp.applicationIconImage ?? NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)
     }
 }
 

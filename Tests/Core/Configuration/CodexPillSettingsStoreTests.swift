@@ -27,6 +27,34 @@ struct CodexPillSettingsStoreTests {
     }
 
     @Test
+    func appIconColorDefaultsToCobalt() {
+        let settings = CodexPillSettingsStore(userDefaults: makeDefaults())
+
+        #expect(settings.appIconColor == .cobalt)
+    }
+
+    @Test
+    func appIconColorPersistsAcrossInstances() {
+        let defaults = makeDefaults()
+        let first = CodexPillSettingsStore(userDefaults: defaults)
+        first.appIconColor = .emerald
+
+        let second = CodexPillSettingsStore(userDefaults: defaults)
+
+        #expect(second.appIconColor == .emerald)
+    }
+
+    @Test
+    func unknownAppIconColorFallsBackToCobalt() {
+        let defaults = makeDefaults()
+        defaults.set("tangerine", forKey: "appIconColor")
+
+        let settings = CodexPillSettingsStore(userDefaults: defaults)
+
+        #expect(settings.appIconColor == .cobalt)
+    }
+
+    @Test
     func tokenUsagePreferencesDefaultOffWithThirtyDayPeriodAndDailyBars() {
         let defaults = makeDefaults()
         let settings = CodexPillSettingsStore(userDefaults: defaults)

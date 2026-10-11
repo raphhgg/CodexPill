@@ -37,6 +37,8 @@ Preferences
   Menu Bar Label
   Icon Style
   Usage Bars
+  Token Usage
+  App Icon
   ----------------
   Launch at Login
 ```
@@ -62,6 +64,8 @@ Preferences
   Menu Bar Label
   Icon Style
   Usage Bars
+  Token Usage
+  App Icon
   ----------------
   Launch at Login…
 ```

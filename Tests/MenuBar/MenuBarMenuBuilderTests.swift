@@ -132,6 +132,15 @@ final class LoginItemsSettingsLauncherProbe: LoginItemsSettingsLaunching {
 private struct LoginItemProbeError: Error {}
 
 @MainActor
+final class AppIconApplierProbe: AppIconApplying {
+    private(set) var appliedColors: [AppIconColor] = []
+
+    func apply(_ color: AppIconColor) {
+        appliedColors.append(color)
+    }
+}
+
+@MainActor
 final class DiagnosticReportPresenterProbe: DiagnosticReportPresenting {
     private(set) var reports: [DiagnosticReport] = []
 
@@ -143,48 +152,6 @@ final class DiagnosticReportPresenterProbe: DiagnosticReportPresenting {
 
 @MainActor
 struct MenuBarMenuBuilderTests {
-    @Test
-    func appIconSourcePrefersBundledPngResource() throws {
-        let temporaryDirectory = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        try FileManager.default.createDirectory(
-            at: temporaryDirectory,
-            withIntermediateDirectories: true
-        )
-        defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
-
-        let bundleDirectory = temporaryDirectory.appendingPathComponent("IconFixture.bundle", isDirectory: true)
-        try FileManager.default.createDirectory(at: bundleDirectory, withIntermediateDirectories: true)
-        try """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-            <key>CFBundleIdentifier</key>
-            <string>com.raphhgg.codexpill.tests.iconfixture</string>
-            <key>CFBundlePackageType</key>
-            <string>BNDL</string>
-        </dict>
-        </plist>
-        """.write(to: bundleDirectory.appendingPathComponent("Info.plist"), atomically: true, encoding: .utf8)
-
-        let image = NSImage(size: NSSize(width: 12, height: 12))
-        image.lockFocus()
-        NSColor.systemBlue.setFill()
-        NSRect(x: 0, y: 0, width: 12, height: 12).fill()
-        image.unlockFocus()
-        let representation = try #require(image.tiffRepresentation.flatMap(NSBitmapImageRep.init(data:)))
-        let data = try #require(representation.representation(using: .png, properties: [:]))
-        try data.write(to: bundleDirectory.appendingPathComponent("AppIcon.png"))
-
-        let bundle = try #require(Bundle(url: bundleDirectory))
-
-        let icon = try #require(NSImage.codexPillAppIcon(bundle: bundle))
-
-        #expect(icon.size.width > 0)
-        #expect(icon.size.height > 0)
-    }
-
     @Test
     func realAlertPresenterSuppressesInfoAlertsDuringAutomatedTests() {
         let presenter = SystemAlertPresenter(
@@ -1767,14 +1734,41 @@ struct MenuBarMenuBuilderTests {
         let usageBarTitles = usageBarsMenu.items.map(\.title)
         let showMarkers = try #require(usageBarsMenu.items.first(where: { $0.title == "Show Pace Markers" }))
 
-        #expect(preferencesMenu.items.map(\.title) == ["Menu Bar Label", "Icon Style", "Usage Bars", "Token Usage", "", "Launch at Login"])
-        #expect(preferencesMenu.items[4].isSeparatorItem)
+        #expect(preferencesMenu.items.map(\.title) == ["Menu Bar Label", "Icon Style", "Usage Bars", "Token Usage", "App Icon", "", "Launch at Login"])
+        #expect(preferencesMenu.items[5].isSeparatorItem)
         #expect(usageBarTitles == ["Show Pace Markers", "Accent Color…", "Use Default"])
         #expect(preferencesMenu.items.first(where: { $0.title == "Menu Bar Label" })?.image == nil)
         #expect(preferencesMenu.items.first(where: { $0.title == "Icon Style" })?.image == nil)
         #expect(usageBarsMenu.items.first(where: { $0.title == "Accent Color…" })?.image == nil)
         #expect(showMarkers.action == #selector(MenuBarCoordinator.togglePacingMarkers(_:)))
         #expect(showMarkers.state == .on)
+    }
+
+    @Test
+    func appIconPreferenceListsColorsWithCurrentOneChecked() throws {
+        let menu = MenuBarMenuBuilder().makeMenu(
+            state: makeState(activeAccount: makeAccount(name: "Active", withRateLimits: true), appIconColor: .honey),
+            target: try makeCoordinator()
+        )
+
+        let preferencesMenu = try #require(menu.items.first(where: { $0.title == "Preferences" })?.submenu)
+        let appIconMenu = try #require(preferencesMenu.items.first(where: { $0.title == "App Icon" })?.submenu)
+
+        #expect(appIconMenu.items.map(\.title) == ["Cobalt", "Deep teal", "Emerald", "Violet", "Honey", "Rose"])
+        #expect(appIconMenu.items.filter { $0.state == .on }.map(\.title) == ["Honey"])
+    }
+
+    @Test
+    func coordinatorPersistsAndAppliesSelectedAppIconColor() throws {
+        let applier = AppIconApplierProbe()
+        let (coordinator, settings) = try makeCoordinatorAndSettings(appIconApplier: applier)
+        let item = NSMenuItem()
+        item.representedObject = AppIconColor.violet.rawValue
+
+        coordinator.selectAppIconColor(item)
+
+        #expect(settings.appIconColor == .violet)
+        #expect(applier.appliedColors == [.violet])
     }
 
     @Test
@@ -2167,6 +2161,33 @@ struct MenuBarMenuBuilderTests {
         tokenUsageProvider: TokenUsageMenuProviding = LocalCodexSessionTokenUsageMenuProvider(),
         configureSettings: (CodexPillSettingsStore) -> Void = { _ in }
     ) throws -> (MenuBarCoordinator, NSStatusItem) {
+        let (coordinator, _, statusItem) = try makeCoordinatorHarness(
+            alertPresenter: alertPresenter,
+            loginItemController: loginItemController,
+            loginItemsSettingsLauncher: loginItemsSettingsLauncher,
+            diagnosticReportPresenter: diagnosticReportPresenter,
+            tokenUsageProvider: tokenUsageProvider,
+            configureSettings: configureSettings
+        )
+        return (coordinator, statusItem)
+    }
+
+    private func makeCoordinatorAndSettings(
+        appIconApplier: AppIconApplying
+    ) throws -> (MenuBarCoordinator, CodexPillSettingsStore) {
+        let (coordinator, settings, _) = try makeCoordinatorHarness(appIconApplier: appIconApplier)
+        return (coordinator, settings)
+    }
+
+    private func makeCoordinatorHarness(
+        alertPresenter: AlertPresenterProbe? = nil,
+        loginItemController: LoginItemControlling = LoginItemControllerProbe(),
+        loginItemsSettingsLauncher: LoginItemsSettingsLaunching = LoginItemsSettingsLauncherProbe(),
+        diagnosticReportPresenter: DiagnosticReportPresenting? = nil,
+        tokenUsageProvider: TokenUsageMenuProviding = LocalCodexSessionTokenUsageMenuProvider(),
+        appIconApplier: AppIconApplying = AppIconApplierProbe(),
+        configureSettings: (CodexPillSettingsStore) -> Void = { _ in }
+    ) throws -> (MenuBarCoordinator, CodexPillSettingsStore, NSStatusItem) {
         let repository = try makeIsolatedRepository()
         let store = MenuBarAccountsStore(
             repository: repository,
@@ -2189,10 +2210,11 @@ struct MenuBarMenuBuilderTests {
             panelPresenter: PanelPresenterProbe(),
             loginItemController: loginItemController,
             loginItemsSettingsLauncher: loginItemsSettingsLauncher,
+            appIconApplier: appIconApplier,
             diagnosticReportPresenter: diagnosticReportPresenter ?? DiagnosticReportPresenterProbe(),
             tokenUsageProvider: tokenUsageProvider
         )
-        return (coordinator, statusItem)
+        return (coordinator, settings, statusItem)
     }
 
     private func makeIsolatedRepository() throws -> AccountRepository {
@@ -2246,7 +2268,8 @@ struct MenuBarMenuBuilderTests {
         tokenUsageLoadingAnimationStyle: TokenUsageLoadingAnimationStyle = .waves,
         tokenUsagePeakScope: TokenUsagePeakScope = .currentPeriod,
         tokenUsageCard: TokenUsageMenuCard? = nil,
-        tokenUsagePrototypeCards: [TokenUsagePrototypeCard] = []
+        tokenUsagePrototypeCards: [TokenUsagePrototypeCard] = [],
+        appIconColor: AppIconColor = .cobalt
     ) -> MenuBarMenuState {
         MenuBarMenuState(
             activeAccount: activeAccount,
@@ -2274,7 +2297,8 @@ struct MenuBarMenuBuilderTests {
             tokenUsageLoadingAnimationStyle: tokenUsageLoadingAnimationStyle,
             tokenUsagePeakScope: tokenUsagePeakScope,
             tokenUsageCard: tokenUsageCard,
-            tokenUsagePrototypeCards: tokenUsagePrototypeCards
+            tokenUsagePrototypeCards: tokenUsagePrototypeCards,
+            appIconColor: appIconColor
         )
     }
 

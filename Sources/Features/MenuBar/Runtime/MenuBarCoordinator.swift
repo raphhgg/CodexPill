@@ -37,6 +37,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let notificationSettingsLauncher: NotificationSettingsLauncher
     private let loginItemController: LoginItemControlling
     private let loginItemsSettingsLauncher: LoginItemsSettingsLaunching
+    private let appIconApplier: AppIconApplying
     private let diagnosticReportPresenter: DiagnosticReportPresenting
     private let diagnosticEventRecorder: DiagnosticEventRecorder
     private let tokenUsageProvider: TokenUsageMenuProviding
@@ -128,6 +129,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         notificationSettingsLauncher: NotificationSettingsLauncher = SystemNotificationSettingsLauncher(),
         loginItemController: LoginItemControlling = SystemLoginItemController(),
         loginItemsSettingsLauncher: LoginItemsSettingsLaunching = SystemLoginItemsSettingsLauncher(),
+        appIconApplier: AppIconApplying = SystemAppIconApplier(),
         diagnosticReportPresenter: DiagnosticReportPresenting? = nil,
         diagnosticEventRecorder: DiagnosticEventRecorder? = nil,
         tokenUsageProvider: TokenUsageMenuProviding = LocalCodexSessionTokenUsageMenuProvider(),
@@ -160,6 +162,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.notificationSettingsLauncher = notificationSettingsLauncher
         self.loginItemController = loginItemController
         self.loginItemsSettingsLauncher = loginItemsSettingsLauncher
+        self.appIconApplier = appIconApplier
         self.diagnosticReportPresenter = diagnosticReportPresenter ?? SystemDiagnosticReportPresenter()
         self.diagnosticEventRecorder = diagnosticEventRecorder ?? DiagnosticEventRecorder()
         self.tokenUsageProvider = tokenUsageProvider
@@ -188,6 +191,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     func start() {
+        appIconApplier.apply(settings.appIconColor)
         statusItemRuntime.onEvent = { [weak self] event in
             self?.handleStatusItemRuntimeEvent(event)
         }
@@ -410,6 +414,19 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         }
         settings.tokenUsageChartStyle = style
         rebuildMenu()
+    }
+
+    @objc
+    func selectAppIconColor(_ sender: NSMenuItem) {
+        recordMenuAction("selectAppIconColor")
+        guard
+            let rawValue = sender.representedObject as? String,
+            let color = AppIconColor(rawValue: rawValue)
+        else {
+            return
+        }
+        settings.appIconColor = color
+        appIconApplier.apply(color)
     }
 
     @objc
@@ -706,7 +723,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             tokenUsageChartStyle: settings.tokenUsageChartStyle,
             tokenUsageLoadingAnimationStyle: settings.tokenUsageLoadingAnimationStyle,
             tokenUsagePeakScope: settings.tokenUsagePeakScope,
-            tokenUsageCard: makeTokenUsageCard()
+            tokenUsageCard: makeTokenUsageCard(),
+            appIconColor: settings.appIconColor
         )
     }
 
@@ -1055,6 +1073,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             _ = settings.remoteHostStates
             _ = settings.notificationsWhenBlockedEnabled
             _ = settings.notificationsWhenOutEnabled
+            _ = settings.appIconColor
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self else { return }

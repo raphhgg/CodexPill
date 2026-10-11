@@ -86,6 +86,9 @@ make test
   instead of pretending CodexPill can approve the permission itself.
 - When the login item state is unavailable, the menu keeps the item unchecked
   and opens System Settings instead of leaving the user at a dead end.
+- The App Icon colour defaults to Cobalt, persists across launches, and changes
+  only CodexPill's in-app icon. CodexPill must not modify its signed app bundle
+  to change the Finder icon.
 
 ### Privacy
 

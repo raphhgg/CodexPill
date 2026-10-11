@@ -102,6 +102,7 @@ struct MenuBarMenuState {
     let tokenUsagePeakScope: TokenUsagePeakScope
     let tokenUsageCard: TokenUsageMenuCard?
     let tokenUsagePrototypeCards: [TokenUsagePrototypeCard]
+    let appIconColor: AppIconColor
 
     init(
         activeAccount: CodexAccount?,
@@ -130,7 +131,8 @@ struct MenuBarMenuState {
         tokenUsageLoadingAnimationStyle: TokenUsageLoadingAnimationStyle = .waves,
         tokenUsagePeakScope: TokenUsagePeakScope = .currentPeriod,
         tokenUsageCard: TokenUsageMenuCard? = nil,
-        tokenUsagePrototypeCards: [TokenUsagePrototypeCard] = []
+        tokenUsagePrototypeCards: [TokenUsagePrototypeCard] = [],
+        appIconColor: AppIconColor = .defaultColor
     ) {
         self.activeAccount = activeAccount
         self.inactiveAccounts = inactiveAccounts
@@ -159,6 +161,7 @@ struct MenuBarMenuState {
         self.tokenUsagePeakScope = tokenUsagePeakScope
         self.tokenUsageCard = tokenUsageCard
         self.tokenUsagePrototypeCards = tokenUsagePrototypeCards
+        self.appIconColor = appIconColor
     }
 
     var canAddAccount: Bool {

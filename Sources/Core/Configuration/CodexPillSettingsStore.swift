@@ -10,6 +10,7 @@ final class CodexPillSettingsStore {
     let notificationPreferences: NotificationPreferencesStore
     let notificationState: NotificationStateStore
     let tokenUsagePreferences: TokenUsagePreferencesStore
+    let appIconPreferences: AppIconPreferencesStore
 
     init(userDefaults: UserDefaults = .standard) {
         menuDisplaySettings = MenuDisplaySettingsStore(userDefaults: userDefaults)
@@ -18,6 +19,7 @@ final class CodexPillSettingsStore {
         notificationPreferences = NotificationPreferencesStore(userDefaults: userDefaults)
         notificationState = NotificationStateStore(userDefaults: userDefaults)
         tokenUsagePreferences = TokenUsagePreferencesStore(userDefaults: userDefaults)
+        appIconPreferences = AppIconPreferencesStore(userDefaults: userDefaults)
     }
 
     var refreshIntervalMinutes: Int {
@@ -122,6 +124,11 @@ final class CodexPillSettingsStore {
     var tokenUsagePeakScope: TokenUsagePeakScope {
         get { tokenUsagePreferences.peakScope }
         set { tokenUsagePreferences.peakScope = newValue }
+    }
+
+    var appIconColor: AppIconColor {
+        get { appIconPreferences.appIconColor }
+        set { appIconPreferences.appIconColor = newValue }
     }
 
     var accountNotificationStates: [PersistedAccountNotificationState] {

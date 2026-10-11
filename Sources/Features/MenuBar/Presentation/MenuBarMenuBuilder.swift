@@ -531,6 +531,7 @@ struct MenuBarMenuBuilder {
         submenu.addItem(statusBarStyleMenuItem(state: state, target: target))
         submenu.addItem(usageBarsPreferencesMenuItem(state: state, target: target))
         submenu.addItem(tokenUsagePreferencesMenuItem(state: state, target: target))
+        submenu.addItem(appIconMenuItem(state: state, target: target))
         submenu.addItem(.separator())
         submenu.addItem(launchAtLoginMenuItem(state: state, target: target))
 
@@ -623,6 +624,20 @@ struct MenuBarMenuBuilder {
             option.target = target
             option.representedObject = style.rawValue
             option.state = state.tokenUsageLoadingAnimationStyle == style ? .on : .off
+            submenu.addItem(option)
+        }
+        item.submenu = submenu
+        return item
+    }
+
+    private func appIconMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "App Icon", action: nil, keyEquivalent: "")
+        let submenu = configuredMenu(title: "App Icon")
+        for color in AppIconColor.allCases {
+            let option = NSMenuItem(title: color.menuTitle, action: #selector(MenuBarCoordinator.selectAppIconColor(_:)), keyEquivalent: "")
+            option.target = target
+            option.representedObject = color.rawValue
+            option.state = state.appIconColor == color ? .on : .off
             submenu.addItem(option)
         }
         item.submenu = submenu
