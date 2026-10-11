@@ -48,3 +48,42 @@ struct SystemClaudeCodeAccountItems: ClaudeCodeAccountItemStoring {
         ]
     }
 }
+
+/// Saved-account items as private files in an isolated run's folder, so an isolated run never writes the Keychain.
+struct IsolatedClaudeCodeAccountItems: ClaudeCodeAccountItemStoring {
+    let directory: URL
+
+    func read(_ id: UUID) throws(ClaudeCodeAccountError) -> Data? {
+        do {
+            return try ClaudeCredentialsSource.contentsIfPresent(of: file(for: id))
+        } catch {
+            throw .savedAccountsUnreadable
+        }
+    }
+
+    func save(_ data: Data, for id: UUID) -> Bool {
+        do {
+            try FilePermissionHardening.createPrivateDirectory(at: directory)
+            try data.write(to: file(for: id), options: .atomic)
+            try FilePermissionHardening.repairPrivateFile(at: file(for: id))
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    func delete(_ id: UUID) -> Bool {
+        do {
+            try FileManager.default.removeItem(at: file(for: id))
+            return true
+        } catch CocoaError.fileNoSuchFile {
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    private func file(for id: UUID) -> URL {
+        directory.appendingPathComponent("\(id.uuidString).json")
+    }
+}

@@ -12,6 +12,14 @@ struct ClaudeCodeAccount: Codable, Equatable, Identifiable, Sendable {
     var identity: ClaudeCodeAccountIdentity?
     let createdAt: Date
     var updatedAt: Date
+    /// The last limits read with this account's own sign-in while Claude Code used another account.
+    var usage: ClaudeCodeSavedUsage? = nil
+}
+
+struct ClaudeCodeSavedUsage: Codable, Equatable, Sendable {
+    let report: ClaudeUsageReport
+    let planName: String?
+    let fetchedAt: Date
 }
 
 enum ClaudeCodeAccountError: Error, Equatable, Sendable {
@@ -81,14 +89,21 @@ struct ClaudeCodeAccountStore: Sendable {
     @discardableResult
     func captureCurrent(named name: String? = nil) throws(ClaudeCodeAccountError) -> ClaudeCodeAccount {
         let (current, _) = try currentSignIn()
+        return try add(current, named: name)
+    }
+
+    /// Saves a sign-in Claude Code made in a throwaway config folder, the same way as `captureCurrent`.
+    @discardableResult
+    func add(_ signIn: ClaudeCodeSignInSnapshot, named name: String? = nil) throws(ClaudeCodeAccountError) -> ClaudeCodeAccount {
+        guard signIn.identity != nil else { throw .claudeCodeAccountUnknown }
         var catalog = try accounts()
         let index: Int
-        if let existing = savedIndex(of: current, in: catalog) {
+        if let existing = savedIndex(of: signIn, in: catalog) {
             index = existing
         } else {
             catalog.append(ClaudeCodeAccount(
                 id: UUID(),
-                name: current.email ?? current.organizationName ?? "Claude Account",
+                name: signIn.email ?? signIn.organizationName ?? "Claude Account",
                 createdAt: now(),
                 updatedAt: now()
             ))
@@ -98,12 +113,46 @@ struct ClaudeCodeAccountStore: Sendable {
 
         var undo = Undo()
         do throws(ClaudeCodeAccountError) {
-            try save(current, into: &catalog[index], undo: &undo)
+            try save(signIn, into: &catalog[index], undo: &undo)
             try write(catalog, undo: &undo)
         } catch {
             throw undo.rollBack(after: error)
         }
         return catalog[index]
+    }
+
+    /// A saved account's sign-in, read from CodexPill's own item, so it never shows a prompt.
+    func savedSignIn(_ id: UUID) throws(ClaudeCodeAccountError) -> ClaudeCodeSignInSnapshot {
+        guard let data = try items.read(id) else { throw .savedSignInMissing }
+        guard let signIn = ClaudeCodeSignInSnapshot(itemData: data) else { throw .savedAccountsUnreadable }
+        return signIn
+    }
+
+    /// Saves a sign-in Claude Code renewed, but only while the saved copy is still `expected` and the renewed
+    /// sign-in is the same account. Returns false and changes nothing otherwise, for example when a switch saved a
+    /// newer copy in the meantime.
+    func replaceSavedSignIn(
+        _ id: UUID,
+        with renewed: ClaudeCodeSignInSnapshot,
+        ifUnchangedFrom expected: ClaudeCodeSignInSnapshot
+    ) -> Bool {
+        guard
+            renewed.identity != nil,
+            renewed.identity == expected.identity,
+            let current = try? items.read(id),
+            current == expected.itemData
+        else {
+            return false
+        }
+        return items.save(renewed.itemData, for: id)
+    }
+
+    func recordUsage(_ usage: ClaudeCodeSavedUsage, for id: UUID) throws(ClaudeCodeAccountError) {
+        var catalog = try accounts()
+        guard let index = catalog.firstIndex(where: { $0.id == id }) else { throw .unknownAccount }
+        catalog[index].usage = usage
+        var undo = Undo()
+        try write(catalog, undo: &undo)
     }
 
     /// Signs Claude Code in to a saved account. The outgoing sign-in is saved again first; a sign-in that is not

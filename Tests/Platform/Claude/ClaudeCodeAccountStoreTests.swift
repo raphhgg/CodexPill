@@ -101,7 +101,7 @@ struct ClaudeCodeAccountStoreTests {
     }
 
     @Test
-    func noClaudeCodeIsEverAskedToRenewItsSignIn() throws {
+    func codexPillNeverRenewsAClaudeSignInItself() throws {
         let repository = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let sources = try #require(FileManager.default.enumerator(at: repository.appendingPathComponent("Sources"), includingPropertiesForKeys: nil))
