@@ -47,7 +47,7 @@ struct StatusItemRuntimeTests {
         let punchCard = try pixels()
 
         #expect(Set([hourglass, moon, punchCard]).count == 3)
-        #expect(punchCard == StatusBarIconRenderer().makeImage(style: .punchCard, reading: .noData).tiffRepresentation)
+        #expect(punchCard == StatusBarIconRenderer().makeImage(style: .punchCard, reading: .noData, percentMode: .used).tiffRepresentation)
     }
 
     @Test

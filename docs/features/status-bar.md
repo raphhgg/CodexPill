@@ -17,16 +17,20 @@ The status bar gives the user a lightweight answer before opening the menu: how 
 
 ## Menu Bar Glyph
 
-The glyph shows the active account's two limits at a glance. Each style shows
-what is left, not what is used, so a fuller glyph means more room.
+The glyph shows the active account's two limits at a glance. It fills the
+same percent the menu card shows: with `Show % Used` (the default) a card that
+reads 32% used fills 32% of the glyph, and with `Show % Left` a card that reads
+68% left fills 68%. More ink always means a bigger number on the card.
 
 | Style | Session limit | Weekly limit | No data |
 | --- | --- | --- | --- |
-| Hourglass (default) | Sand in the top bulb falls as you use it, and the used share fills the bottom bulb. | A base bar under the glass, filled left to right. | Empty glass and a faint base. |
-| Moon | The lit phase of a moon, lit from the right: full at 100%, a thin crescent near 0. | An orbit ring, filled clockwise from 12 o'clock. | A faint moon outline and a faint ring. |
+| Hourglass (default) | Sand by area. Used sand has fallen into the bottom bulb; with `Show % Left` the sand still waiting sits in the top bulb. The measuring bulb has a faint track. | A base bar under the glass, filled left to right. | Empty glass and a faint base. |
+| Moon | The lit share of a moon, lit from the right, by area: 32% lights 32% of the disc. | An orbit ring, filled clockwise from 12 o'clock. | A faint moon outline and a faint ring. |
 | Punch card | Top row of five slots. | Bottom row of five slots. | All slots hollow and faint. |
 
-Punch card rounds up, so any amount left shows at least one solid slot.
+Punch card fills the nearest slot count, rounding half up (32% fills 2 of 5,
+28% fills 1). Any amount above 0% fills at least one slot, and only 100% fills
+the whole row.
 
 Some accounts report only one limit. The glyph then shows that limit in its
 main element (the sand, the moon phase, or a single centred row of slots) and
@@ -83,7 +87,7 @@ Appearance
 
 - `Show % Left` changes every usage percentage Refill shows (status item
   label, active account meters, saved account rows) to the share still
-  available. The glyph always shows what is left. Pace markers move to the
+  available. The glyph follows the same choice. Pace markers move to the
   matching position. Countdowns for full windows are unchanged.
 - `Session Color…` and `Weekly Color…` color the session and weekly bars in the
   menu. With `Same Color

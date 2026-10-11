@@ -1,44 +1,52 @@
 import AppKit
 
+/// The percents the glyph fills, in the same mode as the card text: 32% used fills 32% of the glyph.
 enum StatusBarGlyphReading: Equatable, Sendable {
     case noData
-    case single(remainingPercent: Int)
-    case both(sessionRemainingPercent: Int, weeklyRemainingPercent: Int)
+    case single(percent: Int)
+    case both(sessionPercent: Int, weeklyPercent: Int)
 
     static let punchSlotsPerRow = 5
 
-    init(sessionUsedPercent: Int?, weeklyUsedPercent: Int?) {
-        switch (sessionUsedPercent.map(Self.remainingPercent(used:)), weeklyUsedPercent.map(Self.remainingPercent(used:))) {
+    init(sessionPercent: Int?, weeklyPercent: Int?) {
+        switch (sessionPercent.map(Self.clamped), weeklyPercent.map(Self.clamped)) {
         case let (session?, weekly?):
-            self = .both(sessionRemainingPercent: session, weeklyRemainingPercent: weekly)
+            self = .both(sessionPercent: session, weeklyPercent: weekly)
         case let (session?, nil):
-            self = .single(remainingPercent: session)
+            self = .single(percent: session)
         case let (nil, weekly?):
-            self = .single(remainingPercent: weekly)
+            self = .single(percent: weekly)
         case (nil, nil):
             self = .noData
         }
     }
 
-    static func solidPunchSlots(remainingPercent: Int?) -> Int {
-        guard let remainingPercent else { return 0 }
-        return (remainingPercent * punchSlotsPerRow + 99) / 100
+    init(windows: [UsageWindow], mode: UsagePercentMode, now: Date = .now) {
+        let percents = statusItemBarPercents(for: windows, mode: mode, now: now)
+        self.init(sessionPercent: percents.primary, weeklyPercent: percents.secondary)
     }
 
-    private static func remainingPercent(used: Int) -> Int {
-        100 - min(max(used, 0), 100)
+    /// Rounds half up, but any amount above 0% fills at least one slot and only 100% fills the row.
+    static func solidPunchSlots(percent: Int?) -> Int {
+        guard let percent, percent > 0 else { return 0 }
+        guard percent < 100 else { return punchSlotsPerRow }
+        return min(max((percent * punchSlotsPerRow + 50) / 100, 1), punchSlotsPerRow - 1)
+    }
+
+    private static func clamped(_ percent: Int) -> Int {
+        min(max(percent, 0), 100)
     }
 }
 
 struct StatusBarIconRenderer {
     static let glyphSize = NSSize(width: 18, height: 18)
 
-    func makeImage(style: StatusBarIndicatorStyle, reading: StatusBarGlyphReading) -> NSImage {
+    func makeImage(style: StatusBarIndicatorStyle, reading: StatusBarGlyphReading, percentMode: UsagePercentMode) -> NSImage {
         let image = NSImage(size: Self.glyphSize, flipped: true) { _ in
             guard let context = NSGraphicsContext.current?.cgContext else { return false }
             switch style {
             case .hourglass:
-                HourglassGlyph.draw(reading, in: context)
+                HourglassGlyph.draw(reading, percentMode: percentMode, in: context)
             case .moon:
                 MoonGlyph.draw(reading, in: context)
             case .punchCard:
@@ -59,7 +67,7 @@ private func fraction(_ percent: Int) -> CGFloat {
     CGFloat(percent) / 100
 }
 
-private enum HourglassGlyph {
+enum HourglassGlyph {
     static var outline: CGPath {
         let path = CGMutablePath()
         path.move(to: CGPoint(x: 4.8, y: 2.9))
@@ -76,7 +84,28 @@ private enum HourglassGlyph {
     static var topBulb: CGPath { bulb(rimY: 4.1, neckY: 8.8, bulge: 6.3, shoulder: 7.7) }
     static var bottomBulb: CGPath { bulb(rimY: 13.9, neckY: 9.2, bulge: 11.7, shoulder: 10.3) }
 
-    static func draw(_ reading: StatusBarGlyphReading, in context: CGContext) {
+    /// Used sand has fallen into the bottom bulb; what is left still waits in the top bulb.
+    /// Only that one bulb is drawn, so the ink always matches the percent the card shows.
+    static func sandPath(percent: Int, percentMode: UsagePercentMode) -> CGPath? {
+        guard percent > 0 else { return nil }
+        let bulb = percentMode == .used ? bottomBulb : topBulb
+        guard percent < 100 else { return bulb }
+        let bounds = bulb.boundingBoxOfPath
+        let target = bulb.area * fraction(percent)
+        var top = bounds.minY
+        var bottom = bounds.maxY
+        for _ in 0..<24 {
+            let level = (top + bottom) / 2
+            if sand(in: bulb, from: level).area > target {
+                top = level
+            } else {
+                bottom = level
+            }
+        }
+        return sand(in: bulb, from: (top + bottom) / 2)
+    }
+
+    static func draw(_ reading: StatusBarGlyphReading, percentMode: UsagePercentMode, in context: CGContext) {
         context.setLineJoin(.round)
         context.setLineWidth(1.2)
         context.setStrokeColor(ink())
@@ -90,10 +119,10 @@ private enum HourglassGlyph {
         switch reading {
         case .noData:
             strokeLine(y: 16.6, to: 14.4, alpha: 0.3, in: context)
-        case let .single(remaining):
-            fillSand(remaining, in: context)
+        case let .single(percent):
+            fillSand(percent, percentMode: percentMode, in: context)
         case let .both(session, weekly):
-            fillSand(session, in: context)
+            fillSand(session, percentMode: percentMode, in: context)
             strokeLine(y: 16.6, to: 14.4, alpha: 0.3, in: context)
             if weekly > 0 {
                 strokeLine(y: 16.6, to: 3.6 + 10.8 * fraction(weekly), alpha: 1, in: context)
@@ -101,10 +130,20 @@ private enum HourglassGlyph {
         }
     }
 
-    private static func fillSand(_ remainingPercent: Int, in context: CGContext) {
-        let remaining = fraction(remainingPercent)
-        fill(topBulb, from: 8.8 - 4.7 * remaining, to: 9, in: context)
-        fill(bottomBulb, from: 13.9 - 4.7 * (1 - remaining), to: 14, in: context)
+    /// The measuring bulb gets a faint track, like the moon's dark side, so 0% still differs from no data.
+    private static func fillSand(_ percent: Int, percentMode: UsagePercentMode, in context: CGContext) {
+        context.setFillColor(ink(0.25))
+        context.addPath(percentMode == .used ? bottomBulb : topBulb)
+        context.fillPath()
+        guard let sand = sandPath(percent: percent, percentMode: percentMode) else { return }
+        context.setFillColor(ink())
+        context.addPath(sand)
+        context.fillPath()
+    }
+
+    private static func sand(in bulb: CGPath, from level: CGFloat) -> CGPath {
+        let bounds = bulb.boundingBoxOfPath
+        return bulb.intersection(CGPath(rect: CGRect(x: bounds.minX, y: level, width: bounds.width, height: bounds.maxY - level), transform: nil))
     }
 
     private static func bulb(rimY: CGFloat, neckY: CGFloat, bulge: CGFloat, shoulder: CGFloat) -> CGPath {
@@ -118,15 +157,6 @@ private enum HourglassGlyph {
         return path
     }
 
-    private static func fill(_ bulb: CGPath, from top: CGFloat, to bottom: CGFloat, in context: CGContext) {
-        context.saveGState()
-        context.addPath(bulb)
-        context.clip()
-        context.setFillColor(ink())
-        context.fill(CGRect(x: 5, y: top, width: 8, height: bottom - top))
-        context.restoreGState()
-    }
-
     private static func strokeLine(y: CGFloat, to endX: CGFloat, alpha: CGFloat, in context: CGContext) {
         context.setStrokeColor(ink(alpha))
         context.move(to: CGPoint(x: 3.6, y: y))
@@ -135,14 +165,35 @@ private enum HourglassGlyph {
     }
 }
 
-private enum MoonGlyph {
+enum MoonGlyph {
     static let center = CGPoint(x: 9, y: 9)
     static let moonRadius: CGFloat = 5.2
     static let orbitRadius: CGFloat = 7.9
     static let top = -CGFloat.pi / 2
+    static let moonRect = CGRect(x: center.x - moonRadius, y: center.y - moonRadius, width: moonRadius * 2, height: moonRadius * 2)
+
+    /// Lit from the right. Half the disc plus or minus half an ellipse of width |2f - 1| lights exactly f of its area.
+    static func litPath(percent: Int) -> CGPath? {
+        guard percent > 0 else { return nil }
+        guard percent < 100 else { return CGPath(ellipseIn: moonRect, transform: nil) }
+        let lit = fraction(percent)
+        let terminatorWidth = max(abs(2 * lit - 1), 0.001)
+        let path = CGMutablePath()
+        path.addArc(center: center, radius: moonRadius, startAngle: top, endAngle: -top, clockwise: false)
+        let terminator = CGAffineTransform(translationX: center.x, y: center.y).scaledBy(x: terminatorWidth, y: 1)
+        path.addArc(
+            center: .zero,
+            radius: moonRadius,
+            startAngle: -top,
+            endAngle: lit > 0.5 ? 3 * -top : top,
+            clockwise: lit <= 0.5,
+            transform: terminator
+        )
+        path.closeSubpath()
+        return path
+    }
 
     static func draw(_ reading: StatusBarGlyphReading, in context: CGContext) {
-        let moonRect = CGRect(x: center.x - moonRadius, y: center.y - moonRadius, width: moonRadius * 2, height: moonRadius * 2)
         let orbitRect = moonRect.insetBy(dx: moonRadius - orbitRadius, dy: moonRadius - orbitRadius)
 
         let weekly: CGFloat
@@ -154,12 +205,12 @@ private enum MoonGlyph {
             context.setStrokeColor(ink(0.3))
             context.strokeEllipse(in: orbitRect)
             return
-        case let .single(remaining):
-            fillPhase(remaining, in: moonRect, context: context)
+        case let .single(percent):
+            fillPhase(percent, context: context)
             return
-        case let .both(session, weeklyRemaining):
-            fillPhase(session, in: moonRect, context: context)
-            weekly = fraction(weeklyRemaining)
+        case let .both(session, weeklyPercent):
+            fillPhase(session, context: context)
+            weekly = fraction(weeklyPercent)
         }
 
         context.setLineWidth(1.3)
@@ -172,30 +223,13 @@ private enum MoonGlyph {
         context.strokePath()
     }
 
-    private static func fillPhase(_ remainingPercent: Int, in moonRect: CGRect, context: CGContext) {
+    private static func fillPhase(_ percent: Int, context: CGContext) {
         context.setFillColor(ink(0.25))
         context.fillEllipse(in: moonRect)
+        guard let lit = litPath(percent: percent) else { return }
         context.setFillColor(ink())
-        context.addPath(litPhase(fraction(remainingPercent)))
+        context.addPath(lit)
         context.fillPath()
-    }
-
-    private static func litPhase(_ lit: CGFloat) -> CGPath {
-        let clamped = min(max(lit, 0.001), 0.999)
-        let terminatorWidth = max(abs(2 * clamped - 1), 0.001)
-        let path = CGMutablePath()
-        path.addArc(center: center, radius: moonRadius, startAngle: top, endAngle: -top, clockwise: false)
-        let terminator = CGAffineTransform(translationX: center.x, y: center.y).scaledBy(x: terminatorWidth, y: 1)
-        path.addArc(
-            center: .zero,
-            radius: moonRadius,
-            startAngle: -top,
-            endAngle: clamped > 0.5 ? 3 * -top : top,
-            clockwise: clamped <= 0.5,
-            transform: terminator
-        )
-        path.closeSubpath()
-        return path
     }
 }
 
@@ -203,19 +237,19 @@ private enum PunchCardGlyph {
     static func draw(_ reading: StatusBarGlyphReading, in context: CGContext) {
         switch reading {
         case .noData:
-            drawRow(y: 2.2, remainingPercent: nil, in: context)
-            drawRow(y: 10.4, remainingPercent: nil, in: context)
-        case let .single(remaining):
-            drawRow(y: 6.3, remainingPercent: remaining, in: context)
+            drawRow(y: 2.2, percent: nil, in: context)
+            drawRow(y: 10.4, percent: nil, in: context)
+        case let .single(percent):
+            drawRow(y: 6.3, percent: percent, in: context)
         case let .both(session, weekly):
-            drawRow(y: 2.2, remainingPercent: session, in: context)
-            drawRow(y: 10.4, remainingPercent: weekly, in: context)
+            drawRow(y: 2.2, percent: session, in: context)
+            drawRow(y: 10.4, percent: weekly, in: context)
         }
     }
 
-    private static func drawRow(y: CGFloat, remainingPercent: Int?, in context: CGContext) {
-        let solidSlots = StatusBarGlyphReading.solidPunchSlots(remainingPercent: remainingPercent)
-        let hollowAlpha: CGFloat = remainingPercent == nil ? 0.35 : 0.55
+    private static func drawRow(y: CGFloat, percent: Int?, in context: CGContext) {
+        let solidSlots = StatusBarGlyphReading.solidPunchSlots(percent: percent)
+        let hollowAlpha: CGFloat = percent == nil ? 0.35 : 0.55
         context.setLineWidth(0.9)
         for index in 0..<StatusBarGlyphReading.punchSlotsPerRow {
             let slot = CGRect(x: 1.9 + CGFloat(index) * 3, y: y, width: 2.4, height: 5.4)
@@ -229,5 +263,59 @@ private enum PunchCardGlyph {
                 context.strokePath()
             }
         }
+    }
+}
+
+private extension CGPath {
+    /// Shoelace area over the path flattened into short segments.
+    var area: CGFloat {
+        var total: CGFloat = 0
+        var subpath: CGFloat = 0
+        var start = CGPoint.zero
+        var current = CGPoint.zero
+        func line(to point: CGPoint) {
+            subpath += current.x * point.y - point.x * current.y
+            current = point
+        }
+        func closeSubpath() {
+            line(to: start)
+            total += abs(subpath) / 2
+            subpath = 0
+        }
+        applyWithBlock { element in
+            let points = element.pointee.points
+            switch element.pointee.type {
+            case .moveToPoint:
+                if subpath != 0 { closeSubpath() }
+                start = points[0]
+                current = points[0]
+            case .addLineToPoint:
+                line(to: points[0])
+            case .addQuadCurveToPoint:
+                let from = current
+                for step in 1...16 {
+                    let t = CGFloat(step) / 16, u = 1 - t
+                    line(to: CGPoint(
+                        x: u * u * from.x + 2 * u * t * points[0].x + t * t * points[1].x,
+                        y: u * u * from.y + 2 * u * t * points[0].y + t * t * points[1].y
+                    ))
+                }
+            case .addCurveToPoint:
+                let from = current
+                for step in 1...16 {
+                    let t = CGFloat(step) / 16, u = 1 - t
+                    line(to: CGPoint(
+                        x: u * u * u * from.x + 3 * u * u * t * points[0].x + 3 * u * t * t * points[1].x + t * t * t * points[2].x,
+                        y: u * u * u * from.y + 3 * u * u * t * points[0].y + 3 * u * t * t * points[1].y + t * t * t * points[2].y
+                    ))
+                }
+            case .closeSubpath:
+                closeSubpath()
+            @unknown default:
+                break
+            }
+        }
+        if subpath != 0 { closeSubpath() }
+        return total
     }
 }
