@@ -6,12 +6,11 @@ import Testing
 @MainActor
 struct CodexPillSettingsStoreTests {
     @Test
-    func statusBarDefaultsUseTwinPillsAndMonochrome() {
+    func statusBarDefaultsUseHourglass() {
         let defaults = makeDefaults()
         let settings = CodexPillSettingsStore(userDefaults: defaults)
 
-        #expect(settings.statusBarIndicatorStyle == .twinPills)
-        #expect(settings.statusBarMonochrome)
+        #expect(settings.statusBarIndicatorStyle == .hourglass)
         #expect(settings.pacingMarkersEnabled)
     }
 

@@ -103,7 +103,6 @@ enum MenuBarValidationSupport {
                 "Icon Style: \(state.statusBarIndicatorStyle.menuTitle)",
                 state.pacingMarkersEnabled ? "Show Pace Markers: On" : "Show Pace Markers: Off",
                 "Accent Color: \(colorHexString(for: state.progressAccentColor))",
-                state.statusBarMonochrome ? "Monochrome: On" : "Monochrome: Off",
                 "Launch at Login: \(launchAtLoginSummary(for: state.loginItemState))",
                 state.canShowAbout ? "About" : "About (disabled)"
             ]

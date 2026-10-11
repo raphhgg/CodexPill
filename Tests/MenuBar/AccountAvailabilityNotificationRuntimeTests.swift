@@ -39,8 +39,7 @@ struct AccountAvailabilityNotificationRuntimeTests {
             visibleInactiveAccountCountOptions: [5],
             refreshIntervalMinutes: 1,
             refreshIntervalOptions: [1],
-            statusBarMonochrome: false,
-            statusBarIndicatorStyle: .twinPills,
+            statusBarIndicatorStyle: .hourglass,
             statusBarDisplayMode: .iconOnly,
             isBusy: false,
             statusMessage: ""

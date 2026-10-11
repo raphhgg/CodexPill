@@ -3,23 +3,7 @@ import AppKit
 struct StatusItemRuntimePresentation {
     let activeAccount: CodexAccount?
     let indicatorStyle: StatusBarIndicatorStyle
-    let monochrome: Bool
     let displayMode: StatusBarDisplayMode
-    let progressAccentColor: NSColor
-
-    init(
-        activeAccount: CodexAccount?,
-        indicatorStyle: StatusBarIndicatorStyle,
-        monochrome: Bool,
-        displayMode: StatusBarDisplayMode,
-        progressAccentColor: NSColor = StatusBarProgressColorDefaults.accent
-    ) {
-        self.activeAccount = activeAccount
-        self.indicatorStyle = indicatorStyle
-        self.monochrome = monochrome
-        self.displayMode = displayMode
-        self.progressAccentColor = progressAccentColor
-    }
 }
 
 struct StatusItemRuntimeSnapshot: Equatable {
@@ -67,8 +51,7 @@ final class StatusItemRuntime {
 
     private var presentation = StatusItemRuntimePresentation(
         activeAccount: nil,
-        indicatorStyle: .twinPills,
-        monochrome: true,
+        indicatorStyle: .hourglass,
         displayMode: .iconOnly
     )
     private var hoverActivationTimer: Timer?
@@ -190,16 +173,13 @@ final class StatusItemRuntime {
 
     private func updateAppearance() {
         guard let button = statusItem.button else { return }
-        let primary = presentation.activeAccount?.rateLimits?.sessionWindow?.displayedUsedPercent()
-        let secondary = presentation.activeAccount?.rateLimits?.weeklyWindow?.displayedUsedPercent()
-
+        let rateLimits = presentation.activeAccount?.rateLimits
         button.image = iconRenderer.makeImage(
             style: presentation.indicatorStyle,
-            primaryPercent: primary,
-            secondaryPercent: secondary,
-            monochrome: presentation.monochrome,
-            primaryColor: presentation.progressAccentColor,
-            secondaryColor: presentation.progressAccentColor
+            levels: StatusBarGlyphLevels(
+                sessionUsedPercent: rateLimits?.sessionWindow?.displayedUsedPercent(),
+                weeklyUsedPercent: rateLimits?.weeklyWindow?.displayedUsedPercent()
+            )
         )
         button.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .medium)
 

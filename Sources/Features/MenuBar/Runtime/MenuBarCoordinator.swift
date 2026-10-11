@@ -338,12 +338,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     @objc
-    func toggleStatusBarMonochrome(_ sender: NSMenuItem) {
-        recordMenuAction("toggleStatusBarMonochrome")
-        statusItemSettings.statusBarMonochrome.toggle()
-    }
-
-    @objc
     func selectStatusBarDisplayMode(_ sender: NSMenuItem) {
         recordMenuAction("selectStatusBarDisplayMode")
         guard
@@ -688,7 +682,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             visibleInactiveAccountCountOptions: menuDisplaySettings.visibleInactiveAccountCountOptions,
             refreshIntervalMinutes: menuDisplaySettings.refreshIntervalMinutes,
             refreshIntervalOptions: settings.refreshIntervalOptions,
-            statusBarMonochrome: statusItemSettings.statusBarMonochrome,
             statusBarIndicatorStyle: statusItemSettings.statusBarIndicatorStyle,
             statusBarDisplayMode: statusItemSettings.statusBarDisplayMode,
             revealStatusItemTitleShortcut: statusItemSettings.revealStatusItemTitleShortcut,
@@ -1047,7 +1040,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         withObservationTracking {
             _ = menuDisplaySettings.refreshIntervalMinutes
             _ = statusItemSettings.statusBarIndicatorStyle
-            _ = statusItemSettings.statusBarMonochrome
             _ = statusItemSettings.statusBarDisplayMode
             _ = menuDisplaySettings.visibleInactiveAccountCount
             _ = statusItemSettings.progressAccentColor
@@ -1204,9 +1196,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         StatusItemRuntimePresentation(
             activeAccount: store.activeAccount,
             indicatorStyle: statusItemSettings.statusBarIndicatorStyle,
-            monochrome: statusItemSettings.statusBarMonochrome,
-            displayMode: state.effectiveStatusBarDisplayMode,
-            progressAccentColor: statusItemSettings.progressAccentColor.resolvedStatusItemAccentColor
+            displayMode: state.effectiveStatusBarDisplayMode
         )
     }
 

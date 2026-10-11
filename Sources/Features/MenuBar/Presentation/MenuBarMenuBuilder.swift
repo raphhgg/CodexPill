@@ -653,12 +653,6 @@ struct MenuBarMenuBuilder {
         let item = NSMenuItem(title: "Icon Style", action: nil, keyEquivalent: "")
 
         let submenu = configuredMenu(title: "Icon Style")
-        let monochrome = NSMenuItem(title: "Monochrome", action: #selector(MenuBarCoordinator.toggleStatusBarMonochrome(_:)), keyEquivalent: "")
-        monochrome.target = target
-        monochrome.state = state.statusBarMonochrome ? .on : .off
-        submenu.addItem(monochrome)
-        submenu.addItem(.separator())
-
         for style in StatusBarIndicatorStyle.allCases {
             let option = NSMenuItem(title: style.menuTitle, action: #selector(MenuBarCoordinator.selectStatusBarStyle(_:)), keyEquivalent: "")
             option.target = target

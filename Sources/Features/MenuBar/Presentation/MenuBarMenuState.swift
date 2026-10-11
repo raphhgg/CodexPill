@@ -82,7 +82,6 @@ struct MenuBarMenuState {
     let visibleInactiveAccountCountOptions: [Int]
     let refreshIntervalMinutes: Int
     let refreshIntervalOptions: [Int]
-    let statusBarMonochrome: Bool
     let statusBarIndicatorStyle: StatusBarIndicatorStyle
     let statusBarDisplayMode: StatusBarDisplayMode
     let revealStatusItemTitleShortcut: KeyboardShortcut?
@@ -111,7 +110,6 @@ struct MenuBarMenuState {
         visibleInactiveAccountCountOptions: [Int],
         refreshIntervalMinutes: Int,
         refreshIntervalOptions: [Int],
-        statusBarMonochrome: Bool,
         statusBarIndicatorStyle: StatusBarIndicatorStyle,
         statusBarDisplayMode: StatusBarDisplayMode,
         revealStatusItemTitleShortcut: KeyboardShortcut? = .defaultRevealStatusItemTitle,
@@ -139,7 +137,6 @@ struct MenuBarMenuState {
         self.visibleInactiveAccountCountOptions = visibleInactiveAccountCountOptions
         self.refreshIntervalMinutes = refreshIntervalMinutes
         self.refreshIntervalOptions = refreshIntervalOptions
-        self.statusBarMonochrome = statusBarMonochrome
         self.statusBarIndicatorStyle = statusBarIndicatorStyle
         self.statusBarDisplayMode = statusBarDisplayMode
         self.revealStatusItemTitleShortcut = revealStatusItemTitleShortcut

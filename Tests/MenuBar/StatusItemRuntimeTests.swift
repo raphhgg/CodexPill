@@ -20,8 +20,7 @@ struct StatusItemRuntimeTests {
         runtime.start(
             presentation: .init(
                 activeAccount: makeAccount(),
-                indicatorStyle: .dualArcBadge,
-                monochrome: false,
+                indicatorStyle: .moon,
                 displayMode: .iconAndText
             )
         )
@@ -47,8 +46,7 @@ struct StatusItemRuntimeTests {
         runtime.start(
             presentation: .init(
                 activeAccount: makeAccount(),
-                indicatorStyle: .dualArcBadge,
-                monochrome: false,
+                indicatorStyle: .moon,
                 displayMode: .iconOnly
             )
         )
@@ -58,8 +56,7 @@ struct StatusItemRuntimeTests {
         runtime.update(
             presentation: .init(
                 activeAccount: makeAccount(),
-                indicatorStyle: .dualArcBadge,
-                monochrome: false,
+                indicatorStyle: .moon,
                 displayMode: .iconAndText
             )
         )
@@ -68,8 +65,7 @@ struct StatusItemRuntimeTests {
         runtime.update(
             presentation: .init(
                 activeAccount: makeAccount(),
-                indicatorStyle: .dualArcBadge,
-                monochrome: false,
+                indicatorStyle: .moon,
                 displayMode: .textOnHover
             )
         )
@@ -78,8 +74,7 @@ struct StatusItemRuntimeTests {
         runtime.update(
             presentation: .init(
                 activeAccount: makeAccount(),
-                indicatorStyle: .dualArcBadge,
-                monochrome: false,
+                indicatorStyle: .moon,
                 displayMode: .iconOnly
             )
         )
@@ -102,8 +97,7 @@ struct StatusItemRuntimeTests {
         runtime.start(
             presentation: .init(
                 activeAccount: makeAccount(),
-                indicatorStyle: .dualArcBadge,
-                monochrome: false,
+                indicatorStyle: .moon,
                 displayMode: .textOnHover
             )
         )
@@ -132,8 +126,7 @@ struct StatusItemRuntimeTests {
         runtime.start(
             presentation: .init(
                 activeAccount: makeAccount(),
-                indicatorStyle: .dualArcBadge,
-                monochrome: false,
+                indicatorStyle: .moon,
                 displayMode: .iconOnly
             )
         )
@@ -163,8 +156,7 @@ struct StatusItemRuntimeTests {
         runtime.start(
             presentation: .init(
                 activeAccount: makeAccount(),
-                indicatorStyle: .dualArcBadge,
-                monochrome: false,
+                indicatorStyle: .moon,
                 displayMode: .iconOnly
             )
         )

@@ -35,11 +35,6 @@ final class CodexPillSettingsStore {
         set { statusItemSettings.statusBarIndicatorStyle = newValue }
     }
 
-    var statusBarMonochrome: Bool {
-        get { statusItemSettings.statusBarMonochrome }
-        set { statusItemSettings.statusBarMonochrome = newValue }
-    }
-
     var statusBarDisplayMode: StatusBarDisplayMode {
         get { statusItemSettings.statusBarDisplayMode }
         set { statusItemSettings.statusBarDisplayMode = newValue }

@@ -116,8 +116,7 @@ struct MenuBarValidationObserverTests {
             visibleInactiveAccountCountOptions: [1, 3, 5],
             refreshIntervalMinutes: 5,
             refreshIntervalOptions: [5, 15, 30],
-            statusBarMonochrome: false,
-            statusBarIndicatorStyle: .dualArcBadge,
+            statusBarIndicatorStyle: .moon,
             statusBarDisplayMode: .iconAndText,
             isBusy: false,
             statusMessage: ""
