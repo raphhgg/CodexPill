@@ -55,6 +55,15 @@ security delete-generic-password -s "CodexPill Cursor accounts"
 
 Cursor stays signed in as it is. CodexPill never deletes Cursor's own data.
 
+Adding a Cursor account uses a temporary Cursor profile under
+`~/Library/Application Support/CodexPill/cursor-sign-in`. CodexPill deletes it when
+the sign-in ends, and deletes any left by a crash at its next launch. If CodexPill is
+already uninstalled, quit any extra Cursor window first, then remove the folder:
+
+```sh
+rm -rf ~/Library/Application\ Support/CodexPill/cursor-sign-in
+```
+
 This does not delete `~/.codex/auth.json`. Do not remove or edit that file unless
 you intentionally want to sign out of Codex or repair Codex itself.
 

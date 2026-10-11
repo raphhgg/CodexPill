@@ -56,7 +56,7 @@ A locally stored sign-in managed by CodexPill, so the user can switch back to it
 
 - **Codex.** A saved `auth.json` snapshot with a user-facing label, optional Codex metadata, and the latest known limits.
 - **Claude Code.** Claude Code's own sign-in for that account in a CodexPill Keychain item, matched by Claude Code's account record, with its latest known limits. It is added by running Claude Code's login in a throwaway folder, or by saving the sign-in Claude Code uses now. Switching is refused while Claude Code runs.
-- **Cursor.** A copy of Cursor's sign-in rows in a CodexPill Keychain item. A switch quits Cursor, writes the saved sign-in back into Cursor's local database, and reopens Cursor.
+- **Cursor.** A copy of Cursor's sign-in rows in a CodexPill Keychain item, with its latest known limits. It is added by signing in through Cursor in a separate window with a throwaway profile, or by saving the sign-in Cursor uses now. A switch quits Cursor, writes the saved sign-in back into Cursor's local database, and reopens Cursor. CodexPill never renews a saved Cursor sign-in, so an expired one keeps its last limits.
 
 ### Active Account
 

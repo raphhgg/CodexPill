@@ -121,7 +121,11 @@ open -n \
   `<root>/bin/claude`, so put a stand-in script there to try the sign-in card
   without a real sign-in; without one, adding shows `Install Claude Code first`.
 - Cursor usage reads `<root>/Cursor/state.vscdb`, never Cursor's real database.
-  Cursor account switching is off, so an isolated run never quits Cursor.
+  Saved Cursor accounts are in `<root>/cursor-accounts.json`, and a switch
+  rewrites only `<root>/Cursor/state.vscdb`, so an isolated run never quits
+  Cursor. Adding a Cursor account runs only `<root>/bin/cursor` with a profile
+  under `<root>/cursor-sign-in`; keep `<root>` short (for example
+  `/tmp/cpj.XXXX`), because Cursor's socket path must fit in 103 bytes.
 
 Switching still asks the real Codex app to relaunch. Quit the isolated app by
 its process ID, not with `scripts/stop_menubar.sh`, which stops every running

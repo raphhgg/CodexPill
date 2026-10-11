@@ -14,6 +14,7 @@ During normal use, CodexPill may read:
 - Claude Code's sign-in, from `~/.claude/.credentials.json` or the `Claude Code-credentials` Keychain item, while Claude Code usage is connected or when you save or switch a Claude Code account. See [Claude Code](#claude-code).
 - Local process information to detect a running Claude Code before switching Claude Code accounts.
 - Cursor's access token from Cursor's local database, while Cursor usage is connected, and Cursor's sign-in rows from the same database when you save or switch a Cursor account. See [Cursor](#cursor).
+- The sign-in rows of a temporary Cursor profile while you add a Cursor account. See [Cursor](#cursor).
 
 ## What CodexPill Writes Or Stores
 
@@ -26,6 +27,7 @@ CodexPill writes and stores:
 - Saved Claude Code accounts in `CodexPill Claude Code account` Keychain items and `claude-code-accounts.json`, and Claude Code's own sign-in when you switch Claude Code accounts. See [Claude Code](#claude-code).
 - Temporary Claude Code config folders under `~/Library/Application Support/CodexPill/claude-sign-in`, each with a `Claude Code-credentials-<hash>` Keychain item Claude Code creates, while you add a Claude account or while Claude Code renews a saved one. CodexPill deletes both when the run ends. See [Claude Code](#claude-code).
 - Saved Cursor accounts in one `CodexPill Cursor accounts` Keychain item, and Cursor's sign-in rows in its local database when you switch Cursor accounts. See [Cursor](#cursor).
+- Temporary Cursor profiles under `~/Library/Application Support/CodexPill/cursor-sign-in` while you add a Cursor account. CodexPill deletes each one when the sign-in ends. See [Cursor](#cursor).
 
 Saved auth snapshots contain authentication material and must be handled like credentials. They should not be printed, logged, attached to issues, or committed to git.
 
@@ -71,7 +73,7 @@ If any step fails, CodexPill puts back every file and item it had already change
 
 ## Cursor
 
-CodexPill never signs in to Cursor, never asks Cursor for a new token, and never sends Cursor's refresh token anywhere. It only uses the sign-in Cursor already has. Cursor keeps it in a SQLite database, `~/Library/Application Support/Cursor/User/globalStorage/state.vscdb`, and CodexPill reads it only by key, never by scanning.
+CodexPill never signs in to Cursor with its own code, never asks Cursor for a new token, and never sends Cursor's refresh token anywhere. A new account is signed in by Cursor itself, in a separate Cursor window. Cursor keeps its sign-in in a SQLite database, `~/Library/Application Support/Cursor/User/globalStorage/state.vscdb`, and CodexPill reads it only by key, never by scanning.
 
 **Usage (optional, off by default).** `Settings › Add Account › Cursor…` asks for consent before anything is read. While it is connected, each read:
 
@@ -81,7 +83,19 @@ CodexPill never signs in to Cursor, never asks Cursor for a new token, and never
 
 CodexPill never stores, logs, or displays the token, and it never reads browser cookies or Cursor projects. `Disconnect Cursor` turns usage off and stops all reads.
 
-**Saved Cursor accounts.** CodexPill can save Cursor sign-ins and switch between them. Only a user action does this; nothing runs in the background, and switching makes no network call. Saving one copies the eight `cursorAuth/*` rows that are a Cursor sign-in (`accessToken`, `refreshToken`, `cachedEmail`, `cachedScopedProfile`, `cachedSignUpType`, `stripeMembershipAuthId`, `stripeMembershipType`, `stripeSubscriptionStatus`) into one login Keychain item CodexPill owns, service `CodexPill Cursor accounts`, with the name you give it. Those rows include Cursor's tokens and your Cursor email. Nothing about them goes to a file.
+**Saved Cursor accounts.** CodexPill can save Cursor sign-ins and switch between them. Only a user action adds, switches or removes one, and switching makes no network call. Saving one copies the eight `cursorAuth/*` rows that are a Cursor sign-in (`accessToken`, `refreshToken`, `cachedEmail`, `cachedScopedProfile`, `cachedSignUpType`, `stripeMembershipAuthId`, `stripeMembershipType`, `stripeSubscriptionStatus`) into one login Keychain item CodexPill owns, service `CodexPill Cursor accounts`, with the name you give it. Those rows include Cursor's tokens and your Cursor email. The same item keeps each account's last limits (plan, percent used, on-demand spend, billing cycle, and when they were read). Nothing about them goes to a file.
+
+**Adding a Cursor account.** `Add Cursor Account…` opens a second Cursor window next to yours:
+
+- it starts a new Cursor instance with `--user-data-dir` and `--extensions-dir` set to a new folder, `~/Library/Application Support/CodexPill/cursor-sign-in/<8 random characters>`, readable only by you. Your own Cursor profile is not opened, read, or changed, and your own Cursor keeps running;
+- you sign in there. CodexPill reads the folder's `state.vscdb` once a second, by key, until the `cursorAuth/*` rows appear, then quits that window by its process ID. It never quits any other Cursor. If the window does not quit within 10 seconds, it is force-quit;
+- it saves those rows as described above, then deletes the folder.
+
+When the sign-in ends, whether it succeeded, failed, timed out after 5 minutes, or you cancelled it, the window is quit and the folder deleted. A folder left behind by a crash is deleted the next time CodexPill launches.
+
+The temporary window is a full Cursor, so while it runs it also uses your user-wide Cursor folder, `~/.cursor`. It starts the MCP servers listed in `~/.cursor/mcp.json`, and it writes to `~/.cursor/ai-tracking`, as any Cursor window does. CodexPill itself does not read or change those files.
+
+**Inactive accounts' limits.** Every 15 minutes, for each saved account Cursor is not signed in to, CodexPill sends that account's own access token to the usage address above. It never sends one account's token on behalf of another. CodexPill never renews a saved token: Cursor renews a token only while it runs with that account. Once a saved token is within a minute of expiry, nothing is sent for that account, and the menu shows its last limits with the time they were read. Switching to it hands it to Cursor, which renews it.
 
 Switching quits and changes Cursor:
 
@@ -89,6 +103,8 @@ Switching quits and changes Cursor:
 - it refuses to write while any other process still holds the database;
 - it saves the outgoing sign-in again, because Cursor may have renewed its tokens, then writes the chosen account's eight rows into `state.vscdb` in one transaction. No other row and no other Cursor file changes;
 - it opens Cursor again. If a step fails after Cursor quit, the database is left as it was and Cursor reopens on the sign-in it had.
+
+While a Cursor account is being added, switching Cursor is refused, because a switch quits every Cursor, including the sign-in window.
 
 Removing a saved account deletes it from CodexPill's Keychain item only. Cursor stays signed in as it is.
 
@@ -107,7 +123,7 @@ Accessibility may still be useful for development or validation tooling that ins
 
 ## Network And External Services
 
-CodexPill talks to Codex through local Codex surfaces. When Claude Code usage is on, it also calls api.anthropic.com with Claude Code's own sign-in token, and with each saved Claude account's own token for that account's limits. Adding a Claude account and renewing a saved one run Claude Code, which talks to Anthropic itself. When Cursor usage is on, it calls cursor.com with Cursor's own sign-in token. Switching Claude Code or Cursor accounts makes no network call. It must not send Codex auth snapshots, raw auth payloads, or tokens to analytics services, crash-reporting systems, issue trackers, or any other third-party API. A token may go only to the service that issued it.
+CodexPill talks to Codex through local Codex surfaces. When Claude Code usage is on, it also calls api.anthropic.com with Claude Code's own sign-in token, and with each saved Claude account's own token for that account's limits. Adding a Claude account and renewing a saved one run Claude Code, which talks to Anthropic itself. When Cursor usage is on, it calls cursor.com with Cursor's own sign-in token, and with each saved Cursor account's own token for that account's limits. Adding a Cursor account runs Cursor, which talks to Cursor's servers itself. Switching Claude Code or Cursor accounts makes no network call. It must not send Codex auth snapshots, raw auth payloads, or tokens to analytics services, crash-reporting systems, issue trackers, or any other third-party API. A token may go only to the service that issued it.
 
 If future features add status-page checks, diagnostics export, or usage statistics, they must keep the same rule: aggregate or redact data before it leaves the machine, and never include raw auth payloads or tokens.
 
