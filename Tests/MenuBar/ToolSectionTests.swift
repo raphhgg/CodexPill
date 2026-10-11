@@ -272,6 +272,66 @@ struct ToolSectionTests {
         )
     }
 
+    @Test
+    func claudeModelLimitsShowAfterWeeklyInTheCardAndAccountLinesButNotTheMenuBarIcon() throws {
+        let limits = #"[{"kind":"weekly_scoped","group":"weekly","percent":37,"resets_at":"2026-10-18T01:00:00+00:00","is_active":true,"scope":{"model":{"display_name":"Fable"}}}]"#
+        let shown = try claudeState(limits: limits, showsModelLimits: true)
+        let hidden = try claudeState(limits: limits, showsModelLimits: false)
+        let shownSection = try #require(shown.toolSections.first)
+        let hiddenSection = try #require(hidden.toolSections.first)
+
+        #expect(shownSection.card.windows.map(\.kind.title) == ["Session", "Weekly", "Fable this week"])
+        #expect(shownSection.otherAccounts.map(\.usageLine) == ["Session 64% · Weekly 21% · Fable this week 37% used"])
+        #expect(shown.statusItemSource.windows.map(\.kind.title) == ["Session", "Weekly"])
+        #expect(hiddenSection.card.windows.map(\.kind.title) == ["Session", "Weekly"])
+        #expect(hiddenSection.otherAccounts.map(\.usageLine) == ["Session 64% · Weekly 21% used"])
+    }
+
+    @Test
+    func everyNamedClaudeModelLimitGetsAMeterAndOneWithoutANameIsSkipped() throws {
+        let limits = #"""
+        [{"kind":"weekly_scoped","percent":37,"resets_at":"2026-10-18T01:00:00+00:00","scope":{"model":{"display_name":"Fable"}}},
+         {"kind":"weekly_scoped","percent":12,"resets_at":null,"scope":{"model":{}}},
+         {"kind":"weekly","percent":21,"resets_at":"2026-10-14T09:00:00+00:00"},
+         {"kind":"weekly_scoped","percent":"high","scope":{"model":{"display_name":"Odd"}}},
+         "unexpected",
+         {"kind":"weekly_scoped","percent":5,"resets_at":"2026-10-18T01:00:00+00:00","scope":{"model":{"display_name":"Sonnet"}}}]
+        """#
+        let noName = #"[{"kind":"weekly_scoped","percent":12,"resets_at":null,"scope":{"model":{"display_name":null}}}]"#
+
+        let card = try #require(try claudeState(limits: limits, showsModelLimits: true).toolSections.first).card
+        let noNameCard = try #require(try claudeState(limits: noName, showsModelLimits: true).toolSections.first).card
+
+        #expect(card.windows.map(\.kind.title) == ["Session", "Weekly", "Fable this week", "Sonnet this week"])
+        #expect(card.windows.last == UsageWindow(
+            kind: .modelWeekly(modelName: "Sonnet"),
+            usedPercent: 5,
+            resetsAt: Date(timeIntervalSince1970: 1_792_285_200),
+            durationMinutes: 10_080
+        ))
+        #expect(noNameCard.windows.map(\.kind.title) == ["Session", "Weekly"])
+    }
+
+    /// The Claude card and one saved account, both read from a synthetic usage response with these `limits`.
+    private func claudeState(limits: String, showsModelLimits: Bool) throws -> MenuBarMenuState {
+        let response = #"{"five_hour":{"utilization":64,"resets_at":null},"seven_day":{"utilization":21,"resets_at":null},"limits":\#(limits)}"#
+        let report = try ClaudeUsageAPI.parseUsage(Data(response.utf8))
+        guard case let .snapshot(snapshot) = ClaudeCodeUsage.reading(from: .available(report, planName: "max"), fetchedAt: now) else {
+            throw CancellationError()
+        }
+        let accounts = [
+            ProviderAccount(id: UUID(), email: "alex@example.com", isActive: true),
+            ProviderAccount(id: UUID(), email: "sam@acme.dev", isActive: false, usage: snapshot),
+        ]
+        return MenuBarMenuState(
+            activeAccount: nil,
+            inactiveAccounts: [],
+            providerUsage: [ProviderUsageState(provider: .claude, status: .current(snapshot), accounts: accounts)],
+            showsModelLimits: showsModelLimits,
+            now: now
+        )
+    }
+
     private func state(
         activeAccount: CodexAccount? = nil,
         inactiveAccounts: [CodexAccount] = [],

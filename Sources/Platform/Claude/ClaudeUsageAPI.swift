@@ -1,14 +1,31 @@
 import Foundation
 
-/// Claude's 5-hour and 7-day subscription windows as Anthropic reports them.
+/// Claude's 5-hour and 7-day subscription windows, and any per-model weekly limits, as Anthropic reports them.
 struct ClaudeUsageReport: Codable, Equatable, Sendable {
     struct Window: Codable, Equatable, Sendable {
         let usedPercent: Double
         let resetsAt: Date?
     }
 
+    struct ModelWindow: Codable, Equatable, Sendable {
+        let modelName: String
+        let usedPercent: Double
+        let resetsAt: Date?
+    }
+
     let fiveHour: Window?
     let sevenDay: Window?
+    var modelWeeks: [ModelWindow] = []
+}
+
+extension ClaudeUsageReport {
+    /// Usage saved before per-model limits existed has no `modelWeeks`.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        fiveHour = try container.decodeIfPresent(Window.self, forKey: .fiveHour)
+        sevenDay = try container.decodeIfPresent(Window.self, forKey: .sevenDay)
+        modelWeeks = try container.decodeIfPresent([ModelWindow].self, forKey: .modelWeeks) ?? []
+    }
 }
 
 protocol ClaudeUsageWebClient: Sendable {
@@ -53,12 +70,22 @@ enum ClaudeUsageAPI {
         }
     }
 
-    /// Reads `five_hour` and `seven_day`. Other windows, such as `seven_day_opus`, are ignored.
+    /// Reads `five_hour`, `seven_day`, and each `weekly_scoped` entry in `limits`, the per-model weekly limits
+    /// that both Claude clients title by `scope.model.display_name`. Other windows, such as `seven_day_opus`, are
+    /// ignored. A `limits` entry without a name or percent is skipped and never fails the read.
     static func parseUsage(_ data: Data) throws -> ClaudeUsageReport {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         let response = try decoder.decode(UsageResponseDTO.self, from: data)
-        return ClaudeUsageReport(fiveHour: window(response.fiveHour), sevenDay: window(response.sevenDay))
+        let limits = (try? decoder.decode(LimitsDTO.self, from: data))?.limits ?? []
+        var modelWeeks: [ClaudeUsageReport.ModelWindow] = []
+        for limit in limits where limit.kind == "weekly_scoped" {
+            guard let name = limit.modelName?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty,
+                  let percent = limit.percent,
+                  !modelWeeks.contains(where: { $0.modelName == name }) else { continue }
+            modelWeeks.append(.init(modelName: name, usedPercent: min(max(percent, 0), 100), resetsAt: limit.resetsAt.flatMap(date(from:))))
+        }
+        return ClaudeUsageReport(fiveHour: window(response.fiveHour), sevenDay: window(response.sevenDay), modelWeeks: modelWeeks)
     }
 
     private static func window(_ dto: WindowDTO?) -> ClaudeUsageReport.Window? {
@@ -85,6 +112,38 @@ private struct UsageResponseDTO: Decodable {
 private struct WindowDTO: Decodable {
     let utilization: Double?
     let resetsAt: String?
+}
+
+private struct LimitsDTO: Decodable {
+    let limits: [LimitDTO]
+}
+
+/// Every field is optional and a field of the wrong type reads as missing, so one odd entry never fails the others.
+private struct LimitDTO: Decodable {
+    let kind: String?
+    let percent: Double?
+    let resetsAt: String?
+    let modelName: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case kind, percent, resetsAt, scope
+    }
+
+    private struct Scope: Decodable {
+        struct Model: Decodable {
+            let displayName: String?
+        }
+
+        let model: Model?
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try? decoder.container(keyedBy: CodingKeys.self)
+        kind = try? container?.decode(String.self, forKey: .kind)
+        percent = try? container?.decode(Double.self, forKey: .percent)
+        resetsAt = try? container?.decode(String.self, forKey: .resetsAt)
+        modelName = (try? container?.decode(Scope.self, forKey: .scope))?.model?.displayName
+    }
 }
 
 final class URLSessionClaudeUsageWebClient: ClaudeUsageWebClient {

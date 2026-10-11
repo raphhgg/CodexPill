@@ -373,6 +373,7 @@ struct DiagnosticReportBuilder {
         case .monthly: "monthly"
         case .billingCycle: "billing_cycle"
         case .other: "other"
+        case .modelWeekly: "model_weekly"
         }
     }
 

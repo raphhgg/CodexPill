@@ -13,6 +13,9 @@ enum UsageWindowKind: Hashable {
     case billingCycle
     /// A limit whose length has no common name. The menu titles it by that length.
     case other(durationMinutes: Int)
+    /// Claude's separate weekly limit for one model, named as Claude names it, such as "Fable". The menu bar icon
+    /// ignores it.
+    case modelWeekly(modelName: String)
 
     /// The one rule that names a reported window by its length. Each name allows an hour of slack either way,
     /// and monthly covers every calendar month (28 to 31 days).
@@ -23,6 +26,10 @@ enum UsageWindowKind: Hashable {
         case (28 * 1_440 - 60)...(31 * 1_440 + 60): self = .monthly
         default: self = .other(durationMinutes: durationMinutes)
         }
+    }
+
+    var isModelLimit: Bool {
+        if case .modelWeekly = self { true } else { false }
     }
 }
 

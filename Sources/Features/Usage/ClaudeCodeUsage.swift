@@ -200,22 +200,20 @@ struct ClaudeCodeUsage: ProviderConnection {
         case .serviceError: return .unavailable(.serviceError)
         case .unexpectedResponse: return .unavailable(.unexpectedResponse)
         case let .available(report, planName):
-            let windows = [
-                report.fiveHour.map { usageWindow(.session, $0, durationMinutes: 300) },
-                report.sevenDay.map { usageWindow(.weekly, $0, durationMinutes: 10_080) },
+            let mainWindows = [
+                report.fiveHour.map { usageWindow(.session, $0.usedPercent, $0.resetsAt, durationMinutes: 300) },
+                report.sevenDay.map { usageWindow(.weekly, $0.usedPercent, $0.resetsAt, durationMinutes: 10_080) },
             ].compactMap(\.self)
-            guard !windows.isEmpty else { return .awaitingUsage }
+            guard !mainWindows.isEmpty else { return .awaitingUsage }
+            let windows = mainWindows + report.modelWeeks.map {
+                usageWindow(.modelWeekly(modelName: $0.modelName), $0.usedPercent, $0.resetsAt, durationMinutes: 10_080)
+            }
             return .snapshot(UsageSnapshot(provider: .claude, planName: planName, windows: windows, fetchedAt: fetchedAt))
         }
     }
 
-    private static func usageWindow(_ kind: UsageWindowKind, _ window: ClaudeUsageReport.Window, durationMinutes: Int) -> UsageWindow {
-        UsageWindow(
-            kind: kind,
-            usedPercent: Int(window.usedPercent.rounded()),
-            resetsAt: window.resetsAt,
-            durationMinutes: durationMinutes
-        )
+    private static func usageWindow(_ kind: UsageWindowKind, _ usedPercent: Double, _ resetsAt: Date?, durationMinutes: Int) -> UsageWindow {
+        UsageWindow(kind: kind, usedPercent: Int(usedPercent.rounded()), resetsAt: resetsAt, durationMinutes: durationMinutes)
     }
 }
 

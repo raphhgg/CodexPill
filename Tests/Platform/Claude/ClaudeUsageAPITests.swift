@@ -22,6 +22,13 @@ struct ClaudeUsageAPITests {
     }
 
     @Test
+    func usageSavedBeforeModelLimitsStillReads() throws {
+        let saved = try JSONDecoder().decode(ClaudeUsageReport.self, from: Data(#"{"sevenDay":{"usedPercent":21}}"#.utf8))
+
+        #expect(saved == ClaudeUsageReport(fiveHour: nil, sevenDay: .init(usedPercent: 21, resetsAt: nil)))
+    }
+
+    @Test
     func theRequestCarriesTheTokenAndBetaHeaderToAnthropicOnly() throws {
         let token = try #require(ClaudeAccessToken("fake-claude-access-token"))
         let request = ClaudeUsageAPI.request(using: token)
