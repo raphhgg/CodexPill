@@ -350,7 +350,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             removeCodexAccount(id)
         case .useResetCredit:
             useCodexResetCredit()
-        case .connect, .allowKeychainAccess, .signIn, .cancelSignIn, .disconnect:
+        case .connect, .allowKeychainAccess, .cancelSignIn, .disconnect, .saveCurrentAccount:
             break
         }
     }
@@ -715,6 +715,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     func performScheduledRefresh() async {
         refreshProviderUsageIfDue()
+        tasks.start { [weak self] in await self?.providerUsageRuntime.refreshInactiveAccountsIfDue() }
         guard !accountsController.isBusy else { return }
         if let activeAccount = accountsController.activeAccount {
             switch await accountsController.refreshAccountData(for: activeAccount) {

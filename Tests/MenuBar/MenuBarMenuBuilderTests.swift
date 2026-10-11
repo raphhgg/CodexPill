@@ -976,16 +976,32 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func claudeSideMenuEndsWithDisconnectAndAKeychainStateAddsItsActionUnderTheCard() throws {
-        let saved = ProviderAccount(id: UUID(), email: "sam@acme.dev", isActive: false)
+    func claudeSideMenuListsAccountsWithTheirLimitsBothWaysToAddAndDisconnect() throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let savedUsage = UsageSnapshot(
+            provider: .claude,
+            planName: "max",
+            windows: [
+                UsageWindow(kind: .session, usedPercent: 12, resetsAt: now.addingTimeInterval(3_600), durationMinutes: 300),
+                UsageWindow(kind: .weekly, usedPercent: 40, resetsAt: now.addingTimeInterval(86_400), durationMinutes: 10_080),
+            ],
+            fetchedAt: now
+        )
+        let saved = ProviderAccount(id: UUID(), email: "sam@acme.dev", isActive: false, usage: savedUsage)
         let active = ProviderAccount(id: UUID(), email: "alex@example.com", isActive: true)
         let menu = MenuBarMenuBuilder().makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Work", usage: makeUsage(resettingAfter: .now)),
+                activeAccount: makeAccount(name: "Work", usage: makeUsage(resettingAfter: now)),
                 providerUsage: [
-                    ProviderUsageState(provider: .claude, status: .unavailable(.keychainAccessNeeded, lastSnapshot: nil), accounts: [saved, active]),
+                    ProviderUsageState(
+                        provider: .claude,
+                        status: .unavailable(.keychainAccessNeeded, lastSnapshot: nil),
+                        accounts: [saved, active],
+                        signInAvailability: .available
+                    ),
                 ],
-                masksEmails: true
+                masksEmails: true,
+                now: now
             ),
             target: try makeCoordinator()
         )
@@ -996,15 +1012,59 @@ struct MenuBarMenuBuilderTests {
         #expect(providerAction(menu.items[1]) == .allowKeychainAccess)
         #expect(side.items.map(\.title) == [
             "a•••x@example.com", "",
-            "Use s•••m@acme.dev", "",
+            "Use s•••m@acme.dev\nSession 12% · Weekly 40% used", "",
             "Move to Top", "Move Up", "Move Down", "",
-            "Add Claude Account…", "Remove Claude Account", "",
+            "Add Claude Account…", "Save Current Sign-In", "Remove Claude Account", "",
             "Disconnect Claude",
         ])
+        #expect(side.items[0].state == .on)
         #expect(side.items.filter { $0.title.hasPrefix("Move") }.map(\.isEnabled) == [false, false, true])
         #expect(side.items[4...6].compactMap { $0.representedObject as? [UsageProvider] } == [[.codex, .claude, .cursor]])
         #expect(providerAction(side.items[2]) == .switchAccount(saved.id))
-        #expect(providerAction(side.items[11]) == .disconnect)
+        #expect([8, 9, 12].map { providerAction(side.items[$0]) } == [.addAccount, .saveCurrentAccount, .disconnect])
+    }
+
+    @Test
+    func withoutClaudeCodeAddingAClaudeAccountIsOffWithOneLineWhy() throws {
+        let menu = MenuBarMenuBuilder().makeMenu(
+            state: makeState(
+                activeAccount: nil,
+                providerUsage: [ProviderUsageState(provider: .claude, status: .unavailable(.signedOut, lastSnapshot: nil), signInAvailability: .notInstalled)]
+            ),
+            target: try makeCoordinator()
+        )
+
+        let side = try #require(menu.items.first?.submenu)
+        let add = try #require(side.items.first { $0.title == "Add Claude Account…" })
+
+        #expect(menu.items.map(\.title) == ["Claude", "", "Settings", "", "Quit"])
+        #expect(add.isEnabled == false)
+        #expect(side.items.map(\.title).suffix(5) == ["Add Claude Account…", "Install Claude Code first", "Save Current Sign-In", "", "Disconnect Claude"])
+    }
+
+    @Test
+    func aClaudeCodeWithNoSignInOffersSignInUnderTheCardAndSigningInOffersCancel() throws {
+        let signedOut = MenuBarMenuBuilder().makeMenu(
+            state: makeState(
+                activeAccount: nil,
+                providerUsage: [ProviderUsageState(provider: .claude, status: .unavailable(.signedOut, lastSnapshot: nil), signInAvailability: .available)]
+            ),
+            target: try makeCoordinator()
+        )
+        let signingIn = MenuBarMenuBuilder().makeMenu(
+            state: makeState(
+                activeAccount: nil,
+                providerUsage: [
+                    ProviderUsageState(provider: .claude, status: .unavailable(.signedOut, lastSnapshot: nil), isSigningIn: true, signInAvailability: .available),
+                ]
+            ),
+            target: try makeCoordinator()
+        )
+
+        #expect(signedOut.items.map(\.title) == ["Claude", "Sign In…", "", "Settings", "", "Quit"])
+        #expect(providerAction(signedOut.items[1]) == .addAccount)
+        #expect(signingIn.items.map(\.title) == ["Claude", "Cancel Sign-In", "", "Settings", "", "Quit"])
+        #expect(providerAction(signingIn.items[1]) == .cancelSignIn)
     }
 
     @Test
@@ -1012,7 +1072,7 @@ struct MenuBarMenuBuilderTests {
         let menu = MenuBarMenuBuilder().makeMenu(
             state: makeState(
                 activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
-                providerUsage: [ProviderUsageState(provider: .claude, status: .current(providerSnapshot(.claude)))],
+                providerUsage: [ProviderUsageState(provider: .claude, status: .current(providerSnapshot(.claude)), signInAvailability: .available)],
                 masksEmails: true
             ),
             target: try makeCoordinator()
@@ -1160,7 +1220,8 @@ struct MenuBarMenuBuilderTests {
         tokenUsageCard: TokenUsageMenuCard? = nil,
         providerUsage: [ProviderUsageState] = [],
         toolOrder: [UsageProvider] = [.claude, .codex, .cursor],
-        masksEmails: Bool = false
+        masksEmails: Bool = false,
+        now: Date = .now
     ) -> MenuBarMenuState {
         MenuBarMenuState(
             activeAccount: activeAccount,
@@ -1181,7 +1242,8 @@ struct MenuBarMenuBuilderTests {
             tokenUsageCard: tokenUsageCard,
             providerUsage: providerUsage,
             toolOrder: toolOrder,
-            masksEmails: masksEmails
+            masksEmails: masksEmails,
+            now: now
         )
     }
 

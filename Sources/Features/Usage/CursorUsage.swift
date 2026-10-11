@@ -35,7 +35,8 @@ struct CursorUsage: ProviderConnection {
         settings.isEnabled = false
     }
 
-    let signIn: (any ProviderSignIn)? = nil
+    /// Adding a Cursor account saves the sign-in Cursor uses now.
+    let signInAvailability = ProviderSignInAvailability.unsupported
 
     func savedAccounts() async throws(ProviderNotice) -> [ProviderAccount] {
         guard let accounts else { return [] }
@@ -62,6 +63,11 @@ struct CursorUsage: ProviderConnection {
         } catch {
             throw error.notice
         }
+    }
+
+    func addAccount() async throws(ProviderNotice) -> Bool {
+        try await addCurrentAccount()
+        return true
     }
 
     func removeAccount(_ id: UUID) async throws(ProviderNotice) {
