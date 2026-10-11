@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="Resources/AppIcon.png" width="128" alt="CodexPill app icon">
+  <img src="docs/images/app-icon.png" width="128" alt="CodexPill app icon">
 </p>
 
 <h1 align="center">CodexPill</h1>
