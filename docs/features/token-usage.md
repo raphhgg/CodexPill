@@ -35,23 +35,19 @@ Token Usage treats daily buckets as local-session scoped. It does not promise a 
 
 ## Happy Path
 
-1. User enables Token Usage from Preferences.
+1. User enables `Settings › Appearance › Show Token Usage`.
 2. CodexPill starts scanning recent local Codex session JSONL files in the background.
 3. User can close the menu or continue working while the scan completes.
 4. CodexPill aggregates safe token totals by day and stores them in a derived cache.
-5. The main menu shows a compact Token Usage card inside the active account area, directly below the Session and Weekly limit rows.
-6. Chart-style changes update the visible card from cached aggregate data.
+5. The Codex side menu gains `Token Usage ›`, which shows the card.
 
 ## UI / Copy / States
 
-Preferences:
+Settings › Appearance:
 
-- `Token Usage`
 - `Show Token Usage`
-- `Chart Style`
-- `Daily Bars`
-- `Heat Strip`
-- `Sparkline`
+
+The card uses daily bars. Chart style, loading animation and peak-day scope have no menu control.
 
 Default:
 
@@ -112,7 +108,6 @@ Expected behavior:
 - A session file is truncated, malformed, or too large to parse naively.
 - Model metadata is missing or appears only in nearby `turn_context` rows.
 - Multiple Codex homes exist; V1 only scans the active local Codex home.
-- Remote hosts exist; V1 does not scan or display their token usage.
 - A future period selector changes period while a scan is already running.
 - The user disables Token Usage while a scan is already running.
 - The user disables Token Usage after a successful scan, then re-enables it during the same app run.
@@ -121,7 +116,7 @@ Expected behavior:
 
 ## Acceptance Criteria
 
-- Token Usage can be enabled and disabled from Preferences.
+- Token Usage can be enabled and disabled from `Settings › Appearance`.
 - When disabled, the main menu does not show the Token Usage card.
 - When enabled, the main menu shows a compact Token Usage card inside the active account area, directly below the Session and Weekly limit rows.
 - The card displays the selected chart style for the selected period.
@@ -143,37 +138,9 @@ Expected behavior:
 - The implementation emits only aggregate token totals and never raw prompt/session/auth content.
 - Synthetic fixture tests cover parsing, aggregation, malformed rows, and repeated cumulative totals.
 
-## Candidate Execution Slices
+## Chart Style History
 
-### Prototype Token Usage Chart Variants
-
-Purpose:
-
-Validate the three supported chart styles for the Token Usage card before final implementation.
-
-Contract:
-
-- Use synthetic or fixture token data.
-- Show the card in the intended menu position inside the active account area, directly below the Session and Weekly limit rows.
-- Show the settings/menu path that lets the user choose chart style.
-- Do not depend on the production scanner.
-- Do not implement final persistence, preferences, backend access, account split, or remote host usage.
-- Produce screenshots for human review.
-
-Required variants:
-
-- Daily bars.
-- Heat strip.
-- Sparkline.
-
-Acceptance:
-
-- Every style uses the same data and comparable card dimensions.
-- Every style shows realistic `Today` and selected-period totals.
-- Every style includes `This Mac` scope copy.
-- The prototype shows how the user chooses between `Daily Bars`, `Heat Strip`, and `Sparkline`.
-- The handoff includes screenshots and a short trade-off note for each variant.
-- The issue is marked for human review before the final Token Usage UI implementation begins.
+RGR-360 compared chart variants with synthetic fixture data inside the active account card. That review chose `Daily Bars`, `Heat Strip`, and `Sparkline`, which shipped with RGR-362. The prototype cards, fixture data, and screenshot script were removed after the production card shipped. [RGR-360-token-usage-chart-variants.md](../delivery/RGR-360-token-usage-chart-variants.md) keeps the review record.
 
 ## Validation Targets
 
@@ -185,7 +152,6 @@ Acceptance:
 - Presentation tests for card visibility, selected-period copy, empty state, and error state.
 - Manual QA with Token Usage off, enabled with data, and enabled with no data.
 - Manual QA confirming the scan continues after closing the menu, chart-style changes do not flash back to full loading, and disable/re-enable reuses cached data during the same app run.
-- Human review of chart variants with screenshots before the final menu card design is locked.
 - Privacy review confirming no prompts, auth values, account IDs, emails, local paths, hostnames, or raw rows are emitted.
 
 ## Out Of Scope / Deferrals
@@ -209,7 +175,6 @@ Acceptance:
 - Should cached aggregates live under `~/Library/Caches/CodexPill` or be recomputed on demand?
 - What refresh cadence is enough without making menu opening feel slow?
 - Should the app expose a manual `Refresh Token Usage` action, or rely on the existing refresh flow?
-- Which compact chart visual direction should ship: minimal bars, stock-style sparkline, calendar-like heat strip, or another native menu-friendly variant?
 
 ## Recommended Next Checkpoint
 

@@ -25,7 +25,7 @@ This task exists because real power-user Codex histories can be several GB, incl
 
 ## UI / Copy / States
 
-Preferences:
+Period:
 
 - Keep `Last 30 Days` as the only visible v1 period.
 - Defer `Last 7 Days` and `Last 90 Days` until the incremental cache proves fast enough for large histories and period changes feel instant.
@@ -47,6 +47,9 @@ Progress should be deliberately low-key. This is a menubar app, not a migration 
 ## Cache Contract
 
 Persist cache under `~/Library/Caches/CodexPill`, not Application Support, because the data is derived and can be rebuilt.
+The cache directory and file are owner-only, like the account catalog.
+Isolated launches and automated-test runs keep the cache inside their isolated
+directory instead of the user's real cache.
 
 Cache contents:
 

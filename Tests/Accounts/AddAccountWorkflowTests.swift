@@ -6,7 +6,7 @@ import Testing
 struct AddAccountWorkflowTests {
     @Test
     func isolatedAddAccountRejectsEmptyNameBeforeStartingLogin() async {
-        let auth = AddAccountAuthSnapshotProbe(savedAccount: makeAccount(name: "ignored", fingerprint: "fingerprint"))
+        let auth = AddAccountAuthSnapshotProbe(savedAccount: makeAccount(name: "ignored", email: nil, fingerprint: "fingerprint"))
         let loginClient = AddAccountIsolatedLoginClientProbe()
         let workflow = AddAccountWorkflow(
             authService: auth,
@@ -23,8 +23,8 @@ struct AddAccountWorkflowTests {
 
     @Test
     func isolatedAddAccountRejectsDuplicateNameBeforeStartingLogin() async {
-        let existing = makeAccount(name: "Business 1", fingerprint: "business-1")
-        let auth = AddAccountAuthSnapshotProbe(savedAccount: makeAccount(name: "ignored", fingerprint: "fingerprint"))
+        let existing = makeAccount(name: "Business 1", email: nil, fingerprint: "business-1")
+        let auth = AddAccountAuthSnapshotProbe(savedAccount: makeAccount(name: "ignored", email: nil, fingerprint: "fingerprint"))
         let loginClient = AddAccountIsolatedLoginClientProbe()
         let workflow = AddAccountWorkflow(
             authService: auth,
@@ -42,8 +42,8 @@ struct AddAccountWorkflowTests {
     @Test
     func completeIsolatedAddAccountPersistsCapturedAuthWithoutChangingActiveAccount() async throws {
         let activeAccountID = UUID()
-        let active = makeAccount(id: activeAccountID, name: "Personal", fingerprint: "live-fingerprint")
-        let captured = makeAccount(name: "Business 2", fingerprint: "isolated-fingerprint")
+        let active = makeAccount(id: activeAccountID, name: "Personal", email: nil, fingerprint: "live-fingerprint")
+        let captured = makeAccount(name: "Business 2", email: nil, fingerprint: "isolated-fingerprint")
         let auth = AddAccountAuthSnapshotProbe(
             savedAccount: captured,
             currentAuthData: Data("live-auth".utf8),
@@ -80,8 +80,8 @@ struct AddAccountWorkflowTests {
     @Test
     func completeIsolatedAddAccountAbortsWhenLiveAuthChangesDuringSignIn() async throws {
         let activeAccountID = UUID()
-        let active = makeAccount(id: activeAccountID, name: "Personal", fingerprint: "live-fingerprint")
-        let captured = makeAccount(name: "Business 2", fingerprint: "isolated-fingerprint")
+        let active = makeAccount(id: activeAccountID, name: "Personal", email: nil, fingerprint: "live-fingerprint")
+        let captured = makeAccount(name: "Business 2", email: nil, fingerprint: "isolated-fingerprint")
         let auth = AddAccountAuthSnapshotProbe(
             savedAccount: captured,
             currentAuthData: Data("live-auth".utf8),
@@ -116,8 +116,8 @@ struct AddAccountWorkflowTests {
 
     @Test
     func completeIsolatedAddAccountRejectsAlreadySavedCapturedIdentity() async throws {
-        let existing = makeAccount(name: "Business 4", fingerprint: "isolated-fingerprint")
-        let captured = makeAccount(name: "Business 7", fingerprint: "isolated-fingerprint")
+        let existing = makeAccount(name: "Business 4", email: nil, fingerprint: "isolated-fingerprint")
+        let captured = makeAccount(name: "Business 7", email: nil, fingerprint: "isolated-fingerprint")
         let auth = AddAccountAuthSnapshotProbe(
             savedAccount: captured,
             currentAuthData: Data("live-auth".utf8),
@@ -150,8 +150,8 @@ struct AddAccountWorkflowTests {
 
     @Test
     func completeIsolatedAddAccountMapsCatalogSaveFailureAfterCapture() async throws {
-        let active = makeAccount(name: "Personal", fingerprint: "live-fingerprint")
-        let captured = makeAccount(name: "Business 2", fingerprint: "isolated-fingerprint")
+        let active = makeAccount(name: "Personal", email: nil, fingerprint: "live-fingerprint")
+        let captured = makeAccount(name: "Business 2", email: nil, fingerprint: "isolated-fingerprint")
         let auth = AddAccountAuthSnapshotProbe(
             savedAccount: captured,
             currentAuthData: Data("live-auth".utf8),
@@ -183,8 +183,8 @@ struct AddAccountWorkflowTests {
 
     @Test
     func completeIsolatedAddAccountMapsRepositorySaveFailureAfterSnapshotSave() async throws {
-        let active = makeAccount(name: "Personal", fingerprint: "live-fingerprint")
-        let captured = makeAccount(name: "Business 2", fingerprint: "isolated-fingerprint")
+        let active = makeAccount(name: "Personal", email: nil, fingerprint: "live-fingerprint")
+        let captured = makeAccount(name: "Business 2", email: nil, fingerprint: "isolated-fingerprint")
         let auth = AddAccountAuthSnapshotProbe(
             savedAccount: captured,
             currentAuthData: Data("live-auth".utf8),
@@ -219,7 +219,7 @@ struct AddAccountWorkflowTests {
     @Test
     func cancelIsolatedAddAccountTerminatesLoginAndCleansTemporaryHome() async throws {
         let auth = AddAccountAuthSnapshotProbe(
-            savedAccount: makeAccount(name: "Business 2", fingerprint: "isolated-fingerprint"),
+            savedAccount: makeAccount(name: "Business 2", email: nil, fingerprint: "isolated-fingerprint"),
             currentAuthData: Data("live-auth".utf8),
             currentFingerprint: "live-fingerprint"
         )
@@ -243,21 +243,7 @@ struct AddAccountWorkflowTests {
 private func makeResolver(auth: AddAccountAuthSnapshotProbe) -> SavedAccountIdentityResolver {
     SavedAccountIdentityResolver(
         liveIdentitySource: auth,
-        storedAccountReconciler: AddAccountStoredIdentityAdapter()
-    )
-}
-
-private func makeAccount(id: UUID = UUID(), name: String, fingerprint: String) -> CodexAccount {
-    return CodexAccount(
-        id: id,
-        name: name,
-        snapshotFileName: "\(id.uuidString).json",
-        createdAt: .distantPast,
-        updatedAt: .distantPast,
-        email: nil,
-        planType: nil,
-        rateLimits: nil,
-        identity: CodexAccountIdentity(snapshotFingerprint: fingerprint)
+        storedAccountReconciler: PassthroughIdentityReconciler()
     )
 }
 
@@ -318,27 +304,6 @@ private final class AddAccountAuthSnapshotProbe: CodexSignInAuthStore, LiveCodex
     }
 }
 
-private final class AddAccountCodexProcessProbe: CodexAppProcessClient, @unchecked Sendable {
-    private(set) var availabilityCheckCount = 0
-    private(set) var relaunchCount = 0
-
-    func assertCodexAvailable() throws {
-        availabilityCheckCount += 1
-    }
-
-    func relaunchCodex() async throws {
-        relaunchCount += 1
-    }
-}
-
-private struct AddAccountStatusFixture: CodexAccountStatusClient {
-    let status: CodexAccountStatus
-
-    func readCurrentAccountStatus() async throws -> CodexAccountStatus {
-        status
-    }
-}
-
 private final class AddAccountCatalogProbe: AccountCatalogStore, @unchecked Sendable {
     private(set) var savedAccounts: [CodexAccount]?
     var saveError: Error?
@@ -348,12 +313,6 @@ private final class AddAccountCatalogProbe: AccountCatalogStore, @unchecked Send
             throw saveError
         }
         savedAccounts = accounts
-    }
-}
-
-private struct AddAccountStoredIdentityAdapter: StoredAccountIdentityReconciler {
-    func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {
-        accounts
     }
 }
 

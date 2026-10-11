@@ -15,37 +15,23 @@ struct DiagnosticReportBuilderTests {
     }
 
     @Test
-    func reportAliasesSensitiveAccountAndHostTopologyWithoutRawIdentifiers() throws {
+    func reportAliasesSensitiveAccountsWithoutRawIdentifiers() throws {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let active = makeAccount(
             id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
             name: "Work Account",
             email: "person@example.com",
             stableAccountID: "acct_stable_secret",
-            fetchedAt: now.addingTimeInterval(-120)
+            usage: makeUsage(fetchedAt: now.addingTimeInterval(-120))
         )
         let inactive = makeAccount(
             id: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
             name: "Personal Account",
             email: "me@example.org",
             stableAccountID: "acct_other_secret",
-            fetchedAt: now.addingTimeInterval(-3600)
+            usage: makeUsage(fetchedAt: now.addingTimeInterval(-3600))
         )
-        let state = makeMenuState(
-            activeAccount: active,
-            inactiveAccounts: [inactive],
-            remoteHosts: [
-                RemoteHostMenuState(
-                    name: "buildbox",
-                    destination: "deploy@buildbox.example.com",
-                    connectionState: .connected,
-                    desiredAccount: active,
-                    activeAccount: active,
-                    verificationStatus: .verified,
-                    deployedAccountIDs: [active.id]
-                )
-            ]
-        )
+        let state = makeMenuState(activeAccount: active, inactiveAccounts: [inactive])
 
         let report = DiagnosticReportBuilder(
             appMetadata: .fixture,
@@ -57,26 +43,62 @@ struct DiagnosticReportBuilderTests {
                     name: "switch_account",
                     category: .switchAccount,
                     occurredAt: now,
-                    fields: [
-                        .account(active.id, redaction: .accountAlias),
-                        .hostDestination("deploy@buildbox.example.com", redaction: .hostAlias)
-                    ]
+                    fields: [.account(active.id, redaction: .accountAlias)]
                 )
             ]
         )
         let json = try encodedJSONString(report)
 
         #expect(report.accounts.map(\.alias) == ["account-1", "account-2"])
-        #expect(report.hosts.map(\.alias) == ["host-1"])
-        #expect(report.hosts.first?.activeAccountAlias == "account-1")
         #expect(report.events.first?.fields["account"] == "account-1")
-        #expect(report.events.first?.fields["host"] == "host-1")
         #expect(!json.contains("person@example.com"))
         #expect(!json.contains("me@example.org"))
         #expect(!json.contains("acct_stable_secret"))
-        #expect(!json.contains("deploy@buildbox.example.com"))
-        #expect(!json.contains("buildbox"))
         #expect(!json.contains(active.id.uuidString))
+    }
+
+    @Test
+    func reportListsEveryUsageWindowEachAccountHas() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        func usage(_ windows: [(minutes: Int, usedPercent: Int)]) -> UsageSnapshot {
+            UsageSnapshot(
+                provider: .codex,
+                planName: nil,
+                windows: windows.map { window in
+                    UsageWindow(
+                        kind: UsageWindowKind(durationMinutes: window.minutes),
+                        usedPercent: window.usedPercent,
+                        resetsAt: now.addingTimeInterval(3_600),
+                        durationMinutes: window.minutes
+                    )
+                },
+                fetchedAt: now
+            )
+        }
+        let plus = makeAccount(id: UUID(uuidString: "77777777-7777-7777-7777-777777777777")!, usage: usage([(300, 12), (10_080, 55)]))
+        let pro = makeAccount(id: UUID(uuidString: "88888888-8888-8888-8888-888888888888")!, usage: usage([(10_080, 95)]))
+        let free = makeAccount(id: UUID(uuidString: "99999999-9999-9999-9999-999999999999")!, usage: usage([(43_200, 30)]))
+        let unusual = makeAccount(id: UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!, usage: usage([(11_520, 60)]))
+        let unread = makeAccount(id: UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB")!, usage: nil)
+
+        let report = DiagnosticReportBuilder(
+            appMetadata: .fixture,
+            systemMetadata: .fixture(now: now)
+        ).makeReport(
+            state: makeMenuState(activeAccount: plus, inactiveAccounts: [pro, free, unusual, unread]),
+            events: []
+        )
+
+        #expect(report.accounts.map(\.usageWindows) == [
+            [
+                DiagnosticUsageWindow(kind: "session", title: "Session", usageCategory: "available"),
+                DiagnosticUsageWindow(kind: "weekly", title: "Weekly", usageCategory: "limited")
+            ],
+            [DiagnosticUsageWindow(kind: "weekly", title: "Weekly", usageCategory: "exhausted")],
+            [DiagnosticUsageWindow(kind: "monthly", title: "Monthly", usageCategory: "available")],
+            [DiagnosticUsageWindow(kind: "other", title: "8 days", usageCategory: "limited")],
+            []
+        ])
     }
 
     @Test
@@ -108,7 +130,7 @@ struct DiagnosticReportBuilderTests {
     }
 
     @Test
-    func tokenLikeAuthLikePathHostAndStableIDValuesAreNotEncoded() throws {
+    func tokenLikeAuthLikePathAndStableIDValuesAreNotEncoded() throws {
         let rawValues = [
             "sk-proj-abcdefghijklmnopqrstuvwxyz1234567890",
             #"{"access_token":"secret","refresh_token":"secret"}"#,
@@ -121,26 +143,14 @@ struct DiagnosticReportBuilderTests {
             id: UUID(uuidString: "44444444-4444-4444-4444-444444444444")!,
             name: rawValues.joined(separator: " "),
             email: "secret@example.com",
-            stableAccountID: rawValues.last
+            stableAccountID: rawValues.last,
+            usage: makeUsage()
         )
         let report = DiagnosticReportBuilder(
             appMetadata: .fixture,
             systemMetadata: .fixture()
         ).makeReport(
-            state: makeMenuState(
-                activeAccount: account,
-                inactiveAccounts: [],
-                remoteHosts: [
-                    RemoteHostMenuState(
-                        name: "private.example.com",
-                        destination: "user@private.example.com",
-                        connectionState: .disconnected,
-                        activeAccount: nil,
-                        verificationStatus: .failed,
-                        lastVerificationError: rawValues[2]
-                    )
-                ]
-            ),
+            state: makeMenuState(activeAccount: account, inactiveAccounts: []),
             events: []
         )
         let json = try encodedJSONString(report)
@@ -150,8 +160,6 @@ struct DiagnosticReportBuilderTests {
         }
         #expect(!json.contains("secret@example.com"))
         #expect(!json.contains("private.example.com"))
-        #expect(report.decisionTraces.contains(where: { $0.reasonCode == "host_disconnected" }))
-        #expect(report.decisionTraces.contains(where: { $0.reasonCode == "host_verification_failed" }))
     }
 
     @Test
@@ -224,15 +232,11 @@ private func encodedJSONString<T: Encodable>(_ value: T) throws -> String {
 
 private func makeMenuState(
     activeAccount: CodexAccount?,
-    inactiveAccounts: [CodexAccount],
-    remoteHosts: [RemoteHostMenuState] = []
+    inactiveAccounts: [CodexAccount]
 ) -> MenuBarMenuState {
     MenuBarMenuState(
         activeAccount: activeAccount,
         inactiveAccounts: inactiveAccounts,
-        remoteHosts: remoteHosts,
-        visibleInactiveAccountCount: 5,
-        visibleInactiveAccountCountOptions: [3, 5],
         refreshIntervalMinutes: 5,
         refreshIntervalOptions: [5, 15],
         statusBarMonochrome: false,
@@ -240,32 +244,5 @@ private func makeMenuState(
         statusBarDisplayMode: .iconOnly,
         isBusy: false,
         statusMessage: ""
-    )
-}
-
-private func makeAccount(
-    id: UUID = UUID(),
-    name: String = "Account",
-    email: String? = nil,
-    stableAccountID: String? = nil,
-    fetchedAt: Date = Date(timeIntervalSince1970: 1_800_000_000)
-) -> CodexAccount {
-    CodexAccount(
-        id: id,
-        name: name,
-        snapshotFileName: "snapshot-\(id.uuidString).json",
-        createdAt: fetchedAt.addingTimeInterval(-600),
-        updatedAt: fetchedAt,
-        email: email,
-        planType: "plus",
-        rateLimits: CodexRateLimitSnapshot(
-            limitID: "limit-secret",
-            limitName: "Limit Secret",
-            planType: "plus",
-            primary: CodexRateLimitWindow(usedPercent: 40, resetsAt: fetchedAt.addingTimeInterval(1800), windowDurationMinutes: 300),
-            secondary: CodexRateLimitWindow(usedPercent: 70, resetsAt: fetchedAt.addingTimeInterval(86_400), windowDurationMinutes: 10_080),
-            fetchedAt: fetchedAt
-        ),
-        identity: CodexAccountIdentity(stableAccountID: stableAccountID)
     )
 }

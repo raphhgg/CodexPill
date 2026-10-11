@@ -194,51 +194,6 @@ struct MenuBarAlertFactory {
         )
     }
 
-    func makeRenameAccountRequest(accountName: String) -> MenuBarTextInputAlertRequest {
-        MenuBarTextInputAlertRequest(
-            messageText: "Rename saved account",
-            informativeText: "This only changes the name shown in CodexPill.",
-            fieldTitle: "Account Name",
-            placeholder: accountName,
-            confirmTitle: "Rename",
-            cancelTitle: "Cancel",
-            requiresNonEmptyValue: true
-        )
-    }
-
-    func makeAddHostRequest() -> MenuBarHostSetupPanelRequest {
-        MenuBarHostSetupPanelRequest(
-            messageText: "Add remote host",
-            informativeText: "Enter the SSH destination CodexPill should use, for example user@host.",
-            fieldTitle: "SSH Destination",
-            placeholder: "user@host",
-            nameFieldTitle: "Host Name (Optional)",
-            namePlaceholder: "buildbox",
-            confirmTitle: "Add Host",
-            cancelTitle: "Cancel",
-            idleStatusText: "CodexPill checks the connection automatically.",
-            successStatusText: "Connection successful."
-        )
-    }
-
-    func makeRemoveHostRequest(hostName: String) -> MenuBarConfirmationAlertRequest {
-        MenuBarConfirmationAlertRequest(
-            messageText: "Remove remote host?",
-            informativeText: "This will remove the saved host configuration for \(hostName). Remote snapshots on that machine will not be deleted.",
-            confirmTitle: "Remove Host",
-            cancelTitle: "Cancel"
-        )
-    }
-
-    func makeInstallCurrentAccountOnHostRequest(accountName: String, hostName: String) -> MenuBarConfirmationAlertRequest {
-        MenuBarConfirmationAlertRequest(
-            messageText: "Install current account on \(hostName)?",
-            informativeText: "Install \(accountName) on \(hostName) and switch the host to it now? If you cancel, the host will not be added yet.",
-            confirmTitle: "Install and Switch",
-            cancelTitle: "Cancel"
-        )
-    }
-
     func makeAboutRequest() -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
             messageText: "About CodexPill",
@@ -258,7 +213,7 @@ struct MenuBarAlertFactory {
     func makeDiagnosticsExportRequest() -> MenuBarConfirmationAlertRequest {
         MenuBarConfirmationAlertRequest(
             messageText: "Export Diagnostics?",
-            informativeText: "CodexPill will create a redacted support file with app version, settings, account aliases, host aliases, limit freshness, and recent workflow events. It does not include auth tokens, emails, hostnames, local paths, or raw logs.",
+            informativeText: "CodexPill will create a redacted support file with app version, settings, account aliases, limit freshness, and recent workflow events. It does not include auth tokens, emails, hostnames, local paths, or raw logs.",
             confirmTitle: "Export",
             cancelTitle: "Cancel"
         )
@@ -273,42 +228,21 @@ struct MenuBarAlertFactory {
         )
     }
 
+    func makeResetInProgressRequest() -> MenuBarInfoAlertRequest {
+        MenuBarInfoAlertRequest(
+            messageText: "Reset in progress",
+            informativeText: "Switch accounts when it finishes.",
+            style: .informational,
+            buttonTitle: "OK"
+        )
+    }
+
     func makeErrorRequest(message: String) -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
             messageText: "CodexPill Error",
             informativeText: userFacingErrorMessage(for: message),
             style: .warning,
             buttonTitle: "OK"
-        )
-    }
-
-    func makeNotificationActionRequest(
-        accountName: String,
-        targetDescription: String,
-        substitutionMessage: String?,
-        runningCLISessions: Int?
-    ) -> MenuBarConfirmationAlertRequest {
-        var lines: [String] = []
-        if let substitutionMessage {
-            lines.append(substitutionMessage)
-            lines.append("")
-        }
-
-        lines.append("Switch \(targetDescription) to \(accountName).")
-
-        if let runningCLISessions, runningCLISessions > 0 {
-            let sessionText = runningCLISessions == 1
-                ? "1 Codex terminal is"
-                : "\(runningCLISessions) Codex terminals are"
-            lines.append("")
-            lines.append("\(sessionText) running. Restart to use the new account.")
-        }
-
-        return MenuBarConfirmationAlertRequest(
-            messageText: "Use \(accountName) now?",
-            informativeText: lines.joined(separator: "\n"),
-            confirmTitle: "Switch",
-            cancelTitle: "Cancel"
         )
     }
 

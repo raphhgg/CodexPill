@@ -12,7 +12,7 @@ The app icon is a porcelain-and-glass capsule built as an Icon Composer document
 asset catalog for macOS 26 and later, and generates an `AppIcon.icns` fallback
 for macOS 14 and 15.
 
-CodexPill exposes an `App Icon` submenu in `Preferences` with six colours:
+CodexPill exposes an `App Icon` submenu in `Settings › Appearance` with six colours:
 Cobalt, Deep teal, Emerald, Violet, Honey and Rose. Cobalt is the default. The
 choice persists and is applied at launch.
 
@@ -21,32 +21,31 @@ in-app icon (`NSApplication.applicationIconImage`) instead. The choice changes:
 
 - The `About CodexPill` alert.
 - Every CodexPill alert and confirmation.
-- The title-bar icon of CodexPill panels, such as host setup and shortcut capture.
+- The title-bar icon of CodexPill panels, such as shortcut capture.
 
 The choice does not change:
 
 - Finder, Spotlight, Launchpad, and the Login Items list in System Settings.
-- Notification banners. macOS draws them with the bundle icon.
 
 These surfaces always show Cobalt.
 
 ## UI / Copy / States
 
 ```text
-Preferences
-  Menu Bar Label
-  Icon Style
-  Usage Bars
-  Token Usage
-  App Icon
-    ✓ Cobalt
-      Deep teal
-      Emerald
-      Violet
-      Honey
-      Rose
-  ----------------
-  Launch at Login
+Settings
+  Appearance
+    Menu Bar Label
+    Icon Style
+    Usage Bars
+    App Icon
+      ✓ Cobalt
+        Deep teal
+        Emerald
+        Violet
+        Honey
+        Rose
+    ----------------
+    Show Token Usage
 ```
 
 The current colour has a checkmark.
@@ -77,7 +76,7 @@ any `.icon` file. It renders the PNGs the app loads at runtime into
 ## Acceptance Criteria
 
 - The built app shows the Cobalt capsule icon in Finder and in the About alert.
-- `Preferences > App Icon` lists the six colours in order, with Cobalt checked by
+- `Settings › Appearance › App Icon` lists the six colours in order, with Cobalt checked by
   default.
 - Choosing a colour changes the About alert and other alert icons immediately.
 - The choice survives a relaunch.

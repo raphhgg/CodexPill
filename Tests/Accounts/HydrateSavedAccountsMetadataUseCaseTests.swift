@@ -5,306 +5,323 @@ import Testing
 
 struct HydrateSavedAccountsMetadataUseCaseTests {
     @Test
-    func runBackfillsInactiveAccountsMissingRateLimitsAndRestoresOriginalAuth() async throws {
-        let active = makeAccount(name: "Active", fingerprint: "active", withRateLimits: true)
-        let inactiveMissing = makeAccount(name: "Missing", fingerprint: "missing", withRateLimits: false)
-        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: true)
+    func accountIDsToRefreshSkipsTheActiveAccountAndOnlyIncludesFilledAccountsWhenRefreshingExisting() {
+        let active = makeAccount(name: "Active", fingerprint: "active", withRateLimits: false)
+        let missing = makeAccount(name: "Missing", fingerprint: "missing", withRateLimits: false)
+        let ready = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: true)
         let auth = HydrationAuthSnapshotProbe(currentAuthData: Data("active-auth".utf8))
-        let repository = HydrationCatalogProbe()
-        let useCase = HydrateSavedAccountsMetadataUseCase(
-            authService: auth,
-            accountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: [
-                "missing": CodexAccountStatus(
-                    email: "missing@example.com",
-                    planType: "pro",
-                    rateLimits: makeRateLimitsSnapshot()
-                )
-            ], authService: auth),
-            savedAccountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: [
-                "missing": CodexAccountStatus(
-                    email: "missing@example.com",
-                    planType: "pro",
-                    rateLimits: makeRateLimitsSnapshot()
-                )
-            ], authService: auth),
-            identityResolver: SavedAccountIdentityResolver(
-                liveIdentitySource: HydrationIdentitySource(activeFingerprint: "active"),
-                storedAccountReconciler: HydrationIdentityReconcilerAdapter()
-            ),
-            repository: repository
+        let useCase = makeUseCase(
+            auth: auth,
+            savedAccountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: [:]),
+            repository: HydrationCatalogProbe()
         )
 
-        let result = try await useCase.run(
-            accounts: [active, inactiveMissing, inactiveReady],
-            activeAccountID: active.id
+        let missingOnly = useCase.accountIDsToRefresh(
+            in: [active, missing, ready],
+            activeAccountID: active.id,
+            refreshExistingMetadata: false
         )
-
-        let hydratedMissing = try #require(result.accounts.first(where: { $0.id == inactiveMissing.id }))
-        let preservedReady = try #require(result.accounts.first(where: { $0.id == inactiveReady.id }))
-
-        #expect(hydratedMissing.rateLimits?.primary?.usedPercent == 46)
-        #expect(hydratedMissing.email == "missing@example.com")
-        #expect(preservedReady.rateLimits != nil)
-        #expect(auth.recordedSnapshotReads() == [inactiveMissing.id])
-        #expect(auth.currentAuthDataString() == "active-auth")
-        #expect(result.activeAccountID == active.id)
-        #expect(result.hydratedAccountIDs == [inactiveMissing.id])
-        #expect(repository.savedAccounts == result.accounts)
-    }
-
-    @Test
-    func runSkipsWhenNoInactiveAccountsNeedHydration() async throws {
-        let active = makeAccount(name: "Active", fingerprint: "active", withRateLimits: true)
-        let inactive = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: true)
-        let auth = HydrationAuthSnapshotProbe(currentAuthData: Data("active-auth".utf8))
-        let repository = HydrationCatalogProbe()
-        let useCase = HydrateSavedAccountsMetadataUseCase(
-            authService: auth,
-            accountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: [:], authService: auth),
-            savedAccountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: [:], authService: auth),
-            identityResolver: SavedAccountIdentityResolver(
-                liveIdentitySource: HydrationIdentitySource(activeFingerprint: "active"),
-                storedAccountReconciler: HydrationIdentityReconcilerAdapter()
-            ),
-            repository: repository
-        )
-
-        let result = try await useCase.run(accounts: [active, inactive], activeAccountID: active.id)
-
-        #expect(result.accounts == [active, inactive])
-        #expect(result.activeAccountID == active.id)
-        #expect(result.hydratedAccountIDs.isEmpty)
-        #expect(repository.savedAccounts == nil)
-        #expect(auth.recordedSnapshotReads().isEmpty)
-    }
-
-    @Test
-    func runRefreshesInactiveAccountsThatAlreadyHaveRateLimitsWhenRequested() async throws {
-        let active = makeAccount(name: "Active", fingerprint: "active", withRateLimits: true)
-        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: true)
-        let auth = HydrationAuthSnapshotProbe(currentAuthData: Data("active-auth".utf8))
-        let refreshedRateLimits = CodexRateLimitSnapshot(
-            limitID: "codex",
-            limitName: nil,
-            planType: "team",
-            primary: CodexRateLimitWindow(
-                usedPercent: 12,
-                resetsAt: Date(timeIntervalSince1970: 1_776_256_138),
-                windowDurationMinutes: 300
-            ),
-            secondary: CodexRateLimitWindow(
-                usedPercent: 3,
-                resetsAt: Date(timeIntervalSince1970: 1_776_842_938),
-                windowDurationMinutes: 10_080
-            ),
-            fetchedAt: Date(timeIntervalSince1970: 1_776_300_000)
-        )
-        let repository = HydrationCatalogProbe()
-        let useCase = HydrateSavedAccountsMetadataUseCase(
-            authService: auth,
-            accountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: [
-                "ready": CodexAccountStatus(
-                    email: "fresh-ready@example.com",
-                    planType: "team",
-                    rateLimits: refreshedRateLimits
-                )
-            ], authService: auth),
-            savedAccountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: [
-                "ready": CodexAccountStatus(
-                    email: "fresh-ready@example.com",
-                    planType: "team",
-                    rateLimits: refreshedRateLimits
-                )
-            ], authService: auth),
-            identityResolver: SavedAccountIdentityResolver(
-                liveIdentitySource: HydrationIdentitySource(activeFingerprint: "active"),
-                storedAccountReconciler: HydrationIdentityReconcilerAdapter()
-            ),
-            repository: repository
-        )
-
-        let result = try await useCase.run(
-            accounts: [active, inactiveReady],
+        let allInactive = useCase.accountIDsToRefresh(
+            in: [active, missing, ready],
             activeAccountID: active.id,
             refreshExistingMetadata: true
         )
 
-        let refreshedReady = try #require(result.accounts.first(where: { $0.id == inactiveReady.id }))
-        #expect(refreshedReady.rateLimits == refreshedRateLimits)
-        #expect(refreshedReady.email == "fresh-ready@example.com")
-        #expect(refreshedReady.planType == "team")
-        #expect(auth.recordedSnapshotReads() == [inactiveReady.id])
-        #expect(auth.currentAuthDataString() == "active-auth")
-        #expect(result.activeAccountID == active.id)
-        #expect(result.hydratedAccountIDs == [inactiveReady.id])
-        #expect(repository.savedAccounts == result.accounts)
+        #expect(missingOnly == [missing.id])
+        #expect(allInactive == [missing.id, ready.id])
     }
 
     @Test
-    func runBackfillsInactiveAccountsWithWeeklyOnlyRateLimits() async throws {
-        let active = makeAccount(name: "Active", fingerprint: "active", withRateLimits: true)
-        let inactiveMissing = makeAccount(name: "Missing", fingerprint: "missing", withRateLimits: false)
+    func refreshBackfillsMissingMetadataWithoutTouchingLiveAuth() async throws {
+        let missing = makeAccount(name: "Missing", fingerprint: "missing", withRateLimits: false)
         let auth = HydrationAuthSnapshotProbe(currentAuthData: Data("active-auth".utf8))
-        let primaryOnlyRateLimits = CodexRateLimitSnapshot(
-            limitID: "codex",
-            limitName: nil,
-            planType: "free",
-            primary: CodexRateLimitWindow(
-                usedPercent: 9,
-                resetsAt: Date(timeIntervalSince1970: 1_776_256_138),
-                windowDurationMinutes: 10_080
-            ),
+        let useCase = makeUseCase(
+            auth: auth,
+            savedAccountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: [
+                "missing": CodexAccountStatus(
+                    email: "missing@example.com",
+                    planType: "pro",
+                    usage: makeUsageSnapshot()
+                )
+            ]),
+            repository: HydrationCatalogProbe()
+        )
+
+        let update = try #require(await useCase.refresh(missing, among: [missing]))
+
+        #expect(update.accountID == missing.id)
+        #expect(update.usage?.window(.session)?.usedPercent == 46)
+        #expect(update.email == "missing@example.com")
+        #expect(update.planType == "pro")
+        #expect(auth.currentAuthDataString() == "active-auth")
+    }
+
+    @Test
+    func refreshReplacesExistingRateLimitsWithFreshOnes() async throws {
+        let ready = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: true)
+        let auth = HydrationAuthSnapshotProbe(currentAuthData: Data("active-auth".utf8))
+        let refreshedRateLimits = UsageSnapshot.codex(
+            planName: "team",
+            primary: (usedPercent: 12, resetsAt: Date(timeIntervalSince1970: 1_776_256_138), durationMinutes: 300),
+            secondary: (usedPercent: 3, resetsAt: Date(timeIntervalSince1970: 1_776_842_938), durationMinutes: 10_080),
+            fetchedAt: Date(timeIntervalSince1970: 1_776_300_000)
+        )
+        let useCase = makeUseCase(
+            auth: auth,
+            savedAccountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: [
+                "ready": CodexAccountStatus(
+                    email: "fresh-ready@example.com",
+                    planType: "team",
+                    usage: refreshedRateLimits
+                )
+            ]),
+            repository: HydrationCatalogProbe()
+        )
+
+        let update = try #require(await useCase.refresh(ready, among: [ready]))
+
+        #expect(update.usage == refreshedRateLimits)
+        #expect(update.email == "fresh-ready@example.com")
+        #expect(update.planType == "team")
+        #expect(update.identity.snapshotFingerprint == "ready")
+        #expect(auth.storedSnapshot(for: ready.id) == nil)
+        #expect(auth.currentAuthDataString() == "active-auth")
+    }
+
+    @Test
+    func refreshBackfillsWeeklyOnlyRateLimits() async throws {
+        let missing = makeAccount(name: "Missing", fingerprint: "missing", withRateLimits: false)
+        let auth = HydrationAuthSnapshotProbe(currentAuthData: Data("active-auth".utf8))
+        let primaryOnlyRateLimits = UsageSnapshot.codex(
+            planName: "free",
+            primary: (usedPercent: 9, resetsAt: Date(timeIntervalSince1970: 1_776_256_138), durationMinutes: 10_080),
             secondary: nil,
             fetchedAt: Date(timeIntervalSince1970: 1_776_200_000)
         )
-        let repository = HydrationCatalogProbe()
-        let useCase = HydrateSavedAccountsMetadataUseCase(
-            authService: auth,
-            accountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: [:], authService: auth),
+        let useCase = makeUseCase(
+            auth: auth,
             savedAccountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: [
                 "missing": CodexAccountStatus(
                     email: "missing@example.com",
                     planType: "free",
-                    rateLimits: primaryOnlyRateLimits
+                    usage: primaryOnlyRateLimits
                 )
-            ], authService: auth),
-            identityResolver: SavedAccountIdentityResolver(
-                liveIdentitySource: HydrationIdentitySource(activeFingerprint: "active"),
-                storedAccountReconciler: HydrationIdentityReconcilerAdapter()
-            ),
-            repository: repository
+            ]),
+            repository: HydrationCatalogProbe()
         )
 
-        let result = try await useCase.run(
-            accounts: [active, inactiveMissing],
-            activeAccountID: active.id
-        )
+        let update = try #require(await useCase.refresh(missing, among: [missing]))
 
-        let hydratedMissing = try #require(result.accounts.first(where: { $0.id == inactiveMissing.id }))
-        #expect(hydratedMissing.rateLimits == primaryOnlyRateLimits)
-        #expect(hydratedMissing.email == "missing@example.com")
-        #expect(hydratedMissing.planType == "free")
-        #expect(result.hydratedAccountIDs == [inactiveMissing.id])
-        #expect(repository.savedAccounts == result.accounts)
-    }
-
-    @Test
-    func runDoesNotMarkPreservedInactiveRateLimitsFreshWhenRefreshReturnsNoRateLimits() async throws {
-        let active = makeAccount(name: "Active", fingerprint: "active", withRateLimits: true)
-        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: true)
-        let originalUpdatedAt = inactiveReady.updatedAt
-        let originalRateLimits = try #require(inactiveReady.rateLimits)
-        let auth = HydrationAuthSnapshotProbe(currentAuthData: Data("active-auth".utf8))
-        let repository = HydrationCatalogProbe()
-        let useCase = HydrateSavedAccountsMetadataUseCase(
-            authService: auth,
-            accountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: [
-                "ready": CodexAccountStatus(
-                    email: inactiveReady.email,
-                    planType: inactiveReady.planType,
-                    rateLimits: nil
-                )
-            ], authService: auth),
-            savedAccountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: [
-                "ready": CodexAccountStatus(
-                    email: inactiveReady.email,
-                    planType: inactiveReady.planType,
-                    rateLimits: nil
-                )
-            ], authService: auth),
-            identityResolver: SavedAccountIdentityResolver(
-                liveIdentitySource: HydrationIdentitySource(activeFingerprint: "active"),
-                storedAccountReconciler: HydrationIdentityReconcilerAdapter()
-            ),
-            repository: repository
-        )
-
-        let result = try await useCase.run(
-            accounts: [active, inactiveReady],
-            activeAccountID: active.id,
-            refreshExistingMetadata: true
-        )
-
-        let refreshedReady = try #require(result.accounts.first(where: { $0.id == inactiveReady.id }))
-        #expect(refreshedReady.rateLimits == originalRateLimits)
-        #expect(refreshedReady.updatedAt == originalUpdatedAt)
-        #expect(auth.recordedSnapshotReads() == [inactiveReady.id])
-        #expect(auth.currentAuthDataString() == "active-auth")
-        #expect(result.hydratedAccountIDs.isEmpty)
-        #expect(repository.savedAccounts == nil)
+        #expect(update.usage == primaryOnlyRateLimits)
+        #expect(update.email == "missing@example.com")
+        #expect(update.planType == "free")
     }
 
     @Test(arguments: [
-        CodexAccountStatus(email: "ready@example.com", planType: "pro", rateLimits: nil),
-        CodexAccountStatus(email: "ready@example.com", planType: "pro", rateLimits: CodexRateLimitSnapshot(
-            limitID: "codex",
-            limitName: nil,
-            planType: "pro",
-            primary: CodexRateLimitWindow(usedPercent: 0, resetsAt: .now.addingTimeInterval(60 * 60), windowDurationMinutes: 300),
-            secondary: CodexRateLimitWindow(usedPercent: 0, resetsAt: .now.addingTimeInterval(7 * 24 * 60 * 60), windowDurationMinutes: 10_080),
+        CodexAccountStatus(email: "ready@example.com", planType: "pro", usage: nil),
+        CodexAccountStatus(email: "ready@example.com", planType: "pro", usage: UsageSnapshot.codex(
+            planName: "pro",
+            primary: (usedPercent: 0, resetsAt: .now.addingTimeInterval(60 * 60), durationMinutes: 300),
+            secondary: (usedPercent: 0, resetsAt: .now.addingTimeInterval(7 * 24 * 60 * 60), durationMinutes: 10_080),
             fetchedAt: .now
         ))
     ])
-    func runPreservesPreviousMeaningfulRateLimitsWhenIsolatedReadIsNotUsable(status: CodexAccountStatus) async throws {
-        let active = makeAccount(name: "Active", fingerprint: "active", withRateLimits: true)
-        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: true)
-        let originalRateLimits = try #require(inactiveReady.rateLimits)
+    func refreshKeepsPreviousRateLimitsWhenIsolatedReadIsNotUsable(status: CodexAccountStatus) async throws {
+        let ready = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: true)
         let auth = HydrationAuthSnapshotProbe(currentAuthData: Data("active-auth".utf8))
-        let repository = HydrationCatalogProbe()
-        let useCase = HydrateSavedAccountsMetadataUseCase(
-            authService: auth,
-            accountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: [:], authService: auth),
-            savedAccountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: ["ready": status], authService: auth),
-            identityResolver: SavedAccountIdentityResolver(
-                liveIdentitySource: HydrationIdentitySource(activeFingerprint: "active"),
-                storedAccountReconciler: HydrationIdentityReconcilerAdapter()
-            ),
-            repository: repository
+        let useCase = makeUseCase(
+            auth: auth,
+            savedAccountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: ["ready": status]),
+            repository: HydrationCatalogProbe()
         )
 
-        let result = try await useCase.run(
-            accounts: [active, inactiveReady],
-            activeAccountID: active.id,
-            refreshExistingMetadata: true
-        )
+        let update = await useCase.refresh(ready, among: [ready])
 
-        let refreshedReady = try #require(result.accounts.first(where: { $0.id == inactiveReady.id }))
-        #expect(refreshedReady.rateLimits == originalRateLimits)
+        #expect(update == nil)
         #expect(auth.currentAuthDataString() == "active-auth")
-        #expect(result.hydratedAccountIDs.isEmpty)
     }
 
     @Test
-    func runPreservesPreviousMeaningfulRateLimitsWhenIsolatedReadFails() async throws {
-        let active = makeAccount(name: "Active", fingerprint: "active", withRateLimits: true)
-        let inactiveReady = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: true)
-        let originalRateLimits = try #require(inactiveReady.rateLimits)
+    func refreshKeepsPreviousRateLimitsWhenIsolatedReadFails() async {
+        let ready = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: true)
         let auth = HydrationAuthSnapshotProbe(currentAuthData: Data("active-auth".utf8))
-        let repository = HydrationCatalogProbe()
-        let useCase = HydrateSavedAccountsMetadataUseCase(
-            authService: auth,
-            accountStatusClient: HydrationAccountStatusProbe(statusByFingerprint: [:], authService: auth),
+        let useCase = makeUseCase(
+            auth: auth,
             savedAccountStatusClient: HydrationFailingSavedStatusProbe(),
-            identityResolver: SavedAccountIdentityResolver(
-                liveIdentitySource: HydrationIdentitySource(activeFingerprint: "active"),
-                storedAccountReconciler: HydrationIdentityReconcilerAdapter()
+            repository: HydrationCatalogProbe()
+        )
+
+        let update = await useCase.refresh(ready, among: [ready])
+
+        #expect(update == nil)
+        #expect(auth.currentAuthDataString() == "active-auth")
+    }
+
+    @Test
+    func refreshWritesRotatedAuthBackToTheMatchingSavedAccount() async throws {
+        let active = makeAccount(name: "Active", fingerprint: "active", withRateLimits: true)
+        let ready = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: true, stableAccountID: "acct-ready")
+        let rotatedAuthData = Data("ready-rotated".utf8)
+        let auth = HydrationAuthSnapshotProbe(
+            currentAuthData: Data("active-auth".utf8),
+            identitiesByAuthData: [
+                rotatedAuthData: LiveCodexAccountIdentity(stableAccountID: "acct-ready", snapshotFingerprint: "ready-rotated")
+            ]
+        )
+        let useCase = makeUseCase(
+            auth: auth,
+            savedAccountStatusClient: HydrationAccountStatusProbe(
+                statusByFingerprint: ["ready": CodexAccountStatus(
+                    email: "ready@example.com",
+                    planType: "pro",
+                    usage: makeUsageSnapshot()
+                )],
+                rotatedAuthDataByFingerprint: ["ready": rotatedAuthData]
             ),
+            repository: HydrationCatalogProbe()
+        )
+
+        let update = try #require(await useCase.refresh(ready, among: [active, ready]))
+
+        #expect(auth.storedSnapshot(for: ready.id) == rotatedAuthData)
+        #expect(update.identity.snapshotFingerprint == "ready-rotated")
+        #expect(update.usage == makeUsageSnapshot())
+    }
+
+    @Test(arguments: ["acct-other", "acct-unknown"])
+    func refreshDiscardsRotatedAuthThatDoesNotResolveToTheReadAccount(rotatedStableAccountID: String) async {
+        let active = makeAccount(name: "Active", fingerprint: "active", withRateLimits: true)
+        let ready = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: true, stableAccountID: "acct-ready")
+        let other = makeAccount(name: "Other", fingerprint: "other", withRateLimits: true, stableAccountID: "acct-other")
+        let rotatedAuthData = Data("ready-rotated".utf8)
+        let auth = HydrationAuthSnapshotProbe(
+            currentAuthData: Data("active-auth".utf8),
+            identitiesByAuthData: [
+                rotatedAuthData: LiveCodexAccountIdentity(stableAccountID: rotatedStableAccountID, snapshotFingerprint: "ready-rotated")
+            ]
+        )
+        let useCase = makeUseCase(
+            auth: auth,
+            savedAccountStatusClient: HydrationAccountStatusProbe(
+                statusByFingerprint: [:],
+                rotatedAuthDataByFingerprint: ["ready": rotatedAuthData]
+            ),
+            repository: HydrationCatalogProbe()
+        )
+
+        let update = await useCase.refresh(ready, among: [active, ready, other])
+
+        #expect(update == nil)
+        #expect(auth.storedSnapshot(for: ready.id) == nil)
+        #expect(auth.storedSnapshot(for: other.id) == nil)
+    }
+
+    @Test
+    func refreshWritesRotatedAuthBackWhenIsolatedReadFails() async throws {
+        let ready = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: true, stableAccountID: "acct-ready")
+        let rotatedAuthData = Data("ready-rotated".utf8)
+        let auth = HydrationAuthSnapshotProbe(
+            currentAuthData: Data("active-auth".utf8),
+            identitiesByAuthData: [
+                rotatedAuthData: LiveCodexAccountIdentity(stableAccountID: "acct-ready", snapshotFingerprint: "ready-rotated")
+            ]
+        )
+        let useCase = makeUseCase(
+            auth: auth,
+            savedAccountStatusClient: HydrationFailingSavedStatusProbe(rotatedAuthData: rotatedAuthData),
+            repository: HydrationCatalogProbe()
+        )
+
+        let update = try #require(await useCase.refresh(ready, among: [ready]))
+
+        #expect(auth.storedSnapshot(for: ready.id) == rotatedAuthData)
+        #expect(update.identity.snapshotFingerprint == "ready-rotated")
+        #expect(update.usage == ready.usage)
+        #expect(update.updatedAt == ready.updatedAt)
+    }
+
+    @Test
+    func refreshDiscardsRotatedAuthWhenTheSavedSnapshotChangedDuringTheRead() async {
+        let ready = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: true, stableAccountID: "acct-ready")
+        let rotatedAuthData = Data("ready-rotated".utf8)
+        let resavedAuthData = Data("ready-resaved".utf8)
+        let auth = HydrationAuthSnapshotProbe(
+            currentAuthData: Data("active-auth".utf8),
+            identitiesByAuthData: [
+                rotatedAuthData: LiveCodexAccountIdentity(stableAccountID: "acct-ready", snapshotFingerprint: "ready-rotated")
+            ]
+        )
+        let useCase = makeUseCase(
+            auth: auth,
+            savedAccountStatusClient: HydrationFailingSavedStatusProbe(
+                rotatedAuthData: rotatedAuthData,
+                duringRead: { auth.storeSnapshot(resavedAuthData, for: ready.id) }
+            ),
+            repository: HydrationCatalogProbe()
+        )
+
+        let update = await useCase.refresh(ready, among: [ready])
+
+        #expect(update == nil)
+        #expect(auth.storedSnapshot(for: ready.id) == resavedAuthData)
+    }
+
+    @Test
+    func saveMergesTheUpdateIntoTheCurrentAccountAndKeepsItsName() throws {
+        let ready = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: false)
+        var renamed = ready
+        renamed.name = "Renamed"
+        var refreshed = ready
+        refreshed.email = "fresh@example.com"
+        let repository = HydrationCatalogProbe()
+        let useCase = makeUseCase(
+            auth: HydrationAuthSnapshotProbe(currentAuthData: Data()),
+            savedAccountStatusClient: HydrationFailingSavedStatusProbe(),
             repository: repository
         )
 
-        let result = try await useCase.run(
-            accounts: [active, inactiveReady],
-            activeAccountID: active.id,
-            refreshExistingMetadata: true
-        )
+        let saved = try useCase.save(SavedAccountMetadataUpdate(refreshed), into: [renamed])
 
-        let refreshedReady = try #require(result.accounts.first(where: { $0.id == inactiveReady.id }))
-        #expect(refreshedReady.rateLimits == originalRateLimits)
-        #expect(auth.currentAuthDataString() == "active-auth")
-        #expect(result.hydratedAccountIDs.isEmpty)
+        #expect(saved?.map(\.name) == ["Renamed"])
+        #expect(saved?.map(\.email) == ["fresh@example.com"])
+        #expect(repository.savedAccounts?.map(\.name) == ["Renamed"])
     }
 
-    private func makeAccount(name: String, fingerprint: String, withRateLimits: Bool) -> CodexAccount {
+    @Test
+    func saveSkipsAnAccountRemovedSinceTheRefreshStarted() throws {
+        let ready = makeAccount(name: "Ready", fingerprint: "ready", withRateLimits: false)
+        let other = makeAccount(name: "Other", fingerprint: "other", withRateLimits: false)
+        let repository = HydrationCatalogProbe()
+        let useCase = makeUseCase(
+            auth: HydrationAuthSnapshotProbe(currentAuthData: Data()),
+            savedAccountStatusClient: HydrationFailingSavedStatusProbe(),
+            repository: repository
+        )
+
+        let saved = try useCase.save(SavedAccountMetadataUpdate(ready), into: [other])
+
+        #expect(saved == nil)
+        #expect(repository.savedAccounts == nil)
+    }
+
+    private func makeUseCase(
+        auth: HydrationAuthSnapshotProbe,
+        savedAccountStatusClient: SavedCodexAccountStatusClient,
+        repository: HydrationCatalogProbe
+    ) -> HydrateSavedAccountsMetadataUseCase {
+        HydrateSavedAccountsMetadataUseCase(
+            authService: auth,
+            savedAccountStatusClient: savedAccountStatusClient,
+            repository: repository
+        )
+    }
+
+    private func makeAccount(
+        name: String,
+        fingerprint: String,
+        withRateLimits: Bool,
+        stableAccountID: String? = nil
+    ) -> CodexAccount {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
         return CodexAccount(
             id: UUID(),
@@ -314,29 +331,20 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
             updatedAt: now,
             email: withRateLimits ? "\(name.lowercased())@example.com" : nil,
             planType: withRateLimits ? "pro" : nil,
-            rateLimits: withRateLimits ? makeRateLimitsSnapshot() : nil,
+            usage: withRateLimits ? makeUsageSnapshot() : nil,
             identity: CodexAccountIdentity(
+                stableAccountID: stableAccountID,
                 snapshotFingerprint: fingerprint,
                 remoteIdentity: withRateLimits ? CodexRemoteAccountIdentity(emailAddress: "\(name.lowercased())@example.com") : nil
             )
         )
     }
 
-    private func makeRateLimitsSnapshot() -> CodexRateLimitSnapshot {
-        CodexRateLimitSnapshot(
-            limitID: "codex",
-            limitName: nil,
-            planType: "pro",
-            primary: CodexRateLimitWindow(
-                usedPercent: 46,
-                resetsAt: Date(timeIntervalSince1970: 1_776_256_138),
-                windowDurationMinutes: 300
-            ),
-            secondary: CodexRateLimitWindow(
-                usedPercent: 7,
-                resetsAt: Date(timeIntervalSince1970: 1_776_842_938),
-                windowDurationMinutes: 10_080
-            ),
+    private func makeUsageSnapshot() -> UsageSnapshot {
+        UsageSnapshot.codex(
+            planName: "pro",
+            primary: (usedPercent: 46, resetsAt: Date(timeIntervalSince1970: 1_776_256_138), durationMinutes: 300),
+            secondary: (usedPercent: 7, resetsAt: Date(timeIntervalSince1970: 1_776_842_938), durationMinutes: 10_080),
             fetchedAt: Date(timeIntervalSince1970: 1_776_200_000)
         )
     }
@@ -344,11 +352,12 @@ struct HydrateSavedAccountsMetadataUseCaseTests {
 
 private final class HydrationAuthSnapshotProbe: CodexAuthSessionStore, @unchecked Sendable {
     private var currentAuthData: Data
-    private var accountsByID: [UUID: CodexAccount] = [:]
-    private var snapshotReadIDs: [UUID] = []
+    private var storedSnapshotsByAccountID: [UUID: Data] = [:]
+    private let identitiesByAuthData: [Data: LiveCodexAccountIdentity]
 
-    init(currentAuthData: Data) {
+    init(currentAuthData: Data, identitiesByAuthData: [Data: LiveCodexAccountIdentity] = [:]) {
         self.currentAuthData = currentAuthData
+        self.identitiesByAuthData = identitiesByAuthData
     }
 
     func readCurrentAuthData() throws -> Data {
@@ -360,22 +369,34 @@ private final class HydrationAuthSnapshotProbe: CodexAuthSessionStore, @unchecke
     }
 
     func readAuthSnapshot(for account: CodexAccount) throws -> Data {
-        accountsByID[account.id] = account
-        snapshotReadIDs.append(account.id)
-        return Data((account.identity.snapshotFingerprint ?? "").utf8)
+        storedSnapshotsByAccountID[account.id] ?? Data((account.identity.snapshotFingerprint ?? "").utf8)
+    }
+
+    func replaceAuthSnapshot(_ authData: Data, ifUnchangedFrom expected: Data, for account: CodexAccount) throws -> CodexAccount? {
+        guard try readAuthSnapshot(for: account) == expected else { return nil }
+        var replaced = account
+        let identity = liveIdentity(forAuthData: authData)
+        replaced.updatedAt = .now
+        replaced.identity.stableAccountID = identity.stableAccountID
+        replaced.identity.snapshotFingerprint = identity.snapshotFingerprint
+        storedSnapshotsByAccountID[account.id] = authData
+        return replaced
+    }
+
+    func liveIdentity(forAuthData authData: Data) -> LiveCodexAccountIdentity {
+        identitiesByAuthData[authData] ?? LiveCodexAccountIdentity(snapshotFingerprint: String(decoding: authData, as: UTF8.self))
     }
 
     func activate(_ account: CodexAccount) throws {
-        accountsByID[account.id] = account
-        currentAuthData = Data((account.identity.snapshotFingerprint ?? "").utf8)
+        currentAuthData = try readAuthSnapshot(for: account)
     }
 
-    func currentFingerprint() -> String {
-        String(decoding: currentAuthData, as: UTF8.self)
+    func storeSnapshot(_ authData: Data, for accountID: UUID) {
+        storedSnapshotsByAccountID[accountID] = authData
     }
 
-    func recordedSnapshotReads() -> [UUID] {
-        snapshotReadIDs
+    func storedSnapshot(for accountID: UUID) -> Data? {
+        storedSnapshotsByAccountID[accountID]
     }
 
     func currentAuthDataString() -> String {
@@ -383,30 +404,28 @@ private final class HydrationAuthSnapshotProbe: CodexAuthSessionStore, @unchecke
     }
 }
 
-private struct HydrationAccountStatusProbe: CodexAccountStatusClient, SavedCodexAccountStatusClient {
+private struct HydrationAccountStatusProbe: SavedCodexAccountStatusClient {
     let statusByFingerprint: [String: CodexAccountStatus]
-    let authService: HydrationAuthSnapshotProbe
+    var rotatedAuthDataByFingerprint: [String: Data] = [:]
 
-    func readCurrentAccountStatus() async throws -> CodexAccountStatus {
-        let fingerprint = authService.currentFingerprint()
-        guard let status = statusByFingerprint[fingerprint] else {
-            throw NSError(domain: "HydrationAccountStatusProbe", code: 1)
-        }
-        return status
-    }
-
-    func readSavedAccountStatus(authData: Data) async throws -> CodexAccountStatus {
+    func readSavedAccountStatus(authData: Data) async -> SavedCodexAccountStatusRead {
         let fingerprint = String(decoding: authData, as: UTF8.self)
-        guard let status = statusByFingerprint[fingerprint] else {
-            throw NSError(domain: "HydrationAccountStatusProbe", code: 1)
-        }
-        return status
+        let status: Result<CodexAccountStatus, Error> = statusByFingerprint[fingerprint].map { .success($0) }
+            ?? .failure(NSError(domain: "HydrationAccountStatusProbe", code: 1))
+        return SavedCodexAccountStatusRead(status: status, rotatedAuthData: rotatedAuthDataByFingerprint[fingerprint])
     }
 }
 
 private struct HydrationFailingSavedStatusProbe: SavedCodexAccountStatusClient {
-    func readSavedAccountStatus(authData: Data) async throws -> CodexAccountStatus {
-        throw NSError(domain: "HydrationFailingSavedStatusProbe", code: 1)
+    var rotatedAuthData: Data?
+    var duringRead: @Sendable () -> Void = {}
+
+    func readSavedAccountStatus(authData: Data) async -> SavedCodexAccountStatusRead {
+        duringRead()
+        return SavedCodexAccountStatusRead(
+            status: .failure(NSError(domain: "HydrationFailingSavedStatusProbe", code: 1)),
+            rotatedAuthData: rotatedAuthData
+        )
     }
 }
 
@@ -415,19 +434,5 @@ private final class HydrationCatalogProbe: AccountCatalogStore, @unchecked Senda
 
     func saveAccounts(_ accounts: [CodexAccount]) throws {
         savedAccounts = accounts
-    }
-}
-
-private struct HydrationIdentitySource: LiveCodexAccountIdentitySource {
-    let activeFingerprint: String
-
-    func readCurrentLiveAccountIdentity() -> LiveCodexAccountIdentity {
-        LiveCodexAccountIdentity(snapshotFingerprint: activeFingerprint)
-    }
-}
-
-private struct HydrationIdentityReconcilerAdapter: StoredAccountIdentityReconciler {
-    func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {
-        accounts
     }
 }

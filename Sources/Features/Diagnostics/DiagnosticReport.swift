@@ -55,7 +55,6 @@ struct DiagnosticReport: Codable, Equatable {
     let system: DiagnosticSystemMetadata
     let environment: DiagnosticEnvironmentMetadata
     let accounts: [DiagnosticAccount]
-    let hosts: [DiagnosticHost]
     let freshness: [DiagnosticFreshnessState]
     let events: [DiagnosticEvent]
     let decisionTraces: [DiagnosticDecisionTrace]
@@ -64,10 +63,6 @@ struct DiagnosticReport: Codable, Equatable {
 
 struct DiagnosticEnvironmentMetadata: Codable, Equatable {
     let refreshIntervalMinutes: Int
-    let visibleInactiveAccountCount: Int
-    let notificationsWhenBlockedEnabled: Bool
-    let notificationsWhenOutEnabled: Bool
-    let notificationAuthorizationState: String
     let statusBarDisplayMode: String
 }
 
@@ -76,18 +71,13 @@ struct DiagnosticAccount: Codable, Equatable {
     let roles: [String]
     let planCategory: String
     let hasRateLimitSnapshot: Bool
-    let sessionUsageCategory: String
-    let weeklyUsageCategory: String
+    let usageWindows: [DiagnosticUsageWindow]
 }
 
-struct DiagnosticHost: Codable, Equatable {
-    let alias: String
-    let connectionState: String
-    let verificationStatus: String
-    let desiredAccountAlias: String?
-    let activeAccountAlias: String?
-    let detectedAccountAlias: String?
-    let deployedAccountAliases: [String]
+struct DiagnosticUsageWindow: Codable, Equatable {
+    let kind: String
+    let title: String
+    let usageCategory: String
 }
 
 struct DiagnosticFreshnessState: Codable, Equatable {
@@ -123,9 +113,7 @@ enum DiagnosticEventCategory: String, Codable, Equatable {
     case addAccount = "add_account"
     case switchAccount = "switch_account"
     case removeAccount = "remove_account"
-    case addHost = "add_host"
     case refresh = "refresh"
-    case notificationEvaluation = "notification_evaluation"
     case failure = "failure"
     case decision = "decision"
     case menuAction = "menu_action"
@@ -133,7 +121,6 @@ enum DiagnosticEventCategory: String, Codable, Equatable {
 
 enum DiagnosticRedactionClass: String, Codable, Equatable {
     case accountAlias
-    case hostAlias
     case reasonCode
     case resultCategory
     case boolean
@@ -162,7 +149,6 @@ struct DiagnosticEventField: Equatable {
     enum Value: Equatable {
         case string(String)
         case account(UUID)
-        case hostDestination(String)
         case boolean(Bool)
     }
 
@@ -176,10 +162,6 @@ struct DiagnosticEventField: Equatable {
 
     static func account(_ id: UUID, redaction: DiagnosticRedactionClass?) -> Self {
         Self(name: "account", value: .account(id), redaction: redaction)
-    }
-
-    static func hostDestination(_ destination: String, redaction: DiagnosticRedactionClass?) -> Self {
-        Self(name: "host", value: .hostDestination(destination), redaction: redaction)
     }
 
     static func boolean(name: String, value: Bool, redaction: DiagnosticRedactionClass?) -> Self {
@@ -206,26 +188,20 @@ struct DiagnosticReportBuilder {
     ) -> DiagnosticReport {
         var aliases = DiagnosticAliasContext()
         let accounts = diagnosticAccounts(from: state, aliases: &aliases)
-        let hosts = state.remoteHosts.map { diagnosticHost(from: $0, aliases: &aliases) }
         let rejectedFields = RejectedDiagnosticFields()
         let diagnosticEvents = events.suffix(maximumEventCount).map {
             diagnosticEvent(from: $0, aliases: &aliases, rejectedFields: rejectedFields)
         }
 
         return DiagnosticReport(
-            schemaVersion: 1,
+            schemaVersion: 3,
             app: appMetadata,
             system: systemMetadata,
             environment: DiagnosticEnvironmentMetadata(
                 refreshIntervalMinutes: state.refreshIntervalMinutes,
-                visibleInactiveAccountCount: state.visibleInactiveAccountCount,
-                notificationsWhenBlockedEnabled: state.notificationsWhenBlockedEnabled,
-                notificationsWhenOutEnabled: state.notificationsWhenOutEnabled,
-                notificationAuthorizationState: String(describing: state.notificationAuthorizationState),
                 statusBarDisplayMode: state.effectiveStatusBarDisplayMode.rawValue
             ),
             accounts: accounts,
-            hosts: hosts,
             freshness: diagnosticFreshness(from: state, aliases: &aliases),
             events: diagnosticEvents,
             decisionTraces: diagnosticDecisionTraces(from: state, aliases: &aliases),
@@ -237,7 +213,6 @@ struct DiagnosticReportBuilder {
                     "raw_auth_json",
                     "saved_auth_snapshots",
                     "raw_user_defaults",
-                    "raw_ssh_output",
                     "stderr",
                     "emails",
                     "hostnames",
@@ -276,49 +251,29 @@ struct DiagnosticReportBuilder {
                 alias: aliases.accountAlias(for: account.id),
                 roles: roles,
                 planCategory: normalizedCodexPlanType(account.effectivePlanType) ?? "unknown",
-                hasRateLimitSnapshot: account.rateLimits != nil,
-                sessionUsageCategory: usageCategory(for: account.rateLimits?.sessionWindow),
-                weeklyUsageCategory: usageCategory(for: account.rateLimits?.weeklyWindow)
+                hasRateLimitSnapshot: account.usage != nil,
+                usageWindows: (account.usage?.windows ?? []).map { window in
+                    DiagnosticUsageWindow(
+                        kind: diagnosticKind(window.kind),
+                        title: window.kind.title,
+                        usageCategory: usageCategory(for: window)
+                    )
+                }
             )
         }
-    }
-
-    private func diagnosticHost(
-        from host: RemoteHostMenuState,
-        aliases: inout DiagnosticAliasContext
-    ) -> DiagnosticHost {
-        DiagnosticHost(
-            alias: aliases.hostAlias(for: host.destination),
-            connectionState: host.connectionState.rawValue,
-            verificationStatus: host.verificationStatus.rawValue,
-            desiredAccountAlias: host.desiredAccount.map { aliases.accountAlias(for: $0.id) },
-            activeAccountAlias: host.activeAccount.map { aliases.accountAlias(for: $0.id) },
-            detectedAccountAlias: host.detectedAccount.map { aliases.accountAlias(for: $0.id) },
-            deployedAccountAliases: host.deployedAccountIDs.map { aliases.accountAlias(for: $0) }
-        )
     }
 
     private func diagnosticFreshness(
         from state: MenuBarMenuState,
         aliases: inout DiagnosticAliasContext
     ) -> [DiagnosticFreshnessState] {
-        var freshness = state.allSavedAccounts.map { account in
+        state.allSavedAccounts.map { account in
             freshnessState(
                 subjectAlias: aliases.accountAlias(for: account.id),
                 subjectKind: "account",
-                fetchedAt: account.rateLimits?.fetchedAt
+                fetchedAt: account.usage?.fetchedAt
             )
         }
-
-        freshness.append(contentsOf: state.remoteHosts.map { host in
-            DiagnosticFreshnessState(
-                subjectAlias: aliases.hostAlias(for: host.destination),
-                subjectKind: "host",
-                state: host.connectionState == .syncing ? "refreshing" : "current_state_only",
-                ageSeconds: nil
-            )
-        })
-        return freshness
     }
 
     private func freshnessState(
@@ -368,8 +323,6 @@ struct DiagnosticReportBuilder {
             switch (redaction, field.value) {
             case (.accountAlias, .account(let id)):
                 fields[field.name] = aliases.accountAlias(for: id)
-            case (.hostAlias, .hostDestination(let destination)):
-                fields[field.name] = aliases.hostAlias(for: destination)
             case (.reasonCode, .string(let value)), (.resultCategory, .string(let value)):
                 fields[field.name] = diagnosticCode(value)
             case (.boolean, .boolean(let value)):
@@ -401,7 +354,7 @@ struct DiagnosticReportBuilder {
             ))
         }
 
-        for account in state.allSavedAccounts where account.rateLimits == nil {
+        for account in state.allSavedAccounts where account.usage == nil {
             traces.append(.init(
                 subjectAlias: aliases.accountAlias(for: account.id),
                 subjectKind: "account",
@@ -410,30 +363,20 @@ struct DiagnosticReportBuilder {
             ))
         }
 
-        for host in state.remoteHosts {
-            let hostAlias = aliases.hostAlias(for: host.destination)
-            if host.connectionState == .disconnected {
-                traces.append(.init(
-                    subjectAlias: hostAlias,
-                    subjectKind: "host",
-                    decision: "host_unavailable",
-                    reasonCode: "host_disconnected"
-                ))
-            }
-            if host.verificationStatus == .failed {
-                traces.append(.init(
-                    subjectAlias: hostAlias,
-                    subjectKind: "host",
-                    decision: "switch_blocked",
-                    reasonCode: "host_verification_failed"
-                ))
-            }
-        }
         return traces
     }
 
-    private func usageCategory(for window: CodexRateLimitWindow?) -> String {
-        guard let window else { return "unknown" }
+    private func diagnosticKind(_ kind: UsageWindowKind) -> String {
+        switch kind {
+        case .session: "session"
+        case .weekly: "weekly"
+        case .monthly: "monthly"
+        case .billingCycle: "billing_cycle"
+        case .other: "other"
+        }
+    }
+
+    private func usageCategory(for window: UsageWindow) -> String {
         switch window.displayedUsedPercent(at: systemMetadata.exportTimestamp) {
         case 0..<50:
             return "available"
@@ -455,7 +398,6 @@ private final class RejectedDiagnosticFields {
 
 private struct DiagnosticAliasContext {
     private var accountAliases: [UUID: String] = [:]
-    private var hostAliases: [String: String] = [:]
 
     mutating func accountAlias(for id: UUID) -> String {
         if let alias = accountAliases[id] {
@@ -463,15 +405,6 @@ private struct DiagnosticAliasContext {
         }
         let alias = "account-\(accountAliases.count + 1)"
         accountAliases[id] = alias
-        return alias
-    }
-
-    mutating func hostAlias(for destination: String) -> String {
-        if let alias = hostAliases[destination] {
-            return alias
-        }
-        let alias = "host-\(hostAliases.count + 1)"
-        hostAliases[destination] = alias
         return alias
     }
 }

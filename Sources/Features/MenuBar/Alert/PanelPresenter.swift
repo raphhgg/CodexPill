@@ -2,32 +2,11 @@ import Foundation
 
 @MainActor
 protocol PanelPresenter {
-    func presentHostSetup(
-        _ request: MenuBarHostSetupPanelRequest,
-        testConnection: @escaping (RemoteHost) async -> Result<Void, Error>,
-        onPresented: @escaping () -> Void,
-        onCancelled: @escaping () -> Void,
-        onValidationStarted: @escaping (RemoteHost) -> Void,
-        onValidationFinished: @escaping (RemoteHost, Result<Void, Error>) -> Void
-    ) async -> RemoteHost?
     func presentAddAccountSignIn(
         _ request: MenuBarAddAccountSignInPanelRequest,
         waitForCompletion: @escaping () async -> Result<CodexAccount, Error>,
         onCancel: @escaping () -> Void
     ) async -> MenuBarAddAccountSignInPanelResult
-}
-
-struct MenuBarHostSetupPanelRequest {
-    let messageText: String
-    let informativeText: String
-    let fieldTitle: String
-    let placeholder: String
-    let nameFieldTitle: String
-    let namePlaceholder: String
-    let confirmTitle: String
-    let cancelTitle: String
-    let idleStatusText: String
-    let successStatusText: String
 }
 
 struct MenuBarAddAccountSignInPanelRequest {

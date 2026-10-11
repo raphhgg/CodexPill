@@ -1,252 +1,28 @@
 import Foundation
 
-enum AccountAvailabilityTarget: Hashable {
-    case local
-    case remote(hostDestination: String)
-}
-
-enum AccountAvailabilityStatus: Equatable {
-    case availableNow
-    case blocked(until: Date?, reason: AccountAvailabilityBlockingReason)
-    case unavailable(reason: AccountAvailabilityUnavailableReason)
-}
-
-enum AccountAvailabilityBlockingReason: Equatable {
-    case session
-    case weekly
-    case sessionAndWeekly
-    case unknown
-}
-
-enum AccountAvailabilityUnavailableReason: Equatable {
-    case disconnected
-    case syncing
-    case unverified
-    case verificationFailed
-    case missingAccount
-}
-
-struct RemoteAccountTargetContext: Equatable {
-    let hostDestination: String
-    let connectionState: RemoteAccountTargetConnectionState
-    let verificationState: RemoteAccountTargetVerificationState
-    let activeAccount: CodexAccount?
-    let displayAccount: CodexAccount?
-}
-
-enum RemoteAccountTargetConnectionState: Equatable {
-    case connected
-    case disconnected
-    case syncing
-}
-
-enum RemoteAccountTargetVerificationState: Equatable {
-    case unverified
-    case verifying
-    case verified
-    case failed
-}
-
+/// One saved account's usage as the inactive-account ranking reads it: the session window, and the fullest of its
+/// longer windows (weekly, monthly, or any other length).
 struct AccountTargetAvailability: Equatable {
-    let target: AccountAvailabilityTarget
-    let status: AccountAvailabilityStatus
     let sessionUsedPercent: Int
-    let weeklyUsedPercent: Int
+    let longWindowUsedPercent: Int
     let sessionResetAt: Date?
-    let weeklyResetAt: Date?
-
-    var isAvailableNow: Bool {
-        if case .availableNow = status {
-            return true
-        }
-        return false
-    }
-
-    var nextAvailableAt: Date? {
-        switch status {
-        case .availableNow:
-            return nil
-        case .blocked(let until, _):
-            return until
-        case .unavailable:
-            return nil
-        }
-    }
-}
-
-struct AccountAvailabilitySnapshot: Equatable {
-    let account: CodexAccount
-    let localAvailability: AccountTargetAvailability
-    let remoteAvailabilities: [AccountTargetAvailability]
-
-    var targetAvailabilities: [AccountTargetAvailability] {
-        [localAvailability] + remoteAvailabilities
-    }
-
-    func availability(for target: AccountAvailabilityTarget) -> AccountTargetAvailability? {
-        switch target {
-        case .local:
-            return localAvailability
-        case .remote:
-            return remoteAvailabilities.first { $0.target == target }
-        }
-    }
-
-    var nextAvailabilityAt: Date? {
-        targetAvailabilities
-            .compactMap(\.nextAvailableAt)
-            .min()
-    }
-}
-
-struct AccountAvailabilityTransition: Equatable {
-    let target: AccountAvailabilityTarget
-    let from: AccountAvailabilityStatus?
-    let to: AccountAvailabilityStatus
-
-    var becameAvailable: Bool {
-        guard case .availableNow = to else { return false }
-        guard let from else { return false }
-        if case .availableNow = from {
-            return false
-        }
-        return true
-    }
-}
-
-struct ActiveAccountAvailabilityContext: Equatable {
-    let target: AccountAvailabilityTarget
-    let accountID: UUID
+    let longWindowResetAt: Date?
 }
 
 struct AccountAvailabilityService {
-    func availability(
-        for account: CodexAccount,
-        on target: AccountAvailabilityTarget = .local,
-        now: Date = .now
-    ) -> AccountTargetAvailability {
-        let rateLimits = account.rateLimits
-        let sessionWindow = rateLimits?.sessionWindow
-        let weeklyWindow = rateLimits?.weeklyWindow
-        let sessionUsedPercent = sessionWindow?.displayedUsedPercent(at: now) ?? missingWindowUsedPercent(for: rateLimits)
-        let weeklyUsedPercent = weeklyWindow?.displayedUsedPercent(at: now) ?? missingWindowUsedPercent(for: rateLimits)
-        let sessionResetAt = sessionWindow?.resetsAt
-        let weeklyResetAt = weeklyWindow?.resetsAt
-
-        let status: AccountAvailabilityStatus
-        switch (sessionUsedPercent >= 100, weeklyUsedPercent >= 100) {
-        case (false, false):
-            status = .availableNow
-        case (true, false):
-            status = .blocked(until: sessionResetAt, reason: .session)
-        case (false, true):
-            status = .blocked(until: weeklyResetAt, reason: .weekly)
-        case (true, true):
-            status = .blocked(
-                until: earliestMeaningfulDate(sessionResetAt, weeklyResetAt),
-                reason: .sessionAndWeekly
-            )
-        }
-
+    func availability(for account: CodexAccount, now: Date = .now) -> AccountTargetAvailability {
+        let usage = account.usage
+        // An account that was never read counts as used up, so it sorts last.
+        let missingWindowUsedPercent = usage == nil ? 100 : 0
+        let sessionWindow = usage?.window(.session)
+        let longWindow = usage?.windows
+            .filter { $0.kind != .session }
+            .max { $0.displayedUsedPercent(at: now) < $1.displayedUsedPercent(at: now) }
         return AccountTargetAvailability(
-            target: target,
-            status: status,
-            sessionUsedPercent: sessionUsedPercent,
-            weeklyUsedPercent: weeklyUsedPercent,
-            sessionResetAt: sessionResetAt,
-            weeklyResetAt: weeklyResetAt
+            sessionUsedPercent: sessionWindow?.displayedUsedPercent(at: now) ?? missingWindowUsedPercent,
+            longWindowUsedPercent: longWindow?.displayedUsedPercent(at: now) ?? missingWindowUsedPercent,
+            sessionResetAt: sessionWindow?.resetsAt,
+            longWindowResetAt: longWindow?.resetsAt
         )
-    }
-
-    func availability(
-        for remoteTarget: RemoteAccountTargetContext,
-        now: Date = .now
-    ) -> AccountTargetAvailability {
-        let target = AccountAvailabilityTarget.remote(hostDestination: remoteTarget.hostDestination)
-        let displayAccount = remoteTarget.displayAccount
-        let rateLimits = displayAccount?.rateLimits
-        let sessionUsedPercent = rateLimits?.sessionWindow?.displayedUsedPercent(at: now) ?? missingWindowUsedPercent(for: rateLimits)
-        let weeklyUsedPercent = rateLimits?.weeklyWindow?.displayedUsedPercent(at: now) ?? missingWindowUsedPercent(for: rateLimits)
-        let sessionResetAt = rateLimits?.sessionWindow?.resetsAt
-        let weeklyResetAt = rateLimits?.weeklyWindow?.resetsAt
-
-        let status: AccountAvailabilityStatus
-        switch remoteTarget.connectionState {
-        case .disconnected:
-            status = .unavailable(reason: .disconnected)
-        case .syncing:
-            status = .unavailable(reason: .syncing)
-        case .connected:
-            if let activeAccount = remoteTarget.activeAccount {
-                return availability(for: activeAccount, on: target, now: now)
-            }
-
-            switch remoteTarget.verificationState {
-            case .verifying:
-                status = .unavailable(reason: .syncing)
-            case .unverified:
-                status = .unavailable(reason: .unverified)
-            case .failed:
-                status = .unavailable(reason: .verificationFailed)
-            case .verified:
-                status = .unavailable(reason: displayAccount == nil ? .missingAccount : .unverified)
-            }
-        }
-
-        return AccountTargetAvailability(
-            target: target,
-            status: status,
-            sessionUsedPercent: sessionUsedPercent,
-            weeklyUsedPercent: weeklyUsedPercent,
-            sessionResetAt: sessionResetAt,
-            weeklyResetAt: weeklyResetAt
-        )
-    }
-
-    func snapshot(
-        for account: CodexAccount,
-        remoteTargets: [RemoteAccountTargetContext] = [],
-        now: Date = .now
-    ) -> AccountAvailabilitySnapshot {
-        AccountAvailabilitySnapshot(
-            account: account,
-            localAvailability: availability(for: account, on: .local, now: now),
-            remoteAvailabilities: remoteTargets.map { availability(for: $0, now: now) }
-        )
-    }
-
-    func transitions(
-        from previous: AccountAvailabilitySnapshot?,
-        to current: AccountAvailabilitySnapshot
-    ) -> [AccountAvailabilityTransition] {
-        let previousStatuses = Dictionary(
-            uniqueKeysWithValues: previous?.targetAvailabilities.map { ($0.target, $0.status) } ?? []
-        )
-
-        return current.targetAvailabilities.compactMap { availability in
-            let transition = AccountAvailabilityTransition(
-                target: availability.target,
-                from: previousStatuses[availability.target],
-                to: availability.status
-            )
-            return transition.becameAvailable ? transition : nil
-        }
-    }
-
-    private func earliestMeaningfulDate(_ lhs: Date?, _ rhs: Date?) -> Date? {
-        switch (lhs, rhs) {
-        case let (lhs?, rhs?):
-            return min(lhs, rhs)
-        case let (lhs?, nil):
-            return lhs
-        case let (nil, rhs?):
-            return rhs
-        case (nil, nil):
-            return nil
-        }
-    }
-
-    private func missingWindowUsedPercent(for rateLimits: CodexRateLimitSnapshot?) -> Int {
-        rateLimits == nil ? 100 : 0
     }
 }

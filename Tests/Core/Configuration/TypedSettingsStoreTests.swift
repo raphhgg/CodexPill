@@ -6,55 +6,45 @@ import Testing
 @MainActor
 struct MenuDisplaySettingsStoreTests {
     @Test
-    func defaultsUseRefreshAndVisibleAccountDefaults() {
-        let store = MenuDisplaySettingsStore(userDefaults: makeDefaults())
-
-        #expect(store.refreshIntervalMinutes == 5)
-        #expect(store.visibleInactiveAccountCount == 5)
-        #expect(store.refreshIntervalOptions == [1, 2, 5, 10, 15, 30])
-        #expect(store.visibleInactiveAccountCountOptions == [2, 3, 5, 0])
-    }
-
-    @Test
     func preferencesPersistAcrossInstances() {
         let defaults = makeDefaults()
         let first = MenuDisplaySettingsStore(userDefaults: defaults)
         first.refreshIntervalMinutes = 10
-        first.visibleInactiveAccountCount = 0
+        first.toolOrder = [.cursor, .claude, .codex]
+        first.masksEmails = true
 
         let second = MenuDisplaySettingsStore(userDefaults: defaults)
 
         #expect(second.refreshIntervalMinutes == 10)
-        #expect(second.visibleInactiveAccountCount == 0)
+        #expect(second.toolOrder == [.cursor, .claude, .codex])
+        #expect(second.masksEmails)
     }
 
     @Test
     func invalidStoredValuesFallBackToDefaults() {
         let defaults = makeDefaults()
         defaults.set(99, forKey: "refreshIntervalMinutes")
-        defaults.set(99, forKey: "visibleInactiveAccountCount")
 
         let store = MenuDisplaySettingsStore(userDefaults: defaults)
 
         #expect(store.refreshIntervalMinutes == 5)
-        #expect(store.visibleInactiveAccountCount == 5)
+        #expect(store.toolOrder == [.claude, .codex, .cursor])
+        #expect(!store.masksEmails)
+    }
+
+    @Test
+    func aPartialOrUnknownStoredOrderKeepsEveryToolOnce() {
+        let defaults = makeDefaults()
+        defaults.set(["cursor", "gemini", "cursor"], forKey: "toolOrder")
+
+        let store = MenuDisplaySettingsStore(userDefaults: defaults)
+
+        #expect(store.toolOrder == [.cursor, .claude, .codex])
     }
 }
 
 @MainActor
 struct StatusItemSettingsStoreTests {
-    @Test
-    func defaultsUseCurrentStatusBarPreferences() {
-        let store = StatusItemSettingsStore(userDefaults: makeDefaults())
-
-        #expect(store.statusBarIndicatorStyle == .twinPills)
-        #expect(store.statusBarMonochrome)
-        #expect(store.statusBarDisplayMode == .textOnHover)
-        #expect(store.pacingMarkersEnabled)
-        #expect(store.revealStatusItemTitleShortcut == .defaultRevealStatusItemTitle)
-        #expect(store.progressAccentColor == nil)
-    }
-
     @Test(arguments: [
         ("notchedSquare", StatusBarIndicatorStyle.stackedBars),
         ("splitCapsule", StatusBarIndicatorStyle.twinPills)
@@ -74,19 +64,62 @@ struct StatusItemSettingsStoreTests {
         let accent = StatusItemAccentColor(red: 0.14, green: 0.55, blue: 0.31, alpha: 1)
 
         let first = StatusItemSettingsStore(userDefaults: defaults)
-        first.progressAccentColor = accent
+        first.sessionAccentColor = accent
         first.pacingMarkersEnabled = false
 
         let second = StatusItemSettingsStore(userDefaults: defaults)
-        #expect(second.progressAccentColor == accent)
-        #expect(second.hasCustomProgressAccentColor)
+        #expect(second.sessionAccentColor == accent)
+        #expect(second.hasCustomUsageColors)
         #expect(!second.pacingMarkersEnabled)
 
-        second.resetProgressAccentColor()
+        second.resetUsageColors()
 
         let reset = StatusItemSettingsStore(userDefaults: defaults)
-        #expect(reset.progressAccentColor == nil)
-        #expect(!reset.hasCustomProgressAccentColor)
+        #expect(reset.sessionAccentColor == nil)
+        #expect(!reset.hasCustomUsageColors)
+    }
+
+    @Test
+    func existingAccentColorBecomesSessionAndWeeklyColor() throws {
+        let defaults = makeDefaults()
+        let accent = StatusItemAccentColor(red: 0.14, green: 0.55, blue: 0.31, alpha: 1)
+        defaults.set(try JSONEncoder().encode(accent), forKey: "progressAccentColor")
+
+        let store = StatusItemSettingsStore(userDefaults: defaults)
+
+        #expect(store.sessionAccentColor == accent)
+        #expect(store.effectiveWeeklyAccentColor == accent)
+        #expect(store.usesOneUsageColor)
+        #expect(store.usagePercentMode == .used)
+        #expect(store.usageMeterLayout == .classic)
+    }
+
+    @Test
+    func separateWeeklyColorPersistsAndSameColorOptionOverridesIt() {
+        let defaults = makeDefaults()
+        let session = StatusItemAccentColor(red: 0.14, green: 0.55, blue: 0.31, alpha: 1)
+        let weekly = StatusItemAccentColor(red: 0.8, green: 0.2, blue: 0.1, alpha: 1)
+
+        let first = StatusItemSettingsStore(userDefaults: defaults)
+        first.sessionAccentColor = session
+        first.weeklyAccentColor = weekly
+        first.usesOneUsageColor = false
+        first.usagePercentMode = .left
+        first.usageMeterLayout = .compact
+
+        let second = StatusItemSettingsStore(userDefaults: defaults)
+        #expect(second.effectiveWeeklyAccentColor == weekly)
+        #expect(second.usagePercentMode == .left)
+        #expect(second.usageMeterLayout == .compact)
+
+        second.usesOneUsageColor = true
+        #expect(StatusItemSettingsStore(userDefaults: defaults).effectiveWeeklyAccentColor == session)
+
+        second.resetUsageColors()
+        let reset = StatusItemSettingsStore(userDefaults: defaults)
+        #expect(reset.weeklyAccentColor == nil)
+        #expect(reset.usesOneUsageColor)
+        #expect(!reset.hasCustomUsageColors)
     }
 
     @Test
@@ -115,150 +148,57 @@ struct StatusItemSettingsStoreTests {
 }
 
 @MainActor
-struct RemoteHostSettingsStoreTests {
+struct TokenUsagePreferencesStoreTests {
     @Test
-    func remoteHostStatesPersistAndPreserveSorting() {
+    func preferencesPersistAcrossInstances() {
         let defaults = makeDefaults()
-        let first = RemoteHostSettingsStore(userDefaults: defaults)
-        first.upsertRemoteHost(RemoteHost(destination: "user@debian-vm", displayName: "Debian VM"))
-        first.upsertRemoteHost(RemoteHost(destination: "user@buildbox", displayName: "Build Box"))
+        let first = TokenUsagePreferencesStore(userDefaults: defaults)
+        first.isEnabled = true
+        first.chartStyle = .sparkline
+        first.loadingAnimationStyle = .random
+        first.peakScope = .allTime
 
-        let second = RemoteHostSettingsStore(userDefaults: defaults)
+        let second = TokenUsagePreferencesStore(userDefaults: defaults)
 
-        #expect(second.remoteHostStates.map(\.host.displayName) == ["Build Box", "Debian VM"])
+        #expect(second.isEnabled)
+        #expect(second.chartStyle == .sparkline)
+        #expect(second.loadingAnimationStyle == .random)
+        #expect(second.peakScope == .allTime)
     }
 
     @Test
-    func updateAndRemoveHelpersUseDestinationIdentity() {
-        let store = RemoteHostSettingsStore(userDefaults: makeDefaults())
-        let buildbox = RemoteHost(destination: "user@buildbox", displayName: "Build Box")
-        let debian = RemoteHost(destination: "user@debian-vm", displayName: "Debian VM")
-        let accountID = UUID()
-
-        store.upsertRemoteHost(buildbox)
-        store.updateRemoteHostState(for: debian) { state in
-            state.installedAccountIDs = [accountID]
-        }
-        store.removeRemoteHost(destination: buildbox.destination)
-
-        #expect(store.remoteHostStates.count == 1)
-        #expect(store.remoteHostState(for: debian.destination)?.installedAccountIDs == [accountID])
-    }
-
-    @Test
-    func legacyRemoteHostKeysMigrateAsDesiredButUnverified() throws {
+    func hiddenPeriodsMigrateToThirtyDays() {
         let defaults = makeDefaults()
-        let host = RemoteHost(destination: "user@buildbox", displayName: "Build Box")
-        let account = makeAccount()
-        defaults.set(try JSONEncoder().encode(host), forKey: "remoteHost")
-        defaults.set(try JSONEncoder().encode([account.id]), forKey: "remoteHostInstalledAccountIDs")
-        defaults.set(try JSONEncoder().encode(account), forKey: "remoteHostActiveAccount")
+        defaults.set(CodexTokenUsagePeriod.last7Days.rawValue, forKey: "tokenUsagePeriod")
 
-        let store = RemoteHostSettingsStore(userDefaults: defaults)
+        let store = TokenUsagePreferencesStore(userDefaults: defaults)
 
-        #expect(store.remoteHostStates == [
-            PersistedRemoteHostState(
-                host: host,
-                installedAccountIDs: [account.id],
-                desiredAccountID: account.id,
-                verifiedAccount: nil,
-                verificationStatus: .unverified
-            )
-        ])
-        #expect(defaults.object(forKey: "remoteHost") == nil)
-        #expect(defaults.object(forKey: "remoteHostInstalledAccountIDs") == nil)
-        #expect(defaults.object(forKey: "remoteHostActiveAccount") == nil)
-    }
-
-    @Test
-    func canonicalRemoteHostsIgnoreAndClearLegacyRemoteHostKeys() throws {
-        let defaults = makeDefaults()
-        let legacyHost = RemoteHost(destination: "user@debian-vm", displayName: "Debian VM")
-        let legacyAccount = makeAccount()
-        defaults.set(try JSONEncoder().encode([PersistedRemoteHostState]()), forKey: "remoteHosts")
-        defaults.set(try JSONEncoder().encode(legacyHost), forKey: "remoteHost")
-        defaults.set(try JSONEncoder().encode([legacyAccount.id]), forKey: "remoteHostInstalledAccountIDs")
-        defaults.set(try JSONEncoder().encode(legacyAccount), forKey: "remoteHostActiveAccount")
-
-        let store = RemoteHostSettingsStore(userDefaults: defaults)
-
-        #expect(store.remoteHostStates.isEmpty)
-        #expect(defaults.object(forKey: "remoteHost") == nil)
-        #expect(defaults.object(forKey: "remoteHostInstalledAccountIDs") == nil)
-        #expect(defaults.object(forKey: "remoteHostActiveAccount") == nil)
+        #expect(store.period == .last30Days)
+        #expect(defaults.object(forKey: "tokenUsagePeriod") as? Int == CodexTokenUsagePeriod.last30Days.rawValue)
     }
 }
 
 @MainActor
-struct NotificationPreferencesStoreTests {
+struct AppIconPreferencesStoreTests {
     @Test
-    func notificationTogglesPersist() {
-        let defaults = makeDefaults()
-        let first = NotificationPreferencesStore(userDefaults: defaults)
-        first.notificationsWhenBlockedEnabled = true
-        first.notificationsWhenOutEnabled = true
-
-        let second = NotificationPreferencesStore(userDefaults: defaults)
-
-        #expect(second.notificationsWhenBlockedEnabled)
-        #expect(second.notificationsWhenOutEnabled)
+    func appIconColorDefaultsToCobalt() {
+        #expect(AppIconPreferencesStore(userDefaults: makeDefaults()).appIconColor == .cobalt)
     }
 
     @Test
-    func legacyBeforeYouRunOutKeyMigratesToOutToggle() {
+    func appIconColorPersistsAcrossInstances() {
         let defaults = makeDefaults()
-        defaults.set(true, forKey: "notificationsBeforeYouRunOutEnabled")
+        AppIconPreferencesStore(userDefaults: defaults).appIconColor = .emerald
 
-        let store = NotificationPreferencesStore(userDefaults: defaults)
-
-        #expect(store.notificationsWhenOutEnabled)
-    }
-}
-
-@MainActor
-struct NotificationStateStoreTests {
-    @Test
-    func perAccountNotificationStatePersists() throws {
-        let defaults = makeDefaults()
-        let accountID = UUID()
-        let now = Date()
-
-        let first = NotificationStateStore(userDefaults: defaults)
-        first.updateAccountNotificationState(for: accountID) { state in
-            state.isArmed = false
-            state.lastNotification = PersistedAccountNotificationRecord(
-                reason: .whenOut,
-                window: PersistedAccountNotificationWindow(sessionResetAt: now, weeklyResetAt: nil),
-                notifiedAt: now
-            )
-        }
-
-        let second = NotificationStateStore(userDefaults: defaults)
-        let persisted = try #require(second.accountNotificationState(for: accountID))
-
-        #expect(!persisted.isArmed)
-        #expect(persisted.lastNotification?.reason == .whenOut)
-        #expect(persisted.lastNotification?.notifiedAt == now)
+        #expect(AppIconPreferencesStore(userDefaults: defaults).appIconColor == .emerald)
     }
 
     @Test
-    func updateHelperInsertsAndUpdatesDeterministically() throws {
-        let store = NotificationStateStore(userDefaults: makeDefaults())
-        let laterID = UUID(uuidString: "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF")!
-        let earlierID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+    func unknownAppIconColorFallsBackToCobalt() {
+        let defaults = makeDefaults()
+        defaults.set("tangerine", forKey: "appIconColor")
 
-        store.updateAccountNotificationState(for: laterID) { state in
-            state.isArmed = false
-        }
-        store.updateAccountNotificationState(for: earlierID) { state in
-            state.isArmed = true
-        }
-        store.updateAccountNotificationState(for: laterID) { state in
-            state.isArmed = true
-        }
-
-        #expect(store.accountNotificationStates.map(\.accountID) == [earlierID, laterID])
-        #expect(try #require(store.accountNotificationState(for: laterID)).isArmed)
+        #expect(AppIconPreferencesStore(userDefaults: defaults).appIconColor == .cobalt)
     }
 }
 
@@ -267,18 +207,4 @@ private func makeDefaults() -> UserDefaults {
     let defaults = UserDefaults(suiteName: suiteName)!
     defaults.removePersistentDomain(forName: suiteName)
     return defaults
-}
-
-private func makeAccount() -> CodexAccount {
-    CodexAccount(
-        id: UUID(),
-        name: "Business 2",
-        snapshotFileName: "business-2.json",
-        createdAt: .distantPast,
-        updatedAt: .distantPast,
-        email: "business-2@example.com",
-        planType: "team",
-        rateLimits: nil,
-        identity: .empty
-    )
 }

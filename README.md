@@ -5,7 +5,7 @@
 <h1 align="center">CodexPill</h1>
 
 <p align="center">
-  <i>A native macOS menubar companion for Codex accounts, limits, token usage and remote hosts.</i>
+  <i>A native macOS menubar companion for Codex accounts, limits and token usage.</i>
 </p>
 
 <p align="center">
@@ -16,7 +16,10 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/codexpill-menu.png" width="360" alt="CodexPill menu showing active accounts, usage bars, saved accounts, and app controls">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/codexpill-menu-dark.png">
+    <img src="docs/assets/codexpill-menu.png" width="360" alt="CodexPill menu with Claude, Codex and Cursor cards, then Settings and Quit">
+  </picture>
 </p>
 
 ## What It Does
@@ -25,7 +28,6 @@
 - Track local Codex token usage history from the menu bar.
 - Switch between saved Codex accounts.
 - Add accounts without disrupting your current session.
-- Use selected accounts on SSH hosts you configure.
 - Stay local-first: no cloud sync, no hidden browser automation, no account data upload.
 
 ## New In Beta 2
@@ -85,18 +87,17 @@ session rows or auth data.
 
 ## Screenshots
 
-| Add Account | Add Remote Host |
+| Add Account | Codex Side Menu |
 | --- | --- |
-| <img src="docs/assets/codexpill-add-account.png" width="420" alt="CodexPill Add Account dialog"> | <img src="docs/assets/codexpill-add-host.png" width="420" alt="CodexPill Add Remote Host dialog"> |
+| <img src="docs/assets/codexpill-add-account.png" width="420" alt="CodexPill Add Account dialog"> | <img src="docs/assets/codexpill-account-actions.png" width="420" alt="CodexPill Codex side menu with account, reset and section actions"> |
 
-| Account Actions | Preferences |
-| --- | --- |
-| <img src="docs/assets/codexpill-account-actions.png" width="420" alt="CodexPill account actions submenu"> | <img src="docs/assets/codexpill-preferences.png" width="420" alt="CodexPill preferences submenu"> |
+| Settings |
+| --- |
+| <img src="docs/assets/codexpill-settings.png" width="420" alt="CodexPill Settings submenu"> |
 
 ## Local-First
 
-CodexPill works with Codex state on your Mac and the SSH hosts you configure. It
-does not run a cloud service.
+CodexPill works with Codex state on your Mac. It does not run a cloud service.
 
 Saved accounts stay on your Mac under
 `~/Library/Application Support/CodexPill`. They contain authentication material,

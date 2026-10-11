@@ -1,24 +1,30 @@
 import AppKit
 
 struct StatusItemRuntimePresentation {
-    let activeAccount: CodexAccount?
+    let source: StatusItemSource
     let indicatorStyle: StatusBarIndicatorStyle
     let monochrome: Bool
     let displayMode: StatusBarDisplayMode
-    let progressAccentColor: NSColor
+    let percentMode: UsagePercentMode
+    let sessionAccentColor: NSColor
+    let weeklyAccentColor: NSColor
 
     init(
-        activeAccount: CodexAccount?,
+        source: StatusItemSource,
         indicatorStyle: StatusBarIndicatorStyle,
         monochrome: Bool,
         displayMode: StatusBarDisplayMode,
-        progressAccentColor: NSColor = StatusBarProgressColorDefaults.accent
+        percentMode: UsagePercentMode = .used,
+        sessionAccentColor: NSColor = StatusBarProgressColorDefaults.accent,
+        weeklyAccentColor: NSColor = StatusBarProgressColorDefaults.accent
     ) {
-        self.activeAccount = activeAccount
+        self.source = source
         self.indicatorStyle = indicatorStyle
         self.monochrome = monochrome
         self.displayMode = displayMode
-        self.progressAccentColor = progressAccentColor
+        self.percentMode = percentMode
+        self.sessionAccentColor = sessionAccentColor
+        self.weeklyAccentColor = weeklyAccentColor
     }
 }
 
@@ -66,7 +72,7 @@ final class StatusItemRuntime {
     private let hoverPollingInterval: TimeInterval
 
     private var presentation = StatusItemRuntimePresentation(
-        activeAccount: nil,
+        source: .nothingConnected,
         indicatorStyle: .twinPills,
         monochrome: true,
         displayMode: .iconOnly
@@ -100,10 +106,6 @@ final class StatusItemRuntime {
     var menu: NSMenu? {
         get { statusItem.menu }
         set { statusItem.menu = newValue }
-    }
-
-    var menuItemCount: Int {
-        statusItem.menu?.items.count ?? 0
     }
 
     var isMenuTrackingOpen: Bool {
@@ -190,21 +192,24 @@ final class StatusItemRuntime {
 
     private func updateAppearance() {
         guard let button = statusItem.button else { return }
-        let primary = presentation.activeAccount?.rateLimits?.sessionWindow?.displayedUsedPercent()
-        let secondary = presentation.activeAccount?.rateLimits?.weeklyWindow?.displayedUsedPercent()
-
-        button.image = iconRenderer.makeImage(
-            style: presentation.indicatorStyle,
-            primaryPercent: primary,
-            secondaryPercent: secondary,
-            monochrome: presentation.monochrome,
-            primaryColor: presentation.progressAccentColor,
-            secondaryColor: presentation.progressAccentColor
-        )
+        switch presentation.source {
+        case .nothingConnected:
+            button.image = iconRenderer.makeAppGlyph()
+        case let .tool(section):
+            let barPercents = statusItemBarPercents(for: section.card.windows, mode: presentation.percentMode)
+            button.image = iconRenderer.makeImage(
+                style: presentation.indicatorStyle,
+                primaryPercent: barPercents.primary,
+                secondaryPercent: barPercents.secondary,
+                monochrome: presentation.monochrome,
+                primaryColor: presentation.sessionAccentColor,
+                secondaryColor: presentation.weeklyAccentColor
+            )
+        }
         button.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .medium)
 
         if shouldShowStatusTitle {
-            let title = statusItemHoverTitle(for: presentation.activeAccount)
+            let title = statusItemTitle(for: presentation.source.windows, percentMode: presentation.percentMode)
             button.imagePosition = .imageLeading
             button.title = title
             button.attributedTitle = NSAttributedString(
@@ -220,7 +225,7 @@ final class StatusItemRuntime {
             button.attributedTitle = NSAttributedString(string: "")
         }
 
-        button.toolTip = statusItemTooltipText(for: presentation.activeAccount)
+        button.toolTip = statusItemTooltipText(for: presentation.source)
         recordStatusTitleVisibilityTransition(
             isVisible: shouldShowStatusTitle,
             displayedTitle: shouldShowStatusTitle ? button.title : nil

@@ -19,7 +19,7 @@ struct StatusItemRuntimeTests {
         )
         runtime.start(
             presentation: .init(
-                activeAccount: makeAccount(),
+                source: primaryAccountSource(),
                 indicatorStyle: .dualArcBadge,
                 monochrome: false,
                 displayMode: .iconAndText
@@ -46,7 +46,7 @@ struct StatusItemRuntimeTests {
         )
         runtime.start(
             presentation: .init(
-                activeAccount: makeAccount(),
+                source: primaryAccountSource(),
                 indicatorStyle: .dualArcBadge,
                 monochrome: false,
                 displayMode: .iconOnly
@@ -57,7 +57,7 @@ struct StatusItemRuntimeTests {
 
         runtime.update(
             presentation: .init(
-                activeAccount: makeAccount(),
+                source: primaryAccountSource(),
                 indicatorStyle: .dualArcBadge,
                 monochrome: false,
                 displayMode: .iconAndText
@@ -67,7 +67,7 @@ struct StatusItemRuntimeTests {
 
         runtime.update(
             presentation: .init(
-                activeAccount: makeAccount(),
+                source: primaryAccountSource(),
                 indicatorStyle: .dualArcBadge,
                 monochrome: false,
                 displayMode: .textOnHover
@@ -77,7 +77,7 @@ struct StatusItemRuntimeTests {
 
         runtime.update(
             presentation: .init(
-                activeAccount: makeAccount(),
+                source: primaryAccountSource(),
                 indicatorStyle: .dualArcBadge,
                 monochrome: false,
                 displayMode: .iconOnly
@@ -101,7 +101,7 @@ struct StatusItemRuntimeTests {
         runtime.onEvent = { events.append($0) }
         runtime.start(
             presentation: .init(
-                activeAccount: makeAccount(),
+                source: primaryAccountSource(),
                 indicatorStyle: .dualArcBadge,
                 monochrome: false,
                 displayMode: .textOnHover
@@ -131,7 +131,7 @@ struct StatusItemRuntimeTests {
         )
         runtime.start(
             presentation: .init(
-                activeAccount: makeAccount(),
+                source: primaryAccountSource(),
                 indicatorStyle: .dualArcBadge,
                 monochrome: false,
                 displayMode: .iconOnly
@@ -162,7 +162,7 @@ struct StatusItemRuntimeTests {
         runtime.onEvent = { events.append($0) }
         runtime.start(
             presentation: .init(
-                activeAccount: makeAccount(),
+                source: primaryAccountSource(),
                 indicatorStyle: .dualArcBadge,
                 monochrome: false,
                 displayMode: .iconOnly
@@ -178,33 +178,7 @@ struct StatusItemRuntimeTests {
         #expect(events.contains(.shortcutRevealEnded))
     }
 
-    private func makeAccount() -> CodexAccount {
-        let now = Date(timeIntervalSince1970: 1_744_195_200)
-        return CodexAccount(
-            id: UUID(),
-            name: "Primary",
-            snapshotFileName: "\(UUID().uuidString).json",
-            createdAt: now,
-            updatedAt: now,
-            email: "primary@example.com",
-            planType: "pro",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: nil,
-                limitName: nil,
-                planType: "pro",
-                primary: .init(
-                    usedPercent: 42,
-                    resetsAt: nil,
-                    windowDurationMinutes: nil
-                ),
-                secondary: .init(
-                    usedPercent: 68,
-                    resetsAt: nil,
-                    windowDurationMinutes: nil
-                ),
-                fetchedAt: now
-            ),
-            identity: .empty
-        )
+    private func primaryAccountSource() -> StatusItemSource {
+        MenuBarMenuState(activeAccount: makeAccount(name: "Primary", usage: makeUsage()), inactiveAccounts: []).statusItemSource
     }
 }

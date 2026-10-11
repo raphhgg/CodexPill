@@ -90,8 +90,6 @@ Actions:
 
 If Codex terminals are running, the success alert should include the same restart warning used by normal local switch confirmations before the user chooses `Use on This Mac`.
 
-Remote host actions are intentionally omitted from the v0 success alert. Users can switch the new account on a remote host from the normal account menu.
-
 ## Acceptance Criteria
 
 ### Unique Display Name
@@ -114,7 +112,7 @@ Given the user completes browser sign-in, when CodexPill captures and saves the 
 
 Given Add Account saves a new inactive account, when CodexPill can read that account's status through the isolated app-server path, then CodexPill updates the saved account with returned email, plan, and any usable rate-limit window before leaving the Add Account flow.
 
-If Codex returns only session or only weekly usage, CodexPill must preserve the returned usable window instead of treating the whole status as missing. For example, a Free account may return a weekly-length window as `primary`; CodexPill must show that as weekly usage, not session usage.
+If Codex returns only session or only weekly usage, CodexPill must preserve the returned usable window instead of treating the whole status as missing. Each window is named by its length, never its field. For example, a Free account returns one 30-day window as `secondary`; CodexPill shows it as `Monthly`, not weekly or session usage.
 
 If hydration fails, Add Account still succeeds and the account remains saved; CodexPill may show missing usage until a later refresh succeeds.
 
@@ -219,7 +217,7 @@ Given CodexPill crashes during isolated sign-in, when CodexPill next launches, t
 
 ## Validation Targets
 
-The Add Account acceptance criteria should drive unit, integration, and live UI validation. At minimum, validation should cover:
+The Add Account acceptance criteria should drive unit and integration tests. At minimum, tests should cover:
 
 - `add_account_duplicate_display_name_blocks_before_sign_in`
 - `add_account_shows_device_code_and_copy_action`

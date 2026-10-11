@@ -3,7 +3,7 @@ import Foundation
 struct CodexAccountStatus: Equatable {
     var email: String?
     var planType: String?
-    var rateLimits: CodexRateLimitSnapshot?
+    var usage: UsageSnapshot?
     var stableAccountID: String? = nil
     var authPrincipalIdentity: CodexAuthPrincipalIdentity? = nil
     var workspaceIdentity: CodexWorkspaceIdentity? = nil
@@ -18,6 +18,11 @@ protocol CodexAccountStatusClient: Sendable {
     func readCurrentAccountStatus() async throws -> CodexAccountStatus
 }
 
+struct SavedCodexAccountStatusRead {
+    let status: Result<CodexAccountStatus, Error>
+    let rotatedAuthData: Data?
+}
+
 protocol SavedCodexAccountStatusClient: Sendable {
-    func readSavedAccountStatus(authData: Data) async throws -> CodexAccountStatus
+    func readSavedAccountStatus(authData: Data) async -> SavedCodexAccountStatusRead
 }

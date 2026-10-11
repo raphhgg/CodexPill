@@ -3,26 +3,23 @@ import Foundation
 func appServerStatusNeedsRetry(_ status: CodexAccountStatus?) -> Bool {
     guard let status else { return true }
     guard status.email != nil else { return true }
-    return !appServerRateLimitsAreComplete(status.rateLimits)
+    return !appServerUsageHasUsableWindow(status.usage)
 }
 
-func appServerRateLimitsAreComplete(_ snapshot: CodexRateLimitSnapshot?) -> Bool {
-    guard let snapshot else { return false }
-    return snapshot.primary != nil && snapshot.secondary != nil
+/// A read is complete once it carries any limit window. Plans differ in how many windows they have: a Pro plan
+/// reports only a weekly window and a free plan only a monthly one.
+func appServerUsageHasUsableWindow(_ usage: UsageSnapshot?) -> Bool {
+    guard let usage else { return false }
+    return !usage.windows.isEmpty
 }
 
-func appServerRateLimitsHaveUsableWindow(_ snapshot: CodexRateLimitSnapshot?) -> Bool {
-    guard let snapshot else { return false }
-    return snapshot.primary != nil || snapshot.secondary != nil
+func appServerUsageLooksSuspiciouslyZeroed(_ usage: UsageSnapshot?) -> Bool {
+    guard let usage else { return false }
+    return appServerUsageWindowLooksSuspiciouslyZeroed(usage.window(.session))
+        && appServerUsageWindowLooksSuspiciouslyZeroed(usage.window(.weekly))
 }
 
-func appServerRateLimitsLookSuspiciouslyZeroed(_ snapshot: CodexRateLimitSnapshot?) -> Bool {
-    guard let snapshot else { return false }
-    return appServerRateLimitWindowLooksSuspiciouslyZeroed(snapshot.primary)
-        && appServerRateLimitWindowLooksSuspiciouslyZeroed(snapshot.secondary)
-}
-
-func appServerRateLimitWindowLooksSuspiciouslyZeroed(_ window: CodexRateLimitWindow?) -> Bool {
+private func appServerUsageWindowLooksSuspiciouslyZeroed(_ window: UsageWindow?) -> Bool {
     guard let window, window.usedPercent == 0, let resetsAt = window.resetsAt else { return false }
     return resetsAt > .now
 }
@@ -31,7 +28,7 @@ func mergeAppServerStatuses(previous: CodexAccountStatus?, current: CodexAccount
     CodexAccountStatus(
         email: current.email ?? previous?.email,
         planType: current.planType ?? previous?.planType,
-        rateLimits: mergeAppServerRateLimits(previous: previous?.rateLimits, current: current.rateLimits),
+        usage: mergeAppServerUsage(previous: previous?.usage, current: current.usage),
         stableAccountID: current.stableAccountID ?? previous?.stableAccountID,
         authPrincipalIdentity: current.authPrincipalIdentity ?? previous?.authPrincipalIdentity,
         workspaceIdentity: current.workspaceIdentity ?? previous?.workspaceIdentity,
@@ -39,35 +36,40 @@ func mergeAppServerStatuses(previous: CodexAccountStatus?, current: CodexAccount
     )
 }
 
-func mergeAppServerRateLimits(
-    previous: CodexRateLimitSnapshot?,
-    current: CodexRateLimitSnapshot?
-) -> CodexRateLimitSnapshot? {
-    guard previous != nil || current != nil else { return nil }
+func mergeAppServerUsage(
+    previous: UsageSnapshot?,
+    current: UsageSnapshot?
+) -> UsageSnapshot? {
     guard let current else { return previous }
     guard let previous else { return current }
 
-    return CodexRateLimitSnapshot(
-        limitID: current.limitID ?? previous.limitID,
-        limitName: current.limitName ?? previous.limitName,
-        planType: current.planType ?? previous.planType,
-        primary: mergeAppServerRateLimitWindow(previous: previous.primary, current: current.primary),
-        secondary: mergeAppServerRateLimitWindow(previous: previous.secondary, current: current.secondary),
-        fetchedAt: max(previous.fetchedAt, current.fetchedAt)
+    return UsageSnapshot(
+        provider: current.provider,
+        planName: current.planName ?? previous.planName,
+        windows: mergeAppServerUsageWindows(previous: previous.windows, current: current.windows),
+        fetchedAt: max(previous.fetchedAt, current.fetchedAt),
+        resetCredits: current.resetCredits ?? previous.resetCredits
     )
 }
 
-func mergeAppServerRateLimitWindow(
-    previous: CodexRateLimitWindow?,
-    current: CodexRateLimitWindow?
-) -> CodexRateLimitWindow? {
-    guard previous != nil || current != nil else { return nil }
-    guard let current else { return previous }
+/// Keeps every window either read reported, each kind once, shortest first. A window without a length comes
+/// from an older payload, where only the session window is shorter than the other.
+private func mergeAppServerUsageWindows(previous: [UsageWindow], current: [UsageWindow]) -> [UsageWindow] {
+    let merged = current.map { window in
+        mergeAppServerUsageWindow(previous: previous.first { $0.kind == window.kind }, current: window)
+    }
+    let previousOnly = previous.filter { window in !current.contains { $0.kind == window.kind } }
+    func length(_ window: UsageWindow) -> Int { window.durationMinutes ?? (window.kind == .session ? 0 : .max) }
+    return (merged + previousOnly).sorted { length($0) < length($1) }
+}
+
+private func mergeAppServerUsageWindow(previous: UsageWindow?, current: UsageWindow) -> UsageWindow {
     guard let previous else { return current }
 
-    return CodexRateLimitWindow(
+    return UsageWindow(
+        kind: current.kind,
         usedPercent: current.usedPercent,
         resetsAt: current.resetsAt ?? previous.resetsAt,
-        windowDurationMinutes: current.windowDurationMinutes ?? previous.windowDurationMinutes
+        durationMinutes: current.durationMinutes ?? previous.durationMinutes
     )
 }

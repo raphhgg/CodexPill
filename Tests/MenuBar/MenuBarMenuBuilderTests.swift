@@ -31,24 +31,9 @@ final class AlertPresenterProbe: AlertPresenter {
 
 @MainActor
 final class PanelPresenterProbe: PanelPresenter {
-    private(set) var hostSetupRequests: [MenuBarHostSetupPanelRequest] = []
     private(set) var addAccountSignInRequests: [MenuBarAddAccountSignInPanelRequest] = []
 
-    var hostSetupResponse: RemoteHost?
     var addAccountSignInResult: MenuBarAddAccountSignInPanelResult = .cancelled
-
-    func presentHostSetup(
-        _ request: MenuBarHostSetupPanelRequest,
-        testConnection _: @escaping (RemoteHost) async -> Result<Void, Error>,
-        onPresented: @escaping () -> Void = {},
-        onCancelled _: @escaping () -> Void = {},
-        onValidationStarted _: @escaping (RemoteHost) -> Void = { _ in },
-        onValidationFinished _: @escaping (RemoteHost, Result<Void, Error>) -> Void = { _, _ in }
-    ) async -> RemoteHost? {
-        hostSetupRequests.append(request)
-        onPresented()
-        return hostSetupResponse
-    }
 
     func presentAddAccountSignIn(
         _ request: MenuBarAddAccountSignInPanelRequest,
@@ -132,15 +117,6 @@ final class LoginItemsSettingsLauncherProbe: LoginItemsSettingsLaunching {
 private struct LoginItemProbeError: Error {}
 
 @MainActor
-final class AppIconApplierProbe: AppIconApplying {
-    private(set) var appliedColors: [AppIconColor] = []
-
-    func apply(_ color: AppIconColor) {
-        appliedColors.append(color)
-    }
-}
-
-@MainActor
 final class DiagnosticReportPresenterProbe: DiagnosticReportPresenting {
     private(set) var reports: [DiagnosticReport] = []
 
@@ -153,29 +129,9 @@ final class DiagnosticReportPresenterProbe: DiagnosticReportPresenting {
 @MainActor
 struct MenuBarMenuBuilderTests {
     @Test
-    func realAlertPresenterSuppressesInfoAlertsDuringAutomatedTests() {
-        let presenter = SystemAlertPresenter(
-            environment: [AppRuntimeEnvironment.xctestConfigurationFilePathEnvironmentKey: "/tmp/test.xctestconfiguration"]
-        )
-
-        presenter.presentInfo(
-            MenuBarInfoAlertRequest(
-                messageText: "CodexPill Error",
-                informativeText: "Permission denied",
-                style: .warning,
-                buttonTitle: "OK"
-            )
-        )
-    }
-
-    @Test
-    func realPresentersCancelInteractivePromptsDuringAutomatedTests() async {
-        let alertPresenter = SystemAlertPresenter(
-            environment: [AppRuntimeEnvironment.xctestConfigurationFilePathEnvironmentKey: "/tmp/test.xctestconfiguration"]
-        )
-        let panelPresenter = SystemPanelPresenter(
-            environment: [AppRuntimeEnvironment.xctestConfigurationFilePathEnvironmentKey: "/tmp/test.xctestconfiguration"]
-        )
+    func realPresentersCancelInteractivePromptsWhenSuppressed() async {
+        let alertPresenter = SystemAlertPresenter(suppressesInteractivePrompts: true)
+        let panelPresenter = SystemPanelPresenter(suppressesInteractivePrompts: true)
 
         let textValue = alertPresenter.presentTextInput(
             MenuBarTextInputAlertRequest(
@@ -196,96 +152,60 @@ struct MenuBarMenuBuilderTests {
                 cancelTitle: "Cancel"
             )
         )
-        var cancelled = false
-        let hostValue = await panelPresenter.presentHostSetup(
-            MenuBarHostSetupPanelRequest(
-                messageText: "Add host",
-                informativeText: "Connect a host",
-                fieldTitle: "SSH Destination",
-                placeholder: "user@host",
-                nameFieldTitle: "Host Name",
-                namePlaceholder: "buildbox",
-                confirmTitle: "Add Host",
-                cancelTitle: "Cancel",
-                idleStatusText: "Idle",
-                successStatusText: "Success"
+        alertPresenter.presentInfo(
+            MenuBarInfoAlertRequest(
+                messageText: "CodexPill Error",
+                informativeText: "Permission denied",
+                style: .warning,
+                buttonTitle: "OK"
+            )
+        )
+        var signInCancelled = false
+        let signInResult = await panelPresenter.presentAddAccountSignIn(
+            MenuBarAddAccountSignInPanelRequest(
+                messageText: "Sign in",
+                informativeText: "Sign in to Codex",
+                userCode: "ABCD-EFGH",
+                promptURL: URL(string: "https://example.com/device")!,
+                waitingStatusText: "Waiting",
+                copiedStatusText: "Copied",
+                browserOpenedStatusText: "Opened",
+                copyTitle: "Copy",
+                openBrowserTitle: "Open",
+                cancelTitle: "Cancel"
             ),
-            testConnection: { _ in .success(()) },
-            onCancelled: { cancelled = true }
+            waitForCompletion: { .failure(CancellationError()) },
+            onCancel: { signInCancelled = true }
         )
 
         #expect(textValue == nil)
         #expect(confirmation == false)
-        #expect(hostValue == nil)
-        #expect(cancelled)
-    }
-
-    @Test
-    func tokenUsagePrototypeProjectionUsesFixtureCardsInsideActiveAccount() {
-        let state = makeState(
-            activeAccount: makeAccount(name: "Active", withRateLimits: true),
-            inactiveAccounts: [makeAccount(name: "Other", withRateLimits: true)],
-            tokenUsagePrototypeCards: TokenUsagePrototype.fixtureCards
-        )
-
-        let snapshot = MenuBarValidationSupport.makeSnapshot(state: state)
-
-        #expect(snapshot.sections.map(\.title).prefix(3) == [
-            "Active Account",
-            "Other Accounts",
-            "Manage Accounts"
-        ])
-        #expect(snapshot.sections[0].items.count == 5)
-        #expect(snapshot.sections[0].items[0].contains("Session"))
-        #expect(snapshot.sections[0].items[0].contains("Weekly"))
-        for item in snapshot.sections[0].items.dropFirst() {
-            #expect(item.contains("Token Usage"))
-            #expect(item.contains("This Mac"))
-            #expect(item.contains("Today: 22,400 tokens"))
-            #expect(item.contains("Last 30 days: 680,200 tokens"))
+        #expect(signInCancelled)
+        guard case .cancelled = signInResult else {
+            Issue.record("Expected the suppressed sign-in panel to cancel")
+            return
         }
     }
 
     @Test
-    func tokenUsagePrototypeMenuEmbedsComparableCardsInActiveAccountArea() throws {
-        let state = makeState(
-            activeAccount: makeAccount(name: "Active", withRateLimits: true),
-            inactiveAccounts: [makeAccount(name: "Other", withRateLimits: true)],
-            tokenUsagePrototypeCards: TokenUsagePrototype.fixtureCards
-        )
-        let coordinator = try makeCoordinator()
+    func tokenUsageCardHiddenWhenDisabled() throws {
+        let (disabled, disabledStatusItem) = try makeCoordinatorWithStatusItem()
+        let (enabled, enabledStatusItem) = try makeCoordinatorWithStatusItem(configureTokenUsage: { $0.isEnabled = true })
+        defer {
+            NSStatusBar.system.removeStatusItem(disabledStatusItem)
+            NSStatusBar.system.removeStatusItem(enabledStatusItem)
+        }
 
-        let menu = MenuBarMenuBuilder().makeMenu(state: state, target: coordinator)
-        let activeAccountItem = menu.items[1]
-        let activeAccountFrame = try #require(activeAccountItem.view?.frame)
-
-        #expect(Int(activeAccountFrame.width.rounded()) == 372)
-        #expect(activeAccountFrame.height > 500)
-        #expect(menu.items.prefix(2).filter(\.isSeparatorItem).isEmpty)
-        #expect(menu.items[2].isSeparatorItem)
+        #expect(disabled.menuState().tokenUsageCard == nil)
+        #expect(enabled.menuState().tokenUsageCard?.period == .last30Days)
     }
 
     @Test
-    func tokenUsageCardHiddenWhenDisabled() {
+    func tokenUsageCardVisibleWhenEnabledWithSelectedPeriodCopy() throws {
         let state = makeState(
-            activeAccount: makeAccount(name: "Active", withRateLimits: true),
-            inactiveAccounts: [makeAccount(name: "Other", withRateLimits: true)]
-        )
-
-        let snapshot = MenuBarValidationSupport.makeSnapshot(state: state)
-
-        #expect(snapshot.sections[0].items.count == 1)
-        #expect(!snapshot.sections[0].items.joined().contains("Token Usage"))
-    }
-
-    @Test
-    func tokenUsageCardVisibleWhenEnabledWithSelectedPeriodCopy() {
-        let state = makeState(
-            activeAccount: makeAccount(name: "Active", withRateLimits: true),
-            inactiveAccounts: [makeAccount(name: "Other", withRateLimits: true)],
+            activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
+            inactiveAccounts: [makeAccount(name: "Other", usage: makeUsage(resettingAfter: .now))],
             tokenUsageEnabled: true,
-            tokenUsagePeriod: .last30Days,
-            tokenUsageChartStyle: .heatStrip,
             tokenUsageCard: makeTokenUsageCard(
                 period: .last30Days,
                 style: .heatStrip,
@@ -296,8 +216,7 @@ struct MenuBarMenuBuilderTests {
             )
         )
 
-        let snapshot = MenuBarValidationSupport.makeSnapshot(state: state)
-        let tokenUsage = snapshot.sections[0].items[1]
+        let tokenUsage = try #require(state.tokenUsageCard?.accessibilitySummary)
 
         #expect(tokenUsage.contains("Token Usage"))
         #expect(tokenUsage.contains("Last 30 days"))
@@ -396,44 +315,11 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func preferencesMenuIncludesTokenUsageControls() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                tokenUsageEnabled: true,
-                tokenUsagePeriod: .last30Days,
-                tokenUsageChartStyle: .sparkline,
-                tokenUsageLoadingAnimationStyle: .random,
-                tokenUsagePeakScope: .allTime
-            ),
-            target: coordinator
-        )
-
-        let preferencesMenu = try #require(menu.items.first(where: { $0.title == "Preferences" })?.submenu)
-        let tokenUsageMenu = try #require(preferencesMenu.items.first(where: { $0.title == "Token Usage" })?.submenu)
-        let show = try #require(tokenUsageMenu.items.first(where: { $0.title == "Show Token Usage" }))
-        let peakDay = try #require(tokenUsageMenu.items.first(where: { $0.title == "Peak Day" })?.submenu)
-        let chartStyle = try #require(tokenUsageMenu.items.first(where: { $0.title == "Chart Style" })?.submenu)
-        let loadingAnimation = try #require(tokenUsageMenu.items.first(where: { $0.title == "Loading Animation" })?.submenu)
-
-        #expect(show.state == .on)
-        #expect(tokenUsageMenu.items.contains { $0.title == "Period" } == false)
-        #expect(peakDay.items.map(\.title) == ["Last 30 Days", "All Time"])
-        #expect(peakDay.items.first(where: { $0.title == "All Time" })?.state == .on)
-        #expect(chartStyle.items.map(\.title) == ["Daily Bars", "Heat Strip", "Sparkline"])
-        #expect(chartStyle.items.first(where: { $0.title == "Sparkline" })?.state == .on)
-        #expect(loadingAnimation.items.map(\.title) == ["Waves", "Random"])
-        #expect(loadingAnimation.items.first(where: { $0.title == "Random" })?.state == .on)
-    }
-
-    @Test
     func statusItemContentOptionsAreDisabledWhenNoStatusDataExists() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", withRateLimits: false)),
+            state: makeState(activeAccount: makeAccount(name: "Active")),
             target: coordinator
         )
 
@@ -453,38 +339,23 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func menuIncludesDiagnosticReportExportActionNearAbout() throws {
+    func settingsIncludesDiagnosticReportExportActionNearAbout() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", withRateLimits: true)),
+            state: makeState(activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now))),
             target: coordinator
         )
 
-        let exportIndex = try #require(menu.items.firstIndex(where: { $0.title == "Diagnostics…" }))
-        let aboutIndex = try #require(menu.items.firstIndex(where: { $0.title == "About" }))
-        let export = menu.items[exportIndex]
+        let settings = try settingsMenu(in: menu)
+        let exportIndex = try #require(settings.items.firstIndex(where: { $0.title == "Diagnostics…" }))
+        let aboutIndex = try #require(settings.items.firstIndex(where: { $0.title == "About" }))
+        let export = settings.items[exportIndex]
 
         #expect(exportIndex < aboutIndex)
         #expect(export.action == #selector(MenuBarCoordinator.exportDiagnosticReport))
         #expect(export.target === coordinator)
         #expect(export.isEnabled)
-    }
-
-    @Test
-    func quitItemReservesIconColumnForStableTextAlignment() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", withRateLimits: true)),
-            target: coordinator
-        )
-
-        let quit = try #require(menu.items.first(where: { $0.title == "Quit" }))
-
-        #expect(quit.action == #selector(MenuBarCoordinator.quitApp))
-        #expect(quit.keyEquivalent == "q")
-        #expect(quit.image?.size == NSSize(width: 16, height: 16))
     }
 
     @Test
@@ -504,7 +375,7 @@ struct MenuBarMenuBuilderTests {
         #expect(disclosure.confirmTitle == "Export")
         #expect(disclosure.cancelTitle == "Cancel")
         let report = try #require(presenter.reports.first)
-        #expect(report.schemaVersion == 1)
+        #expect(report.schemaVersion == 3)
         #expect(report.redactionManifest.aliasScope == "per-export")
         #expect(report.events.contains(where: { $0.name == "menu_action" }))
     }
@@ -526,31 +397,26 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func liveValidationSnapshotCapturesStatusItemContentMetadata() throws {
+    func menuBarLabelOffersOnlyIconOnlyWhenActiveAccountHasNoUsageData() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
-        let state = makeState(activeAccount: makeAccount(name: "Active", withRateLimits: false))
+        let state = makeState(activeAccount: makeAccount(name: "Active"))
         let menu = builder.makeMenu(state: state, target: coordinator)
-        let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, menu: menu)
 
-        let display = try #require(snapshot.menuItems.first(where: { $0.title == "Preferences" }))
-        let content = try #require(display.children.first(where: { $0.title == "Menu Bar Label" }))
-        let iconOnly = try #require(content.children.first(where: { $0.title == "Icon Only" }))
-        let iconAndText = try #require(content.children.first(where: { $0.title == "Icon + Text" }))
-        let textOnHover = try #require(content.children.first(where: { $0.title == "Text on Hover" }))
+        let content = try #require(statusItemContentMenu(in: menu))
+        let iconOnly = try #require(content.items.first(where: { $0.title == "Icon Only" }))
+        let iconAndText = try #require(content.items.first(where: { $0.title == "Icon + Text" }))
+        let textOnHover = try #require(content.items.first(where: { $0.title == "Text on Hover" }))
 
         #expect(iconOnly.isEnabled)
-        #expect(iconOnly.hasAction)
-        #expect(iconOnly.actionSelector == "selectStatusBarDisplayMode:")
-        #expect(iconOnly.state == "on")
+        #expect(iconOnly.action == #selector(MenuBarCoordinator.selectStatusBarDisplayMode(_:)))
+        #expect(iconOnly.state == .on)
         #expect(!iconAndText.isEnabled)
-        #expect(!iconAndText.hasAction)
-        #expect(iconAndText.actionSelector == nil)
-        #expect(iconAndText.state == "off")
+        #expect(iconAndText.action == nil)
+        #expect(iconAndText.state == .off)
         #expect(!textOnHover.isEnabled)
-        #expect(!textOnHover.hasAction)
-        #expect(textOnHover.actionSelector == nil)
-        #expect(textOnHover.state == "off")
+        #expect(textOnHover.action == nil)
+        #expect(textOnHover.state == .off)
     }
 
     @Test
@@ -558,7 +424,7 @@ struct MenuBarMenuBuilderTests {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", withRateLimits: true)),
+            state: makeState(activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now))),
             target: coordinator
         )
 
@@ -579,7 +445,7 @@ struct MenuBarMenuBuilderTests {
         let shortcut = KeyboardShortcut(keyCode: 11, modifiers: [.control, .shift])
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
                 revealStatusItemTitleShortcut: shortcut
             ),
             target: coordinator
@@ -600,7 +466,7 @@ struct MenuBarMenuBuilderTests {
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
                 revealStatusItemTitleShortcut: nil
             ),
             target: coordinator
@@ -614,1168 +480,106 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func addAccountIsDirectMenuActionWhenHostsAreConfigured() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                inactiveAccounts: [makeAccount(name: "Other", withRateLimits: true)],
-                remoteHosts: [makeRemoteHost(activeAccount: nil)]
-            ),
-            target: coordinator
-        )
-
-        let addAccount = try #require(menu.items.first(where: { $0.title == "Add Account…" }))
-
-        #expect(addAccount.submenu == nil)
-        #expect(addAccount.isEnabled)
-        #expect(addAccount.action == #selector(MenuBarCoordinator.addAccount))
-    }
-
-    @Test
-    func notificationsSubmenuReflectsPersistedToggleState() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                notificationsWhenBlockedEnabled: true,
-                notificationsWhenOutEnabled: false
-            ),
-            target: coordinator
-        )
-
-        let notifications = try #require(menu.items.first(where: { $0.title == "Notifications" }))
-        let submenu = try #require(notifications.submenu)
-        let whenBlocked = try #require(submenu.items.first(where: { $0.title == "Account Available" }))
-        let whenOut = try #require(submenu.items.first(where: { $0.title == "Current Runs Out" }))
-
-        #expect(whenBlocked.state == .on)
-        #expect(whenBlocked.action == #selector(MenuBarCoordinator.toggleNotificationsWhenBlocked(_:)))
-        #expect(whenOut.state == .off)
-        #expect(whenOut.action == #selector(MenuBarCoordinator.toggleNotificationsWhenOut(_:)))
-    }
-
-    @Test
-    func notificationsSubmenuDoesNotShowEnableNotificationsWhenAppNotificationsAreOff() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                notificationAuthorizationState: .authorized
-            ),
-            target: coordinator
-        )
-
-        let submenu = try notificationsSubmenu(in: menu)
-
-        #expect(!submenu.items.contains(where: { $0.title == "Enable Notifications…" }))
-        #expect(!submenu.items.contains(where: { $0.title == "Enable in macOS Settings…" }))
-    }
-
-    @Test
-    func notificationsSubmenuDoesNotShowEnableNotificationsWhenAuthorizationIsUnknown() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                notificationAuthorizationState: .unknown
-            ),
-            target: coordinator
-        )
-
-        let submenu = try notificationsSubmenu(in: menu)
-
-        #expect(!submenu.items.contains(where: { $0.title == "Enable Notifications…" }))
-        #expect(!submenu.items.contains(where: { $0.title == "Enable in macOS Settings…" }))
-    }
-
-    @Test
-    func notificationsSubmenuHidesRecoveryWhenAppNotificationsAreOnAndAuthorized() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                notificationsWhenBlockedEnabled: true,
-                notificationAuthorizationState: .authorized
-            ),
-            target: coordinator
-        )
-
-        let submenu = try notificationsSubmenu(in: menu)
-
-        #expect(!submenu.items.contains(where: { $0.title == "Enable Notifications…" }))
-        #expect(!submenu.items.contains(where: { $0.title == "Enable in macOS Settings…" }))
-    }
-
-    @Test
-    func notificationsSubmenuShowsMacSettingsRecoveryWhenMacNotificationsAreDenied() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                notificationsWhenBlockedEnabled: true,
-                notificationAuthorizationState: .denied
-            ),
-            target: coordinator
-        )
-
-        let submenu = try notificationsSubmenu(in: menu)
-        let enable = try #require(submenu.items.first(where: { $0.title == "Enable in macOS Settings…" }))
-
-        #expect(enable.action == #selector(MenuBarCoordinator.enableNotifications(_:)))
-    }
-
-    @Test
-    func notificationsSubmenuDisablesEffectiveTogglesWhenMacNotificationsAreDenied() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                notificationsWhenBlockedEnabled: true,
-                notificationsWhenOutEnabled: true,
-                notificationAuthorizationState: .denied
-            ),
-            target: coordinator
-        )
-
-        let submenu = try notificationsSubmenu(in: menu)
-        let whenBlocked = try #require(submenu.items.first(where: { $0.title == "Account Available" }))
-        let whenOut = try #require(submenu.items.first(where: { $0.title == "Current Runs Out" }))
-
-        #expect(whenBlocked.state == .off)
-        #expect(!whenBlocked.isEnabled)
-        #expect(whenOut.state == .off)
-        #expect(!whenOut.isEnabled)
-    }
-
-    @Test
-    func visibleAccountsUseNativeSubmenusForSwitching() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let business3 = makeAccount(name: "Business 3", withRateLimits: true)
-        let business4 = makeAccount(name: "Business 4", withRateLimits: true)
-        let business2 = makeAccount(name: "Business 2", withRateLimits: true)
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                inactiveAccounts: [business3, business4, business2]
-            ),
-            target: coordinator
-        )
-
-        let visibleRow = try #require(
-            menu.items.first(where: { $0.submenu?.title == business3.name })
-        )
-        let submenu = try #require(visibleRow.submenu)
-        let emailItem = try #require(submenu.items.first)
-        let statusItem = try #require(submenu.items.dropFirst().first)
-        let localAction = try #require(submenu.items.first(where: { $0.title == "Switch on This Mac" }))
-        let renameAction = try #require(submenu.items.first(where: { $0.title == "Rename…" }))
-        let removeAction = try #require(submenu.items.first(where: { $0.title == "Remove…" }))
-        let localActionIndex = try #require(submenu.items.firstIndex(where: { $0.title == "Switch on This Mac" }))
-        let renameIndex = try #require(submenu.items.firstIndex(where: { $0.title == "Rename…" }))
-        let removeIndex = try #require(submenu.items.firstIndex(where: { $0.title == "Remove…" }))
-
-        #expect(visibleRow.view == nil)
-        #expect(visibleRow.attributedTitle?.string.contains("S ") == true)
-        #expect(visibleRow.attributedTitle?.string.contains("W ") == true)
-        #expect(visibleRow.attributedTitle?.string.contains("Local") == false)
-        #expect(visibleRow.representedObject as? String == business3.id.uuidString)
-        #expect(visibleRow.action != #selector(MenuBarCoordinator.switchAccount(_:)))
-        #expect(visibleRow.isEnabled == true)
-        #expect(emailItem.title == "business 3@example.com")
-        #expect(emailItem.isEnabled == false)
-        #expect(statusItem.title == "Not currently in use")
-        #expect(statusItem.isEnabled == false)
-        #expect(localActionIndex > 1)
-        #expect(localAction.action == #selector(MenuBarCoordinator.switchAccount(_:)))
-        #expect(localAction.target === coordinator)
-        #expect(localAction.representedObject as? String == business3.id.uuidString)
-        #expect(renameAction.action == #selector(MenuBarCoordinator.renameAccount(_:)))
-        #expect(renameAction.representedObject as? String == business3.id.uuidString)
-        #expect(removeAction.action == #selector(MenuBarCoordinator.removeAccount(_:)))
-        #expect(removeAction.representedObject as? String == business3.id.uuidString)
-        #expect(submenu.items[renameIndex - 1].isSeparatorItem)
-        #expect(removeIndex == renameIndex + 1)
-        #expect(menu.autoenablesItems)
-    }
-
-    @Test
-    func singleAccountWithoutHostsUsesAccountManagementSubmenu() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let active = makeAccount(name: "Personal", withRateLimits: true)
-        let state = makeState(activeAccount: active)
-        let menu = builder.makeMenu(state: state, target: coordinator)
-        let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, menu: menu)
-
-        let accountMenu = try #require(menu.items.first(where: { $0.title == "Account" })?.submenu)
-        let addAccount = try #require(accountMenu.items.first(where: { $0.title == "Add Account…" }))
-        let rename = try #require(accountMenu.items.first(where: { $0.title == "Rename…" }))
-        let remove = try #require(accountMenu.items.first(where: { $0.title == "Remove…" }))
-
-        #expect(snapshot.sections.contains(where: { $0.title == "Accounts" }) == false)
-        #expect(snapshot.sections.contains(where: { $0.title == "Other Accounts" }) == false)
-        #expect(menu.items.contains(where: { $0.title == "Add Account…" }) == false)
-        #expect(addAccount.action == #selector(MenuBarCoordinator.addAccount))
-        #expect(rename.action == #selector(MenuBarCoordinator.renameAccount(_:)))
-        #expect(rename.representedObject as? String == active.id.uuidString)
-        #expect(remove.action == #selector(MenuBarCoordinator.removeAccount(_:)))
-        #expect(remove.representedObject as? String == active.id.uuidString)
-    }
-
-    @Test
-    func multipleAccountsWithoutHostsShowsOtherAccountsAndManagesActiveAccountSeparately() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let active = makeAccount(name: "Personal", withRateLimits: true)
-        let business1 = makeAccount(name: "Business 1", withRateLimits: true)
-        let business2 = makeAccount(name: "Business 2", withRateLimits: true)
-        let state = makeState(
-            activeAccount: active,
-            inactiveAccounts: [business1, business2]
-        )
-        let menu = builder.makeMenu(state: state, target: coordinator)
-        let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, menu: menu)
-
-        let accountSection = try #require(snapshot.sections.first(where: { $0.title == "Other Accounts" }))
-        let activeRow = menu.items.first(where: { $0.submenu?.title == active.name })
-        let accountItem = try #require(menu.items.first(where: { $0.title == "Account" }))
-        let accountMenu = try #require(accountItem.submenu)
-        let rename = try #require(accountMenu.items.first(where: { $0.title == "Rename…" }))
-        let remove = try #require(accountMenu.items.first(where: { $0.title == "Remove…" }))
-        let addAccount = try #require(accountMenu.items.first(where: { $0.title == "Add Account…" }))
-
-        #expect(accountSection.items.count == 2)
-        #expect(accountSection.items.allSatisfy { !$0.contains(active.name) })
-        #expect(activeRow == nil)
-        #expect(accountItem.image != nil)
-        #expect(addAccount.action == #selector(MenuBarCoordinator.addAccount))
-        #expect(menu.items.contains(where: { $0.title == "Add Account…" }) == false)
-        #expect(rename.representedObject as? String == active.id.uuidString)
-        #expect(remove.representedObject as? String == active.id.uuidString)
-    }
-
-    @Test
-    func configuredHostsKeepFullAccountsListForTargetActions() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let active = makeAccount(name: "Personal", withRateLimits: true)
-        let business = makeAccount(name: "Business 1", withRateLimits: true)
-        let state = makeState(
-            activeAccount: active,
-            inactiveAccounts: [business],
-            remoteHosts: [makeRemoteHost(activeAccount: nil)]
-        )
-        let menu = builder.makeMenu(state: state, target: coordinator)
-        let snapshot = MenuBarValidationSupport.makeSnapshot(state: state, menu: menu)
-
-        let accountSection = try #require(snapshot.sections.first(where: { $0.title == "Accounts" }))
-        let activeRow = try #require(menu.items.first(where: { $0.submenu?.title == active.name }))
-        let activeSubmenu = try #require(activeRow.submenu)
-
-        #expect(accountSection.items.contains(where: { $0.contains(active.name) }))
-        #expect(activeSubmenu.items.contains(where: { $0.title == "Install on devbox and switch" }))
-        #expect(menu.items.contains(where: { $0.title == "Account" }) == false)
-    }
-
-    @Test
-    func inactiveAccountSubmenuShowsNoEmailFallbackBeforeUsage() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        var account = makeAccount(name: "Business 3", withRateLimits: true)
-        account.email = nil
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                inactiveAccounts: [account]
-            ),
-            target: coordinator
-        )
-
-        let accountItem = try #require(menu.items.first(where: { $0.attributedTitle?.string.contains(account.name) == true }))
-        let submenu = try #require(accountItem.submenu)
-        let emailItem = try #require(submenu.items.first)
-        let statusItem = try #require(submenu.items.dropFirst().first)
-
-        #expect(emailItem.title == "No email")
-        #expect(emailItem.isEnabled == false)
-        #expect(statusItem.title == "Not currently in use")
-        #expect(statusItem.isEnabled == false)
-    }
-
-    @Test
-    func moreAccountsRowUsesTextOnlyDisclosureLabel() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                inactiveAccounts: [
-                    makeAccount(name: "Business 3", withRateLimits: true),
-                    makeAccount(name: "Business 4", withRateLimits: true),
-                    makeAccount(name: "Business 2", withRateLimits: true),
-                    makeAccount(name: "Business 1", withRateLimits: true)
-                ]
-            ),
-            target: coordinator
-        )
-
-        let moreAccounts = try #require(menu.items.first(where: { $0.title == "More Accounts…" }))
-        let firstOverflowAccount = try #require(moreAccounts.submenu?.items.first)
-        let overflowSubmenu = try #require(firstOverflowAccount.submenu)
-        let overflowEmail = try #require(overflowSubmenu.items.first)
-        let overflowUsage = try #require(overflowSubmenu.items.dropFirst().first)
-        let overflowSwitch = try #require(overflowSubmenu.items.first(where: { $0.title == "Switch on This Mac" }))
-
-        #expect(moreAccounts.image == nil)
-        #expect(moreAccounts.submenu?.title == "More Accounts…")
-        #expect(!firstOverflowAccount.title.isEmpty)
-        #expect(
-            ["Business 1", "Business 2", "Business 3", "Business 4"]
-                .contains(where: { firstOverflowAccount.title.contains($0) })
-        )
-        #expect(firstOverflowAccount.submenu != nil)
-        #expect(firstOverflowAccount.action != #selector(MenuBarCoordinator.switchAccount(_:)))
-        #expect(overflowEmail.title.hasSuffix("@example.com"))
-        #expect(overflowEmail.isEnabled == false)
-        #expect(overflowUsage.title == "Not currently in use")
-        #expect(overflowUsage.isEnabled == false)
-        #expect(overflowSwitch.action == #selector(MenuBarCoordinator.switchAccount(_:)))
-    }
-
-    @Test
-    func inactiveAccountUsesTargetSubmenuWhenRemoteHostIsPresent() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let inactive = makeAccount(name: "Business 3", withRateLimits: true)
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                inactiveAccounts: [inactive],
-                remoteHosts: [makeRemoteHost(
-                    activeAccount: makeAccount(name: "Remote", withRateLimits: true),
-                    deployedAccountIDs: [inactive.id]
-                )]
-            ),
-            target: coordinator
-        )
-
-        let accountItem = try #require(menu.items.first(where: { $0.attributedTitle?.string.contains(inactive.name) == true }))
-        let submenu = try #require(accountItem.submenu)
-        let emailItem = try #require(submenu.items.first)
-        let statusItem = try #require(submenu.items.first(where: { $0.title == "Not currently in use" }))
-        let localAction = try #require(submenu.items.first(where: { $0.title == "Switch on This Mac" }))
-        let remoteAction = try #require(submenu.items.first(where: { $0.title == "Switch on devbox" }))
-        let renameAction = try #require(submenu.items.first(where: { $0.title == "Rename…" }))
-        let removeAction = try #require(submenu.items.first(where: { $0.title == "Remove…" }))
-
-        #expect(accountItem.submenu === submenu)
-        #expect(accountItem.attributedTitle?.string.contains("S ") == true)
-        #expect(accountItem.attributedTitle?.string.contains("W ") == true)
-        #expect(accountItem.attributedTitle?.string.contains("Remote") == false)
-        #expect(emailItem.title == "business 3@example.com")
-        #expect(emailItem.isEnabled == false)
-        #expect(statusItem.isEnabled == false)
-        #expect(localAction.action == #selector(MenuBarCoordinator.switchAccount(_:)))
-        #expect(localAction.representedObject as? String == inactive.id.uuidString)
-        #expect(localAction.target === coordinator)
-        #expect(remoteAction.action == #selector(MenuBarCoordinator.switchAccountOnHost(_:)))
-        #expect(remoteAction.target === coordinator)
-        #expect(renameAction.action == #selector(MenuBarCoordinator.renameAccount(_:)))
-        #expect(removeAction.action == #selector(MenuBarCoordinator.removeAccount(_:)))
-        let remotePayload = try #require(remoteAction.representedObject as? HostAccountMenuItemPayload)
-        #expect(remotePayload.accountID == inactive.id)
-        #expect(remotePayload.hostDestination == "user@devbox")
-    }
-
-    @Test
-    func inactiveAccountSubmenuShowsPendingAndFailedRemoteUsageStates() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let pending = makeAccount(name: "Business 3", withRateLimits: true)
-        let failed = makeAccount(name: "Business 4", withRateLimits: true)
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                inactiveAccounts: [pending, failed],
-                remoteHosts: [
-                    makeRemoteHost(
-                        name: "buildbox",
-                        desiredAccount: pending,
-                        activeAccount: nil,
-                        verificationStatus: .verifying
-                    ),
-                    makeRemoteHost(
-                        name: "debian-vm",
-                        destination: "user@debian-vm",
-                        connectionState: .disconnected,
-                        desiredAccount: failed,
-                        activeAccount: nil,
-                        verificationStatus: .failed,
-                        lastVerificationError: "debian-vm is using Business 1, not Business 4."
-                    )
-                ]
-            ),
-            target: coordinator
-        )
-
-        let pendingItem = try #require(menu.items.first(where: { $0.attributedTitle?.string.contains(pending.name) == true }))
-        let failedItem = try #require(menu.items.first(where: { $0.attributedTitle?.string.contains(failed.name) == true }))
-        let pendingEmail = try #require(pendingItem.submenu?.items.first)
-        let failedEmail = try #require(failedItem.submenu?.items.first)
-        let pendingStatus = try #require(pendingItem.submenu?.items.dropFirst().first)
-        let failedStatus = try #require(failedItem.submenu?.items.dropFirst().first)
-
-        #expect(pendingEmail.title == "business 3@example.com")
-        #expect(failedEmail.title == "business 4@example.com")
-        #expect(pendingStatus.title == "Pending on: buildbox")
-        #expect(failedStatus.title == "Verification failed on: debian-vm")
-    }
-
-    @Test
-    func failedHostSubmenuOffersAdoptDetectedAccountAction() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let desired = makeAccount(name: "Business 2", withRateLimits: true)
-        let detected = makeAccount(name: "Business 1", withRateLimits: true)
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: nil,
-                inactiveAccounts: [desired],
-                remoteHosts: [
-                    makeRemoteHost(
-                        name: "buildbox",
-                        destination: "user@buildbox",
-                        connectionState: .connected,
-                        desiredAccount: desired,
-                        activeAccount: nil,
-                        detectedAccount: detected,
-                        verificationStatus: .failed,
-                        lastVerificationError: "buildbox is using Business 1, not Business 2."
-                    )
-                ]
-            ),
-            target: coordinator
-        )
-
-        let hostsMenu = try #require(menu.items.first(where: { $0.title == "Hosts" })?.submenu)
-        let hostSubmenu = try #require(hostsMenu.items.first(where: { $0.title == "buildbox" })?.submenu)
-        let detectedRow = try #require(hostSubmenu.items.first(where: { $0.title == "Detected account: Business 1" }))
-        let adoptAction = try #require(hostSubmenu.items.first(where: { $0.title == "Use Detected Account (Business 1)" }))
-        let reverify = try #require(hostSubmenu.items.first(where: { $0.title == "Re-verify Remote Account" }))
-
-        #expect(detectedRow.isEnabled == false)
-        #expect(adoptAction.action == #selector(MenuBarCoordinator.adoptDetectedRemoteAccount(_:)))
-        #expect(adoptAction.target === coordinator)
-        let payload = try #require(adoptAction.representedObject as? HostAccountMenuItemPayload)
-        #expect(payload.accountID == detected.id)
-        #expect(payload.hostDestination == "user@buildbox")
-        #expect(reverify.action == #selector(MenuBarCoordinator.reverifyHost(_:)))
-    }
-
-    @Test
-    func inactiveAccountSubmenuAddsOneHostTargetPerConfiguredHost() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let inactive = makeAccount(name: "Business 3", withRateLimits: true)
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                inactiveAccounts: [inactive],
-                remoteHosts: [
-                    makeRemoteHost(
-                        name: "buildbox",
-                        destination: "user@buildbox",
-                        activeAccount: makeAccount(name: "Remote 1", withRateLimits: true),
-                        deployedAccountIDs: [inactive.id]
-                    ),
-                    makeRemoteHost(
-                        name: "debian-vm",
-                        destination: "user@debian-vm",
-                        connectionState: .disconnected,
-                        activeAccount: makeAccount(name: "Remote 2", withRateLimits: true),
-                        deployedAccountIDs: []
-                    )
-                ]
-            ),
-            target: coordinator
-        )
-
-        let accountItem = try #require(menu.items.first(where: { $0.attributedTitle?.string.contains(inactive.name) == true }))
-        let submenu = try #require(accountItem.submenu)
-        let buildboxAction = try #require(submenu.items.first(where: { $0.title == "Switch on buildbox" }))
-        let debianAction = try #require(submenu.items.first(where: { $0.title == "Install on debian-vm and switch" }))
-
-        let buildboxPayload = try #require(buildboxAction.representedObject as? HostAccountMenuItemPayload)
-        let debianPayload = try #require(debianAction.representedObject as? HostAccountMenuItemPayload)
-
-        #expect(buildboxAction.action == #selector(MenuBarCoordinator.switchAccountOnHost(_:)))
-        #expect(debianAction.action == #selector(MenuBarCoordinator.switchAccountOnHost(_:)))
-        #expect(buildboxPayload.hostDestination == "user@buildbox")
-        #expect(debianPayload.hostDestination == "user@debian-vm")
-    }
-
-    @Test
-    func hostsSubmenuOffersAddHostWhenNoHostIsConfigured() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", withRateLimits: true)),
-            target: coordinator
-        )
-
-        let hostsMenu = try #require(menu.items.first(where: { $0.title == "Hosts" })?.submenu)
-        let addHost = try #require(hostsMenu.items.first(where: { $0.title == "Add Host…" }))
-
-        #expect(addHost.action == #selector(MenuBarCoordinator.addHost(_:)))
-        #expect(hostsMenu.items.contains(where: { $0.title == "Remove Host" }) == false)
-    }
-
-    @Test
-    func hostsSubmenuShowsConfiguredHostAndRemoveAction() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                remoteHosts: [makeRemoteHost(activeAccount: nil)]
-            ),
-            target: coordinator
-        )
-
-        let hostsMenu = try #require(menu.items.first(where: { $0.title == "Hosts" })?.submenu)
-        let hostItem = try #require(hostsMenu.items.first(where: { $0.title == "devbox" }))
-        let hostSubmenu = try #require(hostItem.submenu)
-        let hostStatus = try #require(hostSubmenu.items.first(where: { $0.title == "devbox (user@devbox)" }))
-        let removeHost = try #require(hostSubmenu.items.first(where: { $0.title == "Remove Host" }))
-
-        #expect(hostStatus.isEnabled == false)
-        #expect(removeHost.action == #selector(MenuBarCoordinator.removeHost(_:)))
-        let removePayload = try #require(removeHost.representedObject as? HostSelectionMenuItemPayload)
-        #expect(removePayload.hostDestination == "user@devbox")
-    }
-
-    @Test
-    func hostsSubmenuOffersReverifyActionWhenHostHasDisplayAccount() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let desired = makeAccount(name: "Business 2", withRateLimits: true)
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                remoteHosts: [
-                    makeRemoteHost(
-                        desiredAccount: desired,
-                        activeAccount: nil,
-                        verificationStatus: .failed,
-                        lastVerificationError: "devbox is using Business 1, not Business 2."
-                    )
-                ]
-            ),
-            target: coordinator
-        )
-
-        let hostsMenu = try #require(menu.items.first(where: { $0.title == "Hosts" })?.submenu)
-        let hostItem = try #require(hostsMenu.items.first(where: { $0.title == "devbox" }))
-        let hostSubmenu = try #require(hostItem.submenu)
-        let reverify = try #require(hostSubmenu.items.first(where: { $0.title == "Re-verify Remote Account" }))
-        let payload = try #require(reverify.representedObject as? HostSelectionMenuItemPayload)
-
-        #expect(reverify.action == #selector(MenuBarCoordinator.reverifyHost(_:)))
-        #expect(reverify.target === coordinator)
-        #expect(payload.hostDestination == "user@devbox")
-    }
-
-    @Test
-    func hostsSubmenuDisablesReverifyActionWhileHostIsAlreadyVerifying() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let desired = makeAccount(name: "Business 2", withRateLimits: true)
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                remoteHosts: [
-                    makeRemoteHost(
-                        desiredAccount: desired,
-                        activeAccount: nil,
-                        verificationStatus: .verifying
-                    )
-                ]
-            ),
-            target: coordinator
-        )
-
-        let hostsMenu = try #require(menu.items.first(where: { $0.title == "Hosts" })?.submenu)
-        let hostItem = try #require(hostsMenu.items.first(where: { $0.title == "devbox" }))
-        let hostSubmenu = try #require(hostItem.submenu)
-        let reverify = try #require(hostSubmenu.items.first(where: { $0.title == "Re-verify Remote Account" }))
-
-        #expect(reverify.isEnabled == false)
-    }
-
-    @Test
-    func hostsSubmenuOmitsReverifyActionWhenHostHasNoDesiredOrVerifiedAccount() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                remoteHosts: [
-                    makeRemoteHost(desiredAccount: nil, activeAccount: nil, verificationStatus: .unverified)
-                ]
-            ),
-            target: coordinator
-        )
-
-        let hostsMenu = try #require(menu.items.first(where: { $0.title == "Hosts" })?.submenu)
-        let hostItem = try #require(hostsMenu.items.first(where: { $0.title == "devbox" }))
-        let hostSubmenu = try #require(hostItem.submenu)
-
-        #expect(hostSubmenu.items.contains(where: { $0.title == "Re-verify Remote Account" }) == false)
-    }
-
-    @Test
-    func hostsSubmenuListsConnectedAndDisconnectedHosts() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                remoteHosts: [
-                    makeRemoteHost(
-                        name: "buildbox",
-                        destination: "user@buildbox",
-                        connectionState: .connected,
-                        activeAccount: makeAccount(name: "Remote 1", withRateLimits: true)
-                    ),
-                    makeRemoteHost(
-                        name: "debian-vm",
-                        destination: "user@debian-vm",
-                        connectionState: .disconnected,
-                        activeAccount: makeAccount(name: "Remote 2", withRateLimits: true)
-                    )
-                ]
-            ),
-            target: coordinator
-        )
-
-        let hostsMenu = try #require(menu.items.first(where: { $0.title == "Hosts" })?.submenu)
-        let buildbox = try #require(hostsMenu.items.first(where: { $0.title == "buildbox" })?.submenu)
-        let debian = try #require(hostsMenu.items.first(where: { $0.title == "debian-vm" })?.submenu)
-        let connectedStatus = try #require(buildbox.items.first(where: { $0.title == "Status: Connected" }))
-        let disconnectedStatus = try #require(debian.items.first(where: { $0.title == "Status: Disconnected" }))
-
-        #expect(connectedStatus.isEnabled == false)
-        #expect(disconnectedStatus.isEnabled == false)
-    }
-
-    @Test
-    func inactiveAccountSubmenuIncludesAllConfiguredHosts() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let inactive = makeAccount(name: "Business 3", withRateLimits: true)
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                inactiveAccounts: [inactive],
-                remoteHosts: [
-                    makeRemoteHost(activeAccount: nil),
-                    RemoteHostMenuState(
-                        name: "buildbox",
-                        destination: "user@buildbox",
-                        connectionState: .connected,
-                        activeAccount: nil,
-                        deployedAccountIDs: []
-                    )
-                ]
-            ),
-            target: coordinator
-        )
-
-        let accountItem = try #require(menu.items.first(where: { $0.attributedTitle?.string.contains(inactive.name) == true }))
-        let submenu = try #require(accountItem.submenu)
-
-        #expect(submenu.items.contains(where: { $0.title == "Install on devbox and switch" }))
-        #expect(submenu.items.contains(where: { $0.title == "Install on buildbox and switch" }))
-    }
-
-    @Test
-    func remoteAccountSectionUsesHostedCardInsteadOfPlainTextRow() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                remoteHosts: [makeRemoteHost(activeAccount: makeAccount(name: "Business 2", withRateLimits: true))]
-            ),
-            target: coordinator
-        )
-
-        #expect(menu.items.contains(where: { $0.title.contains("devbox • Connected") }) == false)
-        #expect(menu.items.filter { $0.view != nil }.count >= 4)
-    }
-
-    @Test
-    func activeAccountHostedViewFitsWithinConfiguredMenuWidth() {
-        let view = NSHostingView(
-            rootView: ActiveAccountMenuContent(
-                account: makeAccount(name: "Business 2", withRateLimits: true),
-                locations: [],
-                showsUpdatedTime: true,
-                progressAccentColor: .blue,
-                showsPacingMarkers: true
-            )
-        )
-
-        view.frame = NSRect(x: 0, y: 0, width: 372, height: 1)
-        view.layoutSubtreeIfNeeded()
-
-        #expect(view.fittingSize.width <= 372)
-    }
-
-    @Test
-    func activeAccountsSectionAddsSubtleDividerBetweenCardsOnly() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                remoteHosts: [
-                    makeRemoteHost(activeAccount: makeAccount(name: "Business 2", withRateLimits: true))
-                ]
-            ),
-            target: coordinator
-        )
-
-        let hostedViewNames = menu.items.compactMap(\.view).map { String(describing: type(of: $0)) }
-
-        #expect(hostedViewNames.filter { $0.contains("ActiveAccountMenuContent") }.count == 2)
-        #expect(hostedViewNames.filter { $0.contains("ActiveAccountCardDivider") }.count == 1)
-    }
-
-    @Test
-    func singleActiveAccountDoesNotAddActiveCardDivider() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", withRateLimits: true)),
-            target: coordinator
-        )
-
-        let hostedViewNames = menu.items.compactMap(\.view).map { String(describing: type(of: $0)) }
-
-        #expect(hostedViewNames.filter { $0.contains("ActiveAccountMenuContent") }.count == 1)
-        #expect(hostedViewNames.contains(where: { $0.contains("ActiveAccountCardDivider") }) == false)
-    }
-
-    @Test
-    func sectionHeaderAndActiveCardUseSameComputedWidth() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Personal", withRateLimits: true),
-                inactiveAccounts: [
-                    makeAccount(name: "Business 1", withRateLimits: true),
-                    makeAccount(name: "Business 2", withRateLimits: true)
-                ]
-            ),
-            target: coordinator
-        )
-
-        let headerWidth = try #require(menu.items.first?.view?.frame.width)
-        let cardWidth = try #require(menu.items.dropFirst().first?.view?.frame.width)
-
-        #expect(headerWidth == cardWidth)
-        #expect(headerWidth >= 372)
-    }
-
-    @Test
-    func wideAccountRowsExpandHostedSectionsToMatchMenuBudget() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let now = Date(timeIntervalSince1970: 1_744_195_200)
-        let wideAccountName = "Extremely Long Business Account Name For Width Regression Coverage"
-        let wideAccount = CodexAccount(
-            id: UUID(),
-            name: wideAccountName,
-            snapshotFileName: "wide-account.json",
-            createdAt: now,
-            updatedAt: now,
-            email: "wide@example.com",
-            planType: "team",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: "codex",
-                limitName: nil,
-                planType: "team",
-                primary: CodexRateLimitWindow(
-                    usedPercent: 100,
-                    resetsAt: now.addingTimeInterval((4 * 60 + 59) * 60),
-                    windowDurationMinutes: 300
-                ),
-                secondary: CodexRateLimitWindow(
-                    usedPercent: 78,
-                    resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60),
-                    windowDurationMinutes: 10_080
-                ),
-                fetchedAt: now
-            )
-        )
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Personal", withRateLimits: true),
-                inactiveAccounts: [wideAccount]
-            ),
-            target: coordinator
-        )
-
-        let headerWidth = try #require(menu.items.first?.view?.frame.width)
-        let widestLocalRow = try #require(
-            menu.items.first(where: { $0.submenu?.title == wideAccountName })
-        )
-        let rowWidth = inactiveAccountTitleWidth(
-            for: wideAccount,
-            displayName: compactMenuRowDisplayName(for: wideAccountName),
-            placement: nil,
-            menuContentWidth: headerWidth,
-            now: now
-        )
-
-        #expect(headerWidth == 372)
-        #expect(widestLocalRow.view == nil)
-        #expect(widestLocalRow.attributedTitle?.string.contains("…") == true)
-        #expect(rowWidth > 0)
-    }
-
-    @Test
-    func disconnectedVerifiedRemoteHostDoesNotRenderPrimaryRemoteSection() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                remoteHosts: [RemoteHostMenuState(
-                    name: "devbox",
-                    destination: "user@devbox",
-                    connectionState: .disconnected,
-                    desiredAccount: makeAccount(name: "Business 2", withRateLimits: true),
-                    activeAccount: makeAccount(name: "Business 2", withRateLimits: true)
-                )]
-            ),
-            target: coordinator
-        )
-
-        #expect(
-            menu.items
-                .compactMap(\.view)
-                .contains(where: { String(describing: type(of: $0)).contains("RemoteHostMenuContent") }) == false
-        )
-    }
-
-    @Test
-    func disconnectedFailedRemoteHostDoesNotRenderPrimaryRemoteSection() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let desired = makeAccount(name: "Business 2", withRateLimits: true)
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                remoteHosts: [RemoteHostMenuState(
-                    name: "devbox",
-                    destination: "user@devbox",
-                    connectionState: .disconnected,
-                    desiredAccount: desired,
-                    activeAccount: nil,
-                    verificationStatus: .failed,
-                    lastVerificationError: "devbox is using Business 1, not Business 2."
-                )]
-            ),
-            target: coordinator
-        )
-
-        #expect(
-            menu.items
-                .compactMap(\.view)
-                .contains(where: { String(describing: type(of: $0)).contains("RemoteHostMenuContent") }) == false
-        )
-    }
-
-    @Test
-    func remoteMismatchStaysInHostSubmenuAndDoesNotRenderActiveCard() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let desired = makeAccount(name: "Business 2", withRateLimits: true)
-        let detected = makeAccount(name: "Business 1", withRateLimits: true)
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                remoteHosts: [RemoteHostMenuState(
-                    name: "buildbox",
-                    destination: "user@buildbox",
-                    connectionState: .connected,
-                    desiredAccount: desired,
-                    activeAccount: nil,
-                    detectedAccount: detected,
-                    verificationStatus: .failed,
-                    lastVerificationError: "buildbox is using Business 1, not Business 2."
-                )]
-            ),
-            target: coordinator
-        )
-
-        let activeCards = menu.items
-            .compactMap(\.view)
-            .compactMap { $0 as? NSHostingView<ActiveAccountMenuContent> }
-        let hasRemoteCards = menu.items
-            .compactMap(\.view)
-            .contains(where: { String(describing: type(of: $0)).contains("RemoteHostMenuContent") })
-        let hostsMenu = try #require(menu.items.first(where: { $0.title == "Hosts" })?.submenu)
-        let hostSubmenu = try #require(hostsMenu.items.first(where: { $0.title == "buildbox" })?.submenu)
-        let adoptAction = try #require(hostSubmenu.items.first(where: { $0.title == "Use Detected Account (Business 1)" }))
-
-        #expect(activeCards.count == 1)
-        #expect(activeCards.first?.rootView.account.name == "Active")
-        #expect(hasRemoteCards == false)
-        #expect(adoptAction.action == #selector(MenuBarCoordinator.adoptDetectedRemoteAccount(_:)))
-    }
-
-    @Test
-    func inactiveAccountUsesInstallAndSwitchCopyWhenMissingOnRemoteHost() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let inactive = makeAccount(name: "Business 3", withRateLimits: true)
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                inactiveAccounts: [inactive],
-                remoteHosts: [makeRemoteHost(activeAccount: nil, deployedAccountIDs: [])]
-            ),
-            target: coordinator
-        )
-
-        let accountItem = try #require(menu.items.first(where: { $0.attributedTitle?.string.contains(inactive.name) == true }))
-        let submenu = try #require(accountItem.submenu)
-        let remoteAction = try #require(submenu.items.first(where: { $0.title == "Install on devbox and switch" }))
-
-        #expect(accountItem.attributedTitle?.string.contains("S ") == true)
-        #expect(remoteAction.action == #selector(MenuBarCoordinator.switchAccountOnHost(_:)))
-        let remotePayload = try #require(remoteAction.representedObject as? HostAccountMenuItemPayload)
-        #expect(remotePayload.accountID == inactive.id)
-        #expect(remotePayload.hostDestination == "user@devbox")
-    }
-
-    @Test
-    func activeRemoteAccountCardAndAccountUsageResolveAgainstCanonicalSavedAccountIdentity() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let canonical = makeAccount(name: "Business 2", withRateLimits: true)
-        let remoteClone = CodexAccount(
-            id: UUID(),
-            name: canonical.name,
-            snapshotFileName: canonical.snapshotFileName,
-            createdAt: canonical.createdAt,
-            updatedAt: canonical.updatedAt.addingTimeInterval(60),
-            email: canonical.email,
-            planType: canonical.planType,
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: nil,
-                limitName: nil,
-                planType: canonical.planType,
-                primary: nil,
-                secondary: canonical.rateLimits?.secondary,
-                fetchedAt: canonical.updatedAt.addingTimeInterval(60)
-            ),
-            identity: canonical.identity
-        )
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: nil,
-                inactiveAccounts: [canonical],
-                remoteHosts: [makeRemoteHost(name: "debian-vm", activeAccount: remoteClone)]
-            ),
-            target: coordinator
-        )
-
-        let remoteCard = try #require(
-            menu.items
-                .compactMap(\.view)
-                .compactMap { $0 as? NSHostingView<ActiveAccountMenuContent> }
-                .first
-        )
-        let accountItem = try #require(menu.items.first(where: { $0.attributedTitle?.string.contains(canonical.name) == true }))
-        let emailItem = try #require(accountItem.submenu?.items.first)
-        let usageStatusItem = try #require(accountItem.submenu?.items.dropFirst().first)
-
-        #expect(remoteCard.rootView.account.id == canonical.id)
-        #expect(remoteCard.rootView.account.rateLimits?.primary?.usedPercent == canonical.rateLimits?.primary?.usedPercent)
-        #expect(remoteCard.rootView.locations == ["debian-vm"])
-        #expect(emailItem.title == canonical.email)
-        #expect(emailItem.isEnabled == false)
-        #expect(usageStatusItem.title == "In use on: debian-vm")
-    }
-
-    @Test
-    func activeAccountsSectionRendersLocalAndOneHostedCardPerConnectedHost() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                remoteHosts: [
-                    makeRemoteHost(
-                        activeAccount: makeAccount(name: "Business 2", withRateLimits: true)
-                    ),
-                    RemoteHostMenuState(
-                        name: "buildbox",
-                        destination: "user@buildbox",
-                        connectionState: .connected,
-                        activeAccount: makeAccount(name: "Business 3", withRateLimits: true),
-                        deployedAccountIDs: []
-                    )
-                ]
-            ),
-            target: coordinator
-        )
-
-        let activeCards = menu.items
-            .compactMap(\.view)
-            .compactMap { $0 as? NSHostingView<ActiveAccountMenuContent> }
-        let hasRemoteCards = menu.items
-            .compactMap(\.view)
-            .contains(where: { String(describing: type(of: $0)).contains("RemoteHostMenuContent") })
-
-        #expect(activeCards.map(\.rootView.account.name) == ["Active", "Business 2", "Business 3"])
-        #expect(activeCards.map(\.rootView.locations) == [["This Mac"], ["devbox"], ["buildbox"]])
-        #expect(hasRemoteCards == false)
-    }
-
-    @Test
-    func sameLocalAndVerifiedRemoteAccountCollapsesRemoteCardButKeepsHostSubmenu() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let active = makeAccount(name: "Business 2", withRateLimits: true)
-        var remote = active
-        remote.updatedAt = active.updatedAt.addingTimeInterval(60)
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: active,
-                remoteHosts: [
-                    makeRemoteHost(
-                        name: "debian-vm",
-                        destination: "user@debian-vm",
-                        desiredAccount: active,
-                        activeAccount: remote,
-                        deployedAccountIDs: [active.id]
-                    )
-                ]
-            ),
-            target: coordinator
-        )
-
-        let hasRemoteCards = menu.items
-            .compactMap(\.view)
-            .contains(where: { String(describing: type(of: $0)).contains("RemoteHostMenuContent") })
-        let currentCard = try #require(
-            menu.items
-                .compactMap(\.view)
-                .compactMap { $0 as? NSHostingView<ActiveAccountMenuContent> }
-                .first
-        )
-        let hostsMenu = try #require(menu.items.first(where: { $0.title == "Hosts" })?.submenu)
-        let hostSubmenu = try #require(hostsMenu.items.first(where: { $0.title == "debian-vm" })?.submenu)
-        let statusRow = try #require(hostSubmenu.items.first(where: { $0.title == "Status: Connected" }))
-        let desiredRow = try #require(hostSubmenu.items.first(where: { $0.title == "Desired account: Business 2" }))
-
-        #expect(hasRemoteCards == false)
-        #expect(currentCard.rootView.locations == ["This Mac", "debian-vm"])
-        #expect(statusRow.isEnabled == false)
-        #expect(desiredRow.isEnabled == false)
-    }
-
-    @Test
     func statusItemMenuIncludesColorCustomizationAndReset() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", withRateLimits: true)),
+            state: makeState(activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now))),
             target: coordinator
         )
 
-        let preferencesMenu = try #require(menu.items.first(where: { $0.title == "Preferences" })?.submenu)
+        let preferencesMenu = try appearanceMenu(in: menu)
         let usageBarsMenu = try #require(preferencesMenu.items.first(where: { $0.title == "Usage Bars" })?.submenu)
-        let accent = try #require(usageBarsMenu.items.first(where: { $0.title == "Accent Color…" }))
-        let reset = try #require(usageBarsMenu.items.first(where: { $0.title == "Use Default" }))
+        let session = try #require(usageBarsMenu.items.first(where: { $0.title == "Session Color…" }))
+        let weekly = try #require(usageBarsMenu.items.first(where: { $0.title == "Weekly Color…" }))
+        let sameColor = try #require(usageBarsMenu.items.first(where: { $0.title == "Same Color for Both" }))
+        let reset = try #require(usageBarsMenu.items.first(where: { $0.title == "Use Default Colors" }))
 
-        #expect(accent.action == #selector(MenuBarCoordinator.chooseProgressAccentColor(_:)))
-        #expect(accent.image == nil)
-        #expect(reset.action == #selector(MenuBarCoordinator.resetProgressAccentColor(_:)))
+        #expect(session.action == #selector(MenuBarCoordinator.chooseSessionAccentColor(_:)))
+        #expect(session.image == nil)
+        #expect(weekly.action == #selector(MenuBarCoordinator.chooseWeeklyAccentColor(_:)))
+        #expect(sameColor.action == #selector(MenuBarCoordinator.toggleOneUsageColor(_:)))
+        #expect(sameColor.state == .on)
+        #expect(reset.action == #selector(MenuBarCoordinator.resetUsageColors(_:)))
         #expect(!reset.isEnabled)
     }
 
     @Test
-    func preferencesMenuGroupsIconAndMarkerControls() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", withRateLimits: true)),
-            target: coordinator
-        )
-
-        let preferencesMenu = try #require(menu.items.first(where: { $0.title == "Preferences" })?.submenu)
-        let usageBarsMenu = try #require(preferencesMenu.items.first(where: { $0.title == "Usage Bars" })?.submenu)
-        let usageBarTitles = usageBarsMenu.items.map(\.title)
-        let showMarkers = try #require(usageBarsMenu.items.first(where: { $0.title == "Show Pace Markers" }))
-
-        #expect(preferencesMenu.items.map(\.title) == ["Menu Bar Label", "Icon Style", "Usage Bars", "Token Usage", "App Icon", "", "Launch at Login"])
-        #expect(preferencesMenu.items[5].isSeparatorItem)
-        #expect(usageBarTitles == ["Show Pace Markers", "Accent Color…", "Use Default"])
-        #expect(preferencesMenu.items.first(where: { $0.title == "Menu Bar Label" })?.image == nil)
-        #expect(preferencesMenu.items.first(where: { $0.title == "Icon Style" })?.image == nil)
-        #expect(usageBarsMenu.items.first(where: { $0.title == "Accent Color…" })?.image == nil)
-        #expect(showMarkers.action == #selector(MenuBarCoordinator.togglePacingMarkers(_:)))
-        #expect(showMarkers.state == .on)
-    }
-
-    @Test
-    func appIconPreferenceListsColorsWithCurrentOneChecked() throws {
+    func appIconMenuListsColorsWithCurrentOneChecked() throws {
         let menu = MenuBarMenuBuilder().makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", withRateLimits: true), appIconColor: .honey),
+            state: makeState(activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)), appIconColor: .honey),
             target: try makeCoordinator()
         )
 
-        let preferencesMenu = try #require(menu.items.first(where: { $0.title == "Preferences" })?.submenu)
-        let appIconMenu = try #require(preferencesMenu.items.first(where: { $0.title == "App Icon" })?.submenu)
+        let appIconMenu = try #require(appearanceMenu(in: menu).items.first(where: { $0.title == "App Icon" })?.submenu)
 
         #expect(appIconMenu.items.map(\.title) == ["Cobalt", "Deep teal", "Emerald", "Violet", "Honey", "Rose"])
         #expect(appIconMenu.items.filter { $0.state == .on }.map(\.title) == ["Honey"])
     }
 
     @Test
-    func coordinatorPersistsAndAppliesSelectedAppIconColor() throws {
+    func selectingAnAppIconColorSavesAndAppliesIt() throws {
         let applier = AppIconApplierProbe()
-        let (coordinator, settings) = try makeCoordinatorAndSettings(appIconApplier: applier)
+        let suiteName = "MenuBarMenuBuilderTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = SettingsStores(userDefaults: defaults)
+        let repository = try makeIsolatedRepository()
+        let coordinator = MenuBarCoordinator.makeForTesting(
+            statusItemRuntime: StatusItemRuntime(statusItem: NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)),
+            accountsController: AccountsFeatureFactory(
+                repository: repository,
+                authService: CodexAuthSnapshotService(repository: repository),
+                codexAppProcessClient: CodexAppProcessProbe(),
+                accountStatusClient: DisabledAccountStatusClient()
+            ).makeController(),
+            settings: settings,
+            alertPresenter: AlertPresenterProbe(),
+            appIconApplier: applier
+        )
         let item = NSMenuItem()
         item.representedObject = AppIconColor.violet.rawValue
 
         coordinator.selectAppIconColor(item)
 
-        #expect(settings.appIconColor == .violet)
+        #expect(settings.appIconPreferences.appIconColor == .violet)
         #expect(applier.appliedColors == [.violet])
+    }
+
+    @Test
+    func appearanceMenuGroupsIconAndMarkerControls() throws {
+        let builder = MenuBarMenuBuilder()
+        let coordinator = try makeCoordinator()
+        let menu = builder.makeMenu(
+            state: makeState(activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now))),
+            target: coordinator
+        )
+
+        let preferencesMenu = try appearanceMenu(in: menu)
+        let usageBarsMenu = try #require(preferencesMenu.items.first(where: { $0.title == "Usage Bars" })?.submenu)
+        let usageBarTitles = usageBarsMenu.items.map(\.title)
+        let showMarkers = try #require(usageBarsMenu.items.first(where: { $0.title == "Show Pace Markers" }))
+
+        #expect(preferencesMenu.items.map(\.title) == ["Menu Bar Label", "Icon Style", "Usage Bars", "App Icon", "", "Show Token Usage"])
+        #expect(usageBarTitles == [
+            "Show % Used", "Show % Left", "",
+            "Classic Layout", "Compact Layout", "",
+            "Show Pace Markers", "",
+            "Session Color…", "Weekly Color…", "Same Color for Both", "Use Default Colors"
+        ])
+        #expect(preferencesMenu.items.first(where: { $0.title == "Menu Bar Label" })?.image == nil)
+        #expect(preferencesMenu.items.first(where: { $0.title == "Icon Style" })?.image == nil)
+        #expect(usageBarsMenu.items.first(where: { $0.title == "Show % Used" })?.state == .on)
+        #expect(usageBarsMenu.items.first(where: { $0.title == "Classic Layout" })?.state == .on)
+        #expect(showMarkers.action == #selector(MenuBarCoordinator.togglePacingMarkers(_:)))
+        #expect(showMarkers.state == .on)
     }
 
     @Test
     func launchAtLoginPreferenceReflectsEnabledState() throws {
         let menu = MenuBarMenuBuilder().makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
                 loginItemState: .enabled
             ),
             target: try makeCoordinator()
@@ -1793,7 +597,7 @@ struct MenuBarMenuBuilderTests {
     func launchAtLoginPreferenceReflectsDisabledState() throws {
         let menu = MenuBarMenuBuilder().makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
                 loginItemState: .disabled
             ),
             target: try makeCoordinator()
@@ -1811,7 +615,7 @@ struct MenuBarMenuBuilderTests {
     func launchAtLoginPreferenceOpensSettingsWhenApprovalIsRequired() throws {
         let menu = MenuBarMenuBuilder().makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
                 loginItemState: .requiresApproval
             ),
             target: try makeCoordinator()
@@ -1829,7 +633,7 @@ struct MenuBarMenuBuilderTests {
     func launchAtLoginPreferenceOpensSettingsWhenUnavailable() throws {
         let menu = MenuBarMenuBuilder().makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
                 loginItemState: .unavailable
             ),
             target: try makeCoordinator()
@@ -1946,18 +750,18 @@ struct MenuBarMenuBuilderTests {
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                progressAccentColor: NSColor(deviceRed: 0.12, green: 0.45, blue: 0.78, alpha: 1),
-                hasCustomProgressAccentColor: true
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
+                sessionAccentColor: NSColor(deviceRed: 0.12, green: 0.45, blue: 0.78, alpha: 1),
+                hasCustomUsageColors: true
             ),
             target: coordinator
         )
 
-        let preferencesMenu = try #require(menu.items.first(where: { $0.title == "Preferences" })?.submenu)
+        let preferencesMenu = try appearanceMenu(in: menu)
         let usageBarsMenu = try #require(preferencesMenu.items.first(where: { $0.title == "Usage Bars" })?.submenu)
-        let reset = try #require(usageBarsMenu.items.first(where: { $0.title == "Use Default" }))
+        let reset = try #require(usageBarsMenu.items.first(where: { $0.title == "Use Default Colors" }))
 
-        #expect(reset.action == #selector(MenuBarCoordinator.resetProgressAccentColor(_:)))
+        #expect(reset.action == #selector(MenuBarCoordinator.resetUsageColors(_:)))
         #expect(reset.isEnabled)
     }
 
@@ -1967,8 +771,8 @@ struct MenuBarMenuBuilderTests {
         let (coordinator, statusItem) = try makeCoordinatorWithStatusItem()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                inactiveAccounts: [makeAccount(name: "Business 3", withRateLimits: true)]
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
+                inactiveAccounts: [makeAccount(name: "Business 3", usage: makeUsage(resettingAfter: .now))]
             ),
             target: coordinator
         )
@@ -1980,47 +784,13 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func openingMenuDoesNotReplaceInactiveAccountRowsDuringOpen() throws {
-        let builder = MenuBarMenuBuilder()
-        let (coordinator, statusItem) = try makeCoordinatorWithStatusItem()
-        let inactive = makeAccount(name: "Business 3", withRateLimits: true)
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                inactiveAccounts: [inactive]
-            ),
-            target: coordinator
-        )
-
-        statusItem.menu = menu
-        let visibleRowBeforeOpen = try #require(
-            menu.items.first(where: { ($0.representedObject as? String) == inactive.id.uuidString })
-        )
-
-        coordinator.menuWillOpen(menu)
-
-        let visibleRowAfterOpen = try #require(
-            menu.items.first(where: { ($0.representedObject as? String) == inactive.id.uuidString })
-        )
-        let localAction = try #require(
-            visibleRowAfterOpen.submenu?.items.first(where: { $0.title == "Switch on This Mac" })
-        )
-
-        #expect(visibleRowAfterOpen === visibleRowBeforeOpen)
-        #expect(visibleRowAfterOpen.submenu === visibleRowBeforeOpen.submenu)
-        #expect(visibleRowAfterOpen.action != #selector(MenuBarCoordinator.switchAccount(_:)))
-        #expect(localAction.action == #selector(MenuBarCoordinator.switchAccount(_:)))
-        #expect(localAction.target === coordinator)
-    }
-
-    @Test
     func menuNeedsUpdateDoesNotRepopulateMenuItemsDuringOpen() throws {
         let builder = MenuBarMenuBuilder()
         let (coordinator, statusItem) = try makeCoordinatorWithStatusItem()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
-                inactiveAccounts: [makeAccount(name: "Business 3", withRateLimits: true)]
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
+                inactiveAccounts: [makeAccount(name: "Business 3", usage: makeUsage(resettingAfter: .now))]
             ),
             target: coordinator
         )
@@ -2044,16 +814,15 @@ struct MenuBarMenuBuilderTests {
         let provider = TokenUsageMenuProviderProbe()
         let (coordinator, statusItem) = try makeCoordinatorWithStatusItem(
             tokenUsageProvider: provider,
-            configureSettings: {
-                $0.tokenUsageEnabled = true
-                $0.tokenUsagePeriod = .last30Days
+            configureTokenUsage: {
+                $0.isEnabled = true
+                $0.period = .last30Days
             }
         )
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
                 tokenUsageEnabled: true,
-                tokenUsagePeriod: .last30Days,
                 tokenUsageCard: makeTokenUsageCard(loadState: .loading(nil))
             ),
             target: coordinator
@@ -2090,16 +859,15 @@ struct MenuBarMenuBuilderTests {
         let (coordinator, statusItem) = try makeCoordinatorWithStatusItem(
             loginItemController: loginItemController,
             tokenUsageProvider: provider,
-            configureSettings: {
-                $0.tokenUsageEnabled = true
-                $0.tokenUsagePeriod = .last30Days
+            configureTokenUsage: {
+                $0.isEnabled = true
+                $0.period = .last30Days
             }
         )
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", withRateLimits: true),
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
                 tokenUsageEnabled: true,
-                tokenUsagePeriod: .last30Days,
                 tokenUsageCard: makeTokenUsageCard(loadState: .loading(nil))
             ),
             target: coordinator
@@ -2130,23 +898,308 @@ struct MenuBarMenuBuilderTests {
         #expect(!menuItems(menu.items, areSameInstancesAs: itemsBeforeClosedProgress))
     }
 
-    private func statusItemContentMenu(in menu: NSMenu) -> NSMenu? {
-        menu.items
-            .first(where: { $0.title == "Preferences" })?
-            .submenu?
-            .items
-            .first(where: { $0.title == "Menu Bar Label" })?
-            .submenu
+    @Test
+    func mainMenuShowsOneCardPerToolThenSettingsAndQuit() throws {
+        let menu = MenuBarMenuBuilder().makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
+                providerUsage: [
+                    ProviderUsageState(provider: .claude, status: .current(providerSnapshot(.claude))),
+                    ProviderUsageState(provider: .cursor, status: .current(providerSnapshot(.cursor))),
+                ]
+            ),
+            target: try makeCoordinator()
+        )
+
+        #expect(menu.items.map(\.title) == ["Claude", "", "Codex", "", "Cursor", "", "Settings", "", "Quit"])
+        #expect(menu.items.filter { $0.view is MenuCardItemView }.map(\.title) == ["Claude", "Codex", "Cursor"])
+        #expect(menu.items.filter { $0.view is MenuCardItemView }.allSatisfy { $0.submenu != nil })
+        #expect(menu.items.last?.keyEquivalent == "q")
     }
 
-    private func notificationsSubmenu(in menu: NSMenu) throws -> NSMenu {
-        let item = try #require(menu.items.first(where: { $0.title == "Notifications" }))
-        return try #require(item.submenu)
+    @Test
+    func firstRunMenuOffersToAddAnAccountForEveryTool() throws {
+        let menu = MenuBarMenuBuilder().makeMenu(
+            state: makeState(
+                activeAccount: nil,
+                providerUsage: [
+                    ProviderUsageState(provider: .claude, status: .notConnected),
+                    ProviderUsageState(provider: .cursor, status: .notConnected),
+                ]
+            ),
+            target: try makeCoordinator()
+        )
+        let addAccount = try #require(menu.items.first?.submenu)
+
+        #expect(menu.items.map(\.title) == ["Add Account", "", "Settings", "", "Quit"])
+        #expect(addAccount.items.map(\.title) == ["Codex…", "Claude…", "Cursor…"])
+        #expect(addAccount.items.map(providerAction) == [.addAccount, .connect, .connect])
+    }
+
+    @Test
+    func codexSideMenuSwitchesAccountsUsesResetsAndShowsTokenUsage() throws {
+        let nov5 = Date(timeIntervalSince1970: 1_793_880_000)
+        var usage = makeUsage(resettingAfter: .now)
+        usage.resetCredits = UsageResetCredits(
+            availableCount: 2,
+            credits: [UsageResetCredit(expiresAt: nov5.addingTimeInterval(15 * 86_400)), UsageResetCredit(expiresAt: nov5)]
+        )
+        let active = makeAccount(name: "Alex", email: "alex@example.com", usage: usage)
+        let first = makeAccount(name: "Side", email: "side@example.com")
+        let second = makeAccount(name: "Team", email: "team@example.com")
+        let menu = MenuBarMenuBuilder(locale: Locale(identifier: "en_GB"), timeZone: TimeZone(identifier: "GMT")!).makeMenu(
+            state: makeState(
+                activeAccount: active,
+                inactiveAccounts: [first, second],
+                tokenUsageEnabled: true,
+                tokenUsageCard: makeTokenUsageCard(loadState: .loading(nil))
+            ),
+            target: try makeCoordinator()
+        )
+
+        let side = try #require(menu.items.first { $0.title == "Codex" }?.submenu)
+        let rows = try side.items[1...2].map { try #require($0.submenu) }
+
+        #expect(side.items.map(\.title) == [
+            "alex@example.com", "side@example.com", "team@example.com", "",
+            "Use a Reset…", "Expires 5 Nov", "Expires 20 Nov", "Token Usage", "",
+            "Add Codex Account…",
+        ])
+        #expect(side.items[0].state == .on && !side.items[0].isEnabled && side.items[0].submenu == nil)
+        #expect(rows.map { $0.items.map(\.title) } == [["Use", "Remove…"], ["Use", "Remove…"]])
+        #expect(rows.map { $0.items.map(providerAction) } == [
+            [.switchAccount(first.id), .removeAccount(first.id)], [.switchAccount(second.id), .removeAccount(second.id)],
+        ])
+        #expect(side.items[5].isEnabled == false && side.items[5].indentationLevel == 1)
+        #expect(providerAction(side.items[4]) == .useResetCredit)
+    }
+
+    @Test(arguments: [UsageProvider.claude, .cursor])
+    func everyToolsSideMenuOffersUseAndRemoveOnlyForAccountsNotInUse(provider: UsageProvider) throws {
+        let active = ProviderAccount(id: UUID(), email: "alex@example.com", isActive: true)
+        let saved = ProviderAccount(id: UUID(), email: "sam@acme.dev", isActive: false)
+        let menu = MenuBarMenuBuilder().makeMenu(
+            state: makeState(
+                activeAccount: nil,
+                providerUsage: [
+                    ProviderUsageState(provider: provider, status: .current(providerSnapshot(provider)), accounts: [active, saved], signInAvailability: .available),
+                ]
+            ),
+            target: try makeCoordinator()
+        )
+
+        let side = try #require(menu.items.first?.submenu)
+        let row = try #require(side.items[1].submenu)
+
+        #expect(side.items.map(\.title) == ["alex@example.com", "sam@acme.dev", "", "Add \(provider.copy.sectionTitle) Account…"])
+        #expect(side.items[0].state == .on && !side.items[0].isEnabled && side.items[0].submenu == nil)
+        #expect(row.items.map(\.title) == ["Use", "Remove…"])
+        #expect(row.items.map(providerAction) == [.switchAccount(saved.id), .removeAccount(saved.id)])
+    }
+
+    @Test
+    func settingsDisconnectsEachConnectedTool() throws {
+        let menu = MenuBarMenuBuilder().makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
+                providerUsage: [
+                    ProviderUsageState(provider: .claude, status: .current(providerSnapshot(.claude))),
+                    ProviderUsageState(provider: .cursor, status: .notConnected),
+                ]
+            ),
+            target: try makeCoordinator()
+        )
+
+        let settings = try settingsMenu(in: menu)
+        let disconnects = settings.items.filter { $0.title.hasPrefix("Disconnect") }
+
+        #expect(disconnects.map(\.title) == ["Disconnect Claude"])
+        #expect(disconnects.map(providerAction) == [.disconnect])
+        #expect(try #require(menu.items.first?.submenu).items.allSatisfy { !$0.title.hasPrefix("Disconnect") })
+    }
+
+    @Test
+    func removeAsksBeforeForgettingTheAccount() throws {
+        let alerts = AlertPresenterProbe()
+        let coordinator = try makeCoordinatorWithStatusItem(alertPresenter: alerts).0
+        let saved = ProviderAccount(id: UUID(), email: "sam@acme.dev", isActive: false)
+        let menu = MenuBarMenuBuilder().makeMenu(
+            state: makeState(
+                activeAccount: nil,
+                providerUsage: [ProviderUsageState(provider: .claude, status: .current(providerSnapshot(.claude)), accounts: [saved])]
+            ),
+            target: coordinator
+        )
+        let remove = try #require(menu.items.first?.submenu?.items.first?.submenu?.items.last)
+        let action = try #require(remove.action)
+
+        NSApplication.shared.sendAction(action, to: remove.target, from: remove)
+
+        #expect(alerts.confirmationRequests.map(\.messageText) == ["Remove this Claude Code account?"])
+    }
+
+    @Test
+    func claudeSideMenuListsAccountsWithTheirLimitsAndMasksEmails() throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let savedUsage = UsageSnapshot(
+            provider: .claude,
+            planName: "max",
+            windows: [
+                UsageWindow(kind: .session, usedPercent: 12, resetsAt: now.addingTimeInterval(3_600), durationMinutes: 300),
+                UsageWindow(kind: .weekly, usedPercent: 40, resetsAt: now.addingTimeInterval(86_400), durationMinutes: 10_080),
+            ],
+            fetchedAt: now
+        )
+        let saved = ProviderAccount(id: UUID(), email: "sam@acme.dev", isActive: false, usage: savedUsage)
+        let active = ProviderAccount(id: UUID(), email: "alex@example.com", isActive: true)
+        let menu = MenuBarMenuBuilder().makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Work", usage: makeUsage(resettingAfter: now)),
+                providerUsage: [
+                    ProviderUsageState(
+                        provider: .claude,
+                        status: .unavailable(.keychainAccessNeeded, lastSnapshot: nil),
+                        accounts: [saved, active],
+                        signInAvailability: .available
+                    ),
+                ],
+                masksEmails: true,
+                now: now
+            ),
+            target: try makeCoordinator()
+        )
+
+        let side = try #require(menu.items.first?.submenu)
+
+        #expect(menu.items.map(\.title) == ["Claude", "Allow Keychain access…", "", "Codex", "", "Settings", "", "Quit"])
+        #expect(providerAction(menu.items[1]) == .allowKeychainAccess)
+        #expect(side.items.map(\.title) == [
+            "a•••x@example.com", "s•••m@acme.dev\nSession 12% · Weekly 40% used", "",
+            "Move to Top", "Move Up", "Move Down", "",
+            "Add Claude Account…",
+        ])
+        #expect(side.items.filter { $0.title.hasPrefix("Move") }.map(\.isEnabled) == [false, false, true])
+        #expect(side.items[3...5].compactMap { $0.representedObject as? [UsageProvider] } == [[.codex, .claude, .cursor]])
+        #expect(providerAction(side.items[7]) == .addAccount)
+    }
+
+    @Test
+    func withoutClaudeCodeAddingAClaudeAccountIsOffWithOneLineWhy() throws {
+        let menu = MenuBarMenuBuilder().makeMenu(
+            state: makeState(
+                activeAccount: nil,
+                providerUsage: [ProviderUsageState(provider: .claude, status: .unavailable(.signedOut, lastSnapshot: nil), signInAvailability: .notInstalled)]
+            ),
+            target: try makeCoordinator()
+        )
+
+        let side = try #require(menu.items.first?.submenu)
+        let add = try #require(side.items.first { $0.title == "Add Claude Account…" })
+
+        #expect(menu.items.map(\.title) == ["Claude", "", "Settings", "", "Quit"])
+        #expect(add.isEnabled == false)
+        #expect(side.items.map(\.title) == ["Add Claude Account…", "Install Claude Code first"])
+    }
+
+    @Test
+    func aClaudeCodeWithNoSignInOffersSignInUnderTheCardAndSigningInOffersCancel() throws {
+        let signedOut = MenuBarMenuBuilder().makeMenu(
+            state: makeState(
+                activeAccount: nil,
+                providerUsage: [ProviderUsageState(provider: .claude, status: .unavailable(.signedOut, lastSnapshot: nil), signInAvailability: .available)]
+            ),
+            target: try makeCoordinator()
+        )
+        let signingIn = MenuBarMenuBuilder().makeMenu(
+            state: makeState(
+                activeAccount: nil,
+                providerUsage: [
+                    ProviderUsageState(provider: .claude, status: .unavailable(.signedOut, lastSnapshot: nil), isSigningIn: true, signInAvailability: .available),
+                ]
+            ),
+            target: try makeCoordinator()
+        )
+
+        #expect(signedOut.items.map(\.title) == ["Claude", "Sign In…", "", "Settings", "", "Quit"])
+        #expect(providerAction(signedOut.items[1]) == .addAccount)
+        #expect(signingIn.items.map(\.title) == ["Claude", "Cancel Sign-In", "", "Settings", "", "Quit"])
+        #expect(providerAction(signingIn.items[1]) == .cancelSignIn)
+    }
+
+    @Test
+    func aSignedOutCursorOffersNoSignInBecauseAddingAnAccountLeavesCursorSignedOut() throws {
+        let menu = MenuBarMenuBuilder().makeMenu(
+            state: makeState(
+                activeAccount: nil,
+                providerUsage: [ProviderUsageState(provider: .cursor, status: .unavailable(.signedOut, lastSnapshot: nil), signInAvailability: .available)]
+            ),
+            target: try makeCoordinator()
+        )
+
+        #expect(menu.items.map(\.title) == ["Cursor", "", "Settings", "", "Quit"])
+    }
+
+    @Test
+    func settingsHoldsSetupAndRareChoices() throws {
+        let menu = MenuBarMenuBuilder().makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
+                providerUsage: [ProviderUsageState(provider: .claude, status: .current(providerSnapshot(.claude)), signInAvailability: .available)],
+                masksEmails: true
+            ),
+            target: try makeCoordinator()
+        )
+
+        let settings = try settingsMenu(in: menu)
+        let addAccount = try #require(settings.items.first { $0.title == "Add Account" }?.submenu)
+        let refresh = try #require(settings.items.first { $0.title == "Refresh Every" }?.submenu)
+
+        #expect(settings.items.map(\.title) == [
+            "Add Account", "Disconnect Claude", "", "Appearance", "Hide Emails", "Refresh Every", "Launch at Login", "", "Diagnostics…", "About",
+        ])
+        #expect(settings.items.first { $0.title == "Hide Emails" }?.state == .on)
+        #expect(addAccount.items.map(providerAction) == [.addAccount, .addAccount, .connect])
+        #expect(refresh.items.map(\.title) == ["1 minute", "2 minutes", "5 minutes", "10 minutes", "15 minutes", "30 minutes"])
+        #expect(refresh.items.first { $0.state == .on }?.title == "5 minutes")
+    }
+
+    @Test
+    func hideEmailsAndSectionMovesPersistThroughTheCoordinator() throws {
+        let coordinator = try makeCoordinator()
+        let move = NSMenuItem()
+        move.representedObject = [UsageProvider.cursor, .codex, .claude]
+
+        coordinator.toggleMasksEmails(NSMenuItem())
+        coordinator.reorderTools(move)
+
+        #expect(coordinator.menuState().masksEmails)
+        #expect(coordinator.menuState().toolOrder == [.cursor, .codex, .claude])
+    }
+
+    private func providerSnapshot(_ provider: UsageProvider) -> UsageSnapshot {
+        let kind: UsageWindowKind = provider == .cursor ? .billingCycle : .weekly
+        return UsageSnapshot(
+            provider: provider,
+            planName: "pro",
+            windows: [UsageWindow(kind: kind, usedPercent: 40, resetsAt: .now.addingTimeInterval(86_400), durationMinutes: nil)],
+            fetchedAt: .now
+        )
+    }
+
+    private func settingsMenu(in menu: NSMenu) throws -> NSMenu {
+        try #require(menu.items.first(where: { $0.title == "Settings" })?.submenu)
+    }
+
+    private func appearanceMenu(in menu: NSMenu) throws -> NSMenu {
+        try #require(settingsMenu(in: menu).items.first(where: { $0.title == "Appearance" })?.submenu)
+    }
+
+    private func statusItemContentMenu(in menu: NSMenu) -> NSMenu? {
+        try? appearanceMenu(in: menu).items.first(where: { $0.title == "Menu Bar Label" })?.submenu
     }
 
     private func launchAtLoginItem(in menu: NSMenu) throws -> NSMenuItem {
-        let preferencesMenu = try #require(menu.items.first(where: { $0.title == "Preferences" })?.submenu)
-        return try #require(preferencesMenu.items.first(where: { $0.title.hasPrefix("Launch at Login") }))
+        try #require(settingsMenu(in: menu).items.first(where: { $0.title.hasPrefix("Launch at Login") }))
     }
 
     private func makeCoordinator() throws -> MenuBarCoordinator {
@@ -2158,70 +1211,45 @@ struct MenuBarMenuBuilderTests {
         loginItemController: LoginItemControlling = LoginItemControllerProbe(),
         loginItemsSettingsLauncher: LoginItemsSettingsLaunching = LoginItemsSettingsLauncherProbe(),
         diagnosticReportPresenter: DiagnosticReportPresenting? = nil,
-        tokenUsageProvider: TokenUsageMenuProviding = LocalCodexSessionTokenUsageMenuProvider(),
-        configureSettings: (CodexPillSettingsStore) -> Void = { _ in }
+        tokenUsageProvider: TokenUsageMenuProviding = LocalCodexSessionTokenUsageMenuProvider(
+            cacheFile: FileManager.default.temporaryDirectory
+                .appendingPathComponent("MenuBarMenuBuilderTests-\(UUID().uuidString)/token-usage-cache.json")
+        ),
+        configureTokenUsage: (TokenUsagePreferencesStore) -> Void = { _ in }
     ) throws -> (MenuBarCoordinator, NSStatusItem) {
-        let (coordinator, _, statusItem) = try makeCoordinatorHarness(
-            alertPresenter: alertPresenter,
-            loginItemController: loginItemController,
-            loginItemsSettingsLauncher: loginItemsSettingsLauncher,
-            diagnosticReportPresenter: diagnosticReportPresenter,
-            tokenUsageProvider: tokenUsageProvider,
-            configureSettings: configureSettings
-        )
-        return (coordinator, statusItem)
-    }
-
-    private func makeCoordinatorAndSettings(
-        appIconApplier: AppIconApplying
-    ) throws -> (MenuBarCoordinator, CodexPillSettingsStore) {
-        let (coordinator, settings, _) = try makeCoordinatorHarness(appIconApplier: appIconApplier)
-        return (coordinator, settings)
-    }
-
-    private func makeCoordinatorHarness(
-        alertPresenter: AlertPresenterProbe? = nil,
-        loginItemController: LoginItemControlling = LoginItemControllerProbe(),
-        loginItemsSettingsLauncher: LoginItemsSettingsLaunching = LoginItemsSettingsLauncherProbe(),
-        diagnosticReportPresenter: DiagnosticReportPresenting? = nil,
-        tokenUsageProvider: TokenUsageMenuProviding = LocalCodexSessionTokenUsageMenuProvider(),
-        appIconApplier: AppIconApplying = AppIconApplierProbe(),
-        configureSettings: (CodexPillSettingsStore) -> Void = { _ in }
-    ) throws -> (MenuBarCoordinator, CodexPillSettingsStore, NSStatusItem) {
         let repository = try makeIsolatedRepository()
-        let store = MenuBarAccountsStore(
+        let accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: NullCodexAppProcessClient(),
+            codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient()
-        )
+        ).makeController()
         let suiteName = "MenuBarMenuBuilderTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = CodexPillSettingsStore(userDefaults: defaults)
-        configureSettings(settings)
+        let settings = SettingsStores(userDefaults: defaults)
+        configureTokenUsage(settings.tokenUsagePreferences)
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         let statusItemRuntime = StatusItemRuntime(statusItem: statusItem)
-        let coordinator = MenuBarCoordinator(
+        let coordinator = MenuBarCoordinator.makeForTesting(
             statusItemRuntime: statusItemRuntime,
-            store: store,
+            accountsController: accountsController,
             settings: settings,
             alertPresenter: alertPresenter ?? AlertPresenterProbe(),
             panelPresenter: PanelPresenterProbe(),
             loginItemController: loginItemController,
             loginItemsSettingsLauncher: loginItemsSettingsLauncher,
-            appIconApplier: appIconApplier,
             diagnosticReportPresenter: diagnosticReportPresenter ?? DiagnosticReportPresenterProbe(),
             tokenUsageProvider: tokenUsageProvider
         )
-        return (coordinator, settings, statusItem)
+        return (coordinator, statusItem)
     }
 
     private func makeIsolatedRepository() throws -> AccountRepository {
         let appSupportDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("MenuBarMenuBuilderTests-\(UUID().uuidString)", isDirectory: true)
         return try AccountRepository(
-            environment: [AppRuntimeEnvironment.validationAppSupportDirectoryEnvironmentKey: appSupportDirectory.path]
+            isolatedRootDirectory: appSupportDirectory
         )
     }
 
@@ -2254,51 +1282,42 @@ struct MenuBarMenuBuilderTests {
     private func makeState(
         activeAccount: CodexAccount?,
         inactiveAccounts: [CodexAccount] = [],
-        remoteHosts: [RemoteHostMenuState] = [],
-        progressAccentColor: NSColor = .controlAccentColor,
-        hasCustomProgressAccentColor: Bool = false,
-        notificationsWhenBlockedEnabled: Bool = false,
-        notificationsWhenOutEnabled: Bool = false,
-        notificationAuthorizationState: NotificationAuthorizationState = .unknown,
+        sessionAccentColor: NSColor = .controlAccentColor,
+        hasCustomUsageColors: Bool = false,
+        usagePercentMode: UsagePercentMode = .used,
         loginItemState: LoginItemState = .disabled,
         revealStatusItemTitleShortcut: CodexPill.KeyboardShortcut? = .defaultRevealStatusItemTitle,
+        isBusy: Bool = false,
         tokenUsageEnabled: Bool = false,
-        tokenUsagePeriod: CodexTokenUsagePeriod = .last30Days,
-        tokenUsageChartStyle: TokenUsageChartStyle = .dailyBars,
-        tokenUsageLoadingAnimationStyle: TokenUsageLoadingAnimationStyle = .waves,
-        tokenUsagePeakScope: TokenUsagePeakScope = .currentPeriod,
         tokenUsageCard: TokenUsageMenuCard? = nil,
-        tokenUsagePrototypeCards: [TokenUsagePrototypeCard] = [],
-        appIconColor: AppIconColor = .cobalt
+        providerUsage: [ProviderUsageState] = [],
+        toolOrder: [UsageProvider] = [.claude, .codex, .cursor],
+        masksEmails: Bool = false,
+        appIconColor: AppIconColor = .cobalt,
+        now: Date = .now
     ) -> MenuBarMenuState {
         MenuBarMenuState(
             activeAccount: activeAccount,
             inactiveAccounts: inactiveAccounts,
-            remoteHosts: remoteHosts,
-            visibleInactiveAccountCount: 2,
-            visibleInactiveAccountCountOptions: [2, 3, 5, 0],
             refreshIntervalMinutes: 5,
             refreshIntervalOptions: [1, 2, 5, 10, 15, 30],
             statusBarMonochrome: false,
             statusBarIndicatorStyle: .dualArcBadge,
             statusBarDisplayMode: .textOnHover,
             revealStatusItemTitleShortcut: revealStatusItemTitleShortcut,
-            progressAccentColor: progressAccentColor,
-            hasCustomProgressAccentColor: hasCustomProgressAccentColor,
-            isBusy: false,
+            sessionAccentColor: sessionAccentColor,
+            hasCustomUsageColors: hasCustomUsageColors,
+            usagePercentMode: usagePercentMode,
+            isBusy: isBusy,
             statusMessage: "Ready",
-            notificationsWhenBlockedEnabled: notificationsWhenBlockedEnabled,
-            notificationsWhenOutEnabled: notificationsWhenOutEnabled,
-            notificationAuthorizationState: notificationAuthorizationState,
             loginItemState: loginItemState,
             tokenUsageEnabled: tokenUsageEnabled,
-            tokenUsagePeriod: tokenUsagePeriod,
-            tokenUsageChartStyle: tokenUsageChartStyle,
-            tokenUsageLoadingAnimationStyle: tokenUsageLoadingAnimationStyle,
-            tokenUsagePeakScope: tokenUsagePeakScope,
             tokenUsageCard: tokenUsageCard,
-            tokenUsagePrototypeCards: tokenUsagePrototypeCards,
-            appIconColor: appIconColor
+            providerUsage: providerUsage,
+            toolOrder: toolOrder,
+            masksEmails: masksEmails,
+            appIconColor: appIconColor,
+            now: now
         )
     }
 
@@ -2338,66 +1357,13 @@ struct MenuBarMenuBuilderTests {
             )
         )
     }
-
-    private func makeAccount(name: String, withRateLimits: Bool) -> CodexAccount {
-        let now = Date()
-        return CodexAccount(
-            id: UUID(),
-            name: name,
-            snapshotFileName: "\(UUID().uuidString).json",
-            createdAt: now,
-            updatedAt: now,
-            email: "\(name.lowercased())@example.com",
-            planType: "pro",
-            rateLimits: withRateLimits ? CodexRateLimitSnapshot(
-                limitID: nil,
-                limitName: nil,
-                planType: "pro",
-                primary: CodexRateLimitWindow(
-                    usedPercent: 42,
-                    resetsAt: now.addingTimeInterval(3_600),
-                    windowDurationMinutes: 300
-                ),
-                secondary: CodexRateLimitWindow(
-                    usedPercent: 68,
-                    resetsAt: now.addingTimeInterval(86_400),
-                    windowDurationMinutes: 10_080
-                ),
-                fetchedAt: now
-            ) : nil,
-            identity: CodexAccountIdentity(
-                snapshotFingerprint: UUID().uuidString,
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: "\(name.lowercased())@example.com")
-            )
-        )
-    }
-
-    private func makeRemoteHost(
-        name: String = "devbox",
-        destination: String = "user@devbox",
-        connectionState: RemoteHostConnectionState = .connected,
-        desiredAccount: CodexAccount? = nil,
-        activeAccount: CodexAccount? = nil,
-        detectedAccount: CodexAccount? = nil,
-        verificationStatus: PersistedRemoteHostState.VerificationStatus = .verified,
-        lastVerificationError: String? = nil,
-        deployedAccountIDs: [UUID] = []
-    ) -> RemoteHostMenuState {
-        RemoteHostMenuState(
-            name: name,
-            destination: destination,
-            connectionState: connectionState,
-            desiredAccount: desiredAccount,
-            activeAccount: activeAccount,
-            detectedAccount: detectedAccount,
-            verificationStatus: verificationStatus,
-            lastVerificationError: lastVerificationError,
-            deployedAccountIDs: deployedAccountIDs
-        )
-    }
 }
 
-private struct NullCodexAppProcessClient: CodexAppProcessClient {
-    func assertCodexAvailable() throws {}
-    func relaunchCodex() async throws {}
+/// The tool action a menu item sends, or nil when it sends none.
+@MainActor
+private func providerAction(_ item: NSMenuItem) -> ProviderAction? {
+    guard item.action == #selector(MenuBarCoordinator.performProviderAction(_:)),
+          let menuAction = item.representedObject as? ProviderMenuAction
+    else { return nil }
+    return menuAction.action
 }

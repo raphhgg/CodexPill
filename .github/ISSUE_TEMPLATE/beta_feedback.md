@@ -8,7 +8,7 @@ assignees: ""
 
 ## What Did You Try?
 
-<!-- Install, add account, switch account, remote host, diagnostics, uninstall, etc. -->
+<!-- Install, add account, switch account, diagnostics, uninstall, etc. -->
 
 
 ## What Worked?
@@ -38,7 +38,6 @@ assignees: ""
 
 - CodexPill version:
 - macOS version:
-- Local only or remote hosts:
 
 ## Redaction Check
 

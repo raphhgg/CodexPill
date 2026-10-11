@@ -1,28 +1,12 @@
 import AppKit
 import SwiftUI
 
-final class HostSelectionMenuItemPayload: NSObject {
-    let hostDestination: String
-
-    init(hostDestination: String) {
-        self.hostDestination = hostDestination
-    }
-}
-
-final class HostAccountMenuItemPayload: NSObject {
-    let accountID: UUID
-    let hostDestination: String
-
-    init(accountID: UUID, hostDestination: String) {
-        self.accountID = accountID
-        self.hostDestination = hostDestination
-    }
-}
-
+/// The main menu: one card per tool, Settings and Quit. Account actions live in each card's side menu.
 @MainActor
 struct MenuBarMenuBuilder {
-    private let minimumMenuContentWidth: CGFloat = 372
-    private let nativeMenuItemPaddingAllowance: CGFloat = 52
+    static let menuContentWidth: CGFloat = 372
+    var locale: Locale = .autoupdatingCurrent
+    var timeZone: TimeZone = .autoupdatingCurrent
 
     func makeMenu(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenu {
         let menu = NSMenu()
@@ -31,690 +15,240 @@ struct MenuBarMenuBuilder {
     }
 
     func populate(menu: NSMenu, state: MenuBarMenuState, target: MenuBarCoordinator) {
-        let menuContentWidth = contentWidth(for: state)
-
         menu.removeAllItems()
         menu.delegate = target
 
-        if !state.activeAccountCards.isEmpty {
-            menu.addItem(sectionHeaderItem(state.activeAccountsSectionTitle, width: menuContentWidth, bottomPadding: 4))
-            for (index, activeAccountCard) in state.activeAccountCards.enumerated() {
-                if index > 0 {
-                    menu.addItem(activeAccountDividerItem(width: menuContentWidth))
-                }
-                let tokenUsageCard = index == 0 ? state.tokenUsageCard : nil
-                let tokenUsagePrototypeCards = index == 0 ? state.tokenUsagePrototypeCards : []
-                menu.addItem(activeAccountItem(
-                    for: activeAccountCard,
-                    state: state,
-                    tokenUsageCard: tokenUsageCard,
-                    tokenUsagePrototypeCards: tokenUsagePrototypeCards,
-                    width: menuContentWidth
-                ))
-            }
-        } else {
-            menu.addItem(sectionHeaderItem("Active Account", width: menuContentWidth, bottomPadding: 4))
-            menu.addItem(disabledInfoItem("No active saved account"))
+        let sections = state.toolSections
+        if sections.isEmpty {
+            menu.addItem(addAccountMenuItem(state: state, target: target))
         }
-
-        if !state.visibleDisplayAccountEntries.isEmpty {
-            menu.addItem(.separator())
-            menu.addItem(sectionHeaderItem(state.accountListSectionTitle, width: menuContentWidth, bottomPadding: 4))
-            for entry in state.visibleDisplayAccountEntries {
-                menu.addItem(inactiveAccountItem(for: entry, state: state, target: target, width: menuContentWidth))
-            }
-        }
-
-        if !state.overflowDisplayAccountEntries.isEmpty {
-            if state.visibleDisplayAccountEntries.isEmpty {
+        for (index, section) in sections.enumerated() {
+            if index > 0 {
                 menu.addItem(.separator())
             }
-            menu.addItem(moreAccountsMenuItem(accounts: state.overflowDisplayAccountEntries, state: state, target: target))
+            menu.addItem(cardItem(for: section, state: state, target: target))
+            if let followUp = section.followUp {
+                let item = providerItem(title: followUp.title, followUp.action, for: section.provider, target: target)
+                item.image = NSImage(systemSymbolName: followUp.systemImage, accessibilityDescription: followUp.title)
+                menu.addItem(item)
+            }
         }
 
         menu.addItem(.separator())
-        if state.shouldShowSingleAccountManagementMenu {
-            menu.addItem(accountManagementMenuItem(state: state, target: target, includesAddAccount: true))
-        } else if state.shouldShowActiveAccountManagementMenu {
-            menu.addItem(accountManagementMenuItem(state: state, target: target, includesAddAccount: true))
-        } else {
-            menu.addItem(addAccountMenuItem(state: state, target: target))
-        }
-        menu.addItem(hostsMenuItem(state: state, target: target))
-        menu.addItem(notificationsMenuItem(state: state, target: target))
-        menu.addItem(refreshIntervalMenuItem(state: state, target: target))
-        menu.addItem(statusBarMenuItem(state: state, target: target))
-        menu.addItem(actionItem(title: "Diagnostics…", systemImage: "doc.badge.gearshape", action: #selector(MenuBarCoordinator.exportDiagnosticReport), state: state, target: target))
-        menu.addItem(actionItem(title: "About", systemImage: "info.circle", action: #selector(MenuBarCoordinator.showAbout), state: state, target: target))
+        menu.addItem(settingsMenuItem(state: state, target: target))
 
         if state.shouldShowStatusMessage {
             menu.addItem(.separator())
-            menu.addItem(disabledInfoItem(state.statusMessage))
+            menu.addItem(disabledItem(state.statusMessage))
         }
 
         menu.addItem(.separator())
-
         let quit = NSMenuItem(title: "Quit", action: #selector(MenuBarCoordinator.quitApp), keyEquivalent: "q")
-        quit.image = menuIconSpacerImage()
         quit.target = target
         menu.addItem(quit)
     }
 
-    private func activeAccountItem(
-        for card: ActiveAccountCard,
-        state: MenuBarMenuState,
-        tokenUsageCard: TokenUsageMenuCard?,
-        tokenUsagePrototypeCards: [TokenUsagePrototypeCard],
-        width: CGFloat
-    ) -> NSMenuItem {
-        let item = NSMenuItem()
-        let now = Date()
-        let view = NSHostingView(
-            rootView: ActiveAccountMenuContent(
-                account: card.account,
-                locations: card.locations,
-                showsUpdatedTime: card.showsUpdatedTime,
-                progressAccentColor: Color(nsColor: state.progressAccentColor),
+    private func cardItem(for section: ToolSection, state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: section.provider.copy.sectionTitle, action: nil, keyEquivalent: "")
+        item.view = MenuCardItemView(
+            ToolCardView(
+                section: section,
+                sessionAccentColor: Color(nsColor: state.sessionAccentColor),
+                weeklyAccentColor: Color(nsColor: state.weeklyAccentColor),
+                percentMode: state.usagePercentMode,
+                meterLayout: state.usageMeterLayout,
                 showsPacingMarkers: state.pacingMarkersEnabled,
-                tokenUsageCard: tokenUsageCard,
-                tokenUsagePrototypeCards: tokenUsagePrototypeCards,
-                now: now
-            )
+                now: state.now
+            ),
+            width: Self.menuContentWidth
         )
-        item.view = configuredHostedMenuView(view, width: width)
+        item.submenu = sideMenu(for: section, state: state, target: target)
         return item
     }
 
-    private func activeAccountDividerItem(width: CGFloat) -> NSMenuItem {
-        let item = NSMenuItem()
-        let view = NSHostingView(rootView: ActiveAccountCardDivider())
-        view.frame = NSRect(x: 0, y: 0, width: width, height: 17)
-        item.view = view
-        return item
-    }
+    private func sideMenu(for section: ToolSection, state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenu {
+        let provider = section.provider
+        let title = provider.copy.sectionTitle
+        let accountActionsEnabled = provider != .codex || !state.isBusy
+        let menu = NSMenu(title: title)
 
-    private func configuredHostedMenuView(_ view: NSHostingView<some View>, width: CGFloat) -> NSView {
-        view.frame = NSRect(x: 0, y: 0, width: width, height: 1)
-        view.layoutSubtreeIfNeeded()
-        let fittingSize = view.fittingSize
-        let fittingHeight = max(1, fittingSize.height)
-        view.frame = NSRect(x: 0, y: 0, width: width, height: fittingHeight)
-        return view
-    }
-
-    private func sectionHeaderItem(_ title: String, width: CGFloat, bottomPadding: CGFloat) -> NSMenuItem {
-        let item = NSMenuItem()
-        let view = NSHostingView(rootView: SectionHeaderLabel(title: title, bottomPadding: bottomPadding))
-        view.frame = NSRect(x: 0, y: 0, width: width, height: 18 + bottomPadding)
-        item.view = view
-        return item
-    }
-
-    private func contentWidth(for state: MenuBarMenuState) -> CGFloat {
-        let widestNativeAccountRow = (state.visibleDisplayAccountEntries + state.overflowDisplayAccountEntries)
-            .map {
-                inactiveAccountTitleWidth(
-                    for: $0.displayAccount,
-                    displayName: compactMenuRowDisplayName(for: $0.account.name),
-                    placement: nil,
-                    menuContentWidth: minimumMenuContentWidth
-                ) + nativeMenuItemPaddingAllowance
-            }
-            .max() ?? 0
-
-        return max(minimumMenuContentWidth, widestNativeAccountRow)
-    }
-
-    private func disabledInfoItem(_ title: String) -> NSMenuItem {
-        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-        item.isEnabled = false
-        return item
-    }
-
-    private func inactiveAccountItem(for entry: MenuBarAccountCatalogEntry, state: MenuBarMenuState, target: MenuBarCoordinator, width: CGFloat) -> NSMenuItem {
-        let item = NSMenuItem(title: entry.account.name, action: nil, keyEquivalent: "")
-        item.representedObject = entry.account.id.uuidString
-        item.attributedTitle = inactiveAccountTitle(
-            for: entry.displayAccount,
-            displayName: compactMenuRowDisplayName(for: entry.account.name),
-            placement: nil,
-            menuContentWidth: width
-        )
-        item.submenu = inactiveAccountTargetMenu(for: entry, state: state, target: target)
-        return item
-    }
-
-    private func inactiveAccountTargetMenu(for entry: MenuBarAccountCatalogEntry, state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenu {
-        let account = entry.account
-        let submenu = configuredMenu(title: account.name)
-        submenu.addItem(inactiveAccountEmailItem(for: account))
-        submenu.addItem(inactiveAccountUsageStatusItem(for: entry, state: state))
-        submenu.addItem(.separator())
-
-        let localItem = NSMenuItem(title: "Switch on This Mac", action: #selector(MenuBarCoordinator.switchAccount(_:)), keyEquivalent: "")
-        localItem.target = target
-        localItem.representedObject = account.id.uuidString
-        localItem.isEnabled = true
-        submenu.addItem(localItem)
-        for remoteHost in state.remoteHosts {
-            submenu.addItem(
-                switchTargetMenuItem(
-                    title: remoteHost.hasDeployedAccount(account)
-                        ? "Switch on \(remoteHost.name)"
-                        : "Install on \(remoteHost.name) and switch",
-                    account: account,
-                    hostDestination: remoteHost.destination,
-                    target: target
-                )
-            )
+        if let active = section.activeAccount {
+            let item = disabledItem(active.label)
+            item.state = .on
+            menu.addItem(item)
         }
-        submenu.addItem(.separator())
-        submenu.addItem(renameAccountMenuItem(for: account, state: state, target: target))
-        submenu.addItem(removeAccountMenuItem(for: account, state: state, target: target))
-        return submenu
-    }
-
-    private func inactiveAccountEmailItem(for account: CodexAccount) -> NSMenuItem {
-        let email = account.email?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let title = email.flatMap { $0.isEmpty ? nil : $0 } ?? "No email"
-        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-        item.isEnabled = false
-        return item
-    }
-
-    private func inactiveAccountUsageStatusItem(for entry: MenuBarAccountCatalogEntry, state: MenuBarMenuState) -> NSMenuItem {
-        let item = NSMenuItem(title: usageStatusTitle(for: entry, state: state), action: nil, keyEquivalent: "")
-        item.isEnabled = false
-        return item
-    }
-
-    private func usageStatusTitle(for entry: MenuBarAccountCatalogEntry, state: MenuBarMenuState) -> String {
-        var locations: [String] = []
-        var pendingLocations: [String] = []
-        var failedLocations: [String] = []
-        if state.activeAccount?.id == entry.account.id {
-            locations.append("This Mac")
+        for other in section.otherAccounts {
+            let actions = NSMenu(title: other.label)
+            actions.addItem(providerItem(title: "Use", .switchAccount(other.id), for: provider, target: target))
+            actions.addItem(providerItem(title: "Remove…", .removeAccount(other.id), for: provider, target: target))
+            actions.items.forEach { $0.isEnabled = accountActionsEnabled }
+            menu.addItem(accountItem(other, submenu: actions))
         }
+        addSeparatorIfNeeded(to: menu)
 
-        locations.append(contentsOf: state.connectedRemoteHosts.compactMap { remoteHost in
-            remoteHost.activeAccount?.id == entry.account.id ? remoteHost.name : nil
-        })
-
-        for remoteHost in state.remoteHosts where remoteHost.activeAccount?.id != entry.account.id {
-            guard remoteHost.desiredAccount?.id == entry.account.id else { continue }
-            switch remoteHost.verificationStatus {
-            case .failed:
-                failedLocations.append(remoteHost.name)
-            case .verified:
-                break
-            case .unverified, .verifying:
-                pendingLocations.append(remoteHost.name)
+        if let credits = section.card.resetCredits {
+            let use = providerItem(title: "Use a Reset…", .useResetCredit, for: provider, target: target)
+            use.isEnabled = accountActionsEnabled
+            menu.addItem(use)
+            for credit in (credits.credits ?? []).sorted(by: { ($0.expiresAt ?? .distantFuture) < ($1.expiresAt ?? .distantFuture) }) {
+                let expiry = disabledItem(credit.expiresAt.map { "Expires \(shortDate($0, locale: locale, timeZone: timeZone))" } ?? "No expiry")
+                expiry.indentationLevel = 1
+                menu.addItem(expiry)
             }
         }
 
-        var components: [String] = []
-        if !locations.isEmpty {
-            components.append("In use on: \(locations.joined(separator: ", "))")
-        }
-        if !pendingLocations.isEmpty {
-            components.append("Pending on: \(pendingLocations.joined(separator: ", "))")
-        }
-        if !failedLocations.isEmpty {
-            components.append("Verification failed on: \(failedLocations.joined(separator: ", "))")
+        if provider == .codex, let tokenUsageCard = state.tokenUsageCard {
+            let tokenUsage = NSMenu(title: "Token Usage")
+            let chart = NSMenuItem()
+            chart.view = hostedView(TokenUsageMenuContent(card: tokenUsageCard).padding(.vertical, 12), width: 340)
+            tokenUsage.addItem(chart)
+            menu.addItem(submenuItem(tokenUsage))
         }
 
-        guard !components.isEmpty else {
-            return "Not currently in use"
+        let moves = ToolSectionMove.allCases.map { move in
+            let item = NSMenuItem(title: move.title, action: #selector(MenuBarCoordinator.reorderTools(_:)), keyEquivalent: "")
+            item.target = target
+            item.representedObject = state.toolOrder(moving: provider, move)
+            item.isEnabled = item.representedObject != nil
+            return item
+        }
+        if moves.contains(where: \.isEnabled) {
+            addSeparatorIfNeeded(to: menu)
+            moves.forEach(menu.addItem)
         }
 
-        return components.joined(separator: " • ")
+        addSeparatorIfNeeded(to: menu)
+        let availability = section.signInAvailability
+        let add = providerItem(title: "Add \(title) Account…", .addAccount, for: provider, target: target)
+        add.isEnabled = accountActionsEnabled && availability != .notInstalled
+        menu.addItem(add)
+        if availability == .notInstalled {
+            menu.addItem(disabledItem("Install \(provider.copy.name) first"))
+        }
+        return menu
     }
 
-    private func switchTargetMenuItem(
-        title: String,
-        account: CodexAccount,
-        hostDestination: String,
-        target: MenuBarCoordinator
-    ) -> NSMenuItem {
-        let item = NSMenuItem(title: title, action: #selector(MenuBarCoordinator.switchAccountOnHost(_:)), keyEquivalent: "")
-        item.target = target
-        item.representedObject = HostAccountMenuItemPayload(accountID: account.id, hostDestination: hostDestination)
-        item.isEnabled = true
+    private func settingsMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let menu = NSMenu(title: "Settings")
+        menu.addItem(addAccountMenuItem(state: state, target: target))
+        for usage in state.providerUsage where usage.status != .notConnected {
+            menu.addItem(providerItem(title: "Disconnect \(usage.provider.copy.sectionTitle)", .disconnect, for: usage.provider, target: target))
+        }
+        menu.addItem(.separator())
+
+        let appearance = NSMenu(title: "Appearance")
+        appearance.addItem(statusBarDisplayMenuItem(state: state, target: target))
+        appearance.addItem(statusBarStyleMenuItem(state: state, target: target))
+        appearance.addItem(usageBarsMenuItem(state: state, target: target))
+        appearance.addItem(appIconMenuItem(state: state, target: target))
+        appearance.addItem(.separator())
+        appearance.addItem(toggleItem("Show Token Usage", isOn: state.tokenUsageEnabled, action: #selector(MenuBarCoordinator.toggleTokenUsage(_:)), target: target))
+        menu.addItem(submenuItem(appearance))
+        menu.addItem(toggleItem("Hide Emails", isOn: state.masksEmails, action: #selector(MenuBarCoordinator.toggleMasksEmails(_:)), target: target))
+        menu.addItem(refreshIntervalMenuItem(state: state, target: target))
+        menu.addItem(launchAtLoginMenuItem(state: state, target: target))
+
+        menu.addItem(.separator())
+        menu.addItem(actionItem("Diagnostics…", action: #selector(MenuBarCoordinator.exportDiagnosticReport), isEnabled: !state.isBusy, target: target))
+        menu.addItem(actionItem("About", action: #selector(MenuBarCoordinator.showAbout), isEnabled: !state.isBusy, target: target))
+
+        let item = submenuItem(menu)
+        item.keyEquivalent = ","
         return item
     }
 
-    private func actionItem(title: String, systemImage: String, action: Selector, state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
-        item.target = target
-        item.image = NSImage(systemSymbolName: systemImage, accessibilityDescription: title)
-        item.isEnabled = !state.isBusy
-        return item
-    }
-
-    private func menuIconSpacerImage() -> NSImage {
-        // Keep text-only rows aligned with icon-bearing native menu items.
-        let image = NSImage(size: NSSize(width: 16, height: 16))
-        image.isTemplate = true
-        return image
-    }
-
+    /// Adds an account for any tool. A tool that is not connected yet connects instead.
     private func addAccountMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Add Account…", action: #selector(MenuBarCoordinator.addAccount), keyEquivalent: "")
-        item.image = NSImage(systemSymbolName: "plus.circle", accessibilityDescription: "Add Account")
-        item.target = target
-        item.isEnabled = state.canAddAccount
-        return item
-    }
-
-    private func accountManagementMenuItem(
-        state: MenuBarMenuState,
-        target: MenuBarCoordinator,
-        includesAddAccount: Bool
-    ) -> NSMenuItem {
-        let item = NSMenuItem(title: "Account", action: nil, keyEquivalent: "")
-        item.image = NSImage(systemSymbolName: "person.crop.circle", accessibilityDescription: "Account")
-
-        let submenu = configuredMenu(title: "Account")
-        if includesAddAccount {
-            submenu.addItem(addAccountMenuItem(state: state, target: target))
-            if state.accountForAccountManagementMenu != nil {
-                submenu.addItem(.separator())
+        let menu = NSMenu(title: "Add Account")
+        for provider in [UsageProvider.codex, .claude, .cursor] {
+            let usage = state.providerUsage.first { $0.provider == provider && $0.status != .notConnected }
+            let action: ProviderAction = switch (provider, usage?.signInAvailability) {
+            case (.codex, _): .addAccount
+            case (_, nil): .connect
+            case (_, _?): .addAccount
             }
+            let item = providerItem(title: "\(provider.copy.sectionTitle)…", action, for: provider, target: target)
+            item.isEnabled = provider == .codex ? !state.isBusy : usage?.signInAvailability != .notInstalled
+            menu.addItem(item)
         }
-
-        if let account = state.accountForAccountManagementMenu {
-            submenu.addItem(renameAccountMenuItem(for: account, state: state, target: target))
-            submenu.addItem(removeAccountMenuItem(for: account, state: state, target: target))
-        }
-
-        item.submenu = submenu
-        return item
-    }
-
-    private func hostsMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Hosts", action: nil, keyEquivalent: "")
-        item.image = NSImage(systemSymbolName: "desktopcomputer", accessibilityDescription: "Hosts")
-
-        let submenu = configuredMenu(title: "Hosts")
-        let addHost = NSMenuItem(title: "Add Host…", action: #selector(MenuBarCoordinator.addHost(_:)), keyEquivalent: "")
-        addHost.target = target
-        addHost.isEnabled = state.canConfigureHosts
-        submenu.addItem(addHost)
-
-        if !state.remoteHosts.isEmpty {
-            submenu.addItem(.separator())
-            for remoteHost in state.remoteHosts {
-                submenu.addItem(configuredHostMenuItem(remoteHost, state: state, target: target))
-            }
-        }
-
-        item.submenu = submenu
-        return item
-    }
-
-    private func notificationsMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Notifications", action: nil, keyEquivalent: "")
-        item.image = NSImage(systemSymbolName: "bell", accessibilityDescription: "Notifications")
-
-        let submenu = configuredMenu(title: "Notifications")
-
-        let isDenied = state.notificationAuthorizationState == .denied
-
-        if isDenied {
-            let enableNotifications = NSMenuItem(
-                title: "Enable in macOS Settings…",
-                action: #selector(MenuBarCoordinator.enableNotifications(_:)),
-                keyEquivalent: ""
-            )
-            enableNotifications.target = target
-            submenu.addItem(enableNotifications)
-            submenu.addItem(.separator())
-        }
-
-        let whenBlocked = NSMenuItem(
-            title: "Account Available",
-            action: #selector(MenuBarCoordinator.toggleNotificationsWhenBlocked(_:)),
-            keyEquivalent: ""
-        )
-        whenBlocked.target = target
-        whenBlocked.state = !isDenied && state.notificationsWhenBlockedEnabled ? .on : .off
-        whenBlocked.isEnabled = !isDenied
-        submenu.addItem(whenBlocked)
-
-        let whenOut = NSMenuItem(
-            title: "Current Runs Out",
-            action: #selector(MenuBarCoordinator.toggleNotificationsWhenOut(_:)),
-            keyEquivalent: ""
-        )
-        whenOut.target = target
-        whenOut.state = !isDenied && state.notificationsWhenOutEnabled ? .on : .off
-        whenOut.isEnabled = !isDenied
-        submenu.addItem(whenOut)
-
-        item.submenu = submenu
-        return item
-    }
-
-    private func configuredHostMenuItem(_ remoteHost: RemoteHostMenuState, state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: remoteHost.name, action: nil, keyEquivalent: "")
-        let submenu = configuredMenu(title: remoteHost.name)
-
-        let status = NSMenuItem(title: "\(remoteHost.name) (\(remoteHost.destination))", action: nil, keyEquivalent: "")
-        status.isEnabled = false
-        submenu.addItem(status)
-
-        let connection = NSMenuItem(title: "Status: \(remoteHost.connectionState.menuTitle)", action: nil, keyEquivalent: "")
-        connection.isEnabled = false
-        submenu.addItem(connection)
-
-        if let desiredAccount = remoteHost.desiredAccount {
-            let desired = NSMenuItem(title: "Desired account: \(desiredAccount.name)", action: nil, keyEquivalent: "")
-            desired.isEnabled = false
-            submenu.addItem(desired)
-        }
-
-        if let detectedAccount = remoteHost.detectedAccount,
-           detectedAccount.id != remoteHost.desiredAccount?.id {
-            let detected = NSMenuItem(title: "Detected account: \(detectedAccount.name)", action: nil, keyEquivalent: "")
-            detected.isEnabled = false
-            submenu.addItem(detected)
-        }
-
-        if remoteHost.verificationStatus != .verified {
-            let verification = NSMenuItem(
-                title: "Verification: \(verificationStatusTitle(for: remoteHost))",
-                action: nil,
-                keyEquivalent: ""
-            )
-            verification.isEnabled = false
-            submenu.addItem(verification)
-        }
-
-        if let detectedAccount = remoteHost.detectedAccount,
-           detectedAccount.id != remoteHost.desiredAccount?.id {
-            let adopt = NSMenuItem(
-                title: "Use Detected Account (\(detectedAccount.name))",
-                action: #selector(MenuBarCoordinator.adoptDetectedRemoteAccount(_:)),
-                keyEquivalent: ""
-            )
-            adopt.target = target
-            adopt.representedObject = HostAccountMenuItemPayload(
-                accountID: detectedAccount.id,
-                hostDestination: remoteHost.destination
-            )
-            adopt.isEnabled = state.canConfigureHosts
-            submenu.addItem(adopt)
-        }
-
-        if remoteHost.displayAccount != nil {
-            let reverify = NSMenuItem(title: "Re-verify Remote Account", action: #selector(MenuBarCoordinator.reverifyHost(_:)), keyEquivalent: "")
-            reverify.target = target
-            reverify.representedObject = HostSelectionMenuItemPayload(hostDestination: remoteHost.destination)
-            reverify.isEnabled = state.canConfigureHosts && remoteHost.verificationStatus != .verifying
-            submenu.addItem(reverify)
-        }
-
-        let removeHost = NSMenuItem(title: "Remove Host", action: #selector(MenuBarCoordinator.removeHost(_:)), keyEquivalent: "")
-        removeHost.target = target
-        removeHost.representedObject = HostSelectionMenuItemPayload(hostDestination: remoteHost.destination)
-        removeHost.isEnabled = state.canConfigureHosts
-        submenu.addItem(removeHost)
-
-        item.submenu = submenu
-        return item
-    }
-
-    private func removeAccountMenuItem(for account: CodexAccount, state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Remove…", action: #selector(MenuBarCoordinator.removeAccount(_:)), keyEquivalent: "")
-        item.target = target
-        item.representedObject = account.id.uuidString
-        item.isEnabled = state.canRemoveSavedAccounts
-        return item
-    }
-
-    private func moreAccountsMenuItem(accounts: [MenuBarAccountCatalogEntry], state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "More Accounts…", action: nil, keyEquivalent: "")
-
-        let submenu = configuredMenu(title: "More Accounts…")
-        for account in accounts {
-            submenu.addItem(inactiveAccountItem(for: account, state: state, target: target, width: minimumMenuContentWidth))
-        }
-
-        item.submenu = submenu
-        return item
-    }
-
-    private func renameAccountMenuItem(for account: CodexAccount, state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Rename…", action: #selector(MenuBarCoordinator.renameAccount(_:)), keyEquivalent: "")
-        item.target = target
-        item.representedObject = account.id.uuidString
-        item.isEnabled = state.canRenameSavedAccounts
-        return item
-    }
-
-    private func verificationStatusTitle(for remoteHost: RemoteHostMenuState) -> String {
-        switch remoteHost.verificationStatus {
-        case .verified:
-            return "Verified"
-        case .verifying:
-            return "Verifying"
-        case .unverified:
-            return "Pending"
-        case .failed:
-            return "Failed"
-        }
+        return submenuItem(menu)
     }
 
     private func refreshIntervalMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Refresh Time", action: nil, keyEquivalent: "")
-        item.image = NSImage(systemSymbolName: "timer", accessibilityDescription: "Refresh Time")
-
-        let submenu = configuredMenu(title: "Refresh Time")
+        let menu = NSMenu(title: "Refresh Every")
         for minutes in state.refreshIntervalOptions {
-            let option = NSMenuItem(title: "\(minutes) minutes", action: #selector(MenuBarCoordinator.selectRefreshInterval(_:)), keyEquivalent: "")
+            let option = NSMenuItem(title: minutes == 1 ? "1 minute" : "\(minutes) minutes", action: #selector(MenuBarCoordinator.selectRefreshInterval(_:)), keyEquivalent: "")
             option.target = target
             option.representedObject = minutes
             option.state = state.refreshIntervalMinutes == minutes ? .on : .off
-            submenu.addItem(option)
+            menu.addItem(option)
         }
-
-        item.submenu = submenu
-        return item
-    }
-
-    private func statusBarMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Preferences", action: nil, keyEquivalent: "")
-        item.image = NSImage(systemSymbolName: "slider.horizontal.3", accessibilityDescription: "Preferences")
-
-        let submenu = configuredMenu(title: "Preferences")
-        submenu.addItem(statusBarDisplayMenuItem(state: state, target: target))
-        submenu.addItem(statusBarStyleMenuItem(state: state, target: target))
-        submenu.addItem(usageBarsPreferencesMenuItem(state: state, target: target))
-        submenu.addItem(tokenUsagePreferencesMenuItem(state: state, target: target))
-        submenu.addItem(appIconMenuItem(state: state, target: target))
-        submenu.addItem(.separator())
-        submenu.addItem(launchAtLoginMenuItem(state: state, target: target))
-
-        item.submenu = submenu
-        return item
+        return submenuItem(menu)
     }
 
     private func launchAtLoginMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(
-            title: state.loginItemState.menuTitle,
-            action: launchAtLoginAction(for: state.loginItemState),
-            keyEquivalent: ""
-        )
-        item.target = target
+        let action = switch state.loginItemState {
+        case .enabled, .disabled: #selector(MenuBarCoordinator.toggleLaunchAtLogin(_:))
+        case .requiresApproval, .unavailable: #selector(MenuBarCoordinator.openLoginItemsSettings(_:))
+        }
+        let item = actionItem(state.loginItemState.menuTitle, action: action, isEnabled: !state.isBusy, target: target)
         item.state = state.loginItemState.isChecked ? .on : .off
-        item.isEnabled = !state.isBusy
         return item
     }
 
-    private func launchAtLoginAction(for state: LoginItemState) -> Selector? {
-        switch state {
-        case .enabled, .disabled:
-            return #selector(MenuBarCoordinator.toggleLaunchAtLogin(_:))
-        case .requiresApproval, .unavailable:
-            return #selector(MenuBarCoordinator.openLoginItemsSettings(_:))
+    private func usageBarsMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let menu = NSMenu(title: "Usage Bars")
+        for mode in UsagePercentMode.allCases {
+            menu.addItem(optionItem(mode.menuTitle, value: mode.rawValue, isOn: state.usagePercentMode == mode, action: #selector(MenuBarCoordinator.selectUsagePercentMode(_:)), target: target))
         }
-    }
-
-    private func usageBarsPreferencesMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Usage Bars", action: nil, keyEquivalent: "")
-        let submenu = configuredMenu(title: "Usage Bars")
-        submenu.addItem(pacingMarkersMenuItem(state: state, target: target))
-        submenu.addItem(progressAccentColorItem(state: state, target: target))
-        submenu.addItem(resetProgressAccentColorItem(state: state, target: target))
-        item.submenu = submenu
-        return item
-    }
-
-    private func tokenUsagePreferencesMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Token Usage", action: nil, keyEquivalent: "")
-        let submenu = configuredMenu(title: "Token Usage")
-        submenu.addItem(showTokenUsageMenuItem(state: state, target: target))
-        submenu.addItem(tokenUsagePeakScopeMenuItem(state: state, target: target))
-        submenu.addItem(tokenUsageChartStyleMenuItem(state: state, target: target))
-        submenu.addItem(tokenUsageLoadingAnimationStyleMenuItem(state: state, target: target))
-        item.submenu = submenu
-        return item
-    }
-
-    private func showTokenUsageMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Show Token Usage", action: #selector(MenuBarCoordinator.toggleTokenUsage(_:)), keyEquivalent: "")
-        item.target = target
-        item.state = state.tokenUsageEnabled ? .on : .off
-        return item
-    }
-
-    private func tokenUsagePeakScopeMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Peak Day", action: nil, keyEquivalent: "")
-        let submenu = configuredMenu(title: "Peak Day")
-        for scope in TokenUsagePeakScope.allCases {
-            let option = NSMenuItem(title: scope.menuTitle, action: #selector(MenuBarCoordinator.selectTokenUsagePeakScope(_:)), keyEquivalent: "")
-            option.target = target
-            option.representedObject = scope.rawValue
-            option.state = state.tokenUsagePeakScope == scope ? .on : .off
-            submenu.addItem(option)
+        menu.addItem(.separator())
+        for layout in UsageMeterLayout.allCases {
+            menu.addItem(optionItem(layout.menuTitle, value: layout.rawValue, isOn: state.usageMeterLayout == layout, action: #selector(MenuBarCoordinator.selectUsageMeterLayout(_:)), target: target))
         }
-        item.submenu = submenu
-        return item
-    }
-
-    private func tokenUsageChartStyleMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Chart Style", action: nil, keyEquivalent: "")
-        let submenu = configuredMenu(title: "Chart Style")
-        for style in TokenUsageChartStyle.allCases {
-            let option = NSMenuItem(title: style.menuTitle, action: #selector(MenuBarCoordinator.selectTokenUsageChartStyle(_:)), keyEquivalent: "")
-            option.target = target
-            option.representedObject = style.rawValue
-            option.state = state.tokenUsageChartStyle == style ? .on : .off
-            submenu.addItem(option)
-        }
-        item.submenu = submenu
-        return item
-    }
-
-    private func tokenUsageLoadingAnimationStyleMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Loading Animation", action: nil, keyEquivalent: "")
-        let submenu = configuredMenu(title: "Loading Animation")
-        for style in TokenUsageLoadingAnimationStyle.allCases {
-            let option = NSMenuItem(title: style.menuTitle, action: #selector(MenuBarCoordinator.selectTokenUsageLoadingAnimationStyle(_:)), keyEquivalent: "")
-            option.target = target
-            option.representedObject = style.rawValue
-            option.state = state.tokenUsageLoadingAnimationStyle == style ? .on : .off
-            submenu.addItem(option)
-        }
-        item.submenu = submenu
-        return item
+        menu.addItem(.separator())
+        menu.addItem(toggleItem("Show Pace Markers", isOn: state.pacingMarkersEnabled, action: #selector(MenuBarCoordinator.togglePacingMarkers(_:)), target: target))
+        menu.addItem(.separator())
+        menu.addItem(actionItem("Session Color…", action: #selector(MenuBarCoordinator.chooseSessionAccentColor(_:)), target: target))
+        menu.addItem(actionItem("Weekly Color…", action: #selector(MenuBarCoordinator.chooseWeeklyAccentColor(_:)), target: target))
+        menu.addItem(toggleItem("Same Color for Both", isOn: state.usesOneUsageColor, action: #selector(MenuBarCoordinator.toggleOneUsageColor(_:)), target: target))
+        menu.addItem(actionItem("Use Default Colors", action: #selector(MenuBarCoordinator.resetUsageColors(_:)), isEnabled: state.hasCustomUsageColors, target: target))
+        return submenuItem(menu)
     }
 
     private func appIconMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "App Icon", action: nil, keyEquivalent: "")
-        let submenu = configuredMenu(title: "App Icon")
+        let menu = NSMenu(title: "App Icon")
         for color in AppIconColor.allCases {
-            let option = NSMenuItem(title: color.menuTitle, action: #selector(MenuBarCoordinator.selectAppIconColor(_:)), keyEquivalent: "")
-            option.target = target
-            option.representedObject = color.rawValue
-            option.state = state.appIconColor == color ? .on : .off
-            submenu.addItem(option)
+            menu.addItem(optionItem(color.menuTitle, value: color.rawValue, isOn: state.appIconColor == color, action: #selector(MenuBarCoordinator.selectAppIconColor(_:)), target: target))
         }
-        item.submenu = submenu
-        return item
-    }
-
-    private func progressAccentColorItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Accent Color…", action: #selector(MenuBarCoordinator.chooseProgressAccentColor(_:)), keyEquivalent: "")
-        item.target = target
-        return item
-    }
-
-    private func pacingMarkersMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Show Pace Markers", action: #selector(MenuBarCoordinator.togglePacingMarkers(_:)), keyEquivalent: "")
-        item.target = target
-        item.state = state.pacingMarkersEnabled ? .on : .off
-        return item
-    }
-
-    private func resetProgressAccentColorItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Use Default", action: #selector(MenuBarCoordinator.resetProgressAccentColor(_:)), keyEquivalent: "")
-        item.target = target
-        item.isEnabled = state.hasCustomProgressAccentColor
-        return item
+        return submenuItem(menu)
     }
 
     private func statusBarStyleMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Icon Style", action: nil, keyEquivalent: "")
-
-        let submenu = configuredMenu(title: "Icon Style")
-        let monochrome = NSMenuItem(title: "Monochrome", action: #selector(MenuBarCoordinator.toggleStatusBarMonochrome(_:)), keyEquivalent: "")
-        monochrome.target = target
-        monochrome.state = state.statusBarMonochrome ? .on : .off
-        submenu.addItem(monochrome)
-        submenu.addItem(.separator())
-
+        let menu = NSMenu(title: "Icon Style")
+        menu.addItem(toggleItem("Monochrome", isOn: state.statusBarMonochrome, action: #selector(MenuBarCoordinator.toggleStatusBarMonochrome(_:)), target: target))
+        menu.addItem(.separator())
         for style in StatusBarIndicatorStyle.allCases {
-            let option = NSMenuItem(title: style.menuTitle, action: #selector(MenuBarCoordinator.selectStatusBarStyle(_:)), keyEquivalent: "")
-            option.target = target
-            option.representedObject = style.rawValue
-            option.state = state.statusBarIndicatorStyle == style ? .on : .off
-            submenu.addItem(option)
+            menu.addItem(optionItem(style.menuTitle, value: style.rawValue, isOn: state.statusBarIndicatorStyle == style, action: #selector(MenuBarCoordinator.selectStatusBarStyle(_:)), target: target))
         }
-
-        item.submenu = submenu
-        return item
+        return submenuItem(menu)
     }
 
     private func statusBarDisplayMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Menu Bar Label", action: nil, keyEquivalent: "")
-
-        let submenu = configuredMenu(title: "Menu Bar Label")
+        let menu = NSMenu(title: "Menu Bar Label")
         for mode in StatusBarDisplayMode.allCases {
-            let option: NSMenuItem
-            if state.canSelectStatusBarDisplayMode(mode) {
-                option = NSMenuItem(title: mode.menuTitle, action: #selector(MenuBarCoordinator.selectStatusBarDisplayMode(_:)), keyEquivalent: "")
-                option.target = target
-                option.representedObject = mode.rawValue
-            } else {
-                option = disabledInfoItem(mode.menuTitle)
-            }
+            let option = state.canSelectStatusBarDisplayMode(mode)
+                ? optionItem(mode.menuTitle, value: mode.rawValue, isOn: false, action: #selector(MenuBarCoordinator.selectStatusBarDisplayMode(_:)), target: target)
+                : disabledItem(mode.menuTitle)
             option.state = state.effectiveStatusBarDisplayMode == mode ? .on : .off
-            submenu.addItem(option)
+            menu.addItem(option)
         }
-        submenu.addItem(.separator())
-        submenu.addItem(revealShortcutMenuItem(state: state, target: target))
-
-        item.submenu = submenu
-        return item
+        menu.addItem(.separator())
+        menu.addItem(revealShortcutMenuItem(state: state, target: target))
+        return submenuItem(menu)
     }
 
     private func revealShortcutMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(
-            title: "Reveal Shortcut…",
-            action: #selector(MenuBarCoordinator.configureRevealStatusItemTitleShortcut(_:)),
-            keyEquivalent: ""
-        )
+        let item = actionItem("Reveal Shortcut…", action: #selector(MenuBarCoordinator.configureRevealStatusItemTitleShortcut(_:)), isEnabled: !state.isBusy, target: target)
         item.keyEquivalentModifierMask = []
         if let shortcut = state.revealStatusItemTitleShortcut {
             let presentation = KeyboardShortcutPresentation(shortcut: shortcut)
@@ -723,30 +257,68 @@ struct MenuBarMenuBuilder {
                 item.keyEquivalentModifierMask = presentation.modifierFlags
             }
         }
-        item.target = target
-        item.isEnabled = !state.isBusy
         return item
     }
 
-    private func configuredMenu(title: String) -> NSMenu {
-        NSMenu(title: title)
+    /// A saved account that is not in use, with its last limits on a second, smaller line.
+    private func accountItem(_ account: ToolAccount, submenu: NSMenu) -> NSMenuItem {
+        let item = submenuItem(submenu)
+        if let usageLine = account.usageLine {
+            let attributed = NSMutableAttributedString(string: account.label, attributes: [.font: NSFont.menuFont(ofSize: 0)])
+            attributed.append(NSAttributedString(
+                string: "\n" + usageLine,
+                attributes: [.font: NSFont.menuFont(ofSize: NSFont.smallSystemFontSize), .foregroundColor: NSColor.secondaryLabelColor]
+            ))
+            item.attributedTitle = attributed
+        }
+        return item
     }
 
-}
+    private func providerItem(title: String, _ action: ProviderAction, for provider: UsageProvider, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = actionItem(title, action: #selector(MenuBarCoordinator.performProviderAction(_:)), target: target)
+        item.representedObject = ProviderMenuAction(provider: provider, action: action)
+        return item
+    }
 
-private struct SectionHeaderLabel: View {
-    let title: String
-    let bottomPadding: CGFloat
+    private func actionItem(_ title: String, action: Selector, isEnabled: Bool = true, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+        item.target = target
+        item.isEnabled = isEnabled
+        return item
+    }
 
-    var body: some View {
-        HStack(spacing: 0) {
-            Text(title)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 10)
-        .padding(.top, 2)
-        .padding(.bottom, bottomPadding)
+    private func toggleItem(_ title: String, isOn: Bool, action: Selector, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = actionItem(title, action: action, target: target)
+        item.state = isOn ? .on : .off
+        return item
+    }
+
+    private func optionItem(_ title: String, value: String, isOn: Bool, action: Selector, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = toggleItem(title, isOn: isOn, action: action, target: target)
+        item.representedObject = value
+        return item
+    }
+
+    private func disabledItem(_ title: String) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        item.isEnabled = false
+        return item
+    }
+
+    private func submenuItem(_ submenu: NSMenu) -> NSMenuItem {
+        let item = NSMenuItem(title: submenu.title, action: nil, keyEquivalent: "")
+        item.submenu = submenu
+        return item
+    }
+
+    private func addSeparatorIfNeeded(to menu: NSMenu) {
+        guard let last = menu.items.last, !last.isSeparatorItem else { return }
+        menu.addItem(.separator())
+    }
+
+    private func hostedView(_ content: some View, width: CGFloat) -> NSView {
+        let view = NSHostingView(rootView: content.frame(width: width))
+        view.frame = NSRect(x: 0, y: 0, width: width, height: max(1, view.fittingSize.height))
+        return view
     }
 }

@@ -3,33 +3,36 @@
 ## Project Shape
 
 - Platform: native macOS menubar app.
-- UI: SwiftUI `MenuBarExtra` with AppKit menu, alert, and panel interop.
+- UI: AppKit `NSMenu` and status item, with SwiftUI views inside menu items, plus AppKit alerts and panels.
 - Build system: Tuist.
-- Product focus: Codex account switching and per-account limit tracking.
+- Product focus: account switching and limits for Codex, Claude and Cursor on this Mac.
 
 ## Read First
 
 1. Read this file first.
 2. Read `docs/PRODUCT.md` and `docs/features/README.md` for product truth.
-3. Read `docs/DEVELOPMENT.md` before build, run, or validation commands.
-4. Read `docs/PRIVACY.md` before touching account, auth, logging, or remote-host code.
+3. Read `docs/ARCHITECTURE.md` before adding a module, a port, or a tool.
+4. Read `docs/DEVELOPMENT.md` before build, run, or validation commands.
+5. Read `docs/PRIVACY.md` before touching account, auth, Keychain, or logging code.
 
 ## Architecture Defaults
 
-- Treat `~/.codex/auth.json` as the primary local switch surface.
-- Treat `~/Library/Application Support/Codex` as an observation surface, not the
-  source of truth for switching.
-- Keep auth switching, Codex app lifecycle control, and Codex rate-limit fetching
-  in separate modules.
-- Prefer the local Codex app-server for account and rate-limit reads over manual
-  counters.
+- Dependencies point one way: `App -> Features -> Platform -> Core`. Core and Platform never reference a
+  Features name; `LayerBoundaryTests` fails the build's tests when they do.
+- Core holds models and typed preferences only.
+- Every tool section is driven the same way: Claude Code and Cursor conform to `ProviderConnection`, and
+  every tool menu item sends a `ProviderMenuAction` through one coordinator selector. Codex stays on
+  `AccountsController` behind the same action value. See "How a tool plugs in" in `docs/ARCHITECTURE.md`.
+- Codex: `~/.codex/auth.json` is the switch surface. `~/Library/Application Support/Codex` is only
+  observed. Read accounts and limits from the local Codex app-server, never from manual counters.
+- Keep each tool's auth switching, app lifecycle control, and usage fetching in separate Platform types.
 
 ## Hard Rules
 
-- Do not print or expose tokens, API keys, raw auth payloads, or saved auth
-  snapshots in logs, tests, docs, UI, issues, or commit messages.
-- Do not commit `.env`, secrets, generated auth snapshots, personal app-support
-  data, or build artifacts.
+- Do not print or expose tokens, API keys, raw auth payloads, or saved sign-ins in logs, tests, docs, UI,
+  issues, or commit messages.
+- Do not commit `.env`, secrets, generated auth snapshots, personal app-support data, or build artifacts.
 - Do not couple SwiftUI views directly to file I/O or process control.
-- Do not assume Codex internal file formats beyond the currently observed
-  `auth.json` contract without isolating that logic in one service.
+- Do not assume a tool's internal file formats beyond what is observed today, and isolate each format in
+  one Platform type.
+- In-app copy is a title plus at most one short line.

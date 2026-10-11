@@ -84,7 +84,7 @@ struct CodexAccount: Identifiable, Codable, Hashable {
     var updatedAt: Date
     var email: String?
     var planType: String?
-    var rateLimits: CodexRateLimitSnapshot?
+    var usage: UsageSnapshot?
     var identity: CodexAccountIdentity
 
     init(
@@ -95,7 +95,7 @@ struct CodexAccount: Identifiable, Codable, Hashable {
         updatedAt: Date,
         email: String?,
         planType: String?,
-        rateLimits: CodexRateLimitSnapshot?,
+        usage: UsageSnapshot?,
         identity: CodexAccountIdentity = .empty
     ) {
         self.id = id
@@ -105,7 +105,7 @@ struct CodexAccount: Identifiable, Codable, Hashable {
         self.updatedAt = updatedAt
         self.email = email
         self.planType = planType
-        self.rateLimits = rateLimits
+        self.usage = usage
         self.identity = identity
     }
 
@@ -130,7 +130,7 @@ struct CodexAccount: Identifiable, Codable, Hashable {
         updatedAt = try container.decode(Date.self, forKey: .updatedAt)
         email = try container.decodeIfPresent(String.self, forKey: .email)
         planType = try container.decodeIfPresent(String.self, forKey: .planType)
-        rateLimits = try container.decodeIfPresent(CodexRateLimitSnapshot.self, forKey: .rateLimits)
+        usage = try container.decodeIfPresent(StoredCodexRateLimits.self, forKey: .rateLimits)?.usage
         identity = try container.decodeIfPresent(CodexAccountIdentity.self, forKey: .identity)
             ?? CodexAccountIdentity(
                 stableAccountID: nil,
@@ -141,12 +141,25 @@ struct CodexAccount: Identifiable, Codable, Hashable {
             )
     }
 
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(snapshotFileName, forKey: .snapshotFileName)
+        try container.encode(createdAt, forKey: .createdAt)
+        try container.encode(updatedAt, forKey: .updatedAt)
+        try container.encodeIfPresent(email, forKey: .email)
+        try container.encodeIfPresent(planType, forKey: .planType)
+        try container.encodeIfPresent(usage.map(StoredCodexRateLimits.init), forKey: .rateLimits)
+        try container.encode(identity, forKey: .identity)
+    }
+
     var resolvedRemoteIdentity: CodexRemoteAccountIdentity? {
         identity.remoteIdentity ?? CodexRemoteAccountIdentity(emailAddress: email)
     }
 
     var lastRemoteRefreshAt: Date {
-        if let fetchedAt = rateLimits?.fetchedAt {
+        if let fetchedAt = usage?.fetchedAt {
             return max(updatedAt, fetchedAt)
         }
         return updatedAt
@@ -155,22 +168,87 @@ struct CodexAccount: Identifiable, Codable, Hashable {
     var effectivePlanType: String? {
         effectiveCodexPlanType(
             accountPlanType: planType,
-            rateLimitPlanType: rateLimits?.planType
+            rateLimitPlanType: usage?.planName
         )
     }
 
     mutating func applyRemoteMetadata(
         email: String?,
         planType: String?,
-        rateLimits: CodexRateLimitSnapshot?,
+        usage: UsageSnapshot?,
         preferRateLimitPlan: Bool = true
     ) {
         self.email = email
         self.planType = effectiveCodexPlanType(
             accountPlanType: planType,
-            rateLimitPlanType: preferRateLimitPlan ? rateLimits?.planType : nil
+            rateLimitPlanType: preferRateLimitPlan ? usage?.planName : nil
         )
-        self.rateLimits = rateLimits
+        self.usage = usage
         identity.remoteIdentity = CodexRemoteAccountIdentity(emailAddress: email)
+    }
+}
+
+/// The `rateLimits` shape that accounts.json has always stored: Codex's positional primary and
+/// secondary windows. Writing the same shape keeps the file readable by earlier app versions.
+/// Reading names each window by its length again, so a file saved with the wrong names reads correctly.
+private struct StoredCodexRateLimits: Codable {
+    struct Window: Codable {
+        var usedPercent: Int
+        var resetsAt: Date?
+        var windowDurationMinutes: Int?
+    }
+
+    struct ResetCredits: Codable {
+        struct Credit: Codable {
+            var expiresAt: Date?
+        }
+
+        var availableCount: Int
+        var credits: [Credit]?
+    }
+
+    var planType: String?
+    var primary: Window?
+    var secondary: Window?
+    var fetchedAt: Date
+    var resetCredits: ResetCredits?
+
+    init(_ usage: UsageSnapshot) {
+        planType = usage.planName
+        primary = usage.codexSlots.primary.map(Window.init)
+        secondary = usage.codexSlots.secondary.map(Window.init)
+        fetchedAt = usage.fetchedAt
+        resetCredits = usage.resetCredits.map { resetCredits in
+            ResetCredits(
+                availableCount: resetCredits.availableCount,
+                credits: resetCredits.credits?.map { ResetCredits.Credit(expiresAt: $0.expiresAt) }
+            )
+        }
+    }
+
+    var usage: UsageSnapshot {
+        var usage = UsageSnapshot.codex(
+            planName: planType,
+            primary: primary.map { ($0.usedPercent, $0.resetsAt, $0.windowDurationMinutes) },
+            secondary: secondary.map { ($0.usedPercent, $0.resetsAt, $0.windowDurationMinutes) },
+            fetchedAt: fetchedAt
+        )
+        usage.resetCredits = resetCredits.map { resetCredits in
+            UsageResetCredits(
+                availableCount: resetCredits.availableCount,
+                credits: resetCredits.credits?.map { UsageResetCredit(expiresAt: $0.expiresAt) }
+            )
+        }
+        return usage
+    }
+}
+
+private extension StoredCodexRateLimits.Window {
+    init(_ window: UsageWindow) {
+        self.init(
+            usedPercent: window.usedPercent,
+            resetsAt: window.resetsAt,
+            windowDurationMinutes: window.durationMinutes
+        )
     }
 }

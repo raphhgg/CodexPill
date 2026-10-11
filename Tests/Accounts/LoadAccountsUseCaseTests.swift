@@ -6,18 +6,18 @@ import Testing
 struct LoadAccountsUseCaseTests {
     @Test
     func runBootstrapsLoadsReconcilesPersistsAndResolvesActiveAccount() throws {
-        let saved = makeAccount(name: "Work", fingerprint: "live")
+        let saved = makeAccount(name: "Work", email: nil, fingerprint: "live")
         let reconciled = makeAccount(
             id: saved.id,
             name: saved.name,
-            fingerprint: "live",
-            email: "work@example.com"
+            email: "work@example.com",
+            fingerprint: "live"
         )
 
         let repository = LoadingAccountCatalogProbe(accountsToLoad: [saved])
         let auth = IdentityReconcilerProbe(reconciledAccounts: [reconciled])
         let resolver = SavedAccountIdentityResolver(
-            liveIdentitySource: CurrentIdentityFixture(fingerprint: "live", stableAccountID: nil),
+            liveIdentitySource: LiveIdentityStub(fingerprint: "live"),
             storedAccountReconciler: auth
         )
         let useCase = LoadAccountsUseCase(
@@ -37,11 +37,11 @@ struct LoadAccountsUseCaseTests {
 
     @Test
     func runSkipsSaveWhenReconciliationDoesNotChangeAccounts() throws {
-        let saved = makeAccount(name: "Work", fingerprint: "live")
+        let saved = makeAccount(name: "Work", email: nil, fingerprint: "live")
         let repository = LoadingAccountCatalogProbe(accountsToLoad: [saved])
         let auth = IdentityReconcilerProbe(reconciledAccounts: [saved])
         let resolver = SavedAccountIdentityResolver(
-            liveIdentitySource: CurrentIdentityFixture(fingerprint: nil, stableAccountID: nil),
+            liveIdentitySource: LiveIdentityStub(),
             storedAccountReconciler: auth
         )
         let useCase = LoadAccountsUseCase(
@@ -67,7 +67,7 @@ struct LoadAccountsUseCaseTests {
             updatedAt: .distantPast,
             email: "work@example.com",
             planType: nil,
-            rateLimits: nil,
+            usage: nil,
             identity: CodexAccountIdentity(
                 stableAccountID: nil,
                 snapshotFingerprint: "legacy-fingerprint",
@@ -82,7 +82,7 @@ struct LoadAccountsUseCaseTests {
             updatedAt: .distantPast,
             email: "work@example.com",
             planType: nil,
-            rateLimits: nil,
+            usage: nil,
             identity: CodexAccountIdentity(
                 stableAccountID: "acct-123",
                 snapshotFingerprint: "legacy-fingerprint",
@@ -93,7 +93,7 @@ struct LoadAccountsUseCaseTests {
         let repository = LoadingAccountCatalogProbe(accountsToLoad: [saved])
         let auth = IdentityReconcilerProbe(reconciledAccounts: [reconciled])
         let resolver = SavedAccountIdentityResolver(
-            liveIdentitySource: CurrentIdentityFixture(fingerprint: nil, stableAccountID: "acct-123"),
+            liveIdentitySource: LiveIdentityStub(stableAccountID: "acct-123"),
             storedAccountReconciler: auth
         )
         let useCase = LoadAccountsUseCase(
@@ -120,7 +120,7 @@ struct LoadAccountsUseCaseTests {
             updatedAt: .distantPast,
             email: "admin@example.com",
             planType: "team",
-            rateLimits: nil,
+            usage: nil,
             identity: CodexAccountIdentity(
                 stableAccountID: nil,
                 snapshotFingerprint: "business-one-fingerprint",
@@ -135,7 +135,7 @@ struct LoadAccountsUseCaseTests {
             updatedAt: .distantPast,
             email: "user@example.com",
             planType: "team",
-            rateLimits: nil,
+            usage: nil,
             identity: CodexAccountIdentity(
                 stableAccountID: nil,
                 snapshotFingerprint: "business-two-fingerprint",
@@ -151,7 +151,7 @@ struct LoadAccountsUseCaseTests {
             updatedAt: .distantPast,
             email: "admin@example.com",
             planType: "team",
-            rateLimits: nil,
+            usage: nil,
             identity: CodexAccountIdentity(
                 stableAccountID: "acct-team",
                 authPrincipalIdentity: CodexAuthPrincipalIdentity(
@@ -174,7 +174,7 @@ struct LoadAccountsUseCaseTests {
             updatedAt: .distantPast,
             email: "user@example.com",
             planType: "team",
-            rateLimits: nil,
+            usage: nil,
             identity: CodexAccountIdentity(
                 stableAccountID: "acct-team",
                 authPrincipalIdentity: CodexAuthPrincipalIdentity(
@@ -193,8 +193,7 @@ struct LoadAccountsUseCaseTests {
         let repository = LoadingAccountCatalogProbe(accountsToLoad: [savedBusinessOne, savedBusinessTwo])
         let auth = IdentityReconcilerProbe(reconciledAccounts: [reconciledBusinessOne, reconciledBusinessTwo])
         let resolver = SavedAccountIdentityResolver(
-            liveIdentitySource: CurrentIdentityFixture(
-                fingerprint: nil,
+            liveIdentitySource: LiveIdentityStub(
                 stableAccountID: "acct-team",
                 authPrincipalIdentity: CodexAuthPrincipalIdentity(
                     subject: "auth0|business-2",
@@ -226,7 +225,7 @@ struct LoadAccountsUseCaseTests {
             updatedAt: .distantPast,
             email: "admin@example.com",
             planType: "plus",
-            rateLimits: nil,
+            usage: nil,
             identity: CodexAccountIdentity(
                 stableAccountID: "acct-shared",
                 authPrincipalIdentity: CodexAuthPrincipalIdentity(subject: "auth0|personal", chatGPTUserID: "user-personal"),
@@ -243,7 +242,7 @@ struct LoadAccountsUseCaseTests {
             updatedAt: .distantPast,
             email: "user@example.com",
             planType: "team",
-            rateLimits: nil,
+            usage: nil,
             identity: CodexAccountIdentity(
                 stableAccountID: "acct-shared",
                 authPrincipalIdentity: CodexAuthPrincipalIdentity(subject: "auth0|business", chatGPTUserID: "user-business"),
@@ -256,8 +255,7 @@ struct LoadAccountsUseCaseTests {
         let repository = LoadingAccountCatalogProbe(accountsToLoad: [personal, business])
         let auth = IdentityReconcilerProbe(reconciledAccounts: [personal, business])
         let resolver = SavedAccountIdentityResolver(
-            liveIdentitySource: CurrentIdentityFixture(
-                fingerprint: nil,
+            liveIdentitySource: LiveIdentityStub(
                 stableAccountID: "acct-shared",
                 authPrincipalIdentity: CodexAuthPrincipalIdentity(subject: "auth0|missing", chatGPTUserID: "user-missing"),
                 workspaceIdentity: CodexWorkspaceIdentity(workspaceAccountID: "org-missing", workspaceLabel: "Missing"),
@@ -272,29 +270,6 @@ struct LoadAccountsUseCaseTests {
         ).run()
 
         #expect(result.activeAccountID == nil)
-    }
-
-    private func makeAccount(
-        id: UUID = UUID(),
-        name: String,
-        fingerprint: String,
-        email: String? = nil
-    ) -> CodexAccount {
-        CodexAccount(
-            id: id,
-            name: name,
-            snapshotFileName: "\(id.uuidString).json",
-            createdAt: .distantPast,
-            updatedAt: .distantPast,
-            email: email,
-            planType: nil,
-            rateLimits: nil,
-            identity: CodexAccountIdentity(
-                stableAccountID: nil,
-                snapshotFingerprint: fingerprint,
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: email)
-            )
-        )
     }
 }
 
@@ -333,37 +308,5 @@ private final class IdentityReconcilerProbe: StoredAccountIdentityReconciler, @u
     func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {
         inputAccounts = accounts
         return reconciledAccounts
-    }
-}
-
-private struct CurrentIdentityFixture: LiveCodexAccountIdentitySource {
-    let fingerprint: String?
-    let stableAccountID: String?
-    let authPrincipalIdentity: CodexAuthPrincipalIdentity?
-    let workspaceIdentity: CodexWorkspaceIdentity?
-    let remoteIdentity: CodexRemoteAccountIdentity?
-
-    init(
-        fingerprint: String?,
-        stableAccountID: String?,
-        authPrincipalIdentity: CodexAuthPrincipalIdentity? = nil,
-        workspaceIdentity: CodexWorkspaceIdentity? = nil,
-        remoteIdentity: CodexRemoteAccountIdentity? = nil
-    ) {
-        self.fingerprint = fingerprint
-        self.stableAccountID = stableAccountID
-        self.authPrincipalIdentity = authPrincipalIdentity
-        self.workspaceIdentity = workspaceIdentity
-        self.remoteIdentity = remoteIdentity
-    }
-
-    func readCurrentLiveAccountIdentity() -> LiveCodexAccountIdentity {
-        LiveCodexAccountIdentity(
-            stableAccountID: stableAccountID,
-            authPrincipalIdentity: authPrincipalIdentity,
-            workspaceIdentity: workspaceIdentity,
-            snapshotFingerprint: fingerprint,
-            remoteIdentity: remoteIdentity
-        )
     }
 }

@@ -33,7 +33,7 @@ struct CodexAuthSnapshotService: Sendable {
             updatedAt: Date(),
             email: nil,
             planType: nil,
-            rateLimits: nil,
+            usage: nil,
             identity: .empty
         )
         account.name = name
@@ -47,6 +47,15 @@ struct CodexAuthSnapshotService: Sendable {
         account.planType = CodexAuthDataParser.planType(from: authData)
         try repository.writeSnapshot(data: authData, for: account)
         return account
+    }
+
+    func replaceAuthSnapshot(
+        _ authData: Data,
+        ifUnchangedFrom expected: Data,
+        for account: CodexAccount
+    ) throws -> CodexAccount? {
+        guard try repository.readSnapshot(for: account) == expected else { return nil }
+        return try saveAuthSnapshot(authData, named: account.name, existing: account)
     }
 
     func deleteAuthSnapshot(for account: CodexAccount) throws {

@@ -99,24 +99,129 @@ struct AccountRepositoryTests {
         #expect(try posixPermissions(at: snapshotURL) == 0o600)
     }
 
-    private func makeRepository(root: URL) throws -> AccountRepository {
-        try AccountRepository(
-            fileManager: .default,
-            environment: [AppRuntimeEnvironment.validationAppSupportDirectoryEnvironmentKey: root.path]
-        )
+    @Test
+    func accountsFileWrittenBeforeUsageWindowsLoadsAsUsageAndSavesInTheSameShape() throws {
+        let root = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repository = try makeRepository(root: root)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try Data(Self.accountsFileBeforeUsageWindows.utf8).write(to: repository.paths.accountsFile)
+
+        let account = try #require(try repository.loadAccounts().first)
+
+        #expect(account.planType == "plus")
+        #expect(account.effectivePlanType == "pro")
+        #expect(account.usage == UsageSnapshot(
+            provider: .codex,
+            planName: "pro",
+            windows: [
+                UsageWindow(
+                    kind: .session,
+                    usedPercent: 42,
+                    resetsAt: Date(timeIntervalSince1970: 1_800_010_000),
+                    durationMinutes: 300
+                ),
+                UsageWindow(
+                    kind: .weekly,
+                    usedPercent: 68,
+                    resetsAt: Date(timeIntervalSince1970: 1_800_400_000),
+                    durationMinutes: 10_080
+                ),
+            ],
+            fetchedAt: Date(timeIntervalSince1970: 1_800_000_200)
+        ))
+
+        try repository.saveAccounts([account])
+
+        #expect(try repository.loadAccounts() == [account])
+        let saved = try String(contentsOf: repository.paths.accountsFile, encoding: .utf8)
+        #expect(saved == Self.accountsFileBeforeUsageWindows.replacingOccurrences(of: "      \"limitID\" : \"codex\",\n", with: ""))
     }
 
-    private func makeAccount() -> CodexAccount {
-        CodexAccount(
-            id: UUID(),
-            name: "Research",
-            snapshotFileName: "research.json",
-            createdAt: .distantPast,
-            updatedAt: .distantPast,
-            email: nil,
-            planType: nil,
-            rateLimits: nil,
-            identity: .empty
+    @Test
+    func savedThirtyDayWindowReadsBackAsMonthly() throws {
+        let root = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repository = try makeRepository(root: root)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try Data(Self.freeAccountFileWithThirtyDayWindow.utf8).write(to: repository.paths.accountsFile)
+
+        let account = try #require(try repository.loadAccounts().first)
+
+        #expect(account.usage?.windows == [
+            UsageWindow(
+                kind: .monthly,
+                usedPercent: 0,
+                resetsAt: Date(timeIntervalSince1970: 1_802_592_000),
+                durationMinutes: 43_200
+            ),
+        ])
+        try repository.saveAccounts([account])
+        #expect(try repository.loadAccounts() == [account])
+    }
+
+    private static let freeAccountFileWithThirtyDayWindow = """
+    [
+      {
+        "createdAt" : "2027-01-15T08:00:00Z",
+        "email" : "free@example.com",
+        "id" : "11111111-2222-3333-4444-666666666666",
+        "name" : "Free",
+        "planType" : "free",
+        "rateLimits" : {
+          "fetchedAt" : "2027-01-15T08:03:20Z",
+          "planType" : "free",
+          "secondary" : {
+            "resetsAt" : "2027-02-14T08:00:00Z",
+            "usedPercent" : 0,
+            "windowDurationMinutes" : 43200
+          }
+        },
+        "snapshotFileName" : "11111111-2222-3333-4444-666666666666.json",
+        "updatedAt" : "2027-01-15T08:01:40Z"
+      }
+    ]
+    """
+
+    private static let accountsFileBeforeUsageWindows = """
+    [
+      {
+        "createdAt" : "2027-01-15T08:00:00Z",
+        "email" : "work@example.com",
+        "id" : "11111111-2222-3333-4444-555555555555",
+        "identity" : {
+          "remoteIdentity" : {
+            "normalizedEmailAddress" : "work@example.com"
+          },
+          "snapshotFingerprint" : "fp-fake",
+          "stableAccountID" : "acct-fake"
+        },
+        "name" : "Work",
+        "planType" : "plus",
+        "rateLimits" : {
+          "fetchedAt" : "2027-01-15T08:03:20Z",
+          "limitID" : "codex",
+          "planType" : "pro",
+          "primary" : {
+            "resetsAt" : "2027-01-15T10:46:40Z",
+            "usedPercent" : 42,
+            "windowDurationMinutes" : 300
+          },
+          "secondary" : {
+            "resetsAt" : "2027-01-19T23:06:40Z",
+            "usedPercent" : 68,
+            "windowDurationMinutes" : 10080
+          }
+        },
+        "snapshotFileName" : "11111111-2222-3333-4444-555555555555.json",
+        "updatedAt" : "2027-01-15T08:01:40Z"
+      }
+    ]
+    """
+
+    private func makeRepository(root: URL) throws -> AccountRepository {
+        try AccountRepository(
+            isolatedRootDirectory: root
         )
     }
 
