@@ -78,6 +78,22 @@ struct SystemCursorAccountKeychain: CursorAccountStore {
     }
 }
 
+/// Saved accounts as a private file inside an isolated run's root, which never uses the Keychain.
+struct IsolatedCursorAccountFile: CursorAccountStore {
+    let file: URL
+
+    func load() throws -> [CursorSavedAccount] {
+        guard let data = try ClaudeCredentialsSource.contentsIfPresent(of: file) else { return [] }
+        return try SystemCursorAccountKeychain.decode(data)
+    }
+
+    func save(_ accounts: [CursorSavedAccount]) throws {
+        try FilePermissionHardening.createPrivateDirectory(at: file.deletingLastPathComponent())
+        try SystemCursorAccountKeychain.encode(accounts).write(to: file, options: .atomic)
+        try FilePermissionHardening.repairPrivateFile(at: file)
+    }
+}
+
 private struct StoredAccounts: Codable {
     let version: Int
     let accounts: [CursorSavedAccount]
