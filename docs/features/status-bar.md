@@ -23,7 +23,7 @@ what is left, not what is used, so a fuller glyph means more room.
 | Style | Session limit | Weekly limit | No data |
 | --- | --- | --- | --- |
 | Hourglass (default) | Sand in the top bulb falls as you use it, and the used share fills the bottom bulb. | A base bar under the glass, filled left to right. | Empty glass and a faint base. |
-| Moon | The lit phase of a moon, lit from the right: full at 100%, a thin crescent near 0. | An orbit ring, filled clockwise from 12 o'clock. | A dashed moon outline and a faint ring. |
+| Moon | The lit phase of a moon, lit from the right: full at 100%, a thin crescent near 0. | An orbit ring, filled clockwise from 12 o'clock. | A faint moon outline and a faint ring. |
 | Punch card | Top row of five slots. | Bottom row of five slots. | All slots hollow and faint. |
 
 Punch card rounds up, so any amount left shows at least one solid slot. A
