@@ -117,16 +117,19 @@ struct ClaudeCodeAccountStoreTests {
     }
 
     @Test
-    func anUnsavedSignInIsNeverOverwritten() throws {
+    func switchingAwayFromAnUnsavedSignInSavesItFirst() throws {
         let fixture = try ClaudeCodeAccountFixture()
         defer { fixture.remove() }
         try fixture.signIn(.team, refreshToken: "fake-team-refresh-1")
         let team = try fixture.store.captureCurrent()
         try fixture.signIn(.personal, refreshToken: "fake-personal-refresh-1")
 
-        #expect(throws: ClaudeCodeAccountError.currentSignInNotSaved) { try fixture.store.activate(team.id) }
+        try fixture.store.activate(team.id)
+        #expect(try fixture.currentRefreshToken() == "fake-team-refresh-1")
+        let personal = try #require(try fixture.store.accounts().first { $0.id != team.id })
+
+        try fixture.store.activate(personal.id)
         #expect(try fixture.currentRefreshToken() == "fake-personal-refresh-1")
-        #expect(try fixture.store.activeAccountID() == nil)
     }
 
     @Test

@@ -9,6 +9,9 @@ import Foundation
 ///
 /// A tool's expired live sign-in is renewed by the tool itself, one renewal at a time, never during a sign-in, an
 /// account action or the inactive pass. Account actions wait for it, so they save the renewed sign-in.
+///
+/// After each read, a connected tool's live account is saved when it is not saved yet. That save waits for the same
+/// work a renewal waits for, and account actions wait for it.
 @MainActor
 final class ProviderUsageRuntime {
     nonisolated static let refreshInterval: TimeInterval = 5 * 60
@@ -28,6 +31,7 @@ final class ProviderUsageRuntime {
     private var inactiveRefresh: Task<Void, Never>?
     private var stopsInactiveRefresh = false
     private var liveRenewal: Task<[UsageProvider], Never>?
+    private var liveAccountSave: Task<[UsageProvider], Never>?
     private var accountActionsInFlight = 0
 
     init(
@@ -108,11 +112,6 @@ final class ProviderUsageRuntime {
                 let result = await signIn.value
                 signIns[provider] = nil
                 readsNewAccounts = (try result.get())
-            case .saveCurrentAccount:
-                accountActionsInFlight += 1
-                defer { accountActionsInFlight -= 1 }
-                await finishSignInWork()
-                try await connection.addCurrentAccount()
             case let .removeAccount(id):
                 accountActionsInFlight += 1
                 defer { accountActionsInFlight -= 1 }
@@ -172,6 +171,7 @@ final class ProviderUsageRuntime {
                 }
             }
         }
+        await saveNewLiveAccounts(of: dueConnections.filter(\.isConnected))
         onChange()
     }
 
@@ -211,7 +211,26 @@ final class ProviderUsageRuntime {
     }
 
     private var isChangingSignIns: Bool {
-        !signIns.isEmpty || accountActionsInFlight > 0 || inactiveRefresh != nil || liveRenewal != nil
+        !signIns.isEmpty || accountActionsInFlight > 0 || inactiveRefresh != nil || liveRenewal != nil || liveAccountSave != nil
+    }
+
+    private func saveNewLiveAccounts(of connected: [any ProviderConnection]) async {
+        guard !connected.isEmpty, !isChangingSignIns else { return }
+        let save = Task {
+            var saved: [UsageProvider] = []
+            for connection in connected where await connection.saveLiveAccountIfNew() {
+                saved.append(connection.provider)
+            }
+            return saved
+        }
+        liveAccountSave = save
+        let saved = await save.value
+        liveAccountSave = nil
+        for provider in saved {
+            if let updated = try? await connection(for: provider)?.savedAccounts() {
+                accounts[provider] = updated
+            }
+        }
     }
 
     /// `onlyUnread` reads only accounts with no limits yet, such as one the user just added.
@@ -235,10 +254,11 @@ final class ProviderUsageRuntime {
         }
     }
 
-    /// Lets a live renewal and the account being read finish, so a renewed sign-in is saved before an action
-    /// touches any sign-in.
+    /// Lets a live renewal, a live account save and the account being read finish, so a renewed sign-in is saved
+    /// before an action touches any sign-in.
     private func finishSignInWork() async {
         _ = await liveRenewal?.value
+        _ = await liveAccountSave?.value
         guard let inactiveRefresh else { return }
         stopsInactiveRefresh = true
         await inactiveRefresh.value

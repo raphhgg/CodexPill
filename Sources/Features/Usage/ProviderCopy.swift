@@ -27,7 +27,7 @@ struct ProviderCopy: Sendable {
         case .switchAccount: switchPrompt
         case .removeAccount:
             ProviderPrompt(title: "Remove this \(name) account?", detail: "CodexPill forgets its saved sign-in.", confirmTitle: "Remove")
-        case .allowKeychainAccess, .cancelSignIn, .disconnect, .addAccount, .saveCurrentAccount, .useResetCredit: nil
+        case .allowKeychainAccess, .cancelSignIn, .disconnect, .addAccount, .useResetCredit: nil
         }
     }
 
@@ -93,11 +93,10 @@ extension ClaudeCodeAccountError {
     var notice: ProviderNotice {
         let (title, detail) = switch self {
         case .unknownAccount: ("Account not found", "It may have been removed.")
-        case .savedSignInMissing: ("Saved sign-in missing", "Save this account again.")
+        case .savedSignInMissing: ("Saved sign-in missing", "Remove it, then add it again.")
         case .savedAccountsUnreadable: ("Can't read saved accounts", "Try again in a moment.")
         case .claudeCodeSignedOut: ("Claude Code isn't signed in", "Run claude and sign in first.")
         case .claudeCodeAccountUnknown: ("Unknown Claude account", "Open Claude Code once, then retry.")
-        case .currentSignInNotSaved: ("Save this account first", "Otherwise its sign-in is lost.")
         case .claudeCodeRunning: ("Quit Claude Code first", "Close every claude session.")
         case .keychainAccessNeeded: ("Allow Keychain access", "CodexPill needs it to switch.")
         case .unreadable: ("Can't read the Claude sign-in", "Sign in to Claude Code again.")

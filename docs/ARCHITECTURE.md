@@ -103,7 +103,7 @@ protocol ProviderConnection: UsageProviderSource {
     func savedAccounts() async throws(ProviderNotice) -> [ProviderAccount]
     func switchAccount(to id: UUID) async throws(ProviderNotice)
     func addAccount() async throws(ProviderNotice) -> Bool
-    func addCurrentAccount() async throws(ProviderNotice)
+    func saveLiveAccountIfNew() async -> Bool
     func removeAccount(_ id: UUID) async throws(ProviderNotice)
     func refreshInactiveAccount(_ id: UUID, now: Date) async
 }
@@ -112,7 +112,7 @@ protocol ProviderConnection: UsageProviderSource {
 Each saved account is the tool's own sign-in in the tool's own format, held by CodexPill, and the tool's live sign-in is the account in use. The four account operations follow one style, the one Codex accounts already use:
 
 - `addAccount()` runs the tool's own sign-in away from its live sign-in, in a throwaway home the Platform adapter creates and always deletes, and saves what the tool wrote there. Cancelling the calling task stops the sign-in and returns false. `signInAvailability` says whether that sign-in can run here (`available`, `notInstalled`) or the tool only saves its current sign-in (`unsupported`).
-- `addCurrentAccount()` saves the sign-in the tool uses now.
+- `saveLiveAccountIfNew()` saves the account the tool is signed in to when it is not saved yet, without a prompt, and returns true when it saved one. `ProviderUsageRuntime` calls it after each read of a connected tool, never while sign-ins change, and account actions wait for it. The default does nothing.
 - `switchAccount(to:)` saves the live sign-in back to its account first, because the tool may have renewed it, then writes the target, all or nothing.
 - `refreshInactiveAccount(_:now:)` reads one saved account the tool is not signed in to, with that account's own sign-in, and records its limits on `ProviderAccount.usage`. When the saved sign-in needs renewing, the tool renews it in a throwaway home and the adapter writes it back only if the saved copy is unchanged (compare and swap). Cursor renews nothing: an expired saved token keeps its last limits. Limits are recorded under the same compare and swap, so a read never overwrites tokens a switch saved meanwhile. It never reads or changes the live sign-in. The default does nothing.
 - `renewLiveSignInIfNeeded(now:)` lets the tool renew its own expired live sign-in while the tool is not running, and returns true when the sign-in changed. Claude runs `claude doctor` with Claude Code's own config, once per expiry with a 30-minute retry. The default does nothing.

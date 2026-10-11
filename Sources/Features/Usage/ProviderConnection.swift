@@ -23,8 +23,9 @@ protocol ProviderConnection: UsageProviderSource {
     /// Runs the tool's own sign-in away from its live sign-in and saves the account. Returns false when the calling
     /// task was cancelled, which stops the sign-in.
     func addAccount() async throws(ProviderNotice) -> Bool
-    /// Saves the sign-in the tool uses now, so the user can switch back to it.
-    func addCurrentAccount() async throws(ProviderNotice)
+    /// Saves the account the tool is signed in to now when it is not saved yet, so the user can switch back to it.
+    /// Never shows a prompt. True when it saved one.
+    func saveLiveAccountIfNew() async -> Bool
     /// Forgets a saved account. The tool stays signed in.
     func removeAccount(_ id: UUID) async throws(ProviderNotice)
     /// Reads the limits of a saved account the tool is not signed in to, with that account's own sign-in. The live
@@ -36,6 +37,7 @@ protocol ProviderConnection: UsageProviderSource {
 }
 
 extension ProviderConnection {
+    func saveLiveAccountIfNew() async -> Bool { false }
     func refreshInactiveAccount(_: UUID, now _: Date) async {}
     func renewLiveSignInIfNeeded(now _: Date) async -> Bool { false }
 }
@@ -67,7 +69,6 @@ enum ProviderAction: Hashable, Sendable {
     case disconnect
     case switchAccount(UUID)
     case addAccount
-    case saveCurrentAccount
     case removeAccount(UUID)
     /// Codex only: spends one reset credit on the active account.
     case useResetCredit
@@ -81,7 +82,6 @@ enum ProviderAction: Hashable, Sendable {
         case .disconnect: "disconnect"
         case .switchAccount: "switchAccount"
         case .addAccount: "addAccount"
-        case .saveCurrentAccount: "saveCurrentAccount"
         case .removeAccount: "removeAccount"
         case .useResetCredit: "useResetCredit"
         }

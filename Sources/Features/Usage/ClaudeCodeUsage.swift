@@ -122,12 +122,9 @@ struct ClaudeCodeUsage: ProviderConnection {
         return true
     }
 
-    func addCurrentAccount() async throws(ProviderNotice) {
-        do {
-            try store().captureCurrent()
-        } catch {
-            throw error.notice
-        }
+    func saveLiveAccountIfNew() async -> Bool {
+        guard settings.isEnabled, let accounts else { return false }
+        return ((try? accounts.saveCurrentIfNew()) ?? nil) != nil
     }
 
     func removeAccount(_ id: UUID) async throws(ProviderNotice) {

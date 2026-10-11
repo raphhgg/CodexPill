@@ -317,12 +317,11 @@ struct ClaudeAccountsTests {
     }
 
     @Test
-    func theLiveSignInIsNotRenewedWhileTheCurrentSignInIsBeingSaved() async throws {
+    func theLiveSignInIsNotRenewedWhileTheLiveAccountIsBeingSaved() async throws {
         let fixture = try ClaudeAccountsFixture(now: now)
         defer { fixture.remove() }
-        try fixture.signInLive(.personal, access: "personal-access-1", expiresAt: now.addingTimeInterval(-60))
+        try fixture.signInLive(.personal, access: "personal-access-1", expiresAt: now.addingTimeInterval(-60), saved: false)
         let runtime = ProviderUsageRuntime(connections: [fixture.usage], now: { [now] in now }, onChange: {})
-        await runtime.refreshIfDue()
         let saveReached = LockedFlag()
         let releaseSave = DispatchSemaphore(value: 0)
         fixture.items.beforeSave = {
@@ -330,16 +329,81 @@ struct ClaudeAccountsTests {
             _ = releaseSave.wait(timeout: .now() + 5)
         }
 
-        let save = Task { await runtime.perform(.saveCurrentAccount, on: .claude) }
+        let connect = Task { await runtime.perform(.connect, on: .claude) }
         while !saveReached.isSet {
             await Task.yield()
         }
         await runtime.renewLiveSignInsIfNeeded()
         fixture.items.beforeSave = nil
         releaseSave.signal()
+        #expect(await connect.value == nil)
 
-        #expect(await save.value == nil)
         #expect(fixture.claude.commands == [])
+        #expect(try await fixture.usage.savedAccounts().map(\.email) == ["personal@example.com"])
+    }
+
+    @Test
+    func aConnectedClaudeCodesLiveAccountIsSavedOnceAndAgainWhenClaudeCodeSignsInToAnother() async throws {
+        let fixture = try ClaudeAccountsFixture(now: now)
+        defer { fixture.remove() }
+        try fixture.signInLive(.personal, access: "personal-access-1", saved: false)
+        let runtime = ProviderUsageRuntime(connections: [fixture.usage], now: { [now] in now }, onChange: {})
+
+        #expect(await runtime.perform(.connect, on: .claude) == nil)
+        await runtime.refreshIfDue(forcing: .claude)
+        #expect(runtime.states.first?.accounts.map(\.email) == ["personal@example.com"])
+        #expect(try fixture.store.accounts().map(\.email) == ["personal@example.com"])
+
+        try fixture.signInLive(.team, access: "team-access-1", saved: false)
+        await runtime.refreshIfDue(forcing: .claude)
+        #expect(runtime.states.first?.accounts.map { "\($0.email ?? "") \($0.isActive)" } == ["personal@example.com false", "team@example.com true"])
+        #expect(try fixture.savedAccessToken(of: "team@example.com") == "team-access-1")
+    }
+
+    @Test
+    func aLiveSignInWithoutAnAccountRecordIsSavedOnlyOnceClaudeCodeRecordsTheAccount() async throws {
+        let fixture = try ClaudeAccountsFixture(now: now)
+        defer { fixture.remove() }
+        try fixture.signInLive(.personal, access: "personal-access-1", saved: false)
+        try Data("{}".utf8).write(to: fixture.globalConfigFile)
+        let runtime = ProviderUsageRuntime(connections: [fixture.usage], now: { [now] in now }, onChange: {})
+
+        #expect(await runtime.perform(.connect, on: .claude) == nil)
+        #expect(try fixture.store.accounts().map(\.email) == [])
+
+        try fixture.globalConfig(.personal).write(to: fixture.globalConfigFile)
+        await runtime.refreshIfDue(forcing: .claude)
+        #expect(try fixture.store.accounts().map(\.email) == ["personal@example.com"])
+    }
+
+    @Test
+    func noLiveAccountIsSavedDuringASwitch() async throws {
+        let fixture = try ClaudeAccountsFixture(now: now)
+        defer { fixture.remove() }
+        try fixture.saveAccount(.team, access: "team-access-1", expiresAt: now.addingTimeInterval(3_600))
+        try fixture.signInLive(.personal, access: "personal-access-1")
+        let team = try #require(try fixture.store.accounts().first { $0.email == "team@example.com" })
+        let runtime = ProviderUsageRuntime(connections: [fixture.usage], now: { [now] in now }, onChange: {})
+        let saveReached = LockedFlag()
+        let releaseSave = DispatchSemaphore(value: 0)
+        fixture.items.beforeSave = {
+            saveReached.set()
+            _ = releaseSave.wait(timeout: .now() + 5)
+        }
+
+        let switching = Task { await runtime.perform(.switchAccount(team.id), on: .claude) }
+        while !saveReached.isSet {
+            await Task.yield()
+        }
+        try fixture.credentials(access: "stray-access-1").write(to: fixture.liveKeychainFile)
+        try JSONSerialization.data(withJSONObject: ["oauthAccount": ["accountUuid": "stray-user", "emailAddress": "stray@example.com"]])
+            .write(to: fixture.globalConfigFile)
+        await runtime.refreshIfDue(forcing: .claude)
+        #expect(try fixture.store.accounts().map(\.email) == ["team@example.com", "personal@example.com"])
+
+        fixture.items.beforeSave = nil
+        releaseSave.signal()
+        #expect(await switching.value == nil)
     }
 
     @Test
@@ -513,11 +577,12 @@ private final class ClaudeAccountsFixture: @unchecked Sendable {
         try! JSONSerialization.data(withJSONObject: ["oauthAccount": account.record])
     }
 
-    /// What Claude Code leaves after `/login`: its Keychain item and the account record, saved in CodexPill.
-    func signInLive(_ account: ClaudeTestAccount, access: String, expiresAt: Date? = nil) throws {
+    /// What Claude Code leaves after `/login`: its Keychain item and the account record, saved in CodexPill unless
+    /// `saved` is false.
+    func signInLive(_ account: ClaudeTestAccount, access: String, expiresAt: Date? = nil, saved: Bool = true) throws {
         try credentials(access: access, expiresAt: expiresAt).write(to: liveKeychainFile)
         try globalConfig(account).write(to: globalConfigFile)
-        try store.captureCurrent()
+        if saved { try store.captureCurrent() }
     }
 
     /// What Claude Code does when it renews its own sign-in: it rewrites its Keychain item.
