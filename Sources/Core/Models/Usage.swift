@@ -9,7 +9,21 @@ enum UsageProvider: String, CaseIterable, Hashable {
 enum UsageWindowKind: Hashable {
     case session
     case weekly
+    case monthly
     case billingCycle
+    /// A limit whose length has no common name. The menu titles it by that length.
+    case other(durationMinutes: Int)
+
+    /// The one rule that names a reported window by its length. Each name allows an hour of slack either way,
+    /// and monthly covers every calendar month (28 to 31 days).
+    init(durationMinutes: Int) {
+        switch durationMinutes {
+        case (5 * 60 - 60)...(5 * 60 + 60): self = .session
+        case (7 * 1_440 - 60)...(7 * 1_440 + 60): self = .weekly
+        case (28 * 1_440 - 60)...(31 * 1_440 + 60): self = .monthly
+        default: self = .other(durationMinutes: durationMinutes)
+        }
+    }
 }
 
 struct UsageWindow: Hashable {

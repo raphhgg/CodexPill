@@ -94,6 +94,30 @@ struct UsagePresentationTests {
     }
 
     @Test
+    func paceTickForAThirtyDayWindowUsesItsFullLength() {
+        let now = Date(timeIntervalSince1970: 1_744_195_200)
+        let monthly = UsageWindow(
+            kind: .monthly,
+            usedPercent: 10,
+            resetsAt: now.addingTimeInterval(20 * 86_400),
+            durationMinutes: 43_200
+        )
+
+        #expect(expectedRateLimitUsagePercent(for: monthly, now: now) == 33)
+    }
+
+    @Test
+    func resetMoreThanAWeekAwayReadsAsADate() {
+        let now = Date(timeIntervalSince1970: 1_744_195_200)
+        let gmt = TimeZone(identifier: "GMT")!
+        let farOff = UsageWindow(kind: .monthly, usedPercent: 4, resetsAt: now.addingTimeInterval(25 * 86_400), durationMinutes: 43_200)
+        let weekAway = UsageWindow(kind: .monthly, usedPercent: 4, resetsAt: now.addingTimeInterval(7 * 86_400), durationMinutes: 43_200)
+
+        #expect(resetStatusText(for: farOff, now: now, locale: Locale(identifier: "en_GB"), timeZone: gmt) == "Resets 4 May")
+        #expect(resetStatusText(for: weekAway, now: now, locale: Locale(identifier: "en_GB"), timeZone: gmt) == "Resets in 7d")
+    }
+
+    @Test
     func expectedRateLimitUsagePercentRequiresFutureResetAndDuration() {
         let now = Date(timeIntervalSince1970: 1_744_195_200)
         let missingReset = UsageWindow(
@@ -153,7 +177,12 @@ struct UsagePresentationTests {
         let weekly = UsageWindow(kind: .weekly, usedPercent: 17, resetsAt: now.addingTimeInterval(3 * 86_400), durationMinutes: 10_080)
         let billingCycle = UsageWindow(kind: .billingCycle, usedPercent: 82, resetsAt: now.addingTimeInterval(20 * 86_400), durationMinutes: nil)
 
+        let monthly = UsageWindow(kind: .monthly, usedPercent: 4, resetsAt: now.addingTimeInterval(20 * 86_400), durationMinutes: 43_200)
+        let eightDays = UsageWindow(kind: .other(durationMinutes: 11_520), usedPercent: 9, resetsAt: nil, durationMinutes: 11_520)
+
         #expect(statusItemTitle(for: [weekly], now: now) == "W 17%")
+        #expect(statusItemTitle(for: [monthly], now: now) == "M 4%")
+        #expect(statusItemTitle(for: [weekly, eightDays], now: now) == "W 17% 8d 9%")
         #expect(statusItemTitle(for: [billingCycle], now: now) == "82%")
         #expect(statusItemTitle(for: [], now: now) == "--")
     }

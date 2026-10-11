@@ -6,7 +6,7 @@ It is for people who use more than one account in these tools and want to see, a
 
 - save accounts as reusable local sign-ins;
 - switch the account a tool uses from the menubar;
-- see current usage (session, weekly, or billing cycle) before choosing which account to use;
+- see current usage (session, weekly, monthly, or billing cycle) before choosing which account to use;
 - spend a Codex reset credit when one is available.
 
 Codex is always on. Claude Code and Cursor are opt-in: each is read only after the user connects it.
@@ -64,7 +64,7 @@ The account a tool uses right now on this Mac, read from that tool's own live si
 
 ### Usage Snapshot
 
-The most recent reading of a tool's limits: one window per limit the tool reports (session, weekly, billing cycle), with reset times. A window the tool does not report is hidden, never shown as 0%.
+The most recent reading of a tool's limits: one window per limit the tool reports, named by its length (session, weekly, monthly, billing cycle, or a length such as `8 days`), with reset times. A window the tool does not report is hidden, never shown as 0%.
 
 ### Reset Credit
 

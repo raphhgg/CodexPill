@@ -11,8 +11,8 @@ struct InactiveAccountAvailabilityRanking {
         let leftKey = sortKey(for: availabilityService.availability(for: lhs), now: .now)
         let rightKey = sortKey(for: availabilityService.availability(for: rhs), now: .now)
 
-        if leftKey.weeklyConstraintRank != rightKey.weeklyConstraintRank {
-            return leftKey.weeklyConstraintRank < rightKey.weeklyConstraintRank
+        if leftKey.longWindowConstraintRank != rightKey.longWindowConstraintRank {
+            return leftKey.longWindowConstraintRank < rightKey.longWindowConstraintRank
         }
 
         if leftKey.sessionReadyRank != rightKey.sessionReadyRank {
@@ -23,8 +23,8 @@ struct InactiveAccountAvailabilityRanking {
             return leftKey.effectiveAvailableAt < rightKey.effectiveAvailableAt
         }
 
-        if leftKey.weeklyUsedPercent != rightKey.weeklyUsedPercent {
-            return leftKey.weeklyUsedPercent < rightKey.weeklyUsedPercent
+        if leftKey.longWindowUsedPercent != rightKey.longWindowUsedPercent {
+            return leftKey.longWindowUsedPercent < rightKey.longWindowUsedPercent
         }
 
         if leftKey.sessionUsedPercent != rightKey.sessionUsedPercent {
@@ -42,8 +42,8 @@ struct InactiveAccountAvailabilityRanking {
         let leftKey = sortKey(for: lhs, now: now)
         let rightKey = sortKey(for: rhs, now: now)
 
-        if leftKey.weeklyConstraintRank != rightKey.weeklyConstraintRank {
-            return leftKey.weeklyConstraintRank < rightKey.weeklyConstraintRank
+        if leftKey.longWindowConstraintRank != rightKey.longWindowConstraintRank {
+            return leftKey.longWindowConstraintRank < rightKey.longWindowConstraintRank
         }
 
         if leftKey.sessionReadyRank != rightKey.sessionReadyRank {
@@ -54,8 +54,8 @@ struct InactiveAccountAvailabilityRanking {
             return leftKey.effectiveAvailableAt < rightKey.effectiveAvailableAt
         }
 
-        if leftKey.weeklyUsedPercent != rightKey.weeklyUsedPercent {
-            return leftKey.weeklyUsedPercent < rightKey.weeklyUsedPercent
+        if leftKey.longWindowUsedPercent != rightKey.longWindowUsedPercent {
+            return leftKey.longWindowUsedPercent < rightKey.longWindowUsedPercent
         }
 
         return leftKey.sessionUsedPercent < rightKey.sessionUsedPercent
@@ -67,20 +67,20 @@ struct InactiveAccountAvailabilityRanking {
             resetAt: availability.sessionResetAt,
             now: now
         )
-        let weeklyUsedPercent = projectedUsedPercent(
-            currentValue: availability.weeklyUsedPercent,
-            resetAt: availability.weeklyResetAt,
+        let longWindowUsedPercent = projectedUsedPercent(
+            currentValue: availability.longWindowUsedPercent,
+            resetAt: availability.longWindowResetAt,
             now: now
         )
 
-        let weeklyConstraintRank: Int
-        switch weeklyUsedPercent {
+        let longWindowConstraintRank: Int
+        switch longWindowUsedPercent {
         case ..<85:
-            weeklyConstraintRank = 0
+            longWindowConstraintRank = 0
         case 85..<95:
-            weeklyConstraintRank = 1
+            longWindowConstraintRank = 1
         default:
-            weeklyConstraintRank = 2
+            longWindowConstraintRank = 2
         }
 
         let sessionReadyRank: Int
@@ -94,13 +94,13 @@ struct InactiveAccountAvailabilityRanking {
         }
 
         let sessionAvailableAt: Date = sessionReadyRank == 0 ? now : (availability.sessionResetAt ?? .distantFuture)
-        let weeklyAvailableAt: Date = weeklyConstraintRank < 2 ? now : (availability.weeklyResetAt ?? .distantFuture)
+        let longWindowAvailableAt: Date = longWindowConstraintRank < 2 ? now : (availability.longWindowResetAt ?? .distantFuture)
 
         return AvailabilitySortKey(
-            weeklyConstraintRank: weeklyConstraintRank,
+            longWindowConstraintRank: longWindowConstraintRank,
             sessionReadyRank: sessionReadyRank,
-            effectiveAvailableAt: max(sessionAvailableAt, weeklyAvailableAt),
-            weeklyUsedPercent: weeklyUsedPercent,
+            effectiveAvailableAt: max(sessionAvailableAt, longWindowAvailableAt),
+            longWindowUsedPercent: longWindowUsedPercent,
             sessionUsedPercent: sessionUsedPercent
         )
     }
@@ -112,9 +112,9 @@ struct InactiveAccountAvailabilityRanking {
 }
 
 struct AvailabilitySortKey {
-    let weeklyConstraintRank: Int
+    let longWindowConstraintRank: Int
     let sessionReadyRank: Int
     let effectiveAvailableAt: Date
-    let weeklyUsedPercent: Int
+    let longWindowUsedPercent: Int
     let sessionUsedPercent: Int
 }

@@ -70,11 +70,11 @@ Settings › Appearance
 
 The icon follows the first card in the menu, so the user picks it by moving that card to the top.
 
-- Two windows fill both meters, session first. One window, such as Codex Pro's weekly limit or Cursor's billing cycle, fills the lower meter.
+- Two windows fill both meters, session first. One window, such as Codex Pro's weekly limit, Codex Free's monthly limit, or Cursor's billing cycle, fills the lower meter.
 - A window the tool does not report draws as an outline-only track, never as 0%. A card with no reading draws both tracks as outlines.
 - With no card at all, the icon is CodexPill's pill.
 - A stale reading is not dimmed.
-- The label reads `S 11% W 60%`, `W 17%` for one weekly window, or `82%` for a billing cycle alone. A full window shows its countdown instead.
+- The label reads `S 11% W 60%`, `W 17%` for one weekly window, `M 3%` for one monthly window, `8d 9%` for a window with no name, or `82%` for a billing cycle alone. A full window shows its countdown instead.
 - The tooltip names the tool and plan, the account in use (masked with Hide Emails), and the reset of any full window.
 
 ## Relationship To Accounts

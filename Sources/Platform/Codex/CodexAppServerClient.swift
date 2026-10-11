@@ -53,8 +53,8 @@ final class CodexAppServerClient {
                         limitID: nil,
                         limitName: nil,
                         planType: usage.planName,
-                        primary: usage.window(.session).map(Self.appServerWindow),
-                        secondary: usage.window(.weekly).map(Self.appServerWindow),
+                        primary: usage.codexSlots.primary.map(Self.appServerWindow),
+                        secondary: usage.codexSlots.secondary.map(Self.appServerWindow),
                         resetCredits: usage.resetCredits,
                         fetchedAt: usage.fetchedAt
                     )

@@ -11,7 +11,7 @@ struct AccountAvailabilityTests {
         let availability = AccountAvailabilityService().availability(for: account)
 
         #expect(availability.sessionUsedPercent == 35)
-        #expect(availability.weeklyUsedPercent == 40)
+        #expect(availability.longWindowUsedPercent == 40)
     }
 
     @Test
@@ -35,8 +35,28 @@ struct AccountAvailabilityTests {
         let availability = AccountAvailabilityService().availability(for: account)
 
         #expect(availability.sessionUsedPercent == 0)
-        #expect(availability.weeklyUsedPercent == 0)
+        #expect(availability.longWindowUsedPercent == 0)
         #expect(availability.sessionResetAt == nil)
+    }
+
+    @Test
+    func usedUpMonthlyWindowLimitsAFreeAccount() {
+        let now = Date()
+        let resetAt = now.addingTimeInterval(20 * 86_400)
+        let account = makeAccount(
+            name: "Free",
+            usage: UsageSnapshot.codex(
+                planName: "free",
+                primary: nil,
+                secondary: (usedPercent: 100, resetsAt: resetAt, durationMinutes: 43_200),
+                fetchedAt: now
+            )
+        )
+
+        let availability = AccountAvailabilityService().availability(for: account, now: now)
+
+        #expect(availability.longWindowUsedPercent == 100)
+        #expect(availability.longWindowResetAt == resetAt)
     }
 
     @Test
@@ -52,7 +72,7 @@ struct AccountAvailabilityTests {
 
         #expect(availability.sessionUsedPercent == 100)
         #expect(availability.sessionResetAt == resetAt)
-        #expect(availability.weeklyUsedPercent == 10)
+        #expect(availability.longWindowUsedPercent == 10)
     }
 
     @Test
@@ -71,7 +91,7 @@ struct AccountAvailabilityTests {
         let availability = AccountAvailabilityService().availability(for: account)
 
         #expect(availability.sessionUsedPercent == 100)
-        #expect(availability.weeklyUsedPercent == 100)
+        #expect(availability.longWindowUsedPercent == 100)
     }
 }
 
