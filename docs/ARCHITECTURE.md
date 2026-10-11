@@ -1,6 +1,6 @@
 # Architecture
 
-Refill is a local-first macOS menubar app for Codex, Claude Code and Cursor usage limits and account switching on this Mac. It was called CodexPill before. Bundle IDs, the Application Support and Caches folders, Keychain item names and `CODEXPILL_*` environment variables keep the old name so existing data survives the rename.
+Refill is a local-first macOS menubar app for Codex, Claude Code and Cursor usage limits and account switching on this Mac. It was called CodexPill before.
 
 This document owns codebase structure and dependency boundaries. Product behavior and UX contracts live in [features](features/README.md).
 
@@ -172,7 +172,7 @@ Reusable Codex app-server access is split into these platform boundaries:
 - `CodexAppServerSession` owns JSON-RPC request construction and response sequencing.
 - `CodexAppServerSessionRunner` owns the reusable app-server session execution loop used by local reads: process launch, stdin/stdout/stderr pipe wiring, request writing, output draining, timeout completion, partial-status completion, and finish-once coordination. It also runs the one-request `account/rateLimitResetCredit/consume` session that spends a Codex reset credit.
 - `CodexAppServerAccountParser` and `CodexAppServerRateLimitParser` map raw app-server payload DTOs into generic app-server DTOs.
-- `CodexPillAccountStatusMapper` maps generic app-server DTOs into Refill account and rate-limit models.
+- `RefillAccountStatusMapper` maps generic app-server DTOs into Refill account and rate-limit models.
 
 Local app-server reads enter this session runner through `CodexAppServerClient`, which keeps local executable, environment, client-info, timeout, and saved-account strict rate-limit requirements in `CodexAppServerConfiguration`.
 
@@ -193,7 +193,7 @@ The access token leaves this module only as the usage request's `Authorization` 
 - `CursorStateDatabaseTokenSource`, the read-only token lookup used for usage, and `CursorAccessToken`, which prints redacted;
 - the `cursor.com/api/usage-summary` request, its redirect rule, its `Retry-After` wait, and parsing its response (`URLSessionCursorUsageWebClient`, `CursorUsageClient`, `CursorUsageSummaryParser`);
 - `CursorSignIn`, the eight `cursorAuth/*` rows that are a Cursor sign-in, and `CursorSavedAccount`, a named copy of one;
-- `CursorAccountStore` and `SystemCursorAccountKeychain`, the `CodexPill Cursor accounts` Keychain item holding every saved account;
+- `CursorAccountStore` and `SystemCursorAccountKeychain`, the `Refill Cursor accounts` Keychain item holding every saved account;
 - `CursorAccounts`: capture, add a sign-in made in a throwaway profile, record an inactive account's limits (compare and swap on the saved sign-in), rename, remove, and activate. Activation quits Cursor, saves the outgoing sign-in again, writes the saved one, and reopens Cursor. It throws one `CursorAccountsError` per outcome the menu must tell apart;
 - `CursorAppProcessClient` and `SystemCursorAppProcessClient`, quitting and opening Cursor.app. It never force-quits and knows nothing about Cursor's files;
 - `CursorIsolatedLogin`, Cursor's own sign-in in a separate Cursor instance with a throwaway `--user-data-dir` under `<AppSupport>/cursor-sign-in/<8 hex>`. It refuses a profile path that would push Cursor's IPC socket past macOS's 103-byte limit, polls the profile's `state.vscdb` for the `cursorAuth/*` rows, quits that instance by PID, and deletes the profile on every path. `CursorInstanceLaunching` starts and quits instances by PID: `SystemCursorInstanceLauncher` opens Cursor.app as a new instance and quits only a Cursor process with that PID, and `ExecutableCursorInstanceLauncher` runs a stand-in for isolated runs.
@@ -270,18 +270,18 @@ Reveal-shortcut capture, menu key-equivalent rendering, display formatting, and 
 The current truth sources are split by concern:
 
 - active local Codex auth: `~/.codex/auth.json`;
-- Refill catalog and saved snapshots: `~/Library/Application Support/CodexPill`;
+- Refill catalog and saved snapshots: `~/Library/Application Support/Refill`;
 - local account metadata and rate limits: local `codex app-server`;
 - running CLI session observation: local process table inspection;
 - Claude Code usage: `api.anthropic.com/api/oauth/usage`, authenticated with Claude Code's local sign-in token;
 - active Claude Code account: `oauthAccount` in Claude Code's global config, `~/.claude.json`;
 - Cursor usage: `cursor.com/api/usage-summary`, authenticated with Cursor's local sign-in token;
 - active Cursor account: the `cursorAuth/*` rows in Cursor's `state.vscdb`;
-- saved Cursor accounts: Refill's `CodexPill Cursor accounts` Keychain item.
+- saved Cursor accounts: Refill's `Refill Cursor accounts` Keychain item.
 
 Rules:
 
-- `~/Library/Application Support/CodexPill` is Refill-owned state, not the source of truth for the live Codex account.
+- `~/Library/Application Support/Refill` is Refill-owned state, not the source of truth for the live Codex account.
 - `~/Library/Application Support/Codex` is only an observation surface when needed.
 - Rate limits should come from app-server surfaces, not manual counters.
 - Tests must use temp paths and injected process clients.

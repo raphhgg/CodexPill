@@ -90,7 +90,7 @@ Claude Code's access token lasts 8 hours, and Claude Code renews it only while i
 
 ## Isolated Runs
 
-With `CODEXPILL_ISOLATED_APP_SUPPORT_DIR` set, Refill never reads the real Claude sign-in or runs the real `claude`:
+With `REFILL_ISOLATED_APP_SUPPORT_DIR` set, Refill never reads the real Claude sign-in or runs the real `claude`:
 
 - The config folder is `CLAUDE_CONFIG_DIR` when set, otherwise `<root>/.claude`. Only its `.credentials.json` and `.claude.json` are read or written.
 - The Keychain is skipped, so a missing file reads as signed out. An expired sign-in in that file shows the sign-in expired state without any request.
@@ -99,7 +99,7 @@ With `CODEXPILL_ISOLATED_APP_SUPPORT_DIR` set, Refill never reads the real Claud
 
 ## Claude Accounts
 
-Each saved account is one Claude Code sign-in in Claude Code's own format, held by Refill: `claudeAiOauth` from Claude Code's credentials and `oauthAccount` from its global config, in one Refill Keychain item per account (`CodexPill Claude Code account`, account = the saved account's ID). The list in `claude-code-accounts.json` holds the name, email, organization, plan, account IDs, and the last limits read for each account, never tokens.
+Each saved account is one Claude Code sign-in in Claude Code's own format, held by Refill: `claudeAiOauth` from Claude Code's credentials and `oauthAccount` from its global config, in one Refill Keychain item per account (`Refill Claude Code account`, account = the saved account's ID). The list in `claude-code-accounts.json` holds the name, email, organization, plan, account IDs, and the last limits read for each account, never tokens.
 
 - **Adding by signing in.** Refill makes a folder `claude-sign-in/<uuid>` in its Application Support folder and runs `claude auth login --claudeai` with `CLAUDE_CONFIG_DIR` set to it, a minimal environment (none of the user's shell variables), stdin open and empty, and its output discarded. Claude Code opens the browser itself. On success Claude Code has saved the sign-in in the Keychain item `Claude Code-credentials-<first 8 hex of sha256(folder path)>` (or `.credentials.json` in the folder) and the account record in the folder's `.claude.json`. Refill reads both, saves them, then deletes that Keychain item with `/usr/bin/security delete-generic-password` and the folder. It deletes them also when the login fails, times out (15 minutes), or is cancelled. It reads the item with `security find-generic-password`, the tool that created it, so macOS shows no prompt.
 - **Signing Claude Code in.** When Claude Code has no sign-in at all, adding runs the same command without `CLAUDE_CONFIG_DIR`, so Claude Code signs itself in, then saves that sign-in. A sign-in made in a throwaway folder could not be switched in, because a switch only updates Claude Code's existing Keychain item. Nothing is lost, since there was no sign-in.

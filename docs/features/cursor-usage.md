@@ -80,7 +80,7 @@ All knowledge of Cursor's database and of cursor.com lives in `Sources/Platform/
 
 ## Isolated Runs
 
-With `CODEXPILL_ISOLATED_APP_SUPPORT_DIR` set, Refill never touches the real Cursor:
+With `REFILL_ISOLATED_APP_SUPPORT_DIR` set, Refill never touches the real Cursor:
 
 - Usage reads `<root>/Cursor/state.vscdb`. A missing file reads as not installed. The request still goes to cursor.com with whatever token that file holds.
 - Saved accounts live in `<root>/cursor-accounts.json`, never the Keychain. A switch rewrites only `<root>/Cursor/state.vscdb` and never quits or opens Cursor.
@@ -128,7 +128,7 @@ A Cursor sign-in is these 8 rows of `ItemTable` in `state.vscdb`, observed on 20
 
 Rules:
 
-- Saved values live only in the `CodexPill Cursor accounts` Keychain item, one item for all saved accounts. Each value keeps its SQLite storage class (TEXT or BLOB), so it is written back exactly as Cursor wrote it.
+- Saved values live only in the `Refill Cursor accounts` Keychain item, one item for all saved accounts. Each value keeps its SQLite storage class (TEXT or BLOB), so it is written back exactly as Cursor wrote it.
 - Every statement names its key. Refill never scans the database, and writes no table other than `ItemTable` and no row outside the 8 keys.
 - Switching runs in this order, and stops at the first failure:
   1. Ask Cursor to quit and wait up to 15 seconds for it to exit. Never force-quit: Cursor may be asking about unsaved work. If it is still running, nothing is written and Cursor is left as it is (`cursorDidNotQuit`).
@@ -167,7 +167,7 @@ A switch of Cursor while the sign-in runs is refused (`Finish signing in first` 
 
 ### Inactive Accounts
 
-Every 15 minutes, one at a time, each saved account Cursor is not signed in to is read with its own saved access token, through the same request as the card. Its limits are saved on the account in the `CodexPill Cursor accounts` item, only if the saved sign-in is still the one read with. A switch may have saved tokens Cursor renewed meanwhile, and a stale read must not undo that.
+Every 15 minutes, one at a time, each saved account Cursor is not signed in to is read with its own saved access token, through the same request as the card. Its limits are saved on the account in the `Refill Cursor accounts` item, only if the saved sign-in is still the one read with. A switch may have saved tokens Cursor renewed meanwhile, and a stale read must not undo that.
 
 Refill never renews a saved token. Cursor renews by posting to its own `oauth/token` endpoint while it runs with that profile, and the refresh token changes on every renewal. Once a saved token is within a minute of expiry, nothing is sent, and the side menu keeps the account's last line with its time. A `429` on an inactive read does not hold back the card's read.
 

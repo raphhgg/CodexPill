@@ -172,7 +172,7 @@ RGR-360 compared chart variants with synthetic fixture data inside the active ac
 
 ## Open Questions
 
-- Should cached aggregates live under `~/Library/Caches/CodexPill` or be recomputed on demand?
+- Should cached aggregates live under `~/Library/Caches/Refill` or be recomputed on demand?
 - What refresh cadence is enough without making menu opening feel slow?
 - Should the app expose a manual `Refresh Token Usage` action, or rely on the existing refresh flow?
 

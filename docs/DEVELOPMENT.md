@@ -9,21 +9,17 @@
 
 Generated `.xcodeproj` and `.xcworkspace` files are transient build artifacts for the shell workflow, not source-of-truth files to open in Xcode during normal development.
 
-## Names Kept From CodexPill
+## Rename From CodexPill
 
-Refill was called CodexPill before. The app, the Xcode project, the scheme and
-the built app are now `Refill`. These keep the old name so existing data
-survives the rename:
+Refill was called CodexPill before. Every identifier moved to the new name: the
+`com.raphhgg.refill` bundle IDs, `~/Library/Application Support/Refill`,
+`~/Library/Caches/Refill`, the `Refill …` Keychain items and the `REFILL_*`
+environment variables. Nothing migrates, so a CodexPill install's settings and
+saved accounts stay behind. [Uninstall And Reset](UNINSTALL_RESET.md) explains
+how to remove them.
 
-- bundle IDs `com.raphhgg.codexpill`, `.dev`, `.staging`, `.demo` and `.tests`,
-  and the preferences that use them;
-- `~/Library/Application Support/CodexPill` and `~/Library/Caches/CodexPill`;
-- the `CodexPill Claude Code account` and `CodexPill Cursor accounts` Keychain
-  items;
-- `CODEXPILL_*` environment variables;
-- the GitHub repository and the Homebrew cask `raphhgg/tap/codexpill`.
-
-A fresh dev build is `Refill.app`. A release installed before the rename is
+The GitHub repository and the Homebrew cask `raphhgg/tap/codexpill` still use
+the old name until they are renamed. A release installed before the rename is
 `CodexPill.app`.
 
 ## Commands
@@ -119,16 +115,16 @@ Refill data:
 make build AGENT_NAME=<name>
 root="$(mktemp -d)"
 open -n \
-  --env CODEXPILL_ISOLATED_APP_SUPPORT_DIR="$root" \
-  --env CODEXPILL_ISOLATED_DEFAULTS_SUITE="codexpill-isolated-${root##*/}" \
+  --env REFILL_ISOLATED_APP_SUPPORT_DIR="$root" \
+  --env REFILL_ISOLATED_DEFAULTS_SUITE="refill-isolated-${root##*/}" \
   --env CODEX_HOME="$root" \
   build/DerivedData/<name>/Build/Products/Debug/Refill.app
 ```
 
-- `CODEXPILL_ISOLATED_APP_SUPPORT_DIR` holds the account catalog, saved
+- `REFILL_ISOLATED_APP_SUPPORT_DIR` holds the account catalog, saved
   snapshots, the token-usage cache, and the live `auth.json` that switching
   writes.
-- `CODEXPILL_ISOLATED_DEFAULTS_SUITE` keeps preferences out of the real
+- `REFILL_ISOLATED_DEFAULTS_SUITE` keeps preferences out of the real
   `UserDefaults` domain.
 - `CODEX_HOME` points the `codex app-server` that Refill starts at the same
   `auth.json`.
