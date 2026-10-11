@@ -26,9 +26,13 @@ what is left, not what is used, so a fuller glyph means more room.
 | Moon | The lit phase of a moon, lit from the right: full at 100%, a thin crescent near 0. | An orbit ring, filled clockwise from 12 o'clock. | A faint moon outline and a faint ring. |
 | Punch card | Top row of five slots. | Bottom row of five slots. | All slots hollow and faint. |
 
-Punch card rounds up, so any amount left shows at least one solid slot. A
-limit with no data uses its own no-data look while the other limit still shows
-its level.
+Punch card rounds up, so any amount left shows at least one solid slot.
+
+Some accounts report only one limit. The glyph then shows that limit in its
+main element (the sand, the moon phase, or a single centred row of slots) and
+drops the secondary element (the base bar, the orbit ring, or the second row).
+It never draws a second mark for a limit the account does not have. The menu
+names which limit it is.
 
 The glyph is a template image: black and clear, with partial transparency for
 tracks and used parts. macOS recolors it for light and dark menu bars, so the
@@ -93,7 +97,7 @@ Settings › Appearance
 
 The icon follows the first card in the menu, so the user picks it by moving that card to the top.
 
-- Two windows fill the glyph's session and weekly parts, the shorter window first. One window, such as Codex Pro's weekly limit, Codex Free's monthly limit, or Cursor's billing cycle, fills the weekly part.
+- Two windows fill the glyph's session and weekly parts, the shorter window first. One window, such as Codex Pro's weekly limit, Codex Free's monthly limit, or Cursor's billing cycle, shows in the glyph's main element.
 - A window the tool does not report uses its own no-data look, never 0%. A card with no reading shows the no-data glyph.
 - With no card at all, the icon is Refill's pill.
 - A stale reading is not dimmed.

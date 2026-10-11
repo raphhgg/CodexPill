@@ -189,7 +189,7 @@ final class StatusItemRuntime {
             let used = statusItemBarPercents(for: presentation.source.windows, mode: .used)
             button.image = iconRenderer.makeImage(
                 style: presentation.indicatorStyle,
-                levels: StatusBarGlyphLevels(sessionUsedPercent: used.primary, weeklyUsedPercent: used.secondary)
+                reading: StatusBarGlyphReading(sessionUsedPercent: used.primary, weeklyUsedPercent: used.secondary)
             )
         }
         button.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .medium)
