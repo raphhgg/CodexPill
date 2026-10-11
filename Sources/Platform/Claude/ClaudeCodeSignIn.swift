@@ -67,6 +67,36 @@ struct ClaudeCodeSignInSnapshot: RedactedClaudeSecret {
     var organizationName: String? {
         (account?["organizationName"] as? String).flatMap { $0.isEmpty ? nil : $0 }
     }
+
+    /// The sign-in Claude Code saved in a config folder: its credentials item or `.credentials.json`, and the
+    /// `.claude.json` in that folder. Nil when the credentials hold no Claude sign-in.
+    init?(credentials: Data, globalConfig: Data?) {
+        guard
+            let credentialsObject = try? JSONSerialization.jsonObject(with: credentials) as? [String: Any],
+            let oauth = credentialsObject[Self.oauthKey] as? [String: Any]
+        else {
+            return nil
+        }
+        let config = globalConfig.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+        self.init(oauth: oauth, account: config?[Self.accountKey] as? [String: Any])
+    }
+
+    /// `.credentials.json` holding only this sign-in, for a throwaway Claude Code config folder.
+    var credentialsFileData: Data {
+        (try? JSONSerialization.data(withJSONObject: [Self.oauthKey: oauth], options: [.sortedKeys])) ?? Data()
+    }
+
+    /// `.claude.json` holding only this sign-in's account record, for a throwaway Claude Code config folder.
+    var globalConfigData: Data {
+        var config: [String: Any] = ["hasCompletedOnboarding": true]
+        config[Self.accountKey] = account
+        return (try? JSONSerialization.data(withJSONObject: config, options: [.sortedKeys])) ?? Data()
+    }
+
+    /// True when both hold the same Claude Code credentials. A renewal changes them.
+    func hasSameCredentials(as other: Self) -> Bool {
+        NSDictionary(dictionary: oauth).isEqual(to: other.oauth)
+    }
 }
 
 /// The Claude user and organization of a sign-in, from Claude Code's `oauthAccount`. One person can sign in to

@@ -1,8 +1,8 @@
 import Foundation
 
 /// Claude's 5-hour and 7-day subscription windows as Anthropic reports them.
-struct ClaudeUsageReport: Equatable, Sendable {
-    struct Window: Equatable, Sendable {
+struct ClaudeUsageReport: Codable, Equatable, Sendable {
+    struct Window: Codable, Equatable, Sendable {
         let usedPercent: Double
         let resetsAt: Date?
     }
