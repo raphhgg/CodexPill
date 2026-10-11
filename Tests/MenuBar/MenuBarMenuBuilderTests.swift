@@ -417,7 +417,7 @@ struct MenuBarMenuBuilderTests {
         #expect(disclosure.confirmTitle == "Export")
         #expect(disclosure.cancelTitle == "Cancel")
         let report = try #require(presenter.reports.first)
-        #expect(report.schemaVersion == 2)
+        #expect(report.schemaVersion == 3)
         #expect(report.redactionManifest.aliasScope == "per-export")
         #expect(report.events.contains(where: { $0.name == "menu_action" }))
     }

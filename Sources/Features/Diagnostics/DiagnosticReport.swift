@@ -71,8 +71,13 @@ struct DiagnosticAccount: Codable, Equatable {
     let roles: [String]
     let planCategory: String
     let hasRateLimitSnapshot: Bool
-    let sessionUsageCategory: String
-    let weeklyUsageCategory: String
+    let usageWindows: [DiagnosticUsageWindow]
+}
+
+struct DiagnosticUsageWindow: Codable, Equatable {
+    let kind: String
+    let title: String
+    let usageCategory: String
 }
 
 struct DiagnosticFreshnessState: Codable, Equatable {
@@ -189,7 +194,7 @@ struct DiagnosticReportBuilder {
         }
 
         return DiagnosticReport(
-            schemaVersion: 2,
+            schemaVersion: 3,
             app: appMetadata,
             system: systemMetadata,
             environment: DiagnosticEnvironmentMetadata(
@@ -247,8 +252,13 @@ struct DiagnosticReportBuilder {
                 roles: roles,
                 planCategory: normalizedCodexPlanType(account.effectivePlanType) ?? "unknown",
                 hasRateLimitSnapshot: account.usage != nil,
-                sessionUsageCategory: usageCategory(for: account.usage?.window(.session)),
-                weeklyUsageCategory: usageCategory(for: account.usage?.window(.weekly))
+                usageWindows: (account.usage?.windows ?? []).map { window in
+                    DiagnosticUsageWindow(
+                        kind: diagnosticKind(window.kind),
+                        title: window.kind.title,
+                        usageCategory: usageCategory(for: window)
+                    )
+                }
             )
         }
     }
@@ -356,8 +366,17 @@ struct DiagnosticReportBuilder {
         return traces
     }
 
-    private func usageCategory(for window: UsageWindow?) -> String {
-        guard let window else { return "unknown" }
+    private func diagnosticKind(_ kind: UsageWindowKind) -> String {
+        switch kind {
+        case .session: "session"
+        case .weekly: "weekly"
+        case .monthly: "monthly"
+        case .billingCycle: "billing_cycle"
+        case .other: "other"
+        }
+    }
+
+    private func usageCategory(for window: UsageWindow) -> String {
         switch window.displayedUsedPercent(at: systemMetadata.exportTimestamp) {
         case 0..<50:
             return "available"
