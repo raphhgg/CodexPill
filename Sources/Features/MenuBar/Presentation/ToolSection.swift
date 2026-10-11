@@ -11,6 +11,8 @@ struct ToolSection: Equatable {
     let followUp: ToolFollowUp?
     /// Whether "Add <Tool> Account…" can run the tool's own sign-in.
     var signInAvailability: ProviderSignInAvailability = .available
+    /// The models with their own Claude limit in the current reading, such as ["Fable"], even while they are hidden.
+    var modelLimitNames: [String] = []
 
     var activeAccount: ToolAccount? {
         accounts.first(where: \.isActive)
@@ -170,7 +172,10 @@ extension MenuBarMenuState {
             card: card,
             accounts: accounts.filter(\.isActive) + accounts.filter { !$0.isActive },
             followUp: followUp,
-            signInAvailability: usage.signInAvailability
+            signInAvailability: usage.signInAvailability,
+            modelLimitNames: snapshot?.windows.compactMap { window in
+                if case let .modelWeekly(modelName) = window.kind { modelName } else { nil }
+            } ?? []
         )
     }
 
@@ -223,7 +228,7 @@ extension MenuBarMenuState {
         )
     }
 
-    /// Claude's per-model limits show unless Show Model Limits is off.
+    /// Claude's per-model limits show unless their toggle in the Claude side menu is off.
     private func displayedWindows(_ snapshot: UsageSnapshot) -> [UsageWindow] {
         snapshot.displayedWindows.filter { showsModelLimits || !$0.kind.isModelLimit }
     }

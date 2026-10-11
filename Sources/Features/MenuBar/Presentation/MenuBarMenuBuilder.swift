@@ -121,6 +121,11 @@ struct MenuBarMenuBuilder {
             moves.forEach(menu.addItem)
         }
 
+        if let title = modelLimitsToggleTitle(section.modelLimitNames) {
+            addSeparatorIfNeeded(to: menu)
+            menu.addItem(toggleItem(title, isOn: state.showsModelLimits, action: #selector(MenuBarCoordinator.toggleShowsModelLimits(_:)), target: target))
+        }
+
         addSeparatorIfNeeded(to: menu)
         let availability = section.signInAvailability
         let add = providerItem(title: "Add \(title) Account…", .addAccount, for: provider, target: target)
@@ -132,6 +137,13 @@ struct MenuBarMenuBuilder {
         return menu
     }
 
+    /// One toggle for every model limit in the reading: "Show Fable Limits", "Show Fable, Opus and Sonnet Limits".
+    private func modelLimitsToggleTitle(_ names: [String]) -> String? {
+        guard let last = names.last else { return nil }
+        let models = names.count == 1 ? last : names.dropLast().joined(separator: ", ") + " and " + last
+        return "Show \(models) Limits"
+    }
+
     private func appearanceMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
         let menu = NSMenu(title: "Appearance")
         menu.addItem(showToolsMenuItem(state: state, target: target))
@@ -141,7 +153,6 @@ struct MenuBarMenuBuilder {
         menu.addItem(appIconMenuItem(state: state, target: target))
         menu.addItem(.separator())
         menu.addItem(toggleItem("Show Token Usage", isOn: state.tokenUsageEnabled, action: #selector(MenuBarCoordinator.toggleTokenUsage(_:)), target: target))
-        menu.addItem(toggleItem("Show Model Limits", isOn: state.showsModelLimits, action: #selector(MenuBarCoordinator.toggleShowsModelLimits(_:)), target: target))
         return submenuItem(menu)
     }
 

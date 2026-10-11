@@ -540,7 +540,7 @@ struct MenuBarMenuBuilderTests {
         let usageBarTitles = usageBarsMenu.items.map(\.title)
         let showMarkers = try #require(usageBarsMenu.items.first(where: { $0.title == "Show Pace Markers" }))
 
-        #expect(preferencesMenu.items.map(\.title) == ["Show Tools", "Menu Bar Label", "Icon Style", "Usage Bars", "App Icon", "", "Show Token Usage", "Show Model Limits"])
+        #expect(preferencesMenu.items.map(\.title) == ["Show Tools", "Menu Bar Label", "Icon Style", "Usage Bars", "App Icon", "", "Show Token Usage"])
         #expect(usageBarTitles == [
             "Show % Used", "Show % Left", "",
             "Classic Layout", "Compact Layout", "",
@@ -1162,21 +1162,63 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func modelLimitsAreOnForANewUserAndTheToggleTurnsThemOff() throws {
-        let coordinator = try makeCoordinator()
-        func showModelLimits() throws -> NSMenuItem {
-            let menu = MenuBarMenuBuilder().makeMenu(state: coordinator.menuState(), target: coordinator)
-            return try #require(try appearanceMenu(in: menu).items.first { $0.title == "Show Model Limits" })
+    func claudeSideMenuNamesTheModelLimitToggleAfterTheReadingsModels() throws {
+        func sideMenuTitles(modelNames: [String]) throws -> [String] {
+            let menu = MenuBarMenuBuilder().makeMenu(state: claudeState(modelNames: modelNames), target: try makeCoordinator())
+            return try #require(menu.items.first?.submenu).items.map(\.title).filter { !$0.contains("@") }
         }
 
-        let before = try showModelLimits()
-        coordinator.toggleShowsModelLimits(NSMenuItem())
-        let after = try showModelLimits()
+        #expect(try sideMenuTitles(modelNames: ["Fable"]) == ["", "Show Fable Limits", "", "Add Claude Account…"])
+        #expect(try sideMenuTitles(modelNames: ["Fable", "Opus", "Sonnet"]) == ["", "Show Fable, Opus and Sonnet Limits", "", "Add Claude Account…"])
+        #expect(try sideMenuTitles(modelNames: []) == ["", "Add Claude Account…"])
+    }
 
-        #expect(before.state == .on)
-        #expect(before.action == #selector(MenuBarCoordinator.toggleShowsModelLimits(_:)))
-        #expect(after.state == .off)
-        #expect(!coordinator.menuState().showsModelLimits)
+    @Test
+    func turningOffTheFableToggleHidesTheFableThisWeekMeter() throws {
+        let coordinator = try makeCoordinator()
+        func claudeMenu() throws -> (card: NSMenuItem, savedAccount: NSMenuItem, toggle: NSMenuItem) {
+            let menu = MenuBarMenuBuilder().makeMenu(
+                state: claudeState(modelNames: ["Fable"], showsModelLimits: coordinator.menuState().showsModelLimits),
+                target: coordinator
+            )
+            let card = try #require(menu.items.first)
+            let side = try #require(card.submenu)
+            return (card, side.items[1], try #require(side.items.first { $0.title == "Show Fable Limits" }))
+        }
+
+        let before = try claudeMenu()
+        NSApplication.shared.sendAction(try #require(before.toggle.action), to: before.toggle.target, from: before.toggle)
+        let after = try claudeMenu()
+
+        #expect(before.toggle.state == .on)
+        #expect(before.savedAccount.title == "sam@acme.dev\nSession 12% · Weekly 40% · Fable this week 8% used")
+        #expect(after.toggle.state == .off)
+        #expect(after.savedAccount.title == "sam@acme.dev\nSession 12% · Weekly 40% used")
+        #expect(try #require(after.card.view).frame.height < (try #require(before.card.view).frame.height))
+    }
+
+    /// A Claude reading with Session, Weekly and one weekly limit per model in `modelNames`, for the account in use
+    /// and one saved account.
+    private func claudeState(modelNames: [String], showsModelLimits: Bool = true) -> MenuBarMenuState {
+        let reset = Date.now.addingTimeInterval(86_400)
+        let snapshot = UsageSnapshot(
+            provider: .claude,
+            planName: "max",
+            windows: [
+                UsageWindow(kind: .session, usedPercent: 12, resetsAt: reset, durationMinutes: 300),
+                UsageWindow(kind: .weekly, usedPercent: 40, resetsAt: reset, durationMinutes: 10_080),
+            ] + modelNames.map { UsageWindow(kind: .modelWeekly(modelName: $0), usedPercent: 8, resetsAt: reset, durationMinutes: 10_080) },
+            fetchedAt: .now
+        )
+        let accounts = [
+            ProviderAccount(id: UUID(), email: "alex@example.com", isActive: true),
+            ProviderAccount(id: UUID(), email: "sam@acme.dev", isActive: false, usage: snapshot),
+        ]
+        return makeState(
+            activeAccount: nil,
+            providerUsage: [ProviderUsageState(provider: .claude, status: .current(snapshot), accounts: accounts, signInAvailability: .available)],
+            showsModelLimits: showsModelLimits
+        )
     }
 
     private func providerSnapshot(_ provider: UsageProvider) -> UsageSnapshot {
@@ -1293,6 +1335,7 @@ struct MenuBarMenuBuilderTests {
         toolOrder: [UsageProvider] = [.claude, .codex, .cursor],
         masksEmails: Bool = false,
         appIconColor: AppIconColor = .cobalt,
+        showsModelLimits: Bool = true,
         now: Date = .now
     ) -> MenuBarMenuState {
         MenuBarMenuState(
@@ -1314,6 +1357,7 @@ struct MenuBarMenuBuilderTests {
             providerUsage: providerUsage,
             toolOrder: toolOrder,
             masksEmails: masksEmails,
+            showsModelLimits: showsModelLimits,
             appIconColor: appIconColor,
             now: now
         )
