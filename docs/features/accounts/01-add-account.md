@@ -32,7 +32,7 @@ As a Refill user, I want to add another Codex account without changing This Mac,
 
 ## First Run
 
-With no saved Codex account and no other tool connected, CodexPill asks once at launch:
+With no saved Codex account and no other tool connected, Refill asks once at launch:
 
 Title: `Add a Codex account?`
 
