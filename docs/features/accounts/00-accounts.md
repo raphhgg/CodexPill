@@ -41,8 +41,8 @@ The Codex card shows the account in use: its plan, its windows and its reset cre
 The Codex side menu lists accounts by email, never by name:
 
 - The account in use, disabled, at the top.
-- `Use <email>` for a single other account, or `Use Another Codex Account ›` listing the others in the shared availability ranking, best first.
-- `Add Codex Account…` and `Remove Codex Account ›`.
+- One row per other account in the shared availability ranking, best first. Each opens `Use` and `Remove…`.
+- `Add Codex Account…`.
 
 Switch:
 

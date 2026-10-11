@@ -76,23 +76,15 @@ struct MenuBarMenuBuilder {
             let item = disabledItem(active.label)
             item.state = .on
             menu.addItem(item)
-            menu.addItem(.separator())
         }
-
-        let others = section.otherAccounts
-        if others.count == 1, let other = others.first {
-            let item = accountItem(title: "Use \(other.label)", other, for: provider, target: target)
-            item.isEnabled = accountActionsEnabled
-            menu.addItem(item)
-        } else if others.count > 1 {
-            let accounts = NSMenu(title: "Use Another \(title) Account")
-            for other in others {
-                let item = accountItem(title: other.label, other, for: provider, target: target)
-                item.isEnabled = accountActionsEnabled
-                accounts.addItem(item)
-            }
-            menu.addItem(submenuItem(accounts))
+        for other in section.otherAccounts {
+            let actions = NSMenu(title: other.label)
+            actions.addItem(providerItem(title: "Use", .switchAccount(other.id), for: provider, target: target))
+            actions.addItem(providerItem(title: "Remove…", .removeAccount(other.id), for: provider, target: target))
+            actions.items.forEach { $0.isEnabled = accountActionsEnabled }
+            menu.addItem(accountItem(other, submenu: actions))
         }
+        addSeparatorIfNeeded(to: menu)
 
         if let credits = section.card.resetCredits {
             let use = providerItem(title: "Use a Reset…", .useResetCredit, for: provider, target: target)
@@ -133,26 +125,15 @@ struct MenuBarMenuBuilder {
         if availability == .notInstalled {
             menu.addItem(disabledItem("Install \(provider.copy.name) first"))
         }
-        if !section.accounts.isEmpty {
-            let remove = NSMenu(title: "Remove \(title) Account")
-            for account in section.accounts {
-                let item = providerItem(title: "\(account.label)…", .removeAccount(account.id), for: provider, target: target)
-                item.isEnabled = accountActionsEnabled
-                remove.addItem(item)
-            }
-            menu.addItem(submenuItem(remove))
-        }
-
-        if provider != .codex {
-            menu.addItem(.separator())
-            menu.addItem(providerItem(title: "Disconnect \(title)", .disconnect, for: provider, target: target))
-        }
         return menu
     }
 
     private func settingsMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
         let menu = NSMenu(title: "Settings")
         menu.addItem(addAccountMenuItem(state: state, target: target))
+        for usage in state.providerUsage where usage.status != .notConnected {
+            menu.addItem(providerItem(title: "Disconnect \(usage.provider.copy.sectionTitle)", .disconnect, for: usage.provider, target: target))
+        }
         menu.addItem(.separator())
 
         let appearance = NSMenu(title: "Appearance")
@@ -270,11 +251,11 @@ struct MenuBarMenuBuilder {
         return item
     }
 
-    /// A saved account to switch to, with its last limits on a second, smaller line.
-    private func accountItem(title: String, _ account: ToolAccount, for provider: UsageProvider, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = providerItem(title: title, .switchAccount(account.id), for: provider, target: target)
+    /// A saved account that is not in use, with its last limits on a second, smaller line.
+    private func accountItem(_ account: ToolAccount, submenu: NSMenu) -> NSMenuItem {
+        let item = submenuItem(submenu)
         if let usageLine = account.usageLine {
-            let attributed = NSMutableAttributedString(string: title, attributes: [.font: NSFont.menuFont(ofSize: 0)])
+            let attributed = NSMutableAttributedString(string: account.label, attributes: [.font: NSFont.menuFont(ofSize: 0)])
             attributed.append(NSAttributedString(
                 string: "\n" + usageLine,
                 attributes: [.font: NSFont.menuFont(ofSize: NSFont.smallSystemFontSize), .foregroundColor: NSColor.secondaryLabelColor]

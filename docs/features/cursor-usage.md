@@ -16,7 +16,7 @@ Cursor usage is display-only. It never feeds account availability, ranking, or n
 
 ## Menu
 
-The `Cursor` card follows the shared card and side menu in [Menubar](menubar.md). The side menu switches between saved Cursor sign-ins and ends with `Disconnect Cursor`.
+The `Cursor` card follows the shared card and side menu in [Menubar](menubar.md). The side menu switches between saved Cursor sign-ins. `Disconnect Cursor` is in Settings.
 
 - **Not connected.** There is no card. `Settings › Add Account › Cursor…` (and the first-run `Add Account ›`) connects. Choosing it opens a consent alert first. Nothing is read until the user confirms.
 - **Consent alert.** One short alert:
@@ -25,7 +25,7 @@ The `Cursor` card follows the shared card and side menu in [Menubar](menubar.md)
   > Uses Cursor's sign-in to read your usage.
 
   Confirming saves the choice and reads at once.
-- **Connected.** The choice is saved in user defaults (`cursorUsageEnabled`, off by default). The side menu ends with `Disconnect Cursor`, which turns the feature off at once with no alert, because it changes nothing outside CodexPill.
+- **Connected.** The choice is saved in user defaults (`cursorUsageEnabled`, off by default). `Disconnect Cursor` in Settings turns the feature off at once with no alert, because it changes nothing outside CodexPill.
 - **Current.** The plan tag (`Pro`), one `Billing cycle` meter with `Resets 30 Oct`, and, when on-demand usage is enabled, a text line: `On-demand: $12.34 of $50.00`, or `On-demand: $12.34` with no cap. Spend is never drawn as a bar. The meter follows the percent mode, layout, pacing markers, and the weekly color.
 - **No percent.** A plan with no included-usage percent, such as an unlimited plan, shows the header with no meter. It never shows 0%.
 - **Failures.** Each failure shows a title and at most one short line. Except for not installed and signed out, the last good values stay dimmed below it with their `As of` time.

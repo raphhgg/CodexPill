@@ -45,15 +45,16 @@ Every tool uses the same card. It is one hover cell with a side menu and no chev
 Hovering a card opens its side menu:
 
 1. The email of the account in use, checked and disabled.
-2. `Use <email>` when exactly one other account is saved, or `Use Another <Tool> Account ›` listing them.
+2. One row per other saved account, by email. Each row opens `Use` and `Remove…`. `Remove…` asks first. Removing a Codex account also signs this Mac out when `auth.json` still uses it.
    An account without an email reads as its organization, else `Saved account`. Repeated labels get a number in saved order: `Saved account 2`.
    Each one carries that account's last limits on a second, smaller line, in the user's % used or % left: `Session 12% · Weekly 40% used`, or `Weekly 17% used` for Codex Pro. Cursor's line is its billing cycle: `40% used`. A reading older than 30 minutes adds `· as of 10:26`. Every tool reads inactive accounts every 15 minutes. A Cursor account whose saved token expired keeps its last line, with its time.
 3. Codex only: `Use a Reset…`, then one disabled `Expires <date>` line per credit Codex listed, and `Token Usage ›` when token usage is on ([Token Usage](token-usage.md)).
 4. `Move to Top`, `Move Up`, `Move Down`, when there is more than one card. Moves that do not apply are disabled.
-5. `Add <Tool> Account…` and `Remove <Tool> Account ›` listing every saved account.
+5. `Add <Tool> Account…`.
    `Add <Tool> Account…` runs the tool's own sign-in without touching the account in use. Cursor's opens a second Cursor window with a throwaway profile. The account Claude Code or Cursor is signed in to is saved automatically once that tool is connected. Without the `claude` command or Cursor, the add item is disabled with `Install Claude Code first` or `Install Cursor first` under it.
    A switch while that tool's sign-in runs is refused: `Finish signing in first` / `Or cancel the sign-in.`
-6. Claude and Cursor only: `Disconnect <Tool>`, last.
+
+The account in use has no remove item. Claude and Cursor save the live account automatically, so a removed one would come straight back. `Disconnect <Tool>` lives in Settings.
 
 `Hide Emails` masks every email the menu and the tooltip show: `alex.side@example.com` reads `al•••e@example.com`. The domain stays visible.
 
@@ -63,6 +64,7 @@ Every tool item carries a `ProviderMenuAction` and goes through `MenuBarCoordina
 
 ```text
 Add Account ›        Codex…  Claude…  Cursor…
+Disconnect Claude    (one per connected tool: Claude, Cursor)
 ─────
 Appearance ›         Menu Bar Label ›  Icon Style ›  Usage Bars ›  ─  Show Token Usage
 Hide Emails
@@ -73,7 +75,7 @@ Diagnostics…
 About
 ```
 
-`Claude…` and `Cursor…` connect a tool that is not connected yet. Otherwise they run `Add Claude Account…` and `Add Cursor Account…`.
+`Claude…` and `Cursor…` connect a tool that is not connected yet. Otherwise they run `Add Claude Account…` and `Add Cursor Account…`. `Disconnect Claude` and `Disconnect Cursor` appear only while that tool is connected, and hide its card. Codex has nothing to disconnect.
 
 `Diagnostics…` first explains what the export contains, then writes a redacted JSON file only if the user confirms. The report holds allowlisted fields, per-export account aliases, summarized freshness states and recent CodexPill workflow events. It never includes raw logs, auth JSON, snapshots, raw UserDefaults, emails, hostnames, local paths, tokens, stable account IDs, prompt or session content, or raw stderr.
 

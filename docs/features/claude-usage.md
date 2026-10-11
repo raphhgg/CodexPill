@@ -18,7 +18,7 @@ CodexPill never reads or writes Claude Code's `settings.json`. Reading limits fr
 
 ## Menu
 
-The `Claude` card follows the shared card and side menu in [Menubar](menubar.md). The side menu marks the account in use, lists the other saved accounts with their last limits, adds accounts, and ends with `Disconnect Claude`.
+The `Claude` card follows the shared card and side menu in [Menubar](menubar.md). The side menu marks the account in use, lists the other saved accounts with their last limits, and adds accounts. `Disconnect Claude` is in Settings.
 
 - **Not connected.** There is no card. `Settings › Add Account › Claude…` (and the first-run `Add Account ›`) connects. Choosing it opens a consent alert first. Nothing is read until the user confirms.
 - **Consent alert.** One short alert:
@@ -27,7 +27,7 @@ The `Claude` card follows the shared card and side menu in [Menubar](menubar.md)
   > Uses Claude Code's sign-in to read your limits.
 
   Confirming saves the choice and reads at once. That first read may show the macOS Keychain prompt.
-- **Connected.** The choice is saved in user defaults (`claudeUsageEnabled`, off by default). The side menu ends with `Disconnect Claude`, which turns the feature off at once with no alert, because it changes nothing outside CodexPill.
+- **Connected.** The choice is saved in user defaults (`claudeUsageEnabled`, off by default). `Disconnect Claude` in Settings turns the feature off at once with no alert, because it changes nothing outside CodexPill.
 - **Current.** The plan tag (`Max x20`, read from `organizationRateLimitTier`, else `userRateLimitTier`, in Claude Code's `oauthAccount`, because the credentials' `rateLimitTier` keeps the tier from sign-in time; that one is used only when the account record has none), then `Session` and `Weekly` meters with their reset times. There is no reset-credit row. The meters use the same percent mode, layout, colors, and pacing markers as the Codex card.
 - **Waiting.** `Waiting for Claude Code usage`, with no second line. Anthropic answered but sent neither window, for example on a plan without subscription limits.
 - **Keychain access needed.** The card says `Allow Keychain access` and one row under it, `Allow Keychain access…`, It reads again with the macOS Keychain prompt allowed. Claude Code rewrites its Keychain item when it renews its sign-in, which can reset an earlier `Always Allow`, so this state can come back.
@@ -44,7 +44,7 @@ The `Claude` card follows the shared card and side menu in [Menubar](menubar.md)
   | Any other status | `Anthropic is having trouble` | `Retrying in a few minutes.` |
   | A `200` that is not the usage shape | `Unexpected reply from Anthropic` | `Retrying in a few minutes.` |
 - **Stale.** A snapshot older than 15 minutes is dimmed. Its label still reads `As of …` until the next read.
-- **Accounts.** The account in use is the first side-menu row, checked and disabled. Each other saved account is `Use <email>` (or one row per account under `Use Another Claude Account ›`) with its last limits on a second line, for example `Session 12% · Weekly 40% used`. A reading older than 30 minutes adds `· as of 10:26`. An account read once shows nothing more.
+- **Accounts.** The account in use is the first side-menu row, checked and disabled. Each other saved account is a row by email that opens `Use` and `Remove…`, with its last limits on a second line, for example `Session 12% · Weekly 40% used`. A reading older than 30 minutes adds `· as of 10:26`. An account read once shows nothing more.
 - **`Add Claude Account…`** runs Claude Code's login in the browser. While it waits, the card says `Finish signing in in your browser` and the row under it is `Cancel Sign-In`. When Claude Code has no sign-in at all, the same item signs Claude Code itself in, so the new account is in use at once.
 - **Saved automatically.** Once Claude is connected, the account Claude Code is signed in to is saved as soon as a read finds it missing from the list: on connect, on each refresh, and after Claude Code signs in to another account on its own. There is no save item.
 - **Sign in.** When Claude Code has no sign-in, or its sign-in can't be read, the card has one row under it, `Sign In…`, which runs `Add Claude Account…`.

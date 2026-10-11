@@ -958,25 +958,88 @@ struct MenuBarMenuBuilderTests {
         )
 
         let side = try #require(menu.items.first { $0.title == "Codex" }?.submenu)
-        let useAnother = try #require(side.items.first { $0.title == "Use Another Codex Account" }?.submenu)
-        let remove = try #require(side.items.first { $0.title == "Remove Codex Account" }?.submenu)
+        let rows = try side.items[1...2].map { try #require($0.submenu) }
 
         #expect(side.items.map(\.title) == [
-            "alex@example.com", "",
-            "Use Another Codex Account", "Use a Reset…", "Expires 5 Nov", "Expires 20 Nov", "Token Usage", "",
-            "Add Codex Account…", "Remove Codex Account",
+            "alex@example.com", "side@example.com", "team@example.com", "",
+            "Use a Reset…", "Expires 5 Nov", "Expires 20 Nov", "Token Usage", "",
+            "Add Codex Account…",
         ])
-        #expect(side.items[0].isEnabled == false)
-        #expect(side.items[4].isEnabled == false && side.items[4].indentationLevel == 1)
-        #expect(providerAction(side.items[3]) == .useResetCredit)
-        #expect(useAnother.items.map(\.title) == ["side@example.com", "team@example.com"])
-        #expect(useAnother.items.map(providerAction) == [.switchAccount(first.id), .switchAccount(second.id)])
-        #expect(remove.items.map(\.title) == ["alex@example.com…", "side@example.com…", "team@example.com…"])
-        #expect(remove.items.map(providerAction) == [.removeAccount(active.id), .removeAccount(first.id), .removeAccount(second.id)])
+        #expect(side.items[0].state == .on && !side.items[0].isEnabled && side.items[0].submenu == nil)
+        #expect(rows.map { $0.items.map(\.title) } == [["Use", "Remove…"], ["Use", "Remove…"]])
+        #expect(rows.map { $0.items.map(providerAction) } == [
+            [.switchAccount(first.id), .removeAccount(first.id)], [.switchAccount(second.id), .removeAccount(second.id)],
+        ])
+        #expect(side.items[5].isEnabled == false && side.items[5].indentationLevel == 1)
+        #expect(providerAction(side.items[4]) == .useResetCredit)
+    }
+
+    @Test(arguments: [UsageProvider.claude, .cursor])
+    func everyToolsSideMenuOffersUseAndRemoveOnlyForAccountsNotInUse(provider: UsageProvider) throws {
+        let active = ProviderAccount(id: UUID(), email: "alex@example.com", isActive: true)
+        let saved = ProviderAccount(id: UUID(), email: "sam@acme.dev", isActive: false)
+        let menu = MenuBarMenuBuilder().makeMenu(
+            state: makeState(
+                activeAccount: nil,
+                providerUsage: [
+                    ProviderUsageState(provider: provider, status: .current(providerSnapshot(provider)), accounts: [active, saved], signInAvailability: .available),
+                ]
+            ),
+            target: try makeCoordinator()
+        )
+
+        let side = try #require(menu.items.first?.submenu)
+        let row = try #require(side.items[1].submenu)
+
+        #expect(side.items.map(\.title) == ["alex@example.com", "sam@acme.dev", "", "Add \(provider.copy.sectionTitle) Account…"])
+        #expect(side.items[0].state == .on && !side.items[0].isEnabled && side.items[0].submenu == nil)
+        #expect(row.items.map(\.title) == ["Use", "Remove…"])
+        #expect(row.items.map(providerAction) == [.switchAccount(saved.id), .removeAccount(saved.id)])
     }
 
     @Test
-    func claudeSideMenuListsAccountsWithTheirLimitsBothWaysToAddAndDisconnect() throws {
+    func settingsDisconnectsEachConnectedTool() throws {
+        let menu = MenuBarMenuBuilder().makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
+                providerUsage: [
+                    ProviderUsageState(provider: .claude, status: .current(providerSnapshot(.claude))),
+                    ProviderUsageState(provider: .cursor, status: .notConnected),
+                ]
+            ),
+            target: try makeCoordinator()
+        )
+
+        let settings = try settingsMenu(in: menu)
+        let disconnects = settings.items.filter { $0.title.hasPrefix("Disconnect") }
+
+        #expect(disconnects.map(\.title) == ["Disconnect Claude"])
+        #expect(disconnects.map(providerAction) == [.disconnect])
+        #expect(try #require(menu.items.first?.submenu).items.allSatisfy { !$0.title.hasPrefix("Disconnect") })
+    }
+
+    @Test
+    func removeAsksBeforeForgettingTheAccount() throws {
+        let alerts = AlertPresenterProbe()
+        let coordinator = try makeCoordinatorWithStatusItem(alertPresenter: alerts).0
+        let saved = ProviderAccount(id: UUID(), email: "sam@acme.dev", isActive: false)
+        let menu = MenuBarMenuBuilder().makeMenu(
+            state: makeState(
+                activeAccount: nil,
+                providerUsage: [ProviderUsageState(provider: .claude, status: .current(providerSnapshot(.claude)), accounts: [saved])]
+            ),
+            target: coordinator
+        )
+        let remove = try #require(menu.items.first?.submenu?.items.first?.submenu?.items.last)
+        let action = try #require(remove.action)
+
+        NSApplication.shared.sendAction(action, to: remove.target, from: remove)
+
+        #expect(alerts.confirmationRequests.map(\.messageText) == ["Remove this Claude Code account?"])
+    }
+
+    @Test
+    func claudeSideMenuListsAccountsWithTheirLimitsAndMasksEmails() throws {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let savedUsage = UsageSnapshot(
             provider: .claude,
@@ -1011,17 +1074,13 @@ struct MenuBarMenuBuilderTests {
         #expect(menu.items.map(\.title) == ["Claude", "Allow Keychain access…", "", "Codex", "", "Settings", "", "Quit"])
         #expect(providerAction(menu.items[1]) == .allowKeychainAccess)
         #expect(side.items.map(\.title) == [
-            "a•••x@example.com", "",
-            "Use s•••m@acme.dev\nSession 12% · Weekly 40% used", "",
+            "a•••x@example.com", "s•••m@acme.dev\nSession 12% · Weekly 40% used", "",
             "Move to Top", "Move Up", "Move Down", "",
-            "Add Claude Account…", "Remove Claude Account", "",
-            "Disconnect Claude",
+            "Add Claude Account…",
         ])
-        #expect(side.items[0].state == .on)
         #expect(side.items.filter { $0.title.hasPrefix("Move") }.map(\.isEnabled) == [false, false, true])
-        #expect(side.items[4...6].compactMap { $0.representedObject as? [UsageProvider] } == [[.codex, .claude, .cursor]])
-        #expect(providerAction(side.items[2]) == .switchAccount(saved.id))
-        #expect([8, 11].map { providerAction(side.items[$0]) } == [.addAccount, .disconnect])
+        #expect(side.items[3...5].compactMap { $0.representedObject as? [UsageProvider] } == [[.codex, .claude, .cursor]])
+        #expect(providerAction(side.items[7]) == .addAccount)
     }
 
     @Test
@@ -1039,7 +1098,7 @@ struct MenuBarMenuBuilderTests {
 
         #expect(menu.items.map(\.title) == ["Claude", "", "Settings", "", "Quit"])
         #expect(add.isEnabled == false)
-        #expect(side.items.map(\.title).suffix(4) == ["Add Claude Account…", "Install Claude Code first", "", "Disconnect Claude"])
+        #expect(side.items.map(\.title) == ["Add Claude Account…", "Install Claude Code first"])
     }
 
     @Test
@@ -1096,7 +1155,7 @@ struct MenuBarMenuBuilderTests {
         let refresh = try #require(settings.items.first { $0.title == "Refresh Every" }?.submenu)
 
         #expect(settings.items.map(\.title) == [
-            "Add Account", "", "Appearance", "Hide Emails", "Refresh Every", "Launch at Login", "", "Diagnostics…", "About",
+            "Add Account", "Disconnect Claude", "", "Appearance", "Hide Emails", "Refresh Every", "Launch at Login", "", "Diagnostics…", "About",
         ])
         #expect(settings.items.first { $0.title == "Hide Emails" }?.state == .on)
         #expect(addAccount.items.map(providerAction) == [.addAccount, .addAccount, .connect])
