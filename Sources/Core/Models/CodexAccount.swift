@@ -190,6 +190,7 @@ struct CodexAccount: Identifiable, Codable, Hashable {
 
 /// The `rateLimits` shape that accounts.json has always stored: Codex's positional primary and
 /// secondary windows. Writing the same shape keeps the file readable by earlier app versions.
+/// Reading names each window by its length again, so a file saved with the wrong names reads correctly.
 private struct StoredCodexRateLimits: Codable {
     struct Window: Codable {
         var usedPercent: Int
@@ -214,8 +215,8 @@ private struct StoredCodexRateLimits: Codable {
 
     init(_ usage: UsageSnapshot) {
         planType = usage.planName
-        primary = usage.window(.session).map(Window.init)
-        secondary = usage.window(.weekly).map(Window.init)
+        primary = usage.codexSlots.primary.map(Window.init)
+        secondary = usage.codexSlots.secondary.map(Window.init)
         fetchedAt = usage.fetchedAt
         resetCredits = usage.resetCredits.map { resetCredits in
             ResetCredits(

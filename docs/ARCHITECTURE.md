@@ -215,8 +215,8 @@ Platform adapters are the only place where the app should know about live auth f
 `Sources/Core/` is models plus typed preferences:
 
 - `CodexAccount` and `LiveCodexAccountIdentity`
-- `CodexRateLimits`, Codex plan-type rules and `UsageSnapshot.codex(planName:primary:secondary:fetchedAt:)`, the only place that turns Codex's positional primary and secondary windows into session and weekly windows
-- `Usage`, the provider-neutral usage model: `UsageSnapshot` holds a provider, the plan name the provider reported, and `UsageWindow` values keyed by `UsageWindowKind` (session, weekly, billing cycle). `UsageWindow.displayedUsedPercent(at:)` is the one rule for showing 0% once a window has reset. `CodexAccount.usage` and `CodexAccountStatus.usage` store it directly. `CodexAccount` reads and writes the `rateLimits` primary/secondary shape `accounts.json` has always used through a private storage type, so files from earlier versions still load and earlier versions can still read new files.
+- `CodexRateLimits`, Codex plan-type rules and `UsageSnapshot.codex(planName:primary:secondary:fetchedAt:)`, the only place that turns Codex's positional primary and secondary windows into named windows, shortest first
+- `Usage`, the provider-neutral usage model: `UsageSnapshot` holds a provider, the plan name the provider reported, and `UsageWindow` values keyed by `UsageWindowKind` (session, weekly, monthly, billing cycle, or other with its length). `UsageWindowKind(durationMinutes:)` is the one rule that names a window by its length, with its tolerances. `UsageWindow.displayedUsedPercent(at:)` is the one rule for showing 0% once a window has reset. `CodexAccount.usage` and `CodexAccountStatus.usage` store it directly. `CodexAccount` reads and writes the `rateLimits` primary/secondary shape `accounts.json` has always used through a private storage type, so files from earlier versions still load and earlier versions can still read new files. Loading names each stored window by its length again.
 - `StatusBarIndicatorStyle` and `StatusBarDisplayMode`, the persisted status-item choices
 - typed `UserDefaults`-backed settings stores
 
@@ -244,7 +244,7 @@ App startup builds each store from one `UserDefaults` instance and injects the o
 
 `AccountActionFlow` owns account action sequencing decisions that do not require AppKit access. It converts workflow outcomes into presentation-neutral next steps. Add Account sign-in failures cross this boundary as account-domain `AddAccountSignInFailureOutcome` values, such as prompt unavailable, expired code, capture failed, and verification failed; MenuBar renders those outcomes into alerts and retry panels without deriving recovery policy from platform login errors.
 
-`AccountAvailability` reads one saved account's session and weekly usage and reset times for ranking. It must not know menu rendering or AppKit exists.
+`AccountAvailability` reads one saved account's session usage and its fullest longer window (weekly, monthly, or other) with their reset times for ranking. It must not know menu rendering or AppKit exists.
 
 `InactiveAccountAvailabilityRanking` owns ordering and best-account comparison only.
 

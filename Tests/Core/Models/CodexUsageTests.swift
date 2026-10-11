@@ -99,16 +99,79 @@ struct CodexUsageTests {
     }
 
     @Test
-    func windowJustUnderTheWeeklyToleranceCountsAsSession() throws {
+    func freePlanThirtyDayWindowIsMonthly() throws {
         let usage = try usage(fromAppServerJSON: """
         {
           "rateLimits": {
-            "primary": { "usedPercent": 9, "resetsAt": 2000000000, "windowDurationMins": 10019 }
+            "planType": "free",
+            "secondary": { "usedPercent": 0, "windowDurationMins": 43200, "resetsAt": 2002592000 }
           }
         }
         """)
 
-        #expect(usage.windows.map(\.kind) == [.session])
+        #expect(usage.displayedWindows.map(\.kind.title) == ["Monthly"])
+    }
+
+    @Test
+    func proPlanSevenDayWindowIsWeekly() throws {
+        let usage = try usage(fromAppServerJSON: """
+        {
+          "rateLimits": {
+            "planType": "pro",
+            "primary": { "usedPercent": 12, "windowDurationMins": 10080, "resetsAt": 2000500000 }
+          }
+        }
+        """)
+
+        #expect(usage.displayedWindows.map(\.kind.title) == ["Weekly"])
+    }
+
+    @Test
+    func fiveHourAndSevenDayWindowsAreSessionThenWeekly() throws {
+        let usage = try usage(fromAppServerJSON: """
+        {
+          "rateLimits": {
+            "planType": "plus",
+            "primary": { "usedPercent": 60, "windowDurationMins": 10080, "resetsAt": 2000500000 },
+            "secondary": { "usedPercent": 15, "windowDurationMins": 300, "resetsAt": 2000000000 }
+          }
+        }
+        """)
+
+        #expect(usage.displayedWindows.map(\.kind.title) == ["Session", "Weekly"])
+    }
+
+    @Test(arguments: [
+        (240, "Session"), (360, "Session"),
+        (10_020, "Weekly"), (10_140, "Weekly"),
+        (40_260, "Monthly"), (43_200, "Monthly"), (44_640, "Monthly"), (44_700, "Monthly"),
+        (239, "4 hours"), (361, "6 hours"), (10_019, "7 days"), (11_520, "8 days"),
+        (44_701, "31 days"), (2_160, "36 hours"), (90, "90 minutes"),
+    ])
+    func windowIsTitledByItsLength(durationMinutes: Int, title: String) throws {
+        let usage = try usage(fromAppServerJSON: """
+        {
+          "rateLimits": {
+            "primary": { "usedPercent": 9, "resetsAt": 2000000000, "windowDurationMins": \(durationMinutes) }
+          }
+        }
+        """)
+
+        #expect(usage.displayedWindows.map(\.kind.title) == [title])
+    }
+
+    @Test
+    func mergingTwoReadsKeepsAMonthlyWindow() throws {
+        let first = try usage(fromAppServerJSON: """
+        { "rateLimits": { "planType": "free", "secondary": { "usedPercent": 3, "windowDurationMins": 43200 } } }
+        """)
+        let second = try usage(fromAppServerJSON: """
+        { "rateLimits": { "planType": "free", "secondary": { "usedPercent": 4, "windowDurationMins": 43200 } } }
+        """)
+
+        let merged = try #require(mergeAppServerUsage(previous: first, current: second))
+
+        #expect(merged.windows == [UsageWindow(kind: .monthly, usedPercent: 4, resetsAt: nil, durationMinutes: 43_200)])
     }
 
     @Test

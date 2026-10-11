@@ -217,11 +217,11 @@ extension MenuBarMenuState {
 }
 
 extension UsageSnapshot {
-    /// Windows in menu order. Codex Pro plans hide the 5-hour window, which they barely ever reach.
+    /// The windows the tool reported, shortest first. Codex Pro plans hide the 5-hour window, which they barely
+    /// ever reach.
     var displayedWindows: [UsageWindow] {
         let hidesSession = provider == .codex && ["pro", "prolite"].contains(normalizedCodexPlanType(planName) ?? "")
-        let kinds: [UsageWindowKind] = hidesSession ? [.weekly, .billingCycle] : [.session, .weekly, .billingCycle]
-        return kinds.compactMap(window)
+        return windows.filter { !(hidesSession && $0.kind == .session) }
     }
 }
 
@@ -230,9 +230,37 @@ extension UsageWindowKind {
         switch self {
         case .session: "Session"
         case .weekly: "Weekly"
+        case .monthly: "Monthly"
         case .billingCycle: "Billing cycle"
+        case .other(let durationMinutes): lengthTitle(durationMinutes)
         }
     }
+
+    /// The status bar title's label: "S", "W", "M", "B", or "8d" for a length with no name.
+    var shortTitle: String {
+        switch self {
+        case .session, .weekly, .monthly, .billingCycle: String(title.prefix(1))
+        case .other(let durationMinutes): shortLengthTitle(durationMinutes)
+        }
+    }
+}
+
+/// "8 days", "36 hours", "90 minutes": rounded to days from two days up, to hours from two hours up.
+private func lengthTitle(_ durationMinutes: Int) -> String {
+    let (count, unit) = lengthParts(durationMinutes)
+    return "\(count) \(unit)\(count == 1 ? "" : "s")"
+}
+
+private func shortLengthTitle(_ durationMinutes: Int) -> String {
+    let (count, unit) = lengthParts(durationMinutes)
+    return "\(count)\(unit.prefix(1))"
+}
+
+private func lengthParts(_ durationMinutes: Int) -> (count: Int, unit: String) {
+    let minutes = Double(durationMinutes)
+    if durationMinutes >= 2 * 1_440 { return (Int((minutes / 1_440).rounded()), "day") }
+    if durationMinutes >= 2 * 60 { return (Int((minutes / 60).rounded()), "hour") }
+    return (durationMinutes, "minute")
 }
 
 /// The plan tag on a card: "Pro x20" for Codex, "Max x20" for Claude, "Pro" for Cursor. Nil when the plan is unknown.
