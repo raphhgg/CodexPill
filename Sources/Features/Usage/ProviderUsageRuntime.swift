@@ -6,6 +6,9 @@ import Foundation
 /// Saved accounts the tool is not signed in to are read every `inactiveRefreshInterval`, one at a time, the way
 /// `AccountsController` reads inactive Codex accounts. An action that changes accounts first lets the account being
 /// read finish and stops the rest, so a renewed sign-in is saved before the action touches any sign-in.
+///
+/// A tool's expired live sign-in is renewed by the tool itself, one renewal at a time, never during a sign-in, an
+/// account action or the inactive pass. Account actions wait for it, so they save the renewed sign-in.
 @MainActor
 final class ProviderUsageRuntime {
     nonisolated static let refreshInterval: TimeInterval = 5 * 60
@@ -24,6 +27,8 @@ final class ProviderUsageRuntime {
     private var lastInactiveRefreshStartedAt: Date?
     private var inactiveRefresh: Task<Void, Never>?
     private var stopsInactiveRefresh = false
+    private var liveRenewal: Task<[UsageProvider], Never>?
+    private var accountActionsInFlight = 0
 
     init(
         connections: [any ProviderConnection],
@@ -81,14 +86,16 @@ final class ProviderUsageRuntime {
             case .disconnect:
                 await connection.disconnect()
             case let .switchAccount(id):
-                await finishInactiveRefresh()
+                accountActionsInFlight += 1
+                defer { accountActionsInFlight -= 1 }
+                await finishSignInWork()
                 discardReading(for: provider)
                 defer { discardReading(for: provider) }
                 try await connection.switchAccount(to: id)
             case .addAccount:
                 guard signIns[provider] == nil else { return nil }
                 let signIn = Task { () -> Result<Bool, ProviderNotice> in
-                    await finishInactiveRefresh()
+                    await finishSignInWork()
                     do throws(ProviderNotice) {
                         return .success(try await connection.addAccount())
                     } catch {
@@ -101,10 +108,14 @@ final class ProviderUsageRuntime {
                 signIns[provider] = nil
                 readsNewAccounts = (try result.get())
             case .saveCurrentAccount:
-                await finishInactiveRefresh()
+                accountActionsInFlight += 1
+                defer { accountActionsInFlight -= 1 }
+                await finishSignInWork()
                 try await connection.addCurrentAccount()
             case let .removeAccount(id):
-                await finishInactiveRefresh()
+                accountActionsInFlight += 1
+                defer { accountActionsInFlight -= 1 }
+                await finishSignInWork()
                 try await connection.removeAccount(id)
             case .cancelSignIn:
                 signIns[provider]?.cancel()
@@ -166,7 +177,7 @@ final class ProviderUsageRuntime {
     /// Reads every connected tool's inactive saved accounts, at most once per `inactiveRefreshInterval`. It waits
     /// while a sign-in runs, since the user may be adding the account it would read.
     func refreshInactiveAccountsIfDue() async {
-        guard inactiveRefresh == nil, signIns.isEmpty else { return }
+        guard !isChangingSignIns else { return }
         let startedAt = now()
         if let lastInactiveRefreshStartedAt, startedAt.timeIntervalSince(lastInactiveRefreshStartedAt) < Self.inactiveRefreshInterval {
             return
@@ -175,6 +186,31 @@ final class ProviderUsageRuntime {
         for connection in connections where connection.isConnected {
             await refreshInactiveAccounts(of: connection, onlyUnread: false)
         }
+    }
+
+    /// Lets each tool whose last read found its sign-in expired renew it, then reads again every tool that renewed.
+    func renewLiveSignInsIfNeeded() async {
+        let expired = connections.filter { readings[$0.provider] == .unavailable(.signInExpired) }
+        guard !expired.isEmpty, !isChangingSignIns else { return }
+        let renewal = Task { [now] in
+            var renewed: [UsageProvider] = []
+            for connection in expired {
+                if await connection.renewLiveSignInIfNeeded(now: now()) {
+                    renewed.append(connection.provider)
+                }
+            }
+            return renewed
+        }
+        liveRenewal = renewal
+        let renewed = await renewal.value
+        liveRenewal = nil
+        for provider in renewed {
+            await refreshIfDue(forcing: provider)
+        }
+    }
+
+    private var isChangingSignIns: Bool {
+        !signIns.isEmpty || accountActionsInFlight > 0 || inactiveRefresh != nil || liveRenewal != nil
     }
 
     /// `onlyUnread` reads only accounts with no limits yet, such as one the user just added.
@@ -198,8 +234,10 @@ final class ProviderUsageRuntime {
         }
     }
 
-    /// Lets the account being read finish, so a renewed sign-in is saved before an action touches any sign-in.
-    private func finishInactiveRefresh() async {
+    /// Lets a live renewal and the account being read finish, so a renewed sign-in is saved before an action
+    /// touches any sign-in.
+    private func finishSignInWork() async {
+        _ = await liveRenewal?.value
         guard let inactiveRefresh else { return }
         stopsInactiveRefresh = true
         await inactiveRefresh.value

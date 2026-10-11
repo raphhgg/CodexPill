@@ -30,10 +30,14 @@ protocol ProviderConnection: UsageProviderSource {
     /// Reads the limits of a saved account the tool is not signed in to, with that account's own sign-in. The live
     /// sign-in is never read or changed.
     func refreshInactiveAccount(_ id: UUID, now: Date) async
+    /// Lets the tool renew its own expired live sign-in while the tool is not running. True when the sign-in changed,
+    /// so the tool should be read again.
+    func renewLiveSignInIfNeeded(now: Date) async -> Bool
 }
 
 extension ProviderConnection {
     func refreshInactiveAccount(_: UUID, now _: Date) async {}
+    func renewLiveSignInIfNeeded(now _: Date) async -> Bool { false }
 }
 
 enum ProviderSignInAvailability: Equatable, Sendable {

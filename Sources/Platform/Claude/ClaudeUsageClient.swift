@@ -36,6 +36,12 @@ actor ClaudeUsageClient {
         promptAllowedOnNextRead = true
     }
 
+    /// When Claude Code's live sign-in expires, read without the Keychain prompt. Nil when it can't be read.
+    func liveSignInExpiry() -> Date? {
+        guard case let .credentials(signIn) = credentials.lookup(allowingPrompt: false) else { return nil }
+        return signIn.expiresAt
+    }
+
     func refresh(now: Date) async -> ClaudeUsageStatus {
         let allowingPrompt = promptAllowedOnNextRead
         promptAllowedOnNextRead = false

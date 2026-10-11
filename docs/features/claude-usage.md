@@ -8,7 +8,7 @@ As a CodexPill user who also works in Claude Code on a Pro or Max plan, I want t
 
 Claude Usage is an optional menu bar feature. When connected, CodexPill shows the 5-hour and weekly limits of the Claude account that Claude Code is signed in to, and the last limits of every other Claude account the user saved.
 
-Claude accounts work like Codex accounts, described in [Claude Accounts](#claude-accounts). Adding one runs Claude Code's own login in a throwaway config folder. Switching changes Claude Code's live sign-in, and with it whose limits the card shows. Reading usage never changes anything in Claude Code. CodexPill never renews Claude Code's live sign-in and never calls Anthropic's token endpoint: when a saved account's sign-in has expired, Claude Code renews that copy in a throwaway folder.
+Claude accounts work like Codex accounts, described in [Claude Accounts](#claude-accounts). Adding one runs Claude Code's own login in a throwaway config folder. Switching changes Claude Code's live sign-in, and with it whose limits the card shows. Reading usage never changes anything in Claude Code. CodexPill never renews a sign-in itself and never calls Anthropic's token endpoint: Claude Code does the renewing, of its own expired sign-in when it isn't running, and of a saved account's expired copy in a throwaway folder.
 
 The feature is off by default. Connecting it is the user's consent for CodexPill to read Claude Code's sign-in and send it to Anthropic.
 
@@ -36,7 +36,7 @@ The `Claude` card follows the shared card and side menu in [Menubar](menubar.md)
   | Cause | Title | Second line |
   |---|---|---|
   | No sign-in | `Not signed in to Claude Code` | `Sign in to Claude Code to see usage.` |
-  | Token past its expiry, or `401` | `Claude Code sign-in expired` | `Open Claude Code to renew it.` |
+  | Token past its expiry, or `401` | `Claude Code sign-in expired` | `Run claude to renew it.` |
   | Credentials file or Keychain item unreadable or not JSON | `Can't read the Claude Code sign-in` | `Sign in to Claude Code again.` |
   | `403` | `Anthropic won't share usage` | `Sign in to Claude Code again.` |
   | `429`, or waiting out `Retry-After` | `Anthropic asked to wait` | `Retrying in a few minutes.` |
@@ -71,12 +71,22 @@ Both hold the same JSON. CodexPill decodes only `claudeAiOauth.accessToken`, `cl
 
 ## Read Policy
 
-- Expired token (`expiresAt` in the past): no request. The menu shows sign-in expired. Claude Code renews its live token the next time it runs; CodexPill never does.
+- Expired token (`expiresAt` in the past): no request. The menu shows sign-in expired, then CodexPill lets Claude Code renew it (see [Live Renewal](#live-renewal)).
 - `401`: sign-in expired.
 - `403`: access denied. Anthropic knows the token but won't share usage with it, for example a token without the profile scope.
 - `429`: no request until `Retry-After` passes, given as seconds or an HTTP date, or 5 minutes when the header is missing or unreadable. The menu shows rate limited meanwhile.
 - Network failure: unreachable. Another status: service error. An unreadable body: unexpected response. The shared provider runtime keeps the last good values for all of these.
 - CodexPill holds the token only for the length of one read. It never stores, logs, displays, or refreshes it. `ClaudeAccessToken` prints as `ClaudeAccessToken(redacted)` and reflects no children.
+
+## Live Renewal
+
+Claude Code's access token lasts 8 hours, and Claude Code renews it only while it runs. So after a read finds the live sign-in expired, CodexPill runs `claude doctor` with Claude Code's own config (no `CLAUDE_CONFIG_DIR` unless Claude Code itself uses one). Claude Code renews an expired sign-in whenever it runs, without a model call, rotates the refresh token, and saves the result where it always does. CodexPill then reads usage again.
+
+- Only when the token's `expiresAt` has passed, never early. A `401` on a token that has not expired does not count.
+- Only when `claude` is installed and no `claude` process runs, since a running one renews its own token.
+- At most once per expiry, and again for the same expiry only after 30 minutes, so a sign-in Claude Code can't renew does not run `claude doctor` on every read. It then stays `Claude Code sign-in expired`.
+- Never while a sign-in, an account action, the inactive pass, or another renewal runs. Switching, adding, saving, and removing wait for a renewal to finish, so a switch saves the renewed sign-in.
+- The expiry is read without the Keychain prompt. If the read needs the prompt, nothing runs.
 
 ## Isolated Runs
 
@@ -99,7 +109,7 @@ Each saved account is one Claude Code sign-in in Claude Code's own format, held 
 - **Rollback.** If saving the outgoing copy, writing the list, writing the credentials, or writing the global config fails, every earlier step is put back byte for byte. If putting it back fails too, the error says so (`restoreFailed`).
 - **Inactive accounts' limits.** Every 15 minutes, for each saved account Claude Code is not signed in to, CodexPill sends that account's own access token to `api/oauth/usage` and keeps the result in the list. The account in use is never read this way.
 - **Renewal.** When a saved account's token has expired, CodexPill writes that saved sign-in into a new throwaway folder (`.credentials.json` and `.claude.json`, both private) and runs `claude doctor` there. Claude Code renews an expired sign-in whenever it runs, without a model call, and saves the result in that folder's Keychain item. CodexPill keeps it only if the token changed and the account is the same, and saves it only if the saved copy is still the one it started from (compare and swap). Then it deletes the folder and the item. When nothing was renewed, the account keeps its last limits, which age into `as of …`.
-- **Races.** Switching, adding, saving, or removing first lets the account being read finish and stops the rest, so a renewed sign-in is saved before any sign-in is touched. A new inactive pass waits while a sign-in runs.
+- **Races.** Switching, adding, saving, or removing first lets the account being read finish and stops the rest, so a renewed sign-in is saved before any sign-in is touched. A new inactive pass waits while a sign-in, an account action, or a live renewal runs.
 - **Leftovers.** A folder left behind by a crash is deleted with its Keychain item when CodexPill next launches.
 - **Errors.** Each failure has a short alert, for example `Quit Claude Code first` / `Close every claude session.` or `Claude sign-in didn't finish` / `Nothing was saved.` Cancelling shows nothing.
 
@@ -113,7 +123,7 @@ The user-facing summary lives in [PRIVACY.md](../PRIVACY.md).
 - `ClaudeUsageAPITests` cover the response mapping, the request headers, the redirect rule, and status mapping for `401` and `429`. `RetryAfterTests` cover the shared `Retry-After` parser.
 - `ClaudeCodeUsageTests` cover opt-in, the Keychain prompt only after a user action, the expiry gate, each failure state, the rate-limit wait, and that a switch changes whose limits the next read shows.
 - `ClaudeCodeAccountStoreTests` cover saving, matching by account record, switching in the Keychain item and the credentials file, refusing while Claude Code runs, rollback with a failure injected at each step, and a scan proving no Claude source uses a refresh token or the token endpoint.
-- `ClaudeAccountsTests` run `ClaudeCodeUsage` against a fake `claude` that behaves like Claude Code 2.1.294: adding (success, cancel, failure, no account record, not installed, signing Claude Code in), cleanup of the folder and the right Keychain item every time, inactive reads with each account's own token, renewal with compare and swap, a switch racing a renewal, and a switch saving the outgoing rotated sign-in.
+- `ClaudeAccountsTests` run `ClaudeCodeUsage` against a fake `claude` that behaves like Claude Code 2.1.294: adding (success, cancel, failure, no account record, not installed, signing Claude Code in), cleanup of the folder and the right Keychain item every time, inactive reads with each account's own token, renewal with compare and swap, a switch racing a renewal, a switch saving the outgoing rotated sign-in, and live renewal (after expiry only, not while `claude` runs, the 30-minute retry, not during a sign-in, a save or the inactive pass, and a switch that waits for it).
 - `ClaudeCodeProcessRunnerTests` run a stand-in `claude` script to check the exact `CLAUDE_CONFIG_DIR`, the minimal environment, and that cancelling stops a waiting login.
 - `ProviderUsageMenuCopyTests` and `ClaudeCodeAccountAlertTests` check that every failure reads differently and stays a title plus one short line.
 - A coordinator test walks the menu from `Add Account › Claude…` through declined consent, current usage, `Allow Keychain access…`, and disconnect, reading the built `NSMenu`.

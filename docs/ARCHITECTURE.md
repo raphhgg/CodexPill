@@ -115,6 +115,7 @@ Each saved account is the tool's own sign-in in the tool's own format, held by C
 - `addCurrentAccount()` saves the sign-in the tool uses now.
 - `switchAccount(to:)` saves the live sign-in back to its account first, because the tool may have renewed it, then writes the target, all or nothing.
 - `refreshInactiveAccount(_:now:)` reads one saved account the tool is not signed in to, with that account's own sign-in, and records its limits on `ProviderAccount.usage`. When the saved sign-in needs renewing, the tool renews it in a throwaway home and the adapter writes it back only if the saved copy is unchanged (compare and swap). It never reads or changes the live sign-in. The default does nothing.
+- `renewLiveSignInIfNeeded(now:)` lets the tool renew its own expired live sign-in while the tool is not running, and returns true when the sign-in changed. Claude runs `claude doctor` with Claude Code's own config, once per expiry with a 30-minute retry. The default does nothing.
 
 Its words go in `ProviderCopy` under its `UsageProvider` case. Nothing else changes: no selector, coordinator property, or menu-builder branch names a tool.
 
@@ -122,7 +123,8 @@ Its words go in `ProviderCopy` under its `UsageProvider` case. Nothing else chan
 - The coordinator asks the `ProviderCopy` confirmation, if any, then runs the action in a tracked task through `ProviderUsageRuntime.perform(_:on:)` and shows the `ProviderNotice` it returns.
 - The runtime reads the tool again after every action. A switch first drops the tool's last reading and bumps a generation, so a read that started before the change is discarded and the previous account's numbers never show.
 - The runtime owns the sign-in task, so `.cancelSignIn` cancels it and the card shows `isSigningIn` until it ends. An account just added is read at once.
-- Inactive reads run one account at a time. Switching, adding, saving or removing first lets the account being read finish and stops the rest, so a renewed sign-in is saved before any sign-in is touched. A new inactive pass does not start while a sign-in runs.
+- Inactive reads run one account at a time. Switching, adding, saving or removing first lets the account being read finish and stops the rest, so a renewed sign-in is saved before any sign-in is touched. A new inactive pass does not start while a sign-in, an account action, or a live renewal runs.
+- After a read, the coordinator asks the runtime to renew each tool whose reading is sign-in expired. One renewal runs at a time, never during a sign-in, an account action, or the inactive pass. Account actions wait for it. A tool that renewed is read again.
 - `ProviderAccount` is the only account type the menu sees. It never carries tokens.
 - Codex is not a connection: its usage lives on each saved `CodexAccount` and adding an account is an interactive sign-in panel. The coordinator routes `.codex` actions to `AccountsController`, which refreshes the new active account after a switch and never runs a reset credit and an account change at the same time.
 
@@ -181,7 +183,7 @@ Local app-server reads enter this session runner through `CodexAppServerClient`,
 - saved Claude Code accounts and switching (`ClaudeCodeAccountStore`, `ClaudeCodeSignInStore`, `SystemClaudeCodeAccountItems`). A switch writes CodexPill's own item and list, then Claude Code's credentials, then `oauthAccount` in Claude Code's global config, and puts every earlier step back when a later one fails. Accounts match by Claude Code's account record, never by token;
 - whether Claude Code is running, behind the `ClaudeCodeProcessDetecting` port. A switch is refused while it runs.
 
-The access token leaves this module only as the usage request's `Authorization` header. Nothing in it reads, sends, or renews Claude Code's refresh token; a test scans the Claude sources to keep it that way.
+The access token leaves this module only as the usage request's `Authorization` header. Nothing in it reads, sends, or renews Claude Code's refresh token; a test scans the Claude sources to keep it that way. Renewal is always Claude Code's own, through `claude doctor`.
 
 `Platform/Cursor` owns everything CodexPill knows about Cursor:
 
