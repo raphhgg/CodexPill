@@ -86,6 +86,7 @@ final class ProviderUsageRuntime {
             case .disconnect:
                 await connection.disconnect()
             case let .switchAccount(id):
+                guard signIns[provider] == nil else { return ProviderCopy.switchDuringSignIn }
                 accountActionsInFlight += 1
                 defer { accountActionsInFlight -= 1 }
                 await finishSignInWork()
@@ -175,7 +176,7 @@ final class ProviderUsageRuntime {
     }
 
     /// Reads every connected tool's inactive saved accounts, at most once per `inactiveRefreshInterval`. It waits
-    /// while a sign-in runs, since the user may be adding the account it would read.
+    /// while a sign-in or an account action runs, since either may change the accounts it would read.
     func refreshInactiveAccountsIfDue() async {
         guard !isChangingSignIns else { return }
         let startedAt = now()

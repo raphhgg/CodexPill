@@ -131,7 +131,7 @@ extension MenuBarMenuState {
         var snapshot: UsageSnapshot?
 
         if usage.isSigningIn {
-            card = ToolCard(title: "Finish signing in in your browser")
+            card = ToolCard(title: copy.signingInTitle)
             followUp = ToolFollowUp(title: "Cancel Sign-In", systemImage: "xmark.circle", action: .cancelSignIn)
         } else {
             switch usage.status {

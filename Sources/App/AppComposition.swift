@@ -25,7 +25,11 @@ struct AppComposition {
             isolatedRootDirectory: isolatedRootDirectory,
             appSupportDirectory: repository.paths.appSupportDirectory
         )
-        let cursorUsage = Self.makeCursorUsage(defaults: defaults, isolatedRootDirectory: isolatedRootDirectory)
+        let cursorUsage = Self.makeCursorUsage(
+            defaults: defaults,
+            isolatedRootDirectory: isolatedRootDirectory,
+            appSupportDirectory: repository.paths.appSupportDirectory
+        )
         coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(),
             shortcutRuntime: GlobalShortcutRuntime(),
@@ -128,29 +132,44 @@ struct AppComposition {
         )
     }
 
-    /// An isolated run never touches the real Cursor: it reads `Cursor/state.vscdb` inside the isolated root and has
-    /// no account switching, so it never quits Cursor or writes its database.
-    private static func makeCursorUsage(defaults: UserDefaults, isolatedRootDirectory: URL?) -> CursorUsage {
+    /// An isolated run never touches the real Cursor: it reads `Cursor/state.vscdb` inside the isolated root, keeps
+    /// saved accounts in a file there, switches by rewriting only that database, and signs in through a stand-in
+    /// `cursor` placed in `bin` inside the isolated root instead of opening Cursor.
+    private static func makeCursorUsage(defaults: UserDefaults, isolatedRootDirectory: URL?, appSupportDirectory: URL) -> CursorUsage {
         let settings = CursorUsageSettingsStore(userDefaults: defaults)
         let webClient = URLSessionCursorUsageWebClient()
+        let loginRoot = (isolatedRootDirectory ?? appSupportDirectory).appendingPathComponent("cursor-sign-in", isDirectory: true)
+        let usage: CursorUsage
         if let isolatedRootDirectory {
-            return CursorUsage(
+            let databaseURL = CursorStateDatabase.isolatedURL(root: isolatedRootDirectory)
+            usage = CursorUsage(
                 settings: settings,
-                client: CursorUsageClient(
-                    tokenSource: CursorStateDatabaseTokenSource(databaseURL: CursorStateDatabase.isolatedURL(root: isolatedRootDirectory)),
-                    webClient: webClient
+                client: CursorUsageClient(tokenSource: CursorStateDatabaseTokenSource(databaseURL: databaseURL), webClient: webClient),
+                accounts: CursorAccounts(
+                    database: CursorStateDatabase(url: databaseURL),
+                    store: IsolatedCursorAccountFile(file: isolatedRootDirectory.appendingPathComponent("cursor-accounts.json")),
+                    app: IsolatedCursorAppProcessClient()
+                ),
+                login: CursorIsolatedLogin(
+                    launcher: ExecutableCursorInstanceLauncher(executable: isolatedRootDirectory.appendingPathComponent("bin/cursor")),
+                    root: loginRoot
                 )
             )
-        }
-
-        return CursorUsage(
-            settings: settings,
-            client: CursorUsageClient(tokenSource: CursorStateDatabaseTokenSource(), webClient: webClient),
-            accounts: CursorAccounts(
-                database: CursorStateDatabase(url: CursorStateDatabase.defaultURL),
-                store: SystemCursorAccountKeychain(),
-                app: SystemCursorAppProcessClient()
+        } else {
+            usage = CursorUsage(
+                settings: settings,
+                client: CursorUsageClient(tokenSource: CursorStateDatabaseTokenSource(), webClient: webClient),
+                accounts: CursorAccounts(
+                    database: CursorStateDatabase(url: CursorStateDatabase.defaultURL),
+                    store: SystemCursorAccountKeychain(),
+                    app: SystemCursorAppProcessClient()
+                ),
+                login: CursorIsolatedLogin(launcher: SystemCursorInstanceLauncher(), root: loginRoot)
             )
-        )
+        }
+        if let login = usage.login {
+            Task.detached { login.removeLeftovers() }
+        }
+        return usage
     }
 }

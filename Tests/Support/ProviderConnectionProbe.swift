@@ -12,6 +12,8 @@ final class ProviderConnectionProbe: ProviderConnection {
         var accounts: [ProviderAccount] = []
         var switchedTo: [UUID] = []
         var switchError: ProviderNotice?
+        /// A switch waits here before it changes anything.
+        var switchGate: TestGate?
         /// Reads started while this is set wait at it, returning the reading they started with.
         var readGate: TestGate?
         var readingAfterSwitch: UsageProviderReading?
@@ -74,6 +76,7 @@ final class ProviderConnectionProbe: ProviderConnection {
     }
 
     func switchAccount(to id: UUID) async throws(ProviderNotice) {
+        await state.withLock { $0.switchGate }?.pass()
         let error = state.withLock { state -> ProviderNotice? in
             if let error = state.switchError { return error }
             state.switchedTo.append(id)
