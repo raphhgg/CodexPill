@@ -39,7 +39,7 @@ struct CursorIsolatedLogin: Sendable {
     static let socketPathLimit = 103
 
     let launcher: any CursorInstanceLaunching
-    /// Holds every throwaway profile. CodexPill owns it.
+    /// Holds every throwaway profile. Every folder in it is deleted at launch.
     let root: URL
     var timeout = Self.timeout
     var pollInterval: Duration = .seconds(1)
@@ -55,7 +55,6 @@ struct CursorIsolatedLogin: Sendable {
         CursorStateDatabase(url: profile.appendingPathComponent("User/globalStorage/state.vscdb"))
     }
 
-    /// Opens a Cursor window to sign in and returns the sign-in Cursor saved there.
     func signIn() async throws(CursorSignInError) -> CursorSignIn {
         guard isInstalled else { throw .notInstalled }
         let profile = root.appendingPathComponent(newFolderName(), isDirectory: true)
