@@ -2,10 +2,14 @@
 set -euo pipefail
 
 APP_NAME="Refill"
-# Before the rename the app was CodexPill. Its bundle IDs and data folders keep that name.
+# Before the rename the app was CodexPill. Its state is cleaned up too.
 LEGACY_APP_NAME="CodexPill"
 REPO_DIR="${HOME}/Projects/CodexPill"
 BUNDLE_IDS=(
+  "com.raphhgg.refill"
+  "com.raphhgg.refill.dev"
+  "com.raphhgg.refill.demo"
+  "com.raphhgg.refill.staging"
   "com.raphhgg.codexpill"
   "com.raphhgg.codexpill.dev"
   "com.raphhgg.codexpill.demo"
@@ -173,15 +177,17 @@ remove_path "${REPO_DIR}/Derived"
 
 echo
 echo "Removing Refill app state and legacy state..."
-remove_path "${HOME}/Library/Application Support/CodexPill"
+remove_path "${HOME}/Library/Application Support/${APP_NAME}"
+remove_path "${HOME}/Library/Caches/${APP_NAME}"
+remove_path "${HOME}/Library/Application Support/${LEGACY_APP_NAME}"
+remove_path "${HOME}/Library/Caches/${LEGACY_APP_NAME}"
 remove_path "${HOME}/Library/Application Support/CodexSwitchboard"
 
 echo
 echo "Removing Refill preferences and validation/demo/test leftovers..."
-remove_path "${HOME}/Library/Preferences/com.raphhgg.codexpill.plist"
-remove_path "${HOME}/Library/Preferences/com.raphhgg.codexpill.dev.plist"
-remove_path "${HOME}/Library/Preferences/com.raphhgg.codexpill.demo.plist"
-remove_path "${HOME}/Library/Preferences/com.raphhgg.codexpill.staging.plist"
+for bundle_id in "${BUNDLE_IDS[@]}"; do
+  remove_path "${HOME}/Library/Preferences/${bundle_id}.plist"
+done
 remove_path "${HOME}/Library/Preferences/CodexPill.demo.plist"
 remove_path "${HOME}/Library/Preferences/CodexPillScreenshotDemo.plist"
 remove_glob "${HOME}/Library/Preferences/CodexPill.validation*.plist"
@@ -193,7 +199,8 @@ reset_notification_preferences
 
 echo
 echo "Removing isolated temporary Codex homes..."
-remove_glob "${TMPDIR:-/tmp}/CodexPill-CODEX_HOME-*"
+remove_glob "${TMPDIR:-/tmp}/${APP_NAME}-CODEX_HOME-*"
+remove_glob "${TMPDIR:-/tmp}/${LEGACY_APP_NAME}-CODEX_HOME-*"
 
 echo
 echo "Removing local Refill crash reports..."

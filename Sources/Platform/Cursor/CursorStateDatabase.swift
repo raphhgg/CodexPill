@@ -18,7 +18,7 @@ struct CursorStateDatabase: Sendable {
     static let defaultURL = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent("Library/Application Support/Cursor/User/globalStorage/state.vscdb")
 
-    /// The fixture database an isolated run (`CODEXPILL_ISOLATED_APP_SUPPORT_DIR`) uses instead of Cursor's.
+    /// The fixture database an isolated run (`REFILL_ISOLATED_APP_SUPPORT_DIR`) uses instead of Cursor's.
     static func isolatedURL(root: URL) -> URL {
         root.appendingPathComponent("Cursor/state.vscdb")
     }

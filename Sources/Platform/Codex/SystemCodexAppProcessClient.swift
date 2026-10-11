@@ -1,7 +1,7 @@
 import AppKit
 import OSLog
 
-private let codexAppProcessLogger = Logger(subsystem: "com.raphhgg.codexpill", category: "SystemCodexAppProcessClient")
+private let codexAppProcessLogger = Logger(subsystem: "com.raphhgg.refill", category: "SystemCodexAppProcessClient")
 
 protocol CodexAppProcessClient: Sendable {
     func assertCodexAvailable() throws

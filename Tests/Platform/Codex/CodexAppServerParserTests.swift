@@ -150,8 +150,8 @@ struct CodexAppServerParserTests {
     }
 
     @Test
-    func codexPillMapperConvertsGenericDTOsIntoAccountStatusAndSnapshot() {
-        let mapper = CodexPillAccountStatusMapper()
+    func refillMapperConvertsGenericDTOsIntoAccountStatusAndSnapshot() {
+        let mapper = RefillAccountStatusMapper()
         let fetchedAt = Date(timeIntervalSince1970: 2_000_000_100)
         let status = mapper.status(from: CodexAppServerStatus(
             account: CodexAppServerAccount(

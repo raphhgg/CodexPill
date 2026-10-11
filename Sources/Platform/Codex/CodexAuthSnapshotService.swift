@@ -2,7 +2,7 @@ import CryptoKit
 import Foundation
 import OSLog
 
-private let authSnapshotLogger = Logger(subsystem: "com.raphhgg.codexpill", category: "AuthSnapshot")
+private let authSnapshotLogger = Logger(subsystem: "com.raphhgg.refill", category: "AuthSnapshot")
 
 struct CodexAuthSnapshotService: Sendable {
     private let repository: AccountRepository

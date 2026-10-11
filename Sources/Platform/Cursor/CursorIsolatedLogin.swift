@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 import OSLog
 
-private let cursorIsolatedLoginLogger = Logger(subsystem: "com.raphhgg.codexpill", category: "CursorIsolatedLogin")
+private let cursorIsolatedLoginLogger = Logger(subsystem: "com.raphhgg.refill", category: "CursorIsolatedLogin")
 
 enum CursorSignInError: Error, Equatable, Sendable {
     case notInstalled

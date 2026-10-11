@@ -16,7 +16,7 @@ extension MenuBarCoordinator {
         diagnosticReportPresenter: DiagnosticReportPresenting = SystemDiagnosticReportPresenter(),
         tokenUsageProvider: TokenUsageMenuProviding = LocalCodexSessionTokenUsageMenuProvider(
             cacheFile: FileManager.default.temporaryDirectory
-                .appendingPathComponent("CodexPillTests-\(ProcessInfo.processInfo.processIdentifier)/Caches/token-usage-cache.json")
+                .appendingPathComponent("RefillTests-\(ProcessInfo.processInfo.processIdentifier)/Caches/token-usage-cache.json")
         ),
         providerConnections: [any ProviderConnection] = [],
         allowsEmptyStatePrompt: Bool = true,

@@ -1,7 +1,7 @@
 import AppKit
 import OSLog
 
-private let cursorAppProcessLogger = Logger(subsystem: "com.raphhgg.codexpill", category: "CursorAppProcessClient")
+private let cursorAppProcessLogger = Logger(subsystem: "com.raphhgg.refill", category: "CursorAppProcessClient")
 
 /// Quits and opens Cursor.app. It knows nothing about Cursor's files.
 protocol CursorAppProcessClient: Sendable {

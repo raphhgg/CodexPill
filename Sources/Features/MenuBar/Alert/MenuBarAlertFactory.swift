@@ -288,7 +288,7 @@ enum MenuBarAppVersionText {
     }
 
     static func release(bundle: Bundle) -> String {
-        let releaseVersion = bundle.object(forInfoDictionaryKey: "CodexPillReleaseVersion") as? String
+        let releaseVersion = bundle.object(forInfoDictionaryKey: "RefillReleaseVersion") as? String
         let marketingVersion = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
         let buildNumber = bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String
 

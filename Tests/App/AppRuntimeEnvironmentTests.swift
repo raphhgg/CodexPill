@@ -7,11 +7,11 @@ struct AppRuntimeEnvironmentTests {
     @Test
     func isolatedLaunchReadsTrimmedDirectoryAndDefaultsSuite() {
         let environment = [
-            AppRuntimeEnvironment.isolatedAppSupportDirectoryEnvironmentKey: " /tmp/codexpill-isolated ",
+            AppRuntimeEnvironment.isolatedAppSupportDirectoryEnvironmentKey: " /tmp/refill-isolated ",
             AppRuntimeEnvironment.isolatedDefaultsSuiteEnvironmentKey: " isolated-suite "
         ]
 
-        #expect(AppRuntimeEnvironment.isolatedAppSupportDirectory(environment: environment)?.path == "/tmp/codexpill-isolated")
+        #expect(AppRuntimeEnvironment.isolatedAppSupportDirectory(environment: environment)?.path == "/tmp/refill-isolated")
         #expect(AppRuntimeEnvironment.isolatedDefaultsSuiteName(environment: environment) == "isolated-suite")
     }
 
@@ -46,12 +46,12 @@ struct AppRuntimeEnvironmentTests {
     @Test
     func isolatedAppSupportDirectoryPrefersIsolatedLaunchThenAutomatedTestDirectory() {
         let testDirectory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("CodexPillTests-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true)
+            .appendingPathComponent("RefillTests-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true)
 
         #expect(
             AppRuntimeEnvironment.isolatedAppSupportDirectory(
-                environment: [AppRuntimeEnvironment.isolatedAppSupportDirectoryEnvironmentKey: "/tmp/codexpill-isolated"]
-            )?.path == "/tmp/codexpill-isolated"
+                environment: [AppRuntimeEnvironment.isolatedAppSupportDirectoryEnvironmentKey: "/tmp/refill-isolated"]
+            )?.path == "/tmp/refill-isolated"
         )
         #expect(
             AppRuntimeEnvironment.isolatedAppSupportDirectory(

@@ -1,7 +1,7 @@
 import Foundation
 import OSLog
 
-private let cursorAccountsLogger = Logger(subsystem: "com.raphhgg.codexpill", category: "CursorAccounts")
+private let cursorAccountsLogger = Logger(subsystem: "com.raphhgg.refill", category: "CursorAccounts")
 
 enum CursorAccountsError: Error, Equatable, Sendable {
     case cursorNotInstalled

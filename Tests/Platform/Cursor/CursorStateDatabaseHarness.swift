@@ -7,7 +7,7 @@ final class CursorStateDatabaseHarness {
     private(set) var connection: OpaquePointer?
 
     /// `databasePath` is relative to a fresh temporary root, for example `Cursor/state.vscdb` to match the
-    /// layout an isolated run (`CODEXPILL_ISOLATED_APP_SUPPORT_DIR`) uses.
+    /// layout an isolated run (`REFILL_ISOLATED_APP_SUPPORT_DIR`) uses.
     init(databasePath: String = "state.vscdb") throws {
         directoryURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("CursorStateDatabaseTests-\(UUID().uuidString)", isDirectory: true)

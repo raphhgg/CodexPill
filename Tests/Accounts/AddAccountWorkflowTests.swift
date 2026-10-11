@@ -335,7 +335,7 @@ private final class AddAccountIsolatedLoginSessionProbe: IsolatedCodexLoginSessi
         url: URL(string: "https://auth.openai.com/codex/device")!,
         userCode: "ABCD-EFGH"
     )
-    let codexHome = URL(fileURLWithPath: "/tmp/codexpill-test-codex-home")
+    let codexHome = URL(fileURLWithPath: "/tmp/refill-test-codex-home")
 
     private let authData: Data
     private(set) var waitForAuthDataCount = 0
