@@ -33,7 +33,7 @@ CodexPill never copies Codex auth snapshots or Codex tokens to another machine o
 
 CodexPill never signs in to Claude, never asks Anthropic for a new token, and never reads, sends, or renews Claude Code's refresh token. It only uses the sign-in Claude Code already has.
 
-**Usage (optional, off by default).** `Connect Claude Code…` asks for consent before anything is read. While it is connected, each read:
+**Usage (optional, off by default).** `Settings › Add Account › Claude…` asks for consent before anything is read. While it is connected, each read:
 
 - reads `.credentials.json` in Claude Code's config folder (`CLAUDE_CONFIG_DIR`, or `~/.claude`), and if that file holds no Claude sign-in, the login Keychain generic password with service `Claude Code-credentials` and your macOS user name as the account;
 - uses only the access token, its expiry, and the plan name from that sign-in;
@@ -45,13 +45,13 @@ macOS may ask you to allow Keychain access. CodexPill shows that prompt only rig
 
 CodexPill never signs in to Cursor, never asks Cursor for a new token, and never sends Cursor's refresh token anywhere. It only uses the sign-in Cursor already has. Cursor keeps it in a SQLite database, `~/Library/Application Support/Cursor/User/globalStorage/state.vscdb`, and CodexPill reads it only by key, never by scanning.
 
-**Usage (optional, off by default).** `Connect Cursor…` asks for consent before anything is read. While it is connected, each read:
+**Usage (optional, off by default).** `Settings › Add Account › Cursor…` asks for consent before anything is read. While it is connected, each read:
 
 - opens that database read-only and reads one row, `cursorAuth/accessToken`. When Cursor is closed, the database is opened so that no file is created next to it; when Cursor has it open, SQLite reads only committed data;
 - uses the token only while it is more than a minute from expiry;
 - sends the token to one place, `GET https://cursor.com/api/usage-summary`, as Cursor's session cookie, to fetch your plan usage, on-demand spend, and billing cycle. Redirects are refused, and the request has no cookie store and no cache. After a `429`, nothing is read or sent until cursor.com's `Retry-After` passes.
 
-CodexPill never stores, logs, or displays the token, and it never reads browser cookies or Cursor projects. `Disconnect Cursor…` turns usage off and stops all reads.
+CodexPill never stores, logs, or displays the token, and it never reads browser cookies or Cursor projects. `Disconnect Cursor` turns usage off and stops all reads.
 
 ## What CodexPill Does Not Require By Default
 

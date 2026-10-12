@@ -84,24 +84,12 @@ struct CursorUsageClientTests {
     }
 
     @Test
-    func retryAfterIsReadAsSecondsOrAnHTTPDate() {
-        let now = Date(timeIntervalSince1970: 1_792_567_600) // Wed, 21 Oct 2026 07:26:40 GMT
-
-        #expect(CursorUsageWebError.error(forStatus: 429, retryAfter: "120", now: now) == .rateLimited(retryAfter: 120))
-        #expect(CursorUsageWebError.error(forStatus: 429, retryAfter: "Wed, 21 Oct 2026 07:28:00 GMT", now: now) == .rateLimited(retryAfter: 80))
-        #expect(CursorUsageWebError.error(forStatus: 429, retryAfter: "Wed, 21 Oct 2026 07:00:00 GMT", now: now) == .rateLimited(retryAfter: 0))
-        #expect(CursorUsageWebError.error(forStatus: 429, retryAfter: "soon", now: now) == .rateLimited(retryAfter: nil))
-        #expect(CursorUsageWebError.error(forStatus: 429, retryAfter: nil, now: now) == .rateLimited(retryAfter: nil))
-        #expect(CursorUsageWebError.error(forStatus: 200, retryAfter: nil, now: now) == nil)
-    }
-
-    @Test
     func eachHTTPStatusHasItsOwnError() {
-        let now = now
-
-        #expect(CursorUsageWebError.error(forStatus: 401, retryAfter: nil, now: now) == .unauthorized)
-        #expect(CursorUsageWebError.error(forStatus: 403, retryAfter: nil, now: now) == .forbidden)
-        #expect(CursorUsageWebError.error(forStatus: 500, retryAfter: nil, now: now) == .httpStatus(500))
+        #expect(CursorUsageWebError.error(forStatus: 200, retryAfter: nil) == nil)
+        #expect(CursorUsageWebError.error(forStatus: 401, retryAfter: nil) == .unauthorized)
+        #expect(CursorUsageWebError.error(forStatus: 403, retryAfter: nil) == .forbidden)
+        #expect(CursorUsageWebError.error(forStatus: 429, retryAfter: 120) == .rateLimited(retryAfter: 120))
+        #expect(CursorUsageWebError.error(forStatus: 500, retryAfter: nil) == .httpStatus(500))
     }
 
     @Test

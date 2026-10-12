@@ -1,13 +1,15 @@
 # Product
 
-CodexPill is a native macOS menubar app for people who actively use multiple Codex accounts and need to switch between them quickly without losing track of account plan and rate-limit state.
+CodexPill is a native macOS menubar app for Codex account switching, and for limits of Codex, Claude and Cursor on this Mac.
 
-The product replaces manual auth-file swapping and repeated app restarts with a small, deliberate workflow:
+It is for people who use more than one Codex account, or Codex next to Claude Code and Cursor, and want to see at a glance how much of each limit is left:
 
-- save Codex accounts as reusable local snapshots;
-- switch the active Codex account from the menubar;
-- see current session and weekly Codex usage before choosing which account to use;
-- optionally see Claude Code and Cursor usage next to Codex.
+- save Codex accounts as reusable local sign-ins;
+- switch the Codex account from the menubar;
+- see current usage (session, weekly, or billing cycle) before choosing which account or tool to use;
+- spend a Codex reset credit when one is available.
+
+Codex is always on. Claude Code and Cursor are opt-in and read-only: each is read only after the user connects it, and CodexPill shows the one account each tool is signed in to. It never writes their files or Keychain items.
 
 Detailed product behavior and UX contracts live in [features](features/README.md).
 
@@ -15,61 +17,59 @@ Detailed product behavior and UX contracts live in [features](features/README.md
 
 Primary user:
 
-- a macOS Codex power user;
-- uses two or more Codex accounts;
+- a macOS developer who uses two or more Codex accounts, often next to Claude Code or Cursor;
 - understands local developer tooling;
-- wants fast switching and quick visibility into rate-limit availability.
+- wants fast Codex switching and quick visibility into which account or tool still has room.
 
 Secondary user:
 
-- a developer who occasionally switches between personal and work Codex accounts;
+- a developer who occasionally switches between a personal and a work account;
 - wants less friction, not a complex account-management dashboard.
 
 ## Core Outcomes
 
-1. Add another Codex account without disrupting the current local session.
-2. See which saved account is active on this Mac.
-3. Switch accounts from the menubar with a clear, bounded flow.
-4. Refresh Codex account metadata and rate limits from Codex app-server surfaces.
-5. Understand when the app cannot confidently match live auth to a saved account.
+1. Add another Codex account without disrupting the current session.
+2. See which account each tool uses on this Mac.
+3. Switch Codex accounts from the menubar with a clear, bounded flow.
+4. See each tool's limits from the tool's own usage source, never from manual counters.
+5. Understand when the app cannot read a tool or cannot confidently match the live sign-in to a saved account.
 
 ## Product Principles
 
 - Menubar-first, not settings-first.
 - Local-first, no CodexPill cloud service.
 - Fast account switching over broad account administration.
-- Explicit boundaries around file I/O, process control, and Codex integration.
+- Every tool section works the same way: a header with the plan, then the meters.
+- In-app copy is a title plus at most one short line.
 - Do not expose raw auth payloads, tokens, or secrets in UI or logs.
-- Be honest when account identity cannot be matched confidently.
+- Be honest when a reading is stale, failed, or the account cannot be matched.
 
 ## Core Concepts
 
+### Tool
+
+Codex, Claude Code or Cursor. Each has one menu card with its usage, and a side menu. Codex's side menu holds its saved accounts. A tool's usage never affects another tool's account ranking.
+
 ### Saved Account
 
-A locally stored account entry managed by CodexPill. It includes a user-facing label, saved auth snapshot reference, optional Codex metadata, and latest known rate-limit snapshot.
+A Codex sign-in stored by CodexPill, so the user can switch back to it: a saved `auth.json` snapshot with a user-facing label, optional Codex metadata, and the latest known limits. Claude Code and Cursor have no saved accounts.
 
 ### Active Account
 
-The currently effective Codex account represented by live Codex auth state on a target.
+The account a tool uses right now on this Mac, read from that tool's own live sign-in.
 
-### Account Snapshot
+### Usage Snapshot
 
-A stored copy of Codex auth state used for later re-activation. A snapshot is not the same thing as canonical account identity.
+The most recent reading of a tool's limits: one window per limit the tool reports (session, weekly, billing cycle), with reset times. A window the tool does not report is hidden, never shown as 0%.
 
-### Rate-Limit Snapshot
+### Reset Credit
 
-The most recently fetched view of Codex session and weekly availability.
-
-### Other Providers
-
-A non-Codex tool whose usage CodexPill shows. Claude Code and Cursor are the two. Each is opt-in and has its own menu section below the saved accounts. Their usage never affects Codex account availability, ranking, or notifications.
-
-CodexPill only reads Claude Code and Cursor. It shows the one account each tool is signed in to, never writes their files or Keychain items, never signs in to either tool, and never renews their sign-ins.
+A Codex credit that resets the current limits early. CodexPill shows how many are left and spends one only after the user confirms.
 
 ## Non-Goals
 
 - Browser-based ChatGPT account switching.
-- Signing in to a non-Codex tool, renewing its session, or switching its account.
+- Signing in to Claude Code or Cursor, renewing their sessions, or switching their accounts.
 - Cloud sync or multi-device account storage.
 - Team/shared account management.
 - Background telemetry pipeline.

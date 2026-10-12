@@ -1,23 +1,5 @@
 import Foundation
 
-struct ActiveAccountCard: Equatable {
-    let account: CodexAccount
-    let locations: [String]
-    let showsUpdatedTime: Bool
-}
-
-struct ActiveAccountsProjection {
-    let activeAccount: CodexAccount?
-
-    var activeAccountCards: [ActiveAccountCard] {
-        activeAccount.map { [ActiveAccountCard(account: $0, locations: [], showsUpdatedTime: true)] } ?? []
-    }
-
-    var sectionTitle: String {
-        "Active Account"
-    }
-}
-
 extension CodexAccount {
     func matchesSameAccount(as other: CodexAccount) -> Bool {
         id == other.id ||

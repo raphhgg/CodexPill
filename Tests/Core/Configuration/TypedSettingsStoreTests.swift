@@ -10,24 +10,36 @@ struct MenuDisplaySettingsStoreTests {
         let defaults = makeDefaults()
         let first = MenuDisplaySettingsStore(userDefaults: defaults)
         first.refreshIntervalMinutes = 10
-        first.visibleInactiveAccountCount = 0
+        first.toolOrder = [.cursor, .claude, .codex]
+        first.masksEmails = true
 
         let second = MenuDisplaySettingsStore(userDefaults: defaults)
 
         #expect(second.refreshIntervalMinutes == 10)
-        #expect(second.visibleInactiveAccountCount == 0)
+        #expect(second.toolOrder == [.cursor, .claude, .codex])
+        #expect(second.masksEmails)
     }
 
     @Test
     func invalidStoredValuesFallBackToDefaults() {
         let defaults = makeDefaults()
         defaults.set(99, forKey: "refreshIntervalMinutes")
-        defaults.set(99, forKey: "visibleInactiveAccountCount")
 
         let store = MenuDisplaySettingsStore(userDefaults: defaults)
 
         #expect(store.refreshIntervalMinutes == 5)
-        #expect(store.visibleInactiveAccountCount == 5)
+        #expect(store.toolOrder == [.claude, .codex, .cursor])
+        #expect(!store.masksEmails)
+    }
+
+    @Test
+    func aPartialOrUnknownStoredOrderKeepsEveryToolOnce() {
+        let defaults = makeDefaults()
+        defaults.set(["cursor", "gemini", "cursor"], forKey: "toolOrder")
+
+        let store = MenuDisplaySettingsStore(userDefaults: defaults)
+
+        #expect(store.toolOrder == [.cursor, .claude, .codex])
     }
 }
 

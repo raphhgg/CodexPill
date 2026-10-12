@@ -1,7 +1,7 @@
 import Foundation
 
 /// Claude Code subscription limits for the menu, read from Claude Code's sign-in only after the user connects it.
-struct ClaudeCodeUsage: UsageProviderSource {
+struct ClaudeCodeUsage: ProviderConnection {
     let provider = UsageProvider.claude
     let staleAfter: TimeInterval = 15 * 60
     let refreshInterval: TimeInterval
@@ -19,19 +19,21 @@ struct ClaudeCodeUsage: UsageProviderSource {
         self.refreshInterval = refreshInterval
     }
 
-    /// Turns the feature on and lets the next read ask for Keychain access, since the user just chose to connect.
+    /// Turns the feature on and lets the next read ask for Keychain access, since the user just asked for it.
     func connect() async {
         settings.isEnabled = true
         await client.allowKeychainPromptOnNextRead()
     }
 
-    func allowKeychainAccess() async {
-        await client.allowKeychainPromptOnNextRead()
+    var isConnected: Bool {
+        settings.isEnabled
     }
 
-    func disconnect() {
+    func disconnect() async {
         settings.isEnabled = false
     }
+
+    let signIn: (any ProviderSignIn)? = nil
 
     func readUsage(now: Date) async -> UsageProviderReading {
         guard settings.isEnabled else { return .notConnected }

@@ -29,7 +29,7 @@ struct ClaudeCodeUsageTests {
             fetchedAt: now
         )))
 
-        fixture.usage.disconnect()
+        await fixture.usage.disconnect()
 
         #expect(ClaudeUsageSettingsStore(userDefaults: fixture.defaults).isEnabled == false)
         #expect(await fixture.usage.readUsage(now: now) == .notConnected)
@@ -48,7 +48,7 @@ struct ClaudeCodeUsageTests {
         #expect(await fixture.usage.readUsage(now: now) == .unavailable(.keychainAccessNeeded))
         #expect(fixture.requestCount == 0)
 
-        await fixture.usage.allowKeychainAccess()
+        await fixture.usage.connect()
         guard case .snapshot = await fixture.usage.readUsage(now: now) else {
             Issue.record("Expected usage after the user allowed Keychain access")
             return

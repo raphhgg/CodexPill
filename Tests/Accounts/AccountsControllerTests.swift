@@ -140,7 +140,6 @@ struct AccountsControllerTests {
                 repository: repository,
                 identityResolver: identityResolver
             ),
-            renameSavedAccountUseCase: RenameSavedAccountUseCase(repository: repository),
             accountCatalogStore: repository,
             switchAccountWorkflow: SwitchAccountWorkflow(
                 authService: NullAuthService(),
@@ -496,6 +495,70 @@ struct AccountsControllerTests {
         #expect(codexApp.relaunchCount == 1)
     }
 
+    @Test
+    func aResetIsRefusedWhileASwitchRunsAndWorksAfterIt() async {
+        let personal = makeAccount(name: "Personal", fingerprint: "live")
+        let work = makeAccount(name: "Work", fingerprint: "work")
+        let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [personal, work])
+        let codexApp = CodexAppProcessProbe()
+        let gate = TestGate()
+        codexApp.relaunchGate = gate
+        let resetCredits = ResetCreditClientProbe(results: [.success(.reset)])
+        let controller = makeController(
+            repository: repository,
+            identityResolver: SavedAccountIdentityResolver(
+                liveIdentitySource: LiveIdentityStub(fingerprint: "live"),
+                storedAccountReconciler: PassthroughIdentityReconciler()
+            ),
+            authService: NullAuthService(),
+            codexAppProcessClient: codexApp,
+            resetCreditClient: resetCredits
+        )
+        controller.load()
+
+        let switching = Task { await controller.switchToAccount(work) }
+        await gate.waitUntilReached()
+        let resetDuringSwitch = await controller.useResetCredit()
+
+        #expect(resetDuringSwitch == .accountChangeInProgress)
+        #expect(await resetCredits.receivedKeys.isEmpty)
+
+        await gate.open()
+        _ = await switching.value
+        #expect(await controller.useResetCredit() == .reset)
+        #expect(await resetCredits.receivedKeys.count == 1)
+    }
+
+    @Test
+    func removingAnAccountWaitsUntilAResetCreditFinishes() async {
+        let personal = makeAccount(name: "Personal", fingerprint: "live")
+        let work = makeAccount(name: "Work", fingerprint: "work")
+        let repository = LoadingPersistingAccountCatalogProbe(accountsToLoad: [personal, work])
+        let resetCredits = SuspendedResetCreditClient()
+        let controller = makeController(
+            repository: repository,
+            identityResolver: SavedAccountIdentityResolver(
+                liveIdentitySource: LiveIdentityStub(fingerprint: "live"),
+                storedAccountReconciler: PassthroughIdentityReconciler()
+            ),
+            authService: NullAuthService(),
+            resetCreditClient: resetCredits
+        )
+        controller.load()
+
+        let reset = Task { await controller.useResetCredit() }
+        await resetCredits.waitUntilCalled()
+        await controller.removeSavedAccount(work)
+
+        #expect(controller.accounts.map(\.name) == ["Personal", "Work"])
+        #expect(controller.consumePendingErrorMessage() == "A reset is in progress. Try again when it finishes.")
+
+        await resetCredits.answer(.nothingToReset)
+        _ = await reset.value
+        await controller.removeSavedAccount(work)
+        #expect(controller.accounts.map(\.name) == ["Personal"])
+    }
+
     private func makeController(
         repository: LoadingPersistingAccountCatalogProbe,
         identityResolver: SavedAccountIdentityResolver,
@@ -530,7 +593,6 @@ struct AccountsControllerTests {
                 repository: repository,
                 identityResolver: identityResolver
             ),
-            renameSavedAccountUseCase: RenameSavedAccountUseCase(repository: repository),
             accountCatalogStore: repository,
             switchAccountWorkflow: SwitchAccountWorkflow(
                 authService: authService,

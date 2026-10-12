@@ -16,7 +16,10 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/codexpill-menu.png" width="360" alt="CodexPill menu showing active accounts, usage bars, saved accounts, and app controls">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/codexpill-menu-dark.png">
+    <img src="docs/assets/codexpill-menu.png" width="360" alt="CodexPill menu with Claude, Codex and Cursor cards, then Settings and Quit">
+  </picture>
 </p>
 
 ## What It Does
@@ -84,13 +87,13 @@ session rows or auth data.
 
 ## Screenshots
 
-| Add Account | Account Actions |
+| Add Account | Codex Side Menu |
 | --- | --- |
-| <img src="docs/assets/codexpill-add-account.png" width="420" alt="CodexPill Add Account dialog"> | <img src="docs/assets/codexpill-account-actions.png" width="420" alt="CodexPill account actions submenu"> |
+| <img src="docs/assets/codexpill-add-account.png" width="420" alt="CodexPill Add Account dialog"> | <img src="docs/assets/codexpill-account-actions.png" width="420" alt="CodexPill Codex side menu with account, reset and section actions"> |
 
-| Preferences |
+| Settings |
 | --- |
-| <img src="docs/assets/codexpill-preferences.png" width="420" alt="CodexPill preferences submenu"> |
+| <img src="docs/assets/codexpill-settings.png" width="420" alt="CodexPill Settings submenu"> |
 
 ## Local-First
 

@@ -48,9 +48,8 @@ struct ClaudeUsageAPITests {
         #expect(ClaudeUsageAPI.error(forStatus: 200, retryAfter: nil) == nil)
         #expect(ClaudeUsageAPI.error(forStatus: 401, retryAfter: nil) == .unauthorized)
         #expect(ClaudeUsageAPI.error(forStatus: 403, retryAfter: nil) == .forbidden)
-        #expect(ClaudeUsageAPI.error(forStatus: 429, retryAfter: "120") == .rateLimited(retryAfter: 120))
+        #expect(ClaudeUsageAPI.error(forStatus: 429, retryAfter: 120) == .rateLimited(retryAfter: 120))
         #expect(ClaudeUsageAPI.error(forStatus: 429, retryAfter: nil) == .rateLimited(retryAfter: nil))
-        #expect(ClaudeUsageAPI.error(forStatus: 429, retryAfter: "Wed, 21 Oct 2026 07:28:00 GMT") == .rateLimited(retryAfter: nil))
         #expect(ClaudeUsageAPI.error(forStatus: 503, retryAfter: nil) == .httpStatus(503))
     }
 }

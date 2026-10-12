@@ -9,9 +9,9 @@ struct ProviderUsageRuntimeTests {
 
     @Test
     func refreshesEachProviderAgainOnlyAfterFiveMinutes() async {
-        let claude = UsageProviderSourceProbe(provider: .claude, reading: .awaitingUsage)
+        let claude = ProviderConnectionProbe(provider: .claude, reading: .awaitingUsage)
         var now = start
-        let runtime = ProviderUsageRuntime(sources: [claude], now: { now }, onChange: {})
+        let runtime = ProviderUsageRuntime(connections: [claude], now: { now }, onChange: {})
 
         await runtime.refreshIfDue()
         now = start.addingTimeInterval(4 * 60 + 59)
@@ -33,9 +33,9 @@ struct ProviderUsageRuntimeTests {
             windows: [UsageWindow(kind: .session, usedPercent: 40, resetsAt: nil, durationMinutes: 300)],
             fetchedAt: start
         )
-        let claude = UsageProviderSourceProbe(provider: .claude, staleAfter: 3_600, reading: .snapshot(snapshot))
+        let claude = ProviderConnectionProbe(provider: .claude, staleAfter: 3_600, reading: .snapshot(snapshot))
         var now = start
-        let runtime = ProviderUsageRuntime(sources: [claude], now: { now }, onChange: {})
+        let runtime = ProviderUsageRuntime(connections: [claude], now: { now }, onChange: {})
 
         await runtime.refreshIfDue()
         now = start.addingTimeInterval(3_600)
@@ -48,13 +48,14 @@ struct ProviderUsageRuntimeTests {
     }
 
     @Test
-    func publishesUnreadProvidersOnlyAfterTheirFirstReadAndReportsEachState() async {
-        let claude = UsageProviderSourceProbe(provider: .claude, reading: .notConnected)
-        let cursor = UsageProviderSourceProbe(provider: .cursor, reading: .unavailable(.signInExpired))
+    func connectedToolWaitsForItsFirstReadThenEachToolReportsItsState() async {
+        let claude = ProviderConnectionProbe(provider: .claude, reading: .notConnected)
+        let cursor = ProviderConnectionProbe(provider: .cursor, reading: .unavailable(.signInExpired))
         var changeCount = 0
-        let runtime = ProviderUsageRuntime(sources: [claude, cursor], now: { start }, onChange: { changeCount += 1 })
+        let runtime = ProviderUsageRuntime(connections: [claude, cursor], now: { start }, onChange: { changeCount += 1 })
 
-        #expect(runtime.states == [])
+        #expect(runtime.states == [ProviderUsageState(provider: .cursor, status: .awaitingUsage)])
+        #expect(runtime.hasConnectedTool)
 
         await runtime.refreshIfDue()
 
@@ -67,9 +68,9 @@ struct ProviderUsageRuntimeTests {
 
     @Test
     func refreshThatIsNotDueKeepsTheLastReadingAndDoesNotNotify() async {
-        let claude = UsageProviderSourceProbe(provider: .claude, reading: .awaitingUsage)
+        let claude = ProviderConnectionProbe(provider: .claude, reading: .awaitingUsage)
         var changeCount = 0
-        let runtime = ProviderUsageRuntime(sources: [claude], now: { start }, onChange: { changeCount += 1 })
+        let runtime = ProviderUsageRuntime(connections: [claude], now: { start }, onChange: { changeCount += 1 })
 
         await runtime.refreshIfDue()
         claude.reading = .unavailable(.unreachable)
@@ -87,8 +88,8 @@ struct ProviderUsageRuntimeTests {
             windows: [UsageWindow(kind: .weekly, usedPercent: 30, resetsAt: nil, durationMinutes: 10_080)],
             fetchedAt: start
         )
-        let claude = UsageProviderSourceProbe(provider: .claude, reading: .snapshot(snapshot))
-        let runtime = ProviderUsageRuntime(sources: [claude], now: { start }, onChange: {})
+        let claude = ProviderConnectionProbe(provider: .claude, reading: .snapshot(snapshot))
+        let runtime = ProviderUsageRuntime(connections: [claude], now: { start }, onChange: {})
         await runtime.refreshIfDue()
 
         claude.reading = .unavailable(.unreachable)
@@ -117,8 +118,8 @@ struct ProviderUsageRuntimeTests {
             windows: [UsageWindow(kind: .billingCycle, usedPercent: 82, resetsAt: nil, durationMinutes: 43_200)],
             fetchedAt: start
         )
-        let cursor = UsageProviderSourceProbe(provider: .cursor, reading: .snapshot(snapshot))
-        let runtime = ProviderUsageRuntime(sources: [cursor], now: { start }, onChange: {})
+        let cursor = ProviderConnectionProbe(provider: .cursor, reading: .snapshot(snapshot))
+        let runtime = ProviderUsageRuntime(connections: [cursor], now: { start }, onChange: {})
         await runtime.refreshIfDue()
 
         cursor.reading = .unavailable(.notInstalled)
@@ -126,4 +127,66 @@ struct ProviderUsageRuntimeTests {
 
         #expect(runtime.states == [ProviderUsageState(provider: .cursor, status: .unavailable(.notInstalled, lastSnapshot: nil))])
     }
+
+    @Test
+    func aReadThatStartedBeforeASignInIsDroppedWhenItFinishesAfterIt() async {
+        let snapshot = UsageSnapshot(
+            provider: .cursor,
+            planName: "pro",
+            windows: [UsageWindow(kind: .billingCycle, usedPercent: 82, resetsAt: nil, durationMinutes: nil)],
+            fetchedAt: start
+        )
+        let gate = TestGate()
+        let cursor = ProviderConnectionProbe(provider: .cursor, reading: .snapshot(snapshot), signIn: InstantSignIn())
+        cursor.update { $0.readGate = gate }
+        let runtime = ProviderUsageRuntime(connections: [cursor], now: { [start] in start }, onChange: {})
+
+        let slowRead = Task { await runtime.refreshIfDue() }
+        await gate.waitUntilReached()
+        cursor.update {
+            $0.readGate = nil
+            $0.reading = .unavailable(.unreachable)
+        }
+        let notice = await runtime.perform(.signIn, on: .cursor)
+        await gate.open()
+        await slowRead.value
+
+        #expect(notice == nil)
+        #expect(cursor.readCount == 2)
+        #expect(runtime.states == [ProviderUsageState(provider: .cursor, status: .unavailable(.unreachable, lastSnapshot: nil))])
+    }
+
+    @Test
+    func signingInIsShownUntilTheBrowserSignInEndsThenTheToolIsReadAgain() async {
+        let gate = TestGate()
+        let claude = ProviderConnectionProbe(provider: .claude, reading: .unavailable(.signedOut), signIn: GatedSignIn(gate: gate))
+        let runtime = ProviderUsageRuntime(connections: [claude], now: { [start] in start }, onChange: {})
+        await runtime.refreshIfDue()
+
+        let signIn = Task { await runtime.perform(.signIn, on: .claude) }
+        await gate.waitUntilReached()
+        #expect(runtime.states.map(\.isSigningIn) == [true])
+
+        claude.reading = .awaitingUsage
+        await gate.open()
+        #expect(await signIn.value == nil)
+        #expect(runtime.states == [ProviderUsageState(provider: .claude, status: .awaitingUsage)])
+        #expect(claude.readCount == 2)
+    }
+}
+
+private struct GatedSignIn: ProviderSignIn {
+    let gate: TestGate
+
+    func run() async throws(ProviderNotice) -> Bool {
+        await gate.pass()
+        return true
+    }
+
+    func cancel() async {}
+}
+
+private struct InstantSignIn: ProviderSignIn {
+    func run() async throws(ProviderNotice) -> Bool { true }
+    func cancel() async {}
 }

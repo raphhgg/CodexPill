@@ -27,6 +27,8 @@ actor CursorUsageClient {
         let lookup: CursorAccessTokenLookup
         do {
             lookup = try tokenSource.lookup()
+        } catch CursorStateDatabaseError.busy {
+            return .unavailable(.localStateBusy)
         } catch {
             return .unavailable(.localStateUnreadable)
         }

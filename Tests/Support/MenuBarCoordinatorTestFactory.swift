@@ -17,9 +17,7 @@ extension MenuBarCoordinator {
             cacheFile: FileManager.default.temporaryDirectory
                 .appendingPathComponent("CodexPillTests-\(ProcessInfo.processInfo.processIdentifier)/Caches/token-usage-cache.json")
         ),
-        providerUsageSources: [any UsageProviderSource] = [],
-        claudeCodeUsage: ClaudeCodeUsage? = nil,
-        cursorUsage: CursorUsage? = nil,
+        providerConnections: [any ProviderConnection] = [],
         allowsEmptyStatePrompt: Bool = true,
         now: @escaping () -> Date = Date.init
     ) -> MenuBarCoordinator {
@@ -38,9 +36,7 @@ extension MenuBarCoordinator {
             loginItemsSettingsLauncher: loginItemsSettingsLauncher,
             diagnosticReportPresenter: diagnosticReportPresenter,
             tokenUsageProvider: tokenUsageProvider,
-            providerUsageSources: providerUsageSources,
-            claudeCodeUsage: claudeCodeUsage,
-            cursorUsage: cursorUsage,
+            providerConnections: providerConnections,
             allowsEmptyStatePrompt: allowsEmptyStatePrompt,
             now: now
         )

@@ -193,8 +193,6 @@ private func makeMenuState(
     MenuBarMenuState(
         activeAccount: activeAccount,
         inactiveAccounts: inactiveAccounts,
-        visibleInactiveAccountCount: 5,
-        visibleInactiveAccountCountOptions: [3, 5],
         refreshIntervalMinutes: 5,
         refreshIntervalOptions: [5, 15],
         statusBarMonochrome: false,

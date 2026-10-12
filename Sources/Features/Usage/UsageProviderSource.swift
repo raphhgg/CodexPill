@@ -35,6 +35,8 @@ enum UsageUnavailableReason: Equatable, Sendable {
     case keychainAccessNeeded
     /// The sign-in exists but could not be read or parsed.
     case signInUnreadable
+    /// The provider's app is writing its sign-in right now. The next read usually works.
+    case signInBusy
     /// The provider knows the sign-in but refuses to share usage with it (HTTP 403).
     case accessDenied
     /// The provider asked CodexPill to slow down (HTTP 429).

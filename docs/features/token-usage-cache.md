@@ -25,7 +25,7 @@ This task exists because real power-user Codex histories can be several GB, incl
 
 ## UI / Copy / States
 
-Preferences:
+Period:
 
 - Keep `Last 30 Days` as the only visible v1 period.
 - Defer `Last 7 Days` and `Last 90 Days` until the incremental cache proves fast enough for large histories and period changes feel instant.

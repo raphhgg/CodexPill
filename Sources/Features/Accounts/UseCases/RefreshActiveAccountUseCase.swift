@@ -74,7 +74,7 @@ struct RefreshActiveAccountUseCase: Sendable {
         return RefreshActiveAccountResult(update: SavedAccountMetadataUpdate(relinkedAccount))
     }
 
-    // Merges into the accounts as they are now, since a remove or rename can land while `run` awaits.
+    // Merges into the accounts as they are now, since a remove can land while `run` awaits.
     // Relinking waits until here so a removed account never gets its auth snapshot written back.
     func save(_ result: RefreshActiveAccountResult, into accounts: [CodexAccount]) throws -> [CodexAccount]? {
         guard var account = accounts.first(where: { $0.id == result.update.accountID }) else { return nil }

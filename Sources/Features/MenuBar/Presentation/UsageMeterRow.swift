@@ -7,12 +7,11 @@ struct UsageMeter: Identifiable {
 
     var id: String { title }
 
-    /// A window the provider did not report gets no meter, so it never reads as 0%.
-    static func codexMeters(for usage: UsageSnapshot?, sessionTint: Color, weeklyTint: Color) -> [UsageMeter] {
-        [
-            usage?.window(.session).map { UsageMeter(title: "Session", window: $0, tintColor: sessionTint) },
-            usage?.window(.weekly).map { UsageMeter(title: "Weekly", window: $0, tintColor: weeklyTint) },
-        ].compactMap { $0 }
+    /// One meter per window, in the order given. A window the tool did not report gets no meter, so it never reads as 0%.
+    static func meters(for windows: [UsageWindow], sessionTint: Color, weeklyTint: Color) -> [UsageMeter] {
+        windows.map { window in
+            UsageMeter(title: window.kind.title, window: window, tintColor: window.kind == .session ? sessionTint : weeklyTint)
+        }
     }
 }
 
@@ -26,7 +25,7 @@ struct UsageMeters: View {
     var body: some View {
         switch layout {
         case .classic:
-            VStack(alignment: .leading, spacing: 9) {
+            VStack(alignment: .leading, spacing: 14) {
                 ForEach(meters) { meter in
                     UsageMeterRow(
                         meter: meter,
@@ -89,7 +88,7 @@ struct UsageMeterRow: View {
             now: now
         )
 
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: 8) {
             Text(meter.title)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.primary)

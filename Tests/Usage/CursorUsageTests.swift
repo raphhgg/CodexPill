@@ -17,13 +17,13 @@ struct CursorUsageTests {
         #expect(await fixture.usage.readUsage(now: now) == .notConnected)
         #expect(fixture.requestCount == 0)
 
-        fixture.usage.connect()
+        await fixture.usage.connect()
 
         #expect(CursorUsageSettingsStore(userDefaults: fixture.defaults).isEnabled == true)
         _ = await fixture.usage.readUsage(now: now)
         #expect(fixture.requestCount == 1)
 
-        fixture.usage.disconnect()
+        await fixture.usage.disconnect()
 
         #expect(CursorUsageSettingsStore(userDefaults: fixture.defaults).isEnabled == false)
         #expect(await fixture.usage.readUsage(now: now) == .notConnected)
@@ -79,7 +79,7 @@ struct CursorUsageTests {
         let now = now
         let fixture = CursorUsageFixture(now: { now })
         defer { fixture.remove() }
-        fixture.usage.connect()
+        await fixture.usage.connect()
 
         fixture.tokenLookup = .cursorNotInstalled
         #expect(await fixture.usage.readUsage(now: now) == .unavailable(.notInstalled))
@@ -87,9 +87,11 @@ struct CursorUsageTests {
         fixture.tokenLookup = .signedOut
         #expect(await fixture.usage.readUsage(now: now) == .unavailable(.signedOut))
 
-        fixture.databaseUnreadable = true
+        fixture.databaseError = .sqlite(code: 11)
         #expect(await fixture.usage.readUsage(now: now) == .unavailable(.signInUnreadable))
-        fixture.databaseUnreadable = false
+        fixture.databaseError = .busy
+        #expect(await fixture.usage.readUsage(now: now) == .unavailable(.signInBusy))
+        fixture.databaseError = nil
 
         fixture.signIn(expiresAt: now.addingTimeInterval(30), summary: CursorUsageFixture.proPlanWithCappedOnDemand)
         #expect(await fixture.usage.readUsage(now: now) == .unavailable(.signInExpired))
@@ -118,7 +120,7 @@ struct CursorUsageTests {
         let now = now
         let fixture = CursorUsageFixture(now: { now })
         defer { fixture.remove() }
-        fixture.usage.connect()
+        await fixture.usage.connect()
         fixture.signIn(expiresAt: now.addingTimeInterval(3_600), summary: summary)
         return await fixture.usage.readUsage(now: now)
     }

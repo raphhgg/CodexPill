@@ -43,13 +43,13 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             self?.rebuildMenuWhenSafe()
         }
     )
-    private let providerUsageSources: [any UsageProviderSource]
-    private let claudeCodeUsage: ClaudeCodeUsage?
-    private let cursorUsage: CursorUsage?
+    private let providerConnections: [any ProviderConnection]
     private lazy var providerUsageRuntime = ProviderUsageRuntime(
-        sources: providerUsageSources,
+        connections: providerConnections,
         onChange: { [weak self] in
-            self?.rebuildMenuWhenSafe()
+            guard let self else { return }
+            statusItemRuntime.update(presentation: statusItemPresentation(for: menuState()))
+            rebuildMenuWhenSafe()
         }
     )
 
@@ -68,9 +68,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         loginItemsSettingsLauncher: LoginItemsSettingsLaunching,
         diagnosticReportPresenter: DiagnosticReportPresenting,
         tokenUsageProvider: TokenUsageMenuProviding,
-        providerUsageSources: [any UsageProviderSource],
-        claudeCodeUsage: ClaudeCodeUsage?,
-        cursorUsage: CursorUsage?,
+        providerConnections: [any ProviderConnection],
         allowsEmptyStatePrompt: Bool,
         now: @escaping () -> Date = Date.init
     ) {
@@ -88,9 +86,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.loginItemsSettingsLauncher = loginItemsSettingsLauncher
         self.diagnosticReportPresenter = diagnosticReportPresenter
         self.tokenUsageProvider = tokenUsageProvider
-        self.providerUsageSources = providerUsageSources
-        self.claudeCodeUsage = claudeCodeUsage
-        self.cursorUsage = cursorUsage
+        self.providerConnections = providerConnections
         self.allowsEmptyStatePrompt = allowsEmptyStatePrompt
         self.now = now
     }
@@ -132,8 +128,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         }
     }
 
-    @objc
-    func addAccount() {
+    private func addCodexAccount() {
         recordMenuAction("addAccount")
         menuBarCoordinatorLogger.log("addAccount action invoked")
         let runningCLISessions = cliProcessInspector.runningCLISessionCount()
@@ -151,16 +146,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         tasks.start { [weak self] in await self?.beginIsolatedAddAccount(named: name) }
     }
 
-    @objc
-    func removeAccount(_ sender: NSMenuItem) {
+    private func removeCodexAccount(_ id: UUID) {
         recordMenuAction("removeAccount")
-        guard
-            let idString = sender.representedObject as? String,
-            let id = UUID(uuidString: idString),
-            let account = accountsController.accounts.first(where: { $0.id == id })
-        else {
-            return
-        }
+        guard let account = accountsController.accounts.first(where: { $0.id == id }) else { return }
 
         let state = menuState()
         let shouldSignOutLocalAccount = state.isAccountActiveLocally(account)
@@ -176,33 +164,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     @objc
-    func renameAccount(_ sender: NSMenuItem) {
-        recordMenuAction("renameAccount")
-        guard
-            let idString = sender.representedObject as? String,
-            let id = UUID(uuidString: idString),
-            let account = accountsController.accounts.first(where: { $0.id == id })
-        else {
-            return
-        }
-
-        let request = alertFactory.makeRenameAccountRequest(accountName: account.name)
-        guard let newName = alertPresenter.presentTextInput(request) else { return }
-        tasks.start { [accountsController] in await accountsController.renameSavedAccount(account, to: newName) }
-    }
-
-    @objc
     func selectRefreshInterval(_ sender: NSMenuItem) {
         recordMenuAction("selectRefreshInterval")
         guard let minutes = sender.representedObject as? Int else { return }
         menuDisplaySettings.refreshIntervalMinutes = minutes
-    }
-
-    @objc
-    func selectVisibleInactiveAccountCount(_ sender: NSMenuItem) {
-        recordMenuAction("selectVisibleInactiveAccountCount")
-        guard let count = sender.representedObject as? Int else { return }
-        menuDisplaySettings.visibleInactiveAccountCount = count
     }
 
     @objc
@@ -252,57 +217,16 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     @objc
-    func selectTokenUsagePeriod(_ sender: NSMenuItem) {
-        recordMenuAction("selectTokenUsagePeriod")
-        guard
-            let rawValue = sender.representedObject as? Int,
-            let period = CodexTokenUsagePeriod(rawValue: rawValue)
-        else {
-            return
-        }
-        tokenUsagePreferences.period = period
-        tokenUsageRuntime.handlePeriodChange(period: period, peakScope: tokenUsagePreferences.peakScope)
-        rebuildMenu()
+    func toggleMasksEmails(_ sender: NSMenuItem) {
+        recordMenuAction("toggleMasksEmails")
+        menuDisplaySettings.masksEmails.toggle()
     }
 
     @objc
-    func selectTokenUsagePeakScope(_ sender: NSMenuItem) {
-        recordMenuAction("selectTokenUsagePeakScope")
-        guard
-            let rawValue = sender.representedObject as? String,
-            let peakScope = TokenUsagePeakScope(rawValue: rawValue)
-        else {
-            return
-        }
-        tokenUsagePreferences.peakScope = peakScope
-        tokenUsageRuntime.handlePeriodChange(period: tokenUsagePreferences.period, peakScope: peakScope)
-        rebuildMenu()
-    }
-
-    @objc
-    func selectTokenUsageChartStyle(_ sender: NSMenuItem) {
-        recordMenuAction("selectTokenUsageChartStyle")
-        guard
-            let rawValue = sender.representedObject as? String,
-            let style = TokenUsageChartStyle(rawValue: rawValue)
-        else {
-            return
-        }
-        tokenUsagePreferences.chartStyle = style
-        rebuildMenu()
-    }
-
-    @objc
-    func selectTokenUsageLoadingAnimationStyle(_ sender: NSMenuItem) {
-        recordMenuAction("selectTokenUsageLoadingAnimationStyle")
-        guard
-            let rawValue = sender.representedObject as? String,
-            let style = TokenUsageLoadingAnimationStyle(rawValue: rawValue)
-        else {
-            return
-        }
-        tokenUsagePreferences.loadingAnimationStyle = style
-        rebuildMenu()
+    func reorderTools(_ sender: NSMenuItem) {
+        recordMenuAction("reorderTools")
+        guard let order = sender.representedObject as? [UsageProvider] else { return }
+        menuDisplaySettings.toolOrder = order
     }
 
     @objc
@@ -390,64 +314,56 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         rebuildMenu()
     }
 
+    /// The one entry point for every tool menu item: Codex, Claude Code and Cursor alike.
     @objc
-    func switchAccount(_ sender: NSMenuItem) {
-        guard
-            let idString = sender.representedObject as? String,
-            let id = UUID(uuidString: idString),
-            let account = accountsController.accounts.first(where: { $0.id == id })
-        else {
+    func performProviderAction(_ sender: NSMenuItem) {
+        guard let menuAction = sender.representedObject as? ProviderMenuAction else { return }
+        perform(menuAction.action, on: menuAction.provider)
+    }
+
+    func perform(_ action: ProviderAction, on provider: UsageProvider) {
+        guard provider != .codex else {
+            performCodexAction(action)
             return
         }
-
-        recordMenuAction("switchAccount")
-        diagnosticEventRecorder.recordSwitchAccount(targetAccountID: account.id)
-        requestSwitch(to: account)
-    }
-
-    @objc
-    func connectClaudeCode() {
-        recordMenuAction("connectClaudeCode")
-        guard let claudeCodeUsage, alertPresenter.presentConfirmation(alertFactory.makeConnectClaudeCodeRequest()) else { return }
+        recordMenuAction("\(provider).\(action.name)")
+        if let prompt = provider.copy.prompt(for: action) {
+            guard alertPresenter.presentConfirmation(alertFactory.makeConfirmationRequest(prompt)) else { return }
+        }
         tasks.start { [weak self] in
-            await claudeCodeUsage.connect()
-            await self?.providerUsageRuntime.refreshIfDue(forcing: .claude)
+            guard let self, let notice = await providerUsageRuntime.perform(action, on: provider) else { return }
+            alertPresenter.presentInfo(alertFactory.makeNoticeRequest(notice))
         }
     }
 
-    /// Retries the read with the Keychain prompt allowed, because the user asked for it.
-    @objc
-    func allowClaudeKeychainAccess() {
-        recordMenuAction("allowClaudeKeychainAccess")
-        guard let claudeCodeUsage else { return }
-        tasks.start { [weak self] in
-            await claudeCodeUsage.allowKeychainAccess()
-            await self?.providerUsageRuntime.refreshIfDue(forcing: .claude)
+    /// Codex accounts are saved `auth.json` snapshots, switched and added through `AccountsController`.
+    private func performCodexAction(_ action: ProviderAction) {
+        switch action {
+        case let .switchAccount(id):
+            guard let account = accountsController.accounts.first(where: { $0.id == id }) else { return }
+            recordMenuAction("switchAccount")
+            diagnosticEventRecorder.recordSwitchAccount(targetAccountID: account.id)
+            requestSwitch(to: account)
+        case .addAccount:
+            addCodexAccount()
+        case let .removeAccount(id):
+            removeCodexAccount(id)
+        case .useResetCredit:
+            useCodexResetCredit()
+        case .connect, .allowKeychainAccess, .signIn, .cancelSignIn, .disconnect:
+            break
         }
     }
 
-    @objc
-    func disconnectClaudeCode() {
-        recordMenuAction("disconnectClaudeCode")
-        guard let claudeCodeUsage else { return }
-        claudeCodeUsage.disconnect()
-        refreshProviderUsageIfDue(forcing: .claude)
-    }
-
-    @objc
-    func connectCursor() {
-        recordMenuAction("connectCursor")
-        guard let cursorUsage, alertPresenter.presentConfirmation(alertFactory.makeConnectCursorRequest()) else { return }
-        cursorUsage.connect()
-        refreshProviderUsageIfDue(forcing: .cursor)
-    }
-
-    @objc
-    func disconnectCursor() {
-        recordMenuAction("disconnectCursor")
-        guard let cursorUsage else { return }
-        cursorUsage.disconnect()
-        refreshProviderUsageIfDue(forcing: .cursor)
+    private func useCodexResetCredit() {
+        recordMenuAction("useResetCredit")
+        let request = alertFactory.makeUseResetCreditRequest(accountsController.activeAccount?.usage?.resetCredits)
+        guard alertPresenter.presentConfirmation(request) else { return }
+        tasks.start { [weak self] in
+            guard let self else { return }
+            let result = await accountsController.useResetCredit()
+            alertPresenter.presentInfo(alertFactory.makeResetCreditResultRequest(result))
+        }
     }
 
     @objc
@@ -549,11 +465,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         return menuState().canSelectStatusBarDisplayMode(mode)
     }
 
-    func requestSwitch(toAccountID accountID: UUID) {
-        guard let account = accountsController.accounts.first(where: { $0.id == accountID }) else { return }
-        requestSwitch(to: account)
-    }
-
     private func rebuildMenu(using state: MenuBarMenuState? = nil) {
         let state = state ?? menuState()
         let menu = statusItemRuntime.menu ?? NSMenu()
@@ -566,8 +477,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         MenuBarMenuState(
             activeAccount: accountsController.activeAccount,
             inactiveAccounts: accountsController.sortedInactiveAccounts,
-            visibleInactiveAccountCount: menuDisplaySettings.visibleInactiveAccountCount,
-            visibleInactiveAccountCountOptions: menuDisplaySettings.visibleInactiveAccountCountOptions,
             refreshIntervalMinutes: menuDisplaySettings.refreshIntervalMinutes,
             refreshIntervalOptions: menuDisplaySettings.refreshIntervalOptions,
             statusBarMonochrome: statusItemSettings.statusBarMonochrome,
@@ -585,12 +494,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             statusMessage: accountsController.statusMessage,
             loginItemState: loginItemController.state(),
             tokenUsageEnabled: tokenUsagePreferences.isEnabled,
-            tokenUsagePeriod: tokenUsagePreferences.period,
-            tokenUsageChartStyle: tokenUsagePreferences.chartStyle,
-            tokenUsageLoadingAnimationStyle: tokenUsagePreferences.loadingAnimationStyle,
-            tokenUsagePeakScope: tokenUsagePreferences.peakScope,
             tokenUsageCard: makeTokenUsageCard(),
             providerUsage: providerUsageRuntime.states,
+            toolOrder: menuDisplaySettings.toolOrder,
+            masksEmails: menuDisplaySettings.masksEmails,
             now: now()
         )
     }
@@ -774,11 +681,11 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             alertPresenter.presentInfo(alertFactory.makeErrorRequest(message: message))
         case .showEmptyNameAndRetry(let message):
             alertPresenter.presentInfo(alertFactory.makeErrorRequest(message: message))
-            addAccount()
+            addCodexAccount()
         case .offerDuplicateNameRecovery:
             let request = alertFactory.makeAddAccountDuplicateNameRequest()
             guard alertPresenter.presentConfirmation(request) else { return }
-            addAccount()
+            addCodexAccount()
         case .showUnsafeAuthChange:
             alertPresenter.presentInfo(alertFactory.makeAddAccountUnsafeAuthChangeRequest())
         case .showSaveFailure:
@@ -866,7 +773,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             _ = statusItemSettings.statusBarIndicatorStyle
             _ = statusItemSettings.statusBarMonochrome
             _ = statusItemSettings.statusBarDisplayMode
-            _ = menuDisplaySettings.visibleInactiveAccountCount
+            _ = menuDisplaySettings.toolOrder
+            _ = menuDisplaySettings.masksEmails
             _ = statusItemSettings.sessionAccentColor
             _ = statusItemSettings.weeklyAccentColor
             _ = statusItemSettings.usesOneUsageColor
@@ -904,19 +812,21 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         promptForEmptyStateIfNeeded()
     }
 
+    /// Asks to add a Codex account only on a first run: no saved Codex account and no other tool connected.
     private func promptForEmptyStateIfNeeded() {
-        guard allowsEmptyStatePrompt else { return }
+        guard allowsEmptyStatePrompt, !providerUsageRuntime.hasConnectedTool else { return }
         guard accountsController.accounts.isEmpty, !accountsController.isBusy, !hasPromptedForEmptyState else { return }
         hasPromptedForEmptyState = true
         DispatchQueue.main.async { [weak self] in
-            guard let self, self.accountsController.accounts.isEmpty, !self.accountsController.isBusy else { return }
-            self.addAccount()
+            guard let self, self.accountsController.accounts.isEmpty, !self.accountsController.isBusy,
+                  !self.providerUsageRuntime.hasConnectedTool else { return }
+            self.addCodexAccount()
         }
     }
 
     private func statusItemPresentation(for state: MenuBarMenuState) -> StatusItemRuntimePresentation {
         StatusItemRuntimePresentation(
-            activeAccount: accountsController.activeAccount,
+            source: state.statusItemSource,
             indicatorStyle: statusItemSettings.statusBarIndicatorStyle,
             monochrome: statusItemSettings.statusBarMonochrome,
             displayMode: state.effectiveStatusBarDisplayMode,

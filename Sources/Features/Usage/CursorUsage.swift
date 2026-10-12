@@ -1,7 +1,7 @@
 import Foundation
 
 /// Cursor plan usage for the menu, read only after the user connects Cursor.
-struct CursorUsage: UsageProviderSource {
+struct CursorUsage: ProviderConnection {
     let provider = UsageProvider.cursor
     let staleAfter: TimeInterval = 15 * 60
     let refreshInterval: TimeInterval
@@ -19,13 +19,19 @@ struct CursorUsage: UsageProviderSource {
         self.refreshInterval = refreshInterval
     }
 
-    func connect() {
+    func connect() async {
         settings.isEnabled = true
     }
 
-    func disconnect() {
+    var isConnected: Bool {
+        settings.isEnabled
+    }
+
+    func disconnect() async {
         settings.isEnabled = false
     }
+
+    let signIn: (any ProviderSignIn)? = nil
 
     func readUsage(now _: Date) async -> UsageProviderReading {
         guard settings.isEnabled else { return .notConnected }
@@ -38,6 +44,7 @@ struct CursorUsage: UsageProviderSource {
         case .signedOut: .unavailable(.signedOut)
         case .tokenExpired, .unauthorized: .unavailable(.signInExpired)
         case .unavailable(.localStateUnreadable): .unavailable(.signInUnreadable)
+        case .unavailable(.localStateBusy): .unavailable(.signInBusy)
         case .unavailable(.network): .unavailable(.unreachable)
         case .unavailable(.forbidden): .unavailable(.accessDenied)
         case .unavailable(.rateLimited): .unavailable(.rateLimited)

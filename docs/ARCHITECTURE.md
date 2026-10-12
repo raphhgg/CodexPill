@@ -1,6 +1,6 @@
 # Architecture
 
-CodexPill is a local-first macOS menubar app for Codex account switching and per-account rate-limit tracking.
+CodexPill is a local-first macOS menubar app for Codex account switching, and for limits of Codex, Claude and Cursor on this Mac.
 
 This document owns codebase structure and dependency boundaries. Product behavior and UX contracts live in [features](features/README.md).
 
@@ -10,6 +10,8 @@ The source tree is organized by responsibility:
 
 - `Sources/App/`
 - `Sources/Features/Accounts/`
+- `Sources/Features/AppControls/`
+- `Sources/Features/Diagnostics/`
 - `Sources/Features/MenuBar/`
 - `Sources/Features/TokenUsage/`
 - `Sources/Features/Usage/`
@@ -18,21 +20,25 @@ The source tree is organized by responsibility:
 - `Sources/Platform/Claude/`
 - `Sources/Platform/Codex/`
 - `Sources/Platform/Cursor/`
+- `Sources/Platform/Networking/`
 - `Sources/Platform/Persistence/`
 
-The intended dependency direction is:
+The dependency direction is:
 
 ```text
-App -> Features -> Platform
+App -> Features -> Platform -> Core
 App -> Core
 Features -> Core
-Platform -> Core
-Platform -> Features (port protocols only)
 ```
 
-`Core` must not depend on `Features`, `Platform`, or `App`.
+`Core` depends on nothing else. `Core` and `Platform` never reference a type or function declared in `Features`. `Tests/App/LayerBoundaryTests.swift` fails `make test` when they do.
 
-Platform implements ports declared by Features. A feature declares the protocol it needs next to the code that uses it, and a Platform adapter fulfils it. App injects the adapter. Accounts ports, such as `AccountCatalogStore`, `AccountCatalogLoader`, `CodexAuthActivator`, and `LiveCodexAccountIdentitySource`, are adopted by `AccountRepository` and `CodexAuthSnapshotService` through extensions in the Features file that declares the port, so Platform stays unaware of them. A `Platform -> Features` reference is only ever a protocol conformance, never feature logic or state.
+A port lives in one of two places:
+
+- In Platform, next to its adapter, when the adapter is the only thing that implements it: `CodexAppProcessClient`, `CodexResetCreditClient`, `IsolatedCodexLoginClient`, `CursorAppProcessClient`.
+- In the Features file that uses it, when a feature needs a narrower view of a Platform type. The Platform type adopts it through an extension in that same Features file, so Platform stays unaware of it: `AccountCatalogStore`, `AccountCatalogLoader`, `CodexAuthActivator`, `LiveCodexAccountIdentitySource`.
+
+App injects the adapter either way.
 
 ## Ownership Rules
 
@@ -72,16 +78,41 @@ Key boundaries:
 
 It coordinates cache-first loading, scan-task identity, duplicate-scan prevention, progress throttling, and cancellation when Token Usage is disabled. It depends on `Platform/Codex` scanner adapters for local Codex session records, but must not know AppKit menu construction or raw JSONL/session-path details.
 
-`Features/Usage` owns usage reading for providers other than Codex, such as Claude and Cursor.
+`Features/Usage` owns every tool other than Codex: Claude Code and Cursor.
 
 Key boundaries:
 
-- `UsageProviderSource`, the port for one provider. It returns a `UsageProviderReading`: not connected, unavailable with a `UsageUnavailableReason`, awaiting usage, or a `UsageSnapshot`. The reasons are not installed, signed out, sign-in expired (401 or past expiry), Keychain access needed, sign-in unreadable, access denied (403), rate limited (429), unreachable, service error (other status), and unexpected response. Each has its own menu copy.
-- `ClaudeCodeUsage`, the Claude Code source. It wraps the `Platform/Claude` adapter, maps its values onto `UsageSnapshot`, and owns the opt-in setting and the connect and disconnect steps.
-- `CursorUsage`, the Cursor source, built the same way: it wraps `Platform/Cursor`, maps its values onto `UsageSnapshot`, and owns the opt-in setting, connect, and disconnect.
-- `ProviderUsageRuntime`, which reads each source at most once per the source's `refreshInterval`, however often the menu opens, and publishes `ProviderUsageState` values. The default interval is 5 minutes. A snapshot older than the source's `staleAfter` is published as `.stale`. When a source is unavailable for a reason that keeps the same account, such as an expired sign-in or a failed read, the runtime keeps the last good snapshot next to the reason.
+- `ProviderConnection`, the port one tool conforms to. See "How a tool plugs in" below.
+- `UsageProviderSource`, the read half of that port. It returns a `UsageProviderReading`: not connected, unavailable with a `UsageUnavailableReason`, awaiting usage, or a `UsageSnapshot`. The reasons are not installed, signed out, sign-in expired (401 or past expiry), Keychain access needed, sign-in unreadable, sign-in busy (the tool is writing it right now), access denied (403), rate limited (429), unreachable, service error (other status), and unexpected response.
+- `ProviderCopy`, the one table of every word the menu shows for a tool: its name, who answers its usage requests, the confirmation before connecting, and the message for each unavailable reason.
+- `ClaudeCodeUsage` and `CursorUsage`, the two connections. Each wraps its Platform adapter, maps its values onto `UsageSnapshot`, and owns the opt-in setting.
+- `ProviderUsageRuntime`, which reads each connection at most once per its `refreshInterval` (5 minutes by default), however often the menu opens, and publishes one `ProviderUsageState` per tool: its status, and whether a browser sign-in is waiting. A snapshot older than `staleAfter` is published as `.stale`. When a tool is unavailable for a reason that keeps the same account, the runtime keeps the last good snapshot next to the reason. It also runs the actions the menu sends.
 
-Provider states only feed menu sections. They never reach `AccountAvailability` or `InactiveAccountAvailabilityRanking`: those read `CodexAccount.usage`, and the runtime reports changes through a menu-rebuild callback instead of the account store. The runtime refuses a source for `.codex`.
+Tool states only feed menu sections. They never reach `AccountAvailability` or `InactiveAccountAvailabilityRanking`: those read `CodexAccount.usage`. The runtime refuses a connection for `.codex`.
+
+### How a tool plugs in
+
+A tool other than Codex is one type that conforms to `ProviderConnection` and is listed in `AppComposition`'s `providerConnections`:
+
+```swift
+protocol ProviderConnection: UsageProviderSource {
+    func connect() async
+    func disconnect() async
+    var signIn: (any ProviderSignIn)? { get }
+}
+```
+
+Its words go in `ProviderCopy` under its `UsageProvider` case. Nothing else changes: no selector, coordinator property, or menu-builder branch names a tool.
+
+- Every tool menu item, Codex included, carries a `ProviderMenuAction` (tool plus `ProviderAction`) and calls `MenuBarCoordinator.performProviderAction(_:)`.
+- The coordinator asks the `ProviderCopy` confirmation, if any, then runs the action in a tracked task through `ProviderUsageRuntime.perform(_:on:)` and shows the `ProviderNotice` it returns.
+- The runtime reads the tool again after every action. A finished sign-in first drops the tool's last reading and bumps a generation, so a read that started before the change is discarded and the previous account's numbers never show.
+- The port has no account methods: Claude Code and Cursor show only the account their own app is signed in to, and CodexPill never writes their sign-ins.
+- Codex is not a connection: its usage lives on each saved `CodexAccount` and adding an account is an interactive sign-in panel. The coordinator routes `.codex` actions to `AccountsController`, which refreshes the new active account after a switch and never runs a reset credit and an account change at the same time.
+
+`Features/AppControls` owns app-level controls the menu offers: Launch at Login through `LoginItemController` and the System Settings launcher.
+
+`Features/Diagnostics` owns the diagnostic report: `DiagnosticEventRecorder` keeps recent menu actions and refresh results, `DiagnosticReportBuilder` turns them and the menu state into a redacted report, and `DiagnosticReportPresenter` saves it where the user chooses.
 
 `Features/MenuBar` owns menubar runtime, menu-state projection, menu rendering, native alert/panel presentation, and status-item behavior.
 
@@ -142,6 +173,8 @@ The access token leaves this module only as the usage request's `Authorization` 
 
 The token leaves this module only as the usage request's cookie.
 
+`Platform/Networking` owns HTTP rules shared by tools, such as `RetryAfter`, which reads a `Retry-After` header given as seconds or an HTTP date.
+
 `Platform/Persistence` owns:
 
 - CodexPill catalog paths;
@@ -154,9 +187,9 @@ Platform adapters are the only place where the app should know about live auth f
 
 ### Core
 
-`Sources/Core/` owns shared data models and app-wide configuration:
+`Sources/Core/` is models plus typed preferences:
 
-- `CodexAccount`
+- `CodexAccount` and `LiveCodexAccountIdentity`
 - `CodexRateLimits`, Codex plan-type rules and `UsageSnapshot.codex(planName:primary:secondary:fetchedAt:)`, the only place that turns Codex's positional primary and secondary windows into session and weekly windows
 - `Usage`, the provider-neutral usage model: `UsageSnapshot` holds a provider, the plan name the provider reported, and `UsageWindow` values keyed by `UsageWindowKind` (session, weekly, billing cycle). `UsageWindow.displayedUsedPercent(at:)` is the one rule for showing 0% once a window has reset. `CodexAccount.usage` and `CodexAccountStatus.usage` store it directly. `CodexAccount` reads and writes the `rateLimits` primary/secondary shape `accounts.json` has always used through a private storage type, so files from earlier versions still load and earlier versions can still read new files.
 - `StatusBarIndicatorStyle` and `StatusBarDisplayMode`, the persisted status-item choices
@@ -168,7 +201,7 @@ Settings persistence is split by feature boundary:
 
 - `MenuDisplaySettingsStore` owns menu refresh cadence and visible inactive-account count options.
 - `StatusItemSettingsStore` owns status-item indicator style, monochrome mode, display mode, pacing marker visibility, progress accent color helpers, and persisted reveal-shortcut values.
-- `TokenUsagePreferencesStore` owns token-usage visibility, chart style, loading animation, peak scope, and the fixed 30-day period.
+- `TokenUsagePreferencesStore` owns token-usage visibility and the fixed 30-day period. Its stored chart style, loading animation and peak scope have no menu control anymore and keep their defaults.
 - `ClaudeUsageSettingsStore` owns whether Claude Code usage is connected (`claudeUsageEnabled`). It is off by default.
 - `CursorUsageSettingsStore` owns whether Cursor usage is connected (`cursorUsageEnabled`). It is off by default.
 
@@ -192,7 +225,7 @@ App startup builds each store from one `UserDefaults` instance and injects the o
 
 `TokenUsageMenuRuntime` is the token-usage feature boundary used by MenuBar. It owns background scan lifecycle, cache-first load state, duplicate-scan prevention, progress throttling, and disable-time cancellation. `MenuBarCoordinator` should only mutate Token Usage preferences, ask the runtime for current load state, and decide whether AppKit menu rebuilds are safe while a menu is being tracked.
 
-`MenuBarCoordinator` owns the `ProviderUsageRuntime` and exposes its states as `MenuBarMenuState.providerUsage`. Token usage and provider usage share one path: startup and opening the menu ask both to refresh if due, the scheduled refresh also refreshes providers, and both report changes through `rebuildMenuWhenSafe()`, which waits until the menu is closed.
+`MenuBarCoordinator` owns the `ProviderUsageRuntime` and exposes its states as `MenuBarMenuState.providerUsage`. It holds no tool-specific property or selector: tool actions arrive through `performProviderAction(_:)`. Token usage and provider usage share one path: startup and opening the menu ask both to refresh if due, the scheduled refresh also refreshes providers, and both report changes through `rebuildMenuWhenSafe()`, which waits until the menu is closed.
 
 `MenuBarAccounts` is the port MenuBar declares for account state and intents. It lists only the members the menu reads or calls, and `AccountsController` conforms to it directly. MenuBar never sees the account use cases or Platform adapters behind the controller.
 
@@ -235,8 +268,6 @@ Preferred suffixes:
 - `Reconciler` for deterministic matching or merge policy.
 - `Presenter`, `Launcher`, `Locator`, and `Runner` for UI presentation, settings launch, path lookup, and command execution.
 
-Avoid protocol names that describe an action in progress, such as `*Reading`, `*Switching`, `*Providing`, `*Presenting`, `*Foregrounding`, `*Opening`, or `*Delivering`.
-
 Test collaborators should describe their role:
 
 - `Probe` records calls or exposes observed side effects for assertions.
@@ -245,8 +276,6 @@ Test collaborators should describe their role:
 - `Adapter` passes through to production-like behavior while fitting a test seam.
 - `Null` intentionally does nothing.
 - `ErrorCase` deterministically throws or returns a failure.
-
-Avoid generic test names such as `Spy`, `Stub`, `Mock`, `Noop`, `Throwing`, `Recording`, or `Passthrough`.
 
 ## File Ownership
 
@@ -266,6 +295,7 @@ Tests should mirror stable source ownership boundaries once those boundaries exi
 - `Tests/Platform/Claude/`
 - `Tests/Platform/Codex/`
 - `Tests/Platform/Cursor/`
+- `Tests/Platform/Networking/`
 - `Tests/Platform/Persistence/`
 - `Tests/Core/Models/`
 - `Tests/Core/Configuration/`

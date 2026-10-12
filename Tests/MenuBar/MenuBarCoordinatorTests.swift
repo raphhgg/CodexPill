@@ -16,13 +16,31 @@ struct MenuBarCoordinatorTests {
         coordinator.start()
         await coordinator.waitForPendingWork()
 
-        coordinator.removeAccount(harness.menuItem(representing: account.id.uuidString))
+        harness.send(.removeAccount(account.id), for: .codex)
         await coordinator.waitForPendingWork()
 
         #expect(harness.alertPresenter.confirmationRequests.last?.messageText == "Business 4 is in use")
         #expect(harness.alertPresenter.confirmationRequests.last?.informativeText == "Sign out on This Mac before removing it?")
         #expect(harness.accountsController.accounts.isEmpty)
         #expect(!FileManager.default.fileExists(atPath: harness.repository.paths.codexAuthFile.path))
+    }
+
+    @Test
+    func firstRunAsksToAddACodexAccountOnlyWhenNoToolIsConnected() async throws {
+        for (claudeReading, expectedPrompts) in [(UsageProviderReading.notConnected, 1), (.awaitingUsage, 0)] {
+            let harness = try MenuBarCoordinatorHarness()
+            defer { harness.tearDown() }
+            let coordinator = harness.makeCoordinator(
+                providerConnections: [ProviderConnectionProbe(provider: .claude, reading: claudeReading)],
+                allowsEmptyStatePrompt: true
+            )
+
+            coordinator.start()
+            await coordinator.waitForPendingWork()
+            await withCheckedContinuation { continuation in DispatchQueue.main.async { continuation.resume() } }
+
+            #expect(harness.alertPresenter.textInputRequests.count == expectedPrompts)
+        }
     }
 
     @Test
@@ -45,7 +63,7 @@ struct MenuBarCoordinatorTests {
             fetchedAt: now
         )
         let coordinator = harness.makeCoordinator(
-            providerUsageSources: [UsageProviderSourceProbe(provider: .claude, reading: .snapshot(claudeUsage))]
+            providerConnections: [ProviderConnectionProbe(provider: .claude, reading: .snapshot(claudeUsage))]
         )
 
         coordinator.start()
@@ -58,7 +76,7 @@ struct MenuBarCoordinatorTests {
     }
 
     @Test
-    func openingTheMenuMeasuresResetCountdownsFromTheMomentItOpens() async throws {
+    func openingAMenuBuiltAWhileAgoRebuildsItSoCountdownsStartNow() async throws {
         let harness = try MenuBarCoordinatorHarness()
         defer { harness.tearDown() }
         let builtAt = Date(timeIntervalSince1970: 1_800_000_000)
@@ -79,18 +97,19 @@ struct MenuBarCoordinatorTests {
         coordinator.start()
         await coordinator.waitForPendingWork()
         let menu = try #require(harness.menu)
-        func limitedRowTitle() -> String? {
-            menu.items.first { ($0.representedObject as? String) == limited.id.uuidString }?.attributedTitle?.string
+        func codexCard() -> NSMenuItem? {
+            menu.items.first { $0.title == "Codex" }
         }
-        #expect(limitedRowTitle()?.contains("S 100% (2h00)") == true)
+        let builtCard = try #require(codexCard())
 
         clock = builtAt.addingTimeInterval(10)
         coordinator.menuWillOpen(menu)
-        #expect(limitedRowTitle()?.contains("S 100% (2h00)") == true)
+        #expect(codexCard() === builtCard)
 
         clock = builtAt.addingTimeInterval(30 * 60)
         coordinator.menuWillOpen(menu)
-        #expect(limitedRowTitle()?.contains("S 100% (1h30)") == true)
+        #expect(codexCard() !== builtCard)
+        #expect(codexCard() != nil)
     }
 
     @Test
@@ -107,7 +126,7 @@ struct MenuBarCoordinatorTests {
 
         let reset = Task { await harness.accountsController.useResetCredit() }
         await resetCredits.waitUntilCalled()
-        coordinator.switchAccount(harness.menuItem(representing: work.id.uuidString))
+        harness.send(.switchAccount(work.id), for: .codex)
 
         #expect(harness.alertPresenter.confirmationRequests.isEmpty)
         #expect(harness.alertPresenter.infoRequests.map(\.messageText) == ["Reset in progress"])
@@ -127,14 +146,14 @@ struct MenuBarCoordinatorTests {
         }
         fixture.signInToKeychain(expiresAt: Date().addingTimeInterval(3_600), needsPermission: true)
         fixture.response = .success(Data(ClaudeUsageFixture.usageResponse.utf8))
-        let coordinator = harness.makeCoordinator(providerUsageSources: [fixture.usage], claudeCodeUsage: fixture.usage)
+        let coordinator = harness.makeCoordinator(providerConnections: [fixture.usage])
         coordinator.start()
         await coordinator.waitForPendingWork()
 
         #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .claude, status: .notConnected)])
-        #expect(claudeMenuTitles(coordinator) == ["Connect Claude Code…"])
+        #expect(mainMenuTitles(coordinator) == ["Add Account", "", "Settings", "", "Quit"])
 
-        coordinator.connectClaudeCode()
+        harness.click("Claude…")
         await coordinator.waitForPendingWork()
 
         #expect(harness.alertPresenter.confirmationRequests.map(\.messageText) == ["Connect Claude Code?"])
@@ -142,7 +161,7 @@ struct MenuBarCoordinatorTests {
         #expect(fixture.keychainReadPrompts == [])
 
         harness.alertPresenter.confirmationResponse = true
-        coordinator.connectClaudeCode()
+        harness.click("Claude…")
         await coordinator.waitForPendingWork()
 
         #expect(fixture.keychainReadPrompts == [true])
@@ -150,7 +169,7 @@ struct MenuBarCoordinatorTests {
             Issue.record("Expected current Claude usage right after connecting")
             return
         }
-        #expect(claudeMenuTitles(coordinator) == ["Disconnect Claude Code…"])
+        #expect(mainMenuTitles(coordinator) == ["Claude", "", "Settings", "", "Quit"])
 
         fixture.signInToKeychain(expiresAt: Date().addingTimeInterval(3_600), needsPermission: true)
         await coordinator.performScheduledRefresh()
@@ -160,9 +179,9 @@ struct MenuBarCoordinatorTests {
             Issue.record("Expected the Allow Keychain access state with the last usage kept")
             return
         }
-        #expect(claudeMenuTitles(coordinator) == ["Allow Keychain access…", "Disconnect Claude Code…"])
+        #expect(mainMenuTitles(coordinator) == ["Claude", "Allow Keychain access…", "", "Settings", "", "Quit"])
 
-        coordinator.allowClaudeKeychainAccess()
+        harness.click("Allow Keychain access…")
         await coordinator.waitForPendingWork()
 
         guard case .current = coordinator.menuState().providerUsage.first?.status else {
@@ -171,13 +190,13 @@ struct MenuBarCoordinatorTests {
         }
         #expect(fixture.keychainReadPrompts.suffix(2) == [false, true])
 
-        coordinator.disconnectClaudeCode()
+        harness.click("Disconnect Claude")
         await coordinator.waitForPendingWork()
 
         #expect(harness.alertPresenter.confirmationRequests.count == 2)
         #expect(fixture.settings.isEnabled == false)
         #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .claude, status: .notConnected)])
-        #expect(claudeMenuTitles(coordinator) == ["Connect Claude Code…"])
+        #expect(mainMenuTitles(coordinator) == ["Add Account", "", "Settings", "", "Quit"])
     }
 
     @Test
@@ -190,14 +209,14 @@ struct MenuBarCoordinatorTests {
             fixture.remove()
         }
         fixture.signIn(expiresAt: now.addingTimeInterval(3_600), summary: CursorUsageFixture.proPlanWithCappedOnDemand)
-        let coordinator = harness.makeCoordinator(providerUsageSources: [fixture.usage], cursorUsage: fixture.usage)
+        let coordinator = harness.makeCoordinator(providerConnections: [fixture.usage])
         coordinator.start()
         await coordinator.waitForPendingWork()
 
         #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .cursor, status: .notConnected)])
-        #expect(cursorMenuTitles(coordinator) == ["Connect Cursor…"])
+        #expect(mainMenuTitles(coordinator) == ["Add Account", "", "Settings", "", "Quit"])
 
-        coordinator.connectCursor()
+        harness.click("Cursor…")
         await coordinator.waitForPendingWork()
 
         #expect(harness.alertPresenter.confirmationRequests.map(\.messageText) == ["Connect Cursor?"])
@@ -205,7 +224,7 @@ struct MenuBarCoordinatorTests {
         #expect(fixture.requestCount == 0)
 
         harness.alertPresenter.confirmationResponse = true
-        coordinator.connectCursor()
+        harness.click("Cursor…")
         await coordinator.waitForPendingWork()
 
         let current = UsageSnapshot(
@@ -216,7 +235,7 @@ struct MenuBarCoordinatorTests {
             spend: UsageSpend(usedUSD: Decimal(string: "12.34")!, limitUSD: 50)
         )
         #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .cursor, status: .current(current))])
-        #expect(cursorMenuTitles(coordinator) == ["Disconnect Cursor…"])
+        #expect(mainMenuTitles(coordinator) == ["Cursor", "", "Settings", "", "Quit"])
 
         fixture.response = .failure(.transport)
         await coordinator.performScheduledRefresh()
@@ -226,12 +245,35 @@ struct MenuBarCoordinatorTests {
             ProviderUsageState(provider: .cursor, status: .unavailable(.unreachable, lastSnapshot: current))
         ])
 
-        coordinator.disconnectCursor()
+        harness.click("Disconnect Cursor")
         await coordinator.waitForPendingWork()
 
         #expect(fixture.settings.isEnabled == false)
         #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .cursor, status: .notConnected)])
-        #expect(cursorMenuTitles(coordinator) == ["Connect Cursor…"])
+        #expect(mainMenuTitles(coordinator) == ["Add Account", "", "Settings", "", "Quit"])
+    }
+
+    @Test
+    func usingACodexResetAsksFirstThenReportsTheOutcome() async throws {
+        let harness = try MenuBarCoordinatorHarness()
+        defer { harness.tearDown() }
+        _ = try harness.makeActiveAccount(named: "Personal", email: "personal@example.com")
+        let resetCredits = SuspendedResetCreditClient()
+        let coordinator = harness.makeCoordinator(resetCreditClient: resetCredits)
+        coordinator.start()
+        await coordinator.waitForPendingWork()
+
+        harness.send(.useResetCredit, for: .codex)
+        await coordinator.waitForPendingWork()
+        #expect(harness.alertPresenter.confirmationRequests.map(\.messageText) == ["Reset Codex limits?"])
+
+        harness.alertPresenter.confirmationResponse = true
+        harness.send(.useResetCredit, for: .codex)
+        await resetCredits.waitUntilCalled()
+        await resetCredits.answer(.reset)
+        await coordinator.waitForPendingWork()
+
+        #expect(harness.alertPresenter.infoRequests.map(\.messageText) == ["Your Codex limits are reset."])
     }
 
     @Test
@@ -245,17 +287,8 @@ struct MenuBarCoordinatorTests {
         #expect(fireCount > 0)
     }
 
-    private func cursorMenuTitles(_ coordinator: MenuBarCoordinator) -> [String] {
-        let menu = MenuBarMenuBuilder().makeMenu(state: coordinator.menuState(), target: coordinator)
-        let preferences = menu.items.first { $0.title == "Preferences" }?.submenu?.items ?? []
-        return (menu.items + preferences).map(\.title).filter { $0.contains("Cursor") }
-    }
-
-    /// Claude rows in the main menu and the Preferences submenu, read from the built `NSMenu`.
-    private func claudeMenuTitles(_ coordinator: MenuBarCoordinator) -> [String] {
-        let menu = MenuBarMenuBuilder().makeMenu(state: coordinator.menuState(), target: coordinator)
-        let preferences = menu.items.first { $0.title == "Preferences" }?.submenu?.items ?? []
-        return (menu.items + preferences).map(\.title).filter { $0.contains("Claude") || $0.contains("Keychain") }
+    private func mainMenuTitles(_ coordinator: MenuBarCoordinator) -> [String] {
+        MenuBarMenuBuilder().makeMenu(state: coordinator.menuState(), target: coordinator).items.map(\.title)
     }
 }
 
@@ -279,9 +312,8 @@ private final class MenuBarCoordinatorHarness {
     }
 
     func makeCoordinator(
-        providerUsageSources: [any UsageProviderSource] = [],
-        claudeCodeUsage: ClaudeCodeUsage? = nil,
-        cursorUsage: CursorUsage? = nil,
+        providerConnections: [any ProviderConnection] = [],
+        allowsEmptyStatePrompt: Bool = false,
         resetCreditClient: CodexResetCreditClient = UnavailableResetCreditClient(),
         now: @escaping () -> Date = Date.init
     ) -> MenuBarCoordinator {
@@ -300,10 +332,8 @@ private final class MenuBarCoordinatorHarness {
             settings: settings,
             alertPresenter: alertPresenter,
             panelPresenter: panelPresenter,
-            providerUsageSources: providerUsageSources,
-            claudeCodeUsage: claudeCodeUsage,
-            cursorUsage: cursorUsage,
-            allowsEmptyStatePrompt: false,
+            providerConnections: providerConnections,
+            allowsEmptyStatePrompt: allowsEmptyStatePrompt,
             now: now
         )
         self.coordinator = coordinator
@@ -323,10 +353,30 @@ private final class MenuBarCoordinatorHarness {
 
     var menu: NSMenu? { statusItem.menu }
 
-    func menuItem(representing payload: Any) -> NSMenuItem {
+    /// Sends a tool action the way a menu item carrying it would.
+    func send(_ action: ProviderAction, for provider: UsageProvider) {
         let item = NSMenuItem()
-        item.representedObject = payload
-        return item
+        item.representedObject = ProviderMenuAction(provider: provider, action: action)
+        coordinator?.performProviderAction(item)
+    }
+
+    /// Clicks the item titled `title`, in the menu or any submenu, as the coordinator would build it now.
+    func click(_ title: String) {
+        guard let coordinator else { return }
+        let menu = MenuBarMenuBuilder().makeMenu(state: coordinator.menuState(), target: coordinator)
+        guard let item = Self.item(titled: title, in: menu), let action = item.action else {
+            Issue.record("No menu item titled \(title)")
+            return
+        }
+        _ = (item.target as? NSObject)?.perform(action, with: item)
+    }
+
+    private static func item(titled title: String, in menu: NSMenu) -> NSMenuItem? {
+        for item in menu.items {
+            if item.title == title { return item }
+            if let submenu = item.submenu, let found = Self.item(titled: title, in: submenu) { return found }
+        }
+        return nil
     }
 
     func tearDown() {

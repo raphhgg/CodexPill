@@ -1,9 +1,11 @@
 import Foundation
 
-/// What the menu shows for one provider. It never reaches account availability, ranking, or notifications.
+/// What the menu shows for one tool other than Codex. It never reaches Codex account availability or ranking.
 struct ProviderUsageState: Equatable {
     let provider: UsageProvider
     let status: ProviderUsageStatus
+    /// CodexPill's own browser sign-in for this tool is waiting for the user.
+    var isSigningIn = false
 }
 
 enum ProviderUsageStatus: Equatable {

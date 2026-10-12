@@ -21,13 +21,13 @@ Run these against a dev build started with the
 [isolated launch](DEVELOPMENT.md#isolated-launch) unless the change needs real
 accounts.
 
-1. The menu bar item appears, and the menu opens with the active account card,
-   the saved accounts, Add Account…, Refresh Time, Preferences, Diagnostics…,
-   About, and Quit.
-2. If the change touches switching, switch to another saved account and check
-   that the active account card follows.
-3. If the change touches Add Account, Rename, or Remove, run that flow once and
-   cancel it once.
-4. If the change touches the status item or Preferences, check the changed
-   setting in the menu bar label.
+1. The menu bar item appears, and the menu opens with one card per set-up tool,
+   Settings, and Quit. With nothing set up, it opens with Add Account, Settings,
+   and Quit.
+2. If the change touches switching, switch from a card's side menu and check
+   that the card follows.
+3. If the change touches Add Account or Remove, run that flow once and cancel it
+   once.
+4. If the change touches the status item or Settings › Appearance, check the
+   changed setting in the menu bar label.
 5. Screenshots for a pull request show synthetic accounts only.

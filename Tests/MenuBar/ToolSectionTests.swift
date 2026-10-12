@@ -1,0 +1,246 @@
+import Foundation
+import Testing
+
+@testable import CodexPill
+
+struct ToolSectionTests {
+    private let now = Date(timeIntervalSince1970: 1_791_000_000)
+
+    @Test
+    func sectionsFollowTheUserOrderAndSkipToolsWithNoAccountOrConnection() {
+        let codex = makeAccount(name: "Work", usage: makeUsage(fetchedAt: now))
+        let claude = ProviderUsageState(provider: .claude, status: .current(claudeSnapshot()))
+        let cursor = ProviderUsageState(provider: .cursor, status: .notConnected)
+
+        let defaultOrder = state(activeAccount: codex, providerUsage: [claude, cursor])
+        let reordered = state(activeAccount: codex, providerUsage: [claude, cursor], toolOrder: [.cursor, .codex, .claude])
+        let codexOnly = state(activeAccount: codex)
+        let nothing = state()
+
+        #expect(defaultOrder.toolSections.map(\.provider) == [.claude, .codex])
+        #expect(reordered.toolSections.map(\.provider) == [.codex, .claude])
+        #expect(codexOnly.toolSections.map(\.provider) == [.codex])
+        #expect(nothing.toolSections.isEmpty)
+        #expect(nothing.statusItemSource == .nothingConnected)
+        #expect(reordered.statusItemSource == .tool(reordered.toolSections[0]))
+    }
+
+    @Test
+    func aMissingWindowGetsNoMeterAndCodexProHidesTheSessionWindow() throws {
+        let plus = makeAccount(name: "Plus", planType: "plus", usage: UsageSnapshot.codex(
+            planName: "plus",
+            primary: nil,
+            secondary: (usedPercent: 17, resetsAt: now.addingTimeInterval(3 * 86_400), durationMinutes: 10_080),
+            fetchedAt: now
+        ))
+        let pro = makeAccount(name: "Pro", planType: "pro", usage: makeUsage(planType: "pro", fetchedAt: now))
+
+        let plusCard = try #require(state(activeAccount: plus).toolSections.first).card
+        let proSection = try #require(state(activeAccount: pro).toolSections.first)
+
+        #expect(plusCard.windows.map(\.kind) == [.weekly])
+        #expect(proSection.card.windows.map(\.kind) == [.weekly])
+        #expect(proSection.planTag == "Pro x20")
+        #expect(state(activeAccount: pro).hasStatusItemContentData)
+    }
+
+    @Test
+    func codexResetCreditsShowOnlyWhenOneIsAvailable() throws {
+        func card(credits: UsageResetCredits) throws -> ToolCard {
+            var usage = makeUsage(fetchedAt: now)
+            usage.resetCredits = credits
+            return try #require(state(activeAccount: makeAccount(name: "Work", usage: usage)).toolSections.first).card
+        }
+        let nov5 = Date(timeIntervalSince1970: 1_793_880_000)
+        let nov20 = nov5.addingTimeInterval(15 * 86_400)
+        let two = UsageResetCredits(availableCount: 2, credits: [UsageResetCredit(expiresAt: nov20), UsageResetCredit(expiresAt: nov5)])
+        let one = UsageResetCredits(availableCount: 1, credits: [UsageResetCredit(expiresAt: nov5)])
+        let countOnly = UsageResetCredits(availableCount: 3, credits: nil)
+        let gb = Locale(identifier: "en_GB")
+        let gmt = TimeZone(identifier: "GMT")!
+
+        #expect(try card(credits: two).resetCredits == two)
+        #expect(try card(credits: UsageResetCredits(availableCount: 0, credits: [])).resetCredits == nil)
+        #expect(resetCreditsCountText(two) == "2 resets available")
+        #expect(resetCreditsExpiryText(two, locale: gb, timeZone: gmt) == "Next expires 5 Nov")
+        #expect(resetCreditsCountText(one) == "1 reset available")
+        #expect(resetCreditsExpiryText(one, locale: gb, timeZone: gmt) == "Expires 5 Nov")
+        #expect(resetCreditsExpiryText(countOnly, locale: gb, timeZone: gmt) == nil)
+    }
+
+    @Test
+    func codexStatesReadAsATitleAndAtMostOneLine() throws {
+        let waiting = try #require(state(activeAccount: makeAccount(name: "Work")).toolSections.first).card
+        let noneInUse = try #require(state(inactiveAccounts: [makeAccount(name: "Work")]).toolSections.first).card
+        let staleUsage = makeUsage(fetchedAt: now.addingTimeInterval(-20 * 60))
+        let stale = try #require(state(activeAccount: makeAccount(name: "Work", usage: staleUsage)).toolSections.first).card
+        let fresh = try #require(state(activeAccount: makeAccount(name: "Work", usage: makeUsage(fetchedAt: now))).toolSections.first).card
+
+        #expect(waiting == ToolCard(title: "Waiting for Codex usage"))
+        #expect(noneInUse == ToolCard(title: "No saved account in use", detail: "Pick one in this menu."))
+        #expect(stale.title == nil)
+        #expect(stale.detail?.hasPrefix("As of ") == true)
+        #expect(stale.isDimmed)
+        #expect(stale.windows.count == 2)
+        #expect(fresh.title == nil && fresh.detail == nil && !fresh.isDimmed)
+    }
+
+    @Test(arguments: [
+        (UsageProvider.claude, UsageUnavailableReason.unreachable, "Can't reach Anthropic", "Retrying in a few minutes."),
+        (.claude, .rateLimited, "Anthropic asked to wait", "Retrying in a few minutes."),
+        (.claude, .signInExpired, "Claude Code sign-in expired", "Open Claude Code to renew it."),
+        (.claude, .signedOut, "Not signed in to Claude Code", "Sign in to Claude Code to see usage."),
+        (.claude, .keychainAccessNeeded, "Allow Keychain access", nil),
+        (.cursor, .signInBusy, "Cursor is busy", "Retrying in a few minutes."),
+        (.cursor, .notInstalled, "Cursor isn't installed", nil),
+        (.cursor, .unreachable, "Can't reach Cursor", "Retrying in a few minutes."),
+    ] as [(UsageProvider, UsageUnavailableReason, String, String?)])
+    func aToolWithNoReadingShowsItsReasonInATitleAndOneLine(
+        provider: UsageProvider,
+        reason: UsageUnavailableReason,
+        title: String,
+        detail: String?
+    ) throws {
+        let usage = ProviderUsageState(provider: provider, status: .unavailable(reason, lastSnapshot: nil))
+        let section = try #require(state(providerUsage: [usage]).toolSections.first)
+
+        #expect(section.card == ToolCard(title: title, detail: detail))
+        #expect(section.followUp?.action == (reason == .keychainAccessNeeded ? .allowKeychainAccess : nil))
+    }
+
+    @Test
+    func aFailedReadKeepsTheLastMetersDimmedUnderTheTimeTheyWereRead() throws {
+        let lastSnapshot = claudeSnapshot(fetchedAt: now.addingTimeInterval(-30 * 60))
+        let unreachable = ProviderUsageState(provider: .claude, status: .unavailable(.unreachable, lastSnapshot: lastSnapshot))
+        let stale = ProviderUsageState(provider: .claude, status: .stale(lastSnapshot))
+
+        let failedCard = try #require(state(providerUsage: [unreachable]).toolSections.first).card
+        let staleSection = try #require(state(providerUsage: [stale]).toolSections.first)
+
+        #expect(failedCard.title == "Can't reach Anthropic")
+        #expect(failedCard.detail?.hasPrefix("As of ") == true)
+        #expect(failedCard.isDimmed)
+        #expect(failedCard.windows.map(\.kind) == [.session, .weekly])
+        #expect(staleSection.card.title == nil)
+        #expect(staleSection.card.isDimmed)
+        #expect(staleSection.planTag == "Max x20")
+    }
+
+    @Test
+    func waitingAndSigningInHaveNoMeters() throws {
+        let waiting = ProviderUsageState(provider: .claude, status: .awaitingUsage)
+        let signingIn = ProviderUsageState(provider: .claude, status: .awaitingUsage, isSigningIn: true)
+
+        let waitingSection = try #require(state(providerUsage: [waiting]).toolSections.first)
+        let signingInSection = try #require(state(providerUsage: [signingIn]).toolSections.first)
+
+        #expect(waitingSection.card == ToolCard(title: "Waiting for Claude Code usage"))
+        #expect(waitingSection.planTag == nil)
+        #expect(signingInSection.card == ToolCard(title: "Finish signing in in your browser"))
+        #expect(signingInSection.followUp?.action == .cancelSignIn)
+    }
+
+    @Test
+    func cursorShowsItsBillingCycleAndSpendAndAnUnlimitedPlanHasNoMeter() throws {
+        let spend = UsageSpend(usedUSD: 12.5, limitUSD: 50)
+        let limited = UsageSnapshot(
+            provider: .cursor,
+            planName: "pro",
+            windows: [UsageWindow(kind: .billingCycle, usedPercent: 82, resetsAt: now.addingTimeInterval(20 * 86_400), durationMinutes: nil)],
+            fetchedAt: now,
+            spend: spend
+        )
+        let unlimited = UsageSnapshot(provider: .cursor, planName: "pro", windows: [], fetchedAt: now)
+
+        let limitedSection = try #require(state(providerUsage: [ProviderUsageState(provider: .cursor, status: .current(limited))]).toolSections.first)
+        let unlimitedCard = try #require(state(providerUsage: [ProviderUsageState(provider: .cursor, status: .current(unlimited))]).toolSections.first).card
+
+        #expect(limitedSection.planTag == "Pro")
+        #expect(limitedSection.card.windows.map(\.kind) == [.billingCycle])
+        #expect(limitedSection.card.spend == spend)
+        #expect(unlimitedCard.windows.isEmpty)
+        #expect(unlimitedCard.title == nil)
+        #expect(onDemandSpendText(spend, locale: Locale(identifier: "en_US")) == "On-demand: $12.50 of $50.00")
+    }
+
+    @Test
+    func accountsListTheOneInUseFirstWithEmailsMaskedWhenHidden() throws {
+        let active = makeAccount(name: "Alex", email: "alex@example.com", usage: makeUsage(fetchedAt: now))
+        let other = makeAccount(name: "Side", email: "alex.side@example.com")
+        let claude = ProviderUsageState(provider: .claude, status: .current(claudeSnapshot()))
+
+        let shown = state(activeAccount: active, inactiveAccounts: [other], providerUsage: [claude])
+        let hidden = state(activeAccount: active, inactiveAccounts: [other], providerUsage: [claude], masksEmails: true)
+
+        let codex = try #require(shown.toolSections.first { $0.provider == .codex })
+        let maskedCodex = try #require(hidden.toolSections.first { $0.provider == .codex })
+        let maskedClaude = try #require(hidden.toolSections.first { $0.provider == .claude })
+
+        #expect(codex.activeAccount?.label == "alex@example.com")
+        #expect(codex.otherAccounts.map(\.label) == ["alex.side@example.com"])
+        #expect(maskedCodex.accounts.map(\.label) == ["a•••x@example.com", "al•••e@example.com"])
+        #expect(maskedClaude.accounts.isEmpty)
+    }
+
+    @Test
+    func displayedEmailKeepsTheDomainAndTheEndsOfTheName() {
+        #expect(displayedEmail("alex.side@example.com", masked: true) == "al•••e@example.com")
+        #expect(displayedEmail("alex@example.com", masked: true) == "a•••x@example.com")
+        #expect(displayedEmail("al@example.com", masked: true) == "a•••@example.com")
+        #expect(displayedEmail("alex@example.com", masked: false) == "alex@example.com")
+    }
+
+    @Test
+    func planTagsReadLikeEachToolsOwnPlanNames() {
+        #expect(planTag(for: .codex, planName: "prolite") == "Pro x5")
+        #expect(planTag(for: .codex, planName: "unknown") == nil)
+        #expect(planTag(for: .codex, planName: nil) == nil)
+        #expect(planTag(for: .claude, planName: "max_20x") == "Max x20")
+        #expect(planTag(for: .claude, planName: "max") == "Max")
+        #expect(planTag(for: .cursor, planName: "pro") == "Pro")
+        #expect(planTag(for: .cursor, planName: "pro_plus") == "Pro Plus")
+    }
+
+    @Test
+    func movingASectionStepsPastItsVisibleNeighborOnly() {
+        let codex = makeAccount(name: "Work", usage: makeUsage(fetchedAt: now))
+        let claude = ProviderUsageState(provider: .claude, status: .current(claudeSnapshot()))
+        let menu = state(activeAccount: codex, providerUsage: [claude], toolOrder: [.claude, .cursor, .codex])
+
+        #expect(menu.toolOrder(moving: .codex, .up) == [.codex, .claude, .cursor])
+        #expect(menu.toolOrder(moving: .codex, .toTop) == [.codex, .claude, .cursor])
+        #expect(menu.toolOrder(moving: .claude, .down) == [.cursor, .codex, .claude])
+        #expect(menu.toolOrder(moving: .claude, .up) == nil)
+        #expect(menu.toolOrder(moving: .codex, .down) == nil)
+        #expect(menu.toolOrder(moving: .cursor, .up) == nil)
+    }
+
+    private func claudeSnapshot(fetchedAt: Date? = nil) -> UsageSnapshot {
+        UsageSnapshot(
+            provider: .claude,
+            planName: "max_20x",
+            windows: [
+                UsageWindow(kind: .session, usedPercent: 11, resetsAt: now.addingTimeInterval(3 * 3_600), durationMinutes: 300),
+                UsageWindow(kind: .weekly, usedPercent: 60, resetsAt: now.addingTimeInterval(16 * 3_600), durationMinutes: 10_080),
+            ],
+            fetchedAt: fetchedAt ?? now
+        )
+    }
+
+    private func state(
+        activeAccount: CodexAccount? = nil,
+        inactiveAccounts: [CodexAccount] = [],
+        providerUsage: [ProviderUsageState] = [],
+        toolOrder: [UsageProvider] = [.claude, .codex, .cursor],
+        masksEmails: Bool = false
+    ) -> MenuBarMenuState {
+        MenuBarMenuState(
+            activeAccount: activeAccount,
+            inactiveAccounts: inactiveAccounts,
+            providerUsage: providerUsage,
+            toolOrder: toolOrder,
+            masksEmails: masksEmails,
+            now: now
+        )
+    }
+}

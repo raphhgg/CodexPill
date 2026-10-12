@@ -10,19 +10,27 @@ final class MenuDisplaySettingsStore {
         }
     }
 
-    var visibleInactiveAccountCount: Int {
+    /// The order of the tool sections in the menu. The first one drives the menu bar icon.
+    var toolOrder: [UsageProvider] {
         didSet {
-            userDefaults.set(visibleInactiveAccountCount, forKey: Self.visibleInactiveAccountCountKey)
+            userDefaults.set(toolOrder.map(\.rawValue), forKey: Self.toolOrderKey)
+        }
+    }
+
+    var masksEmails: Bool {
+        didSet {
+            userDefaults.set(masksEmails, forKey: Self.masksEmailsKey)
         }
     }
 
     let refreshIntervalOptions = [1, 2, 5, 10, 15, 30]
-    let visibleInactiveAccountCountOptions = [2, 3, 5, 0]
+    nonisolated static let defaultToolOrder: [UsageProvider] = [.claude, .codex, .cursor]
 
     private let userDefaults: UserDefaults
 
     private static let refreshIntervalKey = "refreshIntervalMinutes"
-    private static let visibleInactiveAccountCountKey = "visibleInactiveAccountCount"
+    private static let toolOrderKey = "toolOrder"
+    private static let masksEmailsKey = "masksEmails"
 
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
@@ -30,13 +38,12 @@ final class MenuDisplaySettingsStore {
         let storedRefreshInterval = userDefaults.integer(forKey: Self.refreshIntervalKey)
         refreshIntervalMinutes = refreshIntervalOptions.contains(storedRefreshInterval) ? storedRefreshInterval : 5
 
-        let storedVisibleInactiveAccountCount = userDefaults.object(forKey: Self.visibleInactiveAccountCountKey) as? Int
-        let visibleAccountOptions = visibleInactiveAccountCountOptions
-        if let storedVisibleInactiveAccountCount,
-           visibleAccountOptions.contains(storedVisibleInactiveAccountCount) {
-            visibleInactiveAccountCount = storedVisibleInactiveAccountCount
-        } else {
-            visibleInactiveAccountCount = 5
+        var storedOrder: [UsageProvider] = []
+        for provider in (userDefaults.stringArray(forKey: Self.toolOrderKey) ?? []).compactMap(UsageProvider.init(rawValue:))
+        where !storedOrder.contains(provider) {
+            storedOrder.append(provider)
         }
+        toolOrder = storedOrder + Self.defaultToolOrder.filter { !storedOrder.contains($0) }
+        masksEmails = userDefaults.bool(forKey: Self.masksEmailsKey)
     }
 }
