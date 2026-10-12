@@ -1,6 +1,6 @@
 # Architecture
 
-Refill is a local-first macOS menubar app for Codex, Claude Code and Cursor usage limits and account switching on this Mac. It was called CodexPill before.
+Refill is a local-first macOS menubar app for Codex, Claude Code and Cursor usage limits and Codex account switching on this Mac. It was called CodexPill before.
 
 This document owns codebase structure and dependency boundaries. Product behavior and UX contracts live in [features](features/README.md).
 
@@ -35,7 +35,7 @@ Features -> Core
 
 A port lives in one of two places:
 
-- In Platform, next to its adapter, when the adapter is the only thing that implements it: `CodexAppProcessClient`, `CodexResetCreditClient`, `IsolatedCodexLoginClient`, `CursorAppProcessClient`, `ClaudeCodeProcessRunning`, `ClaudeCodeFolderKeychain`, `SecurityCommandRunning`.
+- In Platform, next to its adapter, when the adapter is the only thing that implements it: `CodexAppProcessClient`, `CodexResetCreditClient`, `IsolatedCodexLoginClient`, `ClaudeCodeProcessRunning`, `ClaudeCodeProcessDetecting`, `SecurityCommandRunning`.
 - In the Features file that uses it, when a feature needs a narrower view of a Platform type. The Platform type adopts it through an extension in that same Features file, so Platform stays unaware of it: `AccountCatalogStore`, `AccountCatalogLoader`, `CodexAuthActivator`, `LiveCodexAccountIdentitySource`.
 
 App injects the adapter either way.
@@ -84,9 +84,9 @@ Key boundaries:
 
 - `ProviderConnection`, the port one tool conforms to. See "How a tool plugs in" below.
 - `UsageProviderSource`, the read half of that port. It returns a `UsageProviderReading`: not connected, unavailable with a `UsageUnavailableReason`, awaiting usage, or a `UsageSnapshot`. The reasons are not installed, signed out, sign-in expired (401 or past expiry), Keychain access needed, sign-in unreadable, sign-in busy (the tool is writing it right now), access denied (403), rate limited (429), unreachable, service error (other status), and unexpected response.
-- `ProviderCopy`, the one table of every word the menu shows for a tool: its name, who answers its usage requests, the confirmation before connecting or switching, and the message for each unavailable reason. Each tool's switch errors map to a short `ProviderNotice` next to it.
+- `ProviderCopy`, the one table of every word the menu shows for a tool: its name, who answers its usage requests, the confirmation before connecting, and the message for each unavailable reason.
 - `ClaudeCodeUsage` and `CursorUsage`, the two connections. Each wraps its Platform adapter, maps its values onto `UsageSnapshot`, and owns the opt-in setting.
-- `ProviderUsageRuntime`, which reads each connection at most once per its `refreshInterval` (5 minutes by default), however often the menu opens, and publishes one `ProviderUsageState` per tool: its status, its saved accounts with their last limits, whether the tool's sign-in can run here, and whether a sign-in is waiting. A snapshot older than `staleAfter` is published as `.stale`. When a tool is unavailable for a reason that keeps the same account, the runtime keeps the last good snapshot next to the reason. It also runs the actions the menu sends, and reads inactive saved accounts every `inactiveRefreshInterval` (15 minutes).
+- `ProviderUsageRuntime`, which reads each connection at most once per its `refreshInterval` (5 minutes by default), however often the menu opens, and publishes one `ProviderUsageState` per tool: its status. A snapshot carries the email of the account the tool is signed in to, which the side menu shows. A snapshot older than `staleAfter` is published as `.stale`. When a tool is unavailable for a reason that keeps the same account, the runtime keeps the last good snapshot next to the reason. It also runs the actions the menu sends.
 
 Tool states only feed menu sections. They never reach `AccountAvailability` or `InactiveAccountAvailabilityRanking`: those read `CodexAccount.usage`. The runtime refuses a connection for `.codex`.
 
@@ -99,33 +99,19 @@ protocol ProviderConnection: UsageProviderSource {
     var isConnected: Bool { get }
     func connect() async
     func disconnect() async
-    var signInAvailability: ProviderSignInAvailability { get }
-    func savedAccounts() async throws(ProviderNotice) -> [ProviderAccount]
-    func switchAccount(to id: UUID) async throws(ProviderNotice)
-    func addAccount() async throws(ProviderNotice) -> Bool
-    func saveLiveAccountIfNew() async -> Bool
-    func removeAccount(_ id: UUID) async throws(ProviderNotice)
-    func refreshInactiveAccount(_ id: UUID, now: Date) async
+    func renewLiveSignInIfNeeded(now: Date) async -> Bool
 }
 ```
 
-Each saved account is the tool's own sign-in in the tool's own format, held by Refill, and the tool's live sign-in is the account in use. The four account operations follow one style, the one Codex accounts already use:
-
-- `addAccount()` runs the tool's own sign-in away from its live sign-in, in a throwaway home the Platform adapter creates and always deletes, and saves what the tool wrote there. Cancelling the calling task stops the sign-in and returns false. `signInAvailability` says whether that sign-in can run here (`available`, `notInstalled`) or the tool only saves its current sign-in (`unsupported`).
-- `saveLiveAccountIfNew()` saves the account the tool is signed in to when it is not saved yet, without a prompt, and returns true when it saved one. `ProviderUsageRuntime` calls it after each read of a connected tool, never while sign-ins change, and account actions wait for it. The default does nothing.
-- `switchAccount(to:)` saves the live sign-in back to its account first, because the tool may have renewed it, then writes the target, all or nothing.
-- `refreshInactiveAccount(_:now:)` reads one saved account the tool is not signed in to, with that account's own sign-in, and records its limits on `ProviderAccount.usage`. When the saved sign-in needs renewing, the tool renews it in a throwaway home and the adapter writes it back only if the saved copy is unchanged (compare and swap). Cursor renews nothing: an expired saved token keeps its last limits. Limits are recorded under the same compare and swap, so a read never overwrites tokens a switch saved meanwhile. It never reads or changes the live sign-in. The default does nothing.
-- `renewLiveSignInIfNeeded(now:)` lets the tool renew its own expired live sign-in while the tool is not running, and returns true when the sign-in changed. Claude runs `claude doctor` with Claude Code's own config, once per expiry with a 30-minute retry. The default does nothing.
+`renewLiveSignInIfNeeded(now:)` lets the tool renew its own expired live sign-in while the tool is not running, and returns true when the sign-in changed. Claude runs `claude doctor` with Claude Code's own config, once per expiry with a 30-minute retry. The default does nothing.
 
 Its words go in `ProviderCopy` under its `UsageProvider` case. Nothing else changes: no selector, coordinator property, or menu-builder branch names a tool.
 
 - Every tool menu item, Codex included, carries a `ProviderMenuAction` (tool plus `ProviderAction`) and calls `MenuBarCoordinator.performProviderAction(_:)`.
-- The coordinator asks the `ProviderCopy` confirmation, if any, then runs the action in a tracked task through `ProviderUsageRuntime.perform(_:on:)` and shows the `ProviderNotice` it returns.
-- The runtime reads the tool again after every action. A switch first drops the tool's last reading and bumps a generation, so a read that started before the change is discarded and the previous account's numbers never show.
-- The runtime owns the sign-in task, so `.cancelSignIn` cancels it and the card shows `isSigningIn` until it ends. An account just added is read at once. A switch of that tool is refused while its sign-in runs, since a Cursor switch would quit the sign-in window.
-- Inactive reads run one account at a time. Switching, adding, saving or removing first lets the account being read finish and stops the rest, so a renewed sign-in is saved before any sign-in is touched. A new inactive pass does not start while a sign-in, an account action, or a live renewal runs.
-- After a read, the coordinator asks the runtime to renew each tool whose reading is sign-in expired. One renewal runs at a time, never during a sign-in, an account action, or the inactive pass. Account actions wait for it. A tool that renewed is read again.
-- `ProviderAccount` is the only account type the menu sees. It never carries tokens.
+- The coordinator asks the `ProviderCopy` confirmation, if any, then runs the action in a tracked task through `ProviderUsageRuntime.perform(_:on:)`.
+- The runtime reads the tool again after every action.
+- After a read, the coordinator asks the runtime to renew each tool whose reading is sign-in expired. One renewal runs at a time. A tool that renewed is read again.
+- The port has no account methods: Claude Code and Cursor show only the account their own app is signed in to, and Refill never writes their sign-ins.
 - Codex is not a connection: its usage lives on each saved `CodexAccount` and adding an account is an interactive sign-in panel. The coordinator routes `.codex` actions to `AccountsController`, which refreshes the new active account after a switch and never runs a reset credit and an account change at the same time.
 
 `Features/AppControls` owns app-level controls the menu offers: Launch at Login through `LoginItemController` and the System Settings launcher.
@@ -178,27 +164,22 @@ Local app-server reads enter this session runner through `CodexAppServerClient`,
 
 The active account's read is complete once it has the account and at least one limit window of any length. A Pro plan reports only a weekly window and a free plan only a monthly one. Only a read with no window runs the app-server again, once after 1 second with `refreshToken: true`. A failed read is tried again after 1 second, and once more after 3 seconds when Codex says the rate-limit read failed. Windows and account fields from the attempts merge, the newest winning.
 
-`Platform/Claude` owns everything Refill knows about Claude Code:
+`Platform/Claude` owns everything Refill knows about Claude Code. It never writes Claude Code's files or Keychain item. It owns:
 
-- reading its sign-in from `.credentials.json` and the `Claude Code-credentials` Keychain item, which it reads and writes through `/usr/bin/security` as Claude Code does, so renewals don't bring back a Keychain prompt (`ClaudeCredentialsSource`, `SystemClaudeKeychain`, `ClaudeCodeSecurityKeychain`);
+- reading its sign-in from `.credentials.json` and the `Claude Code-credentials` Keychain item, which it reads through `/usr/bin/security` as Claude Code does, so renewals don't bring back a Keychain prompt, and never writes (`ClaudeCredentialsSource`, `SystemClaudeKeychain`, `ClaudeCodeSecurityKeychain`), and the plan tier and email from the account record in its global config;
 - the `api.anthropic.com/api/oauth/usage` request, its redirect rule, its rate-limit wait, and parsing its response (`ClaudeUsageAPI`, `ClaudeUsageClient`);
-- saved Claude Code accounts and switching (`ClaudeCodeAccountStore`, `ClaudeCodeSignInStore`, `SystemClaudeCodeAccountItems`). A switch writes Refill's own item and list, then Claude Code's credentials, then `oauthAccount` in Claude Code's global config, and puts every earlier step back when a later one fails. Accounts match by Claude Code's account record, never by token;
-- whether terminal Claude Code is running, behind the `ClaudeCodeProcessDetecting` port. A switch or renewal waits while it runs. The Claude desktop app's own Claude Code is ignored.
+- running `claude doctor` so Claude Code renews its own expired sign-in (`ClaudeCodeCommands`, `SystemClaudeCodeProcessRunner`);
+- whether terminal Claude Code is running, behind the `ClaudeCodeProcessDetecting` port. Renewal waits while it runs. The Claude desktop app's own Claude Code is ignored.
 
 The access token leaves this module only as the usage request's `Authorization` header. Nothing in it reads, sends, or renews Claude Code's refresh token; a test scans the Claude sources to keep it that way. Renewal is always Claude Code's own, through `claude doctor`.
 
-`Platform/Cursor` owns everything Refill knows about Cursor:
+`Platform/Cursor` owns everything Refill knows about Cursor. It never writes Cursor's database or quits Cursor. It owns:
 
-- `CursorStateDatabase`, keyed reads and the one write path for `state.vscdb`. It never scans. A read opens the database with `immutable=1` only when no `-wal`, `-shm`, or `-journal` file sits next to it, so it never reads a writer's uncommitted pages. A write folds the WAL into the database, refuses while another connection holds it, and replaces only the named rows in one transaction;
-- `CursorStateDatabaseTokenSource`, the read-only token lookup used for usage, and `CursorAccessToken`, which prints redacted;
-- the `cursor.com/api/usage-summary` request, its redirect rule, its `Retry-After` wait, and parsing its response (`URLSessionCursorUsageWebClient`, `CursorUsageClient`, `CursorUsageSummaryParser`);
-- `CursorSignIn`, the eight `cursorAuth/*` rows that are a Cursor sign-in, and `CursorSavedAccount`, a named copy of one;
-- `CursorAccountStore` and `SystemCursorAccountKeychain`, the `Refill Cursor accounts` Keychain item holding every saved account;
-- `CursorAccounts`: capture, add a sign-in made in a throwaway profile, record an inactive account's limits (compare and swap on the saved sign-in), remove, and activate. Activation quits Cursor, saves the outgoing sign-in again, writes the saved one, and reopens Cursor. It throws one `CursorAccountsError` per outcome the menu must tell apart;
-- `CursorAppProcessClient` and `SystemCursorAppProcessClient`, quitting and opening Cursor.app. It never force-quits and knows nothing about Cursor's files;
-- `CursorIsolatedLogin`, Cursor's own sign-in in a separate Cursor instance with a throwaway `--user-data-dir` under `<AppSupport>/cursor-sign-in/<8 hex>`. It refuses a profile path that would push Cursor's IPC socket past macOS's 103-byte limit, polls the profile's `state.vscdb` for the `cursorAuth/*` rows, quits that instance by PID, and deletes the profile on every path. `CursorInstanceLaunching` starts and quits instances by PID: `SystemCursorInstanceLauncher` opens Cursor.app as a new instance and quits only a Cursor process with that PID, and `ExecutableCursorInstanceLauncher` runs a stand-in for isolated runs.
+- `CursorStateDatabase`, keyed read-only access to `state.vscdb`. It never scans. A read opens the database with `immutable=1` only when no `-wal`, `-shm`, or `-journal` file sits next to it, so it never reads a writer's uncommitted pages;
+- `CursorStateDatabaseTokenSource`, the read-only lookup of the token and the cached email used for usage, and `CursorAccessToken`, which prints redacted;
+- the `cursor.com/api/usage-summary` request, its redirect rule, its `Retry-After` wait, and parsing its response (`URLSessionCursorUsageWebClient`, `CursorUsageClient`, `CursorUsageSummaryParser`).
 
-Tokens leave this module only as the usage request's cookie or in Refill's Keychain item.
+The token leaves this module only as the usage request's cookie.
 
 `Platform/Networking` owns HTTP rules shared by tools, such as `RetryAfter`, which reads a `Retry-After` header given as seconds or an HTTP date.
 
@@ -219,7 +200,7 @@ Platform adapters are the only place where the app should know about live auth f
 
 - `CodexAccount` and `LiveCodexAccountIdentity`
 - `CodexRateLimits`, Codex plan-type rules and `UsageSnapshot.codex(planName:primary:secondary:fetchedAt:)`, the only place that turns Codex's positional primary and secondary windows into named windows, shortest first
-- `Usage`, the provider-neutral usage model: `UsageSnapshot` holds a provider, the plan name the provider reported, and `UsageWindow` values keyed by `UsageWindowKind` (session, weekly, monthly, billing cycle, or other with its length). `UsageWindowKind(durationMinutes:)` is the one rule that names a window by its length, with its tolerances. `UsageWindow.displayedUsedPercent(at:)` is the one rule for showing 0% once a window has reset. `CodexAccount.usage` and `CodexAccountStatus.usage` store it directly. `CodexAccount` reads and writes the `rateLimits` primary/secondary shape `accounts.json` has always used through a private storage type, so files from earlier versions still load and earlier versions can still read new files. Loading names each stored window by its length again.
+- `Usage`, the provider-neutral usage model: `UsageSnapshot` holds a provider, the plan name the provider reported, the signed-in email for Claude and Cursor, and `UsageWindow` values keyed by `UsageWindowKind` (session, weekly, monthly, billing cycle, or other with its length). `UsageWindowKind(durationMinutes:)` is the one rule that names a window by its length, with its tolerances. `UsageWindow.displayedUsedPercent(at:)` is the one rule for showing 0% once a window has reset. `CodexAccount.usage` and `CodexAccountStatus.usage` store it directly. `CodexAccount` reads and writes the `rateLimits` primary/secondary shape `accounts.json` has always used through a private storage type, so files from earlier versions still load and earlier versions can still read new files. Loading names each stored window by its length again.
 - `StatusBarIndicatorStyle` and `StatusBarDisplayMode`, the persisted status-item choices
 - typed `UserDefaults`-backed settings stores
 
@@ -275,10 +256,7 @@ The current truth sources are split by concern:
 - local account metadata and rate limits: local `codex app-server`;
 - running CLI session observation: local process table inspection;
 - Claude Code usage: `api.anthropic.com/api/oauth/usage`, authenticated with Claude Code's local sign-in token;
-- active Claude Code account: `oauthAccount` in Claude Code's global config, `~/.claude.json`;
-- Cursor usage: `cursor.com/api/usage-summary`, authenticated with Cursor's local sign-in token;
-- active Cursor account: the `cursorAuth/*` rows in Cursor's `state.vscdb`;
-- saved Cursor accounts: Refill's `Refill Cursor accounts` Keychain item.
+- Cursor usage: `cursor.com/api/usage-summary`, authenticated with Cursor's local sign-in token.
 
 Rules:
 
