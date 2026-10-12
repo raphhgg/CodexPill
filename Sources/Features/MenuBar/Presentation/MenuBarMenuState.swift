@@ -20,7 +20,8 @@ struct MenuBarMenuState {
     let statusMessage: String
     let loginItemState: LoginItemState
     let tokenUsageEnabled: Bool
-    let tokenUsageCard: TokenUsageMenuCard?
+    /// The live Token Usage card, nil while Token Usage is off.
+    let tokenUsage: TokenUsageCardModel?
     let providerUsage: [ProviderUsageState]
     let toolOrder: [UsageProvider]
     let masksEmails: Bool
@@ -49,7 +50,7 @@ struct MenuBarMenuState {
         statusMessage: String = "",
         loginItemState: LoginItemState = .unavailable,
         tokenUsageEnabled: Bool = false,
-        tokenUsageCard: TokenUsageMenuCard? = nil,
+        tokenUsage: TokenUsageCardModel? = nil,
         providerUsage: [ProviderUsageState] = [],
         toolOrder: [UsageProvider] = MenuDisplaySettingsStore.defaultToolOrder,
         masksEmails: Bool = false,
@@ -76,7 +77,7 @@ struct MenuBarMenuState {
         self.statusMessage = statusMessage
         self.loginItemState = loginItemState
         self.tokenUsageEnabled = tokenUsageEnabled
-        self.tokenUsageCard = tokenUsageCard
+        self.tokenUsage = tokenUsage
         self.providerUsage = providerUsage
         self.toolOrder = toolOrder
         self.masksEmails = masksEmails
@@ -119,4 +120,8 @@ struct MenuBarMenuState {
         guard hasStatusItemContentData else { return mode == .iconOnly }
         return true
     }
+}
+
+extension MenuBarMenuState {
+    @MainActor var tokenUsageCard: TokenUsageMenuCard? { tokenUsage?.card }
 }

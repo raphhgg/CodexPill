@@ -30,10 +30,10 @@ struct MenuBarMenuBuilder {
             }
         }
 
-        if let tokenUsageCard = state.tokenUsageCard {
+        if let tokenUsage = state.tokenUsage {
             addSeparatorIfNeeded(to: menu)
             let item = NSMenuItem(title: "Token Usage", action: nil, keyEquivalent: "")
-            item.view = hostedView(TokenUsageMenuContent(card: tokenUsageCard).padding(.vertical, 8), width: Self.menuContentWidth)
+            item.view = hostedView(TokenUsageMenuContent(model: tokenUsage).padding(.vertical, 8), width: Self.menuContentWidth)
             menu.addItem(item)
         }
 
@@ -152,6 +152,9 @@ struct MenuBarMenuBuilder {
         menu.addItem(appIconMenuItem(state: state, target: target))
         menu.addItem(.separator())
         menu.addItem(toggleItem("Show Token Usage", isOn: state.tokenUsageEnabled, action: #selector(MenuBarCoordinator.toggleTokenUsage(_:)), target: target))
+        if let tokenUsage = state.tokenUsage {
+            menu.addItem(toggleItem("Monochrome Token Usage", isOn: tokenUsage.preferences.isMonochrome, action: #selector(MenuBarCoordinator.toggleTokenUsageMonochrome(_:)), target: target))
+        }
         return submenuItem(menu)
     }
 

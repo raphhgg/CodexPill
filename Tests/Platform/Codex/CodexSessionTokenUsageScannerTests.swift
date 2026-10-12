@@ -65,6 +65,27 @@ struct CodexSessionTokenUsageScannerTests {
     }
 
     @Test
+    func scanProgressReportsDaysFinishedSoFarNewestFirst() throws {
+        let row = #"{"type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":5,"output_tokens":5,"total_tokens":10}}}}"#
+        let root = try makeSessionRoot(files: [
+            "2026/04/20/a.jsonl": row,
+            "2026/04/19/b.jsonl": row,
+        ])
+        let progressUpdates = TokenUsageProgressRecorder()
+
+        _ = try CodexSessionTokenUsageScanner(calendar: utcCalendar()).scan(
+            sessionsDirectory: root,
+            dayRange: DateInterval(start: makeDate(2026, 4, 1), end: makeDate(2026, 5, 1)),
+            progress: { progressUpdates.append($0) }
+        )
+
+        let updates = progressUpdates.updates
+        #expect(updates.map(\.pendingDay) == [makeDate(2026, 4, 20), makeDate(2026, 4, 19), nil])
+        #expect(updates[1].codexDays.map(\.day) == [makeDate(2026, 4, 20)])
+        #expect(updates[2].codexDays.map(\.usage.totalTokens) == [10, 10])
+    }
+
+    @Test
     func scanDerivesPositiveDeltasFromCumulativeTotalUsageWhenLastUsageIsMissing() throws {
         let root = try makeSessionRoot(files: [
             "2026/04/20/session-a.jsonl": """
@@ -291,7 +312,7 @@ struct CodexSessionTokenUsageScannerTests {
             progress: { progressUpdates.append($0) }
         )
 
-        #expect(progressUpdates.updates == [
+        #expect(progressUpdates.fileCounts == [
             TokenUsageScanProgress(scannedFiles: 0, totalFiles: 2),
             TokenUsageScanProgress(scannedFiles: 1, totalFiles: 2),
             TokenUsageScanProgress(scannedFiles: 2, totalFiles: 2)
@@ -321,7 +342,7 @@ struct CodexSessionTokenUsageScannerTests {
             progress: { progressUpdates.append($0) }
         )
 
-        #expect(progressUpdates.updates == [
+        #expect(progressUpdates.fileCounts == [
             TokenUsageScanProgress(scannedFiles: 0, totalFiles: 1),
             TokenUsageScanProgress(scannedFiles: 1, totalFiles: 1)
         ])
@@ -378,7 +399,7 @@ struct CodexSessionTokenUsageScannerTests {
             progress: { progressUpdates.append($0) }
         )
 
-        #expect(progressUpdates.updates == [
+        #expect(progressUpdates.fileCounts == [
             TokenUsageScanProgress(scannedFiles: 0, totalFiles: 1),
             TokenUsageScanProgress(scannedFiles: 1, totalFiles: 1)
         ])
@@ -410,7 +431,7 @@ struct CodexSessionTokenUsageScannerTests {
             progress: { progressUpdates.append($0) }
         )
 
-        #expect(progressUpdates.updates == [
+        #expect(progressUpdates.fileCounts == [
             TokenUsageScanProgress(scannedFiles: 0, totalFiles: 0)
         ])
         #expect(refreshedResult.buckets.last?.usage.totalTokens == 10)
@@ -452,7 +473,7 @@ struct CodexSessionTokenUsageScannerTests {
             progress: { progressUpdates.append($0) }
         )
 
-        #expect(progressUpdates.updates == [
+        #expect(progressUpdates.fileCounts == [
             TokenUsageScanProgress(scannedFiles: 0, totalFiles: 1),
             TokenUsageScanProgress(scannedFiles: 1, totalFiles: 1)
         ])

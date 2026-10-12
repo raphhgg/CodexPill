@@ -144,12 +144,17 @@ struct CodexSessionTokenUsageScanner: Sendable {
         var scannedByteCountByDay: [Date: Int] = [:]
         let files = try discoverer.sessionFiles(in: sessionsDirectory, dayRange: dayRange)
         var fileContributions: [CodexSessionTokenUsageFileContribution] = []
-        progress?(TokenUsageScanProgress(scannedFiles: 0, totalFiles: files.count))
+        progress?(TokenUsageScanProgress(scannedFiles: 0, totalFiles: files.count, pendingDay: files.first?.day))
 
         for (index, file) in files.enumerated() {
             try Task.checkCancellation()
             defer {
-                progress?(TokenUsageScanProgress(scannedFiles: index + 1, totalFiles: files.count))
+                progress?(TokenUsageScanProgress(
+                    scannedFiles: index + 1,
+                    totalFiles: files.count,
+                    codexDays: accumulator.buckets(),
+                    pendingDay: files[safe: index + 1]?.day
+                ))
             }
             if let dayRange, !dayRange.contains(file.day) {
                 continue
@@ -214,11 +219,21 @@ struct CodexSessionTokenUsageScanner: Sendable {
             }
         }
 
-        progress?(TokenUsageScanProgress(scannedFiles: 0, totalFiles: filesNeedingScan.count))
+        progress?(TokenUsageScanProgress(
+            scannedFiles: 0,
+            totalFiles: filesNeedingScan.count,
+            codexDays: accumulator.buckets(),
+            pendingDay: filesNeedingScan.first?.day
+        ))
         for (index, file) in filesNeedingScan.enumerated() {
             try Task.checkCancellation()
             defer {
-                progress?(TokenUsageScanProgress(scannedFiles: index + 1, totalFiles: filesNeedingScan.count))
+                progress?(TokenUsageScanProgress(
+                    scannedFiles: index + 1,
+                    totalFiles: filesNeedingScan.count,
+                    codexDays: accumulator.buckets(),
+                    pendingDay: filesNeedingScan[safe: index + 1]?.day
+                ))
             }
 
             guard maximumScannableFileByteCount <= 0 || file.fileSize <= maximumScannableFileByteCount else {
@@ -747,5 +762,11 @@ private extension CodexSessionTokenUsageScanSummary {
         cumulativeRowsIgnored += summary.cumulativeRowsIgnored
         malformedRowsIgnored += summary.malformedRowsIgnored
         nonUsageRowsIgnored += summary.nonUsageRowsIgnored
+    }
+}
+
+private extension Array {
+    subscript(safe index: Int) -> Element? {
+        indices.contains(index) ? self[index] : nil
     }
 }

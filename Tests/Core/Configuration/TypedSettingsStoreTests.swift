@@ -6,6 +6,15 @@ import Testing
 @MainActor
 struct MenuDisplaySettingsStoreTests {
     @Test
+    func chartStylesFromBeforeThePerToolChartOpenAsBars() {
+        let defaults = makeDefaults()
+        for old in ["dailyBars", "heatStrip", "sparkline"] {
+            defaults.set(old, forKey: "tokenUsageChartStyle")
+            #expect(TokenUsagePreferencesStore(userDefaults: defaults).chartStyle == .bars)
+        }
+    }
+
+    @Test
     func preferencesPersistAcrossInstances() {
         let defaults = makeDefaults()
         let first = MenuDisplaySettingsStore(userDefaults: defaults)
@@ -168,19 +177,30 @@ struct StatusItemSettingsStoreTests {
 @MainActor
 struct TokenUsagePreferencesStoreTests {
     @Test
+    func chartStylesFromBeforeThePerToolChartOpenAsBars() {
+        let defaults = makeDefaults()
+        for old in ["dailyBars", "heatStrip", "sparkline"] {
+            defaults.set(old, forKey: "tokenUsageChartStyle")
+            #expect(TokenUsagePreferencesStore(userDefaults: defaults).chartStyle == .bars)
+        }
+    }
+
+    @Test
     func preferencesPersistAcrossInstances() {
         let defaults = makeDefaults()
         let first = TokenUsagePreferencesStore(userDefaults: defaults)
         first.isEnabled = true
-        first.chartStyle = .sparkline
-        first.loadingAnimationStyle = .random
+        first.chartStyle = .lines
+        first.breakdown = .topModels
+        first.isMonochrome = true
         first.peakScope = .allTime
 
         let second = TokenUsagePreferencesStore(userDefaults: defaults)
 
         #expect(second.isEnabled)
-        #expect(second.chartStyle == .sparkline)
-        #expect(second.loadingAnimationStyle == .random)
+        #expect(second.chartStyle == .lines)
+        #expect(second.breakdown == .topModels)
+        #expect(second.isMonochrome)
         #expect(second.peakScope == .allTime)
     }
 

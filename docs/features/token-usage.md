@@ -60,9 +60,7 @@ Cursor rules:
 
 Card:
 
-- With another tool connected, daily bars stack each tool in its own color, Codex at the bottom. The tooltip lists each tool's tokens for the day.
-- Under the totals, one line per tool: `Codex  Today 3.4M  62M`, then its top three models by share, for example `gpt-6.1-sol 82% · gpt-5.5 18%`.
-- `All-time peak` uses the larger of Codex's all-time peak and the busiest combined day in the period, because only Codex has all-time history.
+- `All-time peak` uses the larger of Codex's all-time peak and the busiest combined day in the period, because only Codex has all-time history. The card no longer shows a peak; the value stays for a later detail view.
 
 ## Happy Path
 
@@ -70,44 +68,49 @@ Card:
 2. Refill starts scanning recent local Codex session JSONL files in the background.
 3. User can close the menu or continue working while the scan completes.
 4. Refill aggregates safe token totals by day and stores them in a derived cache.
-5. The Codex side menu gains `Token Usage ›`, which shows the card.
+5. The main menu shows the Token Usage card after the tool cards.
 
 ## UI / Copy / States
 
 Appearance:
 
 - `Show Token Usage`
-
-The card uses daily bars. Chart style, loading animation and peak-day scope have no menu control.
+- `Monochrome Token Usage`, shown while Token Usage is on.
 
 Default:
 
 - Token Usage is off by default.
-- Default period is `Last 30 Days`.
+- The period is always `Last 30 days`.
+- Chart `Bars`, split `By tool`, color.
 
-Menu card:
+Menu card, in the main menu after the tool cards and before `Add Account`:
 
-- Position: in the main menu, after the tool cards and before `Add Account`.
-- Title: `Token Usage`
-- Scope label: `This Mac`
-- Chart: compact chart for the selected period.
-- Chart styles: `Daily Bars`, `Heat Strip`, and `Sparkline`.
-- Chart design must go through a human review checkpoint before final implementation. RGR-360 should validate these three styles with screenshots and make sure the final Token Usage card lets the user choose between them.
-- Summary copy:
-  - `Today: <tokens> tokens`
-  - `Last 30 days: <tokens> tokens`
-  - `Peak day`
-  - `<date>: <tokens> tokens`
+- Title row: `Token Usage` and the chart toggle, three icons: bars, area, lines.
+- Subtitle: `Last 30 days · 10B · Today 390M`.
+- Chart, 44 pt high:
+  - `Bars`: one bar per day, stacked by tool, Codex at the bottom.
+  - `Area`: the same stack as smoothed areas.
+  - `Lines`: one line per tool, each against its own busiest day, so a small tool keeps its shape. The split gives the amounts.
+  - Hovering a day shows a tooltip: `Oct 12: 390M tokens`, then each tool's tokens.
+- Split toggle: `By tool` or `Top models`.
+  - `By tool`: one row per tool with today and the 30-day total, a bar of its models, and a legend with the top two models and `Other`.
+  - `Top models`: each tool's share of the period, then the five biggest models across tools.
+- Model names are shortened: `claude-opus-5-5` reads `Opus 5.5`, `gpt-5.6-sol` reads `GPT-5.6 Sol`.
+- Toggle clicks switch the view and leave the menu open. Refill remembers both choices. Saved styles from before (`dailyBars`, `heatStrip`, `sparkline`) open as `Bars`.
+- The card keeps the same height whichever split is shown.
 
-V1 always uses `Last 30 days`. Period selection is intentionally not exposed in the menu until the cache/incremental scanner is proven on larger histories.
+Colors:
+
+- Codex teal, Claude Code orange, Cursor indigo. A tool's models are fading shades of its color.
+- Monochrome uses shades of the text color. So no part relies on color alone, each tool also gets a marker shape (circle, square, triangle), a line dash in `Lines` and `Top models` (solid, dashed, dotted), a 1 pt gap between stacked bars, and an edge between areas.
 
 States:
 
-- Off: no Token Usage card is shown.
-- Loading: animated Token Usage placeholder with `Scanning local sessions...`; shown only while no cached aggregate result is available. See [Token Usage Loading Progress](token-usage-loading-progress.md).
-- Updating: keep the previous chart visible while a background refresh is running.
-- No data: `No token usage found yet`
-- Unavailable/error: `Token usage unavailable`
+- Off: no card.
+- Reading: Codex's first scan. Claude Code and Cursor show at once, and only the Codex parts wait. See [Token Usage Loading Progress](token-usage-loading-progress.md).
+- Updating: the previous chart stays while a background refresh runs.
+- No data: `No token usage found yet`.
+- Unavailable: `Token usage unavailable`. A single connected tool that can't be read shows `Unavailable` on its own row.
 
 ## Cache / Refresh Contract
 
@@ -171,7 +174,7 @@ Expected behavior:
 
 ## Chart Style History
 
-RGR-360 compared chart variants with synthetic fixture data inside the active account card. That review chose `Daily Bars`, `Heat Strip`, and `Sparkline`, which shipped with RGR-362. The prototype cards, fixture data, and screenshot script were removed after the production card shipped. [RGR-360-token-usage-chart-variants.md](../delivery/RGR-360-token-usage-chart-variants.md) keeps the review record.
+RGR-360 compared chart variants inside the active account card and shipped `Daily Bars`, `Heat Strip`, and `Sparkline` with RGR-362. [RGR-360-token-usage-chart-variants.md](../delivery/RGR-360-token-usage-chart-variants.md) keeps that review record. The multi-tool card replaced them with `Bars`, `Area`, and `Lines`, chosen from rendered prototypes in October 2026.
 
 ## Validation Targets
 

@@ -35,17 +35,14 @@ struct AllToolsTokenUsageMenuProviderTests {
         )
 
         let state = await provider.load(period: .last30Days, peakScope: .currentPeriod, forceRefresh: false) { _ in }
-        let card = TokenUsageMenuCard.make(style: .dailyBars, period: .last30Days, loadState: state, calendar: calendar)
+        let card = TokenUsageMenuCard.make(period: .last30Days, loadState: state, calendar: calendar, now: now)
 
-        #expect(card.showsTools)
-        #expect(card.buckets.count == 30)
+        #expect(card.days.count == 30)
         #expect(card.todayTokenCount == 400)
-        #expect(card.buckets.last?.segments == [
-            TokenUsageBarSegment(tool: .codex, tokenCount: 100),
-            TokenUsageBarSegment(tool: .claudeCode, tokenCount: 300)
-        ])
+        #expect(card.tokenCount(for: .codex, onDay: 29) == 100)
+        #expect(card.tokenCount(for: .claudeCode, onDay: 29) == 300)
         #expect(card.toolSummaries.map(\.tool) == [.codex, .claudeCode, .cursor])
-        #expect(card.toolSummaries[0].modelsSummary == "gpt-a 75% · gpt-b 25%")
+        #expect(card.toolSummaries[0].models.map(\.name) == ["GPT-a", "GPT-b"])
         #expect(card.toolSummaries[1].periodTokenCount == 300)
         #expect(card.toolSummaries[2].isUnavailable)
     }
@@ -60,9 +57,9 @@ struct AllToolsTokenUsageMenuProviderTests {
         )
 
         let state = await provider.load(period: .last30Days, peakScope: .currentPeriod, forceRefresh: false) { _ in }
-        let card = TokenUsageMenuCard.make(style: .dailyBars, period: .last30Days, loadState: state, calendar: calendar)
+        let card = TokenUsageMenuCard.make(period: .last30Days, loadState: state, calendar: calendar, now: day(2026, 10, 10))
 
-        #expect(!card.showsTools)
+        #expect(card.toolSummaries.map(\.tool) == [.codex])
     }
 
     @Test
@@ -77,10 +74,34 @@ struct AllToolsTokenUsageMenuProviderTests {
         )
 
         let state = await provider.load(period: .last30Days, peakScope: .currentPeriod, forceRefresh: false) { _ in }
-        let card = TokenUsageMenuCard.make(style: .dailyBars, period: .last30Days, loadState: state, calendar: calendar)
+        let card = TokenUsageMenuCard.make(period: .last30Days, loadState: state, calendar: calendar, now: day(2026, 10, 10))
 
-        #expect(card.toolSummaries.map(\.tool) == [.claudeCode, .codex])
-        #expect(card.toolSummaries.last?.isUnavailable == true)
+        #expect(card.toolSummaries.map(\.tool) == [.codex, .claudeCode])
+        #expect(card.toolSummaries.first?.isUnavailable == true)
+    }
+
+    @Test
+    func codexProgressCarriesTheToolsAlreadyRead() async {
+        let now = day(2026, 10, 10)
+        let recorder = TokenUsageProgressRecorder()
+        let provider = AllToolsTokenUsageMenuProvider(
+            codex: ProgressingCodexProvider(),
+            otherTools: [
+                TokenUsageToolSource(tool: .claudeCode, isConnected: { true }, read: { interval in
+                    .days(ToolTokenUsageDays.filled([ToolDailyTokenUsage(day: now, tokensByModel: ["claude-opus-5-5": 7])], in: interval, calendar: calendar))
+                }),
+                TokenUsageToolSource(tool: .cursor, isConnected: { true }, read: { _ in .unavailable }),
+            ],
+            calendar: calendar,
+            now: { now }
+        )
+
+        _ = await provider.load(period: .last30Days, peakScope: .currentPeriod, forceRefresh: false) { recorder.append($0) }
+
+        let progress = recorder.updates.first
+        #expect(progress?.otherTools.map(\.tool) == [.claudeCode])
+        #expect(progress?.otherTools.first?.totalTokens == 7)
+        #expect(progress?.unavailableTools == [.cursor])
     }
 
     private func day(_ year: Int, _ month: Int, _ day: Int) -> Date {
@@ -98,5 +119,17 @@ private struct FixedCodexProvider: TokenUsageMenuProviding {
         progress _: @escaping @Sendable (TokenUsageScanProgress) -> Void
     ) async -> TokenUsageMenuLoadState {
         state
+    }
+}
+
+private struct ProgressingCodexProvider: TokenUsageMenuProviding {
+    func load(
+        period _: CodexTokenUsagePeriod,
+        peakScope _: TokenUsagePeakScope,
+        forceRefresh _: Bool,
+        progress: @escaping @Sendable (TokenUsageScanProgress) -> Void
+    ) async -> TokenUsageMenuLoadState {
+        progress(TokenUsageScanProgress(scannedFiles: 1, totalFiles: 2))
+        return .loaded(TokenUsageMenuLoadedData(buckets: [], allTimePeak: nil))
     }
 }

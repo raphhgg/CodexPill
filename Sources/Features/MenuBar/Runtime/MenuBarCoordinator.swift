@@ -43,9 +43,13 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private lazy var tokenUsageRuntime = TokenUsageMenuRuntime(
         provider: tokenUsageProvider,
         onStateChange: { [weak self] _ in
-            self?.rebuildMenuWhenSafe()
+            guard let self else { return }
+            // The open card redraws from its model, so progress shows without rebuilding the menu.
+            tokenUsageCard.card = makeTokenUsageCard()
+            rebuildMenuWhenSafe()
         }
     )
+    private lazy var tokenUsageCard = TokenUsageCardModel(card: makeTokenUsageCard(), preferences: tokenUsagePreferences)
     private let providerConnections: [any ProviderConnection]
     private lazy var providerUsageRuntime = ProviderUsageRuntime(
         connections: providerConnections,
@@ -215,6 +219,13 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             period: tokenUsagePreferences.period,
             peakScope: tokenUsagePreferences.peakScope
         )
+        rebuildMenu()
+    }
+
+    @objc
+    func toggleTokenUsageMonochrome(_ sender: NSMenuItem) {
+        recordMenuAction("toggleTokenUsageMonochrome")
+        tokenUsagePreferences.isMonochrome.toggle()
         rebuildMenu()
     }
 
@@ -535,7 +546,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             statusMessage: accountsController.statusMessage,
             loginItemState: loginItemController.state(),
             tokenUsageEnabled: tokenUsagePreferences.isEnabled,
-            tokenUsageCard: makeTokenUsageCard(),
+            tokenUsage: currentTokenUsageCard(),
             providerUsage: providerUsageRuntime.states,
             toolOrder: menuDisplaySettings.toolOrder,
             masksEmails: menuDisplaySettings.masksEmails,
@@ -546,15 +557,17 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         )
     }
 
-    private func makeTokenUsageCard() -> TokenUsageMenuCard? {
+    private func makeTokenUsageCard() -> TokenUsageMenuCard {
+        TokenUsageMenuCard.make(period: tokenUsagePreferences.period, loadState: tokenUsageRuntime.loadState, now: now())
+    }
+
+    private func currentTokenUsageCard() -> TokenUsageCardModel? {
         guard tokenUsagePreferences.isEnabled else { return nil }
-        return TokenUsageMenuCard.make(
-            style: tokenUsagePreferences.chartStyle,
-            loadingAnimationStyle: tokenUsagePreferences.loadingAnimationStyle,
-            peakScope: tokenUsagePreferences.peakScope,
-            period: tokenUsagePreferences.period,
-            loadState: tokenUsageRuntime.loadState
-        )
+        let card = makeTokenUsageCard()
+        if tokenUsageCard.card != card {
+            tokenUsageCard.card = card
+        }
+        return tokenUsageCard
     }
 
     /// Token usage and provider usage only appear inside the menu, so opening it is the moment to bring them up to date.
