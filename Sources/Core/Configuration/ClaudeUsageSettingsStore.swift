@@ -5,6 +5,7 @@ import Foundation
 /// The usage source reads it off the main actor; `UserDefaults` is documented as thread-safe.
 final class ClaudeUsageSettingsStore: @unchecked Sendable {
     private static let isEnabledKey = "claudeUsageEnabled"
+    private static let showsModelLimitsKey = "claudeShowsModelLimits"
 
     private let userDefaults: UserDefaults
 
@@ -15,5 +16,12 @@ final class ClaudeUsageSettingsStore: @unchecked Sendable {
     var isEnabled: Bool {
         get { userDefaults.bool(forKey: Self.isEnabledKey) }
         set { userDefaults.set(newValue, forKey: Self.isEnabledKey) }
+    }
+
+    /// Whether the Claude card shows per-model weekly limits, such as "Fable this week". On until
+    /// the user turns it off.
+    var showsModelLimits: Bool {
+        get { userDefaults.object(forKey: Self.showsModelLimitsKey) as? Bool ?? true }
+        set { userDefaults.set(newValue, forKey: Self.showsModelLimitsKey) }
     }
 }

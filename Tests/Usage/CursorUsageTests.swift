@@ -133,7 +133,7 @@ struct CursorUsageTests {
 
 private extension CursorAccessTokenLookup {
     var userID: String? {
-        guard case let .token(token) = self else { return nil }
+        guard case let .token(token, _) = self else { return nil }
         return token.userID
     }
 }

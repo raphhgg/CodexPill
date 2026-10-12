@@ -116,7 +116,8 @@ open -n \
 - `CODEX_HOME` points the `codex app-server` that CodexPill starts at the same
   `auth.json`.
 - Claude usage reads `.credentials.json` from `CLAUDE_CONFIG_DIR`, or from
-  `<root>/.claude`, and never the Keychain.
+  `<root>/.claude`, and never the Keychain. Renewing an expired sign-in with
+  `claude doctor` runs only `<root>/bin/claude`.
 - Cursor usage reads `<root>/Cursor/state.vscdb`, never Cursor's real database.
 
 Switching still asks the real Codex app to relaunch. Quit the isolated app by

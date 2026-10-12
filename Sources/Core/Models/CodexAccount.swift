@@ -88,7 +88,6 @@ struct CodexRemoteAccountIdentity: Codable, Hashable {
 
 struct CodexAccount: Identifiable, Codable, Hashable {
     let id: UUID
-    var name: String
     var snapshotFileName: String
     var createdAt: Date
     var updatedAt: Date
@@ -99,7 +98,6 @@ struct CodexAccount: Identifiable, Codable, Hashable {
 
     init(
         id: UUID,
-        name: String,
         snapshotFileName: String,
         createdAt: Date,
         updatedAt: Date,
@@ -109,7 +107,6 @@ struct CodexAccount: Identifiable, Codable, Hashable {
         identity: CodexAccountIdentity = .empty
     ) {
         self.id = id
-        self.name = name
         self.snapshotFileName = snapshotFileName
         self.createdAt = createdAt
         self.updatedAt = updatedAt
@@ -121,7 +118,9 @@ struct CodexAccount: Identifiable, Codable, Hashable {
 
     private enum CodingKeys: String, CodingKey {
         case id
-        case name
+        /// The name users once typed for an account. It is no longer read, but is still written, as the email, so
+        /// earlier app versions, which require it, can read the file.
+        case legacyName = "name"
         case snapshotFileName
         case createdAt
         case updatedAt
@@ -134,7 +133,6 @@ struct CodexAccount: Identifiable, Codable, Hashable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
-        name = try container.decode(String.self, forKey: .name)
         snapshotFileName = try container.decode(String.self, forKey: .snapshotFileName)
         createdAt = try container.decode(Date.self, forKey: .createdAt)
         updatedAt = try container.decode(Date.self, forKey: .updatedAt)
@@ -154,7 +152,7 @@ struct CodexAccount: Identifiable, Codable, Hashable {
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
-        try container.encode(name, forKey: .name)
+        try container.encode(email ?? "Codex account", forKey: .legacyName)
         try container.encode(snapshotFileName, forKey: .snapshotFileName)
         try container.encode(createdAt, forKey: .createdAt)
         try container.encode(updatedAt, forKey: .updatedAt)
@@ -162,6 +160,20 @@ struct CodexAccount: Identifiable, Codable, Hashable {
         try container.encodeIfPresent(planType, forKey: .planType)
         try container.encodeIfPresent(usage.map(StoredCodexRateLimits.init), forKey: .rateLimits)
         try container.encode(identity, forKey: .identity)
+    }
+
+    /// Saved accounts list by email, then the ones without an email in the order they were added.
+    static func listOrder(_ lhs: CodexAccount, _ rhs: CodexAccount) -> Bool {
+        switch (lhs.email, rhs.email) {
+        case let (left?, right?) where left.caseInsensitiveCompare(right) != .orderedSame:
+            left.localizedCaseInsensitiveCompare(right) == .orderedAscending
+        case (_?, nil):
+            true
+        case (nil, _?):
+            false
+        default:
+            lhs.createdAt < rhs.createdAt
+        }
     }
 
     var resolvedRemoteIdentity: CodexRemoteAccountIdentity? {
@@ -200,6 +212,7 @@ struct CodexAccount: Identifiable, Codable, Hashable {
 
 /// The `rateLimits` shape that accounts.json has always stored: Codex's positional primary and
 /// secondary windows. Writing the same shape keeps the file readable by earlier app versions.
+/// Reading names each window by its length again, so a file saved with the wrong names reads correctly.
 private struct StoredCodexRateLimits: Codable {
     struct Window: Codable {
         var usedPercent: Int
@@ -224,8 +237,8 @@ private struct StoredCodexRateLimits: Codable {
 
     init(_ usage: UsageSnapshot) {
         planType = usage.planName
-        primary = usage.window(.session).map(Window.init)
-        secondary = usage.window(.weekly).map(Window.init)
+        primary = usage.codexSlots.primary.map(Window.init)
+        secondary = usage.codexSlots.secondary.map(Window.init)
         fetchedAt = usage.fetchedAt
         resetCredits = usage.resetCredits.map { resetCredits in
             ResetCredits(

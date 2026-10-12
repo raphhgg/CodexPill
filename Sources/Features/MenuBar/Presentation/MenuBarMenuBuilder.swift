@@ -72,25 +72,19 @@ struct MenuBarMenuBuilder {
         let accountActionsEnabled = !state.isBusy
         let menu = NSMenu(title: title)
 
-        if let active = section.activeAccount {
-            menu.addItem(disabledItem(active.label))
-            menu.addItem(.separator())
-        }
-
-        let others = section.otherAccounts
-        if others.count == 1, let other = others.first {
-            let item = providerItem(title: "Use \(other.label)", .switchAccount(other.id), for: provider, target: target)
-            item.isEnabled = accountActionsEnabled
+        if let activeLabel = section.activeLabel {
+            let item = disabledItem(activeLabel)
+            item.state = .on
             menu.addItem(item)
-        } else if others.count > 1 {
-            let accounts = NSMenu(title: "Use Another \(title) Account")
-            for other in others {
-                let item = providerItem(title: other.label, .switchAccount(other.id), for: provider, target: target)
-                item.isEnabled = accountActionsEnabled
-                accounts.addItem(item)
-            }
-            menu.addItem(submenuItem(accounts))
         }
+        for other in section.otherAccounts {
+            let actions = NSMenu(title: other.label)
+            actions.addItem(providerItem(title: "Use", .switchAccount(other.id), for: provider, target: target))
+            actions.addItem(providerItem(title: "Remove…", .removeAccount(other.id), for: provider, target: target))
+            actions.items.forEach { $0.isEnabled = accountActionsEnabled }
+            menu.addItem(accountItem(other, submenu: actions))
+        }
+        addSeparatorIfNeeded(to: menu)
 
         if let credits = section.card.resetCredits {
             let use = providerItem(title: "Use a Reset…", .useResetCredit, for: provider, target: target)
@@ -129,19 +123,8 @@ struct MenuBarMenuBuilder {
             add.isEnabled = accountActionsEnabled
             menu.addItem(add)
         }
-        if !section.accounts.isEmpty {
-            let remove = NSMenu(title: "Remove \(title) Account")
-            for account in section.accounts {
-                let item = providerItem(title: "\(account.label)…", .removeAccount(account.id), for: provider, target: target)
-                item.isEnabled = accountActionsEnabled
-                remove.addItem(item)
-            }
-            menu.addItem(submenuItem(remove))
-        }
-
-        if provider != .codex {
-            menu.addItem(.separator())
-            menu.addItem(providerItem(title: "Disconnect \(title)", .disconnect, for: provider, target: target))
+        if menu.items.last?.isSeparatorItem == true {
+            menu.removeItem(at: menu.numberOfItems - 1)
         }
         return menu
     }
@@ -149,6 +132,9 @@ struct MenuBarMenuBuilder {
     private func settingsMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
         let menu = NSMenu(title: "Settings")
         menu.addItem(addAccountMenuItem(state: state, target: target))
+        for usage in state.providerUsage where usage.status != .notConnected {
+            menu.addItem(providerItem(title: "Disconnect \(usage.provider.copy.sectionTitle)", .disconnect, for: usage.provider, target: target))
+        }
         menu.addItem(.separator())
 
         let appearance = NSMenu(title: "Appearance")
@@ -157,6 +143,7 @@ struct MenuBarMenuBuilder {
         appearance.addItem(usageBarsMenuItem(state: state, target: target))
         appearance.addItem(.separator())
         appearance.addItem(toggleItem("Show Token Usage", isOn: state.tokenUsageEnabled, action: #selector(MenuBarCoordinator.toggleTokenUsage(_:)), target: target))
+        appearance.addItem(toggleItem("Show Model Limits", isOn: state.showsModelLimits, action: #selector(MenuBarCoordinator.toggleShowsModelLimits(_:)), target: target))
         menu.addItem(submenuItem(appearance))
         menu.addItem(toggleItem("Hide Emails", isOn: state.masksEmails, action: #selector(MenuBarCoordinator.toggleMasksEmails(_:)), target: target))
         menu.addItem(refreshIntervalMenuItem(state: state, target: target))
@@ -259,6 +246,20 @@ struct MenuBarMenuBuilder {
                 item.keyEquivalent = keyEquivalent
                 item.keyEquivalentModifierMask = presentation.modifierFlags
             }
+        }
+        return item
+    }
+
+    /// A saved account that is not in use, with its last limits on a second, smaller line.
+    private func accountItem(_ account: ToolAccount, submenu: NSMenu) -> NSMenuItem {
+        let item = submenuItem(submenu)
+        if let usageLine = account.usageLine {
+            let attributed = NSMutableAttributedString(string: account.label, attributes: [.font: NSFont.menuFont(ofSize: 0)])
+            attributed.append(NSAttributedString(
+                string: "\n" + usageLine,
+                attributes: [.font: NSFont.menuFont(ofSize: NSFont.smallSystemFontSize), .foregroundColor: NSColor.secondaryLabelColor]
+            ))
+            item.attributedTitle = attributed
         }
         return item
     }

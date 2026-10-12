@@ -30,7 +30,22 @@ until it says the item could not be found:
 security delete-generic-password -s "CodexPill Claude Code account"
 security delete-generic-password -s "CodexPill Cursor accounts"
 rm -f "$HOME/Library/Application Support/CodexPill/claude-code-accounts.json"
+rm -rf "$HOME/Library/Application Support/CodexPill/claude-sign-in"
+rm -rf "$HOME/Library/Application Support/CodexPill/cursor-sign-in"
 ```
+
+A test build that crashed while adding a Claude account could also leave a
+`Claude Code-credentials-<8 characters>` item. List them and delete each by its
+exact name:
+
+```sh
+security dump-keychain | grep -o '"Claude Code-credentials-[0-9a-f]\{8\}"' | sort -u
+security delete-generic-password -s "Claude Code-credentials-<8 characters>"
+```
+
+Only delete names with the 8-character suffix. The plain `Claude Code-credentials`
+item is your real Claude Code sign-in. A suffixed item can also belong to a Claude
+Code you run yourself with `CLAUDE_CONFIG_DIR` set.
 
 This does not delete `~/.codex/auth.json`. Do not remove or edit that file unless
 you intentionally want to sign out of Codex or repair Codex itself.

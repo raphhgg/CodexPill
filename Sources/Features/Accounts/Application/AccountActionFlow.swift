@@ -22,13 +22,11 @@ struct AccountActionFlow {
 
     enum AddAccountFailureStep: Equatable {
         case showSignInFailure(AddAccountSignInFailureOutcome)
-        case offerSignInRetry(outcome: AddAccountSignInFailureOutcome, retryName: String)
+        case offerSignInRetry(outcome: AddAccountSignInFailureOutcome)
         case showError(message: String)
-        case showEmptyNameAndRetry(message: String)
-        case offerDuplicateNameRecovery
         case showUnsafeAuthChange
         case showSaveFailure
-        case showAccountAlreadySaved(accountName: String)
+        case showAccountAlreadySaved(accountID: UUID)
     }
 
     enum AddAccountConfirmationStep: Equatable {
@@ -36,10 +34,7 @@ struct AccountActionFlow {
         case none
     }
 
-    func resolveAddAccountCompletion(
-        _ result: AddAccountResult,
-        retryName: String
-    ) -> AddAccountCompletionStep {
+    func resolveAddAccountCompletion(_ result: AddAccountResult) -> AddAccountCompletionStep {
         switch result {
         case .completed(let account):
             return .offerLocalSwitch(account)
@@ -47,40 +42,31 @@ struct AccountActionFlow {
             if error is CancellationError {
                 return .none
             }
-            return .handleFailure(resolveAddAccountFailure(error, retryName: retryName))
+            return .handleFailure(resolveAddAccountFailure(error))
         case .cancelled:
             return .none
         }
     }
 
-    func resolveAddAccountStartFailure(_ error: Error, retryName: String) -> AddAccountFailureStep {
-        resolveAddAccountFailure(error, retryName: retryName)
+    func resolveAddAccountStartFailure(_ error: Error) -> AddAccountFailureStep {
+        resolveAddAccountFailure(error)
     }
 
     func resolveAddAccountSuccessConfirmation(account: CodexAccount, accepted: Bool) -> AddAccountConfirmationStep {
         accepted ? .switchLocally(account) : .none
     }
 
-    private func resolveAddAccountFailure(_ error: Error, retryName: String) -> AddAccountFailureStep {
+    private func resolveAddAccountFailure(_ error: Error) -> AddAccountFailureStep {
         if let loginError = error as? IsolatedCodexLoginError {
             switch loginError {
             case .promptUnavailable(let reason):
                 return .showSignInFailure(.promptUnavailable(reason: reason))
             case .authCaptureTimedOut:
-                return .offerSignInRetry(outcome: .expiredCode, retryName: retryName)
+                return .offerSignInRetry(outcome: .expiredCode)
             case .authCaptureFailed:
                 return .showSignInFailure(.captureFailed)
             case .loginStatusVerificationFailed:
                 return .showSignInFailure(.verificationFailed)
-            }
-        }
-
-        if let displayNameError = error as? AccountDisplayNameError {
-            switch displayNameError {
-            case .duplicateAccountName:
-                return .offerDuplicateNameRecovery
-            case .emptyAccountName:
-                return .showEmptyNameAndRetry(message: displayNameError.localizedDescription)
             }
         }
 
@@ -90,8 +76,8 @@ struct AccountActionFlow {
                 return .showUnsafeAuthChange
             case .catalogSaveFailed:
                 return .showSaveFailure
-            case .accountAlreadySaved(let accountName):
-                return .showAccountAlreadySaved(accountName: accountName)
+            case .accountAlreadySaved(let accountID):
+                return .showAccountAlreadySaved(accountID: accountID)
             }
         }
 

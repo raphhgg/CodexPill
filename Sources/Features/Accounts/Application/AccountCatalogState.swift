@@ -23,7 +23,7 @@ struct AccountCatalogState {
         } else {
             accounts.append(account)
         }
-        accounts.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        accounts.sort(by: CodexAccount.listOrder)
         self.activeAccountID = activeAccountID
     }
 

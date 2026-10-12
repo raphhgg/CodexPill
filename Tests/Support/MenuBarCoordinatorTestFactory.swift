@@ -28,6 +28,7 @@ extension MenuBarCoordinator {
             menuDisplaySettings: settings.menuDisplaySettings,
             statusItemSettings: settings.statusItemSettings,
             tokenUsagePreferences: settings.tokenUsagePreferences,
+            claudeUsageSettings: settings.claudeUsageSettings,
             cliProcessInspector: CodexCLIProcessInspector(),
             alertPresenter: alertPresenter,
             panelPresenter: panelPresenter,

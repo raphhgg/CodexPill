@@ -6,10 +6,10 @@ It is for people who use more than one Codex account, or Codex next to Claude Co
 
 - save Codex accounts as reusable local sign-ins;
 - switch the Codex account from the menubar;
-- see current usage (session, weekly, or billing cycle) before choosing which account or tool to use;
+- see current usage (session, weekly, monthly, or billing cycle) before choosing which account or tool to use;
 - spend a Codex reset credit when one is available.
 
-Codex is always on. Claude Code and Cursor are opt-in and read-only: each is read only after the user connects it, and CodexPill shows the one account each tool is signed in to. It never writes their files or Keychain items.
+Codex is always on. Claude Code and Cursor are opt-in and read-only: each is read only after the user connects it, and CodexPill shows the one account each tool is signed in to, by its email. It never writes their files or Keychain items. The one thing it runs is `claude doctor`, which lets Claude Code renew its own expired sign-in.
 
 Detailed product behavior and UX contracts live in [features](features/README.md).
 
@@ -60,7 +60,7 @@ The account a tool uses right now on this Mac, read from that tool's own live si
 
 ### Usage Snapshot
 
-The most recent reading of a tool's limits: one window per limit the tool reports (session, weekly, billing cycle), with reset times. A window the tool does not report is hidden, never shown as 0%.
+The most recent reading of a tool's limits: one window per limit the tool reports, named by its length (session, weekly, monthly, billing cycle, or a length such as `8 days`), with reset times. A window the tool does not report is hidden, never shown as 0%.
 
 ### Reset Credit
 
@@ -69,7 +69,7 @@ A Codex credit that resets the current limits early. CodexPill shows how many ar
 ## Non-Goals
 
 - Browser-based ChatGPT account switching.
-- Signing in to Claude Code or Cursor, renewing their sessions, or switching their accounts.
+- Signing in to Claude Code or Cursor, switching their accounts, or renewing their sessions with CodexPill's own code. Claude Code renews its own expired sign-in when CodexPill runs `claude doctor` while Claude Code is not running.
 - Cloud sync or multi-device account storage.
 - Team/shared account management.
 - Background telemetry pipeline.

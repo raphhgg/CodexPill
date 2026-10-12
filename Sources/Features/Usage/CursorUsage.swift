@@ -1,6 +1,6 @@
 import Foundation
 
-/// Cursor plan usage for the menu, read only after the user connects Cursor.
+/// Cursor plan usage for the menu, read from Cursor's live sign-in once the user connects it.
 struct CursorUsage: ProviderConnection {
     let provider = UsageProvider.cursor
     let staleAfter: TimeInterval = 15 * 60
@@ -30,8 +30,6 @@ struct CursorUsage: ProviderConnection {
     func disconnect() async {
         settings.isEnabled = false
     }
-
-    let signIn: (any ProviderSignIn)? = nil
 
     func readUsage(now _: Date) async -> UsageProviderReading {
         guard settings.isEnabled else { return .notConnected }
@@ -68,7 +66,8 @@ struct CursorUsage: ProviderConnection {
             planName: snapshot.planName,
             windows: windows,
             fetchedAt: snapshot.fetchedAt,
-            spend: snapshot.onDemand.map { UsageSpend(usedUSD: $0.usedUSD, limitUSD: $0.limitUSD) }
+            spend: snapshot.onDemand.map { UsageSpend(usedUSD: $0.usedUSD, limitUSD: $0.limitUSD) },
+            accountEmail: snapshot.accountEmail
         )
     }
 }

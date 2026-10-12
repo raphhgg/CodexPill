@@ -8,7 +8,7 @@ As a CodexPill user who also works in Claude Code on a Pro or Max plan, I want t
 
 Claude Usage is an optional menu bar feature. When connected, CodexPill shows the 5-hour and weekly limits of the Claude account that Claude Code is signed in to.
 
-Reading usage never changes anything in Claude Code. CodexPill never signs in to Claude and never renews Claude Code's sign-in. If Claude Code's sign-in is missing or expired, CodexPill says so and points the user back to Claude Code. CodexPill shows only the account Claude Code is signed in to. It never saves, adds, or switches Claude accounts, and it never writes Claude Code's files or Keychain item.
+Reading usage never changes anything in Claude Code. CodexPill never signs in to Claude, never renews a sign-in itself, and never calls Anthropic's token endpoint. If Claude Code's sign-in is missing, CodexPill says so and points the user back to Claude Code. When it has expired and no terminal `claude` runs, CodexPill runs `claude doctor` so Claude Code renews it, described in [Live Renewal](#live-renewal). CodexPill shows only the account Claude Code is signed in to, by its email. It never saves, adds, or switches Claude accounts, and it never writes Claude Code's files or Keychain item.
 
 The feature is off by default. Connecting it is the user's consent for CodexPill to read Claude Code's sign-in and send it to Anthropic.
 
@@ -18,7 +18,7 @@ CodexPill never reads or writes Claude Code's `settings.json`. Reading limits fr
 
 ## Menu
 
-The `Claude` card follows the shared card and side menu in [Menubar](menubar.md). The side menu has no account actions and ends with `Disconnect Claude`.
+The `Claude` card follows the shared card and side menu in [Menubar](menubar.md). The side menu shows the email Claude Code is signed in to, checked and disabled, and has no account actions. `Disconnect Claude` is in Settings.
 
 - **Not connected.** There is no card. `Settings › Add Account › Claude…` (and the first-run `Add Account ›`) connects. Choosing it opens a consent alert first. Nothing is read until the user confirms.
 - **Consent alert.** One short alert:
@@ -27,8 +27,8 @@ The `Claude` card follows the shared card and side menu in [Menubar](menubar.md)
   > Uses Claude Code's sign-in to read your limits.
 
   Confirming saves the choice and reads at once. That first read may show the macOS Keychain prompt.
-- **Connected.** The choice is saved in user defaults (`claudeUsageEnabled`, off by default). The side menu ends with `Disconnect Claude`, which turns the feature off at once with no alert, because it changes nothing outside CodexPill.
-- **Current.** The plan tag (`Max x20`, read from Claude Code's `rateLimitTier`), then `Session` and `Weekly` meters with their reset times. There is no reset-credit row. The meters use the same percent mode, layout, colors, and pacing markers as the Codex card.
+- **Connected.** The choice is saved in user defaults (`claudeUsageEnabled`, off by default). `Disconnect Claude` in Settings turns the feature off at once with no alert, because it changes nothing outside CodexPill.
+- **Current.** The plan tag (`Max x20`, read from `organizationRateLimitTier`, else `userRateLimitTier`, in Claude Code's `oauthAccount`, because the credentials' `rateLimitTier` keeps the tier from sign-in time; that one is used only when the account record has none), then `Session` and `Weekly` meters with their reset times, then one meter per model with its own weekly limit, such as `Fable this week`, unless `Settings › Appearance › Show Model Limits` is off. There is no reset-credit row. The meters use the same percent mode, layout, colors, and pacing markers as the Codex card.
 - **Waiting.** `Waiting for Claude Code usage`, with no second line. Anthropic answered but sent neither window, for example on a plan without subscription limits.
 - **Keychain access needed.** The card says `Allow Keychain access` and one row under it, `Allow Keychain access…`, It reads again with the macOS Keychain prompt allowed. Claude Code rewrites its Keychain item when it renews its sign-in, which can reset an earlier `Always Allow`, so this state can come back.
 - **Failures.** Each failure shows a title and one short line. Except for signed out, the last good values stay dimmed below it with their `As of` time.
@@ -36,7 +36,7 @@ The `Claude` card follows the shared card and side menu in [Menubar](menubar.md)
   | Cause | Title | Second line |
   |---|---|---|
   | No sign-in | `Not signed in to Claude Code` | `Sign in to Claude Code to see usage.` |
-  | Token past its expiry, or `401` | `Claude Code sign-in expired` | `Open Claude Code to renew it.` |
+  | Token past its expiry, or `401` | `Claude Code sign-in expired` | `Run claude to renew it.` |
   | Credentials file or Keychain item unreadable or not JSON | `Can't read the Claude Code sign-in` | `Sign in to Claude Code again.` |
   | `403` | `Anthropic won't share usage` | `Sign in to Claude Code again.` |
   | `429`, or waiting out `Retry-After` | `Anthropic asked to wait` | `Retrying in a few minutes.` |
@@ -56,29 +56,41 @@ All knowledge of Claude Code's sign-in and of Anthropic's usage endpoint lives i
 1. `.credentials.json` in Claude Code's config folder: `CLAUDE_CONFIG_DIR` when CodexPill's environment sets it, otherwise `~/.claude`.
 2. The login Keychain generic password with service `Claude Code-credentials` and account set to the macOS user name.
 
-Both hold the same JSON. CodexPill decodes only `claudeAiOauth.accessToken`, `claudeAiOauth.expiresAt` (milliseconds since 1970), and `claudeAiOauth.subscriptionType`. It never decodes the refresh token. A file with no `claudeAiOauth`, for example one with only `mcpOAuth`, falls through to the Keychain; a Keychain item with none means signed out. A file or item that can't be read or isn't JSON is reported as unreadable, never skipped.
+Both hold the same JSON. CodexPill decodes only `claudeAiOauth.accessToken`, `claudeAiOauth.expiresAt` (milliseconds since 1970), `claudeAiOauth.subscriptionType`, and `claudeAiOauth.rateLimitTier`. From `oauthAccount` in Claude Code's global config (`$CLAUDE_CONFIG_DIR/.claude.json`, or `~/.claude.json`) it decodes only the two rate-limit tiers and `emailAddress`, which the side menu shows. It never decodes the refresh token. A file with no `claudeAiOauth`, for example one with only `mcpOAuth`, falls through to the Keychain; a Keychain item with none means signed out. A file or item that can't be read or isn't JSON is reported as unreadable, never skipped.
 
 **Keychain prompts.** Only a user action may show the macOS Keychain prompt: confirming `Connect Claude Code?` or choosing `Allow Keychain access…`. Every other read first checks that the item exists by asking for its attributes, which needs no decryption. It then asks for the data with an `LAContext` whose `interactionNotAllowed` is set and `kSecUseAuthenticationUI` set to skip. If macOS still needs approval, the read reports Keychain access needed instead of prompting.
 
 **Request.** `GET https://api.anthropic.com/api/oauth/usage` with `Authorization: Bearer <token>` and `anthropic-beta: oauth-2025-04-20`. The HTTP session has no cookie store and no URL cache. It follows a redirect only to the same host over HTTPS, so the token never reaches another host.
 
-**Response.** `five_hour` and `seven_day` are each `{utilization, resets_at}`: `utilization` runs from 0 to 100 and `resets_at` is ISO 8601. CodexPill maps `five_hour` to `Session` (300 minutes) and `seven_day` to `Weekly` (10,080 minutes). It ignores other windows such as `seven_day_opus` and `seven_day_sonnet`. A null or missing window is left out. The plan name comes from `subscriptionType`, for example `max`.
+**Response.** `five_hour` and `seven_day` are each `{utilization, resets_at}`: `utilization` runs from 0 to 100 and `resets_at` is ISO 8601. CodexPill maps `five_hour` to `Session` (300 minutes) and `seven_day` to `Weekly` (10,080 minutes). Each `limits[]` entry with `kind` `weekly_scoped` is a per-model weekly limit: its name is `scope.model.display_name` (both Claude clients title it that way), its used share is `percent` and its reset is `resets_at`. CodexPill shows it as `<name> this week` (10,080 minutes), in response order after `Weekly`. An entry without a name or percent is skipped, a repeated name keeps the first, and a malformed `limits` never fails the read. The menu bar icon ignores these windows. It ignores other windows such as `seven_day_opus` and `seven_day_sonnet`. A null or missing window is left out. The plan name comes from `subscriptionType`, for example `max`.
 
 ## Read Policy
 
-- Expired token (`expiresAt` in the past): no request. The menu shows sign-in expired. Claude Code renews the token the next time it runs.
+- Expired token (`expiresAt` in the past): no request. The menu shows sign-in expired, then CodexPill lets Claude Code renew it (see [Live Renewal](#live-renewal)).
 - `401`: sign-in expired.
 - `403`: access denied. Anthropic knows the token but won't share usage with it, for example a token without the profile scope.
 - `429`: no request until `Retry-After` passes, given as seconds or an HTTP date, or 5 minutes when the header is missing or unreadable. The menu shows rate limited meanwhile.
 - Network failure: unreachable. Another status: service error. An unreadable body: unexpected response. The shared provider runtime keeps the last good values for all of these.
 - CodexPill holds the token only for the length of one read. It never stores, logs, displays, or refreshes it. `ClaudeAccessToken` prints as `ClaudeAccessToken(redacted)` and reflects no children.
 
+## Live Renewal
+
+Claude Code's access token lasts 8 hours, and Claude Code renews it only while it runs. So after a read finds the live sign-in expired, CodexPill runs `claude doctor` with Claude Code's own config (no `CLAUDE_CONFIG_DIR` unless Claude Code itself uses one). Claude Code renews an expired sign-in whenever it runs, without a model call, rotates the refresh token, and saves the result where it always does. CodexPill then reads usage again.
+
+- Only when the token's `expiresAt` has passed, never early. A `401` on a token that has not expired does not count.
+- Only when `claude` is installed and no terminal `claude` session runs, since a running one renews its own token. The Claude desktop app's own Claude Code, under `~/Library/Application Support/Claude/claude-code/`, is ignored because it keeps its own sign-in.
+- At most once per expiry, and again for the same expiry only after 30 minutes, so a sign-in Claude Code can't renew does not run `claude doctor` on every read. It then stays `Claude Code sign-in expired`.
+- One renewal at a time.
+- The expiry is read without the Keychain prompt. If the read needs the prompt, nothing runs.
+- `claude` runs with a minimal environment (none of the user's shell variables), stdin open and empty, and its output discarded.
+
 ## Isolated Runs
 
-With `CODEXPILL_ISOLATED_APP_SUPPORT_DIR` set, CodexPill never reads the real Claude sign-in:
+With `CODEXPILL_ISOLATED_APP_SUPPORT_DIR` set, CodexPill never reads the real Claude sign-in or runs the real `claude`:
 
-- The config folder is `CLAUDE_CONFIG_DIR` when set, otherwise `<root>/.claude`. Only its `.credentials.json` is read.
+- The config folder is `CLAUDE_CONFIG_DIR` when set, otherwise `<root>/.claude`. Only its `.credentials.json` and `.claude.json` are read.
 - The Keychain is skipped, so a missing file reads as signed out. An expired sign-in in that file shows the sign-in expired state without any request.
+- The only `claude` it runs is `<root>/bin/claude`, so a test build can use a stand-in script for renewal.
 
 ## Privacy
 
@@ -88,7 +100,10 @@ The user-facing summary lives in [PRIVACY.md](../PRIVACY.md).
 
 - `ClaudeCredentialsTests` parse literal credentials, including the `mcpOAuth`-only case, prove the file wins over the Keychain, and prove the token appears in no `String(describing:)`, `String(reflecting:)`, or `dump` output of the credentials or the request.
 - `ClaudeUsageAPITests` cover the response mapping, the request headers, the redirect rule, and status mapping for `401` and `429`. `RetryAfterTests` cover the shared `Retry-After` parser.
-- `ClaudeCodeUsageTests` cover opt-in, the Keychain prompt only after a user action, the expiry gate, each failure state, and the rate-limit wait. A scan in `ClaudeCredentialsTests` proves no Claude source uses a refresh token.
+- `ClaudeCodeUsageTests` cover opt-in, the Keychain prompt only after a user action, the expiry gate, each failure state, and the rate-limit wait. A scan in `ClaudeCredentialsTests` proves no Claude source uses a refresh token, and other `ClaudeCredentialsTests` read the plan tier and the email from the account record.
+- `ClaudeLiveRenewalTests` run `ClaudeCodeUsage` against a fake `claude`: renewal after expiry only, not while `claude` runs, the 30-minute retry, and a fresh read once Claude Code renewed.
+- `ClaudeCodeProcessDetectorTests` feed `ps` lines and check that terminal Claude Code counts in every install form, and that the Claude desktop app's own Claude Code does not.
+- `ClaudeCodeProcessRunnerTests` run a stand-in `claude` script to check the exact `CLAUDE_CONFIG_DIR`, the minimal environment, and that cancelling stops a waiting run.
 - `ProviderCopyTests` checks that every failure reads differently and stays a title plus one short line.
 - A coordinator test walks the menu from `Add Account › Claude…` through declined consent, current usage, `Allow Keychain access…`, and disconnect, reading the built `NSMenu`.
 - No test touches the network or the real Keychain.

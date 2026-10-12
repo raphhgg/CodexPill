@@ -7,7 +7,7 @@ struct RefreshActiveAccountResult: Equatable {
 protocol ActiveAuthSnapshotRelinking: Sendable {
     func currentAuthFingerprint() -> String?
     func readCurrentAuthData() throws -> Data
-    func saveAuthSnapshot(_ authData: Data, named name: String, existing: CodexAccount?) throws -> CodexAccount
+    func saveAuthSnapshot(_ authData: Data, existing: CodexAccount?) throws -> CodexAccount
 }
 
 extension CodexAuthSnapshotService: ActiveAuthSnapshotRelinking {}
@@ -99,7 +99,6 @@ struct RefreshActiveAccountUseCase: Sendable {
         let currentAuthData = try activeAuthSnapshotRelinker.readCurrentAuthData()
         var relinkedAccount = try activeAuthSnapshotRelinker.saveAuthSnapshot(
             currentAuthData,
-            named: account.name,
             existing: account
         )
         relinkedAccount.updatedAt = account.updatedAt

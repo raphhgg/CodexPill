@@ -14,7 +14,7 @@ enum ClaudeUsageStatus: Equatable, Sendable {
     case unreachable
     case serviceError
     case unexpectedResponse
-    case available(ClaudeUsageReport, planName: String?)
+    case available(ClaudeUsageReport, planName: String?, email: String?)
 }
 
 /// Reads Claude Code's sign-in and fetches its usage, once per call. It holds no token between calls.
@@ -34,6 +34,12 @@ actor ClaudeUsageClient {
     /// Lets the next read show the Keychain prompt. Call it only from a user action.
     func allowKeychainPromptOnNextRead() {
         promptAllowedOnNextRead = true
+    }
+
+    /// When Claude Code's live sign-in expires, read without the Keychain prompt. Nil when it can't be read.
+    func liveSignInExpiry() -> Date? {
+        guard case let .credentials(signIn) = credentials.lookup(allowingPrompt: false) else { return nil }
+        return signIn.expiresAt
     }
 
     func refresh(now: Date) async -> ClaudeUsageStatus {
@@ -68,7 +74,7 @@ actor ClaudeUsageClient {
         }
 
         do {
-            return .available(try ClaudeUsageAPI.parseUsage(data), planName: signIn.planName)
+            return .available(try ClaudeUsageAPI.parseUsage(data), planName: signIn.planName, email: signIn.email)
         } catch {
             return .unexpectedResponse
         }

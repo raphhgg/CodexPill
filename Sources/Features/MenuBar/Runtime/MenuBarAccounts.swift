@@ -19,7 +19,7 @@ protocol MenuBarAccounts: AnyObject {
     func refreshInactiveSavedAccountsMetadata() async
     func persistAccountMetadata(_ account: CodexAccount)
     func consumePendingErrorMessage() -> String?
-    func startIsolatedAddAccountFlow(named pendingAccountName: String?) async throws -> IsolatedAddAccountSignInSession
+    func startIsolatedAddAccountFlow() async throws -> IsolatedAddAccountSignInSession
     func completeIsolatedAddAccount(_ session: IsolatedAddAccountSignInSession) async throws -> CodexAccount
     func cancelIsolatedAddAccount(_ session: IsolatedAddAccountSignInSession)
 }

@@ -128,65 +128,13 @@ struct ProviderUsageRuntimeTests {
         #expect(runtime.states == [ProviderUsageState(provider: .cursor, status: .unavailable(.notInstalled, lastSnapshot: nil))])
     }
 
-    @Test
-    func aReadThatStartedBeforeASignInIsDroppedWhenItFinishesAfterIt() async {
-        let snapshot = UsageSnapshot(
-            provider: .cursor,
-            planName: "pro",
-            windows: [UsageWindow(kind: .billingCycle, usedPercent: 82, resetsAt: nil, durationMinutes: nil)],
+    private func claudeSnapshot(sessionPercent: Int) -> UsageSnapshot {
+        UsageSnapshot(
+            provider: .claude,
+            planName: "max",
+            windows: [UsageWindow(kind: .session, usedPercent: sessionPercent, resetsAt: nil, durationMinutes: 300)],
             fetchedAt: start
         )
-        let gate = TestGate()
-        let cursor = ProviderConnectionProbe(provider: .cursor, reading: .snapshot(snapshot), signIn: InstantSignIn())
-        cursor.update { $0.readGate = gate }
-        let runtime = ProviderUsageRuntime(connections: [cursor], now: { [start] in start }, onChange: {})
-
-        let slowRead = Task { await runtime.refreshIfDue() }
-        await gate.waitUntilReached()
-        cursor.update {
-            $0.readGate = nil
-            $0.reading = .unavailable(.unreachable)
-        }
-        let notice = await runtime.perform(.signIn, on: .cursor)
-        await gate.open()
-        await slowRead.value
-
-        #expect(notice == nil)
-        #expect(cursor.readCount == 2)
-        #expect(runtime.states == [ProviderUsageState(provider: .cursor, status: .unavailable(.unreachable, lastSnapshot: nil))])
-    }
-
-    @Test
-    func signingInIsShownUntilTheBrowserSignInEndsThenTheToolIsReadAgain() async {
-        let gate = TestGate()
-        let claude = ProviderConnectionProbe(provider: .claude, reading: .unavailable(.signedOut), signIn: GatedSignIn(gate: gate))
-        let runtime = ProviderUsageRuntime(connections: [claude], now: { [start] in start }, onChange: {})
-        await runtime.refreshIfDue()
-
-        let signIn = Task { await runtime.perform(.signIn, on: .claude) }
-        await gate.waitUntilReached()
-        #expect(runtime.states.map(\.isSigningIn) == [true])
-
-        claude.reading = .awaitingUsage
-        await gate.open()
-        #expect(await signIn.value == nil)
-        #expect(runtime.states == [ProviderUsageState(provider: .claude, status: .awaitingUsage)])
-        #expect(claude.readCount == 2)
     }
 }
 
-private struct GatedSignIn: ProviderSignIn {
-    let gate: TestGate
-
-    func run() async throws(ProviderNotice) -> Bool {
-        await gate.pass()
-        return true
-    }
-
-    func cancel() async {}
-}
-
-private struct InstantSignIn: ProviderSignIn {
-    func run() async throws(ProviderNotice) -> Bool { true }
-    func cancel() async {}
-}

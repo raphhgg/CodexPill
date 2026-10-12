@@ -7,5 +7,6 @@ protocol CursorAccessTokenSource: Sendable {
 enum CursorAccessTokenLookup: Sendable {
     case cursorNotInstalled
     case signedOut
-    case token(CursorAccessToken)
+    /// `email` is the account email Cursor cached at sign-in, when it has one.
+    case token(CursorAccessToken, email: String?)
 }

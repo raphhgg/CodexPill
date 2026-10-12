@@ -11,14 +11,13 @@ struct AccountAvailabilityTests {
         let availability = AccountAvailabilityService().availability(for: account)
 
         #expect(availability.sessionUsedPercent == 35)
-        #expect(availability.weeklyUsedPercent == 40)
+        #expect(availability.longWindowUsedPercent == 40)
     }
 
     @Test
     func weeklyOnlyAccountHasNoSessionUsage() {
         let account = CodexAccount(
             id: UUID(),
-            name: "Free",
             snapshotFileName: "free.json",
             createdAt: .now,
             updatedAt: .now,
@@ -35,8 +34,28 @@ struct AccountAvailabilityTests {
         let availability = AccountAvailabilityService().availability(for: account)
 
         #expect(availability.sessionUsedPercent == 0)
-        #expect(availability.weeklyUsedPercent == 0)
+        #expect(availability.longWindowUsedPercent == 0)
         #expect(availability.sessionResetAt == nil)
+    }
+
+    @Test
+    func usedUpMonthlyWindowLimitsAFreeAccount() {
+        let now = Date()
+        let resetAt = now.addingTimeInterval(20 * 86_400)
+        let account = makeAccount(
+            name: "Free",
+            usage: UsageSnapshot.codex(
+                planName: "free",
+                primary: nil,
+                secondary: (usedPercent: 100, resetsAt: resetAt, durationMinutes: 43_200),
+                fetchedAt: now
+            )
+        )
+
+        let availability = AccountAvailabilityService().availability(for: account, now: now)
+
+        #expect(availability.longWindowUsedPercent == 100)
+        #expect(availability.longWindowResetAt == resetAt)
     }
 
     @Test
@@ -52,14 +71,13 @@ struct AccountAvailabilityTests {
 
         #expect(availability.sessionUsedPercent == 100)
         #expect(availability.sessionResetAt == resetAt)
-        #expect(availability.weeklyUsedPercent == 10)
+        #expect(availability.longWindowUsedPercent == 10)
     }
 
     @Test
     func accountNeverReadCountsAsUsedUp() {
         let account = CodexAccount(
             id: UUID(),
-            name: "Unread",
             snapshotFileName: "unread.json",
             createdAt: .now,
             updatedAt: .now,
@@ -71,7 +89,7 @@ struct AccountAvailabilityTests {
         let availability = AccountAvailabilityService().availability(for: account)
 
         #expect(availability.sessionUsedPercent == 100)
-        #expect(availability.weeklyUsedPercent == 100)
+        #expect(availability.longWindowUsedPercent == 100)
     }
 }
 
@@ -90,11 +108,11 @@ struct InactiveAccountAvailabilityRankingTests {
 
         let sorted = ranking.sort([weeklyConstrained, weeklyHealthy])
 
-        #expect(sorted.map(\.name) == ["Weekly Healthy", "Weekly Constrained"])
+        #expect(sorted.map(\.email) == ["weekly healthy@example.com", "weekly constrained@example.com"])
     }
 
     @Test
-    func breaksTiesByNextAvailabilityThenUsageThenName() {
+    func breaksTiesByNextAvailabilityThenUsageThenEmail() {
         let ranking = InactiveAccountAvailabilityRanking()
         let now = Date()
         let laterReset = now.addingTimeInterval(7_200)
@@ -128,7 +146,7 @@ struct InactiveAccountAvailabilityRankingTests {
             earlierAvailable
         ])
 
-        #expect(sorted.map(\.name) == ["Earlier", "Alpha", "Zulu", "Later", "Higher Usage"])
+        #expect(sorted.map(\.email) == ["earlier@example.com", "alpha@example.com", "zulu@example.com", "later@example.com", "higher usage@example.com"])
     }
 
     @MainActor
@@ -179,8 +197,8 @@ struct InactiveAccountAvailabilityRankingTests {
 
         controller.load()
 
-        #expect(controller.activeAccount?.name == "Active")
-        #expect(controller.sortedInactiveAccounts.map(\.name) == ["Preferred", "Constrained"])
+        #expect(controller.activeAccount?.email == "active@example.com")
+        #expect(controller.sortedInactiveAccounts.map(\.email) == ["preferred@example.com", "constrained@example.com"])
     }
 }
 
@@ -221,10 +239,9 @@ private struct RankingNullAuthService: CodexAuthSessionStore, CodexSignInAuthSto
     func liveIdentity(forAuthData authData: Data) -> LiveCodexAccountIdentity { .empty }
     func restoreCurrentAuthData(_ data: Data) throws {}
 
-    func saveAuthSnapshot(_ authData: Data, named name: String, existing: CodexAccount?) throws -> CodexAccount {
+    func saveAuthSnapshot(_ authData: Data, existing: CodexAccount?) throws -> CodexAccount {
         existing ?? CodexAccount(
             id: UUID(),
-            name: name,
             snapshotFileName: "\(UUID().uuidString).json",
             createdAt: .distantPast,
             updatedAt: .distantPast,

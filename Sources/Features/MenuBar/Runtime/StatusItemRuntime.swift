@@ -195,8 +195,8 @@ final class StatusItemRuntime {
         switch presentation.source {
         case .nothingConnected:
             button.image = iconRenderer.makeAppGlyph()
-        case let .tool(section):
-            let barPercents = statusItemBarPercents(for: section.card.windows, mode: presentation.percentMode)
+        case .tool:
+            let barPercents = statusItemBarPercents(for: presentation.source.windows, mode: presentation.percentMode)
             button.image = iconRenderer.makeImage(
                 style: presentation.indicatorStyle,
                 primaryPercent: barPercents.primary,

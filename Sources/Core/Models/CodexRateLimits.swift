@@ -3,12 +3,10 @@ import Foundation
 extension UsageSnapshot {
     typealias CodexReportedWindow = (usedPercent: Int, resetsAt: Date?, durationMinutes: Int?)
 
-    private static let weeklyDurationMinutes = 10_080
-    private static let weeklyDurationToleranceMinutes = 60
-
-    /// Codex reports a primary and a secondary window. Windows with a known duration are classified by
-    /// that duration. Older payloads without durations are read by position: primary is the session
-    /// window and secondary the weekly window, but only when neither window reports a duration.
+    /// Codex reports up to two windows, a primary and a secondary, and either may be missing. A window is named
+    /// by its length, never by its slot: a free plan's only window is 30 days long and arrives as secondary.
+    /// Windows come back shortest first, each kind once (the first reported wins). Older payloads without lengths
+    /// are read by slot, primary as session and secondary as weekly, but only when neither window reports a length.
     static func codex(
         planName: String?,
         primary: CodexReportedWindow?,
@@ -16,33 +14,35 @@ extension UsageSnapshot {
         fetchedAt: Date
     ) -> UsageSnapshot {
         let reported = [primary, secondary].compactMap { $0 }
-        let classified: [(kind: UsageWindowKind, window: CodexReportedWindow)]
+        let windows: [UsageWindow]
         if reported.contains(where: { $0.durationMinutes != nil }) {
-            classified = reported.compactMap { window in
-                window.durationMinutes.map { (kind: kind(forDurationMinutes: $0), window: window) }
-            }
+            windows = reported
+                .compactMap { window in
+                    window.durationMinutes.map {
+                        UsageWindow(
+                            kind: UsageWindowKind(durationMinutes: $0),
+                            usedPercent: window.usedPercent,
+                            resetsAt: window.resetsAt,
+                            durationMinutes: $0
+                        )
+                    }
+                }
+                .reduce(into: [UsageWindow]()) { kept, window in
+                    if !kept.contains(where: { $0.kind == window.kind }) { kept.append(window) }
+                }
+                .sorted { ($0.durationMinutes ?? 0) < ($1.durationMinutes ?? 0) }
         } else {
-            classified = [
-                primary.map { (kind: UsageWindowKind.session, window: $0) },
-                secondary.map { (kind: UsageWindowKind.weekly, window: $0) },
+            windows = [
+                primary.map { UsageWindow(kind: .session, usedPercent: $0.usedPercent, resetsAt: $0.resetsAt) },
+                secondary.map { UsageWindow(kind: .weekly, usedPercent: $0.usedPercent, resetsAt: $0.resetsAt) },
             ].compactMap { $0 }
-        }
-
-        let windows = [UsageWindowKind.session, .weekly].compactMap { kind in
-            classified.first { $0.kind == kind }.map {
-                UsageWindow(
-                    kind: kind,
-                    usedPercent: $0.window.usedPercent,
-                    resetsAt: $0.window.resetsAt,
-                    durationMinutes: $0.window.durationMinutes
-                )
-            }
         }
         return UsageSnapshot(provider: .codex, planName: planName, windows: windows, fetchedAt: fetchedAt)
     }
 
-    private static func kind(forDurationMinutes durationMinutes: Int) -> UsageWindowKind {
-        durationMinutes < weeklyDurationMinutes - weeklyDurationToleranceMinutes ? .session : .weekly
+    /// The windows back in Codex's two slots, shortest first. Readers name them by length, so the slot is free.
+    var codexSlots: (primary: UsageWindow?, secondary: UsageWindow?) {
+        (windows.first, windows.dropFirst().first)
     }
 }
 

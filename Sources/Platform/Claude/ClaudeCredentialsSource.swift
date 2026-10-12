@@ -26,6 +26,8 @@ struct ClaudeCredentialsSource: Sendable {
     let configDirectory: URL
     /// Nil in isolated runs, so they never read the real Keychain item.
     let keychain: (any ClaudeKeychainReading)?
+    /// Claude Code's global config, read only for the plan tier and the email in its account record.
+    var globalConfigFile: URL? = nil
 
     var credentialsFileURL: URL {
         configDirectory.appendingPathComponent(".credentials.json")
@@ -34,7 +36,8 @@ struct ClaudeCredentialsSource: Sendable {
     /// A credentials file without a Claude sign-in, for example one with only `mcpOAuth`, falls through to the Keychain.
     func lookup(allowingPrompt: Bool) -> ClaudeCredentialsLookup {
         do {
-            if let data = try Self.contentsIfPresent(of: credentialsFileURL), let credentials = try ClaudeCredentials(json: data) {
+            if let data = try Self.contentsIfPresent(of: credentialsFileURL),
+               let credentials = try ClaudeCredentials(json: data, globalConfig: globalConfig) {
                 return .credentials(credentials)
             }
         } catch {
@@ -47,11 +50,15 @@ struct ClaudeCredentialsSource: Sendable {
         case .failed: return .unreadable
         case let .found(data):
             do {
-                return try ClaudeCredentials(json: data).map(ClaudeCredentialsLookup.credentials) ?? .signedOut
+                return try ClaudeCredentials(json: data, globalConfig: globalConfig).map(ClaudeCredentialsLookup.credentials) ?? .signedOut
             } catch {
                 return .unreadable
             }
         }
+    }
+
+    private var globalConfig: Data? {
+        globalConfigFile.flatMap { try? Self.contentsIfPresent(of: $0) }
     }
 
     /// Nil when the file does not exist. Any other read failure throws.
@@ -61,6 +68,15 @@ struct ClaudeCredentialsSource: Sendable {
         } catch CocoaError.fileReadNoSuchFile {
             return nil
         }
+    }
+
+    /// Claude Code's global config: `.claude.json` in `CLAUDE_CONFIG_DIR` when set, otherwise in the home folder.
+    static func globalConfigFile(environment: [String: String], homeDirectory: URL) -> URL {
+        if let path = environment["CLAUDE_CONFIG_DIR"], !path.isEmpty {
+            return URL(fileURLWithPath: (path as NSString).expandingTildeInPath, isDirectory: true)
+                .appendingPathComponent(".claude.json")
+        }
+        return homeDirectory.appendingPathComponent(".claude.json")
     }
 
     /// `CLAUDE_CONFIG_DIR` when set, otherwise `~/.claude`, matching Claude Code.

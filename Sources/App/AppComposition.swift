@@ -28,6 +28,7 @@ struct AppComposition {
             menuDisplaySettings: MenuDisplaySettingsStore(userDefaults: defaults),
             statusItemSettings: StatusItemSettingsStore(userDefaults: defaults),
             tokenUsagePreferences: TokenUsagePreferencesStore(userDefaults: defaults),
+            claudeUsageSettings: claudeCodeUsage.settings,
             cliProcessInspector: CodexCLIProcessInspector(),
             alertPresenter: SystemAlertPresenter(suppressesInteractivePrompts: suppressesInteractivePrompts),
             panelPresenter: SystemPanelPresenter(suppressesInteractivePrompts: suppressesInteractivePrompts),
@@ -43,28 +44,59 @@ struct AppComposition {
         )
     }
 
-    /// An isolated run never reads the real Claude sign-in: it reads `.credentials.json` from `CLAUDE_CONFIG_DIR`, or from
-    /// `.claude` inside the isolated root, and skips the Keychain.
+    /// An isolated run never touches the real Claude sign-in or the real `claude`: it reads `.credentials.json` from
+    /// `CLAUDE_CONFIG_DIR`, or from `.claude` inside the isolated root, skips the Keychain, and runs only a `claude`
+    /// placed in `bin` inside the isolated root.
     private static func makeClaudeCodeUsage(
         environment: [String: String],
         defaults: UserDefaults,
         isolatedRootDirectory: URL?
     ) -> ClaudeCodeUsage {
-        let credentials: ClaudeCredentialsSource
+        let settings = ClaudeUsageSettingsStore(userDefaults: defaults)
+        let webClient = URLSessionClaudeUsageWebClient()
+        let hasConfigDirectoryOverride = environment["CLAUDE_CONFIG_DIR"]?.isEmpty == false
+
         if let isolatedRootDirectory {
-            let configDirectory = environment["CLAUDE_CONFIG_DIR"]?.isEmpty == false
+            let configDirectory = hasConfigDirectoryOverride
                 ? ClaudeCredentialsSource.configDirectory(environment: environment)
                 : isolatedRootDirectory.appendingPathComponent(".claude", isDirectory: true)
-            credentials = ClaudeCredentialsSource(configDirectory: configDirectory, keychain: nil)
-        } else {
-            credentials = ClaudeCredentialsSource(
-                configDirectory: ClaudeCredentialsSource.configDirectory(environment: environment),
-                keychain: SystemClaudeKeychain()
+            return ClaudeCodeUsage(
+                settings: settings,
+                client: ClaudeUsageClient(
+                    credentials: ClaudeCredentialsSource(
+                        configDirectory: configDirectory,
+                        keychain: nil,
+                        globalConfigFile: configDirectory.appendingPathComponent(".claude.json")
+                    ),
+                    webClient: webClient
+                ),
+                commands: ClaudeCodeCommands(
+                    processes: SystemClaudeCodeProcessRunner(
+                        searchDirectories: [isolatedRootDirectory.appendingPathComponent("bin", isDirectory: true)]
+                    )
+                ),
+                processes: SystemClaudeCodeProcessDetector(),
+                liveConfigDirectory: configDirectory.path
             )
         }
+
+        let configDirectory = ClaudeCredentialsSource.configDirectory(environment: environment)
         return ClaudeCodeUsage(
-            settings: ClaudeUsageSettingsStore(userDefaults: defaults),
-            client: ClaudeUsageClient(credentials: credentials, webClient: URLSessionClaudeUsageWebClient())
+            settings: settings,
+            client: ClaudeUsageClient(
+                credentials: ClaudeCredentialsSource(
+                    configDirectory: configDirectory,
+                    keychain: SystemClaudeKeychain(),
+                    globalConfigFile: ClaudeCredentialsSource.globalConfigFile(
+                        environment: environment,
+                        homeDirectory: FileManager.default.homeDirectoryForCurrentUser
+                    )
+                ),
+                webClient: webClient
+            ),
+            commands: ClaudeCodeCommands(processes: SystemClaudeCodeProcessRunner()),
+            processes: SystemClaudeCodeProcessDetector(),
+            liveConfigDirectory: hasConfigDirectoryOverride ? environment["CLAUDE_CONFIG_DIR"] : nil
         )
     }
 

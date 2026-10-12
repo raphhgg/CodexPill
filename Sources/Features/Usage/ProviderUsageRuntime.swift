@@ -2,6 +2,8 @@ import Foundation
 
 /// Owns every connected tool other than Codex: reads each at most once per its `refreshInterval`, keeps its latest
 /// reading and its last good snapshot for the menu, and runs the actions the menu sends.
+///
+/// A tool's expired live sign-in is renewed by the tool itself, one renewal at a time.
 @MainActor
 final class ProviderUsageRuntime {
     nonisolated static let refreshInterval: TimeInterval = 5 * 60
@@ -12,9 +14,7 @@ final class ProviderUsageRuntime {
     private var readings: [UsageProvider: UsageProviderReading] = [:]
     private var lastSnapshots: [UsageProvider: UsageSnapshot] = [:]
     private var lastRefreshStartedAt: [UsageProvider: Date] = [:]
-    private var signingIn: Set<UsageProvider> = []
-    /// Bumped when a tool's signed-in account changes, so a read that started before the change is dropped.
-    private var generations: [UsageProvider: Int] = [:]
+    private var isRenewingLiveSignIns = false
 
     init(
         connections: [any ProviderConnection],
@@ -42,8 +42,7 @@ final class ProviderUsageRuntime {
                         lastSnapshot: lastSnapshots[provider],
                         at: date,
                         staleAfter: connection.staleAfter
-                    ),
-                    isSigningIn: signingIn.contains(provider)
+                    )
                 )
             }
         }
@@ -57,35 +56,18 @@ final class ProviderUsageRuntime {
         connections.first { $0.provider == provider }
     }
 
-    /// Runs `action` for one tool, then reads that tool again. Returns what to tell the user when it failed.
-    /// Signing in drops the tool's reading first, so the previous account's numbers never show.
-    func perform(_ action: ProviderAction, on provider: UsageProvider) async -> ProviderNotice? {
-        guard let connection = connection(for: provider) else { return nil }
-        var notice: ProviderNotice?
-        do {
-            switch action {
-            case .connect, .allowKeychainAccess:
-                await connection.connect()
-            case .disconnect:
-                await connection.disconnect()
-            case .signIn:
-                guard let signIn = connection.signIn, signingIn.insert(provider).inserted else { return nil }
-                onChange()
-                defer { signingIn.remove(provider) }
-                if try await signIn.run() {
-                    discardReading(for: provider)
-                }
-            case .cancelSignIn:
-                await connection.signIn?.cancel()
-                return nil
-            case .switchAccount, .addAccount, .removeAccount, .useResetCredit:
-                return nil
-            }
-        } catch {
-            notice = error
+    /// Runs `action` for one tool, then reads that tool again.
+    func perform(_ action: ProviderAction, on provider: UsageProvider) async {
+        guard let connection = connection(for: provider) else { return }
+        switch action {
+        case .connect, .allowKeychainAccess:
+            await connection.connect()
+        case .disconnect:
+            await connection.disconnect()
+        case .switchAccount, .addAccount, .removeAccount, .useResetCredit:
+            return
         }
         await refreshIfDue(forcing: provider)
-        return notice
     }
 
     /// `forcing` reads that tool even inside its interval, for example right after the user connects it.
@@ -97,7 +79,6 @@ final class ProviderUsageRuntime {
         }
         guard !dueConnections.isEmpty else { return }
 
-        let startGenerations = generations
         for connection in dueConnections {
             lastRefreshStartedAt[connection.provider] = startedAt
         }
@@ -105,7 +86,7 @@ final class ProviderUsageRuntime {
             for connection in dueConnections {
                 group.addTask { (connection.provider, await connection.readUsage(now: startedAt)) }
             }
-            for await (provider, reading) in group where generations[provider] == startGenerations[provider] {
+            for await (provider, reading) in group {
                 readings[provider] = reading
                 switch reading {
                 case let .snapshot(snapshot):
@@ -120,12 +101,18 @@ final class ProviderUsageRuntime {
         onChange()
     }
 
-    private func discardReading(for provider: UsageProvider) {
-        generations[provider, default: 0] += 1
-        lastSnapshots[provider] = nil
-        if readings[provider] != nil {
-            readings[provider] = .awaitingUsage
+    /// Lets each tool whose last read found its sign-in expired renew it, then reads again every tool that renewed.
+    func renewLiveSignInsIfNeeded() async {
+        let expired = connections.filter { readings[$0.provider] == .unavailable(.signInExpired) }
+        guard !expired.isEmpty, !isRenewingLiveSignIns else { return }
+        isRenewingLiveSignIns = true
+        var renewed: [UsageProvider] = []
+        for connection in expired where await connection.renewLiveSignInIfNeeded(now: now()) {
+            renewed.append(connection.provider)
         }
-        onChange()
+        isRenewingLiveSignIns = false
+        for provider in renewed {
+            await refreshIfDue(forcing: provider)
+        }
     }
 }

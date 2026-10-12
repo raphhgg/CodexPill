@@ -7,17 +7,10 @@ import Testing
 
 @MainActor
 final class AlertPresenterProbe: AlertPresenter {
-    private(set) var textInputRequests: [MenuBarTextInputAlertRequest] = []
     private(set) var confirmationRequests: [MenuBarConfirmationAlertRequest] = []
     private(set) var infoRequests: [MenuBarInfoAlertRequest] = []
 
-    var textInputResponse: String?
     var confirmationResponse = false
-
-    func presentTextInput(_ request: MenuBarTextInputAlertRequest) -> String? {
-        textInputRequests.append(request)
-        return textInputResponse
-    }
 
     func presentConfirmation(_ request: MenuBarConfirmationAlertRequest) -> Bool {
         confirmationRequests.append(request)
@@ -175,17 +168,6 @@ struct MenuBarMenuBuilderTests {
         let alertPresenter = SystemAlertPresenter(suppressesInteractivePrompts: true)
         let panelPresenter = SystemPanelPresenter(suppressesInteractivePrompts: true)
 
-        let textValue = alertPresenter.presentTextInput(
-            MenuBarTextInputAlertRequest(
-                messageText: "Rename",
-                informativeText: "Rename account",
-                fieldTitle: "Name",
-                placeholder: "Business",
-                confirmTitle: "Save",
-                cancelTitle: "Cancel",
-                requiresNonEmptyValue: false
-            )
-        )
         let confirmation = alertPresenter.presentConfirmation(
             MenuBarConfirmationAlertRequest(
                 messageText: "Remove",
@@ -220,7 +202,6 @@ struct MenuBarMenuBuilderTests {
             onCancel: { signInCancelled = true }
         )
 
-        #expect(textValue == nil)
         #expect(confirmation == false)
         #expect(signInCancelled)
         guard case .cancelled = signInResult else {
@@ -417,7 +398,7 @@ struct MenuBarMenuBuilderTests {
         #expect(disclosure.confirmTitle == "Export")
         #expect(disclosure.cancelTitle == "Cancel")
         let report = try #require(presenter.reports.first)
-        #expect(report.schemaVersion == 2)
+        #expect(report.schemaVersion == 3)
         #expect(report.redactionManifest.aliasScope == "per-export")
         #expect(report.events.contains(where: { $0.name == "menu_action" }))
     }
@@ -560,7 +541,7 @@ struct MenuBarMenuBuilderTests {
         let usageBarTitles = usageBarsMenu.items.map(\.title)
         let showMarkers = try #require(usageBarsMenu.items.first(where: { $0.title == "Show Pace Markers" }))
 
-        #expect(preferencesMenu.items.map(\.title) == ["Menu Bar Label", "Icon Style", "Usage Bars", "", "Show Token Usage"])
+        #expect(preferencesMenu.items.map(\.title) == ["Menu Bar Label", "Icon Style", "Usage Bars", "", "Show Token Usage", "Show Model Limits"])
         #expect(usageBarTitles == [
             "Show % Used", "Show % Left", "",
             "Classic Layout", "Compact Layout", "",
@@ -944,9 +925,9 @@ struct MenuBarMenuBuilderTests {
             availableCount: 2,
             credits: [UsageResetCredit(expiresAt: nov5.addingTimeInterval(15 * 86_400)), UsageResetCredit(expiresAt: nov5)]
         )
-        let active = makeAccount(name: "Alex", email: "alex@example.com", usage: usage)
-        let first = makeAccount(name: "Side", email: "side@example.com")
-        let second = makeAccount(name: "Team", email: "team@example.com")
+        let active = makeAccount(email: "alex@example.com", usage: usage)
+        let first = makeAccount(email: "side@example.com")
+        let second = makeAccount(email: "team@example.com")
         let menu = MenuBarMenuBuilder(locale: Locale(identifier: "en_GB"), timeZone: TimeZone(identifier: "GMT")!).makeMenu(
             state: makeState(
                 activeAccount: active,
@@ -958,32 +939,74 @@ struct MenuBarMenuBuilderTests {
         )
 
         let side = try #require(menu.items.first { $0.title == "Codex" }?.submenu)
-        let useAnother = try #require(side.items.first { $0.title == "Use Another Codex Account" }?.submenu)
-        let remove = try #require(side.items.first { $0.title == "Remove Codex Account" }?.submenu)
+        let rows = try side.items[1...2].map { try #require($0.submenu) }
 
         #expect(side.items.map(\.title) == [
-            "alex@example.com", "",
-            "Use Another Codex Account", "Use a Reset…", "Expires 5 Nov", "Expires 20 Nov", "Token Usage", "",
-            "Add Codex Account…", "Remove Codex Account",
+            "alex@example.com", "side@example.com", "team@example.com", "",
+            "Use a Reset…", "Expires 5 Nov", "Expires 20 Nov", "Token Usage", "",
+            "Add Codex Account…",
         ])
-        #expect(side.items[0].isEnabled == false)
-        #expect(side.items[4].isEnabled == false && side.items[4].indentationLevel == 1)
-        #expect(providerAction(side.items[3]) == .useResetCredit)
-        #expect(useAnother.items.map(\.title) == ["side@example.com", "team@example.com"])
-        #expect(useAnother.items.map(providerAction) == [.switchAccount(first.id), .switchAccount(second.id)])
-        #expect(remove.items.map(\.title) == ["alex@example.com…", "side@example.com…", "team@example.com…"])
-        #expect(remove.items.map(providerAction) == [.removeAccount(active.id), .removeAccount(first.id), .removeAccount(second.id)])
+        #expect(side.items[0].state == .on && !side.items[0].isEnabled && side.items[0].submenu == nil)
+        #expect(rows.map { $0.items.map(\.title) } == [["Use", "Remove…"], ["Use", "Remove…"]])
+        #expect(rows.map { $0.items.map(providerAction) } == [
+            [.switchAccount(first.id), .removeAccount(first.id)], [.switchAccount(second.id), .removeAccount(second.id)],
+        ])
+        #expect(side.items[5].isEnabled == false && side.items[5].indentationLevel == 1)
+        #expect(providerAction(side.items[4]) == .useResetCredit)
+    }
+
+    @Test(arguments: [UsageProvider.claude, .cursor])
+    func claudeAndCursorSideMenusShowOnlyTheSignedInEmail(provider: UsageProvider) throws {
+        var usage = providerSnapshot(provider)
+        usage.accountEmail = "alex@example.com"
+        let menu = MenuBarMenuBuilder().makeMenu(
+            state: makeState(activeAccount: nil, providerUsage: [ProviderUsageState(provider: provider, status: .current(usage))]),
+            target: try makeCoordinator()
+        )
+
+        let side = try #require(menu.items.first?.submenu)
+
+        #expect(side.items.map(\.title) == ["alex@example.com"])
+        #expect(side.items[0].state == .on && !side.items[0].isEnabled && side.items[0].submenu == nil)
     }
 
     @Test
-    func claudeSideMenuEndsWithDisconnectAndAKeychainStateAddsItsActionUnderTheCard() throws {
+    func settingsDisconnectsEachConnectedTool() throws {
         let menu = MenuBarMenuBuilder().makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Work", usage: makeUsage(resettingAfter: .now)),
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
                 providerUsage: [
-                    ProviderUsageState(provider: .claude, status: .unavailable(.keychainAccessNeeded, lastSnapshot: nil)),
-                ],
-                masksEmails: true
+                    ProviderUsageState(provider: .claude, status: .current(providerSnapshot(.claude))),
+                    ProviderUsageState(provider: .cursor, status: .notConnected),
+                ]
+            ),
+            target: try makeCoordinator()
+        )
+
+        let settings = try settingsMenu(in: menu)
+        let disconnects = settings.items.filter { $0.title.hasPrefix("Disconnect") }
+
+        #expect(disconnects.map(\.title) == ["Disconnect Claude"])
+        #expect(disconnects.map(providerAction) == [.disconnect])
+        #expect(try #require(menu.items.first?.submenu).items.allSatisfy { !$0.title.hasPrefix("Disconnect") })
+    }
+
+    @Test
+    func claudeSideMenuShowsTheMaskedEmailOfItsLastReadingAndAKeychainStateAddsItsActionUnderTheCard() throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let lastUsage = UsageSnapshot(
+            provider: .claude,
+            planName: "max",
+            windows: [UsageWindow(kind: .session, usedPercent: 12, resetsAt: now.addingTimeInterval(3_600), durationMinutes: 300)],
+            fetchedAt: now,
+            accountEmail: "alex@example.com"
+        )
+        let menu = MenuBarMenuBuilder().makeMenu(
+            state: makeState(
+                activeAccount: makeAccount(name: "Work", usage: makeUsage(resettingAfter: now)),
+                providerUsage: [ProviderUsageState(provider: .claude, status: .unavailable(.keychainAccessNeeded, lastSnapshot: lastUsage))],
+                masksEmails: true,
+                now: now
             ),
             target: try makeCoordinator()
         )
@@ -992,10 +1015,20 @@ struct MenuBarMenuBuilderTests {
 
         #expect(menu.items.map(\.title) == ["Claude", "Allow Keychain access…", "", "Codex", "", "Settings", "", "Quit"])
         #expect(providerAction(menu.items[1]) == .allowKeychainAccess)
-        #expect(side.items.map(\.title) == ["Move to Top", "Move Up", "Move Down", "", "Disconnect Claude"])
+        #expect(side.items.map(\.title) == ["a•••x@example.com", "", "Move to Top", "Move Up", "Move Down"])
         #expect(side.items.filter { $0.title.hasPrefix("Move") }.map(\.isEnabled) == [false, false, true])
-        #expect(side.items[0...2].compactMap { $0.representedObject as? [UsageProvider] } == [[.codex, .claude, .cursor]])
-        #expect(providerAction(side.items[4]) == .disconnect)
+        #expect(side.items[2...4].compactMap { $0.representedObject as? [UsageProvider] } == [[.codex, .claude, .cursor]])
+    }
+
+    @Test(arguments: [UsageProvider.claude, .cursor])
+    func aSignedOutToolOffersNoSignIn(provider: UsageProvider) throws {
+        let menu = MenuBarMenuBuilder().makeMenu(
+            state: makeState(activeAccount: nil, providerUsage: [ProviderUsageState(provider: provider, status: .unavailable(.signedOut, lastSnapshot: nil))]),
+            target: try makeCoordinator()
+        )
+
+        #expect(menu.items.map(\.title) == [provider.copy.sectionTitle, "", "Settings", "", "Quit"])
+        #expect(try #require(menu.items.first?.submenu).items.isEmpty)
     }
 
     @Test
@@ -1014,7 +1047,7 @@ struct MenuBarMenuBuilderTests {
         let refresh = try #require(settings.items.first { $0.title == "Refresh Every" }?.submenu)
 
         #expect(settings.items.map(\.title) == [
-            "Add Account", "", "Appearance", "Hide Emails", "Refresh Every", "Launch at Login", "", "Diagnostics…", "About",
+            "Add Account", "Disconnect Claude", "", "Appearance", "Hide Emails", "Refresh Every", "Launch at Login", "", "Diagnostics…", "About",
         ])
         #expect(settings.items.first { $0.title == "Hide Emails" }?.state == .on)
         #expect(addAccount.items.map(\.title) == ["Codex…", "Cursor…"])
@@ -1034,6 +1067,24 @@ struct MenuBarMenuBuilderTests {
 
         #expect(coordinator.menuState().masksEmails)
         #expect(coordinator.menuState().toolOrder == [.cursor, .codex, .claude])
+    }
+
+    @Test
+    func modelLimitsAreOnForANewUserAndTheToggleTurnsThemOff() throws {
+        let coordinator = try makeCoordinator()
+        func showModelLimits() throws -> NSMenuItem {
+            let menu = MenuBarMenuBuilder().makeMenu(state: coordinator.menuState(), target: coordinator)
+            return try #require(try appearanceMenu(in: menu).items.first { $0.title == "Show Model Limits" })
+        }
+
+        let before = try showModelLimits()
+        coordinator.toggleShowsModelLimits(NSMenuItem())
+        let after = try showModelLimits()
+
+        #expect(before.state == .on)
+        #expect(before.action == #selector(MenuBarCoordinator.toggleShowsModelLimits(_:)))
+        #expect(after.state == .off)
+        #expect(!coordinator.menuState().showsModelLimits)
     }
 
     private func providerSnapshot(_ provider: UsageProvider) -> UsageSnapshot {
@@ -1152,7 +1203,8 @@ struct MenuBarMenuBuilderTests {
         tokenUsageCard: TokenUsageMenuCard? = nil,
         providerUsage: [ProviderUsageState] = [],
         toolOrder: [UsageProvider] = [.claude, .codex, .cursor],
-        masksEmails: Bool = false
+        masksEmails: Bool = false,
+        now: Date = .now
     ) -> MenuBarMenuState {
         MenuBarMenuState(
             activeAccount: activeAccount,
@@ -1173,7 +1225,8 @@ struct MenuBarMenuBuilderTests {
             tokenUsageCard: tokenUsageCard,
             providerUsage: providerUsage,
             toolOrder: toolOrder,
-            masksEmails: masksEmails
+            masksEmails: masksEmails,
+            now: now
         )
     }
 

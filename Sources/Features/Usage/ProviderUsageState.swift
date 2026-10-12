@@ -4,8 +4,6 @@ import Foundation
 struct ProviderUsageState: Equatable {
     let provider: UsageProvider
     let status: ProviderUsageStatus
-    /// CodexPill's own browser sign-in for this tool is waiting for the user.
-    var isSigningIn = false
 }
 
 enum ProviderUsageStatus: Equatable {

@@ -34,13 +34,15 @@ actor CursorUsageClient {
         }
 
         let token: CursorAccessToken
+        let email: String?
         switch lookup {
         case .cursorNotInstalled:
             return .cursorNotInstalled
         case .signedOut:
             return .signedOut
-        case .token(let foundToken):
+        case let .token(foundToken, foundEmail):
             token = foundToken
+            email = foundEmail
         }
 
         guard token.isUsable(at: now()) else {
@@ -64,7 +66,9 @@ actor CursorUsageClient {
         }
 
         do {
-            return .available(try CursorUsageSummaryParser.parse(data, fetchedAt: now()))
+            var snapshot = try CursorUsageSummaryParser.parse(data, fetchedAt: now())
+            snapshot.accountEmail = email
+            return .available(snapshot)
         } catch {
             return .unavailable(.unexpectedResponse)
         }

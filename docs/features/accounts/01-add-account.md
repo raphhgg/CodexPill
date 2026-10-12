@@ -13,41 +13,32 @@ As a CodexPill user, I want to add another Codex account without changing This M
 - Only one Add Account sign-in may run at a time.
 - Add Account classifies isolated sign-in failures as account-domain outcomes before the menubar renders native alerts or retry panels.
 - After the account is saved, CodexPill attempts a best-effort isolated status read so the new account can show available session or weekly usage immediately. Returned windows are classified by duration instead of App Server `primary` / `secondary` field position.
+- An account is identified by its email, as the side menu shows it (masked with Hide Emails). Without an email it reads as its workspace, then its plan (`Plus account`), then `Saved account`. Users never type a name.
+- Duplicates are detected by account identity, never by label.
 - CodexPill must not log or expose raw auth payloads.
 
 ## Happy Path
 
 1. The user chooses `Add Account…`.
-2. CodexPill asks for the account display name.
-3. CodexPill validates the display name before sign-in starts.
-4. CodexPill starts an isolated Codex sign-in session.
-5. CodexPill shows a sign-in alert with the device code, `Copy Code`, and `Open Browser`.
-6. The user copies the code and opens the Codex device-auth page from the alert.
-7. The user completes sign-in in the browser.
-8. CodexPill captures the isolated auth snapshot and verifies it.
-9. CodexPill saves the account in the local catalog.
-10. CodexPill attempts to hydrate the saved account metadata and rate limits without switching local auth.
-11. CodexPill confirms that This Mac was not changed.
-12. CodexPill shows a success alert with `Done` and `Use on This Mac`.
+2. CodexPill starts an isolated Codex sign-in session.
+3. CodexPill shows a sign-in alert with the device code, `Copy Code`, and `Open Browser`.
+4. The user copies the code and opens the Codex device-auth page from the alert.
+5. The user completes sign-in in the browser.
+6. CodexPill captures the isolated auth snapshot and verifies it.
+7. CodexPill saves the account in the local catalog.
+8. CodexPill attempts to hydrate the saved account metadata and rate limits without switching local auth.
+9. CodexPill confirms that This Mac was not changed.
+10. CodexPill shows a success alert with `Done` and `Use on This Mac`.
 
-## Name Prompt
+## First Run
 
-Title: `Add account`
+With no saved Codex account and no other tool connected, CodexPill asks once at launch:
 
-Body:
+Title: `Add a Codex account?`
 
-```text
-Choose a name for this saved account. You can change it later.
-```
+Body: `Sign in to Codex in your browser.`
 
-Field:
-
-- Label: `Account Name`
-- Placeholder: `Work`
-- `Continue` is disabled until the user enters a non-empty name.
-
-If a defensive validation error still occurs, CodexPill should keep the user in
-the Add Account name flow instead of ending on a separate generic error alert.
+Actions: `Not Now`, `Continue`. `Continue` starts the sign-in below. The `Add Account…` menu item starts it directly.
 
 ## Sign-In Alert
 
@@ -80,7 +71,7 @@ Title: `Account Added`
 Body:
 
 ```text
-"Business 7" was saved. This Mac was not changed.
+work@example.com was saved. This Mac was not changed.
 ```
 
 Actions:
@@ -91,10 +82,6 @@ Actions:
 If Codex terminals are running, the success alert should include the same restart warning used by normal local switch confirmations before the user chooses `Use on This Mac`.
 
 ## Acceptance Criteria
-
-### Unique Display Name
-
-Given the user starts Add Account, when the user enters an empty or duplicate display name, then CodexPill blocks the flow before opening the browser or starting Codex sign-in.
 
 ### Device Code Visibility
 
@@ -112,7 +99,7 @@ Given the user completes browser sign-in, when CodexPill captures and saves the 
 
 Given Add Account saves a new inactive account, when CodexPill can read that account's status through the isolated app-server path, then CodexPill updates the saved account with returned email, plan, and any usable rate-limit window before leaving the Add Account flow.
 
-If Codex returns only session or only weekly usage, CodexPill must preserve the returned usable window instead of treating the whole status as missing. For example, a Free account may return a weekly-length window as `primary`; CodexPill must show that as weekly usage, not session usage.
+If Codex returns only session or only weekly usage, CodexPill must preserve the returned usable window instead of treating the whole status as missing. Each window is named by its length, never its field. For example, a Free account returns one 30-day window as `secondary`; CodexPill shows it as `Monthly`, not weekly or session usage.
 
 If hydration fails, Add Account still succeeds and the account remains saved; CodexPill may show missing usage until a later refresh succeeds.
 
@@ -132,14 +119,14 @@ Given isolated sign-in is in progress, when the user selects `Cancel`, then Code
 
 ### Duplicate Account Identity
 
-Given the user completes browser sign-in with an account already saved under another display name, when CodexPill resolves the captured account identity, then CodexPill does not save a duplicate snapshot and shows:
+Given the user completes browser sign-in with an account that is already saved, when CodexPill resolves the captured account identity, then CodexPill does not save a duplicate snapshot and shows:
 
 Title: `Account Already Saved`
 
 Body:
 
 ```text
-This Codex account is already saved as "Business 4".
+This Codex account is already saved as work@example.com.
 ```
 
 ### Expired Code
@@ -219,7 +206,6 @@ Given CodexPill crashes during isolated sign-in, when CodexPill next launches, t
 
 The Add Account acceptance criteria should drive unit and integration tests. At minimum, tests should cover:
 
-- `add_account_duplicate_display_name_blocks_before_sign_in`
 - `add_account_shows_device_code_and_copy_action`
 - `add_account_copy_code_keeps_waiting`
 - `add_account_saves_without_switching`

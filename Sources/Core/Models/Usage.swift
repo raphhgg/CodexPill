@@ -9,7 +9,28 @@ enum UsageProvider: String, CaseIterable, Hashable {
 enum UsageWindowKind: Hashable {
     case session
     case weekly
+    case monthly
     case billingCycle
+    /// A limit whose length has no common name. The menu titles it by that length.
+    case other(durationMinutes: Int)
+    /// Claude's separate weekly limit for one model, named as Claude names it, such as "Fable". The menu bar icon
+    /// ignores it.
+    case modelWeekly(modelName: String)
+
+    /// The one rule that names a reported window by its length. Each name allows an hour of slack either way,
+    /// and monthly covers every calendar month (28 to 31 days).
+    init(durationMinutes: Int) {
+        switch durationMinutes {
+        case (5 * 60 - 60)...(5 * 60 + 60): self = .session
+        case (7 * 1_440 - 60)...(7 * 1_440 + 60): self = .weekly
+        case (28 * 1_440 - 60)...(31 * 1_440 + 60): self = .monthly
+        default: self = .other(durationMinutes: durationMinutes)
+        }
+    }
+
+    var isModelLimit: Bool {
+        if case .modelWeekly = self { true } else { false }
+    }
 }
 
 struct UsageWindow: Hashable {
@@ -31,6 +52,8 @@ struct UsageSnapshot: Hashable {
     var fetchedAt: Date
     var resetCredits: UsageResetCredits? = nil
     var spend: UsageSpend? = nil
+    /// The email of the account the tool is signed in to, for Claude and Cursor. Codex keeps it on `CodexAccount`.
+    var accountEmail: String? = nil
 
     func window(_ kind: UsageWindowKind) -> UsageWindow? {
         windows.first { $0.kind == kind }

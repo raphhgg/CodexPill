@@ -16,7 +16,6 @@ func makeAccount(
 ) -> CodexAccount {
     makeAccount(
         id: id,
-        name: name,
         email: "\(name.lowercased())@example.com",
         fingerprint: fingerprint,
         stableAccountID: stableAccountID,
@@ -31,7 +30,6 @@ func makeAccount(
 /// Builds a saved account with an explicit email; pass `nil` for an account Codex has not reported an email for.
 func makeAccount(
     id: UUID = UUID(),
-    name: String = "Account",
     email: String?,
     fingerprint: String = UUID().uuidString,
     stableAccountID: String? = nil,
@@ -43,7 +41,6 @@ func makeAccount(
 ) -> CodexAccount {
     CodexAccount(
         id: id,
-        name: name,
         snapshotFileName: "\(id.uuidString).json",
         createdAt: updatedAt,
         updatedAt: updatedAt,

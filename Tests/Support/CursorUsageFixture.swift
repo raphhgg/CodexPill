@@ -46,7 +46,7 @@ final class CursorUsageFixture: CursorAccessTokenSource, CursorUsageWebClient, @
     }
 
     func signIn(expiresAt: Date, summary: String) {
-        tokenLookup = .token(CursorAccessTokenFixtures.token(expiresAt: expiresAt))
+        tokenLookup = .token(CursorAccessTokenFixtures.token(expiresAt: expiresAt), email: nil)
         response = .success(Data(summary.utf8))
     }
 

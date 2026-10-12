@@ -8,7 +8,7 @@ As a CodexPill user who also codes in Cursor, I want to see how much of my Curso
 
 Cursor Usage is an optional menu bar feature. When connected, CodexPill shows the signed-in Cursor account's included-plan usage, any on-demand spend, and the billing-cycle reset date.
 
-Reading usage never changes anything in Cursor. CodexPill never signs in to Cursor and never renews Cursor's session. If Cursor's sign-in is missing or expired, CodexPill says so and points the user back to Cursor. CodexPill shows only the account Cursor is signed in to. It never saves, adds, or switches Cursor accounts, never quits Cursor, and never writes Cursor's database or a Keychain item.
+Reading usage never changes anything in Cursor. CodexPill never signs in to Cursor and never renews Cursor's session. If Cursor's sign-in is missing or expired, CodexPill says so and points the user back to Cursor. CodexPill shows only the account Cursor is signed in to, by the email Cursor cached. It never saves, adds, or switches Cursor accounts, never quits Cursor, and never writes Cursor's database or a Keychain item.
 
 The feature is off by default. Connecting it is the user's consent for CodexPill to read Cursor's local sign-in token and send it to cursor.com.
 
@@ -16,7 +16,7 @@ Cursor usage is display-only. It never feeds account availability, ranking, or n
 
 ## Menu
 
-The `Cursor` card follows the shared card and side menu in [Menubar](menubar.md). The side menu has no account actions and ends with `Disconnect Cursor`.
+The `Cursor` card follows the shared card and side menu in [Menubar](menubar.md). The side menu shows the email Cursor is signed in to, checked and disabled, and has no account actions. `Disconnect Cursor` is in Settings.
 
 - **Not connected.** There is no card. `Settings › Add Account › Cursor…` (and the first-run `Add Account ›`) connects. Choosing it opens a consent alert first. Nothing is read until the user confirms.
 - **Consent alert.** One short alert:
@@ -25,7 +25,7 @@ The `Cursor` card follows the shared card and side menu in [Menubar](menubar.md)
   > Uses Cursor's sign-in to read your usage.
 
   Confirming saves the choice and reads at once.
-- **Connected.** The choice is saved in user defaults (`cursorUsageEnabled`, off by default). The side menu ends with `Disconnect Cursor`, which turns the feature off at once with no alert, because it changes nothing outside CodexPill.
+- **Connected.** The choice is saved in user defaults (`cursorUsageEnabled`, off by default). `Disconnect Cursor` in Settings turns the feature off at once with no alert, because it changes nothing outside CodexPill.
 - **Current.** The plan tag (`Pro`), one `Billing cycle` meter with `Resets 30 Oct`, and, when on-demand usage is enabled, a text line: `On-demand: $12.34 of $50.00`, or `On-demand: $12.34` with no cap. Spend is never drawn as a bar. The meter follows the percent mode, layout, pacing markers, and the weekly color.
 - **No percent.** A plan with no included-usage percent, such as an unlimited plan, shows the header with no meter. It never shows 0%.
 - **Failures.** Each failure shows a title and at most one short line. Except for not installed and signed out, the last good values stay dimmed below it with their `As of` time.
@@ -50,7 +50,7 @@ Reads happen when the menu opens or on the scheduled refresh, at most every 5 mi
 
 All knowledge of Cursor's database and of cursor.com lives in `Sources/Platform/Cursor`. Feature and UI code see parsed values only.
 
-**Sign-in.** Cursor keeps its session in a VS Code style SQLite database, `~/Library/Application Support/Cursor/User/globalStorage/state.vscdb`. Usage reads one row: table `ItemTable`, key `cursorAuth/accessToken`. The value is a JWT, SQLite TEXT on current builds and a UTF-8 or UTF-16LE BLOB on others. CodexPill takes the user ID from its `sub` claim and the expiry from `exp`.
+**Sign-in.** Cursor keeps its session in a VS Code style SQLite database, `~/Library/Application Support/Cursor/User/globalStorage/state.vscdb`. Usage reads two rows of table `ItemTable`: `cursorAuth/accessToken` and `cursorAuth/cachedEmail`. The token is a JWT, SQLite TEXT on current builds and a UTF-8 or UTF-16LE BLOB on others. CodexPill takes the user ID from its `sub` claim and the expiry from `exp`. The email is stored JSON-encoded. CodexPill drops the quotes and shows it in the side menu.
 
 **Database reads.**
 

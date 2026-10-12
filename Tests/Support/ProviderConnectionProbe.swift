@@ -8,24 +8,15 @@ final class ProviderConnectionProbe: ProviderConnection {
     struct State {
         var reading: UsageProviderReading
         var readCount = 0
-        /// Reads started while this is set wait at it, returning the reading they started with.
-        var readGate: TestGate?
     }
 
     let provider: UsageProvider
     let staleAfter: TimeInterval
-    let signIn: (any ProviderSignIn)?
     private let state: OSAllocatedUnfairLock<State>
 
-    init(
-        provider: UsageProvider,
-        staleAfter: TimeInterval = 3_600,
-        reading: UsageProviderReading,
-        signIn: (any ProviderSignIn)? = nil
-    ) {
+    init(provider: UsageProvider, staleAfter: TimeInterval = 3_600, reading: UsageProviderReading) {
         self.provider = provider
         self.staleAfter = staleAfter
-        self.signIn = signIn
         state = OSAllocatedUnfairLock(initialState: State(reading: reading))
     }
 
@@ -41,17 +32,14 @@ final class ProviderConnectionProbe: ProviderConnection {
     var readCount: Int { state.withLock { $0.readCount } }
 
     func readUsage(now _: Date) async -> UsageProviderReading {
-        let (reading, gate) = state.withLock { state in
+        state.withLock { state in
             state.readCount += 1
-            return (state.reading, state.readGate)
+            return state.reading
         }
-        await gate?.pass()
-        return reading
     }
 
     var isConnected: Bool { reading != .notConnected }
 
     func connect() async {}
     func disconnect() async {}
-
 }

@@ -19,14 +19,12 @@ struct DiagnosticReportBuilderTests {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let active = makeAccount(
             id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
-            name: "Work Account",
             email: "person@example.com",
             stableAccountID: "acct_stable_secret",
             usage: makeUsage(fetchedAt: now.addingTimeInterval(-120))
         )
         let inactive = makeAccount(
             id: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
-            name: "Personal Account",
             email: "me@example.org",
             stableAccountID: "acct_other_secret",
             usage: makeUsage(fetchedAt: now.addingTimeInterval(-3600))
@@ -55,6 +53,50 @@ struct DiagnosticReportBuilderTests {
         #expect(!json.contains("me@example.org"))
         #expect(!json.contains("acct_stable_secret"))
         #expect(!json.contains(active.id.uuidString))
+    }
+
+    @Test
+    func reportListsEveryUsageWindowEachAccountHas() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        func usage(_ windows: [(minutes: Int, usedPercent: Int)]) -> UsageSnapshot {
+            UsageSnapshot(
+                provider: .codex,
+                planName: nil,
+                windows: windows.map { window in
+                    UsageWindow(
+                        kind: UsageWindowKind(durationMinutes: window.minutes),
+                        usedPercent: window.usedPercent,
+                        resetsAt: now.addingTimeInterval(3_600),
+                        durationMinutes: window.minutes
+                    )
+                },
+                fetchedAt: now
+            )
+        }
+        let plus = makeAccount(id: UUID(uuidString: "77777777-7777-7777-7777-777777777777")!, usage: usage([(300, 12), (10_080, 55)]))
+        let pro = makeAccount(id: UUID(uuidString: "88888888-8888-8888-8888-888888888888")!, usage: usage([(10_080, 95)]))
+        let free = makeAccount(id: UUID(uuidString: "99999999-9999-9999-9999-999999999999")!, usage: usage([(43_200, 30)]))
+        let unusual = makeAccount(id: UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!, usage: usage([(11_520, 60)]))
+        let unread = makeAccount(id: UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB")!, usage: nil)
+
+        let report = DiagnosticReportBuilder(
+            appMetadata: .fixture,
+            systemMetadata: .fixture(now: now)
+        ).makeReport(
+            state: makeMenuState(activeAccount: plus, inactiveAccounts: [pro, free, unusual, unread]),
+            events: []
+        )
+
+        #expect(report.accounts.map(\.usageWindows) == [
+            [
+                DiagnosticUsageWindow(kind: "session", title: "Session", usageCategory: "available"),
+                DiagnosticUsageWindow(kind: "weekly", title: "Weekly", usageCategory: "limited")
+            ],
+            [DiagnosticUsageWindow(kind: "weekly", title: "Weekly", usageCategory: "exhausted")],
+            [DiagnosticUsageWindow(kind: "monthly", title: "Monthly", usageCategory: "available")],
+            [DiagnosticUsageWindow(kind: "other", title: "8 days", usageCategory: "limited")],
+            []
+        ])
     }
 
     @Test
@@ -97,7 +139,6 @@ struct DiagnosticReportBuilderTests {
 
         let account = makeAccount(
             id: UUID(uuidString: "44444444-4444-4444-4444-444444444444")!,
-            name: rawValues.joined(separator: " "),
             email: "secret@example.com",
             stableAccountID: rawValues.last,
             usage: makeUsage()

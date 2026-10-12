@@ -3,14 +3,11 @@ import Foundation
 func appServerStatusNeedsRetry(_ status: CodexAccountStatus?) -> Bool {
     guard let status else { return true }
     guard status.email != nil else { return true }
-    return !appServerUsageIsComplete(status.usage)
+    return !appServerUsageHasUsableWindow(status.usage)
 }
 
-func appServerUsageIsComplete(_ usage: UsageSnapshot?) -> Bool {
-    guard let usage else { return false }
-    return usage.window(.session) != nil && usage.window(.weekly) != nil
-}
-
+/// A read is complete once it carries any limit window. Plans differ in how many windows they have: a Pro plan
+/// reports only a weekly window and a free plan only a monthly one.
 func appServerUsageHasUsableWindow(_ usage: UsageSnapshot?) -> Bool {
     guard let usage else { return false }
     return !usage.windows.isEmpty
@@ -49,19 +46,24 @@ func mergeAppServerUsage(
     return UsageSnapshot(
         provider: current.provider,
         planName: current.planName ?? previous.planName,
-        windows: [UsageWindowKind.session, .weekly].compactMap { kind in
-            mergeAppServerUsageWindow(previous: previous.window(kind), current: current.window(kind))
-        },
+        windows: mergeAppServerUsageWindows(previous: previous.windows, current: current.windows),
         fetchedAt: max(previous.fetchedAt, current.fetchedAt),
         resetCredits: current.resetCredits ?? previous.resetCredits
     )
 }
 
-private func mergeAppServerUsageWindow(
-    previous: UsageWindow?,
-    current: UsageWindow?
-) -> UsageWindow? {
-    guard let current else { return previous }
+/// Keeps every window either read reported, each kind once, shortest first. A window without a length comes
+/// from an older payload, where only the session window is shorter than the other.
+private func mergeAppServerUsageWindows(previous: [UsageWindow], current: [UsageWindow]) -> [UsageWindow] {
+    let merged = current.map { window in
+        mergeAppServerUsageWindow(previous: previous.first { $0.kind == window.kind }, current: window)
+    }
+    let previousOnly = previous.filter { window in !current.contains { $0.kind == window.kind } }
+    func length(_ window: UsageWindow) -> Int { window.durationMinutes ?? (window.kind == .session ? 0 : .max) }
+    return (merged + previousOnly).sorted { length($0) < length($1) }
+}
+
+private func mergeAppServerUsageWindow(previous: UsageWindow?, current: UsageWindow) -> UsageWindow {
     guard let previous else { return current }
 
     return UsageWindow(

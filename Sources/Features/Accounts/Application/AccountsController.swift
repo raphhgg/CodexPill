@@ -12,7 +12,7 @@ final class AccountsController {
         case failed(String)
     }
 
-    private static let inactiveSavedAccountsRefreshInterval: TimeInterval = 15 * 60
+    nonisolated static let inactiveSavedAccountsRefreshInterval: TimeInterval = 15 * 60
 
     private let identityResolver: SavedAccountIdentityResolver
     private let inactiveAccountAvailabilityRanking: InactiveAccountAvailabilityRanking
@@ -83,7 +83,7 @@ final class AccountsController {
     func switchToAccount(_ account: CodexAccount) async -> Bool {
         guard !isApplyingResetCredit else { return false }
         var didRefreshAfterSwitch = false
-        await perform("Switching to \(account.name)...") {
+        await perform("Switching account...") {
             try saveRotatedLiveAuth(switchingTo: account)
             catalogState.setActiveAccountID(
                 try await switchAccountWorkflow.run(
@@ -116,7 +116,7 @@ final class AccountsController {
     }
 
     func removeSavedAccount(_ account: CodexAccount, signOutLocalAccount: Bool = false) async {
-        await perform("Removing \(account.name)...") {
+        await perform("Removing account...") {
             let result = try await deleteSavedAccountUseCase.run(
                 account: account,
                 accounts: accounts,
@@ -131,10 +131,10 @@ final class AccountsController {
         do {
             let result = try await refreshActiveAccountUseCase.run(accounts: accounts)
             try applyRefreshed(result, activeAccountIDBeforeRefresh: activeAccountIDBeforeRefresh)
-            accountsControllerLogger.log("Background refresh completed for \(account.name, privacy: .public)")
+            accountsControllerLogger.log("Background refresh completed for \(account.id.uuidString, privacy: .public)")
             return .refreshed
         } catch {
-            accountsControllerLogger.log("Background refresh skipped for \(account.name, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            accountsControllerLogger.log("Background refresh skipped for \(account.id.uuidString, privacy: .public): \(error.localizedDescription, privacy: .public)")
             return .failed(error.localizedDescription)
         }
     }
@@ -179,11 +179,11 @@ final class AccountsController {
             try accountCatalogStore.saveAccounts(updatedAccounts)
             catalogState.applyPersistedMetadata(updatedAccounts)
         } catch {
-            accountsControllerLogger.log("Persisted metadata update skipped for \(account.name, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            accountsControllerLogger.log("Persisted metadata update skipped for \(account.id.uuidString, privacy: .public): \(error.localizedDescription, privacy: .public)")
         }
     }
 
-    func startIsolatedAddAccountFlow(named pendingAccountName: String?) async throws -> IsolatedAddAccountSignInSession {
+    func startIsolatedAddAccountFlow() async throws -> IsolatedAddAccountSignInSession {
         guard !isBusy else {
             throw AccountsControllerError.operationAlreadyInProgress
         }
@@ -191,11 +191,7 @@ final class AccountsController {
         operationState.begin(status: "Adding account...")
         await finishSavedAccountsRefresh()
         do {
-            let session = try await addAccountWorkflow.startIsolatedAddAccount(
-                named: pendingAccountName,
-                existingAccounts: accounts
-            )
-            return session
+            return try await addAccountWorkflow.startIsolatedAddAccount()
         } catch {
             operationState.fail(error)
             throw error

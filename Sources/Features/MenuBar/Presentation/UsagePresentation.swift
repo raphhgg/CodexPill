@@ -8,15 +8,20 @@ func usageMeterPercentText(for window: UsageWindow, mode: UsagePercentMode, now:
     "\(displayedPercent(of: window, mode: mode, now: now))% \(mode.label)"
 }
 
-func resetStatusText(for window: UsageWindow, now: Date) -> String? {
+func resetStatusText(
+    for window: UsageWindow,
+    now: Date,
+    locale: Locale = .autoupdatingCurrent,
+    timeZone: TimeZone = .autoupdatingCurrent
+) -> String? {
     guard let resetsAt = window.resetsAt else { return nil }
     if resetsAt <= now {
         return nil
     }
 
-    // A billing cycle runs for weeks, so its reset reads better as a date than a countdown.
-    if window.kind == .billingCycle {
-        return "Resets \(shortDate(resetsAt))"
+    // A reset more than a week away reads better as a date than a countdown, and so does any billing cycle's.
+    if window.kind == .billingCycle || resetsAt.timeIntervalSince(now) > 7 * 24 * 60 * 60 {
+        return "Resets \(shortDate(resetsAt, locale: locale, timeZone: timeZone))"
     }
     return "Resets in \(cardResetText(until: resetsAt, now: now))"
 }
@@ -50,14 +55,15 @@ enum StatusItemSource: Equatable {
     case nothingConnected
     case tool(ToolSection)
 
+    /// The card's main windows. Claude's per-model limits stay in the card.
     var windows: [UsageWindow] {
         guard case let .tool(section) = self else { return [] }
-        return section.card.windows
+        return section.card.windows.filter { !$0.kind.isModelLimit }
     }
 }
 
-/// Two windows fill both meters. A single window, such as Codex Pro's weekly limit or Cursor's billing cycle,
-/// fills the lower meter and leaves the upper one missing.
+/// Two windows fill both meters. A single window, such as Codex Pro's weekly limit, a free plan's monthly limit,
+/// or Cursor's billing cycle, fills the lower meter and leaves the upper one missing.
 func statusItemBarPercents(
     for windows: [UsageWindow],
     mode: UsagePercentMode,
@@ -71,7 +77,8 @@ func statusItemBarPercents(
     }
 }
 
-/// "S 11% W 60%", one segment per window. A full window shows its countdown instead. A billing cycle alone reads "82%".
+/// "S 11% W 60%" or "M 4%", one segment per window. A full window shows its countdown instead.
+/// A billing cycle alone reads "82%".
 func statusItemTitle(for windows: [UsageWindow], percentMode: UsagePercentMode = .used, now: Date = .now) -> String {
     let segments = windows.map { window in
         let value = if window.displayedUsedPercent(at: now) >= 100, let resetsAt = window.resetsAt, resetsAt > now {
@@ -79,7 +86,7 @@ func statusItemTitle(for windows: [UsageWindow], percentMode: UsagePercentMode =
         } else {
             "\(displayedPercent(of: window, mode: percentMode, now: now))%"
         }
-        return windows.count == 1 && window.kind == .billingCycle ? value : "\(window.kind.title.prefix(1)) \(value)"
+        return windows.count == 1 && window.kind == .billingCycle ? value : "\(window.kind.shortTitle) \(value)"
     }
     return segments.isEmpty ? "--" : segments.joined(separator: " ")
 }
@@ -87,10 +94,10 @@ func statusItemTitle(for windows: [UsageWindow], percentMode: UsagePercentMode =
 func statusItemTooltipText(for source: StatusItemSource, now: Date = .now) -> String {
     guard case let .tool(section) = source else { return "CodexPill" }
     var lines = [[section.provider.copy.sectionTitle, section.planTag].compactMap(\.self).joined(separator: " · ")]
-    if let account = section.activeAccount {
-        lines.append(account.label)
+    if let activeLabel = section.activeLabel {
+        lines.append(activeLabel)
     }
-    for window in section.card.windows where window.displayedUsedPercent(at: now) >= 100 {
+    for window in source.windows where window.displayedUsedPercent(at: now) >= 100 {
         if let reset = tooltipResetStatusText(for: window, now: now) {
             lines.append("\(window.kind.title) \(reset.lowercased())")
         }

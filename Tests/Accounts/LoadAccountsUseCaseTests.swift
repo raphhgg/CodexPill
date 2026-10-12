@@ -6,10 +6,9 @@ import Testing
 struct LoadAccountsUseCaseTests {
     @Test
     func runBootstrapsLoadsReconcilesPersistsAndResolvesActiveAccount() throws {
-        let saved = makeAccount(name: "Work", email: nil, fingerprint: "live")
+        let saved = makeAccount(email: nil, fingerprint: "live")
         let reconciled = makeAccount(
             id: saved.id,
-            name: saved.name,
             email: "work@example.com",
             fingerprint: "live"
         )
@@ -37,7 +36,7 @@ struct LoadAccountsUseCaseTests {
 
     @Test
     func runSkipsSaveWhenReconciliationDoesNotChangeAccounts() throws {
-        let saved = makeAccount(name: "Work", email: nil, fingerprint: "live")
+        let saved = makeAccount(email: nil, fingerprint: "live")
         let repository = LoadingAccountCatalogProbe(accountsToLoad: [saved])
         let auth = IdentityReconcilerProbe(reconciledAccounts: [saved])
         let resolver = SavedAccountIdentityResolver(
@@ -61,7 +60,6 @@ struct LoadAccountsUseCaseTests {
         let id = UUID()
         let saved = CodexAccount(
             id: id,
-            name: "Work",
             snapshotFileName: "\(id.uuidString).json",
             createdAt: .distantPast,
             updatedAt: .distantPast,
@@ -76,7 +74,6 @@ struct LoadAccountsUseCaseTests {
         )
         let reconciled = CodexAccount(
             id: id,
-            name: "Work",
             snapshotFileName: "\(id.uuidString).json",
             createdAt: .distantPast,
             updatedAt: .distantPast,
@@ -114,7 +111,6 @@ struct LoadAccountsUseCaseTests {
 
         let savedBusinessOne = CodexAccount(
             id: businessOneID,
-            name: "Business 1",
             snapshotFileName: "\(businessOneID.uuidString).json",
             createdAt: .distantPast,
             updatedAt: .distantPast,
@@ -129,7 +125,6 @@ struct LoadAccountsUseCaseTests {
         )
         let savedBusinessTwo = CodexAccount(
             id: businessTwoID,
-            name: "Business 2",
             snapshotFileName: "\(businessTwoID.uuidString).json",
             createdAt: .distantPast,
             updatedAt: .distantPast,
@@ -145,7 +140,6 @@ struct LoadAccountsUseCaseTests {
 
         let reconciledBusinessOne = CodexAccount(
             id: businessOneID,
-            name: "Business 1",
             snapshotFileName: "\(businessOneID.uuidString).json",
             createdAt: .distantPast,
             updatedAt: .distantPast,
@@ -168,7 +162,6 @@ struct LoadAccountsUseCaseTests {
         )
         let reconciledBusinessTwo = CodexAccount(
             id: businessTwoID,
-            name: "Business 2",
             snapshotFileName: "\(businessTwoID.uuidString).json",
             createdAt: .distantPast,
             updatedAt: .distantPast,
@@ -219,7 +212,6 @@ struct LoadAccountsUseCaseTests {
         let businessID = UUID()
         let personal = CodexAccount(
             id: personalID,
-            name: "Personal 1",
             snapshotFileName: "\(personalID.uuidString).json",
             createdAt: .distantPast,
             updatedAt: .distantPast,
@@ -236,7 +228,6 @@ struct LoadAccountsUseCaseTests {
         )
         let business = CodexAccount(
             id: businessID,
-            name: "Business 2",
             snapshotFileName: "\(businessID.uuidString).json",
             createdAt: .distantPast,
             updatedAt: .distantPast,

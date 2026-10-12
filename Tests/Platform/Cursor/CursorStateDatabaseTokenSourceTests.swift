@@ -149,12 +149,34 @@ struct CursorStateDatabaseTokenSourceTests {
         #expect(try harness.directoryListing() == before)
     }
 
+    @Test
+    func theCachedEmailComesWithTheTokenWithoutItsJSONQuotes() throws {
+        let harness = try CursorStateDatabaseHarness()
+        try harness.create()
+        try harness.insertText(jwt)
+        try harness.insertText(#""person@example.com""#, key: "cursorAuth/cachedEmail")
+        harness.close()
+        let withoutEmail = try CursorStateDatabaseHarness()
+        try withoutEmail.create()
+        try withoutEmail.insertText(jwt)
+        withoutEmail.close()
+
+        guard case let .token(_, email) = try source(for: harness).lookup(),
+              case let .token(_, missingEmail) = try source(for: withoutEmail).lookup()
+        else {
+            Issue.record("Expected a token")
+            return
+        }
+        #expect(email == "person@example.com")
+        #expect(missingEmail == nil)
+    }
+
     private func source(for harness: CursorStateDatabaseHarness) -> CursorStateDatabaseTokenSource {
         CursorStateDatabaseTokenSource(databaseURL: harness.databaseURL)
     }
 
     private func userID(from lookup: CursorAccessTokenLookup) -> String? {
-        guard case .token(let token) = lookup else { return nil }
+        guard case .token(let token, _) = lookup else { return nil }
         return token.userID
     }
 }

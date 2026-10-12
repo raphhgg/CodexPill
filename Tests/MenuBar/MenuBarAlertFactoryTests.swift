@@ -42,20 +42,11 @@ struct MenuBarAlertFactoryTests {
 
     @Test
     func switchAccountWarningMentionsRunningCliSessions() {
-        let request = factory.makeSwitchAccountRequest(accountName: "Work", runningCLISessions: 2)
+        let request = factory.makeSwitchAccountRequest(accountLabel: "work@example.com", runningCLISessions: 2)
 
-        #expect(request.informativeText.contains("switches This Mac to Work"))
+        #expect(request.informativeText.contains("switches This Mac to work@example.com"))
         #expect(request.informativeText.contains("2 Codex terminals are running"))
         #expect(request.informativeText.contains("Restart to use the new account."))
-    }
-
-    @Test
-    func addAccountNamePromptRequiresNameAndIgnoresRunningCliSessions() {
-        let idle = factory.makeAddAccountRequest(runningCLISessions: 0)
-        let busy = factory.makeAddAccountRequest(runningCLISessions: 1)
-
-        #expect(idle.requiresNonEmptyValue)
-        #expect(busy.informativeText == idle.informativeText)
     }
 
     @Test
@@ -73,7 +64,7 @@ struct MenuBarAlertFactoryTests {
 
     @Test
     func addAccountSuccessRequestOffersOptionalLocalSwitch() {
-        let request = factory.makeAddAccountSuccessRequest(accountName: "Business 2", runningCLISessions: 0)
+        let request = factory.makeAddAccountSuccessRequest(accountLabel: "Business 2", runningCLISessions: 0)
 
         #expect(request.messageText == "Account Added")
         #expect(request.informativeText.contains("Business 2 was saved"))
@@ -85,7 +76,7 @@ struct MenuBarAlertFactoryTests {
 
     @Test
     func addAccountSuccessRequestMentionsRunningCliSessionsBeforeLocalSwitch() {
-        let request = factory.makeAddAccountSuccessRequest(accountName: "Business 2", runningCLISessions: 2)
+        let request = factory.makeAddAccountSuccessRequest(accountLabel: "Business 2", runningCLISessions: 2)
 
         #expect(request.informativeText.contains("2 Codex terminals are running"))
         #expect(request.informativeText.contains("Restart them to use the new account."))
@@ -101,7 +92,7 @@ struct MenuBarAlertFactoryTests {
         #expect(expired.confirmTitle == "Try Again")
         #expect(expired.cancelTitle == "Cancel")
 
-        let duplicate = factory.makeAccountAlreadySavedRequest(accountName: "Business 4")
+        let duplicate = factory.makeAccountAlreadySavedRequest(accountLabel: "Business 4")
         #expect(duplicate.messageText == "Account Already Saved")
         #expect(duplicate.informativeText.contains("Business 4"))
 
@@ -136,16 +127,16 @@ struct MenuBarAlertFactoryTests {
 
     @Test
     func removeAccountRequestUsesPlainRemoveWhenAccountIsInactive() {
-        let request = factory.makeRemoveAccountRequest(accountName: "Work")
+        let request = factory.makeRemoveAccountRequest(accountLabel: "work@example.com")
 
-        #expect(request.informativeText.contains("removes Work from CodexPill"))
+        #expect(request.informativeText.contains("removes work@example.com from CodexPill"))
         #expect(request.confirmTitle == "Remove")
     }
 
     @Test
     func removeAccountRequestRequiresSignOutWhenAccountIsActiveOnTargets() {
         let request = factory.makeRemoveAccountRequest(
-            accountName: "Business 4",
+            accountLabel: "Business 4",
             activeTargets: ["This Mac", "debian-vm"]
         )
 

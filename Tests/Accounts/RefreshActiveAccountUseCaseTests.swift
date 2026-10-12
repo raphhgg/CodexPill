@@ -18,7 +18,7 @@ struct RefreshActiveAccountUseCaseTests {
             secondary: nil,
             fetchedAt: .distantPast
         )
-        let account = makeAccount(name: "Work", email: "old@example.com", fingerprint: "live")
+        let account = makeAccount(email: "old@example.com", fingerprint: "live")
         var accountWithRateLimits = account
         accountWithRateLimits.usage = existingRateLimits
         let repository = PersistingAccountCatalogProbe()
@@ -49,7 +49,7 @@ struct RefreshActiveAccountUseCaseTests {
 
     @Test
     func saveRelinksSavedSnapshotWhenLiveAuthFingerprintChangedForSameAccount() async throws {
-        var account = makeAccount(name: "Personal", email: "personal@example.com", fingerprint: "stale-fingerprint")
+        var account = makeAccount(email: "personal@example.com", fingerprint: "stale-fingerprint")
         account.identity.stableAccountID = "acct_personal"
         account.updatedAt = Date(timeIntervalSince1970: 1_744_195_200)
         let relinker = ActiveAuthSnapshotRelinkerProbe(
@@ -104,7 +104,7 @@ struct RefreshActiveAccountUseCaseTests {
             secondary: nil,
             fetchedAt: Date(timeIntervalSince1970: 1_744_195_100)
         )
-        var account = makeAccount(name: "Work", email: "old@example.com", fingerprint: "live")
+        var account = makeAccount(email: "old@example.com", fingerprint: "live")
         account.updatedAt = existingUpdatedAt
         account.usage = existingRateLimits
         let repository = PersistingAccountCatalogProbe()
@@ -134,7 +134,7 @@ struct RefreshActiveAccountUseCaseTests {
 
     @Test
     func runFailsWhenLiveAccountDoesNotMatchAnySavedAccount() async {
-        let account = makeAccount(name: "Work", email: "saved@example.com", fingerprint: "saved")
+        let account = makeAccount(email: "saved@example.com", fingerprint: "saved")
         let useCase = RefreshActiveAccountUseCase(
             accountStatusClient: StubAccountStatusClient(
                 status: CodexAccountStatus(
@@ -185,7 +185,7 @@ private final class ActiveAuthSnapshotRelinkerProbe: ActiveAuthSnapshotRelinking
         currentAuthData
     }
 
-    func saveAuthSnapshot(_ authData: Data, named name: String, existing: CodexAccount?) throws -> CodexAccount {
+    func saveAuthSnapshot(_ authData: Data, existing: CodexAccount?) throws -> CodexAccount {
         savedAuthData = authData
         savedExistingAccount = existing
         return relinkedAccount

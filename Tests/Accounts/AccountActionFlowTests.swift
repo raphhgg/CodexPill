@@ -9,8 +9,7 @@ struct AccountActionFlowTests {
         let account = makeAccount(name: "Business 2")
 
         let step = AccountActionFlow().resolveAddAccountCompletion(
-            .completed(account),
-            retryName: "Business 2"
+            .completed(account)
         )
 
         guard case .offerLocalSwitch(let resolvedAccount) = step else {
@@ -47,8 +46,7 @@ struct AccountActionFlowTests {
     @Test
     func cancelledSignInCompletionDoesNotShowGenericError() {
         let step = AccountActionFlow().resolveAddAccountCompletion(
-            .failed(CancellationError()),
-            retryName: "Business 2"
+            .failed(CancellationError())
         )
 
         guard case .none = step else {
@@ -58,20 +56,18 @@ struct AccountActionFlowTests {
     }
 
     @Test
-    func expiredSignInCodeOffersRetryWithOriginalName() {
+    func expiredSignInCodeOffersRetry() {
         let step = AccountActionFlow().resolveAddAccountStartFailure(
-            IsolatedCodexLoginError.authCaptureTimedOut,
-            retryName: "Business 2"
+            IsolatedCodexLoginError.authCaptureTimedOut
         )
 
-        #expect(step == .offerSignInRetry(outcome: .expiredCode, retryName: "Business 2"))
+        #expect(step == .offerSignInRetry(outcome: .expiredCode))
     }
 
     @Test
     func promptUnavailablePreservesSanitizedFailureReason() {
         let step = AccountActionFlow().resolveAddAccountStartFailure(
-            IsolatedCodexLoginError.promptUnavailable(reason: "error sending request"),
-            retryName: "Business 2"
+            IsolatedCodexLoginError.promptUnavailable(reason: "error sending request")
         )
 
         #expect(step == .showSignInFailure(.promptUnavailable(reason: "error sending request")))
@@ -80,8 +76,7 @@ struct AccountActionFlowTests {
     @Test
     func authCaptureFailureMapsToAccountSignInOutcome() {
         let step = AccountActionFlow().resolveAddAccountStartFailure(
-            IsolatedCodexLoginError.authCaptureFailed,
-            retryName: "Business 2"
+            IsolatedCodexLoginError.authCaptureFailed
         )
 
         #expect(step == .showSignInFailure(.captureFailed))
@@ -90,38 +85,16 @@ struct AccountActionFlowTests {
     @Test
     func loginVerificationFailureMapsToAccountSignInOutcome() {
         let step = AccountActionFlow().resolveAddAccountStartFailure(
-            IsolatedCodexLoginError.loginStatusVerificationFailed,
-            retryName: "Business 2"
+            IsolatedCodexLoginError.loginStatusVerificationFailed
         )
 
         #expect(step == .showSignInFailure(.verificationFailed))
     }
 
     @Test
-    func duplicateDisplayNameOffersNameRecovery() {
-        let step = AccountActionFlow().resolveAddAccountStartFailure(
-            AccountDisplayNameError.duplicateAccountName,
-            retryName: "Business 2"
-        )
-
-        #expect(step == .offerDuplicateNameRecovery)
-    }
-
-    @Test
-    func emptyDisplayNameShowsErrorAndReopensNamePrompt() {
-        let step = AccountActionFlow().resolveAddAccountStartFailure(
-            AccountDisplayNameError.emptyAccountName,
-            retryName: "Business 2"
-        )
-
-        #expect(step == .showEmptyNameAndRetry(message: "Account name is required."))
-    }
-
-    @Test
     func liveAuthMutationRoutesToUnsafeAuthChangeStep() {
         let step = AccountActionFlow().resolveAddAccountStartFailure(
-            AddAccountWorkflowError.liveAuthChanged,
-            retryName: "Business 2"
+            AddAccountWorkflowError.liveAuthChanged
         )
 
         #expect(step == .showUnsafeAuthChange)
@@ -130,8 +103,7 @@ struct AccountActionFlowTests {
     @Test
     func catalogSaveFailureRoutesToSaveFailureStep() {
         let step = AccountActionFlow().resolveAddAccountStartFailure(
-            AddAccountWorkflowError.catalogSaveFailed,
-            retryName: "Business 2"
+            AddAccountWorkflowError.catalogSaveFailed
         )
 
         #expect(step == .showSaveFailure)
@@ -139,11 +111,11 @@ struct AccountActionFlowTests {
 
     @Test
     func duplicateCapturedIdentityRoutesToAlreadySavedStep() {
+        let savedID = UUID()
         let step = AccountActionFlow().resolveAddAccountStartFailure(
-            AddAccountWorkflowError.accountAlreadySaved("Business 1"),
-            retryName: "Business 2"
+            AddAccountWorkflowError.accountAlreadySaved(savedID)
         )
 
-        #expect(step == .showAccountAlreadySaved(accountName: "Business 1"))
+        #expect(step == .showAccountAlreadySaved(accountID: savedID))
     }
 }

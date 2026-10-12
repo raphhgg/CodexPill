@@ -22,7 +22,7 @@ The user orders the cards from each side menu. The first card drives the menu ba
 Every tool uses the same card. It is one hover cell with a side menu and no chevron.
 
 - **Header.** The tool's monochrome mark, its name, and the plan tag on the right: `Pro x20` or `Pro x5` for Codex, `Max x20` or `Max x5` for Claude, `Pro` for Cursor. The marks come from Lobe Icons (MIT, see `THIRD_PARTY_NOTICES.md`).
-- **Meters.** One per window the tool reports: `Session`, `Weekly`, or `Billing cycle`. A window the tool does not report has no meter. Codex Pro and Pro Lite hide the session window. Each meter shows the bar with an even-pace tick, `11% used` on the left and `Resets in 2h53` (or `Resets 30 Oct` for a billing cycle) in grey on the right. Meters follow the `Usage Bars` settings.
+- **Meters.** One per window the tool reports, shortest first, named by its length: `Session` (5 hours), `Weekly` (7 days), `Monthly` (28 to 31 days), or `Billing cycle` for Cursor. Any other length is titled by that length, such as `8 days`. Claude's per-model weekly limits follow `Weekly`, one meter each, titled `<model> this week`, such as `Fable this week`. `Show Model Limits` hides them. A Codex Free account shows only `Monthly`. A window the tool does not report has no meter. Codex Pro and Pro Lite hide the session window. Each meter shows the bar with an even-pace tick placed by the window's real length, `11% used` on the left and `Resets in 2h53` in grey on the right. A reset more than a week away, and any billing cycle's, reads as a date: `Resets 30 Oct`. Meters follow the `Usage Bars` settings.
 - **Codex resets.** `2 resets available` with `Next expires 5 Nov` on the right, or `Expires 5 Nov` for one credit ([Codex Reset Credits](codex-reset-credits.md)). Claude has no reset row.
 - **Cursor spend.** `On-demand: $12.34 of $50.00` under the meter. An unlimited plan has no meter.
 - **States.** A title and at most one short line replace or precede the meters:
@@ -34,25 +34,25 @@ Every tool uses the same card. It is one hover cell with a side menu and no chev
   | Read failed with an earlier reading | the failure title, meters dimmed | `As of 10:26` |
   | Read failed with no earlier reading | the failure title | the failure line |
   | No Codex account in use | `No saved account in use` | `Pick one in this menu.` |
-  | Signing in (Claude) | `Finish signing in in your browser` | none |
 
   Failure titles come from `ProviderCopy`, for example `Can't reach Anthropic` / `Retrying in a few minutes.`, `Cursor is busy`, `Cursor isn't installed`, `Allow Keychain access`. A Codex reading older than two refreshes, and at least 15 minutes, is stale.
-- **Action rows.** While a state lasts, one row sits under the card: `Allow Keychain access…` or `Cancel Sign-In`.
+- **Action rows.** While a state lasts, one row sits under the card: `Allow Keychain access…`.
 
 ## Side Menu
 
 Hovering a card opens its side menu:
 
-1. Codex only: the email of the account in use, disabled.
-2. Codex only: `Use <email>` when exactly one other account is saved, or `Use Another Codex Account ›` listing them.
+1. The email of the account in use, checked and disabled. For Claude and Cursor it is the account their own app is signed in to, from the last reading.
+2. Codex only: one row per other saved account, by email. Each row opens `Use` and `Remove…`. `Remove…` asks first. Removing a Codex account also signs this Mac out when `auth.json` still uses it.
+   An account without an email reads as its workspace, then its plan (`Plus account`), else `Saved account`. Repeated labels get a number in saved order: `Saved account 2`. Alerts name an account with the same label.
+   Each one carries that account's last limits on a second, smaller line, in the user's % used or % left: `Session 12% · Weekly 40% used`, `Weekly 17% used` for Codex Pro, or `Monthly 3% used` for Codex Free. A reading older than 30 minutes adds `· as of 10:26`.
 3. Codex only: `Use a Reset…`, then one disabled `Expires <date>` line per credit Codex listed, and `Token Usage ›` when token usage is on ([Token Usage](token-usage.md)).
 4. `Move to Top`, `Move Up`, `Move Down`, when there is more than one card. Moves that do not apply are disabled.
-5. Codex only: `Add Codex Account…` and `Remove Codex Account ›` listing every saved account.
-6. Claude and Cursor only: `Disconnect <Tool>`, last.
+5. Codex only: `Add Codex Account…`.
 
-Claude and Cursor have no account rows: CodexPill reads only the account their own app is signed in to.
+Claude and Cursor have no other account rows: CodexPill reads only the account their own app is signed in to. The Codex account in use has no remove item. `Disconnect <Tool>` lives in Settings.
 
-`Hide Emails` masks every email the menu and the tooltip show: `alex.side@example.com` reads `al•••e@example.com`. The domain stays visible.
+`Hide Emails` masks every email the menu, its alerts and the tooltip show: `alex.side@example.com` reads `al•••e@example.com`. The domain stays visible.
 
 Every tool item carries a `ProviderMenuAction` and goes through `MenuBarCoordinator.performProviderAction(_:)`.
 
@@ -60,8 +60,9 @@ Every tool item carries a `ProviderMenuAction` and goes through `MenuBarCoordina
 
 ```text
 Add Account ›        Codex…  Claude…  Cursor…
+Disconnect Claude    (one per connected tool: Claude, Cursor)
 ─────
-Appearance ›         Menu Bar Label ›  Icon Style ›  Usage Bars ›  ─  Show Token Usage
+Appearance ›         Menu Bar Label ›  Icon Style ›  Usage Bars ›  ─  Show Token Usage  Show Model Limits
 Hide Emails
 Refresh Every ›      1 minute … 30 minutes
 Launch at Login
@@ -70,9 +71,11 @@ Diagnostics…
 About
 ```
 
-`Claude…` and `Cursor…` connect a tool and are listed only while it is not connected.
+`Claude…` and `Cursor…` connect a tool and are listed only while it is not connected. `Disconnect Claude` and `Disconnect Cursor` appear only while that tool is connected, and hide its card. Codex has nothing to disconnect.
 
-`Diagnostics…` first explains what the export contains, then writes a redacted JSON file only if the user confirms. The report holds allowlisted fields, per-export account aliases, summarized freshness states and recent CodexPill workflow events. It never includes raw logs, auth JSON, snapshots, raw UserDefaults, emails, hostnames, local paths, tokens, stable account IDs, prompt or session content, or raw stderr.
+`Show Model Limits` is on by default and checked while on. Turning it off hides Claude's per-model meters in the card. It never changes the menu bar icon, which uses only the session and weekly windows. It is saved as `claudeShowsModelLimits` in user defaults.
+
+`Diagnostics…` first explains what the export contains, then writes a redacted JSON file only if the user confirms. The report holds allowlisted fields, per-export account aliases, every limit window each account reported (its kind, its menu title and a used-share category: available, limited or exhausted), summarized freshness states and recent CodexPill workflow events. It never includes raw logs, auth JSON, snapshots, raw UserDefaults, emails, hostnames, local paths, tokens, stable account IDs, prompt or session content, or raw stderr.
 
 ## Rendering
 

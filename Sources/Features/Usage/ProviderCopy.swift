@@ -8,12 +8,14 @@ struct ProviderCopy: Sendable {
     /// Who answers usage requests, for "Can't reach …" style messages.
     let serviceName: String
     let connectPrompt: ProviderPrompt?
+    /// What renews an expired sign-in. By default, opening the tool.
+    var renewHint: String? = nil
 
     /// What the menu asks before running `action`, or nil to run it right away.
     func prompt(for action: ProviderAction) -> ProviderPrompt? {
         switch action {
         case .connect: connectPrompt
-        case .allowKeychainAccess, .signIn, .cancelSignIn, .disconnect, .switchAccount, .addAccount, .removeAccount, .useResetCredit: nil
+        case .allowKeychainAccess, .disconnect, .switchAccount, .addAccount, .removeAccount, .useResetCredit: nil
         }
     }
 
@@ -22,7 +24,7 @@ struct ProviderCopy: Sendable {
         return switch reason {
         case .notInstalled: ("\(name) isn't installed", nil)
         case .signedOut: ("Not signed in to \(name)", "Sign in to \(name) to see usage.")
-        case .signInExpired: ("\(name) sign-in expired", "Open \(name) to renew it.")
+        case .signInExpired: ("\(name) sign-in expired", renewHint ?? "Open \(name) to renew it.")
         case .keychainAccessNeeded: ("Allow Keychain access", nil)
         case .signInUnreadable: ("Can't read the \(name) sign-in", "Sign in to \(name) again.")
         case .signInBusy: ("\(name) is busy", retrying)
@@ -49,7 +51,8 @@ extension UsageProvider {
                     title: "Connect Claude Code?",
                     detail: "Uses Claude Code's sign-in to read your limits.",
                     confirmTitle: "Connect"
-                )
+                ),
+                renewHint: "Run claude to renew it."
             )
         case .cursor:
             ProviderCopy(

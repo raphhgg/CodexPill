@@ -35,7 +35,7 @@ Features -> Core
 
 A port lives in one of two places:
 
-- In Platform, next to its adapter, when the adapter is the only thing that implements it: `CodexAppProcessClient`, `CodexResetCreditClient`, `IsolatedCodexLoginClient`, `CursorAppProcessClient`.
+- In Platform, next to its adapter, when the adapter is the only thing that implements it: `CodexAppProcessClient`, `CodexResetCreditClient`, `IsolatedCodexLoginClient`, `ClaudeCodeProcessRunning`, `ClaudeCodeProcessDetecting`.
 - In the Features file that uses it, when a feature needs a narrower view of a Platform type. The Platform type adopts it through an extension in that same Features file, so Platform stays unaware of it: `AccountCatalogStore`, `AccountCatalogLoader`, `CodexAuthActivator`, `LiveCodexAccountIdentitySource`.
 
 App injects the adapter either way.
@@ -65,7 +65,7 @@ Key boundaries:
 - `AccountActionFlow`
 - `AddAccountWorkflow`
 - `SwitchAccountWorkflow`
-- account load/delete/rename/refresh/hydration use cases
+- account load/delete/refresh/hydration use cases
 - account identity matching and relinking utilities
 
 `Features/TokenUsage` owns local token-usage history lifecycle and cache policy.
@@ -86,7 +86,7 @@ Key boundaries:
 - `UsageProviderSource`, the read half of that port. It returns a `UsageProviderReading`: not connected, unavailable with a `UsageUnavailableReason`, awaiting usage, or a `UsageSnapshot`. The reasons are not installed, signed out, sign-in expired (401 or past expiry), Keychain access needed, sign-in unreadable, sign-in busy (the tool is writing it right now), access denied (403), rate limited (429), unreachable, service error (other status), and unexpected response.
 - `ProviderCopy`, the one table of every word the menu shows for a tool: its name, who answers its usage requests, the confirmation before connecting, and the message for each unavailable reason.
 - `ClaudeCodeUsage` and `CursorUsage`, the two connections. Each wraps its Platform adapter, maps its values onto `UsageSnapshot`, and owns the opt-in setting.
-- `ProviderUsageRuntime`, which reads each connection at most once per its `refreshInterval` (5 minutes by default), however often the menu opens, and publishes one `ProviderUsageState` per tool: its status, and whether a browser sign-in is waiting. A snapshot older than `staleAfter` is published as `.stale`. When a tool is unavailable for a reason that keeps the same account, the runtime keeps the last good snapshot next to the reason. It also runs the actions the menu sends.
+- `ProviderUsageRuntime`, which reads each connection at most once per its `refreshInterval` (5 minutes by default), however often the menu opens, and publishes one `ProviderUsageState` per tool: its status. A snapshot carries the email of the account the tool is signed in to, which the side menu shows. A snapshot older than `staleAfter` is published as `.stale`. When a tool is unavailable for a reason that keeps the same account, the runtime keeps the last good snapshot next to the reason. It also runs the actions the menu sends.
 
 Tool states only feed menu sections. They never reach `AccountAvailability` or `InactiveAccountAvailabilityRanking`: those read `CodexAccount.usage`. The runtime refuses a connection for `.codex`.
 
@@ -96,17 +96,21 @@ A tool other than Codex is one type that conforms to `ProviderConnection` and is
 
 ```swift
 protocol ProviderConnection: UsageProviderSource {
+    var isConnected: Bool { get }
     func connect() async
     func disconnect() async
-    var signIn: (any ProviderSignIn)? { get }
+    func renewLiveSignInIfNeeded(now: Date) async -> Bool
 }
 ```
+
+`renewLiveSignInIfNeeded(now:)` lets the tool renew its own expired live sign-in while the tool is not running, and returns true when the sign-in changed. Claude runs `claude doctor` with Claude Code's own config, once per expiry with a 30-minute retry. The default does nothing.
 
 Its words go in `ProviderCopy` under its `UsageProvider` case. Nothing else changes: no selector, coordinator property, or menu-builder branch names a tool.
 
 - Every tool menu item, Codex included, carries a `ProviderMenuAction` (tool plus `ProviderAction`) and calls `MenuBarCoordinator.performProviderAction(_:)`.
-- The coordinator asks the `ProviderCopy` confirmation, if any, then runs the action in a tracked task through `ProviderUsageRuntime.perform(_:on:)` and shows the `ProviderNotice` it returns.
-- The runtime reads the tool again after every action. A finished sign-in first drops the tool's last reading and bumps a generation, so a read that started before the change is discarded and the previous account's numbers never show.
+- The coordinator asks the `ProviderCopy` confirmation, if any, then runs the action in a tracked task through `ProviderUsageRuntime.perform(_:on:)`.
+- The runtime reads the tool again after every action.
+- After a read, the coordinator asks the runtime to renew each tool whose reading is sign-in expired. One renewal runs at a time. A tool that renewed is read again.
 - The port has no account methods: Claude Code and Cursor show only the account their own app is signed in to, and CodexPill never writes their sign-ins.
 - Codex is not a connection: its usage lives on each saved `CodexAccount` and adding an account is an interactive sign-in panel. The coordinator routes `.codex` actions to `AccountsController`, which refreshes the new active account after a switch and never runs a reset credit and an account change at the same time.
 
@@ -158,17 +162,21 @@ Reusable Codex app-server access is split into these platform boundaries:
 
 Local app-server reads enter this session runner through `CodexAppServerClient`, which keeps local executable, environment, client-info, timeout, and saved-account strict rate-limit requirements in `CodexAppServerConfiguration`.
 
+The active account's read is complete once it has the account and at least one limit window of any length. A Pro plan reports only a weekly window and a free plan only a monthly one. Only a read with no window runs the app-server again, once after 1 second with `refreshToken: true`. A failed read is tried again after 1 second, and once more after 3 seconds when Codex says the rate-limit read failed. Windows and account fields from the attempts merge, the newest winning.
+
 `Platform/Claude` owns everything CodexPill knows about Claude Code. It never writes Claude Code's files or Keychain item. It owns:
 
-- reading its sign-in from `.credentials.json` and the `Claude Code-credentials` Keychain item, with the Keychain prompt shown only after a user action (`ClaudeCredentialsSource`, `SystemClaudeKeychain`);
-- the `api.anthropic.com/api/oauth/usage` request, its redirect rule, its rate-limit wait, and parsing its response (`ClaudeUsageAPI`, `ClaudeUsageClient`).
+- reading its sign-in from `.credentials.json` and the `Claude Code-credentials` Keychain item, with the Keychain prompt shown only after a user action (`ClaudeCredentialsSource`, `SystemClaudeKeychain`), and the plan tier and email from the account record in its global config;
+- the `api.anthropic.com/api/oauth/usage` request, its redirect rule, its rate-limit wait, and parsing its response (`ClaudeUsageAPI`, `ClaudeUsageClient`);
+- running `claude doctor` so Claude Code renews its own expired sign-in (`ClaudeCodeCommands`, `SystemClaudeCodeProcessRunner`);
+- whether terminal Claude Code is running, behind the `ClaudeCodeProcessDetecting` port. Renewal waits while it runs. The Claude desktop app's own Claude Code is ignored.
 
-The access token leaves this module only as the usage request's `Authorization` header. Nothing in it reads, sends, or renews Claude Code's refresh token; a test scans the Claude sources to keep it that way.
+The access token leaves this module only as the usage request's `Authorization` header. Nothing in it reads, sends, or renews Claude Code's refresh token; a test scans the Claude sources to keep it that way. Renewal is always Claude Code's own, through `claude doctor`.
 
 `Platform/Cursor` owns everything CodexPill knows about Cursor. It never writes Cursor's database or quits Cursor. It owns:
 
 - `CursorStateDatabase`, keyed read-only access to `state.vscdb`. It never scans. A read opens the database with `immutable=1` only when no `-wal`, `-shm`, or `-journal` file sits next to it, so it never reads a writer's uncommitted pages;
-- `CursorStateDatabaseTokenSource`, the read-only token lookup used for usage, and `CursorAccessToken`, which prints redacted;
+- `CursorStateDatabaseTokenSource`, the read-only lookup of the token and the cached email used for usage, and `CursorAccessToken`, which prints redacted;
 - the `cursor.com/api/usage-summary` request, its redirect rule, its `Retry-After` wait, and parsing its response (`URLSessionCursorUsageWebClient`, `CursorUsageClient`, `CursorUsageSummaryParser`).
 
 The token leaves this module only as the usage request's cookie.
@@ -190,8 +198,8 @@ Platform adapters are the only place where the app should know about live auth f
 `Sources/Core/` is models plus typed preferences:
 
 - `CodexAccount` and `LiveCodexAccountIdentity`
-- `CodexRateLimits`, Codex plan-type rules and `UsageSnapshot.codex(planName:primary:secondary:fetchedAt:)`, the only place that turns Codex's positional primary and secondary windows into session and weekly windows
-- `Usage`, the provider-neutral usage model: `UsageSnapshot` holds a provider, the plan name the provider reported, and `UsageWindow` values keyed by `UsageWindowKind` (session, weekly, billing cycle). `UsageWindow.displayedUsedPercent(at:)` is the one rule for showing 0% once a window has reset. `CodexAccount.usage` and `CodexAccountStatus.usage` store it directly. `CodexAccount` reads and writes the `rateLimits` primary/secondary shape `accounts.json` has always used through a private storage type, so files from earlier versions still load and earlier versions can still read new files.
+- `CodexRateLimits`, Codex plan-type rules and `UsageSnapshot.codex(planName:primary:secondary:fetchedAt:)`, the only place that turns Codex's positional primary and secondary windows into named windows, shortest first
+- `Usage`, the provider-neutral usage model: `UsageSnapshot` holds a provider, the plan name the provider reported, the signed-in email for Claude and Cursor, and `UsageWindow` values keyed by `UsageWindowKind` (session, weekly, monthly, billing cycle, or other with its length). `UsageWindowKind(durationMinutes:)` is the one rule that names a window by its length, with its tolerances. `UsageWindow.displayedUsedPercent(at:)` is the one rule for showing 0% once a window has reset. `CodexAccount.usage` and `CodexAccountStatus.usage` store it directly. `CodexAccount` reads and writes the `rateLimits` primary/secondary shape `accounts.json` has always used through a private storage type, so files from earlier versions still load and earlier versions can still read new files. Loading names each stored window by its length again.
 - `StatusBarIndicatorStyle` and `StatusBarDisplayMode`, the persisted status-item choices
 - typed `UserDefaults`-backed settings stores
 
@@ -219,7 +227,7 @@ App startup builds each store from one `UserDefaults` instance and injects the o
 
 `AccountActionFlow` owns account action sequencing decisions that do not require AppKit access. It converts workflow outcomes into presentation-neutral next steps. Add Account sign-in failures cross this boundary as account-domain `AddAccountSignInFailureOutcome` values, such as prompt unavailable, expired code, capture failed, and verification failed; MenuBar renders those outcomes into alerts and retry panels without deriving recovery policy from platform login errors.
 
-`AccountAvailability` reads one saved account's session and weekly usage and reset times for ranking. It must not know menu rendering or AppKit exists.
+`AccountAvailability` reads one saved account's session usage and its fullest longer window (weekly, monthly, or other) with their reset times for ranking. It must not know menu rendering or AppKit exists.
 
 `InactiveAccountAvailabilityRanking` owns ordering and best-account comparison only.
 

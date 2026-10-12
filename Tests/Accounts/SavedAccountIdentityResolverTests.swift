@@ -6,7 +6,7 @@ import Testing
 struct SavedAccountIdentityResolverTests {
     @Test
     func resolveUsesCurrentAuthFingerprintByDefault() {
-        let account = makeAccount(name: "Work", email: "work@example.com", fingerprint: "live-fingerprint")
+        let account = makeAccount(email: "work@example.com", fingerprint: "live-fingerprint")
         let resolver = SavedAccountIdentityResolver(
             liveIdentitySource: LiveIdentityStub(fingerprint: "live-fingerprint"),
             storedAccountReconciler: PassthroughIdentityReconciler()
@@ -19,7 +19,7 @@ struct SavedAccountIdentityResolverTests {
 
     @Test
     func resolveFallsBackToRemoteIdentityWhenFingerprintDoesNotMatch() {
-        let account = makeAccount(name: "Work", email: "work@example.com", fingerprint: "stale-fingerprint")
+        let account = makeAccount(email: "work@example.com", fingerprint: "stale-fingerprint")
         let resolver = SavedAccountIdentityResolver(
             liveIdentitySource: LiveIdentityStub(fingerprint: "live-fingerprint"),
             storedAccountReconciler: PassthroughIdentityReconciler()
@@ -36,7 +36,6 @@ struct SavedAccountIdentityResolverTests {
     @Test
     func resolvePrefersScopedPrincipalIdentityWhenStableAccountIDIsShared() {
         let businessOne = makeAccount(
-            name: "Business 1",
             email: "admin@example.com",
             fingerprint: "business-one-fingerprint",
             stableAccountID: "acct-team",
@@ -50,7 +49,6 @@ struct SavedAccountIdentityResolverTests {
             )
         )
         let businessFour = makeAccount(
-            name: "Business 4",
             email: "team@example.com",
             fingerprint: "business-four-fingerprint",
             stableAccountID: "acct-team",
@@ -82,7 +80,6 @@ struct SavedAccountIdentityResolverTests {
     @Test
     func resolveDoesNotFallbackToRemoteIdentityWhenScopedStableCandidatesDisagree() {
         let businessOne = makeAccount(
-            name: "Business 1",
             email: "admin@example.com",
             fingerprint: "business-one-fingerprint",
             stableAccountID: "acct-team",
@@ -96,7 +93,6 @@ struct SavedAccountIdentityResolverTests {
             )
         )
         let businessFour = makeAccount(
-            name: "Business 4",
             email: "team@example.com",
             fingerprint: "business-four-fingerprint",
             stableAccountID: "acct-team",

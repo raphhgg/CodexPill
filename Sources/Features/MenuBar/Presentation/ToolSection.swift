@@ -5,13 +5,20 @@ struct ToolSection: Equatable {
     let provider: UsageProvider
     let planTag: String?
     let card: ToolCard
-    /// Saved Codex accounts, labeled by email, masked when Hide Emails is on. Claude and Cursor have none.
+    /// Saved Codex accounts. Labels are emails, masked when Hide Emails is on. Claude and Cursor have none.
     let accounts: [ToolAccount]
     /// An action row under the card while its state lasts, such as "Allow Keychain access…".
     let followUp: ToolFollowUp?
+    /// The email Claude or Cursor is signed in to, masked when Hide Emails is on.
+    var signedInLabel: String? = nil
 
     var activeAccount: ToolAccount? {
         accounts.first(where: \.isActive)
+    }
+
+    /// What the side menu and the tooltip call the account in use.
+    var activeLabel: String? {
+        activeAccount?.label ?? signedInLabel
     }
 
     var otherAccounts: [ToolAccount] {
@@ -36,6 +43,8 @@ struct ToolAccount: Equatable {
     let id: UUID
     let label: String
     let isActive: Bool
+    /// The account's last limits on one line, such as "Session 12% · Weekly 40% used". Nil before the first read.
+    var usageLine: String? = nil
 }
 
 struct ToolFollowUp: Equatable {
@@ -88,6 +97,11 @@ extension MenuBarMenuState {
         return order
     }
 
+    /// What the side menu calls a saved account, so alerts name it the same way, Hide Emails included.
+    func accountLabel(_ id: UUID, of provider: UsageProvider) -> String? {
+        toolSections.first { $0.provider == provider }?.accounts.first { $0.id == id }?.label
+    }
+
     /// A Codex reading older than two refreshes, and at least 15 minutes old, is stale.
     var codexStaleAfter: TimeInterval {
         max(15 * 60, TimeInterval(2 * refreshIntervalMinutes * 60))
@@ -95,13 +109,7 @@ extension MenuBarMenuState {
 
     private var codexSection: ToolSection? {
         guard !allSavedAccounts.isEmpty else { return nil }
-        let accounts = allSavedAccounts.map { account in
-            ToolAccount(
-                id: account.id,
-                label: account.email.map { displayedEmail($0, masked: masksEmails) } ?? account.name,
-                isActive: account.id == activeAccount?.id
-            )
-        }
+        let accounts = codexAccountLabels()
 
         let card = if let activeAccount, let usage = activeAccount.usage {
             usageCard(usage, isStale: usage.freshness(at: now, staleAfter: codexStaleAfter) == .stale)
@@ -125,27 +133,22 @@ extension MenuBarMenuState {
         var followUp: ToolFollowUp?
         var snapshot: UsageSnapshot?
 
-        if usage.isSigningIn {
-            card = ToolCard(title: "Finish signing in in your browser")
-            followUp = ToolFollowUp(title: "Cancel Sign-In", systemImage: "xmark.circle", action: .cancelSignIn)
-        } else {
-            switch usage.status {
-            case .notConnected, .awaitingUsage:
-                card = ToolCard(title: "Waiting for \(copy.name) usage")
-            case let .current(current):
-                snapshot = current
-                card = usageCard(current, isStale: false)
-            case let .stale(stale):
-                snapshot = stale
-                card = usageCard(stale, isStale: true)
-            case let .unavailable(reason, lastSnapshot):
-                snapshot = lastSnapshot
-                let message = copy.unavailableMessage(for: reason)
-                card = lastSnapshot.map { usageCard($0, isStale: true) } ?? ToolCard(detail: message.detail)
-                card.title = message.title
-                if reason == .keychainAccessNeeded {
-                    followUp = ToolFollowUp(title: "Allow Keychain access…", systemImage: "key", action: .allowKeychainAccess)
-                }
+        switch usage.status {
+        case .notConnected, .awaitingUsage:
+            card = ToolCard(title: "Waiting for \(copy.name) usage")
+        case let .current(current):
+            snapshot = current
+            card = usageCard(current, isStale: false)
+        case let .stale(stale):
+            snapshot = stale
+            card = usageCard(stale, isStale: true)
+        case let .unavailable(reason, lastSnapshot):
+            snapshot = lastSnapshot
+            let message = copy.unavailableMessage(for: reason)
+            card = lastSnapshot.map { usageCard($0, isStale: true) } ?? ToolCard(detail: message.detail)
+            card.title = message.title
+            if reason == .keychainAccessNeeded {
+                followUp = ToolFollowUp(title: "Allow Keychain access…", systemImage: "key", action: .allowKeychainAccess)
             }
         }
 
@@ -154,28 +157,73 @@ extension MenuBarMenuState {
             planTag: snapshot.flatMap { planTag(for: usage.provider, planName: $0.planName) },
             card: card,
             accounts: [],
-            followUp: followUp
+            followUp: followUp,
+            signedInLabel: snapshot?.accountEmail.map { displayedEmail($0, masked: masksEmails) }
         )
+    }
+
+    /// A Codex account reads as its email, else its workspace or plan, else "Saved account". Labels that would repeat
+    /// get a number in saved order, so it does not move when the user switches: "Saved account", "Saved account 2".
+    /// A workspace name with an @ in it is skipped.
+    private func codexAccountLabels() -> [ToolAccount] {
+        let baseLabels = allSavedAccounts.map { account in
+            if let email = account.email { return displayedEmail(email, masked: masksEmails) }
+            let planLabel = planTag(for: .codex, planName: account.effectivePlanType).map { "\($0) account" }
+            let name = [account.identity.workspaceIdentity?.workspaceLabel, planLabel].compactMap(\.self).first { !$0.contains("@") }
+            return name ?? "Saved account"
+        }
+        var seen: [String: Int] = [:]
+        return zip(allSavedAccounts, baseLabels).map { account, label in
+            seen[label, default: 0] += 1
+            let count = seen[label] ?? 1
+            return ToolAccount(
+                id: account.id,
+                label: count > 1 ? "\(label) \(count)" : label,
+                isActive: account.id == activeAccount?.id,
+                usageLine: accountUsageLine(account.usage)
+            )
+        }
+    }
+
+    /// A saved Codex account's limits for its side-menu item, in the user's % used or % left. A reading older than two
+    /// inactive refreshes says when it was read: "Session 12% · Weekly 40% used · as of 10:26".
+    func accountUsageLine(_ snapshot: UsageSnapshot?) -> String? {
+        let windows = snapshot.map(displayedWindows) ?? []
+        guard let snapshot, !windows.isEmpty else { return nil }
+        let percents = windows.map { window in
+            let used = window.displayedUsedPercent(at: now)
+            return "\(window.kind.title) \(usagePercentMode == .used ? used : 100 - used)%"
+        }
+        var line = percents.joined(separator: " · ") + (usagePercentMode == .used ? " used" : " left")
+        if snapshot.freshness(at: now, staleAfter: 2 * AccountsController.inactiveSavedAccountsRefreshInterval) == .stale {
+            line += " · as of \(usageAsOfText(snapshot.fetchedAt, now: now))"
+        }
+        return line
     }
 
     /// A reading that is not current keeps its meters, dimmed, under the time it was read.
     private func usageCard(_ snapshot: UsageSnapshot, isStale: Bool) -> ToolCard {
         ToolCard(
             detail: isStale ? "As of \(usageAsOfText(snapshot.fetchedAt, now: now))" : nil,
-            windows: snapshot.displayedWindows,
+            windows: displayedWindows(snapshot),
             isDimmed: isStale,
             resetCredits: snapshot.resetCredits.flatMap { $0.availableCount > 0 ? $0 : nil },
             spend: snapshot.spend
         )
     }
+
+    /// Claude's per-model limits show unless Show Model Limits is off.
+    private func displayedWindows(_ snapshot: UsageSnapshot) -> [UsageWindow] {
+        snapshot.displayedWindows.filter { showsModelLimits || !$0.kind.isModelLimit }
+    }
 }
 
 extension UsageSnapshot {
-    /// Windows in menu order. Codex Pro plans hide the 5-hour window, which they barely ever reach.
+    /// The windows the tool reported, shortest first. Codex Pro plans hide the 5-hour window, which they barely
+    /// ever reach.
     var displayedWindows: [UsageWindow] {
         let hidesSession = provider == .codex && ["pro", "prolite"].contains(normalizedCodexPlanType(planName) ?? "")
-        let kinds: [UsageWindowKind] = hidesSession ? [.weekly, .billingCycle] : [.session, .weekly, .billingCycle]
-        return kinds.compactMap(window)
+        return windows.filter { !(hidesSession && $0.kind == .session) }
     }
 }
 
@@ -184,9 +232,38 @@ extension UsageWindowKind {
         switch self {
         case .session: "Session"
         case .weekly: "Weekly"
+        case .monthly: "Monthly"
         case .billingCycle: "Billing cycle"
+        case .other(let durationMinutes): lengthTitle(durationMinutes)
+        case .modelWeekly(let modelName): "\(modelName) this week"
         }
     }
+
+    /// The status bar title's label: "S", "W", "M", "B", or "8d" for a length with no name.
+    var shortTitle: String {
+        switch self {
+        case .session, .weekly, .monthly, .billingCycle, .modelWeekly: String(title.prefix(1))
+        case .other(let durationMinutes): shortLengthTitle(durationMinutes)
+        }
+    }
+}
+
+/// "8 days", "36 hours", "90 minutes": rounded to days from two days up, to hours from two hours up.
+private func lengthTitle(_ durationMinutes: Int) -> String {
+    let (count, unit) = lengthParts(durationMinutes)
+    return "\(count) \(unit)\(count == 1 ? "" : "s")"
+}
+
+private func shortLengthTitle(_ durationMinutes: Int) -> String {
+    let (count, unit) = lengthParts(durationMinutes)
+    return "\(count)\(unit.prefix(1))"
+}
+
+private func lengthParts(_ durationMinutes: Int) -> (count: Int, unit: String) {
+    let minutes = Double(durationMinutes)
+    if durationMinutes >= 2 * 1_440 { return (Int((minutes / 1_440).rounded()), "day") }
+    if durationMinutes >= 2 * 60 { return (Int((minutes / 60).rounded()), "hour") }
+    return (durationMinutes, "minute")
 }
 
 /// The plan tag on a card: "Pro x20" for Codex, "Max x20" for Claude, "Pro" for Cursor. Nil when the plan is unknown.
