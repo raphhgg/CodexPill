@@ -30,6 +30,8 @@ struct AllToolsTokenUsageMenuProvider: TokenUsageMenuProviding {
         progress: @escaping @Sendable (TokenUsageScanProgress) -> Void
     ) async -> TokenUsageMenuLoadState {
         let interval = ToolTokenUsageDays.interval(dayCount: period.dayCount, endingAt: now(), calendar: calendar)
+        // Codex's scan reports the card's progress, so it starts while the other tools are read.
+        async let codexLoad = codex.load(period: period, peakScope: peakScope, forceRefresh: forceRefresh, progress: progress)
         var otherSeries: [ToolTokenUsageSeries] = []
         var unavailableTools: [TokenUsageTool] = []
         for source in otherTools where source.isConnected() {
@@ -41,7 +43,7 @@ struct AllToolsTokenUsageMenuProvider: TokenUsageMenuProviding {
             }
         }
 
-        let codexState = await codex.load(period: period, peakScope: peakScope, forceRefresh: forceRefresh, progress: progress)
+        let codexState = await codexLoad
         if case .loading = codexState {
             return codexState
         }
