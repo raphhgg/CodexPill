@@ -8,18 +8,14 @@ struct CursorUsage: UsageProviderSource {
 
     let settings: CursorUsageSettingsStore
     let client: CursorUsageClient
-    /// Saved Cursor sign-ins to switch between. Nil in isolated runs, which never quit the real Cursor.
-    let accounts: CursorAccounts?
 
     init(
         settings: CursorUsageSettingsStore,
         client: CursorUsageClient,
-        accounts: CursorAccounts? = nil,
         refreshInterval: TimeInterval = ProviderUsageRuntime.refreshInterval
     ) {
         self.settings = settings
         self.client = client
-        self.accounts = accounts
         self.refreshInterval = refreshInterval
     }
 
@@ -29,12 +25,6 @@ struct CursorUsage: UsageProviderSource {
 
     func disconnect() {
         settings.isEnabled = false
-    }
-
-    /// Signs Cursor in to a saved account. Cursor quits and reopens, so ask the user first.
-    func switchAccount(to id: UUID) async throws(CursorAccountsError) {
-        guard let accounts else { throw .switchingUnavailable }
-        try await accounts.activate(id)
     }
 
     func readUsage(now _: Date) async -> UsageProviderReading {

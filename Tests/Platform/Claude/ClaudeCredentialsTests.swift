@@ -5,6 +5,22 @@ import Testing
 
 struct ClaudeCredentialsTests {
     @Test
+    func noClaudeCodeIsEverAskedToRenewItsSignIn() throws {
+        let repository = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let sources = try #require(FileManager.default.enumerator(at: repository.appendingPathComponent("Sources"), includingPropertiesForKeys: nil))
+        let claudeFiles = sources.compactMap { $0 as? URL }.filter { $0.pathExtension == "swift" && $0.path.contains("Claude") }
+        #expect(claudeFiles.count > 5)
+
+        let refreshMarkers = ["refreshToken", "refresh_token", "grant_type", "/oauth/token"]
+        let offenders = try claudeFiles.filter { file in
+            let source = try String(contentsOf: file, encoding: .utf8)
+            return refreshMarkers.contains { source.contains($0) }
+        }
+        #expect(offenders.map(\.lastPathComponent) == [])
+    }
+
+    @Test
     func readsTheClaudeSignInAndNeverItsRefreshToken() throws {
         let credentials = try #require(try ClaudeCredentials(json: Data(#"""
         {"claudeAiOauth":{"accessToken":"fake-claude-access-token","refreshToken":"fake-claude-refresh-token",
