@@ -38,13 +38,6 @@ enum TokenUsagePeakScope: String, CaseIterable, Equatable {
 struct TokenUsageScanProgress: Equatable, Sendable {
     var scannedFiles: Int
     var totalFiles: Int
-    /// Codex days read so far. Sessions are read newest day first, so every day after `pendingDay` is final.
-    var codexDays: [CodexDailyTokenUsage] = []
-    /// The newest day that still has unread sessions. Nil once every day is read.
-    var pendingDay: Date?
-    /// Other tools, which are ready before Codex finishes.
-    var otherTools: [ToolTokenUsageSeries] = []
-    var unavailableTools: [TokenUsageTool] = []
 
     var fraction: Double {
         totalFiles > 0 ? min(Double(scannedFiles) / Double(totalFiles), 1) : 0

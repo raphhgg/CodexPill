@@ -8,7 +8,6 @@ import SwiftUI
 struct TokenUsageMenuContent: View {
     let model: TokenUsageCardModel
     @State private var hoveredDay: Int?
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var card: TokenUsageMenuCard { model.card }
     private var preferences: TokenUsagePreferencesStore { model.preferences }
@@ -17,29 +16,15 @@ struct TokenUsageMenuContent: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             header
-            switch card.phase {
-            case .unavailable:
-                stateText("Token usage unavailable")
-            case .loaded where !card.hasData:
-                stateText("No token usage found yet")
-            case .loaded, .reading:
-                TimelineView(.animation(minimumInterval: 1 / 24, paused: reduceMotion || !card.isReading)) { timeline in
-                    let pulse = reduceMotion ? nil : TokenUsagePulse(date: timeline.date)
-                    VStack(alignment: .leading, spacing: 10) {
-                        chart(pulse: pulse)
-                            .frame(height: 44)
-                            .overlay(TokenUsageTooltipOverlay(dayCount: card.days.count, text: card.tooltip(forDay:)) { hoveredDay = $0 })
-                        breakdownPicker
-                        // Both splits are laid out so the card keeps the taller height when the toggle switches.
-                        ZStack(alignment: .topLeading) {
-                            TokenUsageByToolSplit(card: card, palette: palette, pulse: pulse)
-                                .opacity(preferences.breakdown == .byTool ? 1 : 0)
-                                .accessibilityHidden(preferences.breakdown != .byTool)
-                            TokenUsageTopModelsSplit(card: card, palette: palette, pulse: pulse)
-                                .opacity(preferences.breakdown == .topModels ? 1 : 0)
-                                .accessibilityHidden(preferences.breakdown != .topModels)
-                        }
-                    }
+            chartArea.frame(height: 44)
+            breakdownPicker
+                .opacity(card.showsSplits ? 1 : 0)
+                .disabled(!card.showsSplits)
+                .accessibilityHidden(!card.showsSplits)
+            ZStack(alignment: .topLeading) {
+                splits(for: card.layoutTemplate).hidden().accessibilityHidden(true)
+                if card.showsSplits {
+                    splits(for: card)
                 }
             }
         }
@@ -47,6 +32,34 @@ struct TokenUsageMenuContent: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(card.accessibilitySummary)
+    }
+
+    @ViewBuilder
+    private var chartArea: some View {
+        switch card.phase {
+        case .unavailable:
+            stateText("Token usage unavailable")
+        case .loaded where !card.hasData:
+            stateText("No token usage found yet")
+        case .loading where card.showsPlaceholderChart:
+            TokenUsagePlaceholderBars(count: card.days.count)
+        case .loading:
+            chart.opacity(0.4)
+        case .loaded:
+            chart.overlay(TokenUsageTooltipOverlay(dayCount: card.days.count, text: card.tooltip(forDay:)) { hoveredDay = $0 })
+        }
+    }
+
+    /// Both splits are laid out so the card keeps the taller height when the toggle switches.
+    private func splits(for card: TokenUsageMenuCard) -> some View {
+        ZStack(alignment: .topLeading) {
+            TokenUsageByToolSplit(card: card, palette: palette)
+                .opacity(preferences.breakdown == .byTool ? 1 : 0)
+                .accessibilityHidden(preferences.breakdown != .byTool)
+            TokenUsageTopModelsSplit(card: card, palette: palette)
+                .opacity(preferences.breakdown == .topModels ? 1 : 0)
+                .accessibilityHidden(preferences.breakdown != .topModels)
+        }
     }
 
     private var header: some View {
@@ -78,14 +91,14 @@ struct TokenUsageMenuContent: View {
     }
 
     @ViewBuilder
-    private func chart(pulse: TokenUsagePulse?) -> some View {
+    private var chart: some View {
         switch preferences.chartStyle {
         case .bars:
-            TokenUsageBarsChart(card: card, palette: palette, pulse: pulse, hoveredDay: hoveredDay)
+            TokenUsageBarsChart(card: card, palette: palette, hoveredDay: card.isLoading ? nil : hoveredDay)
         case .area:
-            TokenUsageAreaChart(card: card, palette: palette, pulse: pulse)
+            TokenUsageAreaChart(card: card, palette: palette)
         case .lines:
-            TokenUsageLinesChart(card: card, palette: palette, pulse: pulse)
+            TokenUsageLinesChart(card: card, palette: palette)
         }
     }
 
@@ -153,18 +166,6 @@ struct TokenUsagePalette {
     var segmentGap: CGFloat { 1 }
 }
 
-/// A slow pulse for the parts still being read. Nil when motion is reduced.
-struct TokenUsagePulse {
-    let value: Double
-    let sweep: Double
-
-    init(date: Date) {
-        let seconds = date.timeIntervalSinceReferenceDate
-        value = 0.5 + 0.5 * sin(seconds * 2 * .pi / 1.4)
-        sweep = (seconds / 1.8).truncatingRemainder(dividingBy: 1)
-    }
-}
-
 struct TokenUsageToolMarker: View {
     let tool: TokenUsageTool
     let palette: TokenUsagePalette
@@ -222,10 +223,29 @@ private struct TokenUsageSegmented<Item: Hashable, Label: View>: View {
 
 // MARK: - Charts
 
+/// Neutral bars of a fixed shape, shown while the first reading loads.
+private struct TokenUsagePlaceholderBars: View {
+    let count: Int
+
+    var body: some View {
+        GeometryReader { geometry in
+            HStack(alignment: .bottom, spacing: 2) {
+                ForEach(0..<count, id: \.self) { index in
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color.secondary.opacity(0.16))
+                        .frame(height: geometry.size.height * (0.3 + 0.25 * (1 + sin(Double(index) * 0.7)) / 2))
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .frame(maxHeight: .infinity, alignment: .bottom)
+        }
+        .accessibilityHidden(true)
+    }
+}
+
 private struct TokenUsageBarsChart: View {
     let card: TokenUsageMenuCard
     let palette: TokenUsagePalette
-    let pulse: TokenUsagePulse?
     let hoveredDay: Int?
 
     var body: some View {
@@ -243,14 +263,11 @@ private struct TokenUsageBarsChart: View {
                                     .frame(height: max(1, CGFloat(value) * scale))
                             }
                         }
-                        if card.isPending(.codex, onDay: index) {
-                            pendingStub(isNext: !card.isPending(.codex, onDay: index + 1))
-                        }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                     .clipShape(RoundedRectangle(cornerRadius: 2))
                     .background(alignment: .bottom) {
-                        if card.tokenCount(onDay: index) == 0, !card.isPending(.codex, onDay: index) {
+                        if card.tokenCount(onDay: index) == 0 {
                             Rectangle().fill(Color.secondary.opacity(0.18)).frame(height: 3).clipShape(Capsule())
                         }
                     }
@@ -259,20 +276,11 @@ private struct TokenUsageBarsChart: View {
         }
         .accessibilityHidden(true)
     }
-
-    /// A Codex day not read yet. The next day to finish pulses.
-    private func pendingStub(isNext: Bool) -> some View {
-        let strength = isNext ? (pulse?.value ?? 0.5) : 0
-        return Rectangle()
-            .fill(palette.color(.codex).opacity(0.16 + 0.5 * strength))
-            .frame(height: 4 + 10 * strength)
-    }
 }
 
 private struct TokenUsageAreaChart: View {
     let card: TokenUsageMenuCard
     let palette: TokenUsagePalette
-    let pulse: TokenUsagePulse?
 
     var body: some View {
         GeometryReader { geometry in
@@ -297,9 +305,6 @@ private struct TokenUsageAreaChart: View {
                         .stroke(Color(nsColor: .windowBackgroundColor), style: StrokeStyle(lineWidth: 1, dash: palette.dash(tool)))
                     }
                 }
-                if let pendingWidth = pendingWidth(in: size) {
-                    pendingShimmer.frame(width: pendingWidth, height: 3)
-                }
             }
         }
         .accessibilityHidden(true)
@@ -313,31 +318,12 @@ private struct TokenUsageAreaChart: View {
             return CGPoint(x: CGFloat(index) * step, y: size.height - size.height * CGFloat(cumulative) / CGFloat(card.maximumDayTokenCount))
         }
     }
-
-    private func pendingWidth(in size: CGSize) -> CGFloat? {
-        let pending = card.days.indices.filter { card.isPending(.codex, onDay: $0) }.count
-        guard pending > 0 else { return nil }
-        return size.width * CGFloat(pending) / CGFloat(card.days.count)
-    }
-
-    /// Runs along the baseline over the days Codex hasn't reached.
-    private var pendingShimmer: some View {
-        let sweep = pulse?.sweep ?? 0.5
-        return LinearGradient(
-            colors: [.clear, palette.color(.codex).opacity(pulse == nil ? 0 : 0.8), .clear],
-            startPoint: UnitPoint(x: sweep * 1.6 - 0.6, y: 0),
-            endPoint: UnitPoint(x: sweep * 1.6, y: 0)
-        )
-        .background(palette.color(.codex).opacity(0.22))
-        .clipShape(Capsule())
-    }
 }
 
 /// One line per tool, each against its own busiest day, so a small tool keeps its shape.
 private struct TokenUsageLinesChart: View {
     let card: TokenUsageMenuCard
     let palette: TokenUsagePalette
-    let pulse: TokenUsagePulse?
 
     var body: some View {
         GeometryReader { geometry in
@@ -345,23 +331,14 @@ private struct TokenUsageLinesChart: View {
             ZStack {
                 ForEach(card.tools.reversed(), id: \.tool) { series in
                     let points = linePoints(for: series.tool, in: size)
-                    // Codex days still being read are left out, so the line grows back from today.
-                    let firstFinal = card.days.indices.first { !card.isPending(series.tool, onDay: $0) } ?? card.days.count
-                    let visible = Array(points[min(firstFinal, max(points.count - 1, 0))...])
-                    if visible.count > 1 {
+                    if points.count > 1 {
                         Path { path in
-                            path.move(to: visible[0])
-                            addSmoothCurve(through: visible, to: &path)
+                            path.move(to: points[0])
+                            addSmoothCurve(through: points, to: &path)
                         }
                         .stroke(palette.color(series.tool), style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round, dash: palette.dash(series.tool)))
                     }
-                    if let head = visible.first, firstFinal > 0, let pulse {
-                        Circle()
-                            .fill(palette.color(series.tool))
-                            .frame(width: 5 + 4 * pulse.value, height: 5 + 4 * pulse.value)
-                            .opacity(0.5 + 0.5 * pulse.value)
-                            .position(head)
-                    } else if let last = points.last {
+                    if let last = points.last {
                         TokenUsageToolMarker(tool: series.tool, palette: palette).position(last)
                     }
                 }
@@ -416,30 +393,9 @@ private struct TokenUsageShareBar: View {
     }
 }
 
-private struct TokenUsageReadingBar: View {
-    let color: Color
-    let pulse: TokenUsagePulse?
-
-    var body: some View {
-        Capsule()
-            .fill(color.opacity(0.15))
-            .overlay(GeometryReader { geometry in
-                if let pulse {
-                    Capsule()
-                        .fill(LinearGradient(colors: [.clear, color.opacity(0.8), .clear], startPoint: .leading, endPoint: .trailing))
-                        .frame(width: geometry.size.width * 0.3)
-                        .offset(x: geometry.size.width * (pulse.sweep * 1.3 - 0.3))
-                }
-            })
-            .frame(height: 5)
-            .clipShape(Capsule())
-    }
-}
-
 private struct TokenUsageByToolSplit: View {
     let card: TokenUsageMenuCard
     let palette: TokenUsagePalette
-    let pulse: TokenUsagePulse?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
@@ -452,10 +408,7 @@ private struct TokenUsageByToolSplit: View {
                         trailing(for: summary)
                     }
                     .monospacedDigit()
-                    if summary.isReading {
-                        TokenUsageReadingBar(color: palette.color(summary.tool), pulse: pulse)
-                        Text("Models appear when reading finishes").font(.system(size: 10.5)).foregroundStyle(.tertiary)
-                    } else if !summary.models.isEmpty {
+                    if !summary.models.isEmpty {
                         TokenUsageShareBar(
                             parts: summary.models.enumerated().map { (palette.modelColor(summary.tool, index: $0.offset), $0.element.share) },
                             gap: 1.5
@@ -480,9 +433,6 @@ private struct TokenUsageByToolSplit: View {
     private func trailing(for summary: TokenUsageMenuCard.ToolSummary) -> some View {
         if summary.isUnavailable {
             Text("Unavailable").font(.system(size: 11)).foregroundStyle(.secondary)
-        } else if summary.isReading {
-            Text("Reading sessions · \(Int(((card.readingFraction ?? 0) * 100).rounded()))%")
-                .font(.system(size: 11)).foregroundStyle(.secondary)
         } else {
             Text("\(formattedShortTokenCount(summary.todayTokenCount)) today").font(.system(size: 11)).foregroundStyle(.secondary)
             Text(formattedShortTokenCount(summary.periodTokenCount))
@@ -497,7 +447,6 @@ private struct TokenUsageByToolSplit: View {
 private struct TokenUsageTopModelsSplit: View {
     let card: TokenUsageMenuCard
     let palette: TokenUsagePalette
-    let pulse: TokenUsagePulse?
 
     var body: some View {
         let models = card.topModels
@@ -517,24 +466,11 @@ private struct TokenUsageTopModelsSplit: View {
             ForEach(Array(models.enumerated()), id: \.offset) { _, model in
                 row(tool: model.tool, name: model.name, fraction: Double(model.tokenCount) / Double(largest), value: formattedShortTokenCount(model.tokenCount))
             }
-            if card.isReading {
-                HStack(spacing: 8) {
-                    RoundedRectangle(cornerRadius: 1.5).fill(palette.color(.codex).opacity(0.3 + 0.6 * (pulse?.value ?? 0.5))).frame(width: 3, height: 12)
-                    Text("Codex models").font(.system(size: 12)).foregroundStyle(.secondary).frame(width: 96, alignment: .leading)
-                    TokenUsageReadingBar(color: palette.color(.codex), pulse: pulse).frame(height: 4)
-                    Text("\(Int(((card.readingFraction ?? 0) * 100).rounded()))%")
-                        .font(.system(size: 12)).foregroundStyle(.secondary).monospacedDigit().frame(width: 54, alignment: .trailing)
-                }
-                .frame(height: 16)
-            }
         }
     }
 
     private func shareText(for summary: TokenUsageMenuCard.ToolSummary) -> String {
         if summary.isUnavailable { return "Unavailable" }
-        if summary.isReading { return "…" }
-        // Shares wait for Codex, since its total still grows.
-        if card.isReading { return formattedShortTokenCount(summary.periodTokenCount) }
         return card.share(of: summary.tool).map(TokenUsageMenuCard.percent) ?? "…"
     }
 

@@ -206,27 +206,38 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func tokenUsageCardShowsReadyToolsWhileCodexIsStillReading() {
-        let calendar = Calendar(identifier: .gregorian)
-        let today = calendar.startOfDay(for: tokenUsageNow)
-        let threeDaysAgo = calendar.date(byAdding: .day, value: -3, to: today)!
-        let card = makeTokenUsageCard(loadState: .loading(TokenUsageScanProgress(
-            scannedFiles: 4,
-            totalFiles: 10,
-            codexDays: [CodexDailyTokenUsage(day: today, usage: totals(500), tokensByModel: ["gpt-5.6-sol": 500])],
-            pendingDay: threeDaysAgo,
-            otherTools: [toolSeries(.claudeCode, [0: ["claude-opus-5-5": 2_000]])]
+    func tokenUsageCardFirstRunShowsPlaceholderBarsAndOneLoadingLine() {
+        let card = makeTokenUsageCard(loadState: .loading(TokenUsageScanProgress(scannedFiles: 8, totalFiles: 100)))
+
+        #expect(card.subtitle == "Last 30 days · Loading 8%")
+        #expect(card.showsPlaceholderChart)
+        #expect(!card.showsSplits)
+        #expect(card.accessibilitySummary == "Token Usage • Last 30 days • Last 30 days · Loading 8%")
+    }
+
+    @Test
+    func tokenUsageCardShowsTheCachedChartUntilLoadingFinishes() {
+        let cached = TokenUsageMenuLoadedData(
+            buckets: [],
+            allTimePeak: nil,
+            tools: [toolSeries(.codex, [1: ["gpt-5.6-sol": 3_000]]), toolSeries(.claudeCode, [:])]
+        )
+        let loading = makeTokenUsageCard(loadState: .loading(nil, preview: cached))
+        let finished = makeTokenUsageCard(loadState: .loaded(TokenUsageMenuLoadedData(
+            buckets: [],
+            allTimePeak: nil,
+            tools: [toolSeries(.codex, [0: ["gpt-5.6-sol": 1_000], 1: ["gpt-5.6-sol": 3_000]]), toolSeries(.claudeCode, [0: ["claude-opus-5-5": 500]])]
         )))
 
-        #expect(card.isReading)
-        #expect(card.subtitle == "Last 30 days · Reading Codex sessions · 40%")
-        #expect(card.isPending(.codex, onDay: 26))
-        #expect(!card.isPending(.codex, onDay: 27))
-        #expect(!card.isPending(.claudeCode, onDay: 0))
-        #expect(card.todayTokenCount == 2_500)
-        #expect(card.topModels.map(\.name) == ["Opus 5.5"])
-        #expect(card.share(of: .codex) == nil)
-        #expect(card.toolSummaries.first { $0.tool == .codex }?.isReading == true)
+        #expect(loading.subtitle == "Last 30 days · Loading 0%")
+        #expect(!loading.showsPlaceholderChart)
+        #expect(loading.tokenCount(for: .codex, onDay: 28) == 3_000)
+        #expect(!loading.showsSplits)
+        #expect(finished.subtitle == "Last 30 days · 4.5K · Today 1.5K")
+        #expect(finished.showsSplits)
+        #expect(loading.layoutTemplate == finished.layoutTemplate)
+        #expect(finished.layoutTemplate.toolSummaries.map(\.models.count) == [3, 3])
+        #expect(finished.layoutTemplate.topModels.count == 5)
     }
 
     @Test

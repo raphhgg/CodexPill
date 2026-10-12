@@ -71,6 +71,9 @@ final class TokenUsageMenuRuntime: Sendable {
         let provider = provider
         let relay = TokenUsageMenuRefreshRelay(runtime: self, request: request)
         refreshTask = Task.detached { [provider, relay, request] in
+            if !forceRefresh {
+                await relay.showPreview(await provider.preview(period: request.period))
+            }
             // Keep the filesystem scan independent from the transient menu view.
             let loadState = await provider.load(
                 period: request.period,
@@ -93,13 +96,22 @@ final class TokenUsageMenuRuntime: Sendable {
         lastProgressRenderDate = nil
     }
 
+    fileprivate func showPreview(_ preview: TokenUsageMenuLoadedData?, request: TokenUsageMenuLoadRequest) {
+        guard refreshRequest == request, let preview, case .loading(let progress, _) = loadState else { return }
+        loadState = .loading(progress, preview: preview)
+        onStateChange(loadState)
+    }
+
     fileprivate func updateProgress(_ progress: TokenUsageScanProgress, request: TokenUsageMenuLoadRequest) {
         guard refreshRequest == request else { return }
 
-        if case .loaded(var data) = loadState {
+        switch loadState {
+        case .loaded(var data):
             data.allTimePeakProgress = progress
             loadState = .loaded(data)
-        } else {
+        case .loading(_, let preview):
+            loadState = .loading(progress, preview: preview)
+        case .unavailable:
             loadState = .loading(progress)
         }
         let now = Date()
@@ -151,13 +163,19 @@ private final class TokenUsageMenuRefreshRelay: @unchecked Sendable {
     }
 
     @MainActor
+    func showPreview(_ preview: TokenUsageMenuLoadedData?) {
+        runtime?.showPreview(preview, request: request)
+    }
+
+    @MainActor
     func finish(_ loadState: TokenUsageMenuLoadState) {
         runtime?.finishRefresh(loadState, request: request)
     }
 }
 
 enum TokenUsageMenuLoadState: Equatable {
-    case loading(TokenUsageScanProgress?)
+    /// `preview` is what the card shows meanwhile: the last finished reading and the connected tools.
+    case loading(TokenUsageScanProgress?, preview: TokenUsageMenuLoadedData? = nil)
     case loaded(TokenUsageMenuLoadedData)
     case unavailable
 
@@ -191,6 +209,13 @@ protocol TokenUsageMenuProviding: Sendable {
         forceRefresh: Bool,
         progress: @escaping @Sendable (TokenUsageScanProgress) -> Void
     ) async -> TokenUsageMenuLoadState
+
+    /// The last finished reading, from the cache, for the card to show while `load` reads.
+    func preview(period: CodexTokenUsagePeriod) async -> TokenUsageMenuLoadedData?
+}
+
+extension TokenUsageMenuProviding {
+    func preview(period _: CodexTokenUsagePeriod) async -> TokenUsageMenuLoadedData? { nil }
 }
 
 struct LocalCodexSessionTokenUsageMenuProvider: TokenUsageMenuProviding {
@@ -220,6 +245,10 @@ struct LocalCodexSessionTokenUsageMenuProvider: TokenUsageMenuProviding {
         progress: @escaping @Sendable (TokenUsageScanProgress) -> Void = { _ in }
     ) async -> TokenUsageMenuLoadState {
         await cache.load(period: period, peakScope: peakScope, forceRefresh: forceRefresh, progress: progress)
+    }
+
+    func preview(period: CodexTokenUsagePeriod) async -> TokenUsageMenuLoadedData? {
+        await cache.preview(period: period)
     }
 }
 
@@ -274,6 +303,12 @@ private actor LocalCodexSessionTokenUsageCache {
         }
 
         return await refresh(period: period, peakScope: peakScope, progress: progress)
+    }
+
+    func preview(period: CodexTokenUsagePeriod) -> TokenUsageMenuLoadedData? {
+        let entries = cachedEntriesByPeriod.isEmpty ? cacheStore.readEntries() : Array(cachedEntriesByPeriod.values)
+        return refreshPolicy.previewEntry(from: entries, covering: period, now: now())
+            .map { loadedData(from: $0, for: period) }
     }
 
     private func refresh(

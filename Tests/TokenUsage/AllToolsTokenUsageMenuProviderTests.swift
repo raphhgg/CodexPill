@@ -81,27 +81,28 @@ struct AllToolsTokenUsageMenuProviderTests {
     }
 
     @Test
-    func codexProgressCarriesTheToolsAlreadyRead() async {
+    func previewHasCodexCachedDaysAndAnEmptySeriesPerConnectedTool() async throws {
         let now = day(2026, 10, 10)
-        let recorder = TokenUsageProgressRecorder()
+        let yesterday = day(2026, 10, 9)
+        let cachedDay = CodexDailyTokenUsage(
+            day: yesterday,
+            usage: CodexTokenUsageTotals(inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, reasoningOutputTokens: 0, totalTokens: 40),
+            tokensByModel: ["gpt-a": 40]
+        )
         let provider = AllToolsTokenUsageMenuProvider(
-            codex: ProgressingCodexProvider(),
+            codex: FixedCodexProvider(state: .unavailable, preview: TokenUsageMenuLoadedData(buckets: [cachedDay], allTimePeak: nil)),
             otherTools: [
-                TokenUsageToolSource(tool: .claudeCode, isConnected: { true }, read: { interval in
-                    .days(ToolTokenUsageDays.filled([ToolDailyTokenUsage(day: now, tokensByModel: ["claude-opus-5-5": 7])], in: interval, calendar: calendar))
-                }),
-                TokenUsageToolSource(tool: .cursor, isConnected: { true }, read: { _ in .unavailable }),
+                TokenUsageToolSource(tool: .claudeCode, isConnected: { true }, read: { _ in Issue.record("read for a preview"); return .unavailable }),
+                TokenUsageToolSource(tool: .cursor, isConnected: { false }, read: { _ in .unavailable }),
             ],
             calendar: calendar,
             now: { now }
         )
 
-        _ = await provider.load(period: .last30Days, peakScope: .currentPeriod, forceRefresh: false) { recorder.append($0) }
+        let preview = try #require(await provider.preview(period: .last30Days))
 
-        let progress = recorder.updates.first
-        #expect(progress?.otherTools.map(\.tool) == [.claudeCode])
-        #expect(progress?.otherTools.first?.totalTokens == 7)
-        #expect(progress?.unavailableTools == [.cursor])
+        #expect(preview.tools.map(\.tool) == [.codex, .claudeCode])
+        #expect(preview.tools.map(\.totalTokens) == [40, 0])
     }
 
     private func day(_ year: Int, _ month: Int, _ day: Int) -> Date {
@@ -111,6 +112,11 @@ struct AllToolsTokenUsageMenuProviderTests {
 
 private struct FixedCodexProvider: TokenUsageMenuProviding {
     let state: TokenUsageMenuLoadState
+    var preview: TokenUsageMenuLoadedData? = nil
+
+    func preview(period _: CodexTokenUsagePeriod) async -> TokenUsageMenuLoadedData? {
+        preview
+    }
 
     func load(
         period _: CodexTokenUsagePeriod,
@@ -119,17 +125,5 @@ private struct FixedCodexProvider: TokenUsageMenuProviding {
         progress _: @escaping @Sendable (TokenUsageScanProgress) -> Void
     ) async -> TokenUsageMenuLoadState {
         state
-    }
-}
-
-private struct ProgressingCodexProvider: TokenUsageMenuProviding {
-    func load(
-        period _: CodexTokenUsagePeriod,
-        peakScope _: TokenUsagePeakScope,
-        forceRefresh _: Bool,
-        progress: @escaping @Sendable (TokenUsageScanProgress) -> Void
-    ) async -> TokenUsageMenuLoadState {
-        progress(TokenUsageScanProgress(scannedFiles: 1, totalFiles: 2))
-        return .loaded(TokenUsageMenuLoadedData(buckets: [], allTimePeak: nil))
     }
 }

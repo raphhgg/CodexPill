@@ -106,7 +106,7 @@ Colors follow the [theme](app-controls/02-theme.md):
 States:
 
 - Off: no card.
-- Reading: Codex's first scan. Claude Code and Cursor show at once, and only the Codex parts wait. See [Token Usage Loading Progress](token-usage-loading-progress.md).
+- Loading: a long Codex scan. The subtitle shows `Loading 8%` and the chart shows the last finished reading dimmed, or placeholder bars. See [Token Usage Loading Progress](token-usage-loading-progress.md).
 - Updating: the previous chart stays while a background refresh runs.
 - No data: `No token usage found yet`.
 - Unavailable: `Token usage unavailable`. A single connected tool that can't be read shows `Unavailable` on its own row.
