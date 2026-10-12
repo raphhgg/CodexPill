@@ -2,6 +2,8 @@
 
 See how many Codex limit resets the active account has, when the next one expires, and use one.
 
+Reset credits are not the Codex credit balance. The balance has its own card line, described in [Accounts](accounts/00-accounts.md#credits).
+
 ## Data Contract
 
 - Source: `account/rateLimits/read` on the local Codex app-server, field `rateLimitResetCredits`.

@@ -36,7 +36,7 @@ The whole menu layout, including the Codex card and its side menu, is owned by [
 
 ## Menu UX
 
-The Codex card shows the account in use: its plan, its windows and its reset credits. When Refill cannot match the live `auth.json` to a saved account, the card says `No saved account in use` instead of showing a saved account's numbers as current.
+The Codex card shows the account in use: its plan, its windows, its credits and its reset credits. When Refill cannot match the live `auth.json` to a saved account, the card says `No saved account in use` instead of showing a saved account's numbers as current.
 
 The Codex side menu lists accounts by email, never by name:
 
@@ -56,3 +56,12 @@ Remove:
 - If the sign-out fails, Refill keeps the saved account so the user does not lose the main control surface for an active login.
 
 With no saved account and no other tool connected, the menu offers `Add Account ›` directly, and launch asks to add a Codex account once. Account actions are disabled while another account operation runs.
+
+## Credits
+
+- Source: `credits` in the rate-limit snapshot from `account/rateLimits/read`, the same snapshot Refill uses for the windows. `account/read` has no credits.
+- Shape: `{hasCredits, unlimited, balance}`, where `balance` is a decimal string such as `"62498.0761312500"`.
+- `unlimited: true` shows `Unlimited credits`. `hasCredits: true` with a readable balance shows the balance in whole credits, such as `62,498 credits`. Anything else shows no line.
+- An unreadable `credits` object is skipped and the limits still read.
+- The last known credits are saved with the account's limits in `accounts.json`. A file saved before credits existed still reads.
+- Credits are separate from [reset credits](../codex-reset-credits.md). They never change availability or the account ranking.

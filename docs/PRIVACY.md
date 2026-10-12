@@ -9,7 +9,7 @@ Refill was called CodexPill before. On its first launch Refill copies CodexPill'
 During normal use, Refill may read:
 
 - `~/.codex/auth.json` to identify and save the currently active Codex account.
-- Codex account metadata exposed by Codex, such as email address, plan type, account identity, rate-limit windows, and limit reset credits.
+- Codex account metadata exposed by Codex, such as email address, plan type, account identity, rate-limit windows, credit balance, and limit reset credits.
 - Local Codex app-server status to refresh account and limit information.
 - Local process information to detect running Codex CLI sessions when a switch may require a restart or user action.
 - Refill-owned state under `~/Library/Application Support/Refill`.
@@ -21,7 +21,7 @@ During normal use, Refill may read:
 
 Refill writes and stores:
 
-- A local account catalog under `~/Library/Application Support/Refill`.
+- A local account catalog under `~/Library/Application Support/Refill`, with each account's last limits, credit balance, and reset credits.
 - Saved Codex auth snapshots under `~/Library/Application Support/Refill/snapshots`.
 - `~/.codex/auth.json` when switching the active local Codex account.
 - Temporary isolated `CODEX_HOME` state when capturing a new Codex sign-in without mutating the current account.
@@ -41,7 +41,7 @@ Refill never signs in to Claude, never calls Anthropic's token endpoint, and nev
 - reads `.credentials.json` in Claude Code's config folder (`CLAUDE_CONFIG_DIR`, or `~/.claude`), and if that file holds no Claude sign-in, the login Keychain generic password with service `Claude Code-credentials` and your macOS user name as the account. Refill reads that item by running `/usr/bin/security find-generic-password -w`, the same command Claude Code uses. Claude Code creates the item with `security`, so `security` can read it without a prompt. The password comes back through a pipe and is never logged;
 - uses only the access token, its expiry, and the plan name from that sign-in;
 - reads the plan tier and your email from `oauthAccount` in Claude Code's global config (`$CLAUDE_CONFIG_DIR/.claude.json`, or `~/.claude.json`). The email shows in the Claude side menu, masked with Hide Emails;
-- sends the access token to one place, `GET https://api.anthropic.com/api/oauth/usage`, to fetch your 5-hour and weekly limits. Redirects to any other host, or to plain HTTP, are refused. The request has no cookies and no cache.
+- sends the access token to one place, `GET https://api.anthropic.com/api/oauth/usage`, to fetch your 5-hour and weekly limits and any extra usage. Redirects to any other host, or to plain HTTP, are refused. The request has no cookies and no cache.
 
 If macOS refuses `security` access, for example while the Keychain is locked, the card keeps the last limits and offers `Allow Keychain Access…`. That retry gives you time to answer a macOS prompt. Refill never stores, logs, or displays the token, and it never reads browser cookies or Claude conversations. Unchecking `Appearance › Show Tools › Claude` turns usage off and stops all reads.
 
