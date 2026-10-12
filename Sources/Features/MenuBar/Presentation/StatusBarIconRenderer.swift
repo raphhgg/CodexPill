@@ -41,12 +41,12 @@ enum StatusBarGlyphReading: Equatable, Sendable {
 struct StatusBarIconRenderer {
     static let glyphSize = NSSize(width: 18, height: 18)
 
-    func makeImage(style: StatusBarIndicatorStyle, reading: StatusBarGlyphReading, percentMode: UsagePercentMode) -> NSImage {
+    func makeImage(style: StatusBarIndicatorStyle, reading: StatusBarGlyphReading) -> NSImage {
         let image = NSImage(size: Self.glyphSize, flipped: true) { _ in
             guard let context = NSGraphicsContext.current?.cgContext else { return false }
             switch style {
-            case .hourglass:
-                HourglassGlyph.draw(reading, percentMode: percentMode, in: context)
+            case .glasses:
+                GlassesGlyph.draw(reading, in: context)
             case .moon:
                 MoonGlyph.draw(reading, in: context)
             case .punchCard:
@@ -67,101 +67,77 @@ private func fraction(_ percent: Int) -> CGFloat {
     CGFloat(percent) / 100
 }
 
-enum HourglassGlyph {
-    static var outline: CGPath {
-        let path = CGMutablePath()
-        path.move(to: CGPoint(x: 4.8, y: 2.9))
-        path.addLine(to: CGPoint(x: 13.2, y: 2.9))
-        path.addCurve(to: CGPoint(x: 9.7, y: 9), control1: CGPoint(x: 13.2, y: 6), control2: CGPoint(x: 10.1, y: 7.6))
-        path.addCurve(to: CGPoint(x: 13.2, y: 15.1), control1: CGPoint(x: 10.1, y: 10.4), control2: CGPoint(x: 13.2, y: 12))
-        path.addLine(to: CGPoint(x: 4.8, y: 15.1))
-        path.addCurve(to: CGPoint(x: 8.3, y: 9), control1: CGPoint(x: 4.8, y: 12), control2: CGPoint(x: 7.9, y: 10.4))
-        path.addCurve(to: CGPoint(x: 4.8, y: 2.9), control1: CGPoint(x: 7.9, y: 7.6), control2: CGPoint(x: 4.8, y: 6))
-        path.closeSubpath()
-        return path
-    }
+/// Two glasses: the session on the left, the weekly limit on the right. The liquid fills each glass by area.
+enum GlassesGlyph {
+    static var sessionGlass: CGPath { glass(centerX: 5, topWidth: 6.4, bottomWidth: 4.6) }
+    static var weeklyGlass: CGPath { glass(centerX: 13, topWidth: 6.4, bottomWidth: 4.6) }
+    static var singleGlass: CGPath { glass(centerX: 9, topWidth: 9, bottomWidth: 6.6) }
 
-    static var topBulb: CGPath { bulb(rimY: 4.1, neckY: 8.8, bulge: 6.3, shoulder: 7.7) }
-    static var bottomBulb: CGPath { bulb(rimY: 13.9, neckY: 9.2, bulge: 11.7, shoulder: 10.3) }
-
-    /// Used sand has fallen into the bottom bulb; what is left still waits in the top bulb.
-    /// Only that one bulb is drawn, so the ink always matches the percent the card shows.
-    static func sandPath(percent: Int, percentMode: UsagePercentMode) -> CGPath? {
+    /// Fills the glass from the bottom up to the level where the liquid covers `percent` of its area.
+    static func liquidPath(percent: Int, in glass: CGPath) -> CGPath? {
         guard percent > 0 else { return nil }
-        let bulb = percentMode == .used ? bottomBulb : topBulb
-        guard percent < 100 else { return bulb }
-        let bounds = bulb.boundingBoxOfPath
-        let target = bulb.area * fraction(percent)
+        guard percent < 100 else { return glass }
+        let bounds = glass.boundingBoxOfPath
+        let target = glass.area * fraction(percent)
         var top = bounds.minY
         var bottom = bounds.maxY
         for _ in 0..<24 {
             let level = (top + bottom) / 2
-            if sand(in: bulb, from: level).area > target {
+            if liquid(in: glass, from: level).area > target {
                 top = level
             } else {
                 bottom = level
             }
         }
-        return sand(in: bulb, from: (top + bottom) / 2)
+        return liquid(in: glass, from: (top + bottom) / 2)
     }
 
-    static func draw(_ reading: StatusBarGlyphReading, percentMode: UsagePercentMode, in context: CGContext) {
-        context.setLineJoin(.round)
-        context.setLineWidth(1.2)
-        context.setStrokeColor(ink())
-        context.addPath(outline)
-        context.strokePath()
-
-        context.setLineCap(.round)
-        context.setLineWidth(1.4)
-        strokeLine(y: 1.6, to: 14.4, alpha: 1, in: context)
-
+    static func draw(_ reading: StatusBarGlyphReading, in context: CGContext) {
         switch reading {
         case .noData:
-            strokeLine(y: 16.6, to: 14.4, alpha: 0.3, in: context)
+            drawGlass(sessionGlass, percent: nil, outlineAlpha: 0.35, in: context)
+            drawGlass(weeklyGlass, percent: nil, outlineAlpha: 0.35, in: context)
         case let .single(percent):
-            fillSand(percent, percentMode: percentMode, in: context)
+            drawGlass(singleGlass, percent: percent, outlineAlpha: 1, in: context)
         case let .both(session, weekly):
-            fillSand(session, percentMode: percentMode, in: context)
-            strokeLine(y: 16.6, to: 14.4, alpha: 0.3, in: context)
-            if weekly > 0 {
-                strokeLine(y: 16.6, to: 3.6 + 10.8 * fraction(weekly), alpha: 1, in: context)
-            }
+            drawGlass(sessionGlass, percent: session, outlineAlpha: 1, in: context)
+            drawGlass(weeklyGlass, percent: weekly, outlineAlpha: 1, in: context)
         }
     }
 
-    /// The measuring bulb gets a faint track, like the moon's dark side, so 0% still differs from no data.
-    private static func fillSand(_ percent: Int, percentMode: UsagePercentMode, in context: CGContext) {
-        context.setFillColor(ink(0.25))
-        context.addPath(percentMode == .used ? bottomBulb : topBulb)
-        context.fillPath()
-        guard let sand = sandPath(percent: percent, percentMode: percentMode) else { return }
+    private static func drawGlass(_ glass: CGPath, percent: Int?, outlineAlpha: CGFloat, in context: CGContext) {
+        context.setLineWidth(1.1)
+        context.setLineJoin(.round)
+        context.setStrokeColor(ink(outlineAlpha))
+        context.addPath(glass)
+        context.strokePath()
+        guard let percent, let liquid = liquidPath(percent: percent, in: glass) else { return }
         context.setFillColor(ink())
-        context.addPath(sand)
+        context.addPath(liquid)
         context.fillPath()
     }
 
-    private static func sand(in bulb: CGPath, from level: CGFloat) -> CGPath {
-        let bounds = bulb.boundingBoxOfPath
-        return bulb.intersection(CGPath(rect: CGRect(x: bounds.minX, y: level, width: bounds.width, height: bounds.maxY - level), transform: nil))
+    private static func liquid(in glass: CGPath, from level: CGFloat) -> CGPath {
+        let bounds = glass.boundingBoxOfPath.insetBy(dx: -1, dy: 0)
+        return glass.intersection(CGPath(rect: CGRect(x: bounds.minX, y: level, width: bounds.width, height: bounds.maxY - level), transform: nil))
     }
 
-    private static func bulb(rimY: CGFloat, neckY: CGFloat, bulge: CGFloat, shoulder: CGFloat) -> CGPath {
+    /// A tumbler narrowing toward a base with rounded corners.
+    private static func glass(centerX: CGFloat, topWidth: CGFloat, bottomWidth: CGFloat) -> CGPath {
+        let top: CGFloat = 2.6
+        let bottom: CGFloat = 15.6
+        let corner: CGFloat = 1.2
+        let rimHalf = topWidth / 2
+        let baseHalf = bottomWidth / 2
         let path = CGMutablePath()
-        path.move(to: CGPoint(x: 6, y: rimY))
-        path.addLine(to: CGPoint(x: 12, y: rimY))
-        path.addCurve(to: CGPoint(x: 9.25, y: neckY), control1: CGPoint(x: 12, y: bulge), control2: CGPoint(x: 9.6, y: shoulder))
-        path.addLine(to: CGPoint(x: 8.75, y: neckY))
-        path.addCurve(to: CGPoint(x: 6, y: rimY), control1: CGPoint(x: 8.4, y: shoulder), control2: CGPoint(x: 6, y: bulge))
+        path.move(to: CGPoint(x: centerX - rimHalf, y: top))
+        path.addLine(to: CGPoint(x: centerX + rimHalf, y: top))
+        path.addLine(to: CGPoint(x: centerX + baseHalf, y: bottom - corner))
+        path.addQuadCurve(to: CGPoint(x: centerX + baseHalf - corner, y: bottom), control: CGPoint(x: centerX + baseHalf - 0.05, y: bottom))
+        path.addLine(to: CGPoint(x: centerX - baseHalf + corner, y: bottom))
+        path.addQuadCurve(to: CGPoint(x: centerX - baseHalf, y: bottom - corner), control: CGPoint(x: centerX - baseHalf + 0.05, y: bottom))
         path.closeSubpath()
         return path
-    }
-
-    private static func strokeLine(y: CGFloat, to endX: CGFloat, alpha: CGFloat, in context: CGContext) {
-        context.setStrokeColor(ink(alpha))
-        context.move(to: CGPoint(x: 3.6, y: y))
-        context.addLine(to: CGPoint(x: endX, y: y))
-        context.strokePath()
     }
 }
 

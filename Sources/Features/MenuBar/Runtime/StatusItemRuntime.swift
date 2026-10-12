@@ -64,7 +64,7 @@ final class StatusItemRuntime {
 
     private var presentation = StatusItemRuntimePresentation(
         source: .nothingConnected,
-        indicatorStyle: .hourglass,
+        indicatorStyle: .glasses,
         displayMode: .iconOnly
     )
     private var hoverActivationTimer: Timer?
@@ -184,8 +184,7 @@ final class StatusItemRuntime {
         guard let button = statusItem.button else { return }
         button.image = iconRenderer.makeImage(
             style: presentation.indicatorStyle,
-            reading: StatusBarGlyphReading(windows: presentation.source.windows, mode: presentation.percentMode),
-            percentMode: presentation.percentMode
+            reading: StatusBarGlyphReading(windows: presentation.source.windows, mode: presentation.percentMode)
         )
         button.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .medium)
 
