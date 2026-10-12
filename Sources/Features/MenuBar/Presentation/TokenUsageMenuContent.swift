@@ -536,7 +536,7 @@ private struct TokenUsageTopModelsSplit: View {
             .font(.system(size: 11.5))
             .monospacedDigit()
             ForEach(Array(models.enumerated()), id: \.offset) { _, model in
-                row(marker: palette.color(model.tool), name: model.name, fraction: Double(model.tokenCount) / Double(largest), value: formattedShortTokenCount(model.tokenCount), dash: palette.dash(model.tool))
+                row(tool: model.tool, name: model.name, fraction: Double(model.tokenCount) / Double(largest), value: formattedShortTokenCount(model.tokenCount))
             }
             if card.isReading {
                 HStack(spacing: 8) {
@@ -559,9 +559,15 @@ private struct TokenUsageTopModelsSplit: View {
         return card.share(of: summary.tool).map(TokenUsageMenuCard.percent) ?? "…"
     }
 
-    private func row(marker: Color, name: String, fraction: Double, value: String, dash: [CGFloat]) -> some View {
-        HStack(spacing: 8) {
-            RoundedRectangle(cornerRadius: 1.5).fill(marker).frame(width: 3, height: 12)
+    private func row(tool: TokenUsageTool, name: String, fraction: Double, value: String) -> some View {
+        let marker = palette.color(tool)
+        let dash = palette.dash(tool)
+        return HStack(spacing: 8) {
+            if palette.isMonochrome {
+                TokenUsageToolMarker(tool: tool, palette: palette).frame(width: 7)
+            } else {
+                RoundedRectangle(cornerRadius: 1.5).fill(marker).frame(width: 3, height: 12)
+            }
             Text(name).font(.system(size: 12)).lineLimit(1).frame(width: 96, alignment: .leading)
             GeometryReader { geometry in
                 Path { path in
