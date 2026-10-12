@@ -21,22 +21,22 @@ defaults delete com.raphhgg.codexpill
 
 It is fine if `defaults delete` says the domain does not exist.
 
-If you saved Claude Code accounts, also remove CodexPill's Keychain items for
-them. Run this until it says the item could not be found:
+CodexPill never writes Claude Code's or Cursor's files or Keychain items, so
+there is nothing of theirs to remove. Test builds could save Claude Code and
+Cursor accounts. If you ran one, remove what it left. Run the first command
+until it says the item could not be found:
 
 ```sh
 security delete-generic-password -s "CodexPill Claude Code account"
+security delete-generic-password -s "CodexPill Cursor accounts"
+rm -f "$HOME/Library/Application Support/CodexPill/claude-code-accounts.json"
+rm -rf "$HOME/Library/Application Support/CodexPill/claude-sign-in"
+rm -rf "$HOME/Library/Application Support/CodexPill/cursor-sign-in"
 ```
 
-This leaves Claude Code's own sign-in, the `Claude Code-credentials` item, as it
-is. CodexPill never deletes that item.
-
-While you add a Claude account, or while Claude Code renews a saved one, Claude
-Code keeps that sign-in in a temporary `Claude Code-credentials-<8 characters>`
-item for a folder under `~/Library/Application Support/CodexPill/claude-sign-in`.
-CodexPill deletes both when the run ends, and on its next launch after a crash.
-If you remove CodexPill right after a crash, list what is left and delete each
-item by its exact name:
+A test build that crashed while adding a Claude account could also leave a
+`Claude Code-credentials-<8 characters>` item. List them and delete each by its
+exact name:
 
 ```sh
 security dump-keychain | grep -o '"Claude Code-credentials-[0-9a-f]\{8\}"' | sort -u
@@ -46,23 +46,6 @@ security delete-generic-password -s "Claude Code-credentials-<8 characters>"
 Only delete names with the 8-character suffix. The plain `Claude Code-credentials`
 item is your real Claude Code sign-in. A suffixed item can also belong to a Claude
 Code you run yourself with `CLAUDE_CONFIG_DIR` set.
-
-If you saved Cursor accounts, remove the one Keychain item that holds them all:
-
-```sh
-security delete-generic-password -s "CodexPill Cursor accounts"
-```
-
-Cursor stays signed in as it is. CodexPill never deletes Cursor's own data.
-
-Adding a Cursor account uses a temporary Cursor profile under
-`~/Library/Application Support/CodexPill/cursor-sign-in`. CodexPill deletes it when
-the sign-in ends, and deletes any left by a crash at its next launch. If CodexPill is
-already uninstalled, quit any extra Cursor window first, then remove the folder:
-
-```sh
-rm -rf ~/Library/Application\ Support/CodexPill/cursor-sign-in
-```
 
 This does not delete `~/.codex/auth.json`. Do not remove or edit that file unless
 you intentionally want to sign out of Codex or repair Codex itself.

@@ -34,27 +34,23 @@ Every tool uses the same card. It is one hover cell with a side menu and no chev
   | Read failed with an earlier reading | the failure title, meters dimmed | `As of 10:26` |
   | Read failed with no earlier reading | the failure title | the failure line |
   | No Codex account in use | `No saved account in use` | `Pick one in this menu.` |
-  | Signing in, after `Add Claude Account…` or `Sign In…` | `Finish signing in in your browser` | none |
 
   Failure titles come from `ProviderCopy`, for example `Can't reach Anthropic` / `Retrying in a few minutes.`, `Cursor is busy`, `Cursor isn't installed`, `Allow Keychain access`. A Codex reading older than two refreshes, and at least 15 minutes, is stale.
-- **Action rows.** While a state lasts, one row sits under the card: `Allow Keychain access…`, `Cancel Sign-In`, or `Sign In…` when Claude Code has no readable sign-in (it runs `Add Claude Account…`). A signed-out Cursor card has no `Sign In…`, because adding a Cursor account leaves Cursor itself signed out.
-- **Signing in.** While a tool's own sign-in runs, the card reads `Finish signing in in your browser` for Claude or `Sign in in the new Cursor window` for Cursor, with `Cancel Sign-In` under it.
+- **Action rows.** While a state lasts, one row sits under the card: `Allow Keychain access…`.
 
 ## Side Menu
 
 Hovering a card opens its side menu:
 
-1. The email of the account in use, checked and disabled.
-2. One row per other saved account, by email. Each row opens `Use` and `Remove…`. `Remove…` asks first. Removing a Codex account also signs this Mac out when `auth.json` still uses it.
-   An account without an email reads as its organization, a Codex account then as its plan (`Plus account`), else `Saved account`. Repeated labels get a number in saved order: `Saved account 2`. Alerts name an account with the same label.
-   Each one carries that account's last limits on a second, smaller line, in the user's % used or % left: `Session 12% · Weekly 40% used`, `Session 12% · Weekly 40% · Fable this week 8% used` for Claude with a model limit (none while `Show Model Limits` is off), `Weekly 17% used` for Codex Pro, or `Monthly 3% used` for Codex Free. Cursor's line is its billing cycle: `40% used`. A reading older than 30 minutes adds `· as of 10:26`. Every tool reads inactive accounts every 15 minutes. A Cursor account whose saved token expired keeps its last line, with its time.
+1. The email of the account in use, checked and disabled. For Claude and Cursor it is the account their own app is signed in to, from the last reading.
+2. Codex only: one row per other saved account, by email. Each row opens `Use` and `Remove…`. `Remove…` asks first. Removing a Codex account also signs this Mac out when `auth.json` still uses it.
+   An account without an email reads as its workspace, then its plan (`Plus account`), else `Saved account`. Repeated labels get a number in saved order: `Saved account 2`. Alerts name an account with the same label.
+   Each one carries that account's last limits on a second, smaller line, in the user's % used or % left: `Session 12% · Weekly 40% used`, `Weekly 17% used` for Codex Pro, or `Monthly 3% used` for Codex Free. A reading older than 30 minutes adds `· as of 10:26`.
 3. Codex only: `Use a Reset…`, then one disabled `Expires <date>` line per credit Codex listed, and `Token Usage ›` when token usage is on ([Token Usage](token-usage.md)).
 4. `Move to Top`, `Move Up`, `Move Down`, when there is more than one card. Moves that do not apply are disabled.
-5. `Add <Tool> Account…`.
-   `Add <Tool> Account…` runs the tool's own sign-in without touching the account in use. Cursor's opens a second Cursor window with a throwaway profile. The account Claude Code or Cursor is signed in to is saved automatically once that tool is connected. Without the `claude` command or Cursor, the add item is disabled with `Install Claude Code first` or `Install Cursor first` under it.
-   A switch while that tool's sign-in runs is refused: `Finish signing in first` / `Or cancel the sign-in.`
+5. Codex only: `Add Codex Account…`.
 
-The account in use has no remove item. Claude and Cursor save the live account automatically, so a removed one would come straight back. `Disconnect <Tool>` lives in Settings.
+Claude and Cursor have no other account rows: CodexPill reads only the account their own app is signed in to. The Codex account in use has no remove item. `Disconnect <Tool>` lives in Settings.
 
 `Hide Emails` masks every email the menu, its alerts and the tooltip show: `alex.side@example.com` reads `al•••e@example.com`. The domain stays visible.
 
@@ -75,9 +71,9 @@ Diagnostics…
 About
 ```
 
-`Claude…` and `Cursor…` connect a tool that is not connected yet. Otherwise they run `Add Claude Account…` and `Add Cursor Account…`. `Disconnect Claude` and `Disconnect Cursor` appear only while that tool is connected, and hide its card. Codex has nothing to disconnect.
+`Claude…` and `Cursor…` connect a tool and are listed only while it is not connected. `Disconnect Claude` and `Disconnect Cursor` appear only while that tool is connected, and hide its card. Codex has nothing to disconnect.
 
-`Show Model Limits` is on by default and checked while on. Turning it off hides Claude's per-model meters in the card and in each saved account's line. It never changes the menu bar icon, which uses only the session and weekly windows. It is saved as `claudeShowsModelLimits` in user defaults.
+`Show Model Limits` is on by default and checked while on. Turning it off hides Claude's per-model meters in the card. It never changes the menu bar icon, which uses only the session and weekly windows. It is saved as `claudeShowsModelLimits` in user defaults.
 
 `Diagnostics…` first explains what the export contains, then writes a redacted JSON file only if the user confirms. The report holds allowlisted fields, per-export account aliases, every limit window each account reported (its kind, its menu title and a used-share category: available, limited or exhausted), summarized freshness states and recent CodexPill workflow events. It never includes raw logs, auth JSON, snapshots, raw UserDefaults, emails, hostnames, local paths, tokens, stable account IDs, prompt or session content, or raw stderr.
 

@@ -116,16 +116,9 @@ open -n \
 - `CODEX_HOME` points the `codex app-server` that CodexPill starts at the same
   `auth.json`.
 - Claude usage reads `.credentials.json` from `CLAUDE_CONFIG_DIR`, or from
-  `<root>/.claude`, and never the Keychain. Saved Claude accounts are files in
-  `<root>/claude-code-accounts`. Adding a Claude account runs only
-  `<root>/bin/claude`, so put a stand-in script there to try the sign-in card
-  without a real sign-in; without one, adding shows `Install Claude Code first`.
+  `<root>/.claude`, and never the Keychain. Renewing an expired sign-in with
+  `claude doctor` runs only `<root>/bin/claude`.
 - Cursor usage reads `<root>/Cursor/state.vscdb`, never Cursor's real database.
-  Saved Cursor accounts are in `<root>/cursor-accounts.json`, and a switch
-  rewrites only `<root>/Cursor/state.vscdb`, so an isolated run never quits
-  Cursor. Adding a Cursor account runs only `<root>/bin/cursor` with a profile
-  under `<root>/cursor-sign-in`; keep `<root>` short (for example
-  `/tmp/cpj.XXXX`), because Cursor's socket path must fit in 103 bytes.
 
 Switching still asks the real Codex app to relaunch. Quit the isolated app by
 its process ID, not with `scripts/stop_menubar.sh`, which stops every running
