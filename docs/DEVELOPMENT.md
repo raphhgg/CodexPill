@@ -144,6 +144,8 @@ open -n \
   `<root>/.claude`, and never the Keychain. Renewing an expired sign-in with
   `claude doctor` runs only `<root>/bin/claude`.
 - Cursor usage reads `<root>/Cursor/state.vscdb`, never Cursor's real database.
+- Token Usage reads Codex sessions from `<root>/sessions`, never
+  `~/.codex/sessions`.
 
 Switching still asks the real Codex app to relaunch. Quit the isolated app by
 its process ID, not with `scripts/stop_menubar.sh`, which stops every running

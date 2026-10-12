@@ -31,6 +31,20 @@ struct TokenUsageMenuRuntimeTests {
     }
 
     @Test
+    func showsTheCachedReadingWhileItLoads() async throws {
+        let cached = TokenUsageMenuLoadedData(buckets: [dailyUsage(daysAgo: 1, totalTokens: 900)], allTimePeak: nil)
+        let provider = TokenUsageRuntimeProviderProbe(cached: cached)
+        let runtime = TokenUsageMenuRuntime(provider: provider) { _ in }
+
+        runtime.refreshIfNeeded(period: .last30Days, peakScope: .currentPeriod)
+        await waitUntil { runtime.loadState == .loading(TokenUsageScanProgress(scannedFiles: 1, totalFiles: 2), preview: cached) }
+
+        let buckets = [dailyUsage(daysAgo: 0, totalTokens: 1_000)]
+        await provider.finish(with: buckets)
+        await waitUntil { runtime.loadState == .loaded(TokenUsageMenuLoadedData(buckets: buckets, allTimePeak: nil)) }
+    }
+
+    @Test
     func reusesLoadedDataBeforeFreshnessInterval() async throws {
         var now = Date(timeIntervalSince1970: 1_716_192_000)
         let provider = TokenUsageRuntimeProviderProbe()
@@ -234,6 +248,7 @@ struct TokenUsageMenuRuntimeTests {
 }
 
 private actor TokenUsageRuntimeProviderProbe: TokenUsageMenuProviding {
+    private let cached: TokenUsageMenuLoadedData?
     private(set) var loadPeriods: [CodexTokenUsagePeriod] = []
     private(set) var forceRefreshValues: [Bool] = []
     private var loadContinuation: CheckedContinuation<TokenUsageMenuLoadState, Never>?
@@ -251,6 +266,14 @@ private actor TokenUsageRuntimeProviderProbe: TokenUsageMenuProviding {
         return await withCheckedContinuation { continuation in
             loadContinuation = continuation
         }
+    }
+
+    init(cached: TokenUsageMenuLoadedData? = nil) {
+        self.cached = cached
+    }
+
+    func preview(period _: CodexTokenUsagePeriod) -> TokenUsageMenuLoadedData? {
+        cached
     }
 
     func finish(with buckets: [CodexDailyTokenUsage]) {

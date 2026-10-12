@@ -26,8 +26,8 @@ struct LocalCodexSessionTokenUsageMenuProviderTests {
 
         _ = await provider.load(period: .last7Days) { progressUpdates.append($0) }
 
-        #expect(progressUpdates.fileCounts.first == TokenUsageScanProgress(scannedFiles: 0, totalFiles: 2))
-        #expect(progressUpdates.fileCounts.last == TokenUsageScanProgress(scannedFiles: 2, totalFiles: 2))
+        #expect(progressUpdates.updates.first == TokenUsageScanProgress(scannedFiles: 0, totalFiles: 2))
+        #expect(progressUpdates.updates.last == TokenUsageScanProgress(scannedFiles: 2, totalFiles: 2))
     }
 
     @Test
@@ -267,7 +267,7 @@ struct LocalCodexSessionTokenUsageMenuProviderTests {
             Issue.record("Expected force-refreshed token usage load to succeed")
             return
         }
-        #expect(progressUpdates.fileCounts.contains(TokenUsageScanProgress(scannedFiles: 0, totalFiles: 3)) == false)
+        #expect(progressUpdates.updates.contains(TokenUsageScanProgress(scannedFiles: 0, totalFiles: 3)) == false)
         #expect(refreshedData.buckets.map(\.usage.totalTokens).contains(12000) == false)
         #expect(refreshedData.allTimePeak?.usage.totalTokens == 9000)
     }
@@ -385,7 +385,7 @@ struct LocalCodexSessionTokenUsageMenuProviderTests {
             return
         }
         #expect(progressUpdates.isEmpty == false)
-        #expect(progressUpdates.fileCounts == [
+        #expect(progressUpdates.updates == [
             TokenUsageScanProgress(scannedFiles: 0, totalFiles: 1),
             TokenUsageScanProgress(scannedFiles: 1, totalFiles: 1)
         ])
@@ -441,7 +441,7 @@ struct LocalCodexSessionTokenUsageMenuProviderTests {
             Issue.record("Expected day-rollover token usage refresh to succeed")
             return
         }
-        #expect(progressUpdates.fileCounts == [
+        #expect(progressUpdates.updates == [
             TokenUsageScanProgress(scannedFiles: 0, totalFiles: 1),
             TokenUsageScanProgress(scannedFiles: 1, totalFiles: 1)
         ])

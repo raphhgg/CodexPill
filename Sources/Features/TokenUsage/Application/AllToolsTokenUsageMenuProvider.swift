@@ -16,8 +16,7 @@ struct TokenUsageToolSource: Sendable {
 /// Adds connected tools' daily tokens to the Codex token usage load.
 ///
 /// Codex keeps its own scan, cache, and all-time peak. The other tools are read for the visible period on
-/// each load, before Codex, and travel with Codex's progress so the card can show them during a long scan.
-/// The runtime calls `load` at most once per freshness interval.
+/// each load. The runtime calls `load` at most once per freshness interval.
 struct AllToolsTokenUsageMenuProvider: TokenUsageMenuProviding {
     let codex: any TokenUsageMenuProviding
     let otherTools: [TokenUsageToolSource]
@@ -31,7 +30,6 @@ struct AllToolsTokenUsageMenuProvider: TokenUsageMenuProviding {
         progress: @escaping @Sendable (TokenUsageScanProgress) -> Void
     ) async -> TokenUsageMenuLoadState {
         let interval = ToolTokenUsageDays.interval(dayCount: period.dayCount, endingAt: now(), calendar: calendar)
-        // The other tools are quick, so they're read first and shown while Codex is still reading sessions.
         var otherSeries: [ToolTokenUsageSeries] = []
         var unavailableTools: [TokenUsageTool] = []
         for source in otherTools where source.isConnected() {
@@ -43,18 +41,7 @@ struct AllToolsTokenUsageMenuProvider: TokenUsageMenuProviding {
             }
         }
 
-        let readyTools = otherSeries
-        let readyUnavailable = unavailableTools
-        let codexState = await codex.load(
-            period: period,
-            peakScope: peakScope,
-            forceRefresh: forceRefresh
-        ) { codexProgress in
-            var update = codexProgress
-            update.otherTools = readyTools
-            update.unavailableTools = readyUnavailable
-            progress(update)
-        }
+        let codexState = await codex.load(period: period, peakScope: peakScope, forceRefresh: forceRefresh, progress: progress)
         if case .loading = codexState {
             return codexState
         }
@@ -73,6 +60,16 @@ struct AllToolsTokenUsageMenuProvider: TokenUsageMenuProviding {
             return .unavailable
         }
         return .loaded(data)
+    }
+
+    /// Codex's cached days, and an empty series for each connected tool so the card knows which tools to expect.
+    func preview(period: CodexTokenUsagePeriod) async -> TokenUsageMenuLoadedData? {
+        let interval = ToolTokenUsageDays.interval(dayCount: period.dayCount, endingAt: now(), calendar: calendar)
+        var data = await codex.preview(period: period) ?? TokenUsageMenuLoadedData(buckets: [], allTimePeak: nil)
+        let emptyDays = ToolTokenUsageDays.filled([], in: interval, calendar: calendar)
+        data.tools = [Self.codexSeries(from: data.buckets, in: interval, calendar: calendar)]
+            + otherTools.filter { $0.isConnected() }.map { ToolTokenUsageSeries(tool: $0.tool, days: emptyDays) }
+        return data
     }
 
     static func codexSeries(

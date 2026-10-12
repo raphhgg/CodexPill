@@ -87,6 +87,17 @@ struct TokenUsageCacheBackedRefreshPolicy: Sendable {
             .first
     }
 
+    /// The newest entry with any of the period's days, even an old one.
+    func previewEntry(
+        from entries: [TokenUsageCacheEntry],
+        covering period: CodexTokenUsagePeriod,
+        now: Date
+    ) -> TokenUsageCacheEntry? {
+        entries
+            .filter { $0.period.dayCount >= period.dayCount && $0.overlapsCurrentWindow(for: period, now: now, calendar: calendar) }
+            .max { $0.generatedAt < $1.generatedAt }
+    }
+
     func allTimePeak(from entries: [TokenUsageCacheEntry]) -> CodexDailyTokenUsage? {
         entries
             .filter(\.hasAllTimePeak)

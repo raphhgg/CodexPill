@@ -5,8 +5,8 @@ import Observation
 struct TokenUsageMenuCard: Equatable {
     enum Phase: Equatable {
         case loaded
-        /// Codex is still reading sessions. Other tools are already final.
-        case reading(fraction: Double?)
+        /// Reading sessions. The chart shows the last finished reading, dimmed, or placeholder bars before the first.
+        case loading(fraction: Double)
         case unavailable
     }
 
@@ -17,7 +17,6 @@ struct TokenUsageMenuCard: Equatable {
         /// The top models plus `Other`, as shares of this tool's tokens.
         let models: [ModelShare]
         let isUnavailable: Bool
-        let isReading: Bool
 
         var id: TokenUsageTool { tool }
     }
@@ -43,24 +42,23 @@ struct TokenUsageMenuCard: Equatable {
     /// Connected tools in a fixed order, each with one entry per day.
     let tools: [ToolTokenUsageSeries]
     let unavailableTools: [TokenUsageTool]
-    /// While Codex reads, its days on or before this one are not final.
-    let codexPendingDay: Date?
 
     var periodTokenCount: Int { tools.reduce(0) { $0 + $1.totalTokens } }
 
     var todayTokenCount: Int { days.indices.last.map(tokenCount(onDay:)) ?? 0 }
 
-    var hasData: Bool { periodTokenCount > 0 || isReading }
+    var hasData: Bool { periodTokenCount > 0 || isLoading }
 
-    var isReading: Bool {
-        if case .reading = phase { return true }
+    var isLoading: Bool {
+        if case .loading = phase { return true }
         return false
     }
 
-    var readingFraction: Double? {
-        if case .reading(let fraction) = phase { return fraction }
-        return nil
-    }
+    /// Loading with no earlier reading to show.
+    var showsPlaceholderChart: Bool { isLoading && periodTokenCount == 0 }
+
+    /// The splits and their switch show only once a reading has finished.
+    var showsSplits: Bool { phase == .loaded && periodTokenCount > 0 }
 
     func tokenCount(onDay index: Int) -> Int {
         tools.reduce(0) { $0 + tokenCount(for: $1.tool, onDay: index) }
@@ -69,12 +67,6 @@ struct TokenUsageMenuCard: Equatable {
     func tokenCount(for tool: TokenUsageTool, onDay index: Int) -> Int {
         guard let series = tools.first(where: { $0.tool == tool }), series.days.indices.contains(index) else { return 0 }
         return series.days[index].totalTokens
-    }
-
-    /// Codex days the scan hasn't finished yet.
-    func isPending(_ tool: TokenUsageTool, onDay index: Int) -> Bool {
-        guard tool == .codex, let codexPendingDay, days.indices.contains(index) else { return false }
-        return days[index] <= codexPendingDay
     }
 
     var maximumDayTokenCount: Int {
@@ -86,40 +78,36 @@ struct TokenUsageMenuCard: Equatable {
     }
 
     var subtitle: String {
-        if let readingFraction {
-            return "\(period.summaryTitle) · Reading Codex sessions · \(Int((readingFraction * 100).rounded()))%"
+        if case .loading(let fraction) = phase {
+            return "\(period.summaryTitle) · Loading \(Int((fraction * 100).rounded()))%"
         }
         return "\(period.summaryTitle) · \(formattedShortTokenCount(periodTokenCount)) · Today \(formattedShortTokenCount(todayTokenCount))"
     }
 
     var toolSummaries: [ToolSummary] {
         let ready = tools.map { series in
-            let reading = isReading && series.tool == .codex
-            return ToolSummary(
+            ToolSummary(
                 tool: series.tool,
                 todayTokenCount: days.indices.last.map { tokenCount(for: series.tool, onDay: $0) } ?? 0,
                 periodTokenCount: series.totalTokens,
-                models: reading ? [] : Self.modelShares(of: series),
-                isUnavailable: false,
-                isReading: reading
+                models: Self.modelShares(of: series),
+                isUnavailable: false
             )
         }
         let unavailable = unavailableTools.map {
-            ToolSummary(tool: $0, todayTokenCount: 0, periodTokenCount: 0, models: [], isUnavailable: true, isReading: false)
+            ToolSummary(tool: $0, todayTokenCount: 0, periodTokenCount: 0, models: [], isUnavailable: true)
         }
         return (ready + unavailable).sorted { $0.tool.order < $1.tool.order }
     }
 
-    /// Each tool's share of the period. Nil while Codex is still reading, because the total isn't final.
     func share(of tool: TokenUsageTool) -> Double? {
-        guard !isReading, periodTokenCount > 0 else { return nil }
+        guard periodTokenCount > 0 else { return nil }
         return Double(tools.first { $0.tool == tool }?.totalTokens ?? 0) / Double(periodTokenCount)
     }
 
-    /// The largest models across tools. Codex models wait until its scan finishes.
     var topModels: [TopModel] {
         var models: [TopModel] = []
-        for series in tools where !(isReading && series.tool == .codex) {
+        for series in tools {
             for entry in series.modelTotals {
                 models.append(TopModel(tool: series.tool, name: ModelDisplayName.make(entry.model), tokenCount: entry.tokens))
             }
@@ -127,17 +115,29 @@ struct TokenUsageMenuCard: Equatable {
         models.sort { lhs, rhs in
             lhs.tokenCount == rhs.tokenCount ? lhs.name < rhs.name : lhs.tokenCount > rhs.tokenCount
         }
-        let limit = isReading ? Self.topModelCount - 1 : Self.topModelCount
-        return Array(models.prefix(limit))
+        return Array(models.prefix(Self.topModelCount))
+    }
+
+    /// The same tools, each with the most the splits can show, so the card keeps one height while loading and after.
+    var layoutTemplate: TokenUsageMenuCard {
+        let toolSet = tools.map(\.tool) + unavailableTools
+        let day = days.last ?? Date(timeIntervalSinceReferenceDate: 0)
+        let models = Dictionary(uniqueKeysWithValues: (1...Self.topModelCount).map { ("model \($0)", $0) })
+        return TokenUsageMenuCard(
+            phase: .loaded,
+            period: period,
+            days: [day],
+            dayLabels: [""],
+            tools: (toolSet.isEmpty ? [.codex] : toolSet).map {
+                ToolTokenUsageSeries(tool: $0, days: [ToolDailyTokenUsage(day: day, tokensByModel: models)])
+            },
+            unavailableTools: []
+        )
     }
 
     func tooltip(forDay index: Int) -> String {
         guard dayLabels.indices.contains(index) else { return "" }
-        let parts = tools.map { series in
-            isPending(series.tool, onDay: index)
-                ? "\(series.tool.displayName) …"
-                : "\(series.tool.displayName) \(formattedShortTokenCount(tokenCount(for: series.tool, onDay: index)))"
-        }
+        let parts = tools.map { "\($0.tool.displayName) \(formattedShortTokenCount(tokenCount(for: $0.tool, onDay: index)))" }
         return "\(dayLabels[index]): \(formattedShortTokenCount(tokenCount(onDay: index))) tokens\n" + parts.joined(separator: " · ")
     }
 
@@ -146,13 +146,13 @@ struct TokenUsageMenuCard: Equatable {
         switch phase {
         case .unavailable:
             parts.append("Token usage unavailable")
-        case .reading, .loaded:
+        case .loading:
+            parts.append(subtitle)
+        case .loaded:
             parts.append(subtitle)
             for summary in toolSummaries {
                 if summary.isUnavailable {
                     parts.append("\(summary.tool.displayName) unavailable")
-                } else if summary.isReading {
-                    parts.append("\(summary.tool.displayName) reading sessions")
                 } else {
                     let models = summary.models.map { "\($0.name) \(Self.percent($0.share))" }.joined(separator: ", ")
                     parts.append("\(summary.tool.displayName) \(formattedShortTokenCount(summary.periodTokenCount)) tokens, \(models)")
@@ -193,22 +193,20 @@ struct TokenUsageMenuCard: Equatable {
         let phase: Phase
         var tools: [ToolTokenUsageSeries] = []
         var unavailableTools: [TokenUsageTool] = []
-        var pendingDay: Date?
+        let seriesOf = { (data: TokenUsageMenuLoadedData) in
+            data.tools.isEmpty
+                ? [AllToolsTokenUsageMenuProvider.codexSeries(from: data.buckets, in: interval, calendar: calendar)]
+                : data.tools
+        }
 
         switch loadState {
         case .loaded(let data):
             phase = .loaded
-            tools = data.tools.isEmpty
-                ? [AllToolsTokenUsageMenuProvider.codexSeries(from: data.buckets, in: interval, calendar: calendar)]
-                : data.tools
+            tools = seriesOf(data)
             unavailableTools = data.unavailableTools
-        case .loading(let progress):
-            phase = .reading(fraction: progress?.fraction)
-            // Before the first update, every Codex day is still pending.
-            pendingDay = progress.map { $0.pendingDay } ?? days.last
-            tools = [AllToolsTokenUsageMenuProvider.codexSeries(from: progress?.codexDays ?? [], in: interval, calendar: calendar)]
-                + (progress?.otherTools ?? [])
-            unavailableTools = progress?.unavailableTools ?? []
+        case .loading(let progress, let preview):
+            phase = .loading(fraction: progress?.fraction ?? 0)
+            tools = preview.map(seriesOf) ?? [AllToolsTokenUsageMenuProvider.codexSeries(from: [], in: interval, calendar: calendar)]
         case .unavailable:
             phase = .unavailable
         }
@@ -226,8 +224,7 @@ struct TokenUsageMenuCard: Equatable {
             tools: tools
                 .map { ToolTokenUsageSeries(tool: $0.tool, days: ToolTokenUsageDays.filled($0.days, in: interval, calendar: calendar)) }
                 .sorted { $0.tool.order < $1.tool.order },
-            unavailableTools: unavailableTools,
-            codexPendingDay: pendingDay
+            unavailableTools: unavailableTools
         )
     }
 }
