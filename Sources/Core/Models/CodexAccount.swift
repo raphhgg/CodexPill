@@ -45,6 +45,16 @@ struct CodexAuthPrincipalIdentity: Codable, Hashable {
     var isMeaningful: Bool {
         subject != nil || chatGPTUserID != nil
     }
+
+    /// The ChatGPT user ID decides when both have one. The subject also names how the user signed in, such as
+    /// `google-oauth2|…`, so it changes when the same user signs in another way.
+    func isSameUser(as other: CodexAuthPrincipalIdentity?) -> Bool {
+        guard let other else { return false }
+        if let chatGPTUserID, let otherChatGPTUserID = other.chatGPTUserID {
+            return chatGPTUserID == otherChatGPTUserID
+        }
+        return self == other
+    }
 }
 
 struct CodexWorkspaceIdentity: Codable, Hashable {
