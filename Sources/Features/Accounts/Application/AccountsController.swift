@@ -12,7 +12,7 @@ final class AccountsController {
         case failed(String)
     }
 
-    private static let inactiveSavedAccountsRefreshInterval: TimeInterval = 15 * 60
+    nonisolated static let inactiveSavedAccountsRefreshInterval: TimeInterval = 15 * 60
 
     private let identityResolver: SavedAccountIdentityResolver
     private let inactiveAccountAvailabilityRanking: InactiveAccountAvailabilityRanking

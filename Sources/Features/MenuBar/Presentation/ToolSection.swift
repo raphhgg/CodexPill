@@ -5,15 +5,20 @@ struct ToolSection: Equatable {
     let provider: UsageProvider
     let planTag: String?
     let card: ToolCard
-    /// Saved accounts, the one in use first. Labels are emails, masked when Hide Emails is on.
+    /// Saved Codex accounts. Labels are emails, masked when Hide Emails is on. Claude and Cursor have none.
     let accounts: [ToolAccount]
     /// An action row under the card while its state lasts, such as "Allow Keychain access…".
     let followUp: ToolFollowUp?
-    /// Whether "Add <Tool> Account…" can run the tool's own sign-in.
-    var signInAvailability: ProviderSignInAvailability = .available
+    /// The email Claude or Cursor is signed in to, masked when Hide Emails is on.
+    var signedInLabel: String? = nil
 
     var activeAccount: ToolAccount? {
         accounts.first(where: \.isActive)
+    }
+
+    /// What the side menu and the tooltip call the account in use.
+    var activeLabel: String? {
+        activeAccount?.label ?? signedInLabel
     }
 
     var otherAccounts: [ToolAccount] {
@@ -104,16 +109,7 @@ extension MenuBarMenuState {
 
     private var codexSection: ToolSection? {
         guard !allSavedAccounts.isEmpty else { return nil }
-        let accounts = accountLabels(allSavedAccounts.map { account in
-            let planLabel = planTag(for: .codex, planName: account.effectivePlanType).map { "\($0) account" }
-            return ProviderAccount(
-                id: account.id,
-                email: account.email,
-                name: [account.identity.workspaceIdentity?.workspaceLabel, planLabel].compactMap(\.self).first { !$0.contains("@") },
-                isActive: account.id == activeAccount?.id,
-                usage: account.usage
-            )
-        })
+        let accounts = codexAccountLabels()
 
         let card = if let activeAccount, let usage = activeAccount.usage {
             usageCard(usage, isStale: usage.freshness(at: now, staleAfter: codexStaleAfter) == .stale)
@@ -137,66 +133,59 @@ extension MenuBarMenuState {
         var followUp: ToolFollowUp?
         var snapshot: UsageSnapshot?
 
-        if usage.isSigningIn {
-            card = ToolCard(title: copy.signingInTitle)
-            followUp = ToolFollowUp(title: "Cancel Sign-In", systemImage: "xmark.circle", action: .cancelSignIn)
-        } else {
-            switch usage.status {
-            case .notConnected, .awaitingUsage:
-                card = ToolCard(title: "Waiting for \(copy.name) usage")
-            case let .current(current):
-                snapshot = current
-                card = usageCard(current, isStale: false)
-            case let .stale(stale):
-                snapshot = stale
-                card = usageCard(stale, isStale: true)
-            case let .unavailable(reason, lastSnapshot):
-                snapshot = lastSnapshot
-                let message = copy.unavailableMessage(for: reason)
-                card = lastSnapshot.map { usageCard($0, isStale: true) } ?? ToolCard(detail: message.detail)
-                card.title = message.title
-                if reason == .keychainAccessNeeded {
-                    followUp = ToolFollowUp(title: "Allow Keychain access…", systemImage: "key", action: .allowKeychainAccess)
-                } else if [.signedOut, .signInUnreadable].contains(reason), usage.signInAvailability == .available, copy.offersSignInWhenSignedOut {
-                    followUp = ToolFollowUp(title: "Sign In…", systemImage: "person.crop.circle", action: .addAccount)
-                }
+        switch usage.status {
+        case .notConnected, .awaitingUsage:
+            card = ToolCard(title: "Waiting for \(copy.name) usage")
+        case let .current(current):
+            snapshot = current
+            card = usageCard(current, isStale: false)
+        case let .stale(stale):
+            snapshot = stale
+            card = usageCard(stale, isStale: true)
+        case let .unavailable(reason, lastSnapshot):
+            snapshot = lastSnapshot
+            let message = copy.unavailableMessage(for: reason)
+            card = lastSnapshot.map { usageCard($0, isStale: true) } ?? ToolCard(detail: message.detail)
+            card.title = message.title
+            if reason == .keychainAccessNeeded {
+                followUp = ToolFollowUp(title: "Allow Keychain access…", systemImage: "key", action: .allowKeychainAccess)
             }
         }
 
-        let accounts = accountLabels(usage.accounts)
         return ToolSection(
             provider: usage.provider,
             planTag: snapshot.flatMap { planTag(for: usage.provider, planName: $0.planName) },
             card: card,
-            accounts: accounts.filter(\.isActive) + accounts.filter { !$0.isActive },
+            accounts: [],
             followUp: followUp,
-            signInAvailability: usage.signInAvailability
+            signedInLabel: snapshot?.accountEmail.map { displayedEmail($0, masked: masksEmails) }
         )
     }
 
-    /// An account reads as its email, else its organization (or Codex plan), else "Saved account". Labels that would
-    /// repeat get a number in saved order, so it does not move when the user switches: "Saved account", "Saved account 2".
-    /// An organization name with an @ in it is skipped, because Claude names personal organizations after the email.
-    private func accountLabels(_ accounts: [ProviderAccount]) -> [ToolAccount] {
-        let baseLabels = accounts.map { account in
+    /// A Codex account reads as its email, else its workspace or plan, else "Saved account". Labels that would repeat
+    /// get a number in saved order, so it does not move when the user switches: "Saved account", "Saved account 2".
+    /// A workspace name with an @ in it is skipped.
+    private func codexAccountLabels() -> [ToolAccount] {
+        let baseLabels = allSavedAccounts.map { account in
             if let email = account.email { return displayedEmail(email, masked: masksEmails) }
-            if let name = account.name, !name.contains("@") { return name }
-            return "Saved account"
+            let planLabel = planTag(for: .codex, planName: account.effectivePlanType).map { "\($0) account" }
+            let name = [account.identity.workspaceIdentity?.workspaceLabel, planLabel].compactMap(\.self).first { !$0.contains("@") }
+            return name ?? "Saved account"
         }
         var seen: [String: Int] = [:]
-        return zip(accounts, baseLabels).map { account, label in
+        return zip(allSavedAccounts, baseLabels).map { account, label in
             seen[label, default: 0] += 1
             let count = seen[label] ?? 1
             return ToolAccount(
                 id: account.id,
                 label: count > 1 ? "\(label) \(count)" : label,
-                isActive: account.isActive,
+                isActive: account.id == activeAccount?.id,
                 usageLine: accountUsageLine(account.usage)
             )
         }
     }
 
-    /// A saved account's limits for its side-menu item, in the user's % used or % left. A reading older than two
+    /// A saved Codex account's limits for its side-menu item, in the user's % used or % left. A reading older than two
     /// inactive refreshes says when it was read: "Session 12% · Weekly 40% used · as of 10:26".
     func accountUsageLine(_ snapshot: UsageSnapshot?) -> String? {
         let windows = snapshot.map(displayedWindows) ?? []
@@ -206,7 +195,7 @@ extension MenuBarMenuState {
             return "\(window.kind.title) \(usagePercentMode == .used ? used : 100 - used)%"
         }
         var line = percents.joined(separator: " · ") + (usagePercentMode == .used ? " used" : " left")
-        if snapshot.freshness(at: now, staleAfter: 2 * ProviderUsageRuntime.inactiveRefreshInterval) == .stale {
+        if snapshot.freshness(at: now, staleAfter: 2 * AccountsController.inactiveSavedAccountsRefreshInterval) == .stale {
             line += " · as of \(usageAsOfText(snapshot.fetchedAt, now: now))"
         }
         return line

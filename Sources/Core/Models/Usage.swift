@@ -52,6 +52,8 @@ struct UsageSnapshot: Hashable {
     var fetchedAt: Date
     var resetCredits: UsageResetCredits? = nil
     var spend: UsageSpend? = nil
+    /// The email of the account the tool is signed in to, for Claude and Cursor. Codex keeps it on `CodexAccount`.
+    var accountEmail: String? = nil
 
     func window(_ kind: UsageWindowKind) -> UsageWindow? {
         windows.first { $0.kind == kind }

@@ -1,4 +1,3 @@
-import CryptoKit
 import Foundation
 
 enum ClaudeCodeCommandError: Error, Equatable, Sendable {
@@ -7,12 +6,6 @@ enum ClaudeCodeCommandError: Error, Equatable, Sendable {
     /// The user cancelled, so the command was stopped.
     case cancelled
     case timedOut
-    /// Claude Code's login failed or saved no Claude sign-in.
-    case signInFailed
-    /// The sign-in has no account record, so CodexPill can't tell which account it is.
-    case accountUnknown
-    /// CodexPill could not make its throwaway config folder.
-    case folderUnavailable
 }
 
 /// Runs the `claude` executable. Cancelling the calling task stops it.
@@ -29,94 +22,20 @@ protocol ClaudeCodeProcessRunning: Sendable {
     ) async throws(ClaudeCodeCommandError) -> Int32
 }
 
-/// Claude Code's Keychain items for throwaway config folders. CodexPill reads and deletes them through
-/// `/usr/bin/security`, as Claude Code does. `security` created them, so macOS shows no prompt.
-protocol ClaudeCodeFolderKeychain: Sendable {
-    func read(service: String) -> Data?
-    /// True when the item is gone afterwards, including when there was none.
-    func delete(service: String) -> Bool
-}
-
-/// Claude Code's own login and renewal. For saved accounts they run in a throwaway config folder so the user's Claude
-/// Code sign-in is never read or changed. CodexPill only copies out the sign-in Claude Code saved there, then deletes
-/// the folder and its Keychain item, also when the run fails or is cancelled.
-///
-/// With `CLAUDE_CONFIG_DIR` set, Claude Code saves its sign-in in the Keychain item
-/// `Claude Code-credentials-<first 8 hex of sha256(CLAUDE_CONFIG_DIR)>`, or in `.credentials.json` when the Keychain
-/// refuses, and its account record in `.claude.json` in that folder.
+/// Runs `claude doctor`, which makes Claude Code renew its own expired live sign-in. Claude Code writes the result
+/// itself, in its own config folder. CodexPill never writes Claude Code's files or Keychain item.
 struct ClaudeCodeCommands: Sendable {
-    static let loginArguments = ["auth", "login", "--claudeai"]
     /// Claude Code renews a sign-in that is past its expiry whenever this runs. It makes no model call.
     static let renewalArguments = ["doctor"]
-    static let loginTimeout: Duration = .seconds(15 * 60)
     static let renewalTimeout: Duration = .seconds(2 * 60)
 
     let processes: any ClaudeCodeProcessRunning
-    let keychain: any ClaudeCodeFolderKeychain
-    /// Holds every throwaway config folder. CodexPill owns it.
-    let root: URL
-    var newFolderName: @Sendable () -> String = { UUID().uuidString }
 
     var isInstalled: Bool {
         processes.executable != nil
     }
 
-    static func keychainService(forConfigDirectory path: String) -> String {
-        let digest = SHA256.hash(data: Data(path.precomposedStringWithCanonicalMapping.utf8))
-        return "Claude Code-credentials-" + digest.prefix(4).map { String(format: "%02x", $0) }.joined()
-    }
-
-    /// Signs in through Claude Code's login in the browser and returns the sign-in it saved.
-    func signIn() async throws(ClaudeCodeCommandError) -> ClaudeCodeSignInSnapshot {
-        try await inThrowawayFolder { folder throws(ClaudeCodeCommandError) in
-            let status = try await processes.run(
-                Self.loginArguments,
-                configDirectory: folder.path,
-                workingDirectory: folder,
-                timeout: Self.loginTimeout
-            )
-            guard status == 0, let signIn = savedSignIn(in: folder) else { throw .signInFailed }
-            guard signIn.identity != nil else { throw .accountUnknown }
-            return signIn
-        }
-    }
-
-    /// Lets Claude Code renew a saved sign-in. Returns the renewed sign-in, or nil when Claude Code changed nothing.
-    func renew(_ saved: ClaudeCodeSignInSnapshot) async throws(ClaudeCodeCommandError) -> ClaudeCodeSignInSnapshot? {
-        try await inThrowawayFolder { folder throws(ClaudeCodeCommandError) in
-            do {
-                try write(saved.credentialsFileData, to: folder.appendingPathComponent(".credentials.json"))
-                try write(saved.globalConfigData, to: folder.appendingPathComponent(".claude.json"))
-            } catch {
-                throw .folderUnavailable
-            }
-            _ = try await processes.run(
-                Self.renewalArguments,
-                configDirectory: folder.path,
-                workingDirectory: folder,
-                timeout: Self.renewalTimeout
-            )
-            guard let renewed = savedSignIn(in: folder), !renewed.hasSameCredentials(as: saved), renewed.identity == saved.identity else {
-                return nil
-            }
-            return renewed
-        }
-    }
-
-    /// Signs Claude Code itself in, in its own config folder. Only for a Claude Code with no sign-in, which has
-    /// nothing to lose: a sign-in made elsewhere could not be switched in, because a switch updates Claude Code's item.
-    func signInToClaudeCode(configDirectory: String?) async throws(ClaudeCodeCommandError) {
-        guard isInstalled else { throw .notInstalled }
-        let status = try await processes.run(
-            Self.loginArguments,
-            configDirectory: configDirectory,
-            workingDirectory: FileManager.default.homeDirectoryForCurrentUser,
-            timeout: Self.loginTimeout
-        )
-        guard status == 0 else { throw .signInFailed }
-    }
-
-    /// Lets Claude Code renew its own live sign-in, in its own config folder. Claude Code writes the result itself.
+    /// `configDirectory` is Claude Code's own `CLAUDE_CONFIG_DIR`, or nil for its default folder.
     func renewClaudeCode(configDirectory: String?) async throws(ClaudeCodeCommandError) {
         _ = try await processes.run(
             Self.renewalArguments,
@@ -124,44 +43,6 @@ struct ClaudeCodeCommands: Sendable {
             workingDirectory: FileManager.default.homeDirectoryForCurrentUser,
             timeout: Self.renewalTimeout
         )
-    }
-
-    /// Deletes folders and Keychain items an earlier run left behind when CodexPill quit in the middle of it.
-    func removeLeftovers() {
-        let folders = (try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? []
-        folders.forEach(discard)
-    }
-
-    private func inThrowawayFolder<Result>(
-        _ body: (URL) async throws(ClaudeCodeCommandError) -> Result
-    ) async throws(ClaudeCodeCommandError) -> Result {
-        guard isInstalled else { throw .notInstalled }
-        let folder = root.appendingPathComponent(newFolderName(), isDirectory: true)
-        do {
-            try FilePermissionHardening.createPrivateDirectory(at: folder)
-        } catch {
-            throw .folderUnavailable
-        }
-        defer { discard(folder) }
-        return try await body(folder)
-    }
-
-    /// Claude Code reads its Keychain item first and falls back to `.credentials.json`, so CodexPill does too.
-    private func savedSignIn(in folder: URL) -> ClaudeCodeSignInSnapshot? {
-        let credentials = keychain.read(service: Self.keychainService(forConfigDirectory: folder.path))
-            ?? (try? ClaudeCredentialsSource.contentsIfPresent(of: folder.appendingPathComponent(".credentials.json")))
-        let globalConfig = try? ClaudeCredentialsSource.contentsIfPresent(of: folder.appendingPathComponent(".claude.json"))
-        return credentials.flatMap { ClaudeCodeSignInSnapshot(credentials: $0, globalConfig: globalConfig) }
-    }
-
-    private func write(_ data: Data, to file: URL) throws {
-        try data.write(to: file, options: .atomic)
-        try FilePermissionHardening.repairPrivateFile(at: file)
-    }
-
-    private func discard(_ folder: URL) {
-        _ = keychain.delete(service: Self.keychainService(forConfigDirectory: folder.path))
-        try? FileManager.default.removeItem(at: folder)
     }
 }
 
@@ -206,7 +87,7 @@ struct SystemClaudeCodeProcessRunner: ClaudeCodeProcessRunning {
         ]
         environment["CLAUDE_CONFIG_DIR"] = configDirectory
         process.environment = environment
-        // `claude auth login` also accepts a pasted code on stdin, so stdin stays open and empty until it exits.
+        // Stdin stays open and empty until `claude` exits, so it never waits on a terminal.
         let input = Pipe()
         process.standardInput = input
         process.standardOutput = FileHandle.nullDevice
@@ -282,43 +163,5 @@ private final class RunningClaudeCode: @unchecked Sendable {
             return waiter
         }
         continuation?.resume(returning: exitStatus)
-    }
-}
-
-struct SystemClaudeCodeFolderKeychain: ClaudeCodeFolderKeychain {
-    private static let itemNotFound: Int32 = 44
-
-    func read(service: String) -> Data? {
-        guard let (status, output) = Self.security(["find-generic-password", "-a", NSUserName(), "-s", service, "-w"]),
-              status == 0
-        else {
-            return nil
-        }
-        let data = output.last == UInt8(ascii: "\n") ? output.dropLast() : output[...]
-        return data.isEmpty ? nil : Data(data)
-    }
-
-    func delete(service: String) -> Bool {
-        guard let (status, _) = Self.security(["delete-generic-password", "-a", NSUserName(), "-s", service]) else {
-            return false
-        }
-        return status == 0 || status == Self.itemNotFound
-    }
-
-    private static func security(_ arguments: [String]) -> (Int32, Data)? {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/security")
-        process.arguments = arguments
-        let output = Pipe()
-        process.standardOutput = output
-        process.standardError = FileHandle.nullDevice
-        do {
-            try process.run()
-        } catch {
-            return nil
-        }
-        let data = output.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        return (process.terminationStatus, data)
     }
 }

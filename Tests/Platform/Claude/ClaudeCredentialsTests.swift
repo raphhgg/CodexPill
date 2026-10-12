@@ -5,6 +5,22 @@ import Testing
 
 struct ClaudeCredentialsTests {
     @Test
+    func noClaudeCodeIsEverAskedToRenewItsSignIn() throws {
+        let repository = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let sources = try #require(FileManager.default.enumerator(at: repository.appendingPathComponent("Sources"), includingPropertiesForKeys: nil))
+        let claudeFiles = sources.compactMap { $0 as? URL }.filter { $0.pathExtension == "swift" && $0.path.contains("Claude") }
+        #expect(claudeFiles.count > 5)
+
+        let refreshMarkers = ["refreshToken", "refresh_token", "grant_type", "/oauth/token"]
+        let offenders = try claudeFiles.filter { file in
+            let source = try String(contentsOf: file, encoding: .utf8)
+            return refreshMarkers.contains { source.contains($0) }
+        }
+        #expect(offenders.map(\.lastPathComponent) == [])
+    }
+
+    @Test
     func readsTheClaudeSignInAndNeverItsRefreshToken() throws {
         let credentials = try #require(try ClaudeCredentials(json: Data(#"""
         {"claudeAiOauth":{"accessToken":"fake-claude-access-token","refreshToken":"fake-claude-refresh-token",
@@ -57,13 +73,12 @@ struct ClaudeCredentialsTests {
     }
 
     @Test
-    func aSavedAccountsPlanTagComesFromTheAccountRecordSavedWithIt() throws {
-        let saved = try #require(try ClaudeCredentials(json: Data(#"""
-        {"claudeAiOauth":{"accessToken":"fake-claude-access-token","subscriptionType":"max","rateLimitTier":"default_claude_max_5x"},
-         "oauthAccount":{"accountUuid":"fake-user","organizationRateLimitTier":"default_claude_max_20x"}}
-        """#.utf8)))
+    func theEmailComesFromClaudeCodesAccountRecord() throws {
+        let credentials = Data(#"{"claudeAiOauth":{"accessToken":"fake-claude-access-token","subscriptionType":"max"}}"#.utf8)
+        let globalConfig = Data(#"{"oauthAccount":{"emailAddress":"person@example.com"}}"#.utf8)
 
-        #expect(planTag(for: .claude, planName: saved.planName) == "Max x20")
+        #expect(try ClaudeCredentials(json: credentials, globalConfig: globalConfig)?.email == "person@example.com")
+        #expect(try ClaudeCredentials(json: credentials)?.email == nil)
     }
 
     @Test

@@ -94,8 +94,8 @@ func statusItemTitle(for windows: [UsageWindow], percentMode: UsagePercentMode =
 func statusItemTooltipText(for source: StatusItemSource, now: Date = .now) -> String {
     guard case let .tool(section) = source else { return "CodexPill" }
     var lines = [[section.provider.copy.sectionTitle, section.planTag].compactMap(\.self).joined(separator: " · ")]
-    if let account = section.activeAccount {
-        lines.append(account.label)
+    if let activeLabel = section.activeLabel {
+        lines.append(activeLabel)
     }
     for window in source.windows where window.displayedUsedPercent(at: now) >= 100 {
         if let reset = tooltipResetStatusText(for: window, now: now) {

@@ -127,17 +127,13 @@ struct ToolSectionTests {
     }
 
     @Test
-    func waitingAndSigningInHaveNoMeters() throws {
+    func waitingHasNoMeters() throws {
         let waiting = ProviderUsageState(provider: .claude, status: .awaitingUsage)
-        let signingIn = ProviderUsageState(provider: .claude, status: .awaitingUsage, isSigningIn: true)
 
         let waitingSection = try #require(state(providerUsage: [waiting]).toolSections.first)
-        let signingInSection = try #require(state(providerUsage: [signingIn]).toolSections.first)
 
         #expect(waitingSection.card == ToolCard(title: "Waiting for Claude Code usage"))
         #expect(waitingSection.planTag == nil)
-        #expect(signingInSection.card == ToolCard(title: "Finish signing in in your browser"))
-        #expect(signingInSection.followUp?.action == .cancelSignIn)
     }
 
     @Test
@@ -167,64 +163,42 @@ struct ToolSectionTests {
     func accountsListTheOneInUseFirstWithEmailsMaskedWhenHidden() throws {
         let active = makeAccount(email: "alex@example.com", usage: makeUsage(fetchedAt: now))
         let other = makeAccount(email: "alex.side@example.com")
-        let claudeAccounts = [
-            ProviderAccount(id: UUID(), email: "sam@acme.dev", isActive: false),
-            ProviderAccount(id: UUID(), email: nil, isActive: true),
-        ]
-        let claude = ProviderUsageState(provider: .claude, status: .current(claudeSnapshot()), accounts: claudeAccounts)
+        var claudeUsage = claudeSnapshot()
+        claudeUsage.accountEmail = "sam@acme.dev"
+        let claude = ProviderUsageState(provider: .claude, status: .current(claudeUsage))
 
         let shown = state(activeAccount: active, inactiveAccounts: [other], providerUsage: [claude])
         let hidden = state(activeAccount: active, inactiveAccounts: [other], providerUsage: [claude], masksEmails: true)
 
         let codex = try #require(shown.toolSections.first { $0.provider == .codex })
         let maskedCodex = try #require(hidden.toolSections.first { $0.provider == .codex })
+        let claudeSection = try #require(shown.toolSections.first { $0.provider == .claude })
         let maskedClaude = try #require(hidden.toolSections.first { $0.provider == .claude })
 
-        #expect(codex.activeAccount?.label == "alex@example.com")
+        #expect(codex.activeLabel == "alex@example.com")
         #expect(codex.otherAccounts.map(\.label) == ["alex.side@example.com"])
         #expect(maskedCodex.accounts.map(\.label) == ["a•••x@example.com", "al•••e@example.com"])
-        #expect(maskedClaude.accounts.map(\.label) == ["Saved account", "s•••m@acme.dev"])
-        #expect(maskedClaude.activeAccount?.label == "Saved account")
+        #expect(claudeSection.activeLabel == "sam@acme.dev")
+        #expect(maskedClaude.activeLabel == "s•••m@acme.dev")
+        #expect(maskedClaude.accounts.isEmpty)
     }
 
     @Test
-    func savedAccountsShowTheirLastLimitsOnOneLineAndSayWhenTheyAreOld() throws {
+    func savedCodexAccountsShowTheirLastLimitsOnOneLineAndSayWhenTheyAreOld() throws {
         let active = makeAccount(email: "alex@example.com", usage: makeUsage(fetchedAt: now))
         let pro = makeAccount(email: "pro@example.com", planType: "pro", usage: makeUsage(planType: "pro", fetchedAt: now))
-        let claudeAccounts = [
-            ProviderAccount(id: UUID(), email: "alex@example.com", isActive: true),
-            ProviderAccount(id: UUID(), email: "sam@acme.dev", isActive: false, usage: claudeSnapshot()),
-            ProviderAccount(id: UUID(), email: "old@acme.dev", isActive: false, usage: claudeSnapshot(fetchedAt: now.addingTimeInterval(-31 * 60))),
-            ProviderAccount(id: UUID(), email: "new@acme.dev", isActive: false),
-        ]
-        let claude = ProviderUsageState(provider: .claude, status: .current(claudeSnapshot()), accounts: claudeAccounts)
+        let old = makeAccount(email: "old@example.com", usage: makeUsage(fetchedAt: now.addingTimeInterval(-31 * 60)))
+        let new = makeAccount(email: "new@example.com")
 
-        let used = state(activeAccount: active, inactiveAccounts: [pro], providerUsage: [claude])
-        let left = state(activeAccount: active, inactiveAccounts: [pro], providerUsage: [claude], usagePercentMode: .left)
+        let used = state(activeAccount: active, inactiveAccounts: [pro, old, new])
+        let left = state(activeAccount: active, inactiveAccounts: [pro], usagePercentMode: .left)
         let codexOthers = try #require(used.toolSections.first { $0.provider == .codex }).otherAccounts
-        let claudeOthers = try #require(used.toolSections.first { $0.provider == .claude }).otherAccounts
-        let claudeLeft = try #require(left.toolSections.first { $0.provider == .claude }).otherAccounts
+        let codexLeft = try #require(left.toolSections.first { $0.provider == .codex }).otherAccounts
 
-        #expect(codexOthers.map(\.usageLine) == ["Weekly 68% used"])
-        #expect(claudeOthers[0].usageLine == "Session 11% · Weekly 60% used")
-        #expect(claudeOthers[1].usageLine?.hasPrefix("Session 11% · Weekly 60% used · as of ") == true)
-        #expect(claudeOthers[2].usageLine == nil)
-        #expect(claudeLeft[0].usageLine == "Session 89% · Weekly 40% left")
-    }
-
-    @Test
-    func accountsWithoutEmailReadAsTheirOrganizationOrANumberedSavedAccount() throws {
-        let claudeAccounts = [
-            ProviderAccount(id: UUID(), email: nil, isActive: false),
-            ProviderAccount(id: UUID(), email: nil, name: "Acme", isActive: false),
-            ProviderAccount(id: UUID(), email: nil, name: "sam@acme.dev's Organization", isActive: true),
-            ProviderAccount(id: UUID(), email: nil, name: "Acme", isActive: false),
-        ]
-        let claude = ProviderUsageState(provider: .claude, status: .current(claudeSnapshot()), accounts: claudeAccounts)
-
-        let section = try #require(state(providerUsage: [claude], masksEmails: true).toolSections.first)
-
-        #expect(section.accounts.map(\.label) == ["Saved account 2", "Saved account", "Acme", "Acme 2"])
+        #expect(codexOthers[0].usageLine == "Weekly 68% used")
+        #expect(codexOthers[1].usageLine?.hasPrefix("Session 42% · Weekly 68% used · as of ") == true)
+        #expect(codexOthers[2].usageLine == nil)
+        #expect(codexLeft.map(\.usageLine) == ["Weekly 32% left"])
     }
 
     @Test
@@ -292,7 +266,7 @@ struct ToolSectionTests {
     }
 
     @Test
-    func claudeModelLimitsShowAfterWeeklyInTheCardAndAccountLinesButNotTheMenuBarIcon() throws {
+    func claudeModelLimitsShowAfterWeeklyInTheCardButNotTheMenuBarIcon() throws {
         let limits = #"[{"kind":"weekly_scoped","group":"weekly","percent":37,"resets_at":"2026-10-18T01:00:00+00:00","is_active":true,"scope":{"model":{"display_name":"Fable"}}}]"#
         let shown = try claudeState(limits: limits, showsModelLimits: true)
         let hidden = try claudeState(limits: limits, showsModelLimits: false)
@@ -300,10 +274,8 @@ struct ToolSectionTests {
         let hiddenSection = try #require(hidden.toolSections.first)
 
         #expect(shownSection.card.windows.map(\.kind.title) == ["Session", "Weekly", "Fable this week"])
-        #expect(shownSection.otherAccounts.map(\.usageLine) == ["Session 64% · Weekly 21% · Fable this week 37% used"])
         #expect(shown.statusItemSource.windows.map(\.kind.title) == ["Session", "Weekly"])
         #expect(hiddenSection.card.windows.map(\.kind.title) == ["Session", "Weekly"])
-        #expect(hiddenSection.otherAccounts.map(\.usageLine) == ["Session 64% · Weekly 21% used"])
     }
 
     @Test
@@ -331,21 +303,17 @@ struct ToolSectionTests {
         #expect(noNameCard.windows.map(\.kind.title) == ["Session", "Weekly"])
     }
 
-    /// The Claude card and one saved account, both read from a synthetic usage response with these `limits`.
+    /// The Claude card, read from a synthetic usage response with these `limits`.
     private func claudeState(limits: String, showsModelLimits: Bool) throws -> MenuBarMenuState {
         let response = #"{"five_hour":{"utilization":64,"resets_at":null},"seven_day":{"utilization":21,"resets_at":null},"limits":\#(limits)}"#
         let report = try ClaudeUsageAPI.parseUsage(Data(response.utf8))
-        guard case let .snapshot(snapshot) = ClaudeCodeUsage.reading(from: .available(report, planName: "max"), fetchedAt: now) else {
+        guard case let .snapshot(snapshot) = ClaudeCodeUsage.reading(from: .available(report, planName: "max", email: nil), fetchedAt: now) else {
             throw CancellationError()
         }
-        let accounts = [
-            ProviderAccount(id: UUID(), email: "alex@example.com", isActive: true),
-            ProviderAccount(id: UUID(), email: "sam@acme.dev", isActive: false, usage: snapshot),
-        ]
         return MenuBarMenuState(
             activeAccount: nil,
             inactiveAccounts: [],
-            providerUsage: [ProviderUsageState(provider: .claude, status: .current(snapshot), accounts: accounts)],
+            providerUsage: [ProviderUsageState(provider: .claude, status: .current(snapshot))],
             showsModelLimits: showsModelLimits,
             now: now
         )

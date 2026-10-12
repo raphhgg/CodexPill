@@ -1,7 +1,8 @@
 import Foundation
 
 struct CursorStateDatabaseTokenSource: CursorAccessTokenSource {
-    static let accessTokenKey = CursorSignIn.accessTokenKey
+    static let accessTokenKey = "cursorAuth/accessToken"
+    static let emailKey = "cursorAuth/cachedEmail"
 
     let databaseURL: URL
 
@@ -15,14 +16,29 @@ struct CursorStateDatabaseTokenSource: CursorAccessTokenSource {
             return .cursorNotInstalled
         }
 
-        guard
-            let value = try database.values(forKeys: [Self.accessTokenKey])[Self.accessTokenKey],
-            let token = CursorSignIn.accessToken(from: value)
-        else {
+        let values = try database.values(forKeys: [Self.accessTokenKey, Self.emailKey])
+        guard let value = values[Self.accessTokenKey], let token = Self.accessToken(from: value) else {
             return .signedOut
         }
 
-        return .token(token)
+        return .token(token, email: values[Self.emailKey].flatMap(Self.email(from:)))
+    }
+
+    static func accessToken(from value: CursorStateValue) -> CursorAccessToken? {
+        text(value).flatMap(CursorAccessToken.init(jwt:))
+    }
+
+    /// Cursor stores the email JSON-encoded, with quotes.
+    private static func email(from value: CursorStateValue) -> String? {
+        let email = text(value)?.trimmingCharacters(in: CharacterSet(charactersIn: "\"").union(.whitespacesAndNewlines))
+        return email?.isEmpty == false ? email : nil
+    }
+
+    private static func text(_ value: CursorStateValue) -> String? {
+        switch value {
+        case .text(let text): text
+        case .blob(let data): decodeTokenValue(data)
+        }
     }
 
     static func decodeTokenValue(_ data: Data) -> String? {
