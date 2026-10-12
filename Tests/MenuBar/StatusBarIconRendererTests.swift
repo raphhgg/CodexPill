@@ -53,16 +53,17 @@ struct StatusBarIconRendererTests {
         #expect(StatusBarGlyphReading.solidPunchSlots(percent: percent) == expectedSolidSlots)
     }
 
-    @Test(arguments: [UsagePercentMode.used, .left])
-    func hourglassSandCoversThePercentOfItsBulbByArea(mode: UsagePercentMode) throws {
-        let bulb = mode == .used ? HourglassGlyph.bottomBulb : HourglassGlyph.topBulb
-        let bulbArea = coveredArea(of: bulb)
-        #expect(HourglassGlyph.sandPath(percent: 0, percentMode: mode) == nil)
+    @Test
+    func glassesLiquidCoversThePercentOfItsGlassByArea() throws {
+        for glass in [GlassesGlyph.sessionGlass, GlassesGlyph.weeklyGlass, GlassesGlyph.singleGlass] {
+            let glassArea = coveredArea(of: glass)
+            #expect(GlassesGlyph.liquidPath(percent: 0, in: glass) == nil)
 
-        for percent in [5, 10, 25, 32, 50, 75, 90, 100] {
-            let sand = try #require(HourglassGlyph.sandPath(percent: percent, percentMode: mode))
-            let filled = coveredArea(of: sand) / bulbArea
-            #expect(abs(filled - Double(percent) / 100) < 0.02, "\(percent)% \(mode) filled \(filled)")
+            for percent in [5, 10, 25, 32, 50, 75, 90, 100] {
+                let liquid = try #require(GlassesGlyph.liquidPath(percent: percent, in: glass))
+                let filled = coveredArea(of: liquid) / glassArea
+                #expect(abs(filled - Double(percent) / 100) < 0.02, "\(percent)% filled \(filled)")
+            }
         }
     }
 
@@ -82,8 +83,7 @@ struct StatusBarIconRendererTests {
     func glyphIsATemplateImageSoTheMenuBarRecolorsIt(style: StatusBarIndicatorStyle) {
         let image = StatusBarIconRenderer().makeImage(
             style: style,
-            reading: StatusBarGlyphReading(sessionPercent: 45, weeklyPercent: 30),
-            percentMode: .used
+            reading: StatusBarGlyphReading(sessionPercent: 45, weeklyPercent: 30)
         )
 
         #expect(image.isTemplate)

@@ -39,15 +39,15 @@ struct StatusItemRuntimeTests {
         let runtime = StatusItemRuntime(statusItem: statusItem, hoverActivationDelay: 0, hoverExitDelay: 0, hoverPollingInterval: 60)
         func pixels() throws -> Data { try #require(statusItem.button?.image?.tiffRepresentation) }
 
-        runtime.start(presentation: .init(source: .nothingConnected, indicatorStyle: .hourglass, displayMode: .iconOnly))
-        let hourglass = try pixels()
+        runtime.start(presentation: .init(source: .nothingConnected, indicatorStyle: .glasses, displayMode: .iconOnly))
+        let glasses = try pixels()
         runtime.update(presentation: .init(source: .nothingConnected, indicatorStyle: .moon, displayMode: .iconOnly))
         let moon = try pixels()
         runtime.update(presentation: .init(source: .nothingConnected, indicatorStyle: .punchCard, displayMode: .iconOnly))
         let punchCard = try pixels()
 
-        #expect(Set([hourglass, moon, punchCard]).count == 3)
-        #expect(punchCard == StatusBarIconRenderer().makeImage(style: .punchCard, reading: .noData, percentMode: .used).tiffRepresentation)
+        #expect(Set([glasses, moon, punchCard]).count == 3)
+        #expect(punchCard == StatusBarIconRenderer().makeImage(style: .punchCard, reading: .noData).tiffRepresentation)
     }
 
     @Test

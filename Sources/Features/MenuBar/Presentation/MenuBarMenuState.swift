@@ -35,7 +35,7 @@ struct MenuBarMenuState {
         inactiveAccounts: [CodexAccount],
         refreshIntervalMinutes: Int = 5,
         refreshIntervalOptions: [Int] = [1, 2, 5, 10, 15, 30],
-        statusBarIndicatorStyle: StatusBarIndicatorStyle = .hourglass,
+        statusBarIndicatorStyle: StatusBarIndicatorStyle = .glasses,
         statusBarDisplayMode: StatusBarDisplayMode = .iconOnly,
         revealStatusItemTitleShortcut: KeyboardShortcut? = .defaultRevealStatusItemTitle,
         sessionAccentColor: NSColor = StatusBarProgressColorDefaults.accent,
