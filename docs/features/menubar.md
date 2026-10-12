@@ -11,7 +11,7 @@ Top to bottom, nothing else:
 
    ```text
    ─────
-   Add Account ›        Codex…  Claude…  Cursor…
+   Add Account ›        Codex…
    ─────
    Appearance ›
    Refresh Every ›      1 minute … 30 minutes
@@ -48,28 +48,24 @@ Every tool uses the same card. It is one hover cell with a side menu and no chev
   | Read failed with an earlier reading | the failure title, meters dimmed | `As of 10:26` |
   | Read failed with no earlier reading | the failure title | the failure line |
   | No Codex account in use | `No saved account in use` | `Pick one in this menu.` |
-  | Signing in, after `Add Claude Account…` or `Sign In…` | `Finish signing in in your browser` | none |
 
   Failure titles come from `ProviderCopy`, for example `Can't reach Anthropic` / `Retrying in a few minutes.`, `Cursor is busy`, `Cursor isn't installed`, `Allow Keychain access`. A Codex reading older than two refreshes, and at least 15 minutes, is stale.
-- **Action rows.** While a state lasts, one row sits under the card: `Allow Keychain Access…`, `Cancel Sign-In`, or `Sign In…` when Claude Code has no readable sign-in (it runs `Add Claude Account…`). A signed-out Cursor card has no `Sign In…`, because adding a Cursor account leaves Cursor itself signed out.
-- **Signing in.** While a tool's own sign-in runs, the card reads `Finish signing in in your browser` for Claude or `Sign in in the new Cursor window` for Cursor, with `Cancel Sign-In` under it.
+- **Action rows.** While a state lasts, one row sits under the card: `Allow Keychain Access…`.
 
 ## Side Menu
 
 Hovering a card opens its side menu:
 
-1. The email of the account in use, checked and disabled.
-2. One row per other saved account, by email. Each row opens `Use` and `Remove…`. `Remove…` asks first. Removing a Codex account also signs this Mac out when `auth.json` still uses it.
-   An account without an email reads as its organization, a Codex account then as its plan (`Plus account`), else `Saved account`. Repeated labels get a number in saved order: `Saved account 2`. Alerts name an account with the same label.
-   Each one carries that account's last limits on a second, smaller line, in the user's % used or % left: `Session 12% · Weekly 40% used`, `Session 12% · Weekly 40% · Fable this week 8% used` for Claude with a model limit (none while the model limit toggle is off), `Weekly 17% used` for Codex Pro, or `Monthly 3% used` for Codex Free. Cursor's line is its billing cycle: `40% used`. A reading older than 30 minutes adds `· as of 10:26`. Every tool reads inactive accounts every 15 minutes. A Cursor account whose saved token expired keeps its last line, with its time.
+1. The email of the account in use, checked and disabled. For Claude and Cursor it is the account their own app is signed in to, from the last reading.
+2. Codex only: one row per other saved account, by email. Each row opens `Use` and `Remove…`. `Remove…` asks first. Removing a Codex account also signs this Mac out when `auth.json` still uses it.
+   An account without an email reads as its workspace, then its plan (`Plus account`), else `Saved account`. Repeated labels get a number in saved order: `Saved account 2`. Alerts name an account with the same label.
+   Each one carries that account's last limits on a second, smaller line, in the user's % used or % left: `Session 12% · Weekly 40% used`, `Weekly 17% used` for Codex Pro, or `Monthly 3% used` for Codex Free. A reading older than 30 minutes adds `· as of 10:26`.
 3. Codex only: `Use a Reset…`, then one disabled `Expires <date>` line per credit Codex listed, and `Token Usage ›` when token usage is on ([Token Usage](token-usage.md)).
 4. `Move to Top`, `Move Up`, `Move Down`, when there is more than one card. Moves that do not apply are disabled.
 5. Claude only: `Show Fable Limits`, named after the models with their own limit in the current reading (`Show Fable and Opus Limits` for two). Hidden when the reading has none. See [Claude Usage](claude-usage.md).
-6. `Add <Tool> Account…`.
-   `Add <Tool> Account…` runs the tool's own sign-in without touching the account in use. Cursor's opens a second Cursor window with a throwaway profile. The account Claude Code or Cursor is signed in to is saved automatically once that tool is connected. Without the `claude` command or Cursor, the add item is disabled with `Install Claude Code first` or `Install Cursor first` under it.
-   A switch while that tool's sign-in runs is refused: `Finish signing in first` / `Or cancel the sign-in.`
+6. Codex only: `Add Codex Account…`.
 
-The account in use has no remove item. Claude and Cursor save the live account automatically, so a removed one would come straight back. `Appearance › Show Tools` hides a tool instead.
+Claude and Cursor have no other account rows: Refill reads only the account their own app is signed in to. A Claude or Cursor side menu with one card and no model limit holds only the email. The Codex account in use has no remove item. `Appearance › Show Tools` hides a tool.
 
 `Hide Emails` masks every email the menu, its alerts and the tooltip show: `alex.side@example.com` reads `al•••e@example.com`. The domain stays visible.
 
@@ -77,7 +73,7 @@ Every tool item carries a `ProviderMenuAction` and goes through `MenuBarCoordina
 
 ## App Items
 
-`Claude…` and `Cursor…` under `Add Account` connect a tool that is not connected yet. Otherwise they run `Add Claude Account…` and `Add Cursor Account…`. Adding a Codex account shows the Codex card again if it was hidden.
+`Add Account ›` offers only `Codex…`. Adding a Codex account shows the Codex card again if it was hidden. Claude and Cursor have no accounts to add: `Show Tools` connects them.
 
 ```text
 Appearance ›   Show Tools ›  Menu Bar Label ›  Icon Style ›  Usage Bars ›  App Icon ›  ─  Show Token Usage
@@ -85,7 +81,7 @@ Appearance ›   Show Tools ›  Menu Bar Label ›  Icon Style ›  Usage Bars 
 
 `Show Tools` has one checkmark item each for `Claude`, `Codex` and `Cursor`, checked while that tool's card shows.
 
-- Unchecking `Claude` or `Cursor` disconnects it: the card goes and nothing is read, with no alert. Checking it connects again, through the same consent alert as `Add Account`.
+- Unchecking `Claude` or `Cursor` disconnects it: the card goes and nothing is read, with no alert. Checking it connects, through its consent alert.
 - Unchecking `Codex` hides its card and stops the Codex reads. Saved accounts and `auth.json` stay as they are. Checking it shows the card and reads it again. With no saved Codex account, checking it adds one. The choice is saved as `hidesCodex` in user defaults.
 - Every tool can be hidden. The menu bar icon then shows the app's own glyph, and the menu is the first-run one.
 

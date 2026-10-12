@@ -1,7 +1,6 @@
 import Foundation
 
-/// Tells whether Claude Code is running. A running Claude Code keeps its sign-in in memory and writes it back when
-/// it renews the token, which would undo a switch.
+/// Tells whether Claude Code is running. A running Claude Code renews its own token, so Refill leaves renewal to it.
 protocol ClaudeCodeProcessDetecting: Sendable {
     func isClaudeCodeRunning() -> Bool
 }
@@ -12,7 +11,7 @@ protocol ClaudeCodeProcessDetecting: Sendable {
 struct SystemClaudeCodeProcessDetector: ClaudeCodeProcessDetecting {
     var homeDirectory = FileManager.default.homeDirectoryForCurrentUser
 
-    /// When the process table can't be read, it reports Claude Code as running, so a switch is refused rather than risked.
+    /// When the process table can't be read, it reports Claude Code as running, so no renewal runs beside it.
     func isClaudeCodeRunning() -> Bool {
         guard let executables = Self.processTable(column: "comm="), let commandLines = Self.processTable(column: "args=") else {
             return true

@@ -24,8 +24,8 @@ Confirm:
 - Codex, Claude Code or Cursor is installed and signed in on this Mac.
 - You have a current backup or recovery path for anything important.
 - You understand that Refill stores saved Codex auth snapshots locally under
-  `~/Library/Application Support/Refill`, and saved Claude Code and Cursor
-  sign-ins in your login Keychain.
+  `~/Library/Application Support/Refill`, and only reads Claude Code's and
+  Cursor's own sign-ins.
 - You will not share raw auth payloads, tokens, refresh tokens, complete logs,
   or screenshots containing private account or host details.
 

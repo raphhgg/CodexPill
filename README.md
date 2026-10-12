@@ -28,18 +28,17 @@ Refill was called CodexPill before this release. See
 ## What It Does
 
 - See Codex, Claude Code and Cursor usage limits and when they reset.
-- Switch between saved accounts for each tool.
-- Add accounts without disrupting your current session.
+- Switch between saved Codex accounts.
+- Add Codex accounts without disrupting your current session.
 - Track local Codex token usage history from the menu bar.
 - Stay local-first: no cloud sync, no hidden browser automation, no account data upload.
 
-Claude Code and Cursor are optional. Refill reads them only after you connect
-them from `Add Account`.
+Claude Code and Cursor are optional. Refill reads the account each one is signed
+in to, only after you turn it on in `Appearance › Show Tools`.
 
 ## What's New
 
-- Claude Code and Cursor: see their limits and switch between saved accounts,
-  next to Codex.
+- Claude Code and Cursor: see their limits next to Codex.
 - One card per tool, with account actions in side menus and the app's own
   items right under the cards.
 - Codex reset credits: see how many you have and use one from the Codex menu.
@@ -92,7 +91,7 @@ for maintainer packaging details.
 
 Install and sign in to at least one tool on your Mac: Codex (the app, the CLI or
 both), Claude Code or Cursor. Refill shows a Codex card once you save a Codex account. Claude Code and
-Cursor appear once you connect them from `Add Account`.
+Cursor appear once you turn them on in `Appearance › Show Tools`.
 
 Token Usage is optional and local to this Mac. It reads local Codex session
 history, stores derived aggregate buckets, and does not upload prompt content,
@@ -110,9 +109,9 @@ Refill works with Codex, Claude Code and Cursor state on your Mac. It does not
 run a cloud service.
 
 Saved Codex accounts stay on your Mac under
-`~/Library/Application Support/Refill`. Saved Claude Code and Cursor sign-ins
-stay in your login Keychain. They contain authentication material, so treat them
-like credentials.
+`~/Library/Application Support/Refill`. They contain authentication material, so
+treat them like credentials. Refill only reads Claude Code's and Cursor's own
+sign-ins and never writes them.
 
 Refill does not use browser cookies, hidden browser windows, Full Disk
 Access, Screen Recording or Accessibility permissions for normal use.

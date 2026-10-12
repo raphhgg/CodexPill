@@ -182,6 +182,16 @@ struct MenuBarAlertFactory {
         )
     }
 
+    /// Shown once at launch when the move from CodexPill to Refill could not copy everything.
+    func makeCodexPillDataNotCopiedRequest() -> MenuBarInfoAlertRequest {
+        MenuBarInfoAlertRequest(
+            messageText: "Some CodexPill data not copied",
+            informativeText: "The originals are still on this Mac.",
+            style: .warning,
+            buttonTitle: "OK"
+        )
+    }
+
     func makeAboutRequest() -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
             messageText: "About Refill",

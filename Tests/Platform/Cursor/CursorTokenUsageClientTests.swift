@@ -68,7 +68,7 @@ struct CursorTokenUsageClientTests {
 
     private func makeClient(web: CursorEventsWebClient) -> CursorTokenUsageClient {
         CursorTokenUsageClient(
-            tokenSource: StaticCursorTokenSource(lookup: .token(CursorAccessTokenFixtures.token(expiresAt: day(2026, 10, 12)))),
+            tokenSource: StaticCursorTokenSource(lookup: .token(CursorAccessTokenFixtures.token(expiresAt: day(2026, 10, 12)), email: nil)),
             webClient: web,
             calendar: calendar,
             now: { [day = day(2026, 10, 10)] in day }

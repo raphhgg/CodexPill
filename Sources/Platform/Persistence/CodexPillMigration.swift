@@ -1,6 +1,5 @@
 import Foundation
 import OSLog
-import Security
 
 private let migrationLogger = Logger(subsystem: "com.raphhgg.refill", category: "CodexPillMigration")
 
@@ -8,15 +7,10 @@ private let migrationLogger = Logger(subsystem: "com.raphhgg.refill", category: 
 struct CodexPillLegacyData {
     let folder: URL
     let preferences: [String: Any]
-    /// CodexPill's Keychain service names, each with the name Refill uses for the same items.
-    static let keychainServices = [
-        (old: "CodexPill Claude Code account", new: SystemClaudeCodeAccountItems.service),
-        (old: "CodexPill Cursor accounts", new: SystemCursorAccountKeychain.service),
-    ]
 }
 
-/// Copies CodexPill's saved accounts, settings and Keychain items to Refill once, at the first launch after the
-/// rename. CodexPill's copies are never changed, so they stay as a backup. Refill data that already exists wins.
+/// Copies CodexPill's saved Codex accounts and settings to Refill once, at the first launch after the rename.
+/// CodexPill's copies are never changed, so they stay as a backup. Refill data that already exists wins.
 struct CodexPillMigration {
     enum Outcome: Equatable {
         case alreadyRan
@@ -28,14 +22,16 @@ struct CodexPillMigration {
     }
 
     static let doneKey = "codexPillMigrationDone"
-    /// Refill's own scratch folders and Finder's file: none of them make the Refill folder hold data.
-    private static let ignoredEntries: Set<String> = [".DS_Store", "claude-sign-in", "cursor-sign-in"]
+    /// Saved Claude accounts and the scratch folders for adding Claude or Cursor accounts, which test builds left.
+    /// Refill shows only the account each tool is signed in to, so they are not copied.
+    private static let notCopiedEntries: Set<String> = ["claude-code-accounts.json", "claude-sign-in", "cursor-sign-in"]
+    /// Finder's file and the entries above: none of them make the Refill folder hold data.
+    private static let ignoredEntries = notCopiedEntries.union([".DS_Store"])
 
     let legacy: CodexPillLegacyData
     let folder: URL
     let defaults: UserDefaults
     let defaultsDomain: String
-    let keychain: any GenericPasswordStore
     var fileManager: FileManager = .default
 
     func run() -> Outcome {
@@ -54,7 +50,7 @@ struct CodexPillMigration {
             migrationLogger.error("Copying CodexPill's folder failed: \(error.localizedDescription, privacy: .public)")
             return .failed
         }
-        return copyKeychainItems() ? .copied : .failed
+        return .copied
     }
 
     private func copyPreferences() {
@@ -94,6 +90,9 @@ struct CodexPillMigration {
             try fileManager.removeItem(at: staging)
         }
         try fileManager.copyItem(at: legacy.folder, to: staging)
+        for entry in Self.notCopiedEntries where fileManager.fileExists(atPath: staging.appendingPathComponent(entry).path) {
+            try fileManager.removeItem(at: staging.appendingPathComponent(entry))
+        }
         try makePrivate(staging)
         if fileManager.fileExists(atPath: folder.path) {
             try fileManager.removeItem(at: folder)
@@ -119,28 +118,6 @@ struct CodexPillMigration {
             }
         }
     }
-
-    /// Copies each CodexPill item Refill does not have yet. Reading CodexPill's items can show a Keychain prompt.
-    private func copyKeychainItems() -> Bool {
-        var copiedAll = true
-        for services in CodexPillLegacyData.keychainServices {
-            do {
-                let existing = Set(try keychain.accounts(service: services.new))
-                for account in try keychain.accounts(service: services.old) where !existing.contains(account) {
-                    do {
-                        try keychain.add(keychain.read(service: services.old, account: account), service: services.new, account: account)
-                    } catch {
-                        copiedAll = false
-                        migrationLogger.error("Copying a \(services.old, privacy: .public) item failed: \(error.localizedDescription, privacy: .public)")
-                    }
-                }
-            } catch {
-                copiedAll = false
-                migrationLogger.error("Listing \(services.old, privacy: .public) items failed: \(error.localizedDescription, privacy: .public)")
-            }
-        }
-        return copiedAll
-    }
 }
 
 extension CodexPillMigration {
@@ -158,7 +135,6 @@ extension CodexPillMigration {
             folder: supportRoot.appendingPathComponent(AppPaths.appSupportFolderName, isDirectory: true),
             defaults: defaults,
             defaultsDomain: domain,
-            keychain: SystemGenericPasswordStore(),
             fileManager: fileManager
         )
     }
@@ -167,58 +143,5 @@ extension CodexPillMigration {
         let prefix = "com.raphhgg.refill"
         guard bundleIdentifier == prefix || bundleIdentifier.hasPrefix(prefix + ".") else { return nil }
         return "com.raphhgg.codexpill" + bundleIdentifier.dropFirst(prefix.count)
-    }
-}
-
-protocol GenericPasswordStore {
-    func accounts(service: String) throws -> [String]
-    func read(service: String, account: String) throws -> Data
-    func add(_ data: Data, service: String, account: String) throws
-}
-
-struct KeychainStatusError: Error, Equatable {
-    let status: OSStatus
-}
-
-struct SystemGenericPasswordStore: GenericPasswordStore {
-    func accounts(service: String) throws -> [String] {
-        let query: [CFString: Any] = [
-            kSecClass: kSecClassGenericPassword,
-            kSecAttrService: service,
-            kSecMatchLimit: kSecMatchLimitAll,
-            kSecReturnAttributes: true,
-        ]
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        if status == errSecItemNotFound { return [] }
-        guard status == errSecSuccess else { throw KeychainStatusError(status: status) }
-        return (result as? [[CFString: Any]] ?? []).compactMap { $0[kSecAttrAccount] as? String }
-    }
-
-    func read(service: String, account: String) throws -> Data {
-        let query: [CFString: Any] = [
-            kSecClass: kSecClassGenericPassword,
-            kSecAttrService: service,
-            kSecAttrAccount: account,
-            kSecMatchLimit: kSecMatchLimitOne,
-            kSecReturnData: true,
-        ]
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        guard status == errSecSuccess, let data = result as? Data else { throw KeychainStatusError(status: status) }
-        return data
-    }
-
-    func add(_ data: Data, service: String, account: String) throws {
-        let item: [CFString: Any] = [
-            kSecClass: kSecClassGenericPassword,
-            kSecAttrService: service,
-            kSecAttrAccount: account,
-            kSecAttrLabel: service,
-            kSecAttrAccessible: kSecAttrAccessibleAfterFirstUnlock,
-            kSecValueData: data,
-        ]
-        let status = SecItemAdd(item as CFDictionary, nil)
-        guard status == errSecSuccess || status == errSecDuplicateItem else { throw KeychainStatusError(status: status) }
     }
 }

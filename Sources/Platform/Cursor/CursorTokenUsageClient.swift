@@ -35,7 +35,7 @@ actor CursorTokenUsageClient {
     }
 
     func dailyUsage(in interval: DateInterval) async throws(CursorTokenUsageError) -> [ToolDailyTokenUsage] {
-        guard case .token(let token)? = try? tokenSource.lookup(), token.isUsable(at: now()) else {
+        guard case .token(let token, _)? = try? tokenSource.lookup(), token.isUsable(at: now()) else {
             throw .notSignedIn
         }
 
