@@ -43,13 +43,14 @@ Every tool uses the same card. It is one hover cell with a side menu and no chev
 
 Hovering a card opens its side menu:
 
-1. The email of the account in use, disabled.
-2. `Use <email>` when exactly one other account is saved, or `Use Another <Tool> Account ›` listing them.
-   An account without an email reads as its organization, else `Saved account`. Repeated labels get a number in saved order: `Saved account 2`.
+1. Codex only: the email of the account in use, disabled.
+2. Codex only: `Use <email>` when exactly one other account is saved, or `Use Another Codex Account ›` listing them.
 3. Codex only: `Use a Reset…`, then one disabled `Expires <date>` line per credit Codex listed, and `Token Usage ›` when token usage is on ([Token Usage](token-usage.md)).
 4. `Move to Top`, `Move Up`, `Move Down`, when there is more than one card. Moves that do not apply are disabled.
-5. `Add <Tool> Account…` and `Remove <Tool> Account ›` listing every saved account.
+5. Codex only: `Add Codex Account…` and `Remove Codex Account ›` listing every saved account.
 6. Claude and Cursor only: `Disconnect <Tool>`, last.
+
+Claude and Cursor have no account rows: CodexPill reads only the account their own app is signed in to.
 
 `Hide Emails` masks every email the menu and the tooltip show: `alex.side@example.com` reads `al•••e@example.com`. The domain stays visible.
 
@@ -69,7 +70,7 @@ Diagnostics…
 About
 ```
 
-`Claude…` and `Cursor…` connect a tool that is not connected yet, and otherwise save the sign-in the tool uses now as another account.
+`Claude…` and `Cursor…` connect a tool and are listed only while it is not connected.
 
 `Diagnostics…` first explains what the export contains, then writes a redacted JSON file only if the user confirms. The report holds allowlisted fields, per-export account aliases, summarized freshness states and recent CodexPill workflow events. It never includes raw logs, auth JSON, snapshots, raw UserDefaults, emails, hostnames, local paths, tokens, stable account IDs, prompt or session content, or raw stderr.
 

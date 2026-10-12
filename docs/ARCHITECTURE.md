@@ -1,6 +1,6 @@
 # Architecture
 
-CodexPill is a local-first macOS menubar app for account switching and limits for Codex, Claude and Cursor on this Mac.
+CodexPill is a local-first macOS menubar app for Codex account switching, and for limits of Codex, Claude and Cursor on this Mac.
 
 This document owns codebase structure and dependency boundaries. Product behavior and UX contracts live in [features](features/README.md).
 
@@ -84,9 +84,9 @@ Key boundaries:
 
 - `ProviderConnection`, the port one tool conforms to. See "How a tool plugs in" below.
 - `UsageProviderSource`, the read half of that port. It returns a `UsageProviderReading`: not connected, unavailable with a `UsageUnavailableReason`, awaiting usage, or a `UsageSnapshot`. The reasons are not installed, signed out, sign-in expired (401 or past expiry), Keychain access needed, sign-in unreadable, sign-in busy (the tool is writing it right now), access denied (403), rate limited (429), unreachable, service error (other status), and unexpected response.
-- `ProviderCopy`, the one table of every word the menu shows for a tool: its name, who answers its usage requests, the confirmation before connecting or switching, and the message for each unavailable reason. Each tool's switch errors map to a short `ProviderNotice` next to it.
+- `ProviderCopy`, the one table of every word the menu shows for a tool: its name, who answers its usage requests, the confirmation before connecting, and the message for each unavailable reason.
 - `ClaudeCodeUsage` and `CursorUsage`, the two connections. Each wraps its Platform adapter, maps its values onto `UsageSnapshot`, and owns the opt-in setting.
-- `ProviderUsageRuntime`, which reads each connection at most once per its `refreshInterval` (5 minutes by default), however often the menu opens, and publishes one `ProviderUsageState` per tool: its status, its saved accounts, and whether a browser sign-in is waiting. A snapshot older than `staleAfter` is published as `.stale`. When a tool is unavailable for a reason that keeps the same account, the runtime keeps the last good snapshot next to the reason. It also runs the actions the menu sends.
+- `ProviderUsageRuntime`, which reads each connection at most once per its `refreshInterval` (5 minutes by default), however often the menu opens, and publishes one `ProviderUsageState` per tool: its status, and whether a browser sign-in is waiting. A snapshot older than `staleAfter` is published as `.stale`. When a tool is unavailable for a reason that keeps the same account, the runtime keeps the last good snapshot next to the reason. It also runs the actions the menu sends.
 
 Tool states only feed menu sections. They never reach `AccountAvailability` or `InactiveAccountAvailabilityRanking`: those read `CodexAccount.usage`. The runtime refuses a connection for `.codex`.
 
@@ -99,10 +99,6 @@ protocol ProviderConnection: UsageProviderSource {
     func connect() async
     func disconnect() async
     var signIn: (any ProviderSignIn)? { get }
-    func savedAccounts() async throws(ProviderNotice) -> [ProviderAccount]
-    func switchAccount(to id: UUID) async throws(ProviderNotice)
-    func addCurrentAccount() async throws(ProviderNotice)
-    func removeAccount(_ id: UUID) async throws(ProviderNotice)
 }
 ```
 
@@ -110,8 +106,8 @@ Its words go in `ProviderCopy` under its `UsageProvider` case. Nothing else chan
 
 - Every tool menu item, Codex included, carries a `ProviderMenuAction` (tool plus `ProviderAction`) and calls `MenuBarCoordinator.performProviderAction(_:)`.
 - The coordinator asks the `ProviderCopy` confirmation, if any, then runs the action in a tracked task through `ProviderUsageRuntime.perform(_:on:)` and shows the `ProviderNotice` it returns.
-- The runtime reads the tool again after every action. A switch or a finished sign-in first drops the tool's last reading and bumps a generation, so a read that started before the change is discarded and the previous account's numbers never show.
-- `ProviderAccount` is the only account type the menu sees. It never carries tokens.
+- The runtime reads the tool again after every action. A finished sign-in first drops the tool's last reading and bumps a generation, so a read that started before the change is discarded and the previous account's numbers never show.
+- The port has no account methods: Claude Code and Cursor show only the account their own app is signed in to, and CodexPill never writes their sign-ins.
 - Codex is not a connection: its usage lives on each saved `CodexAccount` and adding an account is an interactive sign-in panel. The coordinator routes `.codex` actions to `AccountsController`, which refreshes the new active account after a switch and never runs a reset credit and an account change at the same time.
 
 `Features/AppControls` owns app-level controls the menu offers: Launch at Login through `LoginItemController` and the System Settings launcher.
@@ -162,26 +158,20 @@ Reusable Codex app-server access is split into these platform boundaries:
 
 Local app-server reads enter this session runner through `CodexAppServerClient`, which keeps local executable, environment, client-info, timeout, and saved-account strict rate-limit requirements in `CodexAppServerConfiguration`.
 
-`Platform/Claude` owns everything CodexPill knows about Claude Code:
+`Platform/Claude` owns everything CodexPill knows about Claude Code. It never writes Claude Code's files or Keychain item. It owns:
 
 - reading its sign-in from `.credentials.json` and the `Claude Code-credentials` Keychain item, with the Keychain prompt shown only after a user action (`ClaudeCredentialsSource`, `SystemClaudeKeychain`);
-- the `api.anthropic.com/api/oauth/usage` request, its redirect rule, its rate-limit wait, and parsing its response (`ClaudeUsageAPI`, `ClaudeUsageClient`);
-- saved Claude Code accounts and switching (`ClaudeCodeAccountStore`, `ClaudeCodeSignInStore`, `SystemClaudeCodeAccountItems`). A switch writes CodexPill's own item and list, then Claude Code's credentials, then `oauthAccount` in Claude Code's global config, and puts every earlier step back when a later one fails. Accounts match by Claude Code's account record, never by token;
-- whether Claude Code is running, behind the `ClaudeCodeProcessDetecting` port. A switch is refused while it runs.
+- the `api.anthropic.com/api/oauth/usage` request, its redirect rule, its rate-limit wait, and parsing its response (`ClaudeUsageAPI`, `ClaudeUsageClient`).
 
 The access token leaves this module only as the usage request's `Authorization` header. Nothing in it reads, sends, or renews Claude Code's refresh token; a test scans the Claude sources to keep it that way.
 
-`Platform/Cursor` owns everything CodexPill knows about Cursor:
+`Platform/Cursor` owns everything CodexPill knows about Cursor. It never writes Cursor's database or quits Cursor. It owns:
 
-- `CursorStateDatabase`, keyed reads and the one write path for `state.vscdb`. It never scans. A read opens the database with `immutable=1` only when no `-wal`, `-shm`, or `-journal` file sits next to it, so it never reads a writer's uncommitted pages. A write folds the WAL into the database, refuses while another connection holds it, and replaces only the named rows in one transaction;
+- `CursorStateDatabase`, keyed read-only access to `state.vscdb`. It never scans. A read opens the database with `immutable=1` only when no `-wal`, `-shm`, or `-journal` file sits next to it, so it never reads a writer's uncommitted pages;
 - `CursorStateDatabaseTokenSource`, the read-only token lookup used for usage, and `CursorAccessToken`, which prints redacted;
-- the `cursor.com/api/usage-summary` request, its redirect rule, its `Retry-After` wait, and parsing its response (`URLSessionCursorUsageWebClient`, `CursorUsageClient`, `CursorUsageSummaryParser`);
-- `CursorSignIn`, the eight `cursorAuth/*` rows that are a Cursor sign-in, and `CursorSavedAccount`, a named copy of one;
-- `CursorAccountStore` and `SystemCursorAccountKeychain`, the `CodexPill Cursor accounts` Keychain item holding every saved account;
-- `CursorAccounts`: capture, rename, remove, and activate. Activation quits Cursor, saves the outgoing sign-in again, writes the saved one, and reopens Cursor. It throws one `CursorAccountsError` per outcome the menu must tell apart;
-- `CursorAppProcessClient` and `SystemCursorAppProcessClient`, quitting and opening Cursor.app. It never force-quits and knows nothing about Cursor's files.
+- the `cursor.com/api/usage-summary` request, its redirect rule, its `Retry-After` wait, and parsing its response (`URLSessionCursorUsageWebClient`, `CursorUsageClient`, `CursorUsageSummaryParser`).
 
-Tokens leave this module only as the usage request's cookie or in CodexPill's Keychain item.
+The token leaves this module only as the usage request's cookie.
 
 `Platform/Networking` owns HTTP rules shared by tools, such as `RetryAfter`, which reads a `Retry-After` header given as seconds or an HTTP date.
 
@@ -257,10 +247,7 @@ The current truth sources are split by concern:
 - local account metadata and rate limits: local `codex app-server`;
 - running CLI session observation: local process table inspection;
 - Claude Code usage: `api.anthropic.com/api/oauth/usage`, authenticated with Claude Code's local sign-in token;
-- active Claude Code account: `oauthAccount` in Claude Code's global config, `~/.claude.json`;
-- Cursor usage: `cursor.com/api/usage-summary`, authenticated with Cursor's local sign-in token;
-- active Cursor account: the `cursorAuth/*` rows in Cursor's `state.vscdb`;
-- saved Cursor accounts: CodexPill's `CodexPill Cursor accounts` Keychain item.
+- Cursor usage: `cursor.com/api/usage-summary`, authenticated with Cursor's local sign-in token.
 
 Rules:
 
