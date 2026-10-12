@@ -117,8 +117,8 @@ struct AppComposition {
     }
 
     /// Codex scans its local sessions. Claude Code adds its local transcripts and Cursor its account's usage
-    /// events, each only while that tool is connected. An isolated run reads Claude transcripts from
-    /// `CLAUDE_CONFIG_DIR`, or from `.claude` inside the isolated root.
+    /// events, each only while that tool is connected. An isolated run reads Codex sessions from `sessions` inside
+    /// the isolated root, and Claude transcripts from `CLAUDE_CONFIG_DIR`, or from `.claude` inside the isolated root.
     private static func makeTokenUsageProvider(
         environment: [String: String],
         isolatedRootDirectory: URL?,
@@ -138,7 +138,11 @@ struct AppComposition {
             otherTools.append(.cursor(client: cursorClient, settings: cursorUsage.settings))
         }
         return AllToolsTokenUsageMenuProvider(
-            codex: LocalCodexSessionTokenUsageMenuProvider(cacheFile: cacheFile),
+            codex: LocalCodexSessionTokenUsageMenuProvider(
+                sessionsDirectory: isolatedRootDirectory?.appendingPathComponent("sessions", isDirectory: true)
+                    ?? CodexSessionTokenUsageScanner.defaultSessionsDirectory(),
+                cacheFile: cacheFile
+            ),
             otherTools: otherTools
         )
     }
