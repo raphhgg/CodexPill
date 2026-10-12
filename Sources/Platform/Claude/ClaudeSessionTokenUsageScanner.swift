@@ -185,7 +185,9 @@ struct ClaudeSessionTokenUsageScanner: Sendable {
         }
     }
 
-    private func sessionFiles(in directory: URL) throws -> [SessionFile] {
+    private func sessionFiles(in configuredDirectory: URL) throws -> [SessionFile] {
+        // The enumerator doesn't descend into a symlinked root, such as a linked `CLAUDE_CONFIG_DIR`.
+        let directory = configuredDirectory.resolvingSymlinksInPath()
         let keys: [URLResourceKey] = [.isRegularFileKey, .fileSizeKey, .contentModificationDateKey]
         guard let enumerator = FileManager.default.enumerator(
             at: directory,

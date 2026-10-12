@@ -66,6 +66,27 @@ struct ClaudeSessionTokenUsageScannerTests {
     }
 
     @Test
+    func readsAProjectsFolderReachedThroughASymlink() throws {
+        let root = try makeRoot([
+            "p/a.jsonl": [
+                assistant(id: "m1", request: "r1", time: "2026-10-09T10:00:00.000Z", model: "claude-opus", input: 4, output: 0, cacheWrite: 0, cacheRead: 0)
+            ]
+        ])
+        let link = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: root)
+
+        let result = try ClaudeSessionTokenUsageScanner(calendar: calendar).scan(
+            projectsDirectory: link,
+            interval: interval,
+            cachedFileContributions: [],
+            now: day(2026, 10, 10)
+        )
+
+        #expect(result.days.reduce(0) { $0 + $1.totalTokens } == 4)
+        #expect(result.fileContributions.map(\.cacheKey) == ["/p/a.jsonl"])
+    }
+
+    @Test
     func keepsHistoryForTranscriptsClaudeCodeDeleted() throws {
         let root = try makeRoot([
             "p/kept.jsonl": [
