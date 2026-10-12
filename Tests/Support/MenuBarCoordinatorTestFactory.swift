@@ -30,7 +30,7 @@ extension MenuBarCoordinator {
             statusItemSettings: settings.statusItemSettings,
             tokenUsagePreferences: settings.tokenUsagePreferences,
             claudeUsageSettings: settings.claudeUsageSettings,
-            appIconPreferences: settings.appIconPreferences,
+            themePreferences: settings.themePreferences,
             appIconApplier: appIconApplier,
             cliProcessInspector: CodexCLIProcessInspector(),
             alertPresenter: alertPresenter,

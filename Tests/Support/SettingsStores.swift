@@ -8,13 +8,13 @@ struct SettingsStores {
     let statusItemSettings: StatusItemSettingsStore
     let tokenUsagePreferences: TokenUsagePreferencesStore
     let claudeUsageSettings: ClaudeUsageSettingsStore
-    let appIconPreferences: AppIconPreferencesStore
+    let themePreferences: ThemePreferencesStore
 
     init(userDefaults: UserDefaults) {
         menuDisplaySettings = MenuDisplaySettingsStore(userDefaults: userDefaults)
         statusItemSettings = StatusItemSettingsStore(userDefaults: userDefaults)
         tokenUsagePreferences = TokenUsagePreferencesStore(userDefaults: userDefaults)
         claudeUsageSettings = ClaudeUsageSettingsStore(userDefaults: userDefaults)
-        appIconPreferences = AppIconPreferencesStore(userDefaults: userDefaults)
+        themePreferences = ThemePreferencesStore(userDefaults: userDefaults)
     }
 }

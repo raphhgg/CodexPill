@@ -9,8 +9,9 @@ struct MenuBarMenuState {
     let statusBarIndicatorStyle: StatusBarIndicatorStyle
     let statusBarDisplayMode: StatusBarDisplayMode
     let revealStatusItemTitleShortcut: KeyboardShortcut?
-    let sessionAccentColor: NSColor
-    let weeklyAccentColor: NSColor
+    /// Custom usage bar colors. Nil uses the theme's colors.
+    let sessionAccentColor: NSColor?
+    let weeklyAccentColor: NSColor?
     let usesOneUsageColor: Bool
     let hasCustomUsageColors: Bool
     let usagePercentMode: UsagePercentMode
@@ -27,7 +28,7 @@ struct MenuBarMenuState {
     let masksEmails: Bool
     let hidesCodex: Bool
     let showsModelLimits: Bool
-    let appIconColor: AppIconColor
+    let theme: AppTheme
     /// The moment reset countdowns and elapsed times in the menu are measured from.
     let now: Date
 
@@ -39,8 +40,8 @@ struct MenuBarMenuState {
         statusBarIndicatorStyle: StatusBarIndicatorStyle = .hourglass,
         statusBarDisplayMode: StatusBarDisplayMode = .iconOnly,
         revealStatusItemTitleShortcut: KeyboardShortcut? = .defaultRevealStatusItemTitle,
-        sessionAccentColor: NSColor = StatusBarProgressColorDefaults.accent,
-        weeklyAccentColor: NSColor = StatusBarProgressColorDefaults.accent,
+        sessionAccentColor: NSColor? = nil,
+        weeklyAccentColor: NSColor? = nil,
         usesOneUsageColor: Bool = true,
         hasCustomUsageColors: Bool = false,
         usagePercentMode: UsagePercentMode = .used,
@@ -56,7 +57,7 @@ struct MenuBarMenuState {
         masksEmails: Bool = false,
         hidesCodex: Bool = false,
         showsModelLimits: Bool = true,
-        appIconColor: AppIconColor = .defaultColor,
+        theme: AppTheme = .defaultTheme,
         now: Date = .now
     ) {
         self.activeAccount = activeAccount
@@ -83,7 +84,7 @@ struct MenuBarMenuState {
         self.masksEmails = masksEmails
         self.hidesCodex = hidesCodex
         self.showsModelLimits = showsModelLimits
-        self.appIconColor = appIconColor
+        self.theme = theme
         self.now = now
     }
 

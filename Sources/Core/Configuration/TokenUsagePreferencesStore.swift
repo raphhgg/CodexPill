@@ -33,13 +33,6 @@ final class TokenUsagePreferencesStore {
         }
     }
 
-    /// Draws the card in shades of the text color, with dashes and marker shapes telling the tools apart.
-    var isMonochrome: Bool {
-        didSet {
-            userDefaults.set(isMonochrome, forKey: Self.monochromeKey)
-        }
-    }
-
     var peakScope: TokenUsagePeakScope {
         didSet {
             userDefaults.set(peakScope.rawValue, forKey: Self.peakScopeKey)
@@ -52,7 +45,6 @@ final class TokenUsagePreferencesStore {
     private static let periodKey = "tokenUsagePeriod"
     private static let chartStyleKey = "tokenUsageChartStyle"
     private static let breakdownKey = "tokenUsageBreakdown"
-    private static let monochromeKey = "tokenUsageMonochrome"
     private static let peakScopeKey = "tokenUsagePeakScope"
 
     init(userDefaults: UserDefaults = .standard) {
@@ -62,7 +54,6 @@ final class TokenUsagePreferencesStore {
         userDefaults.set(CodexTokenUsagePeriod.last30Days.rawValue, forKey: Self.periodKey)
         chartStyle = TokenUsageChartStyle(storedValue: userDefaults.string(forKey: Self.chartStyleKey))
         breakdown = TokenUsageBreakdown(storedValue: userDefaults.string(forKey: Self.breakdownKey))
-        isMonochrome = userDefaults.bool(forKey: Self.monochromeKey)
         peakScope = userDefaults.string(forKey: Self.peakScopeKey)
             .flatMap(TokenUsagePeakScope.init(rawValue:)) ?? .currentPeriod
     }

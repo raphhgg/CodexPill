@@ -242,19 +242,6 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func appearanceOffersMonochromeTokenUsageOnlyWhileTokenUsageIsOn() throws {
-        func appearanceTitles(_ state: MenuBarMenuState) throws -> [String] {
-            let menu = MenuBarMenuBuilder().makeMenu(state: state, target: try makeCoordinator())
-            return try #require(menu.items.first { $0.title == "Appearance" }?.submenu).items.map(\.title)
-        }
-        let account = makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now))
-        let on = makeState(activeAccount: account, tokenUsageEnabled: true, tokenUsageCard: makeTokenUsageCard(loadState: .unavailable))
-
-        #expect(try appearanceTitles(on).contains("Monochrome Token Usage"))
-        #expect(try !appearanceTitles(makeState(activeAccount: account)).contains("Monochrome Token Usage"))
-    }
-
-    @Test
     func tokenUsageCardShowsNoDataAndErrorStates() {
         let noData = makeTokenUsageCard(loadState: loadedTokenUsageData([
             dailyUsage(daysAgo: 1, totalTokens: 0),
@@ -444,7 +431,7 @@ struct MenuBarMenuBuilderTests {
         let session = try #require(usageBarsMenu.items.first(where: { $0.title == "Session Color…" }))
         let weekly = try #require(usageBarsMenu.items.first(where: { $0.title == "Weekly Color…" }))
         let sameColor = try #require(usageBarsMenu.items.first(where: { $0.title == "Same Color for Both" }))
-        let reset = try #require(usageBarsMenu.items.first(where: { $0.title == "Use Default Colors" }))
+        let reset = try #require(usageBarsMenu.items.first(where: { $0.title == "Use Theme Colors" }))
 
         #expect(session.action == #selector(MenuBarCoordinator.chooseSessionAccentColor(_:)))
         #expect(session.image == nil)
@@ -456,20 +443,20 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func appIconMenuListsColorsWithCurrentOneChecked() throws {
+    func themeMenuListsThemesWithCurrentOneChecked() throws {
         let menu = MenuBarMenuBuilder().makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)), appIconColor: .honey),
+            state: makeState(activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)), theme: .honey),
             target: try makeCoordinator()
         )
 
-        let appIconMenu = try #require(appearanceMenu(in: menu).items.first(where: { $0.title == "App Icon" })?.submenu)
+        let themeMenu = try #require(appearanceMenu(in: menu).items.first(where: { $0.title == "Theme" })?.submenu)
 
-        #expect(appIconMenu.items.map(\.title) == ["Cobalt", "Deep teal", "Emerald", "Violet", "Honey", "Rose"])
-        #expect(appIconMenu.items.filter { $0.state == .on }.map(\.title) == ["Honey"])
+        #expect(themeMenu.items.map(\.title) == ["Cobalt", "Deep Teal", "Emerald", "Violet", "Honey", "Rose", "", "Monochrome", "Tool Colors"])
+        #expect(themeMenu.items.filter { $0.state == .on }.map(\.title) == ["Honey"])
     }
 
     @Test
-    func selectingAnAppIconColorSavesAndAppliesIt() throws {
+    func selectingAThemeSavesItAndAppliesItsIcon() throws {
         let applier = AppIconApplierProbe()
         let suiteName = "MenuBarMenuBuilderTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -488,13 +475,19 @@ struct MenuBarMenuBuilderTests {
             alertPresenter: AlertPresenterProbe(),
             appIconApplier: applier
         )
-        let item = NSMenuItem()
-        item.representedObject = AppIconColor.violet.rawValue
+        func select(_ theme: AppTheme) {
+            let item = NSMenuItem()
+            item.representedObject = theme.rawValue
+            coordinator.selectTheme(item)
+        }
 
-        coordinator.selectAppIconColor(item)
+        select(.violet)
+        select(.toolColors)
+        select(.monochrome)
 
-        #expect(settings.appIconPreferences.appIconColor == .violet)
-        #expect(applier.appliedColors == [.violet])
+        #expect(settings.themePreferences.theme == .monochrome)
+        // Tool Colors has no icon of its own, so Violet's stays until Monochrome picks Graphite.
+        #expect(applier.appliedColors == [.violet, .violet, .graphite])
     }
 
     @Test
@@ -511,12 +504,12 @@ struct MenuBarMenuBuilderTests {
         let usageBarTitles = usageBarsMenu.items.map(\.title)
         let showMarkers = try #require(usageBarsMenu.items.first(where: { $0.title == "Show Pace Markers" }))
 
-        #expect(preferencesMenu.items.map(\.title) == ["Show Tools", "Menu Bar Label", "Icon Style", "Usage Bars", "App Icon", "", "Show Token Usage"])
+        #expect(preferencesMenu.items.map(\.title) == ["Show Tools", "Menu Bar Label", "Icon Style", "Usage Bars", "Theme", "", "Show Token Usage"])
         #expect(usageBarTitles == [
             "Show % Used", "Show % Left", "",
             "Classic Layout", "Compact Layout", "",
             "Show Pace Markers", "",
-            "Session Color…", "Weekly Color…", "Same Color for Both", "Use Default Colors"
+            "Session Color…", "Weekly Color…", "Same Color for Both", "Use Theme Colors"
         ])
         #expect(preferencesMenu.items.first(where: { $0.title == "Menu Bar Label" })?.image == nil)
         #expect(preferencesMenu.items.first(where: { $0.title == "Icon Style" })?.image == nil)
@@ -710,7 +703,7 @@ struct MenuBarMenuBuilderTests {
 
         let preferencesMenu = try appearanceMenu(in: menu)
         let usageBarsMenu = try #require(preferencesMenu.items.first(where: { $0.title == "Usage Bars" })?.submenu)
-        let reset = try #require(usageBarsMenu.items.first(where: { $0.title == "Use Default Colors" }))
+        let reset = try #require(usageBarsMenu.items.first(where: { $0.title == "Use Theme Colors" }))
 
         #expect(reset.action == #selector(MenuBarCoordinator.resetUsageColors(_:)))
         #expect(reset.isEnabled)
@@ -1320,7 +1313,7 @@ struct MenuBarMenuBuilderTests {
     private func makeState(
         activeAccount: CodexAccount?,
         inactiveAccounts: [CodexAccount] = [],
-        sessionAccentColor: NSColor = .controlAccentColor,
+        sessionAccentColor: NSColor? = nil,
         hasCustomUsageColors: Bool = false,
         usagePercentMode: UsagePercentMode = .used,
         loginItemState: LoginItemState = .disabled,
@@ -1331,7 +1324,7 @@ struct MenuBarMenuBuilderTests {
         providerUsage: [ProviderUsageState] = [],
         toolOrder: [UsageProvider] = [.claude, .codex, .cursor],
         masksEmails: Bool = false,
-        appIconColor: AppIconColor = .cobalt,
+        theme: AppTheme = .cobalt,
         showsModelLimits: Bool = true,
         now: Date = .now
     ) -> MenuBarMenuState {
@@ -1357,7 +1350,7 @@ struct MenuBarMenuBuilderTests {
             toolOrder: toolOrder,
             masksEmails: masksEmails,
             showsModelLimits: showsModelLimits,
-            appIconColor: appIconColor,
+            theme: theme,
             now: now
         )
     }

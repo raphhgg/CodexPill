@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// The Token Usage card: a chart and a split, each with its own toggle.
+/// The Token Usage card: a chart and a split, each with its own toggle, in the theme's colors.
 ///
 /// It reads a live model, so new data and toggle changes redraw it while the menu is open. Every state keeps
 /// the same layout, so the menu item never needs to change height.
@@ -12,7 +12,7 @@ struct TokenUsageMenuContent: View {
 
     private var card: TokenUsageMenuCard { model.card }
     private var preferences: TokenUsagePreferencesStore { model.preferences }
-    private var palette: TokenUsagePalette { TokenUsagePalette(isMonochrome: preferences.isMonochrome) }
+    private var palette: TokenUsagePalette { TokenUsagePalette(theme: model.theme) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -125,32 +125,23 @@ extension TokenUsageBreakdown {
     }
 }
 
-extension TokenUsageTool {
-    var chartColor: Color {
-        switch self {
-        case .codex: Color(nsColor: .systemTeal)
-        case .claudeCode: Color(nsColor: .systemOrange)
-        case .cursor: Color(nsColor: .systemIndigo)
-        }
-    }
-}
-
-/// Tool colors, or in monochrome, shades of the text color plus a dash and a marker shape per tool.
+/// The theme's tool colors, plus a dash and a marker shape per tool so the tools never rely on color alone.
 struct TokenUsagePalette {
-    let isMonochrome: Bool
+    let theme: AppTheme
+
+    /// Hue themes and Monochrome draw all three tools from one color.
+    var isSingleHue: Bool { theme != .toolColors }
 
     func color(_ tool: TokenUsageTool) -> Color {
-        isMonochrome ? Color.primary.opacity(monochromeOpacity(tool)) : tool.chartColor
+        Color(nsColor: ThemePalette(theme: theme).toolColor(tool))
     }
 
     /// Models within one tool: the tool's color, fading.
     func modelColor(_ tool: TokenUsageTool, index: Int) -> Color {
-        let fade = [1, 0.6, 0.32][min(index, 2)]
-        return isMonochrome ? Color.primary.opacity(0.85 * fade) : tool.chartColor.opacity(fade)
+        color(tool).opacity([1, 0.6, 0.32][min(index, 2)])
     }
 
     func dash(_ tool: TokenUsageTool) -> [CGFloat] {
-        guard isMonochrome else { return [] }
         switch tool {
         case .codex: return []
         case .claudeCode: return [4, 2.5]
@@ -158,16 +149,8 @@ struct TokenUsagePalette {
         }
     }
 
-    /// Monochrome bars and areas leave a gap between tools so neighbouring shades never merge.
-    var segmentGap: CGFloat { isMonochrome ? 1 : 0 }
-
-    private func monochromeOpacity(_ tool: TokenUsageTool) -> Double {
-        switch tool {
-        case .codex: 0.88
-        case .claudeCode: 0.52
-        case .cursor: 0.26
-        }
-    }
+    /// Stacked bars and areas leave a gap between tools so neighbouring shades never merge.
+    var segmentGap: CGFloat { 1 }
 }
 
 /// A slow pulse for the parts still being read. Nil when motion is reduced.
@@ -188,14 +171,10 @@ struct TokenUsageToolMarker: View {
 
     var body: some View {
         Group {
-            if palette.isMonochrome {
-                switch tool {
-                case .codex: Circle().fill(palette.color(tool))
-                case .claudeCode: RoundedRectangle(cornerRadius: 1).fill(palette.color(tool))
-                case .cursor: Triangle().fill(palette.color(tool))
-                }
-            } else {
-                Circle().fill(palette.color(tool))
+            switch tool {
+            case .codex: Circle().fill(palette.color(tool))
+            case .claudeCode: RoundedRectangle(cornerRadius: 1).fill(palette.color(tool))
+            case .cursor: Triangle().fill(palette.color(tool))
             }
         }
         .frame(width: 7, height: 7)
@@ -308,8 +287,8 @@ private struct TokenUsageAreaChart: View {
                         path.addLine(to: CGPoint(x: size.width, y: size.height))
                         path.closeSubpath()
                     }
-                    .fill(palette.color(tool).opacity(palette.isMonochrome ? 1 : 0.85))
-                    if palette.isMonochrome {
+                    .fill(palette.color(tool).opacity(palette.isSingleHue ? 1 : 0.85))
+                    if palette.isSingleHue {
                         // The top edge of each layer keeps neighbouring shades apart.
                         Path { path in
                             path.move(to: tops[0])
@@ -563,18 +542,14 @@ private struct TokenUsageTopModelsSplit: View {
         let marker = palette.color(tool)
         let dash = palette.dash(tool)
         return HStack(spacing: 8) {
-            if palette.isMonochrome {
-                TokenUsageToolMarker(tool: tool, palette: palette).frame(width: 7)
-            } else {
-                RoundedRectangle(cornerRadius: 1.5).fill(marker).frame(width: 3, height: 12)
-            }
+            TokenUsageToolMarker(tool: tool, palette: palette).frame(width: 7)
             Text(name).font(.system(size: 12)).lineLimit(1).frame(width: 96, alignment: .leading)
             GeometryReader { geometry in
                 Path { path in
                     path.move(to: CGPoint(x: 0, y: geometry.size.height / 2))
                     path.addLine(to: CGPoint(x: max(3, geometry.size.width * fraction), y: geometry.size.height / 2))
                 }
-                .stroke(marker.opacity(palette.isMonochrome ? 0.9 : 0.4), style: StrokeStyle(lineWidth: 4, lineCap: .round, dash: dash.map { $0 * 1.5 }))
+                .stroke(marker.opacity(palette.isSingleHue ? 0.9 : 0.5), style: StrokeStyle(lineWidth: 4, lineCap: .round, dash: dash.map { $0 * 1.5 }))
             }
             Text(value).font(.system(size: 12, weight: .medium)).monospacedDigit().lineLimit(1).fixedSize().frame(width: 54, alignment: .trailing)
         }

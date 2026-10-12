@@ -75,13 +75,12 @@ Card:
 Appearance:
 
 - `Show Token Usage`
-- `Monochrome Token Usage`, shown while Token Usage is on.
 
 Default:
 
 - Token Usage is off by default.
 - The period is always `Last 30 days`.
-- Chart `Bars`, split `By tool`, color.
+- Chart `Bars`, split `By tool`.
 
 Menu card, in the main menu after the tool cards and before `Add Account`:
 
@@ -99,10 +98,10 @@ Menu card, in the main menu after the tool cards and before `Add Account`:
 - Toggle clicks switch the view and leave the menu open. Refill remembers both choices. Saved styles from before (`dailyBars`, `heatStrip`, `sparkline`) open as `Bars`.
 - The card keeps the same height whichever split is shown.
 
-Colors:
+Colors follow the [theme](app-controls/02-theme.md):
 
-- Codex teal, Claude Code orange, Cursor indigo. A tool's models are fading shades of its color.
-- Monochrome uses shades of the text color. So no part relies on color alone, each tool also gets a marker shape (circle, square, triangle), a line dash in `Lines` and `Top models` (solid, dashed, dotted), a 1 pt gap between stacked bars, and an edge between areas.
+- Single-color themes and Monochrome draw Codex, Claude Code and Cursor as a strong, a middle and a soft shade. Tool Colors uses Codex teal, Claude Code orange, Cursor indigo. A tool's models are fading shades of its color.
+- So no part relies on color alone, every theme gives each tool a marker shape (circle, square, triangle), a line dash in `Lines` and `Top models` (solid, dashed, dotted), a 1 pt gap between stacked bars, and an edge between areas.
 
 States:
 

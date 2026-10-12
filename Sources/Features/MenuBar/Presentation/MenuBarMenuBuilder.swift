@@ -61,11 +61,12 @@ struct MenuBarMenuBuilder {
 
     private func cardItem(for section: ToolSection, state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
         let item = NSMenuItem(title: section.provider.copy.sectionTitle, action: nil, keyEquivalent: "")
+        let palette = ThemePalette(theme: state.theme)
         item.view = MenuCardItemView(
             ToolCardView(
                 section: section,
-                sessionAccentColor: Color(nsColor: state.sessionAccentColor),
-                weeklyAccentColor: Color(nsColor: state.weeklyAccentColor),
+                sessionAccentColor: Color(nsColor: state.sessionAccentColor ?? palette.sessionColor(for: section.provider.tokenUsageTool)),
+                weeklyAccentColor: Color(nsColor: state.weeklyAccentColor ?? palette.weeklyColor(for: section.provider.tokenUsageTool)),
                 percentMode: state.usagePercentMode,
                 meterLayout: state.usageMeterLayout,
                 showsPacingMarkers: state.pacingMarkersEnabled,
@@ -149,12 +150,9 @@ struct MenuBarMenuBuilder {
         menu.addItem(statusBarDisplayMenuItem(state: state, target: target))
         menu.addItem(statusBarStyleMenuItem(state: state, target: target))
         menu.addItem(usageBarsMenuItem(state: state, target: target))
-        menu.addItem(appIconMenuItem(state: state, target: target))
+        menu.addItem(themeMenuItem(state: state, target: target))
         menu.addItem(.separator())
         menu.addItem(toggleItem("Show Token Usage", isOn: state.tokenUsageEnabled, action: #selector(MenuBarCoordinator.toggleTokenUsage(_:)), target: target))
-        if let tokenUsage = state.tokenUsage {
-            menu.addItem(toggleItem("Monochrome Token Usage", isOn: tokenUsage.preferences.isMonochrome, action: #selector(MenuBarCoordinator.toggleTokenUsageMonochrome(_:)), target: target))
-        }
         return submenuItem(menu)
     }
 
@@ -226,14 +224,18 @@ struct MenuBarMenuBuilder {
         menu.addItem(actionItem("Session Color…", action: #selector(MenuBarCoordinator.chooseSessionAccentColor(_:)), target: target))
         menu.addItem(actionItem("Weekly Color…", action: #selector(MenuBarCoordinator.chooseWeeklyAccentColor(_:)), target: target))
         menu.addItem(toggleItem("Same Color for Both", isOn: state.usesOneUsageColor, action: #selector(MenuBarCoordinator.toggleOneUsageColor(_:)), target: target))
-        menu.addItem(actionItem("Use Default Colors", action: #selector(MenuBarCoordinator.resetUsageColors(_:)), isEnabled: state.hasCustomUsageColors, target: target))
+        menu.addItem(actionItem("Use Theme Colors", action: #selector(MenuBarCoordinator.resetUsageColors(_:)), isEnabled: state.hasCustomUsageColors, target: target))
         return submenuItem(menu)
     }
 
-    private func appIconMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let menu = NSMenu(title: "App Icon")
-        for color in AppIconColor.allCases {
-            menu.addItem(optionItem(color.menuTitle, value: color.rawValue, isOn: state.appIconColor == color, action: #selector(MenuBarCoordinator.selectAppIconColor(_:)), target: target))
+    /// Sets the app icon, the usage bar colors and the Token Usage colors together.
+    private func themeMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let menu = NSMenu(title: "Theme")
+        for theme in AppTheme.allCases {
+            if theme == .monochrome {
+                menu.addItem(.separator())
+            }
+            menu.addItem(optionItem(theme.menuTitle, value: theme.rawValue, isOn: state.theme == theme, action: #selector(MenuBarCoordinator.selectTheme(_:)), target: target))
         }
         return submenuItem(menu)
     }

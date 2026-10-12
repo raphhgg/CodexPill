@@ -89,7 +89,7 @@ Appearance ›   Show Tools ›  Menu Bar Label ›  Icon Style ›  Usage Bars 
 - Unchecking `Codex` hides its card and stops the Codex reads. Saved accounts and `auth.json` stay as they are. Checking it shows the card and reads it again. With no saved Codex account, checking it adds one. The choice is saved as `hidesCodex` in user defaults.
 - Every tool can be hidden. The menu bar icon then shows the app's own glyph, and the menu is the first-run one.
 
-`App Icon` picks the app icon colour. [App Icon](app-controls/02-app-icon.md) owns it.
+`Theme` picks the app icon, the usage bar colors and the Token Usage colors. [Theme](app-controls/02-theme.md) owns it.
 
 `Diagnostics…` first explains what the export contains, then writes a redacted JSON file only if the user confirms. The report holds allowlisted fields, per-export account aliases, every limit window each account reported (its kind, its menu title and a used-share category: available, limited or exhausted), summarized freshness states and recent Refill workflow events. It never includes raw logs, auth JSON, snapshots, raw UserDefaults, emails, hostnames, local paths, tokens, stable account IDs, prompt or session content, or raw stderr.
 

@@ -238,10 +238,12 @@ struct TokenUsageMenuCard: Equatable {
 @Observable
 final class TokenUsageCardModel {
     var card: TokenUsageMenuCard
+    var theme: AppTheme
     let preferences: TokenUsagePreferencesStore
 
-    init(card: TokenUsageMenuCard, preferences: TokenUsagePreferencesStore) {
+    init(card: TokenUsageMenuCard, theme: AppTheme = .defaultTheme, preferences: TokenUsagePreferencesStore) {
         self.card = card
+        self.theme = theme
         self.preferences = preferences
     }
 }
