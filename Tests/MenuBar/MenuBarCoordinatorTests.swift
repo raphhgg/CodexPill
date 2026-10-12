@@ -223,9 +223,14 @@ struct MenuBarCoordinatorTests {
             Issue.record("Expected the Allow Keychain access state with the last usage kept")
             return
         }
-        #expect(cardAreaTitles(coordinator) == ["Claude", "Allow Keychain access…"])
+        #expect(cardAreaTitles(coordinator) == ["Claude", "Allow Keychain Access…"])
+        let card = try #require(coordinator.menuState().toolSections.first?.card)
+        #expect(card.title == nil)
+        #expect(card.detail?.hasPrefix("As of ") == true)
+        #expect(card.isDimmed)
+        #expect(card.windows.map(\.kind) == [.session, .weekly])
 
-        harness.click("Allow Keychain access…")
+        harness.click("Allow Keychain Access…")
         await coordinator.waitForPendingWork()
 
         guard case .current = coordinator.menuState().providerUsage.first?.status else {

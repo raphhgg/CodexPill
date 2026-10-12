@@ -1059,7 +1059,7 @@ struct MenuBarMenuBuilderTests {
 
         let side = try #require(menu.items.first?.submenu)
 
-        #expect(menu.items.map(\.title) == ["Claude", "Allow Keychain access…", "", "Codex", "", "Add Account", "", "Appearance", "Refresh Every", "Hide Emails", "Launch at Login", "", "Diagnostics…", "About", "", "Quit"])
+        #expect(menu.items.map(\.title) == ["Claude", "Allow Keychain Access…", "", "Codex", "", "Add Account", "", "Appearance", "Refresh Every", "Hide Emails", "Launch at Login", "", "Diagnostics…", "About", "", "Quit"])
         #expect(providerAction(menu.items[1]) == .allowKeychainAccess)
         #expect(side.items.map(\.title) == [
             "a•••x@example.com", "s•••m@acme.dev\nSession 12% · Weekly 40% used", "",

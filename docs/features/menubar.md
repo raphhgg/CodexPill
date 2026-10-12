@@ -51,7 +51,7 @@ Every tool uses the same card. It is one hover cell with a side menu and no chev
   | Signing in, after `Add Claude Account…` or `Sign In…` | `Finish signing in in your browser` | none |
 
   Failure titles come from `ProviderCopy`, for example `Can't reach Anthropic` / `Retrying in a few minutes.`, `Cursor is busy`, `Cursor isn't installed`, `Allow Keychain access`. A Codex reading older than two refreshes, and at least 15 minutes, is stale.
-- **Action rows.** While a state lasts, one row sits under the card: `Allow Keychain access…`, `Cancel Sign-In`, or `Sign In…` when Claude Code has no readable sign-in (it runs `Add Claude Account…`). A signed-out Cursor card has no `Sign In…`, because adding a Cursor account leaves Cursor itself signed out.
+- **Action rows.** While a state lasts, one row sits under the card: `Allow Keychain Access…`, `Cancel Sign-In`, or `Sign In…` when Claude Code has no readable sign-in (it runs `Add Claude Account…`). A signed-out Cursor card has no `Sign In…`, because adding a Cursor account leaves Cursor itself signed out.
 - **Signing in.** While a tool's own sign-in runs, the card reads `Finish signing in in your browser` for Claude or `Sign in in the new Cursor window` for Cursor, with `Cancel Sign-In` under it.
 
 ## Side Menu

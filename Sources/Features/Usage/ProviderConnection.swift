@@ -11,7 +11,7 @@ protocol ProviderConnection: UsageProviderSource {
     /// The user connected this tool, so the menu shows its card before its first read lands.
     var isConnected: Bool { get }
     /// Reads with the tool's live sign-in from now on, and lets the next read show a macOS prompt because the user
-    /// asked. Calling it again, as "Allow Keychain access…" does, only allows the prompt again.
+    /// asked. Calling it again, as "Allow Keychain Access…" does, only allows the prompt again.
     func connect() async
     func disconnect() async
     /// Whether `addAccount()` can run the tool's own sign-in on this Mac.

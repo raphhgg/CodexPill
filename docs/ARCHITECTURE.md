@@ -35,7 +35,7 @@ Features -> Core
 
 A port lives in one of two places:
 
-- In Platform, next to its adapter, when the adapter is the only thing that implements it: `CodexAppProcessClient`, `CodexResetCreditClient`, `IsolatedCodexLoginClient`, `CursorAppProcessClient`, `ClaudeCodeProcessRunning`, `ClaudeCodeFolderKeychain`.
+- In Platform, next to its adapter, when the adapter is the only thing that implements it: `CodexAppProcessClient`, `CodexResetCreditClient`, `IsolatedCodexLoginClient`, `CursorAppProcessClient`, `ClaudeCodeProcessRunning`, `ClaudeCodeFolderKeychain`, `SecurityCommandRunning`.
 - In the Features file that uses it, when a feature needs a narrower view of a Platform type. The Platform type adopts it through an extension in that same Features file, so Platform stays unaware of it: `AccountCatalogStore`, `AccountCatalogLoader`, `CodexAuthActivator`, `LiveCodexAccountIdentitySource`.
 
 App injects the adapter either way.
@@ -180,7 +180,7 @@ The active account's read is complete once it has the account and at least one l
 
 `Platform/Claude` owns everything Refill knows about Claude Code:
 
-- reading its sign-in from `.credentials.json` and the `Claude Code-credentials` Keychain item, with the Keychain prompt shown only after a user action (`ClaudeCredentialsSource`, `SystemClaudeKeychain`);
+- reading its sign-in from `.credentials.json` and the `Claude Code-credentials` Keychain item, which it reads and writes through `/usr/bin/security` as Claude Code does, so renewals don't bring back a Keychain prompt (`ClaudeCredentialsSource`, `SystemClaudeKeychain`, `ClaudeCodeSecurityKeychain`);
 - the `api.anthropic.com/api/oauth/usage` request, its redirect rule, its rate-limit wait, and parsing its response (`ClaudeUsageAPI`, `ClaudeUsageClient`);
 - saved Claude Code accounts and switching (`ClaudeCodeAccountStore`, `ClaudeCodeSignInStore`, `SystemClaudeCodeAccountItems`). A switch writes Refill's own item and list, then Claude Code's credentials, then `oauthAccount` in Claude Code's global config, and puts every earlier step back when a later one fails. Accounts match by Claude Code's account record, never by token;
 - whether terminal Claude Code is running, behind the `ClaudeCodeProcessDetecting` port. A switch or renewal waits while it runs. The Claude desktop app's own Claude Code is ignored.

@@ -7,7 +7,7 @@ struct ToolSection: Equatable {
     let card: ToolCard
     /// Saved accounts, the one in use first. Labels are emails, masked when Hide Emails is on.
     let accounts: [ToolAccount]
-    /// An action row under the card while its state lasts, such as "Allow Keychain access…".
+    /// An action row under the card while its state lasts, such as "Allow Keychain Access…".
     let followUp: ToolFollowUp?
     /// Whether "Add <Tool> Account…" can run the tool's own sign-in.
     var signInAvailability: ProviderSignInAvailability = .available
@@ -156,9 +156,12 @@ extension MenuBarMenuState {
                 snapshot = lastSnapshot
                 let message = copy.unavailableMessage(for: reason)
                 card = lastSnapshot.map { usageCard($0, isStale: true) } ?? ToolCard(detail: message.detail)
-                card.title = message.title
+                // The sign-in is still there, so the last numbers stay under their time instead of an error.
+                if reason != .keychainAccessNeeded || lastSnapshot == nil {
+                    card.title = message.title
+                }
                 if reason == .keychainAccessNeeded {
-                    followUp = ToolFollowUp(title: "Allow Keychain access…", systemImage: "key", action: .allowKeychainAccess)
+                    followUp = ToolFollowUp(title: "Allow Keychain Access…", systemImage: "key", action: .allowKeychainAccess)
                 } else if [.signedOut, .signInUnreadable].contains(reason), usage.signInAvailability == .available, copy.offersSignInWhenSignedOut {
                     followUp = ToolFollowUp(title: "Sign In…", systemImage: "person.crop.circle", action: .addAccount)
                 }

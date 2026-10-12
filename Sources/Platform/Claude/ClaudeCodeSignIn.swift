@@ -1,9 +1,9 @@
 import Foundation
 
-/// Claude Code's credentials item, writable. Only a user's account switch writes it, and only by updating an item
-/// that already exists, so Claude Code keeps the item's access rules.
+/// Claude Code's credentials item, writable. Only a user's account switch writes it, and only its data, so Claude
+/// Code keeps the item's access rules.
 protocol ClaudeCodeKeychainItem: ClaudeKeychainReading {
-    /// Replaces the data of the existing item. Returns false when there is no item or macOS refuses the change.
+    /// Replaces the item's data. Returns false when macOS refuses the change.
     func updateCredentialsData(_ data: Data) -> Bool
 }
 

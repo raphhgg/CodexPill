@@ -26,11 +26,11 @@ The `Claude` card follows the shared card and side menu in [Menubar](menubar.md)
   > **Connect Claude Code?**
   > Uses Claude Code's sign-in to read your limits.
 
-  Confirming saves the choice and reads at once. That first read may show the macOS Keychain prompt.
+  Confirming saves the choice and reads at once.
 - **Connected.** The choice is saved in user defaults (`claudeUsageEnabled`, off by default). Unchecking `Appearance › Show Tools › Claude` turns the feature off at once with no alert, because it changes nothing outside Refill. Checking it again connects through the same consent alert.
 - **Current.** The plan tag (`Max x20`, read from `organizationRateLimitTier`, else `userRateLimitTier`, in Claude Code's `oauthAccount`, because the credentials' `rateLimitTier` keeps the tier from sign-in time; that one is used only when the account record has none), then `Session` and `Weekly` meters with their reset times, then one meter per model with its own weekly limit, such as `Fable this week`, unless the side menu's model limit toggle is off. There is no reset-credit row. The meters use the same percent mode, layout, colors, and pacing markers as the Codex card.
 - **Waiting.** `Waiting for Claude Code usage`, with no second line. Anthropic answered but sent neither window, for example on a plan without subscription limits.
-- **Keychain access needed.** The card says `Allow Keychain access` and one row under it, `Allow Keychain access…`, It reads again with the macOS Keychain prompt allowed. Claude Code rewrites its Keychain item when it renews its sign-in, which can reset an earlier `Always Allow`, so this state can come back.
+- **Keychain access needed.** `security` was refused or timed out, for example on a locked Keychain. With an earlier reading, the card keeps it dimmed under its `As of` time. Without one, it says `Allow Keychain access`. Either way, one row under it, `Allow Keychain Access…`, reads again and waits up to 2 minutes so the user can answer a macOS prompt. It never offers `Sign In…`, because the sign-in is there.
 - **Failures.** Each failure shows a title and one short line. Except for signed out, the last good values stay dimmed below it with their `As of` time.
 
   | Cause | Title | Second line |
@@ -51,7 +51,7 @@ The `Claude` card follows the shared card and side menu in [Menubar](menubar.md)
 - **Sign in.** When Claude Code has no sign-in, or its sign-in can't be read, the card has one row under it, `Sign In…`, which runs `Add Claude Account…`.
 - **Not installed.** Without the `claude` command, `Add Claude Account…` is disabled with one line under it, `Install Claude Code first`.
 
-Reads happen when the menu opens or on the scheduled refresh, at most every 5 minutes. Connecting, `Allow Keychain access…`, and disconnecting read at once. Saved accounts that are not in use are read on the scheduled refresh, at most every 15 minutes, one at a time; an account just added is read at once.
+Reads happen when the menu opens or on the scheduled refresh, at most every 5 minutes. Connecting, `Allow Keychain Access…`, and disconnecting read at once. Saved accounts that are not in use are read on the scheduled refresh, at most every 15 minutes, one at a time; an account just added is read at once.
 
 ## Source Contract
 
@@ -64,7 +64,7 @@ All knowledge of Claude Code's sign-in and of Anthropic's usage endpoint lives i
 
 Both hold the same JSON. Refill decodes only `claudeAiOauth.accessToken`, `claudeAiOauth.expiresAt` (milliseconds since 1970), and `claudeAiOauth.subscriptionType`. It never decodes the refresh token. A file with no `claudeAiOauth`, for example one with only `mcpOAuth`, falls through to the Keychain; a Keychain item with none means signed out. A file or item that can't be read or isn't JSON is reported as unreadable, never skipped.
 
-**Keychain prompts.** Only a user action may show the macOS Keychain prompt: confirming `Connect Claude Code?` or choosing `Allow Keychain access…`. Every other read first checks that the item exists by asking for its attributes, which needs no decryption. It then asks for the data with an `LAContext` whose `interactionNotAllowed` is set and `kSecUseAuthenticationUI` set to skip. If macOS still needs approval, the read reports Keychain access needed instead of prompting.
+**Keychain reads.** Refill reads Claude Code's items by running `/usr/bin/security find-generic-password -a <user> -s <service> -w`, as Claude Code does, with the password coming back through a pipe (`ClaudeCodeSecurityKeychain`). Claude Code writes its items with `security`, so only `security` is on their access list. A direct Keychain API read from Refill showed a macOS prompt for such an item even with `kSecUseAuthenticationUI` set to skip, and every renewal could take back an earlier `Always Allow`. `security` prints a password that is not plain text as hex, and Refill decodes it. Exit 44 (item not found) means signed out. Exits 36, 51 and 128 (interaction not allowed, refused, cancelled) and a timeout mean Keychain access needed. A timeout is 10 seconds for a background read and 2 minutes after a click. Anything else means unreadable. `security` has no switch to forbid its prompt. It shows none for items it created, which covers every item Claude Code writes.
 
 **Request.** `GET https://api.anthropic.com/api/oauth/usage` with `Authorization: Bearer <token>` and `anthropic-beta: oauth-2025-04-20`. The HTTP session has no cookie store and no URL cache. It follows a redirect only to the same host over HTTPS, so the token never reaches another host.
 
@@ -128,5 +128,5 @@ The user-facing summary lives in [PRIVACY.md](../PRIVACY.md).
 - `ClaudeAccountsTests` run `ClaudeCodeUsage` against a fake `claude` that behaves like Claude Code 2.1.294: adding (success, cancel, failure, no account record, not installed, signing Claude Code in), cleanup of the folder and the right Keychain item every time, inactive reads with each account's own token, renewal with compare and swap, a switch racing a renewal, a switch saving the outgoing rotated sign-in, and live renewal (after expiry only, not while `claude` runs, the 30-minute retry, not during a sign-in, a save or the inactive pass, and a switch that waits for it).
 - `ClaudeCodeProcessRunnerTests` run a stand-in `claude` script to check the exact `CLAUDE_CONFIG_DIR`, the minimal environment, and that cancelling stops a waiting login.
 - `ProviderUsageMenuCopyTests` and `ClaudeCodeAccountAlertTests` check that every failure reads differently and stays a title plus one short line.
-- A coordinator test walks the menu from `Add Account › Claude…` through declined consent, current usage, `Allow Keychain access…`, and disconnect, reading the built `NSMenu`.
+- A coordinator test walks the menu from `Add Account › Claude…` through declined consent, current usage, `Allow Keychain Access…`, and disconnect, reading the built `NSMenu`.
 - No test touches the network or the real Keychain.

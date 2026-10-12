@@ -111,7 +111,7 @@ struct AppComposition {
                     processes: SystemClaudeCodeProcessRunner(
                         searchDirectories: [isolatedRootDirectory.appendingPathComponent("bin", isDirectory: true)]
                     ),
-                    keychain: SystemClaudeCodeFolderKeychain(),
+                    keychain: ClaudeCodeSecurityKeychain(),
                     root: commandsRoot
                 ),
                 liveConfigDirectory: configDirectory.path
@@ -126,7 +126,7 @@ struct AppComposition {
         let keychain = SystemClaudeKeychain()
         let commands = ClaudeCodeCommands(
             processes: SystemClaudeCodeProcessRunner(),
-            keychain: SystemClaudeCodeFolderKeychain(),
+            keychain: ClaudeCodeSecurityKeychain(),
             root: commandsRoot
         )
         Task.detached { commands.removeLeftovers() }

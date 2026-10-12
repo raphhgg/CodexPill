@@ -43,12 +43,12 @@ Refill never signs in to Claude with its own code, never calls Anthropic's token
 
 **Usage (optional, off by default).** `Add Account › Claude…` asks for consent before anything is read. While it is connected, each read:
 
-- reads `.credentials.json` in Claude Code's config folder (`CLAUDE_CONFIG_DIR`, or `~/.claude`), and if that file holds no Claude sign-in, the login Keychain generic password with service `Claude Code-credentials` and your macOS user name as the account;
+- reads `.credentials.json` in Claude Code's config folder (`CLAUDE_CONFIG_DIR`, or `~/.claude`), and if that file holds no Claude sign-in, the login Keychain generic password with service `Claude Code-credentials` and your macOS user name as the account. Refill reads that item by running `/usr/bin/security find-generic-password -w`, the same command Claude Code uses. Claude Code creates the item with `security`, so `security` can read it without a prompt. The password comes back through a pipe and is never logged;
 - uses only the access token, its expiry, and the plan name from that sign-in;
 - reads the plan tier from `oauthAccount` in Claude Code's global config (`$CLAUDE_CONFIG_DIR/.claude.json`, or `~/.claude.json`);
 - sends the access token to one place, `GET https://api.anthropic.com/api/oauth/usage`, to fetch your 5-hour and weekly limits. Redirects to any other host, or to plain HTTP, are refused. The request has no cookies and no cache.
 
-macOS may ask you to allow Keychain access. Refill shows that prompt only right after you connect or choose `Allow Keychain access…`. Refill never logs or displays the token, and it never reads browser cookies or Claude conversations. Unchecking `Appearance › Show Tools › Claude` turns usage off and stops all reads.
+If macOS refuses `security` access, for example while the Keychain is locked, the card keeps the last limits and offers `Allow Keychain Access…`. That retry gives you time to answer a macOS prompt. Refill never logs or displays the token, and it never reads browser cookies or Claude conversations. Unchecking `Appearance › Show Tools › Claude` turns usage off and stops all reads.
 
 **What Refill stores for each saved Claude account.** Each saved account is that account's Claude Code sign-in:
 
@@ -61,6 +61,7 @@ macOS may ask you to allow Keychain access. Refill shows that prompt only right 
 - `claude doctor` in a new folder of the same kind, when a saved account that is not in use has an expired token. Refill first writes that account's saved sign-in into the folder as `.credentials.json` and `.claude.json` (readable only by you). Claude Code renews the token, makes no model call, and saves the result in the folder's Keychain item. Refill copies it into the account's `Refill Claude Code account` item, only if that item did not change meanwhile.
 - `claude doctor` with Claude Code's own config folder (no `CLAUDE_CONFIG_DIR` unless Claude Code itself uses one), when Claude Code usage is connected, Claude Code's live token has expired, and no `claude` process runs. Claude Code renews its own sign-in and saves it where it always does; Refill only reads the new expiry, then reads usage again. It runs at most once per expiry, and again for the same expiry only after 30 minutes.
 - `/usr/bin/security find-generic-password` and `delete-generic-password` for the folder's `Claude Code-credentials-<first 8 hex of sha256(folder path)>` item, to read it and then delete it.
+- `/usr/bin/security -i` when you switch accounts, to update `Claude Code-credentials` as Claude Code does (`add-generic-password -U`). The new sign-in goes in through stdin, never as a command argument.
 
 When a run ends, whether it succeeded, failed, timed out, or you cancelled it, Refill deletes the folder and its Keychain item. A folder left behind by a crash is deleted with its item the next time Refill launches.
 
@@ -68,7 +69,7 @@ When a run ends, whether it succeeded, failed, timed out, or you cancelled it, R
 
 **Saving the live account and switching.** Once Claude is connected, Refill saves the account Claude Code is signed in to automatically when it is not in the saved list yet. It reads Claude Code's sign-in as above, without a Keychain prompt, and `oauthAccount` from Claude Code's global config (`$CLAUDE_CONFIG_DIR/.claude.json`, or `~/.claude.json`), and saves them as described. A sign-in with no `oauthAccount` is not saved. Switching also writes Claude Code's own sign-in:
 
-- it updates the existing `Claude Code-credentials` Keychain item, or `.credentials.json` when the sign-in lives there. Only `claudeAiOauth` changes; other keys, such as MCP sign-ins, stay as they were. Refill never creates or deletes Claude Code's Keychain item;
+- it updates the `Claude Code-credentials` Keychain item through `security`, or `.credentials.json` when the sign-in lives there. Only `claudeAiOauth` changes; other keys, such as MCP sign-ins, stay as they were. The item keeps its access list, so Claude Code reads it without a prompt. An item too long for `security`'s 4 KB input line is updated through the Keychain API instead, which may show a prompt. Refill never deletes Claude Code's Keychain item;
 - it replaces `oauthAccount` in Claude Code's global config and keeps every other key;
 - it reads the process table first and refuses to switch while a terminal `claude` session runs. The Claude desktop app's own Claude Code, under `~/Library/Application Support/Claude/claude-code/`, is ignored because it keeps its own sign-in. If the process table can't be read, Refill treats Claude Code as running.
 

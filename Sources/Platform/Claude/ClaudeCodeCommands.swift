@@ -29,8 +29,7 @@ protocol ClaudeCodeProcessRunning: Sendable {
     ) async throws(ClaudeCodeCommandError) -> Int32
 }
 
-/// Claude Code's Keychain items for throwaway config folders. Refill reads and deletes them through
-/// `/usr/bin/security`, as Claude Code does. `security` created them, so macOS shows no prompt.
+/// Claude Code's Keychain items for throwaway config folders.
 protocol ClaudeCodeFolderKeychain: Sendable {
     func read(service: String) -> Data?
     /// True when the item is gone afterwards, including when there was none.
@@ -282,43 +281,5 @@ private final class RunningClaudeCode: @unchecked Sendable {
             return waiter
         }
         continuation?.resume(returning: exitStatus)
-    }
-}
-
-struct SystemClaudeCodeFolderKeychain: ClaudeCodeFolderKeychain {
-    private static let itemNotFound: Int32 = 44
-
-    func read(service: String) -> Data? {
-        guard let (status, output) = Self.security(["find-generic-password", "-a", NSUserName(), "-s", service, "-w"]),
-              status == 0
-        else {
-            return nil
-        }
-        let data = output.last == UInt8(ascii: "\n") ? output.dropLast() : output[...]
-        return data.isEmpty ? nil : Data(data)
-    }
-
-    func delete(service: String) -> Bool {
-        guard let (status, _) = Self.security(["delete-generic-password", "-a", NSUserName(), "-s", service]) else {
-            return false
-        }
-        return status == 0 || status == Self.itemNotFound
-    }
-
-    private static func security(_ arguments: [String]) -> (Int32, Data)? {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/security")
-        process.arguments = arguments
-        let output = Pipe()
-        process.standardOutput = output
-        process.standardError = FileHandle.nullDevice
-        do {
-            try process.run()
-        } catch {
-            return nil
-        }
-        let data = output.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        return (process.terminationStatus, data)
     }
 }
