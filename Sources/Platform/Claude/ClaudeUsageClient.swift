@@ -52,8 +52,12 @@ actor ClaudeUsageClient {
         let signIn: ClaudeCredentials
         switch credentials.lookup(allowingPrompt: allowingPrompt) {
         case .signedOut: return .signedOut
-        case .keychainAccessNeeded: return .keychainAccessNeeded
-        case .unreadable: return .signInUnreadable
+        case .keychainAccessNeeded:
+            UsageReadFailure.keychainAccess.log(for: .claude)
+            return .keychainAccessNeeded
+        case .unreadable:
+            UsageReadFailure.parse.log(for: .claude)
+            return .signInUnreadable
         case let .credentials(found): signIn = found
         }
         guard !signIn.isExpired(at: now) else { return .signInExpired }
@@ -62,6 +66,7 @@ actor ClaudeUsageClient {
         do {
             data = try await webClient.usage(using: signIn.accessToken)
         } catch {
+            UsageReadFailure(error).log(for: .claude)
             switch error {
             case .unauthorized: return .signInExpired
             case .forbidden: return .forbidden
@@ -76,6 +81,7 @@ actor ClaudeUsageClient {
         do {
             return .available(try ClaudeUsageAPI.parseUsage(data), planName: signIn.planName, email: signIn.email)
         } catch {
+            UsageReadFailure.parse.log(for: .claude)
             return .unexpectedResponse
         }
     }
