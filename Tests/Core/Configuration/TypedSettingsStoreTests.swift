@@ -6,6 +6,15 @@ import Testing
 @MainActor
 struct MenuDisplaySettingsStoreTests {
     @Test
+    func chartStylesFromBeforeThePerToolChartOpenAsBars() {
+        let defaults = makeDefaults()
+        for old in ["dailyBars", "heatStrip", "sparkline"] {
+            defaults.set(old, forKey: "tokenUsageChartStyle")
+            #expect(TokenUsagePreferencesStore(userDefaults: defaults).chartStyle == .bars)
+        }
+    }
+
+    @Test
     func preferencesPersistAcrossInstances() {
         let defaults = makeDefaults()
         let first = MenuDisplaySettingsStore(userDefaults: defaults)
@@ -168,19 +177,28 @@ struct StatusItemSettingsStoreTests {
 @MainActor
 struct TokenUsagePreferencesStoreTests {
     @Test
+    func chartStylesFromBeforeThePerToolChartOpenAsBars() {
+        let defaults = makeDefaults()
+        for old in ["dailyBars", "heatStrip", "sparkline"] {
+            defaults.set(old, forKey: "tokenUsageChartStyle")
+            #expect(TokenUsagePreferencesStore(userDefaults: defaults).chartStyle == .bars)
+        }
+    }
+
+    @Test
     func preferencesPersistAcrossInstances() {
         let defaults = makeDefaults()
         let first = TokenUsagePreferencesStore(userDefaults: defaults)
         first.isEnabled = true
-        first.chartStyle = .sparkline
-        first.loadingAnimationStyle = .random
+        first.chartStyle = .lines
+        first.breakdown = .topModels
         first.peakScope = .allTime
 
         let second = TokenUsagePreferencesStore(userDefaults: defaults)
 
         #expect(second.isEnabled)
-        #expect(second.chartStyle == .sparkline)
-        #expect(second.loadingAnimationStyle == .random)
+        #expect(second.chartStyle == .lines)
+        #expect(second.breakdown == .topModels)
         #expect(second.peakScope == .allTime)
     }
 
@@ -197,26 +215,50 @@ struct TokenUsagePreferencesStoreTests {
 }
 
 @MainActor
-struct AppIconPreferencesStoreTests {
+struct ThemePreferencesStoreTests {
     @Test
-    func appIconColorDefaultsToCobalt() {
-        #expect(AppIconPreferencesStore(userDefaults: makeDefaults()).appIconColor == .cobalt)
+    func defaultsToCobalt() {
+        let store = ThemePreferencesStore(userDefaults: makeDefaults())
+
+        #expect(store.theme == .cobalt)
+        #expect(store.appIconColor == .cobalt)
     }
 
     @Test
-    func appIconColorPersistsAcrossInstances() {
+    func firstThemeMatchesTheIconColorSavedBeforeThemes() {
         let defaults = makeDefaults()
-        AppIconPreferencesStore(userDefaults: defaults).appIconColor = .emerald
+        defaults.set("rose", forKey: "appIconColor")
 
-        #expect(AppIconPreferencesStore(userDefaults: defaults).appIconColor == .emerald)
+        #expect(ThemePreferencesStore(userDefaults: defaults).theme == .rose)
     }
 
     @Test
-    func unknownAppIconColorFallsBackToCobalt() {
+    func toolColorsKeepsTheLastIconAndBothPersist() {
+        let defaults = makeDefaults()
+        let first = ThemePreferencesStore(userDefaults: defaults)
+        first.theme = .emerald
+        first.theme = .toolColors
+
+        let second = ThemePreferencesStore(userDefaults: defaults)
+        #expect(second.theme == .toolColors)
+        #expect(second.appIconColor == .emerald)
+    }
+
+    @Test
+    func monochromeUsesTheGraphiteIcon() {
+        let store = ThemePreferencesStore(userDefaults: makeDefaults())
+        store.theme = .monochrome
+
+        #expect(store.appIconColor == .graphite)
+    }
+
+    @Test
+    func unknownStoredValuesFallBackToCobalt() {
         let defaults = makeDefaults()
         defaults.set("tangerine", forKey: "appIconColor")
+        defaults.set("neon", forKey: "appTheme")
 
-        #expect(AppIconPreferencesStore(userDefaults: defaults).appIconColor == .cobalt)
+        #expect(ThemePreferencesStore(userDefaults: defaults).theme == .cobalt)
     }
 }
 

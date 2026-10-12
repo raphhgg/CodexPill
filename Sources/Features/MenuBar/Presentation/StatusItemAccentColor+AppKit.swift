@@ -1,9 +1,5 @@
 import AppKit
 
-enum StatusBarProgressColorDefaults {
-    static let accent = NSColor.controlAccentColor
-}
-
 extension StatusItemAccentColor {
     init(nsColor color: NSColor) {
         let normalized = color.normalizedStatusItemAccentColor
@@ -22,12 +18,6 @@ extension StatusItemAccentColor {
             blue: blue,
             alpha: alpha
         )
-    }
-}
-
-extension Optional where Wrapped == StatusItemAccentColor {
-    var resolvedStatusItemAccentColor: NSColor {
-        self?.nsColor ?? StatusBarProgressColorDefaults.accent
     }
 }
 

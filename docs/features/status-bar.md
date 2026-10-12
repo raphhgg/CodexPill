@@ -82,7 +82,7 @@ Appearance
     Session Color…
     Weekly Color…
     Same Color for Both   (default on)
-    Use Default Colors
+    Use Theme Colors
 ```
 
 - `Show % Left` changes every usage percentage Refill shows (status item
@@ -95,7 +95,8 @@ Appearance
   `Same Color for Both` off.
 - An accent color chosen before this option existed becomes the session color,
   and with `Same Color for Both` on by default it keeps coloring both bars.
-- `Use Default Colors` clears both colors and turns `Same Color for Both` back on.
+- Without custom colors, the bars use the [theme](app-controls/02-theme.md)'s colors.
+- `Use Theme Colors` clears both colors and turns `Same Color for Both` back on.
 
 ## What The Icon Shows
 

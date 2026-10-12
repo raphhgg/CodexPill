@@ -33,7 +33,7 @@ struct AppComposition {
             statusItemSettings: StatusItemSettingsStore(userDefaults: defaults),
             tokenUsagePreferences: TokenUsagePreferencesStore(userDefaults: defaults),
             claudeUsageSettings: claudeCodeUsage.settings,
-            appIconPreferences: AppIconPreferencesStore(userDefaults: defaults),
+            themePreferences: ThemePreferencesStore(userDefaults: defaults),
             appIconApplier: SystemAppIconApplier(),
             cliProcessInspector: CodexCLIProcessInspector(),
             alertPresenter: SystemAlertPresenter(suppressesInteractivePrompts: suppressesInteractivePrompts),
@@ -42,8 +42,11 @@ struct AppComposition {
             loginItemController: SystemLoginItemController(),
             loginItemsSettingsLauncher: SystemLoginItemsSettingsLauncher(),
             diagnosticReportPresenter: SystemDiagnosticReportPresenter(),
-            tokenUsageProvider: LocalCodexSessionTokenUsageMenuProvider(
-                cacheFile: AppPaths.tokenUsageCacheFile(isolatedRootDirectory: isolatedRootDirectory)
+            tokenUsageProvider: Self.makeTokenUsageProvider(
+                environment: environment,
+                isolatedRootDirectory: isolatedRootDirectory,
+                claudeSettings: claudeCodeUsage.settings,
+                cursorUsage: cursorUsage
             ),
             providerConnections: [claudeCodeUsage, cursorUsage],
             allowsEmptyStatePrompt: true
@@ -113,14 +116,47 @@ struct AppComposition {
         )
     }
 
+    /// Codex scans its local sessions. Claude Code adds its local transcripts and Cursor its account's usage
+    /// events, each only while that tool is connected. An isolated run reads Codex sessions from `sessions` inside
+    /// the isolated root, and Claude transcripts from `CLAUDE_CONFIG_DIR`, or from `.claude` inside the isolated root.
+    private static func makeTokenUsageProvider(
+        environment: [String: String],
+        isolatedRootDirectory: URL?,
+        claudeSettings: ClaudeUsageSettingsStore,
+        cursorUsage: CursorUsage
+    ) -> any TokenUsageMenuProviding {
+        let cacheFile = AppPaths.tokenUsageCacheFile(isolatedRootDirectory: isolatedRootDirectory)
+        let claudeConfigDirectory = isolatedRootDirectory != nil && environment["CLAUDE_CONFIG_DIR"]?.isEmpty != false
+            ? isolatedRootDirectory!.appendingPathComponent(".claude", isDirectory: true)
+            : ClaudeCredentialsSource.configDirectory(environment: environment)
+        let claudeHistory = ClaudeCodeTokenUsageHistory(
+            projectsDirectory: claudeConfigDirectory.appendingPathComponent("projects", isDirectory: true),
+            cacheFile: cacheFile.deletingLastPathComponent().appendingPathComponent("claude-token-usage-cache.json")
+        )
+        var otherTools: [TokenUsageToolSource] = [.claudeCode(history: claudeHistory, settings: claudeSettings)]
+        if let cursorClient = cursorUsage.tokenUsageClient {
+            otherTools.append(.cursor(client: cursorClient, settings: cursorUsage.settings))
+        }
+        return AllToolsTokenUsageMenuProvider(
+            codex: LocalCodexSessionTokenUsageMenuProvider(
+                sessionsDirectory: isolatedRootDirectory?.appendingPathComponent("sessions", isDirectory: true)
+                    ?? CodexSessionTokenUsageScanner.defaultSessionsDirectory(),
+                cacheFile: cacheFile
+            ),
+            otherTools: otherTools
+        )
+    }
+
     /// An isolated run never reads Cursor's real sign-in: it reads `Cursor/state.vscdb` inside the isolated root.
     private static func makeCursorUsage(defaults: UserDefaults, isolatedRootDirectory: URL?) -> CursorUsage {
         let tokenSource = isolatedRootDirectory.map {
             CursorStateDatabaseTokenSource(databaseURL: CursorStateDatabase.isolatedURL(root: $0))
         } ?? CursorStateDatabaseTokenSource()
+        let webClient = URLSessionCursorUsageWebClient()
         return CursorUsage(
             settings: CursorUsageSettingsStore(userDefaults: defaults),
-            client: CursorUsageClient(tokenSource: tokenSource, webClient: URLSessionCursorUsageWebClient())
+            client: CursorUsageClient(tokenSource: tokenSource, webClient: webClient),
+            tokenUsageClient: CursorTokenUsageClient(tokenSource: tokenSource, webClient: webClient)
         )
     }
 }

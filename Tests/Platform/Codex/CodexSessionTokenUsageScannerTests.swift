@@ -41,6 +41,30 @@ struct CodexSessionTokenUsageScannerTests {
     }
 
     @Test
+    func scanAttributesTokensToTheLatestTurnContextModel() throws {
+        let root = try makeSessionRoot(files: [
+            "2026/04/20/session-a.jsonl": """
+            {"type":"session_meta","payload":{"id":"s","model_provider":"openai"}}
+            {"type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":5,"output_tokens":5,"total_tokens":10}}}}
+            {"type":"turn_context","payload":{"turn_id":"t1","model":"gpt-a"}}
+            {"type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":60,"cached_input_tokens":20,"output_tokens":40,"total_tokens":100}}}}
+            {"type":"turn_context","payload":{"turn_id":"t2","model":"gpt-b"}}
+            {"type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":20,"output_tokens":5,"total_tokens":25}}}}
+            {"type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":4,"output_tokens":1,"total_tokens":5}}}}
+            """
+        ])
+
+        let result = try CodexSessionTokenUsageScanner(calendar: utcCalendar()).scan(
+            sessionsDirectory: root,
+            dayRange: DateInterval(start: makeDate(2026, 4, 1), end: makeDate(2026, 5, 1))
+        )
+
+        let bucket = try #require(result.buckets.first)
+        #expect(bucket.usage.totalTokens == 140)
+        #expect(bucket.tokensByModel == ["unknown": 10, "gpt-a": 100, "gpt-b": 30])
+    }
+
+    @Test
     func scanDerivesPositiveDeltasFromCumulativeTotalUsageWhenLastUsageIsMissing() throws {
         let root = try makeSessionRoot(files: [
             "2026/04/20/session-a.jsonl": """

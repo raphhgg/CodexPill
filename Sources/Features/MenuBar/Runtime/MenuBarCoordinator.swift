@@ -13,7 +13,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let statusItemSettings: StatusItemSettingsStore
     private let tokenUsagePreferences: TokenUsagePreferencesStore
     private let claudeUsageSettings: ClaudeUsageSettingsStore
-    private let appIconPreferences: AppIconPreferencesStore
+    private let themePreferences: ThemePreferencesStore
     private let appIconApplier: AppIconApplying
     private let cliProcessInspector: CodexCLIProcessInspector
     private let alertPresenter: AlertPresenter
@@ -43,9 +43,13 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private lazy var tokenUsageRuntime = TokenUsageMenuRuntime(
         provider: tokenUsageProvider,
         onStateChange: { [weak self] _ in
-            self?.rebuildMenuWhenSafe()
+            guard let self else { return }
+            // The open card redraws from its model, so progress shows without rebuilding the menu.
+            tokenUsageCard.card = makeTokenUsageCard()
+            rebuildMenuWhenSafe()
         }
     )
+    private lazy var tokenUsageCard = TokenUsageCardModel(card: makeTokenUsageCard(), theme: themePreferences.theme, preferences: tokenUsagePreferences)
     private let providerConnections: [any ProviderConnection]
     private lazy var providerUsageRuntime = ProviderUsageRuntime(
         connections: providerConnections,
@@ -64,7 +68,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         statusItemSettings: StatusItemSettingsStore,
         tokenUsagePreferences: TokenUsagePreferencesStore,
         claudeUsageSettings: ClaudeUsageSettingsStore,
-        appIconPreferences: AppIconPreferencesStore,
+        themePreferences: ThemePreferencesStore,
         appIconApplier: AppIconApplying,
         cliProcessInspector: CodexCLIProcessInspector,
         alertPresenter: AlertPresenter,
@@ -85,7 +89,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.statusItemSettings = statusItemSettings
         self.tokenUsagePreferences = tokenUsagePreferences
         self.claudeUsageSettings = claudeUsageSettings
-        self.appIconPreferences = appIconPreferences
+        self.themePreferences = themePreferences
         self.appIconApplier = appIconApplier
         self.cliProcessInspector = cliProcessInspector
         self.alertPresenter = alertPresenter
@@ -101,7 +105,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     func start() {
-        appIconApplier.apply(appIconPreferences.appIconColor)
+        appIconApplier.apply(themePreferences.appIconColor)
         shortcutRuntime.onShortcut = { [weak self] in
             self?.statusItemRuntime.revealTitleTemporarily(duration: 3)
         }
@@ -226,16 +230,18 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     @objc
-    func selectAppIconColor(_ sender: NSMenuItem) {
-        recordMenuAction("selectAppIconColor")
+    func selectTheme(_ sender: NSMenuItem) {
+        recordMenuAction("selectTheme")
         guard
             let rawValue = sender.representedObject as? String,
-            let color = AppIconColor(rawValue: rawValue)
+            let theme = AppTheme(rawValue: rawValue)
         else {
             return
         }
-        appIconPreferences.appIconColor = color
-        appIconApplier.apply(color)
+        themePreferences.theme = theme
+        appIconApplier.apply(themePreferences.appIconColor)
+        tokenUsageCard.theme = theme
+        rebuildMenu()
     }
 
     @objc
@@ -517,8 +523,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             statusBarIndicatorStyle: statusItemSettings.statusBarIndicatorStyle,
             statusBarDisplayMode: statusItemSettings.statusBarDisplayMode,
             revealStatusItemTitleShortcut: statusItemSettings.revealStatusItemTitleShortcut,
-            sessionAccentColor: resolvedUsageColor(for: .session),
-            weeklyAccentColor: resolvedUsageColor(for: .weekly),
+            sessionAccentColor: statusItemSettings.sessionAccentColor?.nsColor,
+            weeklyAccentColor: statusItemSettings.effectiveWeeklyAccentColor?.nsColor,
             usesOneUsageColor: statusItemSettings.usesOneUsageColor,
             hasCustomUsageColors: statusItemSettings.hasCustomUsageColors,
             usagePercentMode: statusItemSettings.usagePercentMode,
@@ -528,26 +534,31 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             statusMessage: accountsController.statusMessage,
             loginItemState: loginItemController.state(),
             tokenUsageEnabled: tokenUsagePreferences.isEnabled,
-            tokenUsageCard: makeTokenUsageCard(),
+            tokenUsage: currentTokenUsageCard(),
             providerUsage: providerUsageRuntime.states,
             toolOrder: menuDisplaySettings.toolOrder,
             masksEmails: menuDisplaySettings.masksEmails,
             hidesCodex: menuDisplaySettings.hidesCodex,
             showsModelLimits: claudeUsageSettings.showsModelLimits,
-            appIconColor: appIconPreferences.appIconColor,
+            theme: themePreferences.theme,
             now: now()
         )
     }
 
-    private func makeTokenUsageCard() -> TokenUsageMenuCard? {
+    private func makeTokenUsageCard() -> TokenUsageMenuCard {
+        TokenUsageMenuCard.make(period: tokenUsagePreferences.period, loadState: tokenUsageRuntime.loadState, now: now())
+    }
+
+    private func currentTokenUsageCard() -> TokenUsageCardModel? {
         guard tokenUsagePreferences.isEnabled else { return nil }
-        return TokenUsageMenuCard.make(
-            style: tokenUsagePreferences.chartStyle,
-            loadingAnimationStyle: tokenUsagePreferences.loadingAnimationStyle,
-            peakScope: tokenUsagePreferences.peakScope,
-            period: tokenUsagePreferences.period,
-            loadState: tokenUsageRuntime.loadState
-        )
+        let card = makeTokenUsageCard()
+        if tokenUsageCard.card != card {
+            tokenUsageCard.card = card
+        }
+        if tokenUsageCard.theme != themePreferences.theme {
+            tokenUsageCard.theme = themePreferences.theme
+        }
+        return tokenUsageCard
     }
 
     /// Token usage and provider usage only appear inside the menu, so opening it is the moment to bring them up to date.
@@ -825,7 +836,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             _ = statusItemSettings.usagePercentMode
             _ = statusItemSettings.usageMeterLayout
             _ = statusItemSettings.pacingMarkersEnabled
-            _ = appIconPreferences.appIconColor
+            _ = themePreferences.theme
         } onChange: { [weak self] in
             self?.tasks.start { [weak self] in
                 guard let self else { return }
@@ -879,12 +890,21 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         )
     }
 
+    /// The color a usage bar shows: the custom one, otherwise the theme's color for Codex.
     private func resolvedUsageColor(for target: UsageColorTarget) -> NSColor {
         switch target {
         case .session:
-            statusItemSettings.sessionAccentColor.resolvedStatusItemAccentColor
+            statusItemSettings.sessionAccentColor?.nsColor ?? themeUsageColor(for: .session)
         case .weekly:
-            statusItemSettings.effectiveWeeklyAccentColor.resolvedStatusItemAccentColor
+            statusItemSettings.effectiveWeeklyAccentColor?.nsColor ?? themeUsageColor(for: .weekly)
+        }
+    }
+
+    private func themeUsageColor(for target: UsageColorTarget) -> NSColor {
+        let palette = ThemePalette(theme: themePreferences.theme)
+        switch target {
+        case .session: return palette.sessionColor(for: .codex)
+        case .weekly: return palette.weeklyColor(for: .codex)
         }
     }
 
@@ -907,7 +927,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         let color = sender.color.withAlphaComponent(1)
         switch colorPanelTarget {
         case .session:
-            statusItemSettings.sessionAccentColor = color.isEqualToStatusItemAccentColor(StatusBarProgressColorDefaults.accent)
+            statusItemSettings.sessionAccentColor = color.isEqualToStatusItemAccentColor(themeUsageColor(for: .session))
                 ? nil
                 : StatusItemAccentColor(nsColor: color)
         case .weekly:

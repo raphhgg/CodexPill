@@ -21,11 +21,6 @@ enum CodexTokenUsagePeriod: Int, CaseIterable, Codable, Hashable {
     }
 }
 
-enum TokenUsageLoadingAnimationStyle: String, CaseIterable, Equatable {
-    case waves
-    case random
-}
-
 enum TokenUsagePeakScope: String, CaseIterable, Equatable {
     case currentPeriod
     case allTime
@@ -44,6 +39,10 @@ struct TokenUsageScanProgress: Equatable, Sendable {
     var scannedFiles: Int
     var totalFiles: Int
 
+    var fraction: Double {
+        totalFiles > 0 ? min(Double(scannedFiles) / Double(totalFiles), 1) : 0
+    }
+
     var message: String {
         guard totalFiles > 0 else {
             return "Scanning local sessions"
@@ -55,6 +54,8 @@ struct TokenUsageScanProgress: Equatable, Sendable {
 struct CodexDailyTokenUsage: Codable, Equatable {
     var day: Date
     var usage: CodexTokenUsageTotals
+    /// Total tokens per model, from the session's latest `turn_context`. Nil in caches written before models were read.
+    var tokensByModel: [String: Int]? = nil
 }
 
 struct CodexTokenUsageTotals: Equatable, Codable {

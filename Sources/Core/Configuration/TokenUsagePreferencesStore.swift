@@ -27,9 +27,9 @@ final class TokenUsagePreferencesStore {
         }
     }
 
-    var loadingAnimationStyle: TokenUsageLoadingAnimationStyle {
+    var breakdown: TokenUsageBreakdown {
         didSet {
-            userDefaults.set(loadingAnimationStyle.rawValue, forKey: Self.loadingAnimationStyleKey)
+            userDefaults.set(breakdown.rawValue, forKey: Self.breakdownKey)
         }
     }
 
@@ -44,7 +44,7 @@ final class TokenUsagePreferencesStore {
     private static let isEnabledKey = "tokenUsageEnabled"
     private static let periodKey = "tokenUsagePeriod"
     private static let chartStyleKey = "tokenUsageChartStyle"
-    private static let loadingAnimationStyleKey = "tokenUsageLoadingAnimationStyle"
+    private static let breakdownKey = "tokenUsageBreakdown"
     private static let peakScopeKey = "tokenUsagePeakScope"
 
     init(userDefaults: UserDefaults = .standard) {
@@ -52,10 +52,8 @@ final class TokenUsagePreferencesStore {
         isEnabled = userDefaults.object(forKey: Self.isEnabledKey) as? Bool ?? false
         period = .last30Days
         userDefaults.set(CodexTokenUsagePeriod.last30Days.rawValue, forKey: Self.periodKey)
-        chartStyle = userDefaults.string(forKey: Self.chartStyleKey)
-            .flatMap(TokenUsageChartStyle.init(rawValue:)) ?? .dailyBars
-        loadingAnimationStyle = userDefaults.string(forKey: Self.loadingAnimationStyleKey)
-            .flatMap(TokenUsageLoadingAnimationStyle.init(rawValue:)) ?? .waves
+        chartStyle = TokenUsageChartStyle(storedValue: userDefaults.string(forKey: Self.chartStyleKey))
+        breakdown = TokenUsageBreakdown(storedValue: userDefaults.string(forKey: Self.breakdownKey))
         peakScope = userDefaults.string(forKey: Self.peakScopeKey)
             .flatMap(TokenUsagePeakScope.init(rawValue:)) ?? .currentPeriod
     }

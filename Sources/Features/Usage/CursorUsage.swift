@@ -8,14 +8,18 @@ struct CursorUsage: ProviderConnection {
 
     let settings: CursorUsageSettingsStore
     let client: CursorUsageClient
+    /// Daily tokens for the Token Usage card, read from the same sign-in.
+    let tokenUsageClient: CursorTokenUsageClient?
 
     init(
         settings: CursorUsageSettingsStore,
         client: CursorUsageClient,
+        tokenUsageClient: CursorTokenUsageClient? = nil,
         refreshInterval: TimeInterval = ProviderUsageRuntime.refreshInterval
     ) {
         self.settings = settings
         self.client = client
+        self.tokenUsageClient = tokenUsageClient
         self.refreshInterval = refreshInterval
     }
 

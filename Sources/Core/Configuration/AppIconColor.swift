@@ -5,6 +5,8 @@ enum AppIconColor: String, CaseIterable {
     case violet
     case honey
     case rose
+    /// The Monochrome theme's icon.
+    case graphite
 
     static let defaultColor: AppIconColor = .cobalt
 
@@ -22,6 +24,8 @@ enum AppIconColor: String, CaseIterable {
             return "Honey"
         case .rose:
             return "Rose"
+        case .graphite:
+            return "Graphite"
         }
     }
 }
