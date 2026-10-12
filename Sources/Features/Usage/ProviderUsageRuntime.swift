@@ -1,14 +1,16 @@
 import Foundation
 
-/// Reads non-Codex providers at most once per `refreshInterval` each and keeps their latest reading for the menu.
+/// Reads non-Codex providers at most once per their `refreshInterval` each and keeps their latest reading for the menu,
+/// plus the last good snapshot so a failed read can still show it.
 @MainActor
 final class ProviderUsageRuntime {
-    static let refreshInterval: TimeInterval = 5 * 60
+    nonisolated static let refreshInterval: TimeInterval = 5 * 60
 
     private let sources: [any UsageProviderSource]
     private let now: () -> Date
     private let onChange: () -> Void
     private var readings: [UsageProvider: UsageProviderReading] = [:]
+    private var lastSnapshots: [UsageProvider: UsageSnapshot] = [:]
     private var lastRefreshStartedAt: [UsageProvider: Date] = [:]
 
     init(
@@ -29,17 +31,23 @@ final class ProviderUsageRuntime {
             readings[source.provider].map {
                 ProviderUsageState(
                     provider: source.provider,
-                    status: ProviderUsageStatus($0, at: date, staleAfter: source.staleAfter)
+                    status: ProviderUsageStatus(
+                        $0,
+                        lastSnapshot: lastSnapshots[source.provider],
+                        at: date,
+                        staleAfter: source.staleAfter
+                    )
                 )
             }
         }
     }
 
-    func refreshIfDue() async {
+    /// `forcing` reads that provider even inside its interval, for example right after the user connects it.
+    func refreshIfDue(forcing forcedProvider: UsageProvider? = nil) async {
         let startedAt = now()
         let dueSources = sources.filter { source in
-            guard let last = lastRefreshStartedAt[source.provider] else { return true }
-            return startedAt.timeIntervalSince(last) >= Self.refreshInterval
+            guard source.provider != forcedProvider, let last = lastRefreshStartedAt[source.provider] else { return true }
+            return startedAt.timeIntervalSince(last) >= source.refreshInterval
         }
         guard !dueSources.isEmpty else { return }
 
@@ -52,6 +60,14 @@ final class ProviderUsageRuntime {
             }
             for await (provider, reading) in group {
                 readings[provider] = reading
+                switch reading {
+                case let .snapshot(snapshot):
+                    lastSnapshots[provider] = snapshot
+                case let .unavailable(reason) where reason.keepsLastSnapshot:
+                    break
+                case .notConnected, .unavailable, .awaitingUsage:
+                    lastSnapshots[provider] = nil
+                }
             }
         }
         onChange()

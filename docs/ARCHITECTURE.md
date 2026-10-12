@@ -15,7 +15,9 @@ The source tree is organized by responsibility:
 - `Sources/Features/Usage/`
 - `Sources/Core/Configuration/`
 - `Sources/Core/Models/`
+- `Sources/Platform/Claude/`
 - `Sources/Platform/Codex/`
+- `Sources/Platform/Cursor/`
 - `Sources/Platform/Persistence/`
 
 The intended dependency direction is:
@@ -74,8 +76,10 @@ It coordinates cache-first loading, scan-task identity, duplicate-scan preventio
 
 Key boundaries:
 
-- `UsageProviderSource`, the port a Platform adapter implements for one provider. It returns a `UsageProviderReading`: not connected, unavailable (sign-in expired or read failed), awaiting usage, or a `UsageSnapshot`.
-- `ProviderUsageRuntime`, which reads each registered source at most once every 5 minutes, however often the menu opens, and publishes `ProviderUsageState` values. A snapshot older than the source's `staleAfter` is published as `.stale`.
+- `UsageProviderSource`, the port for one provider. It returns a `UsageProviderReading`: not connected, unavailable with a `UsageUnavailableReason`, awaiting usage, or a `UsageSnapshot`. The reasons are not installed, signed out, sign-in expired (401 or past expiry), Keychain access needed, sign-in unreadable, access denied (403), rate limited (429), unreachable, service error (other status), and unexpected response. Each has its own menu copy.
+- `ClaudeCodeUsage`, the Claude Code source. It wraps the `Platform/Claude` adapter, maps its values onto `UsageSnapshot`, and owns the opt-in setting and the connect and disconnect steps.
+- `CursorUsage`, the Cursor source, built the same way: it wraps `Platform/Cursor`, maps its values onto `UsageSnapshot`, and owns the opt-in setting, connect, and disconnect.
+- `ProviderUsageRuntime`, which reads each source at most once per the source's `refreshInterval`, however often the menu opens, and publishes `ProviderUsageState` values. The default interval is 5 minutes. A snapshot older than the source's `staleAfter` is published as `.stale`. When a source is unavailable for a reason that keeps the same account, such as an expired sign-in or a failed read, the runtime keeps the last good snapshot next to the reason.
 
 Provider states only feed menu sections. They never reach `AccountAvailability` or `InactiveAccountAvailabilityRanking`: those read `CodexAccount.usage`, and the runtime reports changes through a menu-rebuild callback instead of the account store. The runtime refuses a source for `.codex`.
 
@@ -123,6 +127,21 @@ Reusable Codex app-server access is split into these platform boundaries:
 
 Local app-server reads enter this session runner through `CodexAppServerClient`, which keeps local executable, environment, client-info, timeout, and saved-account strict rate-limit requirements in `CodexAppServerConfiguration`.
 
+`Platform/Claude` owns everything CodexPill knows about Claude Code. It never writes Claude Code's files or Keychain item. It owns:
+
+- reading its sign-in from `.credentials.json` and the `Claude Code-credentials` Keychain item, with the Keychain prompt shown only after a user action (`ClaudeCredentialsSource`, `SystemClaudeKeychain`);
+- the `api.anthropic.com/api/oauth/usage` request, its redirect rule, its rate-limit wait, and parsing its response (`ClaudeUsageAPI`, `ClaudeUsageClient`).
+
+The access token leaves this module only as the usage request's `Authorization` header. Nothing in it reads, sends, or renews Claude Code's refresh token; a test scans the Claude sources to keep it that way.
+
+`Platform/Cursor` owns everything CodexPill knows about Cursor. It never writes Cursor's database or quits Cursor. It owns:
+
+- `CursorStateDatabase`, keyed read-only access to `state.vscdb`. It never scans. A read opens the database with `immutable=1` only when no `-wal`, `-shm`, or `-journal` file sits next to it, so it never reads a writer's uncommitted pages;
+- `CursorStateDatabaseTokenSource`, the read-only token lookup used for usage, and `CursorAccessToken`, which prints redacted;
+- the `cursor.com/api/usage-summary` request, its redirect rule, its `Retry-After` wait, and parsing its response (`URLSessionCursorUsageWebClient`, `CursorUsageClient`, `CursorUsageSummaryParser`).
+
+The token leaves this module only as the usage request's cookie.
+
 `Platform/Persistence` owns:
 
 - CodexPill catalog paths;
@@ -150,6 +169,8 @@ Settings persistence is split by feature boundary:
 - `MenuDisplaySettingsStore` owns menu refresh cadence and visible inactive-account count options.
 - `StatusItemSettingsStore` owns status-item indicator style, monochrome mode, display mode, pacing marker visibility, progress accent color helpers, and persisted reveal-shortcut values.
 - `TokenUsagePreferencesStore` owns token-usage visibility, chart style, loading animation, peak scope, and the fixed 30-day period.
+- `ClaudeUsageSettingsStore` owns whether Claude Code usage is connected (`claudeUsageEnabled`). It is off by default.
+- `CursorUsageSettingsStore` owns whether Cursor usage is connected (`cursorUsageEnabled`). It is off by default.
 
 App startup builds each store from one `UserDefaults` instance and injects the ones each runtime boundary needs. There is no shared settings facade.
 
@@ -191,7 +212,9 @@ The current truth sources are split by concern:
 - active local Codex auth: `~/.codex/auth.json`;
 - CodexPill catalog and saved snapshots: `~/Library/Application Support/CodexPill`;
 - local account metadata and rate limits: local `codex app-server`;
-- running CLI session observation: local process table inspection.
+- running CLI session observation: local process table inspection;
+- Claude Code usage: `api.anthropic.com/api/oauth/usage`, authenticated with Claude Code's local sign-in token;
+- Cursor usage: `cursor.com/api/usage-summary`, authenticated with Cursor's local sign-in token.
 
 Rules:
 
@@ -240,7 +263,9 @@ Tests should mirror stable source ownership boundaries once those boundaries exi
 - `Tests/MenuBar/`
 - `Tests/TokenUsage/`
 - `Tests/Usage/`
+- `Tests/Platform/Claude/`
 - `Tests/Platform/Codex/`
+- `Tests/Platform/Cursor/`
 - `Tests/Platform/Persistence/`
 - `Tests/Core/Models/`
 - `Tests/Core/Configuration/`

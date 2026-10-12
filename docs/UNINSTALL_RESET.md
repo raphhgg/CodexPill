@@ -21,6 +21,17 @@ defaults delete com.raphhgg.codexpill
 
 It is fine if `defaults delete` says the domain does not exist.
 
+CodexPill never writes Claude Code's or Cursor's files or Keychain items, so
+there is nothing of theirs to remove. Test builds could save Claude Code and
+Cursor accounts. If you ran one, remove what it left. Run the first command
+until it says the item could not be found:
+
+```sh
+security delete-generic-password -s "CodexPill Claude Code account"
+security delete-generic-password -s "CodexPill Cursor accounts"
+rm -f "$HOME/Library/Application Support/CodexPill/claude-code-accounts.json"
+```
+
 This does not delete `~/.codex/auth.json`. Do not remove or edit that file unless
 you intentionally want to sign out of Codex or repair Codex itself.
 

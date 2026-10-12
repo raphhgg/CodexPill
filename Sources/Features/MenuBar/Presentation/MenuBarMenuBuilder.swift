@@ -52,6 +52,10 @@ struct MenuBarMenuBuilder {
             menu.addItem(moreAccountsMenuItem(accounts: state.overflowDisplayAccountEntries, state: state, target: target))
         }
 
+        for providerUsage in state.providerUsage {
+            addProviderUsageSection(providerUsage, to: menu, state: state, target: target, width: menuContentWidth)
+        }
+
         menu.addItem(.separator())
         if state.shouldShowSingleAccountManagementMenu {
             menu.addItem(accountManagementMenuItem(state: state, target: target, includesAddAccount: true))
@@ -304,9 +308,63 @@ struct MenuBarMenuBuilder {
         submenu.addItem(tokenUsagePreferencesMenuItem(state: state, target: target))
         submenu.addItem(.separator())
         submenu.addItem(launchAtLoginMenuItem(state: state, target: target))
+        let disconnectItems = state.providerUsage.compactMap { providerUsage -> NSMenuItem? in
+            guard providerUsage.status != .notConnected, let action = providerUsage.provider.disconnectAction else { return nil }
+            let disconnect = NSMenuItem(title: "Disconnect \(providerUsage.provider.menuTitle)…", action: action, keyEquivalent: "")
+            disconnect.target = target
+            disconnect.isEnabled = !state.isBusy
+            return disconnect
+        }
+        if !disconnectItems.isEmpty {
+            submenu.addItem(.separator())
+            disconnectItems.forEach(submenu.addItem)
+        }
 
         item.submenu = submenu
         return item
+    }
+
+    private func addProviderUsageSection(
+        _ providerUsage: ProviderUsageState,
+        to menu: NSMenu,
+        state: MenuBarMenuState,
+        target: MenuBarCoordinator,
+        width: CGFloat
+    ) {
+        let content: NSMenuItem
+        if providerUsage.status == .notConnected {
+            guard let action = providerUsage.provider.connectAction else { return }
+            content = actionItem(
+                title: "Connect \(providerUsage.provider.menuTitle)…",
+                systemImage: "link",
+                action: action,
+                state: state,
+                target: target
+            )
+        } else if case .unavailable(.keychainAccessNeeded, _) = providerUsage.status,
+                  let action = providerUsage.provider.allowKeychainAccessAction {
+            content = actionItem(title: "Allow Keychain access…", systemImage: "key", action: action, state: state, target: target)
+        } else {
+            content = NSMenuItem()
+            content.view = configuredHostedMenuView(
+                NSHostingView(rootView: ProviderUsageMenuContent(
+                    provider: providerUsage.provider,
+                    status: providerUsage.status,
+                    sessionAccentColor: Color(nsColor: state.sessionAccentColor),
+                    weeklyAccentColor: Color(nsColor: state.weeklyAccentColor),
+                    percentMode: state.usagePercentMode,
+                    meterLayout: state.usageMeterLayout,
+                    showsPacingMarkers: state.pacingMarkersEnabled,
+                    now: state.now
+                )
+                // A fixed width lets wrapped text report its real height to the fitting size.
+                .frame(width: width)),
+                width: width
+            )
+        }
+        menu.addItem(.separator())
+        menu.addItem(sectionHeaderItem(providerUsage.provider.menuTitle, width: width, bottomPadding: 4))
+        menu.addItem(content)
     }
 
     private func launchAtLoginMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
@@ -530,5 +588,30 @@ private struct SectionHeaderLabel: View {
         .padding(.horizontal, 10)
         .padding(.top, 2)
         .padding(.bottom, bottomPadding)
+    }
+}
+
+private extension UsageProvider {
+    var connectAction: Selector? {
+        switch self {
+        case .claude: #selector(MenuBarCoordinator.connectClaudeCode)
+        case .cursor: #selector(MenuBarCoordinator.connectCursor)
+        case .codex: nil
+        }
+    }
+
+    var disconnectAction: Selector? {
+        switch self {
+        case .claude: #selector(MenuBarCoordinator.disconnectClaudeCode)
+        case .cursor: #selector(MenuBarCoordinator.disconnectCursor)
+        case .codex: nil
+        }
+    }
+
+    var allowKeychainAccessAction: Selector? {
+        switch self {
+        case .claude: #selector(MenuBarCoordinator.allowClaudeKeychainAccess)
+        case .codex, .cursor: nil
+        }
     }
 }

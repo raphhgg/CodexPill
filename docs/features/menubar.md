@@ -15,9 +15,11 @@ The menu is ordered as:
 1. `Active Account`
 2. `Accounts`, when saved catalog entries are visible
 3. `More Accounts…`, when saved catalog entries overflow the visible limit
-4. App Controls
-5. Status message, when needed
-6. `Quit`
+4. `Claude Code`: `Connect Claude Code…` until connected, then usage or a short failure message, from [Claude Usage](claude-usage.md)
+5. `Cursor`: `Connect Cursor…` until connected, then usage or a short failure message, from [Cursor Usage](cursor-usage.md)
+6. App Controls
+7. Status message, when needed
+8. `Quit`
 
 ## Active Account Section
 
@@ -49,7 +51,7 @@ Entries:
 
 - `Add Account…`: entry point owned by [Accounts](accounts/00-accounts.md).
 - `Refresh Interval`: setting that controls scheduled refresh cadence.
-- `Preferences`: visual settings owned by [Status Bar](status-bar.md), plus app-level controls such as [Launch at Login](app-controls/01-launch-at-login.md).
+- `Preferences`: visual settings owned by [Status Bar](status-bar.md), plus app-level controls such as [Launch at Login](app-controls/01-launch-at-login.md) and, while connected, `Disconnect Claude Code…` from [Claude Usage](claude-usage.md) and `Disconnect Cursor…` from [Cursor Usage](cursor-usage.md).
 - `Diagnostics…`: user-initiated support artifact export. CodexPill first explains what the export contains, then writes a redacted JSON file only if the user confirms. The report is built from allowlisted diagnostic fields, per-export account aliases, summarized freshness/result states, and recent CodexPill-owned workflow events. It must not include raw logs, auth JSON, saved snapshots, raw UserDefaults, emails, hostnames, local paths, tokens, stable account IDs, prompt/session content, or raw stderr.
 - `About`: app-level informational alert.
 - `Quit`: app-level quit command, separated from status and controls.
