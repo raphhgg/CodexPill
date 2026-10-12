@@ -18,13 +18,17 @@ struct TokenUsageMenuContent: View {
             header
             chartArea.frame(height: 44)
             breakdownPicker
-                .opacity(card.showsSplits ? 1 : 0)
+                .modifier(TokenUsagePlaceholder(isActive: card.isLoading))
+                .opacity(card.showsSplits || card.isLoading ? 1 : 0)
                 .disabled(!card.showsSplits)
                 .accessibilityHidden(!card.showsSplits)
             ZStack(alignment: .topLeading) {
-                splits(for: card.layoutTemplate).hidden().accessibilityHidden(true)
+                splits(for: card.layoutTemplate, palette: TokenUsagePalette(theme: model.theme, isPlaceholder: true))
+                    .modifier(TokenUsagePlaceholder(isActive: card.isLoading))
+                    .opacity(card.isLoading ? 1 : 0)
+                    .accessibilityHidden(true)
                 if card.showsSplits {
-                    splits(for: card)
+                    splits(for: card, palette: palette)
                 }
             }
         }
@@ -51,7 +55,7 @@ struct TokenUsageMenuContent: View {
     }
 
     /// Both splits are laid out so the card keeps the taller height when the toggle switches.
-    private func splits(for card: TokenUsageMenuCard) -> some View {
+    private func splits(for card: TokenUsageMenuCard, palette: TokenUsagePalette) -> some View {
         ZStack(alignment: .topLeading) {
             TokenUsageByToolSplit(card: card, palette: palette)
                 .opacity(preferences.breakdown == .byTool ? 1 : 0)
@@ -141,12 +145,15 @@ extension TokenUsageBreakdown {
 /// The theme's tool colors, plus a dash and a marker shape per tool so the tools never rely on color alone.
 struct TokenUsagePalette {
     let theme: AppTheme
+    /// Draws every tool in the neutral placeholder color.
+    var isPlaceholder = false
 
     /// Hue themes and Monochrome draw all three tools from one color.
     var isSingleHue: Bool { theme != .toolColors }
 
     func color(_ tool: TokenUsageTool) -> Color {
-        Color(nsColor: ThemePalette(theme: theme).toolColor(tool))
+        if isPlaceholder { return .secondary }
+        return Color(nsColor: ThemePalette(theme: theme).toolColor(tool))
     }
 
     /// Models within one tool: the tool's color, fading.
@@ -224,6 +231,19 @@ private struct TokenUsageSegmented<Item: Hashable, Label: View>: View {
 // MARK: - Charts
 
 /// Neutral bars of a fixed shape, shown while the first reading loads.
+/// Neutral blocks in the shape of the finished rows, like the placeholder bars.
+private struct TokenUsagePlaceholder: ViewModifier {
+    let isActive: Bool
+
+    func body(content: Content) -> some View {
+        if isActive {
+            content.redacted(reason: .placeholder).opacity(0.4)
+        } else {
+            content
+        }
+    }
+}
+
 private struct TokenUsagePlaceholderBars: View {
     let count: Int
 
