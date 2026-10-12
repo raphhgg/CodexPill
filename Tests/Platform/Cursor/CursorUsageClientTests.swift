@@ -22,19 +22,21 @@ struct CursorUsageClientTests {
     }
 
     @Test
-    func successfulFetchIsAvailable() async throws {
+    func successfulFetchIsAvailableWithTheSignedInEmail() async throws {
         let client = makeClient(
-            tokenSource: CursorAccessTokenSourceFixture(result: .token(usableToken())),
+            tokenSource: CursorAccessTokenSourceFixture(result: .token(usableToken(), email: "person@example.com")),
             webClient: CursorUsageWebClientHarness([.success(CursorUsageSummaryFixtures.proPlan)])
         )
+        var expected = try proSnapshot
+        expected.accountEmail = "person@example.com"
 
-        #expect(await client.refresh() == .available(try proSnapshot))
+        #expect(await client.refresh() == .available(expected))
     }
 
     @Test
     func transportErrorIsANetworkFailure() async {
         let client = makeClient(
-            tokenSource: CursorAccessTokenSourceFixture(result: .token(usableToken())),
+            tokenSource: CursorAccessTokenSourceFixture(result: .token(usableToken(), email: nil)),
             webClient: CursorUsageWebClientHarness([.failure(.transport)])
         )
 
@@ -44,7 +46,7 @@ struct CursorUsageClientTests {
     @Test
     func rateLimitedReadsWaitForRetryAfterBeforeTouchingTheDatabaseOrTheNetwork() async {
         let clock = TestClock(now)
-        let tokenSource = CountingTokenSource(result: .token(usableToken()))
+        let tokenSource = CountingTokenSource(result: .token(usableToken(), email: nil))
         let webClient = CursorUsageWebClientHarness([
             .failure(.rateLimited(retryAfter: 120)),
             .success(CursorUsageSummaryFixtures.proPlan),
@@ -71,7 +73,7 @@ struct CursorUsageClientTests {
         let clock = TestClock(now)
         let webClient = CursorUsageWebClientHarness([.failure(.rateLimited(retryAfter: nil))])
         let client = CursorUsageClient(
-            tokenSource: CursorAccessTokenSourceFixture(result: .token(usableToken())),
+            tokenSource: CursorAccessTokenSourceFixture(result: .token(usableToken(), email: nil)),
             webClient: webClient,
             now: { clock.now }
         )
@@ -97,7 +99,7 @@ struct CursorUsageClientTests {
         let webClient = CursorUsageWebClientHarness([.success(CursorUsageSummaryFixtures.proPlan)])
         let client = makeClient(
             tokenSource: CursorAccessTokenSourceFixture(
-                result: .token(CursorAccessTokenFixtures.token(expiresAt: now.addingTimeInterval(30)))
+                result: .token(CursorAccessTokenFixtures.token(expiresAt: now.addingTimeInterval(30)), email: nil)
             ),
             webClient: webClient
         )
@@ -119,7 +121,7 @@ struct CursorUsageClientTests {
     @Test
     func garbageBodyIsUnexpectedResponse() async {
         let client = makeClient(
-            tokenSource: CursorAccessTokenSourceFixture(result: .token(usableToken())),
+            tokenSource: CursorAccessTokenSourceFixture(result: .token(usableToken(), email: nil)),
             webClient: CursorUsageWebClientHarness([.success(Data("<html>".utf8))])
         )
 

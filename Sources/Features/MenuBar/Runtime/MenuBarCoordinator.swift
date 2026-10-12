@@ -115,8 +115,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         refreshMenuUsageIfNeeded()
     }
 
-    func presentNotice(_ notice: ProviderNotice) {
-        alertPresenter.presentInfo(alertFactory.makeNoticeRequest(notice))
+    func presentNotice(_ request: MenuBarInfoAlertRequest) {
+        alertPresenter.presentInfo(request)
     }
 
     func invalidate() {
@@ -349,17 +349,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             return
         }
         recordMenuAction("\(provider).\(action.name)")
-        let accountID: UUID? = switch action {
-        case let .switchAccount(id), let .removeAccount(id): id
-        default: nil
-        }
-        if let prompt = provider.copy.prompt(for: action, accountLabel: accountID.flatMap { menuState().accountLabel($0, of: provider) }) {
+        if let prompt = provider.copy.prompt(for: action) {
             guard alertPresenter.presentConfirmation(alertFactory.makeConfirmationRequest(prompt)) else { return }
         }
-        tasks.start { [weak self] in
-            guard let self, let notice = await providerUsageRuntime.perform(action, on: provider) else { return }
-            presentNotice(notice)
-        }
+        tasks.start { [weak self] in await self?.providerUsageRuntime.perform(action, on: provider) }
     }
 
     /// Codex accounts are saved `auth.json` snapshots, switched and added through `AccountsController`.
@@ -381,7 +374,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         case .disconnect:
             recordMenuAction("hideCodex")
             menuDisplaySettings.hidesCodex = true
-        case .allowKeychainAccess, .cancelSignIn:
+        case .allowKeychainAccess:
             break
         }
     }
@@ -759,7 +752,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     func performScheduledRefresh() async {
         refreshProviderUsageIfDue()
-        tasks.start { [weak self] in await self?.providerUsageRuntime.refreshInactiveAccountsIfDue() }
         await refreshCodex(includingSavedAccounts: true)
     }
 

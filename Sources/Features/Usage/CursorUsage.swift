@@ -1,7 +1,6 @@
 import Foundation
 
-/// Cursor plan usage for the menu, and the Cursor accounts Refill saved. The card reads Cursor's live sign-in once
-/// the user connects it; each saved account is read with its own saved sign-in.
+/// Cursor plan usage for the menu, read from Cursor's live sign-in once the user connects it.
 struct CursorUsage: ProviderConnection {
     let provider = UsageProvider.cursor
     let staleAfter: TimeInterval = 15 * 60
@@ -9,22 +8,14 @@ struct CursorUsage: ProviderConnection {
 
     let settings: CursorUsageSettingsStore
     let client: CursorUsageClient
-    /// Saved Cursor sign-ins to switch between. Nil in isolated runs, which never quit the real Cursor.
-    let accounts: CursorAccounts?
-    /// Cursor's own sign-in in a separate window. Nil when this build can't add accounts.
-    let login: CursorIsolatedLogin?
 
     init(
         settings: CursorUsageSettingsStore,
         client: CursorUsageClient,
-        accounts: CursorAccounts? = nil,
-        login: CursorIsolatedLogin? = nil,
         refreshInterval: TimeInterval = ProviderUsageRuntime.refreshInterval
     ) {
         self.settings = settings
         self.client = client
-        self.accounts = accounts
-        self.login = login
         self.refreshInterval = refreshInterval
     }
 
@@ -38,85 +29,6 @@ struct CursorUsage: ProviderConnection {
 
     func disconnect() async {
         settings.isEnabled = false
-    }
-
-    var signInAvailability: ProviderSignInAvailability {
-        guard accounts != nil, let login else { return .unsupported }
-        return login.isInstalled ? .available : .notInstalled
-    }
-
-    func savedAccounts() async throws(ProviderNotice) -> [ProviderAccount] {
-        guard let accounts else { return [] }
-        do {
-            let activeID = try accounts.activeAccountID()
-            return try accounts.savedAccounts().map {
-                ProviderAccount(id: $0.id, email: $0.email, isActive: $0.id == activeID, usage: $0.usage.map(Self.usage(from:)))
-            }
-        } catch {
-            throw error.notice
-        }
-    }
-
-    /// Signs Cursor in to a saved account. Cursor quits and reopens, so the menu asks first.
-    func switchAccount(to id: UUID) async throws(ProviderNotice) {
-        do {
-            try await store().activate(id)
-        } catch {
-            throw error.notice
-        }
-    }
-
-    func saveLiveAccountIfNew() async -> Bool {
-        guard settings.isEnabled, let accounts else { return false }
-        return ((try? accounts.saveCurrentIfNew()) ?? nil) != nil
-    }
-
-    /// Signs in through Cursor's own sign-in in a separate window with a throwaway profile, and saves the account.
-    /// Cursor's live sign-in is not touched; switching to the new account later works like any saved account.
-    func addAccount() async throws(ProviderNotice) -> Bool {
-        let store: CursorAccounts
-        do {
-            store = try self.store()
-        } catch {
-            throw error.notice
-        }
-        guard let login else { throw CursorAccountsError.switchingUnavailable.notice }
-
-        let signIn: CursorSignIn
-        do {
-            signIn = try await login.signIn()
-        } catch {
-            if error == .cancelled { return false }
-            throw error.notice
-        }
-        do {
-            try store.add(signIn)
-        } catch {
-            throw error.notice
-        }
-        settings.isEnabled = true
-        return true
-    }
-
-    func removeAccount(_ id: UUID) async throws(ProviderNotice) {
-        do {
-            try store().remove(id)
-        } catch {
-            throw error.notice
-        }
-    }
-
-    /// Cursor renews a token only while it runs with that profile, so Refill never renews a saved sign-in. Once its
-    /// token expires, the account keeps its last limits, which the menu shows as stale.
-    func refreshInactiveAccount(_ id: UUID, now _: Date) async {
-        guard let accounts, (try? accounts.activeAccountID()) != id, let account = try? accounts.savedAccount(id) else { return }
-        guard case let .available(snapshot) = await client.refresh(savedSignIn: account.signIn) else { return }
-        accounts.recordUsage(snapshot, for: id, ifSignInUnchangedFrom: account.signIn)
-    }
-
-    private func store() throws(CursorAccountsError) -> CursorAccounts {
-        guard let accounts else { throw .switchingUnavailable }
-        return accounts
     }
 
     func readUsage(now _: Date) async -> UsageProviderReading {
@@ -154,7 +66,8 @@ struct CursorUsage: ProviderConnection {
             planName: snapshot.planName,
             windows: windows,
             fetchedAt: snapshot.fetchedAt,
-            spend: snapshot.onDemand.map { UsageSpend(usedUSD: $0.usedUSD, limitUSD: $0.limitUSD) }
+            spend: snapshot.onDemand.map { UsageSpend(usedUSD: $0.usedUSD, limitUSD: $0.limitUSD) },
+            accountEmail: snapshot.accountEmail
         )
     }
 }

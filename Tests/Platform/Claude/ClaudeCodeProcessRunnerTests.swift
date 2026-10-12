@@ -17,15 +17,15 @@ struct ClaudeCodeProcessRunnerTests {
         defer { fixture.remove() }
 
         let status = try await fixture.runner.run(
-            ["auth", "login", "--claudeai"],
-            configDirectory: "/tmp/Application Support/claude-sign-in/one",
+            ["doctor"],
+            configDirectory: "/tmp/Application Support/Claude Config",
             workingDirectory: fixture.root,
             timeout: .seconds(30)
         )
 
         #expect(status == 3)
-        #expect(try fixture.output("arguments") == "auth login --claudeai\n")
-        #expect(try fixture.output("config-dir") == "/tmp/Application Support/claude-sign-in/one\n")
+        #expect(try fixture.output("arguments") == "doctor\n")
+        #expect(try fixture.output("config-dir") == "/tmp/Application Support/Claude Config\n")
         #expect(try fixture.output("variables").split(separator: "\n").filter { !["PWD", "SHLVL", "_"].contains($0) }
             == ["CLAUDE_CONFIG_DIR", "HOME", "LOGNAME", "PATH", "TMPDIR", "USER"])
     }
@@ -43,7 +43,7 @@ struct ClaudeCodeProcessRunnerTests {
         let runner = fixture.runner
         let root = fixture.root
         let run = Task {
-            try await runner.run(["auth", "login", "--claudeai"], configDirectory: nil, workingDirectory: root, timeout: .seconds(30))
+            try await runner.run(["doctor"], configDirectory: nil, workingDirectory: root, timeout: .seconds(30))
         }
         while !FileManager.default.fileExists(atPath: root.appendingPathComponent("started").path) {
             await Task.yield()

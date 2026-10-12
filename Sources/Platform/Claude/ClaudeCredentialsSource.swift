@@ -26,7 +26,7 @@ struct ClaudeCredentialsSource: Sendable {
     let configDirectory: URL
     /// Nil in isolated runs, so they never read the real Keychain item.
     let keychain: (any ClaudeKeychainReading)?
-    /// Claude Code's global config, read only for the plan tier in its account record.
+    /// Claude Code's global config, read only for the plan tier and the email in its account record.
     var globalConfigFile: URL? = nil
 
     var credentialsFileURL: URL {
@@ -68,6 +68,15 @@ struct ClaudeCredentialsSource: Sendable {
         } catch CocoaError.fileReadNoSuchFile {
             return nil
         }
+    }
+
+    /// Claude Code's global config: `.claude.json` in `CLAUDE_CONFIG_DIR` when set, otherwise in the home folder.
+    static func globalConfigFile(environment: [String: String], homeDirectory: URL) -> URL {
+        if let path = environment["CLAUDE_CONFIG_DIR"], !path.isEmpty {
+            return URL(fileURLWithPath: (path as NSString).expandingTildeInPath, isDirectory: true)
+                .appendingPathComponent(".claude.json")
+        }
+        return homeDirectory.appendingPathComponent(".claude.json")
     }
 
     /// `CLAUDE_CONFIG_DIR` when set, otherwise `~/.claude`, matching Claude Code.

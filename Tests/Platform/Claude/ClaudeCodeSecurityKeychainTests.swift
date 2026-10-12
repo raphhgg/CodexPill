@@ -7,7 +7,6 @@ import Testing
 private final class FakeSecurity: SecurityCommandRunning, @unchecked Sendable {
     struct Call: Equatable {
         let arguments: [String]
-        let input: String?
         let timeout: Duration
     }
 
@@ -23,9 +22,9 @@ private final class FakeSecurity: SecurityCommandRunning, @unchecked Sendable {
         lock.withLock { recorded }
     }
 
-    func run(_ arguments: [String], input: Data?, timeout: Duration) -> SecurityCommandResult {
+    func run(_ arguments: [String], timeout: Duration) -> SecurityCommandResult {
         lock.withLock {
-            recorded.append(Call(arguments: arguments, input: input.map { String(decoding: $0, as: UTF8.self) }, timeout: timeout))
+            recorded.append(Call(arguments: arguments, timeout: timeout))
             return result
         }
     }
@@ -55,7 +54,6 @@ struct ClaudeCodeSecurityKeychainTests {
         #expect(describe(keychain.read(service: "Claude Code-credentials", allowingPrompt: false)) == #"found {"claudeAiOauth":{}}"#)
         #expect(security.calls == [.init(
             arguments: ["find-generic-password", "-a", "person", "-s", "Claude Code-credentials", "-w"],
-            input: nil,
             timeout: .seconds(10)
         )])
     }
@@ -117,39 +115,6 @@ struct ClaudeCodeSecurityKeychainTests {
             return
         }
     }
-
-    @Test
-    func aSwitchWritesThroughSecurityStdinAndNeverPutsTheSignInInArguments() throws {
-        let (keychain, security) = keychain(.exited(status: 0, output: Data()))
-        let password = Self.specialPassword
-
-        #expect(keychain.write(Data(password.utf8), service: "Claude Code-credentials") == true)
-
-        let call = try #require(security.calls.first)
-        #expect(call.arguments == ["-i"])
-        let line = try #require(call.input)
-        #expect(line.hasPrefix(#"add-generic-password -U -a "person" -s "Claude Code-credentials" -X ""#))
-        let hex = try #require(line.split(separator: "\"").dropLast().last)
-        #expect(ClaudeCodeSecurityKeychain.password(fromOutput: Data(hex.utf8)) == Data(password.utf8))
-        #expect(!line.contains("fake-a"))
-    }
-
-    @Test
-    func aRefusedWriteFailsAndAWriteTooLongForStdinIsLeftToTheCaller() {
-        let (refused, _) = keychain(.exited(status: 51, output: Data()))
-        let (tooLong, security) = keychain(.exited(status: 0, output: Data()))
-
-        #expect(refused.write(Data("{}".utf8), service: "Claude Code-credentials") == false)
-        #expect(tooLong.write(Data(repeating: UInt8(ascii: "x"), count: 2_000), service: "Claude Code-credentials") == nil)
-        #expect(security.calls.isEmpty)
-    }
-
-    @Test
-    func deletingAMissingItemCountsAsDeleted() {
-        #expect(keychain(.exited(status: 44, output: Data())).0.delete(service: "s"))
-        #expect(keychain(.exited(status: 0, output: Data())).0.delete(service: "s"))
-        #expect(!keychain(.exited(status: 51, output: Data())).0.delete(service: "s"))
-    }
 }
 
 /// The real runner, with a shell script standing in for `security`.
@@ -164,12 +129,12 @@ struct SystemSecurityCommandRunnerTests {
     }
 
     @Test
-    func stdinReachesSecurityAndItsOutputAndExitStatusComeBack() throws {
-        let (runner, root) = try runner(script: "#!/bin/sh\ncat\nexit 7\n")
+    func securitysOutputAndExitStatusComeBack() throws {
+        let (runner, root) = try runner(script: "#!/bin/sh\necho \"$*\"\nexit 7\n")
         defer { try? FileManager.default.removeItem(at: root) }
 
-        #expect(runner.run(["-i"], input: Data("secret line\n".utf8), timeout: .seconds(10))
-            == .exited(status: 7, output: Data("secret line\n".utf8)))
+        #expect(runner.run(["find-generic-password", "-w"], timeout: .seconds(10))
+            == .exited(status: 7, output: Data("find-generic-password -w\n".utf8)))
     }
 
     @Test
@@ -178,7 +143,7 @@ struct SystemSecurityCommandRunnerTests {
         defer { try? FileManager.default.removeItem(at: root) }
         let start = ContinuousClock.now
 
-        #expect(runner.run(["find-generic-password"], input: nil, timeout: .milliseconds(300)) == .timedOut)
+        #expect(runner.run(["find-generic-password"], timeout: .milliseconds(300)) == .timedOut)
         #expect(ContinuousClock.now - start < .seconds(5))
     }
 }

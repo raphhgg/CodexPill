@@ -73,11 +73,11 @@ struct MenuBarMenuBuilder {
     private func sideMenu(for section: ToolSection, state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenu {
         let provider = section.provider
         let title = provider.copy.sectionTitle
-        let accountActionsEnabled = provider != .codex || !state.isBusy
+        let accountActionsEnabled = !state.isBusy
         let menu = NSMenu(title: title)
 
-        if let active = section.activeAccount {
-            let item = disabledItem(active.label)
+        if let activeLabel = section.activeLabel {
+            let item = disabledItem(activeLabel)
             item.state = .on
             menu.addItem(item)
         }
@@ -126,13 +126,14 @@ struct MenuBarMenuBuilder {
             menu.addItem(toggleItem(title, isOn: state.showsModelLimits, action: #selector(MenuBarCoordinator.toggleShowsModelLimits(_:)), target: target))
         }
 
-        addSeparatorIfNeeded(to: menu)
-        let availability = section.signInAvailability
-        let add = providerItem(title: "Add \(title) Account…", .addAccount, for: provider, target: target)
-        add.isEnabled = accountActionsEnabled && availability != .notInstalled
-        menu.addItem(add)
-        if availability == .notInstalled {
-            menu.addItem(disabledItem("Install \(provider.copy.name) first"))
+        if provider == .codex {
+            addSeparatorIfNeeded(to: menu)
+            let add = providerItem(title: "Add \(title) Account…", .addAccount, for: provider, target: target)
+            add.isEnabled = accountActionsEnabled
+            menu.addItem(add)
+        }
+        if menu.items.last?.isSeparatorItem == true {
+            menu.removeItem(at: menu.numberOfItems - 1)
         }
         return menu
     }
@@ -170,20 +171,13 @@ struct MenuBarMenuBuilder {
         return submenuItem(menu)
     }
 
-    /// Adds an account for any tool. A tool that is not connected yet connects instead.
+    /// Only Codex has accounts to add. Claude and Cursor show the account their own app is signed in to, and
+    /// `Show Tools` connects them.
     private func addAccountMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
         let menu = NSMenu(title: "Add Account")
-        for provider in [UsageProvider.codex, .claude, .cursor] {
-            let usage = state.providerUsage.first { $0.provider == provider && $0.status != .notConnected }
-            let action: ProviderAction = switch (provider, usage?.signInAvailability) {
-            case (.codex, _): .addAccount
-            case (_, nil): .connect
-            case (_, _?): .addAccount
-            }
-            let item = providerItem(title: "\(provider.copy.sectionTitle)…", action, for: provider, target: target)
-            item.isEnabled = provider == .codex ? !state.isBusy : usage?.signInAvailability != .notInstalled
-            menu.addItem(item)
-        }
+        let codex = providerItem(title: "\(UsageProvider.codex.copy.sectionTitle)…", .addAccount, for: .codex, target: target)
+        codex.isEnabled = !state.isBusy
+        menu.addItem(codex)
         return submenuItem(menu)
     }
 
