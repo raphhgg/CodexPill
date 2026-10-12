@@ -55,23 +55,30 @@ struct CursorUsageTests {
     }
 
     @Test
-    func onDemandSpendKeepsItsCapOrNone() async {
+    func onDemandSpendIsExtraUsageWithItsCapOrNone() async {
         let capped = await connectedReading(summary: CursorUsageFixture.proPlanWithCappedOnDemand)
         let uncapped = await connectedReading(summary: #"""
         {"billingCycleStart":"2026-09-30T15:23:08.000Z","billingCycleEnd":"2026-10-30T15:23:08.000Z","membershipType":"pro",
          "individualUsage":{"plan":{"enabled":true,"totalPercentUsed":100},"onDemand":{"enabled":true,"used":1234,"limit":null}}}
         """#)
 
-        #expect(spend(in: capped) == UsageSpend(usedUSD: Decimal(string: "12.34")!, limitUSD: 50))
-        #expect(spend(in: uncapped) == UsageSpend(usedUSD: Decimal(string: "12.34")!, limitUSD: nil))
+        #expect(credits(in: capped) == .extraUsage(spent: Decimal(string: "12.34")!, limit: 50, currencyCode: "USD"))
+        #expect(credits(in: uncapped) == .extraUsage(spent: Decimal(string: "12.34")!, limit: nil, currencyCode: "USD"))
     }
 
     @Test
-    func spendReadsAsDollarsWithTheCapWhenSet() {
-        let locale = Locale(identifier: "en_US")
+    func disabledOnDemandHasNoCredits() async {
+        let reading = await connectedReading(summary: #"""
+        {"billingCycleStart":"2026-09-30T15:23:08.000Z","billingCycleEnd":"2026-10-30T15:23:08.000Z","membershipType":"pro",
+         "individualUsage":{"plan":{"enabled":true,"totalPercentUsed":100},"onDemand":{"enabled":false,"used":0,"limit":null}}}
+        """#)
 
-        #expect(onDemandSpendText(UsageSpend(usedUSD: Decimal(string: "12.34")!, limitUSD: 50), locale: locale) == "On-demand: $12.34 of $50.00")
-        #expect(onDemandSpendText(UsageSpend(usedUSD: Decimal(string: "12.34")!, limitUSD: nil), locale: locale) == "On-demand: $12.34")
+        guard case let .snapshot(snapshot) = reading else {
+            Issue.record("Expected a snapshot, got \(reading)")
+            return
+        }
+        #expect(snapshot.windows.map(\.usedPercent) == [100])
+        #expect(snapshot.credits == nil)
     }
 
     @Test
@@ -125,9 +132,9 @@ struct CursorUsageTests {
         return await fixture.usage.readUsage(now: now)
     }
 
-    private func spend(in reading: UsageProviderReading) -> UsageSpend? {
+    private func credits(in reading: UsageProviderReading) -> UsageCredits? {
         guard case let .snapshot(snapshot) = reading else { return nil }
-        return snapshot.spend
+        return snapshot.credits
     }
 }
 

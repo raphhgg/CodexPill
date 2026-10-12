@@ -70,7 +70,7 @@ struct CursorUsage: ProviderConnection {
             planName: snapshot.planName,
             windows: windows,
             fetchedAt: snapshot.fetchedAt,
-            spend: snapshot.onDemand.map { UsageSpend(usedUSD: $0.usedUSD, limitUSD: $0.limitUSD) },
+            credits: snapshot.onDemand.map { .extraUsage(spent: $0.usedUSD, limit: $0.limitUSD, currencyCode: "USD") },
             accountEmail: snapshot.accountEmail
         )
     }

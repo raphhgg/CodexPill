@@ -51,7 +51,7 @@ struct UsageSnapshot: Hashable {
     var windows: [UsageWindow]
     var fetchedAt: Date
     var resetCredits: UsageResetCredits? = nil
-    var spend: UsageSpend? = nil
+    var credits: UsageCredits? = nil
     /// The email of the account the tool is signed in to, for Claude and Cursor. Codex keeps it on `CodexAccount`.
     var accountEmail: String? = nil
 
@@ -64,11 +64,14 @@ struct UsageSnapshot: Hashable {
     }
 }
 
-/// On-demand spend in dollars, beyond the plan. It is money, not a percent of a limit.
-struct UsageSpend: Hashable {
-    var usedUSD: Decimal
-    /// `nil` when on-demand spend has no cap.
-    var limitUSD: Decimal?
+/// Credits or paid usage beyond the plan, shown on the tool's card. It never changes limits or account ranking.
+enum UsageCredits: Hashable {
+    /// Credits left to spend, such as Codex credits.
+    case balance(Decimal)
+    /// The account spends credits without a balance.
+    case unlimited
+    /// Paid usage beyond the plan so far, against an optional cap, such as Claude extra usage or Cursor on-demand.
+    case extraUsage(spent: Decimal, limit: Decimal?, currencyCode: String)
 }
 
 /// Earned credits that reset the current Codex limits early.

@@ -38,7 +38,7 @@ struct ToolCard: Equatable {
     var isDimmed = false
     /// Reset credits on the active Codex account. Nil when there are none to use.
     var resetCredits: UsageResetCredits?
-    var spend: UsageSpend?
+    var credits: UsageCredits?
 }
 
 struct ToolAccount: Equatable {
@@ -216,7 +216,7 @@ extension MenuBarMenuState {
             windows: displayedWindows(snapshot),
             isDimmed: isStale,
             resetCredits: snapshot.resetCredits.flatMap { $0.availableCount > 0 ? $0 : nil },
-            spend: snapshot.spend
+            credits: snapshot.credits
         )
     }
 
