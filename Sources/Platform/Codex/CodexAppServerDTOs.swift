@@ -16,6 +16,7 @@ struct CodexAppServerRateLimits: Equatable {
     var primary: CodexAppServerRateLimitWindow?
     var secondary: CodexAppServerRateLimitWindow?
     var resetCredits: UsageResetCredits? = nil
+    var credits: UsageCredits? = nil
     var fetchedAt: Date
 }
 

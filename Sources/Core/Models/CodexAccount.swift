@@ -229,11 +229,17 @@ private struct StoredCodexRateLimits: Codable {
         var credits: [Credit]?
     }
 
+    struct Credits: Codable {
+        var balance: Decimal?
+        var unlimited: Bool
+    }
+
     var planType: String?
     var primary: Window?
     var secondary: Window?
     var fetchedAt: Date
     var resetCredits: ResetCredits?
+    var credits: Credits?
 
     init(_ usage: UsageSnapshot) {
         planType = usage.planName
@@ -245,6 +251,11 @@ private struct StoredCodexRateLimits: Codable {
                 availableCount: resetCredits.availableCount,
                 credits: resetCredits.credits?.map { ResetCredits.Credit(expiresAt: $0.expiresAt) }
             )
+        }
+        credits = switch usage.credits {
+        case let .balance(balance): Credits(balance: balance, unlimited: false)
+        case .unlimited: Credits(balance: nil, unlimited: true)
+        case .extraUsage, nil: nil
         }
     }
 
@@ -260,6 +271,9 @@ private struct StoredCodexRateLimits: Codable {
                 availableCount: resetCredits.availableCount,
                 credits: resetCredits.credits?.map { UsageResetCredit(expiresAt: $0.expiresAt) }
             )
+        }
+        usage.credits = credits.flatMap { credits in
+            credits.unlimited ? .unlimited : credits.balance.map(UsageCredits.balance)
         }
         return usage
     }

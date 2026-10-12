@@ -175,6 +175,22 @@ struct CodexUsageTests {
     }
 
     @Test
+    func mergingKeepsTheLastCreditsCodexReported() throws {
+        let withCredits = try usage(fromAppServerJSON: """
+        { "rateLimits": { "credits": { "hasCredits": true, "unlimited": false, "balance": "120.5" }, "primary": { "usedPercent": 3, "windowDurationMins": 300 } } }
+        """)
+        let withoutCredits = try usage(fromAppServerJSON: """
+        { "rateLimits": { "primary": { "usedPercent": 4, "windowDurationMins": 300 } } }
+        """)
+        let unlimited = try usage(fromAppServerJSON: """
+        { "rateLimits": { "credits": { "hasCredits": true, "unlimited": true, "balance": null }, "primary": { "usedPercent": 5, "windowDurationMins": 300 } } }
+        """)
+
+        #expect(mergeAppServerUsage(previous: withCredits, current: withoutCredits)?.credits == .balance(Decimal(string: "120.5")!))
+        #expect(mergeAppServerUsage(previous: withCredits, current: unlimited)?.credits == .unlimited)
+    }
+
+    @Test
     func twoSessionLengthWindowsKeepOnlyTheFirst() throws {
         let usage = try usage(fromAppServerJSON: """
         {

@@ -56,6 +56,7 @@ final class CodexAppServerClient {
                         primary: usage.codexSlots.primary.map(Self.appServerWindow),
                         secondary: usage.codexSlots.secondary.map(Self.appServerWindow),
                         resetCredits: usage.resetCredits,
+                        credits: usage.credits,
                         fetchedAt: usage.fetchedAt
                     )
                 }

@@ -46,8 +46,17 @@ struct CodexAppServerRateLimitParser {
             planType: snapshot.planType,
             primary: snapshot.primary.flatMap(parseWindow),
             secondary: snapshot.secondary.flatMap(parseWindow),
+            credits: snapshot.credits.flatMap(parseCredits),
             fetchedAt: fetchedAt
         )
+    }
+
+    private func parseCredits(_ credits: CreditsSnapshot) -> UsageCredits? {
+        if credits.unlimited == true { return .unlimited }
+        guard credits.hasCredits == true,
+              let balance = credits.balance.flatMap({ Decimal(string: $0, locale: Locale(identifier: "en_US_POSIX")) })
+        else { return nil }
+        return .balance(balance)
     }
 
     private func parseWindow(_ window: RateLimitWindow) -> CodexAppServerRateLimitWindow? {
@@ -113,6 +122,31 @@ struct RateLimitSnapshot: Decodable {
     let planType: String?
     let primary: RateLimitWindow?
     let secondary: RateLimitWindow?
+    var credits: CreditsSnapshot? = nil
+}
+
+extension RateLimitSnapshot {
+    private enum CodingKeys: String, CodingKey {
+        case limitId, limitName, planType, primary, secondary, credits
+    }
+
+    /// A credits object Refill cannot read leaves the limits readable.
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        limitId = try container.decodeIfPresent(String.self, forKey: .limitId)
+        limitName = try container.decodeIfPresent(String.self, forKey: .limitName)
+        planType = try container.decodeIfPresent(String.self, forKey: .planType)
+        primary = try container.decodeIfPresent(RateLimitWindow.self, forKey: .primary)
+        secondary = try container.decodeIfPresent(RateLimitWindow.self, forKey: .secondary)
+        credits = try? container.decodeIfPresent(CreditsSnapshot.self, forKey: .credits)
+    }
+}
+
+/// The balance is a decimal string, such as "62498.0761312500".
+struct CreditsSnapshot: Decodable {
+    let hasCredits: Bool?
+    let unlimited: Bool?
+    let balance: String?
 }
 
 struct RateLimitWindow: Decodable {

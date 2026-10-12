@@ -21,6 +21,7 @@ struct RefillAccountStatusMapper {
             fetchedAt: appServerRateLimits.fetchedAt
         )
         usage.resetCredits = appServerRateLimits.resetCredits
+        usage.credits = appServerRateLimits.credits
         return usage
     }
 
