@@ -1,7 +1,7 @@
 import Foundation
 
 /// Owns every connected tool other than Codex: reads each at most once per its `refreshInterval`, keeps its latest
-/// reading, its last good snapshot and its saved accounts for the menu, and runs the actions the menu sends.
+/// reading and its last good snapshot for the menu, and runs the actions the menu sends.
 @MainActor
 final class ProviderUsageRuntime {
     nonisolated static let refreshInterval: TimeInterval = 5 * 60
@@ -11,7 +11,6 @@ final class ProviderUsageRuntime {
     private let onChange: () -> Void
     private var readings: [UsageProvider: UsageProviderReading] = [:]
     private var lastSnapshots: [UsageProvider: UsageSnapshot] = [:]
-    private var accounts: [UsageProvider: [ProviderAccount]] = [:]
     private var lastRefreshStartedAt: [UsageProvider: Date] = [:]
     private var signingIn: Set<UsageProvider> = []
     /// Bumped when a tool's signed-in account changes, so a read that started before the change is dropped.
@@ -44,7 +43,6 @@ final class ProviderUsageRuntime {
                         at: date,
                         staleAfter: connection.staleAfter
                     ),
-                    accounts: accounts[provider] ?? [],
                     isSigningIn: signingIn.contains(provider)
                 )
             }
@@ -60,7 +58,7 @@ final class ProviderUsageRuntime {
     }
 
     /// Runs `action` for one tool, then reads that tool again. Returns what to tell the user when it failed.
-    /// Switching or signing in drops the tool's reading first, so the previous account's numbers never show.
+    /// Signing in drops the tool's reading first, so the previous account's numbers never show.
     func perform(_ action: ProviderAction, on provider: UsageProvider) async -> ProviderNotice? {
         guard let connection = connection(for: provider) else { return nil }
         var notice: ProviderNotice?
@@ -70,14 +68,6 @@ final class ProviderUsageRuntime {
                 await connection.connect()
             case .disconnect:
                 await connection.disconnect()
-            case let .switchAccount(id):
-                discardReading(for: provider)
-                defer { discardReading(for: provider) }
-                try await connection.switchAccount(to: id)
-            case .addAccount:
-                try await connection.addCurrentAccount()
-            case let .removeAccount(id):
-                try await connection.removeAccount(id)
             case .signIn:
                 guard let signIn = connection.signIn, signingIn.insert(provider).inserted else { return nil }
                 onChange()
@@ -88,7 +78,7 @@ final class ProviderUsageRuntime {
             case .cancelSignIn:
                 await connection.signIn?.cancel()
                 return nil
-            case .useResetCredit:
+            case .switchAccount, .addAccount, .removeAccount, .useResetCredit:
                 return nil
             }
         } catch {
@@ -111,21 +101,12 @@ final class ProviderUsageRuntime {
         for connection in dueConnections {
             lastRefreshStartedAt[connection.provider] = startedAt
         }
-        await withTaskGroup(of: (UsageProvider, UsageProviderReading, [ProviderAccount]?).self) { group in
+        await withTaskGroup(of: (UsageProvider, UsageProviderReading).self) { group in
             for connection in dueConnections {
-                group.addTask {
-                    let reading = await connection.readUsage(now: startedAt)
-                    guard reading != .notConnected else { return (connection.provider, reading, []) }
-                    // A list that can't be read keeps the last one rather than looking like no saved accounts.
-                    return (connection.provider, reading, try? await connection.savedAccounts())
-                }
+                group.addTask { (connection.provider, await connection.readUsage(now: startedAt)) }
             }
-            for await (provider, reading, savedAccounts) in group
-            where generations[provider] == startGenerations[provider] {
+            for await (provider, reading) in group where generations[provider] == startGenerations[provider] {
                 readings[provider] = reading
-                if let savedAccounts {
-                    accounts[provider] = savedAccounts
-                }
                 switch reading {
                 case let .snapshot(snapshot):
                     lastSnapshots[provider] = snapshot

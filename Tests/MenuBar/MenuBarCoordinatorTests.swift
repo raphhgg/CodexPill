@@ -254,68 +254,6 @@ struct MenuBarCoordinatorTests {
     }
 
     @Test
-    func switchingAToolAccountNeverShowsThePreviousAccountsNumbers() async throws {
-        let harness = try MenuBarCoordinatorHarness()
-        defer { harness.tearDown() }
-        let now = Date()
-        let personal = UUID()
-        let work = UUID()
-        let personalUsage = UsageSnapshot(
-            provider: .cursor,
-            planName: "pro",
-            windows: [UsageWindow(kind: .billingCycle, usedPercent: 82, resetsAt: now.addingTimeInterval(86_400), durationMinutes: 43_200)],
-            fetchedAt: now
-        )
-        let cursor = ProviderConnectionProbe(provider: .cursor, reading: .snapshot(personalUsage))
-        cursor.update {
-            $0.accounts = [
-                ProviderAccount(id: personal, email: "personal@example.com", isActive: true),
-                ProviderAccount(id: work, email: "work@example.com", isActive: false),
-            ]
-            $0.readingAfterSwitch = .unavailable(.unreachable)
-        }
-        let coordinator = harness.makeCoordinator(providerConnections: [cursor])
-        coordinator.start()
-        await coordinator.waitForPendingWork()
-        #expect(coordinator.menuState().providerUsage.first?.status == .current(personalUsage))
-
-        harness.alertPresenter.confirmationResponse = true
-        harness.send(.switchAccount(work), for: .cursor)
-        await coordinator.waitForPendingWork()
-
-        #expect(harness.alertPresenter.confirmationRequests.map(\.messageText) == ["Switch Cursor account?"])
-        #expect(cursor.switchedTo == [work])
-        #expect(coordinator.menuState().providerUsage == [
-            ProviderUsageState(
-                provider: .cursor,
-                status: .unavailable(.unreachable, lastSnapshot: nil),
-                accounts: [
-                    ProviderAccount(id: personal, email: "personal@example.com", isActive: false),
-                    ProviderAccount(id: work, email: "work@example.com", isActive: true),
-                ]
-            )
-        ])
-    }
-
-    @Test
-    func aFailedToolSwitchExplainsWhyInAShortAlert() async throws {
-        let harness = try MenuBarCoordinatorHarness()
-        defer { harness.tearDown() }
-        let claude = ProviderConnectionProbe(provider: .claude, reading: .awaitingUsage)
-        claude.update { $0.switchError = ClaudeCodeAccountError.claudeCodeRunning.notice }
-        let coordinator = harness.makeCoordinator(providerConnections: [claude])
-        coordinator.start()
-        await coordinator.waitForPendingWork()
-
-        harness.send(.switchAccount(UUID()), for: .claude)
-        await coordinator.waitForPendingWork()
-
-        #expect(harness.alertPresenter.confirmationRequests.isEmpty)
-        #expect(harness.alertPresenter.infoRequests.map(\.messageText) == ["Quit Claude Code first"])
-        #expect(harness.alertPresenter.infoRequests.map(\.informativeText) == ["Close every claude session."])
-    }
-
-    @Test
     func usingACodexResetAsksFirstThenReportsTheOutcome() async throws {
         let harness = try MenuBarCoordinatorHarness()
         defer { harness.tearDown() }

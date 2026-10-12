@@ -116,48 +116,6 @@ struct CursorUsageTests {
         #expect(await fixture.usage.readUsage(now: now) == .unavailable(.rateLimited))
     }
 
-    @Test
-    func switchingGoesThroughTheSavedAccountsAndQuitsCursorFirst() async throws {
-        let workToken = CursorAccessTokenFixtures.jwt(subject: "auth0|user_work", expiresAt: now)
-        let homeToken = CursorAccessTokenFixtures.jwt(subject: "auth0|user_home", expiresAt: now)
-        let harness = try CursorStateDatabaseHarness()
-        try harness.create()
-        try harness.insertText(homeToken)
-        harness.close()
-        let store = CursorAccountStoreHarness()
-        let app = CursorAppProcessProbe()
-        let work = CursorSavedAccount(
-            id: UUID(),
-            name: "Work",
-            signIn: try #require(CursorSignIn(values: [CursorSignIn.accessTokenKey: .text(workToken)]))
-        )
-        try store.save([work])
-        let fixture = CursorUsageFixture()
-        defer { fixture.remove() }
-        let usage = CursorUsage(
-            settings: fixture.settings,
-            client: fixture.usage.client,
-            accounts: CursorAccounts(database: CursorStateDatabase(url: harness.databaseURL), store: store, app: app)
-        )
-
-        try await usage.switchAccount(to: work.id)
-
-        #expect(app.events == [.quit, .open])
-        #expect(try CursorStateDatabaseTokenSource(databaseURL: harness.databaseURL).lookup().userID == "user_work")
-        #expect(try store.load().map(\.name).sorted() == ["Cursor", "Work"])
-        #expect(try await usage.savedAccounts().first { $0.isActive }?.id == work.id)
-    }
-
-    @Test
-    func switchingIsUnavailableWithoutSavedAccounts() async {
-        let fixture = CursorUsageFixture()
-        defer { fixture.remove() }
-
-        await #expect(throws: ProviderNotice(title: "Switching unavailable", detail: "This build can't switch accounts.")) {
-            try await fixture.usage.switchAccount(to: UUID())
-        }
-    }
-
     private func connectedReading(summary: String) async -> UsageProviderReading {
         let now = now
         let fixture = CursorUsageFixture(now: { now })

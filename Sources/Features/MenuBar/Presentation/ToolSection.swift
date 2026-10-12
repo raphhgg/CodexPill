@@ -5,7 +5,7 @@ struct ToolSection: Equatable {
     let provider: UsageProvider
     let planTag: String?
     let card: ToolCard
-    /// Saved accounts, the one in use first. Labels are emails, masked when Hide Emails is on.
+    /// Saved Codex accounts, labeled by email, masked when Hide Emails is on. Claude and Cursor have none.
     let accounts: [ToolAccount]
     /// An action row under the card while its state lasts, such as "Allow Keychain access…".
     let followUp: ToolFollowUp?
@@ -149,31 +149,13 @@ extension MenuBarMenuState {
             }
         }
 
-        let accounts = accountLabels(usage.accounts)
         return ToolSection(
             provider: usage.provider,
             planTag: snapshot.flatMap { planTag(for: usage.provider, planName: $0.planName) },
             card: card,
-            accounts: accounts.filter(\.isActive) + accounts.filter { !$0.isActive },
+            accounts: [],
             followUp: followUp
         )
-    }
-
-    /// An account reads as its email, else its organization, else "Saved account". Labels that would repeat get
-    /// a number in saved order, so it does not move when the user switches: "Saved account", "Saved account 2".
-    /// An organization name with an @ in it is skipped, because Claude names personal organizations after the email.
-    private func accountLabels(_ accounts: [ProviderAccount]) -> [ToolAccount] {
-        let baseLabels = accounts.map { account in
-            if let email = account.email { return displayedEmail(email, masked: masksEmails) }
-            if let name = account.name, !name.contains("@") { return name }
-            return "Saved account"
-        }
-        var seen: [String: Int] = [:]
-        return zip(accounts, baseLabels).map { account, label in
-            seen[label, default: 0] += 1
-            let count = seen[label] ?? 1
-            return ToolAccount(id: account.id, label: count > 1 ? "\(label) \(count)" : label, isActive: account.isActive)
-        }
     }
 
     /// A reading that is not current keeps its meters, dimmed, under the time it was read.

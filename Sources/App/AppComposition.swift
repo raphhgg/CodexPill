@@ -19,12 +19,7 @@ struct AppComposition {
             resetCreditClient: codexAppServerClient
         ).makeController()
 
-        let claudeCodeUsage = Self.makeClaudeCodeUsage(
-            environment: environment,
-            defaults: defaults,
-            isolatedRootDirectory: isolatedRootDirectory,
-            appSupportDirectory: repository.paths.appSupportDirectory
-        )
+        let claudeCodeUsage = Self.makeClaudeCodeUsage(environment: environment, defaults: defaults, isolatedRootDirectory: isolatedRootDirectory)
         let cursorUsage = Self.makeCursorUsage(defaults: defaults, isolatedRootDirectory: isolatedRootDirectory)
         coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(),
@@ -48,76 +43,39 @@ struct AppComposition {
         )
     }
 
-    /// An isolated run never touches the real Claude sign-in: it reads `.credentials.json` from `CLAUDE_CONFIG_DIR`, or
-    /// from `.claude` inside the isolated root, skips the Keychain, and has no account switching.
+    /// An isolated run never reads the real Claude sign-in: it reads `.credentials.json` from `CLAUDE_CONFIG_DIR`, or from
+    /// `.claude` inside the isolated root, and skips the Keychain.
     private static func makeClaudeCodeUsage(
         environment: [String: String],
         defaults: UserDefaults,
-        isolatedRootDirectory: URL?,
-        appSupportDirectory: URL
+        isolatedRootDirectory: URL?
     ) -> ClaudeCodeUsage {
-        let settings = ClaudeUsageSettingsStore(userDefaults: defaults)
-        let webClient = URLSessionClaudeUsageWebClient()
+        let credentials: ClaudeCredentialsSource
         if let isolatedRootDirectory {
             let configDirectory = environment["CLAUDE_CONFIG_DIR"]?.isEmpty == false
                 ? ClaudeCredentialsSource.configDirectory(environment: environment)
                 : isolatedRootDirectory.appendingPathComponent(".claude", isDirectory: true)
-            return ClaudeCodeUsage(
-                settings: settings,
-                client: ClaudeUsageClient(
-                    credentials: ClaudeCredentialsSource(configDirectory: configDirectory, keychain: nil),
-                    webClient: webClient
-                )
+            credentials = ClaudeCredentialsSource(configDirectory: configDirectory, keychain: nil)
+        } else {
+            credentials = ClaudeCredentialsSource(
+                configDirectory: ClaudeCredentialsSource.configDirectory(environment: environment),
+                keychain: SystemClaudeKeychain()
             )
         }
-
-        let configDirectory = ClaudeCredentialsSource.configDirectory(environment: environment)
-        let keychain = SystemClaudeKeychain()
         return ClaudeCodeUsage(
-            settings: settings,
-            client: ClaudeUsageClient(
-                credentials: ClaudeCredentialsSource(configDirectory: configDirectory, keychain: keychain),
-                webClient: webClient
-            ),
-            accounts: ClaudeCodeAccountStore(
-                catalogFile: appSupportDirectory.appendingPathComponent("claude-code-accounts.json"),
-                items: SystemClaudeCodeAccountItems(),
-                claudeCode: ClaudeCodeSignInStore(
-                    configDirectory: configDirectory,
-                    globalConfigFile: ClaudeCodeSignInStore.globalConfigFile(
-                        environment: environment,
-                        homeDirectory: FileManager.default.homeDirectoryForCurrentUser
-                    ),
-                    keychain: keychain
-                ),
-                processes: SystemClaudeCodeProcessDetector()
-            )
+            settings: ClaudeUsageSettingsStore(userDefaults: defaults),
+            client: ClaudeUsageClient(credentials: credentials, webClient: URLSessionClaudeUsageWebClient())
         )
     }
 
-    /// An isolated run never touches the real Cursor: it reads `Cursor/state.vscdb` inside the isolated root and has
-    /// no account switching, so it never quits Cursor or writes its database.
+    /// An isolated run never reads Cursor's real sign-in: it reads `Cursor/state.vscdb` inside the isolated root.
     private static func makeCursorUsage(defaults: UserDefaults, isolatedRootDirectory: URL?) -> CursorUsage {
-        let settings = CursorUsageSettingsStore(userDefaults: defaults)
-        let webClient = URLSessionCursorUsageWebClient()
-        if let isolatedRootDirectory {
-            return CursorUsage(
-                settings: settings,
-                client: CursorUsageClient(
-                    tokenSource: CursorStateDatabaseTokenSource(databaseURL: CursorStateDatabase.isolatedURL(root: isolatedRootDirectory)),
-                    webClient: webClient
-                )
-            )
-        }
-
+        let tokenSource = isolatedRootDirectory.map {
+            CursorStateDatabaseTokenSource(databaseURL: CursorStateDatabase.isolatedURL(root: $0))
+        } ?? CursorStateDatabaseTokenSource()
         return CursorUsage(
-            settings: settings,
-            client: CursorUsageClient(tokenSource: CursorStateDatabaseTokenSource(), webClient: webClient),
-            accounts: CursorAccounts(
-                database: CursorStateDatabase(url: CursorStateDatabase.defaultURL),
-                store: SystemCursorAccountKeychain(),
-                app: SystemCursorAppProcessClient()
-            )
+            settings: CursorUsageSettingsStore(userDefaults: defaults),
+            client: CursorUsageClient(tokenSource: tokenSource, webClient: URLSessionCursorUsageWebClient())
         )
     }
 }

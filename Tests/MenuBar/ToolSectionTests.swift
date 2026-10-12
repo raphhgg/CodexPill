@@ -167,11 +167,7 @@ struct ToolSectionTests {
     func accountsListTheOneInUseFirstWithEmailsMaskedWhenHidden() throws {
         let active = makeAccount(name: "Alex", email: "alex@example.com", usage: makeUsage(fetchedAt: now))
         let other = makeAccount(name: "Side", email: "alex.side@example.com")
-        let claudeAccounts = [
-            ProviderAccount(id: UUID(), email: "sam@acme.dev", isActive: false),
-            ProviderAccount(id: UUID(), email: nil, isActive: true),
-        ]
-        let claude = ProviderUsageState(provider: .claude, status: .current(claudeSnapshot()), accounts: claudeAccounts)
+        let claude = ProviderUsageState(provider: .claude, status: .current(claudeSnapshot()))
 
         let shown = state(activeAccount: active, inactiveAccounts: [other], providerUsage: [claude])
         let hidden = state(activeAccount: active, inactiveAccounts: [other], providerUsage: [claude], masksEmails: true)
@@ -183,23 +179,7 @@ struct ToolSectionTests {
         #expect(codex.activeAccount?.label == "alex@example.com")
         #expect(codex.otherAccounts.map(\.label) == ["alex.side@example.com"])
         #expect(maskedCodex.accounts.map(\.label) == ["a•••x@example.com", "al•••e@example.com"])
-        #expect(maskedClaude.accounts.map(\.label) == ["Saved account", "s•••m@acme.dev"])
-        #expect(maskedClaude.activeAccount?.label == "Saved account")
-    }
-
-    @Test
-    func accountsWithoutEmailReadAsTheirOrganizationOrANumberedSavedAccount() throws {
-        let claudeAccounts = [
-            ProviderAccount(id: UUID(), email: nil, isActive: false),
-            ProviderAccount(id: UUID(), email: nil, name: "Acme", isActive: false),
-            ProviderAccount(id: UUID(), email: nil, name: "sam@acme.dev's Organization", isActive: true),
-            ProviderAccount(id: UUID(), email: nil, name: "Acme", isActive: false),
-        ]
-        let claude = ProviderUsageState(provider: .claude, status: .current(claudeSnapshot()), accounts: claudeAccounts)
-
-        let section = try #require(state(providerUsage: [claude], masksEmails: true).toolSections.first)
-
-        #expect(section.accounts.map(\.label) == ["Saved account 2", "Saved account", "Acme", "Acme 2"])
+        #expect(maskedClaude.accounts.isEmpty)
     }
 
     @Test

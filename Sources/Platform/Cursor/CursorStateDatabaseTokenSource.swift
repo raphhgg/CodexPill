@@ -1,7 +1,7 @@
 import Foundation
 
 struct CursorStateDatabaseTokenSource: CursorAccessTokenSource {
-    static let accessTokenKey = CursorSignIn.accessTokenKey
+    static let accessTokenKey = "cursorAuth/accessToken"
 
     let databaseURL: URL
 
@@ -17,12 +17,20 @@ struct CursorStateDatabaseTokenSource: CursorAccessTokenSource {
 
         guard
             let value = try database.values(forKeys: [Self.accessTokenKey])[Self.accessTokenKey],
-            let token = CursorSignIn.accessToken(from: value)
+            let token = Self.accessToken(from: value)
         else {
             return .signedOut
         }
 
         return .token(token)
+    }
+
+    static func accessToken(from value: CursorStateValue) -> CursorAccessToken? {
+        let jwt: String? = switch value {
+        case .text(let text): text
+        case .blob(let data): decodeTokenValue(data)
+        }
+        return jwt.flatMap(CursorAccessToken.init(jwt:))
     }
 
     static func decodeTokenValue(_ data: Data) -> String? {

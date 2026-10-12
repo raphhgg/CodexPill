@@ -918,7 +918,7 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func firstRunMenuOffersToAddAnAccountForEveryTool() throws {
+    func firstRunMenuOffersCodexAndToConnectClaudeAndCursor() throws {
         let menu = MenuBarMenuBuilder().makeMenu(
             state: makeState(
                 activeAccount: nil,
@@ -977,13 +977,11 @@ struct MenuBarMenuBuilderTests {
 
     @Test
     func claudeSideMenuEndsWithDisconnectAndAKeychainStateAddsItsActionUnderTheCard() throws {
-        let saved = ProviderAccount(id: UUID(), email: "sam@acme.dev", isActive: false)
-        let active = ProviderAccount(id: UUID(), email: "alex@example.com", isActive: true)
         let menu = MenuBarMenuBuilder().makeMenu(
             state: makeState(
                 activeAccount: makeAccount(name: "Work", usage: makeUsage(resettingAfter: .now)),
                 providerUsage: [
-                    ProviderUsageState(provider: .claude, status: .unavailable(.keychainAccessNeeded, lastSnapshot: nil), accounts: [saved, active]),
+                    ProviderUsageState(provider: .claude, status: .unavailable(.keychainAccessNeeded, lastSnapshot: nil)),
                 ],
                 masksEmails: true
             ),
@@ -994,17 +992,10 @@ struct MenuBarMenuBuilderTests {
 
         #expect(menu.items.map(\.title) == ["Claude", "Allow Keychain access…", "", "Codex", "", "Settings", "", "Quit"])
         #expect(providerAction(menu.items[1]) == .allowKeychainAccess)
-        #expect(side.items.map(\.title) == [
-            "a•••x@example.com", "",
-            "Use s•••m@acme.dev", "",
-            "Move to Top", "Move Up", "Move Down", "",
-            "Add Claude Account…", "Remove Claude Account", "",
-            "Disconnect Claude",
-        ])
+        #expect(side.items.map(\.title) == ["Move to Top", "Move Up", "Move Down", "", "Disconnect Claude"])
         #expect(side.items.filter { $0.title.hasPrefix("Move") }.map(\.isEnabled) == [false, false, true])
-        #expect(side.items[4...6].compactMap { $0.representedObject as? [UsageProvider] } == [[.codex, .claude, .cursor]])
-        #expect(providerAction(side.items[2]) == .switchAccount(saved.id))
-        #expect(providerAction(side.items[11]) == .disconnect)
+        #expect(side.items[0...2].compactMap { $0.representedObject as? [UsageProvider] } == [[.codex, .claude, .cursor]])
+        #expect(providerAction(side.items[4]) == .disconnect)
     }
 
     @Test
@@ -1026,7 +1017,8 @@ struct MenuBarMenuBuilderTests {
             "Add Account", "", "Appearance", "Hide Emails", "Refresh Every", "Launch at Login", "", "Diagnostics…", "About",
         ])
         #expect(settings.items.first { $0.title == "Hide Emails" }?.state == .on)
-        #expect(addAccount.items.map(providerAction) == [.addAccount, .addAccount, .connect])
+        #expect(addAccount.items.map(\.title) == ["Codex…", "Cursor…"])
+        #expect(addAccount.items.map(providerAction) == [.addAccount, .connect])
         #expect(refresh.items.map(\.title) == ["1 minute", "2 minutes", "5 minutes", "10 minutes", "15 minutes", "30 minutes"])
         #expect(refresh.items.first { $0.state == .on }?.title == "5 minutes")
     }

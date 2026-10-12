@@ -4,8 +4,6 @@ import Foundation
 struct ProviderUsageState: Equatable {
     let provider: UsageProvider
     let status: ProviderUsageStatus
-    /// Saved sign-ins to switch between. Empty while not connected or when this build can't switch.
-    var accounts: [ProviderAccount] = []
     /// CodexPill's own browser sign-in for this tool is waiting for the user.
     var isSigningIn = false
 }

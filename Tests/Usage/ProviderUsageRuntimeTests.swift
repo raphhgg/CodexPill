@@ -129,7 +129,7 @@ struct ProviderUsageRuntimeTests {
     }
 
     @Test
-    func aReadThatStartedBeforeASwitchIsDroppedWhenItFinishesAfterIt() async {
+    func aReadThatStartedBeforeASignInIsDroppedWhenItFinishesAfterIt() async {
         let snapshot = UsageSnapshot(
             provider: .cursor,
             planName: "pro",
@@ -137,7 +137,7 @@ struct ProviderUsageRuntimeTests {
             fetchedAt: start
         )
         let gate = TestGate()
-        let cursor = ProviderConnectionProbe(provider: .cursor, reading: .snapshot(snapshot))
+        let cursor = ProviderConnectionProbe(provider: .cursor, reading: .snapshot(snapshot), signIn: InstantSignIn())
         cursor.update { $0.readGate = gate }
         let runtime = ProviderUsageRuntime(connections: [cursor], now: { [start] in start }, onChange: {})
 
@@ -147,7 +147,7 @@ struct ProviderUsageRuntimeTests {
             $0.readGate = nil
             $0.reading = .unavailable(.unreachable)
         }
-        let notice = await runtime.perform(.switchAccount(UUID()), on: .cursor)
+        let notice = await runtime.perform(.signIn, on: .cursor)
         await gate.open()
         await slowRead.value
 
@@ -173,7 +173,6 @@ struct ProviderUsageRuntimeTests {
         #expect(runtime.states == [ProviderUsageState(provider: .claude, status: .awaitingUsage)])
         #expect(claude.readCount == 2)
     }
-
 }
 
 private struct GatedSignIn: ProviderSignIn {
@@ -184,5 +183,10 @@ private struct GatedSignIn: ProviderSignIn {
         return true
     }
 
+    func cancel() async {}
+}
+
+private struct InstantSignIn: ProviderSignIn {
+    func run() async throws(ProviderNotice) -> Bool { true }
     func cancel() async {}
 }

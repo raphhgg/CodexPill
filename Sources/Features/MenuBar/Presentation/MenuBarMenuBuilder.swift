@@ -69,7 +69,7 @@ struct MenuBarMenuBuilder {
     private func sideMenu(for section: ToolSection, state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenu {
         let provider = section.provider
         let title = provider.copy.sectionTitle
-        let accountActionsEnabled = provider != .codex || !state.isBusy
+        let accountActionsEnabled = !state.isBusy
         let menu = NSMenu(title: title)
 
         if let active = section.activeAccount {
@@ -123,10 +123,12 @@ struct MenuBarMenuBuilder {
             moves.forEach(menu.addItem)
         }
 
-        addSeparatorIfNeeded(to: menu)
-        let add = providerItem(title: "Add \(title) Account…", .addAccount, for: provider, target: target)
-        add.isEnabled = accountActionsEnabled
-        menu.addItem(add)
+        if provider == .codex {
+            addSeparatorIfNeeded(to: menu)
+            let add = providerItem(title: "Add \(title) Account…", .addAccount, for: provider, target: target)
+            add.isEnabled = accountActionsEnabled
+            menu.addItem(add)
+        }
         if !section.accounts.isEmpty {
             let remove = NSMenu(title: "Remove \(title) Account")
             for account in section.accounts {
@@ -169,14 +171,16 @@ struct MenuBarMenuBuilder {
         return item
     }
 
-    /// Adds an account for any tool. A tool that is not connected yet connects instead.
+    /// Adds a Codex account, or connects Claude or Cursor while they are not connected. Those two show only the
+    /// account their own app is signed in to.
     private func addAccountMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
         let menu = NSMenu(title: "Add Account")
-        for provider in [UsageProvider.codex, .claude, .cursor] {
-            let isConnected = provider == .codex || state.providerUsage.contains { $0.provider == provider && $0.status != .notConnected }
-            let item = providerItem(title: "\(provider.copy.sectionTitle)…", isConnected ? .addAccount : .connect, for: provider, target: target)
-            item.isEnabled = provider != .codex || !state.isBusy
-            menu.addItem(item)
+        let codex = providerItem(title: "\(UsageProvider.codex.copy.sectionTitle)…", .addAccount, for: .codex, target: target)
+        codex.isEnabled = !state.isBusy
+        menu.addItem(codex)
+        for provider in [UsageProvider.claude, .cursor]
+        where !state.providerUsage.contains(where: { $0.provider == provider && $0.status != .notConnected }) {
+            menu.addItem(providerItem(title: "\(provider.copy.sectionTitle)…", .connect, for: provider, target: target))
         }
         return submenuItem(menu)
     }

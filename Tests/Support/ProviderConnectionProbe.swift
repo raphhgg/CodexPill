@@ -3,17 +3,13 @@ import os
 
 @testable import CodexPill
 
-/// A tool connection whose reading and saved accounts the test sets. It counts reads and records switches.
+/// A tool connection whose reading the test sets. It counts reads.
 final class ProviderConnectionProbe: ProviderConnection {
     struct State {
         var reading: UsageProviderReading
         var readCount = 0
-        var accounts: [ProviderAccount] = []
-        var switchedTo: [UUID] = []
-        var switchError: ProviderNotice?
         /// Reads started while this is set wait at it, returning the reading they started with.
         var readGate: TestGate?
-        var readingAfterSwitch: UsageProviderReading?
     }
 
     let provider: UsageProvider
@@ -43,7 +39,6 @@ final class ProviderConnectionProbe: ProviderConnection {
     }
 
     var readCount: Int { state.withLock { $0.readCount } }
-    var switchedTo: [UUID] { state.withLock { $0.switchedTo } }
 
     func readUsage(now _: Date) async -> UsageProviderReading {
         let (reading, gate) = state.withLock { state in
@@ -59,21 +54,4 @@ final class ProviderConnectionProbe: ProviderConnection {
     func connect() async {}
     func disconnect() async {}
 
-    func savedAccounts() async throws(ProviderNotice) -> [ProviderAccount] {
-        state.withLock { $0.accounts }
-    }
-
-    func switchAccount(to id: UUID) async throws(ProviderNotice) {
-        let error = state.withLock { state -> ProviderNotice? in
-            if let error = state.switchError { return error }
-            state.switchedTo.append(id)
-            state.accounts = state.accounts.map { ProviderAccount(id: $0.id, email: $0.email, isActive: $0.id == id) }
-            if let next = state.readingAfterSwitch { state.reading = next }
-            return nil
-        }
-        if let error { throw error }
-    }
-
-    func addCurrentAccount() async throws(ProviderNotice) {}
-    func removeAccount(_: UUID) async throws(ProviderNotice) {}
 }

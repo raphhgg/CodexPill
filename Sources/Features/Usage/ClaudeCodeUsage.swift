@@ -8,18 +8,14 @@ struct ClaudeCodeUsage: ProviderConnection {
 
     let settings: ClaudeUsageSettingsStore
     let client: ClaudeUsageClient
-    /// Saved Claude Code sign-ins to switch between. Nil in isolated runs, which never write the real Keychain.
-    let accounts: ClaudeCodeAccountStore?
 
     init(
         settings: ClaudeUsageSettingsStore,
         client: ClaudeUsageClient,
-        accounts: ClaudeCodeAccountStore? = nil,
         refreshInterval: TimeInterval = ProviderUsageRuntime.refreshInterval
     ) {
         self.settings = settings
         self.client = client
-        self.accounts = accounts
         self.refreshInterval = refreshInterval
     }
 
@@ -38,50 +34,6 @@ struct ClaudeCodeUsage: ProviderConnection {
     }
 
     let signIn: (any ProviderSignIn)? = nil
-
-    func savedAccounts() async throws(ProviderNotice) -> [ProviderAccount] {
-        guard let accounts else { return [] }
-        do {
-            let activeID = try accounts.activeAccountID()
-            return try accounts.accounts().map {
-                ProviderAccount(id: $0.id, email: $0.email, name: $0.organizationName, isActive: $0.id == activeID)
-            }
-        } catch {
-            throw error.notice
-        }
-    }
-
-    /// Signs Claude Code in to a saved account. The switch rewrote Claude Code's sign-in, which can reset its Keychain
-    /// access rule, so the next read may show the Keychain prompt: the user just asked for this.
-    func switchAccount(to id: UUID) async throws(ProviderNotice) {
-        do {
-            try store().activate(id)
-        } catch {
-            throw error.notice
-        }
-        await client.allowKeychainPromptOnNextRead()
-    }
-
-    func addCurrentAccount() async throws(ProviderNotice) {
-        do {
-            try store().captureCurrent()
-        } catch {
-            throw error.notice
-        }
-    }
-
-    func removeAccount(_ id: UUID) async throws(ProviderNotice) {
-        do {
-            try store().delete(id)
-        } catch {
-            throw error.notice
-        }
-    }
-
-    private func store() throws(ClaudeCodeAccountError) -> ClaudeCodeAccountStore {
-        guard let accounts else { throw .switchingUnavailable }
-        return accounts
-    }
 
     func readUsage(now: Date) async -> UsageProviderReading {
         guard settings.isEnabled else { return .notConnected }

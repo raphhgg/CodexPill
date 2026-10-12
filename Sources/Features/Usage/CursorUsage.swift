@@ -8,18 +8,14 @@ struct CursorUsage: ProviderConnection {
 
     let settings: CursorUsageSettingsStore
     let client: CursorUsageClient
-    /// Saved Cursor sign-ins to switch between. Nil in isolated runs, which never quit the real Cursor.
-    let accounts: CursorAccounts?
 
     init(
         settings: CursorUsageSettingsStore,
         client: CursorUsageClient,
-        accounts: CursorAccounts? = nil,
         refreshInterval: TimeInterval = ProviderUsageRuntime.refreshInterval
     ) {
         self.settings = settings
         self.client = client
-        self.accounts = accounts
         self.refreshInterval = refreshInterval
     }
 
@@ -36,46 +32,6 @@ struct CursorUsage: ProviderConnection {
     }
 
     let signIn: (any ProviderSignIn)? = nil
-
-    func savedAccounts() async throws(ProviderNotice) -> [ProviderAccount] {
-        guard let accounts else { return [] }
-        do {
-            let activeID = try accounts.activeAccountID()
-            return try accounts.savedAccounts().map { ProviderAccount(id: $0.id, email: $0.email, isActive: $0.id == activeID) }
-        } catch {
-            throw error.notice
-        }
-    }
-
-    /// Signs Cursor in to a saved account. Cursor quits and reopens, so the menu asks first.
-    func switchAccount(to id: UUID) async throws(ProviderNotice) {
-        do {
-            try await store().activate(id)
-        } catch {
-            throw error.notice
-        }
-    }
-
-    func addCurrentAccount() async throws(ProviderNotice) {
-        do {
-            try store().captureCurrent()
-        } catch {
-            throw error.notice
-        }
-    }
-
-    func removeAccount(_ id: UUID) async throws(ProviderNotice) {
-        do {
-            try store().remove(id)
-        } catch {
-            throw error.notice
-        }
-    }
-
-    private func store() throws(CursorAccountsError) -> CursorAccounts {
-        guard let accounts else { throw .switchingUnavailable }
-        return accounts
-    }
 
     func readUsage(now _: Date) async -> UsageProviderReading {
         guard settings.isEnabled else { return .notConnected }

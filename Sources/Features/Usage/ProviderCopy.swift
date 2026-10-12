@@ -8,17 +8,12 @@ struct ProviderCopy: Sendable {
     /// Who answers usage requests, for "Can't reach …" style messages.
     let serviceName: String
     let connectPrompt: ProviderPrompt?
-    /// Nil when switching needs no warning.
-    let switchPrompt: ProviderPrompt?
 
     /// What the menu asks before running `action`, or nil to run it right away.
     func prompt(for action: ProviderAction) -> ProviderPrompt? {
         switch action {
         case .connect: connectPrompt
-        case .switchAccount: switchPrompt
-        case .removeAccount:
-            ProviderPrompt(title: "Remove this \(name) account?", detail: "CodexPill forgets its saved sign-in.", confirmTitle: "Remove")
-        case .allowKeychainAccess, .signIn, .cancelSignIn, .disconnect, .addAccount, .useResetCredit: nil
+        case .allowKeychainAccess, .signIn, .cancelSignIn, .disconnect, .switchAccount, .addAccount, .removeAccount, .useResetCredit: nil
         }
     }
 
@@ -44,7 +39,7 @@ extension UsageProvider {
     var copy: ProviderCopy {
         switch self {
         case .codex:
-            ProviderCopy(name: "Codex", sectionTitle: "Codex", serviceName: "Codex", connectPrompt: nil, switchPrompt: nil)
+            ProviderCopy(name: "Codex", sectionTitle: "Codex", serviceName: "Codex", connectPrompt: nil)
         case .claude:
             ProviderCopy(
                 name: "Claude Code",
@@ -54,8 +49,7 @@ extension UsageProvider {
                     title: "Connect Claude Code?",
                     detail: "Uses Claude Code's sign-in to read your limits.",
                     confirmTitle: "Connect"
-                ),
-                switchPrompt: nil
+                )
             )
         case .cursor:
             ProviderCopy(
@@ -66,51 +60,8 @@ extension UsageProvider {
                     title: "Connect Cursor?",
                     detail: "Uses Cursor's sign-in to read your usage.",
                     confirmTitle: "Connect"
-                ),
-                switchPrompt: ProviderPrompt(
-                    title: "Switch Cursor account?",
-                    detail: "Cursor will quit and reopen.",
-                    confirmTitle: "Switch"
                 )
             )
         }
-    }
-}
-
-extension ClaudeCodeAccountError {
-    var notice: ProviderNotice {
-        let (title, detail) = switch self {
-        case .unknownAccount: ("Account not found", "It may have been removed.")
-        case .savedSignInMissing: ("Saved sign-in missing", "Save this account again.")
-        case .savedAccountsUnreadable: ("Can't read saved accounts", "Try again in a moment.")
-        case .claudeCodeSignedOut: ("Claude Code isn't signed in", "Run claude and sign in first.")
-        case .claudeCodeAccountUnknown: ("Unknown Claude account", "Open Claude Code once, then retry.")
-        case .currentSignInNotSaved: ("Save this account first", "Otherwise its sign-in is lost.")
-        case .claudeCodeRunning: ("Quit Claude Code first", "Close every claude session.")
-        case .keychainAccessNeeded: ("Allow Keychain access", "CodexPill needs it to switch.")
-        case .unreadable: ("Can't read the Claude sign-in", "Sign in to Claude Code again.")
-        case .writeFailed: ("Couldn't switch", "Nothing was changed.")
-        case .restoreFailed: ("Couldn't undo the switch", "Sign in to Claude Code again.")
-        case .switchingUnavailable: ("Switching unavailable", "This build can't switch accounts.")
-        }
-        return ProviderNotice(title: title, detail: detail)
-    }
-}
-
-extension CursorAccountsError {
-    var notice: ProviderNotice {
-        let (title, detail) = switch self {
-        case .cursorNotInstalled: ("Cursor isn't installed", "Install Cursor, then try again.")
-        case .signedOut: ("Cursor isn't signed in", "Sign in to Cursor first.")
-        case .accountNotFound: ("Account not found", "It may have been removed.")
-        case .savedAccountsUnreadable: ("Can't read saved accounts", "Try again in a moment.")
-        case .stateUnreadable: ("Can't read Cursor's sign-in", "Open Cursor, then try again.")
-        case .cursorDidNotQuit: ("Cursor didn't quit", "Save your work, then try again.")
-        case .cursorBusy: ("Cursor is still closing", "Wait a moment, then try again.")
-        case .writeFailed: ("Couldn't switch", "Nothing was changed.")
-        case .reopenFailed: ("Cursor didn't reopen", "Open Cursor yourself.")
-        case .switchingUnavailable: ("Switching unavailable", "This build can't switch accounts.")
-        }
-        return ProviderNotice(title: title, detail: detail)
     }
 }

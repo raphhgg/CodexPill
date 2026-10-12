@@ -15,14 +15,6 @@ protocol ProviderConnection: UsageProviderSource {
     func disconnect() async
     /// CodexPill's own browser sign-in for this tool, or nil when it reads only the tool's sign-in.
     var signIn: (any ProviderSignIn)? { get }
-
-    /// Saved sign-ins, marked with the one the tool uses now. Empty when this build can't switch.
-    func savedAccounts() async throws(ProviderNotice) -> [ProviderAccount]
-    func switchAccount(to id: UUID) async throws(ProviderNotice)
-    /// Saves the sign-in the tool uses now, so the user can switch back to it.
-    func addCurrentAccount() async throws(ProviderNotice)
-    /// Forgets a saved sign-in. The tool stays signed in.
-    func removeAccount(_ id: UUID) async throws(ProviderNotice)
 }
 
 /// CodexPill's own sign-in for a tool, in the browser.
@@ -30,15 +22,6 @@ protocol ProviderSignIn: Sendable {
     /// Returns true once the user signed in, or false when they cancelled.
     func run() async throws(ProviderNotice) -> Bool
     func cancel() async
-}
-
-/// A saved sign-in as the menu may show it. It never carries tokens.
-struct ProviderAccount: Equatable, Identifiable, Sendable {
-    let id: UUID
-    var email: String?
-    /// What to call a sign-in without an email, such as its organization.
-    var name: String? = nil
-    var isActive: Bool
 }
 
 /// One thing the user asked a tool section to do. Every tool menu item carries one, for any tool.
