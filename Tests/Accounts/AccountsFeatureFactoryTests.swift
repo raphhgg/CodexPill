@@ -6,7 +6,7 @@ import Testing
 @MainActor
 struct AccountsFeatureFactoryTests {
     @Test
-    func makeMenuBarAccountsStoreLoadsAccountsThroughFactoryBuiltController() throws {
+    func makeControllerLoadsSavedAccounts() throws {
         let repository = try makeRepository()
         let account = CodexAccount(
             id: UUID(),
@@ -25,30 +25,24 @@ struct AccountsFeatureFactoryTests {
         let factory = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: FactoryCodexAppProcessProbe(),
-            accountStatusClient: DisabledAccountStatusClient(),
-            remoteHostSwitchOperations: UnavailableRemoteHostClient()
+            codexAppProcessClient: CodexAppProcessProbe(),
+            accountStatusClient: DisabledAccountStatusClient()
         )
 
-        let store = factory.makeMenuBarAccountsStore()
-        store.load()
+        let controller = factory.makeController()
+        controller.load()
 
-        #expect(store.accounts.count == 1)
-        #expect(store.accounts.first?.id == account.id)
-        #expect(store.accounts.first?.name == "Business")
-        #expect(store.statusMessage == "Loaded 1 account(s)")
+        #expect(controller.accounts.count == 1)
+        #expect(controller.accounts.first?.id == account.id)
+        #expect(controller.accounts.first?.name == "Business")
+        #expect(controller.statusMessage == "Loaded 1 account(s)")
     }
 
     private func makeRepository() throws -> AccountRepository {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("AccountsFeatureFactoryTests-\(UUID().uuidString)", isDirectory: true)
         return try AccountRepository(
-            environment: [AppRuntimeEnvironment.validationAppSupportDirectoryEnvironmentKey: directory.path]
+            isolatedRootDirectory: directory
         )
     }
-}
-
-private struct FactoryCodexAppProcessProbe: CodexAppProcessClient {
-    func assertCodexAvailable() throws {}
-    func relaunchCodex() async throws {}
 }

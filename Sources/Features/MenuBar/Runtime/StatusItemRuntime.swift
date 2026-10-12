@@ -102,10 +102,6 @@ final class StatusItemRuntime {
         set { statusItem.menu = newValue }
     }
 
-    var menuItemCount: Int {
-        statusItem.menu?.items.count ?? 0
-    }
-
     var isMenuTrackingOpen: Bool {
         isMenuOpen
     }

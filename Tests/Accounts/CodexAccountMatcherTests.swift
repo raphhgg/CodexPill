@@ -10,12 +10,12 @@ struct CodexAccountMatcherTests {
     func exactSnapshotMatchWinsOverRemoteIdentityFallback() {
         let exact = makeAccount(
             email: "exact@example.com",
-            snapshotFingerprint: "live-fingerprint",
+            fingerprint: "live-fingerprint",
             stableAccountID: nil
         )
         let fallback = makeAccount(
             email: "current@example.com",
-            snapshotFingerprint: "other-fingerprint",
+            fingerprint: "other-fingerprint",
             stableAccountID: nil
         )
 
@@ -35,7 +35,7 @@ struct CodexAccountMatcherTests {
     func uniqueRemoteIdentityMatchIsUsedWhenNoSnapshotMatchExists() {
         let account = makeAccount(
             email: "person@example.com",
-            snapshotFingerprint: "saved-fingerprint",
+            fingerprint: "saved-fingerprint",
             stableAccountID: nil
         )
 
@@ -53,8 +53,8 @@ struct CodexAccountMatcherTests {
 
     @Test
     func ambiguousRemoteIdentityIsExplicit() {
-        let first = makeAccount(email: "shared@example.com", snapshotFingerprint: "one", stableAccountID: nil)
-        let second = makeAccount(email: "shared@example.com", snapshotFingerprint: "two", stableAccountID: nil)
+        let first = makeAccount(email: "shared@example.com", fingerprint: "one", stableAccountID: nil)
+        let second = makeAccount(email: "shared@example.com", fingerprint: "two", stableAccountID: nil)
 
         let outcome = matcher.match(
             liveStableAccountID: nil,
@@ -70,7 +70,7 @@ struct CodexAccountMatcherTests {
 
     @Test
     func noMatchIsExplicitWhenNoTrustedSignalMatches() {
-        let account = makeAccount(email: "saved@example.com", snapshotFingerprint: "saved-fingerprint", stableAccountID: nil)
+        let account = makeAccount(email: "saved@example.com", fingerprint: "saved-fingerprint", stableAccountID: nil)
 
         let outcome = matcher.match(
             liveStableAccountID: nil,
@@ -88,7 +88,7 @@ struct CodexAccountMatcherTests {
     func stableAccountIDMatchWinsOverFingerprintMismatch() {
         let account = makeAccount(
             email: "saved@example.com",
-            snapshotFingerprint: "stale-fingerprint",
+            fingerprint: "stale-fingerprint",
             stableAccountID: "acct-123"
         )
 
@@ -108,7 +108,7 @@ struct CodexAccountMatcherTests {
     func scopedStableAccountIDMatchWinsWhenWorkspaceIdentityDiffers() {
         let personal = makeAccount(
             email: "shared@example.com",
-            snapshotFingerprint: "personal-fingerprint",
+            fingerprint: "personal-fingerprint",
             stableAccountID: "acct-123",
             workspaceIdentity: CodexWorkspaceIdentity(
                 workspaceAccountID: "org-personal",
@@ -117,7 +117,7 @@ struct CodexAccountMatcherTests {
         )
         let team = makeAccount(
             email: "shared@example.com",
-            snapshotFingerprint: "team-fingerprint",
+            fingerprint: "team-fingerprint",
             stableAccountID: "acct-123",
             workspaceIdentity: CodexWorkspaceIdentity(
                 workspaceAccountID: "org-team",
@@ -144,7 +144,7 @@ struct CodexAccountMatcherTests {
     func scopedStableAccountIDMatchWinsWhenAuthPrincipalDiffers() {
         let businessOne = makeAccount(
             email: "admin@example.com",
-            snapshotFingerprint: "business-one",
+            fingerprint: "business-one",
             stableAccountID: "acct-team",
             authPrincipalIdentity: CodexAuthPrincipalIdentity(
                 subject: "auth0|business-1",
@@ -153,7 +153,7 @@ struct CodexAccountMatcherTests {
         )
         let businessTwo = makeAccount(
             email: "user@example.com",
-            snapshotFingerprint: "business-two",
+            fingerprint: "business-two",
             stableAccountID: "acct-team",
             authPrincipalIdentity: CodexAuthPrincipalIdentity(
                 subject: "auth0|business-2",
@@ -177,10 +177,31 @@ struct CodexAccountMatcherTests {
     }
 
     @Test
+    func sameChatGPTUserSignedInAnotherWayMatchesTheSavedAccount() {
+        let saved = makeAccount(
+            email: "pro@example.com",
+            fingerprint: "saved-fingerprint",
+            stableAccountID: "acct-pro",
+            authPrincipalIdentity: CodexAuthPrincipalIdentity(subject: "auth0|pro", chatGPTUserID: "user-pro")
+        )
+
+        let outcome = matcher.match(
+            liveStableAccountID: "acct-pro",
+            liveAuthPrincipalIdentity: CodexAuthPrincipalIdentity(subject: "google-oauth2|pro", chatGPTUserID: "user-pro"),
+            liveWorkspaceIdentity: nil,
+            liveAuthFingerprint: "live-fingerprint",
+            liveRemoteIdentity: CodexRemoteAccountIdentity(emailAddress: "pro@example.com"),
+            accounts: [saved]
+        )
+
+        #expect(outcome == .exactScopedStableAccountID(saved.id))
+    }
+
+    @Test
     func stableAccountIDDoesNotFallbackWhenScopedPrincipalDoesNotMatch() {
         let businessOne = makeAccount(
             email: "admin@example.com",
-            snapshotFingerprint: "business-one",
+            fingerprint: "business-one",
             stableAccountID: "acct-team",
             authPrincipalIdentity: CodexAuthPrincipalIdentity(
                 subject: "auth0|business-1",
@@ -207,7 +228,7 @@ struct CodexAccountMatcherTests {
     func scopedStableMismatchDoesNotFallBackToRemoteIdentity() {
         let personal = makeAccount(
             email: "admin@example.com",
-            snapshotFingerprint: "personal-fingerprint",
+            fingerprint: "personal-fingerprint",
             stableAccountID: "acct-team",
             authPrincipalIdentity: CodexAuthPrincipalIdentity(
                 subject: "auth0|personal",
@@ -216,7 +237,7 @@ struct CodexAccountMatcherTests {
         )
         let business = makeAccount(
             email: "user@example.com",
-            snapshotFingerprint: "business-fingerprint",
+            fingerprint: "business-fingerprint",
             stableAccountID: "acct-team",
             authPrincipalIdentity: CodexAuthPrincipalIdentity(
                 subject: "auth0|business",
@@ -237,31 +258,5 @@ struct CodexAccountMatcherTests {
         )
 
         #expect(outcome == .noMatch)
-    }
-
-    private func makeAccount(
-        email: String,
-        snapshotFingerprint: String,
-        stableAccountID: String?,
-        authPrincipalIdentity: CodexAuthPrincipalIdentity? = nil,
-        workspaceIdentity: CodexWorkspaceIdentity? = nil
-    ) -> CodexAccount {
-        CodexAccount(
-            id: UUID(),
-            name: email,
-            snapshotFileName: "\(UUID().uuidString).json",
-            createdAt: .distantPast,
-            updatedAt: .distantPast,
-            email: email,
-            planType: nil,
-            rateLimits: nil,
-            identity: CodexAccountIdentity(
-                stableAccountID: stableAccountID,
-                authPrincipalIdentity: authPrincipalIdentity,
-                workspaceIdentity: workspaceIdentity,
-                snapshotFingerprint: snapshotFingerprint,
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: email)
-            )
-        )
     }
 }

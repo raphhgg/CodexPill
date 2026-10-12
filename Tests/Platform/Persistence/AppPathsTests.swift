@@ -5,12 +5,11 @@ import Testing
 
 struct AppPathsTests {
     @Test
-    func validationAppSupportDirectoryOverrideBypassesDefaultApplicationSupportLocation() throws {
+    func isolatedRootDirectoryBypassesDefaultApplicationSupportLocation() throws {
         let overrideDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         let paths = try AppPaths(
-            fileManager: .default,
-            environment: [AppRuntimeEnvironment.validationAppSupportDirectoryEnvironmentKey: overrideDirectory.path]
+            isolatedRootDirectory: overrideDirectory
         )
 
         #expect(normalizedDirectoryPath(paths.appSupportDirectory) == normalizedDirectoryPath(overrideDirectory))
@@ -31,40 +30,15 @@ struct AppPathsTests {
     }
 
     @Test
-    func automatedTestsDefaultToTemporaryApplicationSupportLocation() throws {
-        let paths = try AppPaths(
-            fileManager: .default,
-            environment: [AppRuntimeEnvironment.xctestConfigurationFilePathEnvironmentKey: "/tmp/test.xctestconfiguration"]
-        )
+    func tokenUsageCacheStaysInsideIsolatedRootDirectory() {
+        let isolatedRootDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
 
-        let expectedDirectory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("CodexPillTests-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true)
-        #expect(normalizedDirectoryPath(paths.appSupportDirectory) == normalizedDirectoryPath(expectedDirectory))
-        #expect(paths.accountsFile.standardizedFileURL.path == expectedDirectory.appendingPathComponent("accounts.json").standardizedFileURL.path)
+        let cacheFile = AppPaths.tokenUsageCacheFile(isolatedRootDirectory: isolatedRootDirectory)
+
         #expect(
-            paths.codexAuthFile.standardizedFileURL.path
-                == expectedDirectory
-                .appendingPathComponent("auth.json")
-                .standardizedFileURL.path
-        )
-    }
-
-    @Test
-    func launchedAutomatedTestHostDefaultsToTemporaryApplicationSupportLocation() throws {
-        let paths = try AppPaths(
-            fileManager: .default,
-            environment: [:]
-        )
-
-        let expectedDirectory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("CodexPillTests-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true)
-        #expect(normalizedDirectoryPath(paths.appSupportDirectory) == normalizedDirectoryPath(expectedDirectory))
-        #expect(paths.accountsFile.standardizedFileURL.path == expectedDirectory.appendingPathComponent("accounts.json").standardizedFileURL.path)
-        #expect(
-            paths.codexAuthFile.standardizedFileURL.path
-                == expectedDirectory
-                .appendingPathComponent("auth.json")
-                .standardizedFileURL.path
+            cacheFile.standardizedFileURL.path
+                == isolatedRootDirectory.appendingPathComponent("Caches/token-usage-cache.json").standardizedFileURL.path
         )
     }
 

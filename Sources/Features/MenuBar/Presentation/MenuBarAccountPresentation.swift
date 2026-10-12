@@ -1,23 +1,6 @@
 import AppKit
 import Foundation
 
-enum MenuBarAccountPlacement: Equatable {
-    case local
-    case remote
-    case localAndRemote
-
-    var badgeText: String {
-        switch self {
-        case .local:
-            return "Local"
-        case .remote:
-            return "Remote"
-        case .localAndRemote:
-            return "Local • Remote"
-        }
-    }
-}
-
 func menuPlanDisplayName(_ planType: String?) -> String {
     displayNameForCodexPlanType(planType)
 }
@@ -25,23 +8,15 @@ func menuPlanDisplayName(_ planType: String?) -> String {
 func inactiveAccountTitle(
     for account: CodexAccount,
     displayName: String? = nil,
-    placement: MenuBarAccountPlacement? = nil,
     menuContentWidth: CGFloat = 340,
     now: Date = .now
 ) -> NSAttributedString {
-    let paragraphStyle = NSMutableParagraphStyle()
-    let badgeColumnLocation = max(220, menuContentWidth - 28)
-    paragraphStyle.tabStops = [
-        NSTextTab(textAlignment: .right, location: badgeColumnLocation)
-    ]
-
     let title = NSMutableAttributedString()
     title.append(NSAttributedString(
         string: displayName ?? account.name,
         attributes: [
             .font: NSFont.systemFont(ofSize: 13, weight: .semibold),
-            .foregroundColor: NSColor.labelColor,
-            .paragraphStyle: paragraphStyle
+            .foregroundColor: NSColor.labelColor
         ]
     ))
 
@@ -49,21 +24,9 @@ func inactiveAccountTitle(
         string: "  \(compactMenuRowUsageSummary(for: account, now: now))",
         attributes: [
             .font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular),
-            .foregroundColor: NSColor.secondaryLabelColor,
-            .paragraphStyle: paragraphStyle
+            .foregroundColor: NSColor.secondaryLabelColor
         ]
     ))
-
-    if let placement {
-        title.append(NSAttributedString(
-            string: "\t\(placement.badgeText)",
-            attributes: [
-                .font: NSFont.systemFont(ofSize: 11, weight: .medium),
-                .foregroundColor: NSColor.tertiaryLabelColor,
-                .paragraphStyle: paragraphStyle
-            ]
-        ))
-    }
 
     return title
 }
@@ -71,14 +34,12 @@ func inactiveAccountTitle(
 func inactiveAccountTitleWidth(
     for account: CodexAccount,
     displayName: String? = nil,
-    placement: MenuBarAccountPlacement? = nil,
     menuContentWidth: CGFloat = 340,
     now: Date = .now
 ) -> CGFloat {
     let title = inactiveAccountTitle(
         for: account,
         displayName: displayName,
-        placement: placement,
         menuContentWidth: menuContentWidth,
         now: now
     )
@@ -98,15 +59,9 @@ func compactMenuRowDisplayName(for accountName: String, maxLength: Int = 20) -> 
     return "\(trimmed.prefix(maxLength - 1))…"
 }
 
-func compactAccountUsageSummary(for account: CodexAccount, now: Date = .now) -> String {
-    let session = compactLimitDetail(prefix: "S", window: account.rateLimits?.sessionWindow, now: now, hidesResetWhenUnused: false)
-    let weekly = compactLimitDetail(prefix: "W", window: account.rateLimits?.weeklyWindow, now: now, hidesResetWhenUnused: false)
-    return "\(session) • \(weekly)"
-}
-
 func compactMenuRowUsageSummary(for account: CodexAccount, now: Date = .now) -> String {
-    let session = compactLimitDetail(prefix: "S", window: account.rateLimits?.sessionWindow, now: now, hidesResetWhenUnused: true)
-    let weekly = compactLimitDetail(prefix: "W", window: account.rateLimits?.weeklyWindow, now: now, hidesResetWhenUnused: true)
+    let session = compactLimitDetail(prefix: "S", window: account.rateLimits?.sessionWindow, now: now)
+    let weekly = compactLimitDetail(prefix: "W", window: account.rateLimits?.weeklyWindow, now: now)
     return "\(session)  \(weekly)"
 }
 
@@ -132,11 +87,10 @@ func compactElapsedTime(since date: Date, now: Date = .now) -> String {
 private func compactLimitDetail(
     prefix: String,
     window: CodexRateLimitWindow?,
-    now: Date,
-    hidesResetWhenUnused: Bool
+    now: Date
 ) -> String {
     let usedText = window.map { "\($0.displayedUsedPercent(at: now))%" } ?? "--"
-    if hidesResetWhenUnused, window?.displayedUsedPercent(at: now) == 0 {
+    if window?.displayedUsedPercent(at: now) == 0 {
         return "\(prefix) \(usedText)"
     }
     guard let window, let resetText = compactResetText(for: window, now: now) else {

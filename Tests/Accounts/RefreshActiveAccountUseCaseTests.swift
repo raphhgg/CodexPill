@@ -5,7 +5,7 @@ import Testing
 
 struct RefreshActiveAccountUseCaseTests {
     @Test
-    func runRefreshesMatchedAccountAndPersistsUpdatedState() async throws {
+    func runRefreshesMatchedAccountWithoutSavingTheCatalog() async throws {
         let refreshedRateLimits = CodexRateLimitSnapshot(
             limitID: "codex",
             limitName: nil,
@@ -34,12 +34,12 @@ struct RefreshActiveAccountUseCaseTests {
             secondary: nil,
             fetchedAt: .distantPast
         )
-        let account = makeAccount(name: "Work", fingerprint: "live", email: "old@example.com")
+        let account = makeAccount(name: "Work", email: "old@example.com", fingerprint: "live")
         var accountWithRateLimits = account
         accountWithRateLimits.rateLimits = existingRateLimits
         let repository = PersistingAccountCatalogProbe()
         let useCase = RefreshActiveAccountUseCase(
-            accountStatusClient: AccountStatusProbe(
+            accountStatusClient: StubAccountStatusClient(
                 status: CodexAccountStatus(
                     email: "new@example.com",
                     planType: "plus",
@@ -47,25 +47,25 @@ struct RefreshActiveAccountUseCaseTests {
                 )
             ),
             identityResolver: SavedAccountIdentityResolver(
-                liveIdentitySource: CurrentIdentityFixture(fingerprint: "live"),
-                storedAccountReconciler: IdentityReconcilerAdapter()
+                liveIdentitySource: LiveIdentityStub(fingerprint: "live"),
+                storedAccountReconciler: PassthroughIdentityReconciler()
             ),
             repository: repository
         )
 
         let result = try await useCase.run(accounts: [accountWithRateLimits])
 
-        #expect(result.refreshedAccountID == account.id)
-        #expect(result.accounts.first?.email == "new@example.com")
-        #expect(result.accounts.first?.planType == "prolite")
-        #expect(result.accounts.first?.rateLimits == refreshedRateLimits)
-        #expect(repository.savedAccounts == result.accounts)
-        #expect(result.accounts.first?.updatedAt != .distantPast)
+        #expect(result.update.accountID == account.id)
+        #expect(result.update.email == "new@example.com")
+        #expect(result.update.planType == "prolite")
+        #expect(result.update.rateLimits == refreshedRateLimits)
+        #expect(repository.savedAccounts == nil)
+        #expect(result.update.updatedAt != .distantPast)
     }
 
     @Test
-    func runRelinksSavedSnapshotWhenLiveAuthFingerprintChangedForSameAccount() async throws {
-        var account = makeAccount(name: "Personal", fingerprint: "stale-fingerprint", email: "personal@example.com")
+    func saveRelinksSavedSnapshotWhenLiveAuthFingerprintChangedForSameAccount() async throws {
+        var account = makeAccount(name: "Personal", email: "personal@example.com", fingerprint: "stale-fingerprint")
         account.identity.stableAccountID = "acct_personal"
         account.updatedAt = Date(timeIntervalSince1970: 1_744_195_200)
         let relinker = ActiveAuthSnapshotRelinkerProbe(
@@ -79,7 +79,7 @@ struct RefreshActiveAccountUseCaseTests {
         )
         let repository = PersistingAccountCatalogProbe()
         let useCase = RefreshActiveAccountUseCase(
-            accountStatusClient: AccountStatusProbe(
+            accountStatusClient: StubAccountStatusClient(
                 status: CodexAccountStatus(
                     email: "personal@example.com",
                     planType: "prolite",
@@ -89,24 +89,26 @@ struct RefreshActiveAccountUseCaseTests {
                 )
             ),
             identityResolver: SavedAccountIdentityResolver(
-                liveIdentitySource: CurrentIdentityFixture(
-                    stableAccountID: "acct_personal",
-                    fingerprint: "fresh-fingerprint"
+                liveIdentitySource: LiveIdentityStub(
+                    fingerprint: "fresh-fingerprint",
+                    stableAccountID: "acct_personal"
                 ),
-                storedAccountReconciler: IdentityReconcilerAdapter()
+                storedAccountReconciler: PassthroughIdentityReconciler()
             ),
             repository: repository,
             activeAuthSnapshotRelinker: relinker
         )
 
         let result = try await useCase.run(accounts: [account])
+        #expect(relinker.savedAuthData == nil)
 
-        #expect(result.refreshedAccountID == account.id)
-        #expect(result.accounts.first?.identity.snapshotFingerprint == "fresh-fingerprint")
+        let savedAccounts = try #require(try useCase.save(result, into: [account]))
+
+        #expect(savedAccounts.map(\.identity.snapshotFingerprint) == ["fresh-fingerprint"])
+        #expect(savedAccounts.map(\.updatedAt) == [account.updatedAt])
         #expect(relinker.savedAuthData == Data("fresh-auth".utf8))
         #expect(relinker.savedExistingAccount?.id == account.id)
-        #expect(result.accounts.first?.updatedAt == account.updatedAt)
-        #expect(repository.savedAccounts == result.accounts)
+        #expect(repository.savedAccounts?.map(\.identity.snapshotFingerprint) == ["fresh-fingerprint"])
     }
 
     @Test
@@ -124,12 +126,12 @@ struct RefreshActiveAccountUseCaseTests {
             secondary: nil,
             fetchedAt: Date(timeIntervalSince1970: 1_744_195_100)
         )
-        var account = makeAccount(name: "Work", fingerprint: "live", email: "old@example.com")
+        var account = makeAccount(name: "Work", email: "old@example.com", fingerprint: "live")
         account.updatedAt = existingUpdatedAt
         account.rateLimits = existingRateLimits
         let repository = PersistingAccountCatalogProbe()
         let useCase = RefreshActiveAccountUseCase(
-            accountStatusClient: AccountStatusProbe(
+            accountStatusClient: StubAccountStatusClient(
                 status: CodexAccountStatus(
                     email: "new@example.com",
                     planType: "pro",
@@ -137,26 +139,26 @@ struct RefreshActiveAccountUseCaseTests {
                 )
             ),
             identityResolver: SavedAccountIdentityResolver(
-                liveIdentitySource: CurrentIdentityFixture(fingerprint: "live"),
-                storedAccountReconciler: IdentityReconcilerAdapter()
+                liveIdentitySource: LiveIdentityStub(fingerprint: "live"),
+                storedAccountReconciler: PassthroughIdentityReconciler()
             ),
             repository: repository
         )
 
         let result = try await useCase.run(accounts: [account])
 
-        #expect(result.accounts.first?.email == "new@example.com")
-        #expect(result.accounts.first?.planType == "pro")
-        #expect(result.accounts.first?.rateLimits == existingRateLimits)
-        #expect(result.accounts.first?.updatedAt == existingUpdatedAt)
-        #expect(repository.savedAccounts == result.accounts)
+        #expect(result.update.email == "new@example.com")
+        #expect(result.update.planType == "pro")
+        #expect(result.update.rateLimits == existingRateLimits)
+        #expect(result.update.updatedAt == existingUpdatedAt)
+        #expect(repository.savedAccounts == nil)
     }
 
     @Test
     func runFailsWhenLiveAccountDoesNotMatchAnySavedAccount() async {
-        let account = makeAccount(name: "Work", fingerprint: "saved", email: "saved@example.com")
+        let account = makeAccount(name: "Work", email: "saved@example.com", fingerprint: "saved")
         let useCase = RefreshActiveAccountUseCase(
-            accountStatusClient: AccountStatusProbe(
+            accountStatusClient: StubAccountStatusClient(
                 status: CodexAccountStatus(
                     email: "other@example.com",
                     planType: nil,
@@ -164,8 +166,8 @@ struct RefreshActiveAccountUseCaseTests {
                 )
             ),
             identityResolver: SavedAccountIdentityResolver(
-                liveIdentitySource: CurrentIdentityFixture(fingerprint: "live"),
-                storedAccountReconciler: IdentityReconcilerAdapter()
+                liveIdentitySource: LiveIdentityStub(fingerprint: "live"),
+                storedAccountReconciler: PassthroughIdentityReconciler()
             ),
             repository: PersistingAccountCatalogProbe()
         )
@@ -173,36 +175,6 @@ struct RefreshActiveAccountUseCaseTests {
         await #expect(throws: RefreshActiveAccountUseCaseError.targetResolutionFailed(.noMatch)) {
             try await useCase.run(accounts: [account])
         }
-    }
-
-    private func makeAccount(name: String, fingerprint: String, email: String?) -> CodexAccount {
-        let id = UUID()
-        return CodexAccount(
-            id: id,
-            name: name,
-            snapshotFileName: "\(id.uuidString).json",
-            createdAt: .distantPast,
-            updatedAt: .distantPast,
-            email: email,
-            planType: nil,
-            rateLimits: nil,
-            identity: CodexAccountIdentity(
-                snapshotFingerprint: fingerprint,
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: email)
-            )
-        )
-    }
-}
-
-private final class AccountStatusProbe: CodexAccountStatusClient {
-    let status: CodexAccountStatus
-
-    init(status: CodexAccountStatus) {
-        self.status = status
-    }
-
-    func readCurrentAccountStatus() async throws -> CodexAccountStatus {
-        status
     }
 }
 
@@ -239,28 +211,5 @@ private final class ActiveAuthSnapshotRelinkerProbe: ActiveAuthSnapshotRelinking
         savedAuthData = authData
         savedExistingAccount = existing
         return relinkedAccount
-    }
-}
-
-private struct CurrentIdentityFixture: LiveCodexAccountIdentitySource {
-    let stableAccountID: String?
-    let fingerprint: String?
-
-    init(stableAccountID: String? = nil, fingerprint: String?) {
-        self.stableAccountID = stableAccountID
-        self.fingerprint = fingerprint
-    }
-
-    func readCurrentLiveAccountIdentity() -> LiveCodexAccountIdentity {
-        LiveCodexAccountIdentity(
-            stableAccountID: stableAccountID,
-            snapshotFingerprint: fingerprint
-        )
-    }
-}
-
-private struct IdentityReconcilerAdapter: StoredAccountIdentityReconciler {
-    func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {
-        accounts
     }
 }

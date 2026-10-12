@@ -466,9 +466,12 @@ struct CodexAppServerClientTests {
         try fileManager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
         let client = CodexAppServerClient(environment: ["CODEX_CLI_PATH": script.path])
 
-        await #expect(throws: CodexAppServerError.server("Codex app-server ended before returning rate limits.")) {
-            _ = try await client.readSavedAccountStatus(authData: Data("{}".utf8))
+        let read = await client.readSavedAccountStatus(authData: Data("{}".utf8))
+
+        #expect(throws: CodexAppServerError.server("Codex app-server ended before returning rate limits.")) {
+            _ = try read.status.get()
         }
+        #expect(read.rotatedAuthData == nil)
 
         let requests = try String(contentsOf: requestsFile, encoding: .utf8)
         #expect(requests.contains(#""method":"initialize""#))
@@ -477,8 +480,36 @@ struct CodexAppServerClientTests {
         #expect(requests.contains(#""method":"account/rateLimits/read""#))
     }
 
+    @Test(arguments: [true, false])
+    func readSavedAccountStatusReturnsAuthRotatedInsideIsolatedHome(rotates: Bool) async throws {
+        let fileManager = FileManager.default
+        let directory = fileManager.temporaryDirectory
+            .appendingPathComponent("CodexPill-AppServerClientTests-\(UUID().uuidString)", isDirectory: true)
+        try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? fileManager.removeItem(at: directory) }
+
+        let requestsFile = directory.appendingPathComponent("requests.jsonl")
+        let script = directory.appendingPathComponent("codex-rotation-fixture.sh")
+        let rotation = rotates ? #"printf '%s' '{"tokens":"rotated"}' > "$CODEX_HOME/auth.json""# : ""
+        let scriptBody = """
+        #!/bin/sh
+        head -n 4 > "\(requestsFile.path)"
+        \(rotation)
+        exit 0
+        """
+        try Data(scriptBody.utf8).write(to: script)
+        try fileManager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
+        let client = CodexAppServerClient(environment: ["CODEX_CLI_PATH": script.path])
+
+        let read = await client.readSavedAccountStatus(authData: Data(#"{"tokens":"original"}"#.utf8))
+
+        #expect(read.rotatedAuthData == (rotates ? Data(#"{"tokens":"rotated"}"#.utf8) : nil))
+        let requests = try String(contentsOf: requestsFile, encoding: .utf8)
+        #expect(requests.contains(#""method":"account/read","id":2,"params":{"refreshToken":false}"#))
+    }
+
     @Test
-    func processRunnerKeepsLocalFailureClassificationWhenSharedSessionExitsNonZero() async throws {
+    func savedAccountReadKeepsLocalFailureClassificationWhenSharedSessionExitsNonZero() async throws {
         let fileManager = FileManager.default
         let directory = fileManager.temporaryDirectory
             .appendingPathComponent("CodexPill-AppServerClientTests-\(UUID().uuidString)", isDirectory: true)
@@ -493,18 +524,12 @@ struct CodexAppServerClientTests {
         """
         try Data(scriptBody.utf8).write(to: script)
         try fileManager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
-        let runner = CodexAppServerProcessRunner()
+        let client = CodexAppServerClient(environment: ["CODEX_CLI_PATH": script.path])
 
-        await #expect(throws: CodexAppServerError.server("local app-server failure")) {
-            _ = try await runner.readAccountStatus(
-                configuration: CodexAppServerConfiguration(
-                    command: CodexCLICommand(executableURL: script, arguments: ["app-server"]),
-                    environment: nil,
-                    responseTimeout: .seconds(1)
-                ),
-                refreshToken: false,
-                requireRateLimitResponse: false
-            )
+        let read = await client.readSavedAccountStatus(authData: Data(#"{"tokens":"original"}"#.utf8))
+
+        #expect(throws: CodexAppServerError.server("local app-server failure")) {
+            _ = try read.status.get()
         }
     }
 

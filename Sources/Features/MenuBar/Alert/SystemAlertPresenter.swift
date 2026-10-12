@@ -2,19 +2,19 @@ import AppKit
 
 @MainActor
 final class SystemAlertPresenter {
-    private let environment: [String: String]
+    private let suppressesInteractivePrompts: Bool
     private let appIconSource: AppIconSource
 
     init(
-        environment: [String: String] = ProcessInfo.processInfo.environment,
+        suppressesInteractivePrompts: Bool,
         appIconSource: AppIconSource? = nil
     ) {
-        self.environment = environment
+        self.suppressesInteractivePrompts = suppressesInteractivePrompts
         self.appIconSource = appIconSource ?? BundleAppIconSource()
     }
 
     func presentTextInput(_ request: MenuBarTextInputAlertRequest) -> String? {
-        guard !AppRuntimeEnvironment.shouldSuppressInteractiveAlerts(environment: environment) else {
+        guard !suppressesInteractivePrompts else {
             return nil
         }
 
@@ -43,7 +43,7 @@ final class SystemAlertPresenter {
     }
 
     func presentConfirmation(_ request: MenuBarConfirmationAlertRequest) -> Bool {
-        guard !AppRuntimeEnvironment.shouldSuppressInteractiveAlerts(environment: environment) else {
+        guard !suppressesInteractivePrompts else {
             return false
         }
 
@@ -58,7 +58,7 @@ final class SystemAlertPresenter {
     }
 
     func presentInfo(_ request: MenuBarInfoAlertRequest) {
-        guard !AppRuntimeEnvironment.shouldSuppressInteractiveAlerts(environment: environment) else {
+        guard !suppressesInteractivePrompts else {
             return
         }
 

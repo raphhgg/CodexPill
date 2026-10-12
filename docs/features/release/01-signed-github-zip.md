@@ -61,7 +61,6 @@ The README should include a short first-run note:
 - Codex must already be installed.
 - CodexPill reads local Codex auth state and stores saved account snapshots
   locally.
-- Remote-host support copies selected snapshots only to hosts the user configures.
 
 ## Edge Cases
 

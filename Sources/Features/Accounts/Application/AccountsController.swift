@@ -4,25 +4,6 @@ import OSLog
 
 private let accountsControllerLogger = Logger(subsystem: "com.raphhgg.codexpill", category: "AccountsController")
 
-struct PersistSavedAccountMetadataUseCase: Sendable {
-    private let repository: AccountCatalogStore
-
-    init(repository: AccountCatalogStore) {
-        self.repository = repository
-    }
-
-    func run(account: CodexAccount, accounts: [CodexAccount]) throws -> [CodexAccount] {
-        guard let index = accounts.firstIndex(where: { $0.id == account.id }) else {
-            return accounts
-        }
-
-        var updatedAccounts = accounts
-        updatedAccounts[index] = account
-        try repository.saveAccounts(updatedAccounts)
-        return updatedAccounts
-    }
-}
-
 @MainActor
 @Observable
 final class AccountsController {
@@ -31,29 +12,26 @@ final class AccountsController {
         case failed(String)
     }
 
-    enum RemoteHostSwitchOutcome: Equatable {
-        case verified(CodexAccountStatus)
-        case notVerified(String, detectedAccountID: UUID?)
-        case failed(String, hostReachable: Bool)
-    }
+    private static let inactiveSavedAccountsRefreshInterval: TimeInterval = 15 * 60
 
     private let identityResolver: SavedAccountIdentityResolver
     private let inactiveAccountAvailabilityRanking: InactiveAccountAvailabilityRanking
-    private let silentPostActionRefresh: SilentPostActionRefresh
     private let operationState: AccountOperationState
     private let loadAccountsUseCase: LoadAccountsUseCase
     private let refreshActiveAccountUseCase: RefreshActiveAccountUseCase
     private let hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase
     private let deleteSavedAccountUseCase: DeleteSavedAccountUseCase
     private let renameSavedAccountUseCase: RenameSavedAccountUseCase
-    private let persistSavedAccountMetadataUseCase: PersistSavedAccountMetadataUseCase
+    private let accountCatalogStore: AccountCatalogStore
     private let switchAccountWorkflow: SwitchAccountWorkflow
-    private let switchAccountOnHostWorkflow: SwitchAccountOnHostWorkflow
-    private let remoteHostAccountVerifier: RemoteHostAccountVerifier
     private let addAccountWorkflow: AddAccountWorkflow
+    private let now: () -> Date
+    private let postSwitchRefreshDelay: Duration
 
     private var catalogState = AccountCatalogState()
-    private var isHydratingSavedAccountsMetadata = false
+    private var savedAccountsRefresh: Task<Void, Never>?
+    private var isStoppingSavedAccountsRefresh = false
+    private var lastInactiveSavedAccountsRefreshAt: Date?
 
     init(
         identityResolver: SavedAccountIdentityResolver,
@@ -61,34 +39,28 @@ final class AccountsController {
         operationState: AccountOperationState = AccountOperationState(),
         loadAccountsUseCase: LoadAccountsUseCase,
         refreshActiveAccountUseCase: RefreshActiveAccountUseCase,
-        silentPostActionRefresh: SilentPostActionRefresh? = nil,
         hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase,
         deleteSavedAccountUseCase: DeleteSavedAccountUseCase,
         renameSavedAccountUseCase: RenameSavedAccountUseCase,
-        persistSavedAccountMetadataUseCase: PersistSavedAccountMetadataUseCase,
+        accountCatalogStore: AccountCatalogStore,
         switchAccountWorkflow: SwitchAccountWorkflow,
-        switchAccountOnHostWorkflow: SwitchAccountOnHostWorkflow = SwitchAccountOnHostWorkflow(
-            remoteHostSwitchOperations: UnavailableRemoteHostClient()
-        ),
-        remoteHostAccountVerifier: RemoteHostAccountVerifier = RemoteHostAccountVerifier(),
-        addAccountWorkflow: AddAccountWorkflow
+        addAccountWorkflow: AddAccountWorkflow,
+        now: @escaping () -> Date = Date.init,
+        postSwitchRefreshDelay: Duration = .seconds(2)
     ) {
         self.identityResolver = identityResolver
         self.inactiveAccountAvailabilityRanking = inactiveAccountAvailabilityRanking
         self.operationState = operationState
         self.loadAccountsUseCase = loadAccountsUseCase
         self.refreshActiveAccountUseCase = refreshActiveAccountUseCase
-        self.silentPostActionRefresh = silentPostActionRefresh ?? SilentPostActionRefresh(
-            refreshActiveAccountUseCase: refreshActiveAccountUseCase
-        )
         self.hydrateSavedAccountsMetadataUseCase = hydrateSavedAccountsMetadataUseCase
         self.deleteSavedAccountUseCase = deleteSavedAccountUseCase
         self.renameSavedAccountUseCase = renameSavedAccountUseCase
-        self.persistSavedAccountMetadataUseCase = persistSavedAccountMetadataUseCase
+        self.accountCatalogStore = accountCatalogStore
         self.switchAccountWorkflow = switchAccountWorkflow
-        self.switchAccountOnHostWorkflow = switchAccountOnHostWorkflow
-        self.remoteHostAccountVerifier = remoteHostAccountVerifier
         self.addAccountWorkflow = addAccountWorkflow
+        self.now = now
+        self.postSwitchRefreshDelay = postSwitchRefreshDelay
     }
 
     func load() {
@@ -106,86 +78,34 @@ final class AccountsController {
     func switchToAccount(_ account: CodexAccount) async -> Bool {
         var didRefreshAfterSwitch = false
         await perform("Switching to \(account.name)...") {
+            try saveRotatedLiveAuth(switchingTo: account)
             catalogState.setActiveAccountID(
                 try await switchAccountWorkflow.run(
                     account: account,
                     accounts: accounts
                 )
             )
-            didRefreshAfterSwitch = await applySilentPostActionRefresh(after: .seconds(2))
+            didRefreshAfterSwitch = await applySilentPostActionRefresh()
         }
         return didRefreshAfterSwitch
     }
 
-    func switchToAccountOnHost(_ account: CodexAccount, on host: RemoteHost) async -> RemoteHostSwitchOutcome {
-        operationState.begin(status: "Switching \(account.name) on \(host.displayName)...")
-        do {
-            let accountToSwitch = await refreshActiveSnapshotBeforeRemoteSwitchIfNeeded(account)
-            let result = try await switchAccountOnHostWorkflow.run(
-                account: accountToSwitch,
-                on: host,
-                among: accounts
-            )
-            switch result {
-            case .verified(let status):
-                operationState.succeed()
-                return .verified(status)
-            case .notVerified(let matchOutcome):
-                let error = RemoteHostSwitchVerificationError(
-                    message: remoteHostAccountVerifier.failureMessage(
-                        for: account,
-                        on: host,
-                        among: accounts,
-                        matchOutcome: matchOutcome
-                    )
-                )
-                operationState.fail(error)
-                return .notVerified(
-                    error.localizedDescription,
-                    detectedAccountID: matchOutcome.matchedAccountID
-                )
-            }
-        } catch {
-            operationState.fail(error)
-            return .failed(
-                error.localizedDescription,
-                hostReachable: isReachableRemoteVerificationFailure(error)
-            )
+    private func saveRotatedLiveAuth(switchingTo account: CodexAccount) throws {
+        guard let outgoingAccountID = activeAccountID, outgoingAccountID != account.id else { return }
+        if let result = try refreshActiveAccountUseCase.relinkCurrentAuthSnapshotIfNeeded(
+            accounts: accounts,
+            targetAccountID: outgoingAccountID
+        ) {
+            try applyRefreshed(result, activeAccountIDBeforeRefresh: activeAccountID)
         }
     }
 
-    private func refreshActiveSnapshotBeforeRemoteSwitchIfNeeded(_ account: CodexAccount) async -> CodexAccount {
-        guard account.id == activeAccountID else { return account }
-        do {
-            let result = try await refreshActiveAccountUseCase.run(accounts: accounts)
-            catalogState.applyRefreshed(result)
-            return accounts.first(where: { $0.id == account.id }) ?? account
-        } catch {
-            do {
-                if let result = try refreshActiveAccountUseCase.relinkCurrentAuthSnapshotIfNeeded(
-                    accounts: accounts,
-                    targetAccountID: account.id
-                ) {
-                    catalogState.applyRefreshed(result)
-                    return accounts.first(where: { $0.id == account.id }) ?? account
-                }
-            } catch {
-                accountsControllerLogger.log("Remote switch preflight active snapshot relink skipped: \(error.localizedDescription, privacy: .public)")
-            }
-            accountsControllerLogger.log("Remote switch preflight active snapshot refresh skipped: \(error.localizedDescription, privacy: .public)")
-            return account
-        }
-    }
-
-    func testRemoteHostConnection(_ host: RemoteHost) async -> Bool {
-        operationState.begin(status: "Testing \(host.displayName)...")
-        do {
-            try await switchAccountOnHostWorkflow.testConnection(to: host)
-            operationState.succeed()
-            return true
-        } catch {
-            operationState.fail(error)
-            return false
+    // A switch can land while a refresh awaits, so the refresh moves the active ID only if nothing else did.
+    private func applyRefreshed(_ result: RefreshActiveAccountResult, activeAccountIDBeforeRefresh: UUID?) throws {
+        guard let updatedAccounts = try refreshActiveAccountUseCase.save(result, into: accounts) else { return }
+        catalogState.applyPersistedMetadata(updatedAccounts)
+        if activeAccountID == activeAccountIDBeforeRefresh {
+            catalogState.setActiveAccountID(result.update.accountID)
         }
     }
 
@@ -212,9 +132,10 @@ final class AccountsController {
     }
 
     func refreshAccountData(for account: CodexAccount) async -> BackgroundRefreshOutcome {
+        let activeAccountIDBeforeRefresh = activeAccountID
         do {
             let result = try await refreshActiveAccountUseCase.run(accounts: accounts)
-            catalogState.applyRefreshed(result)
+            try applyRefreshed(result, activeAccountIDBeforeRefresh: activeAccountIDBeforeRefresh)
             accountsControllerLogger.log("Background refresh completed for \(account.name, privacy: .public)")
             return .refreshed
         } catch {
@@ -224,12 +145,13 @@ final class AccountsController {
     }
 
     func persistAccountMetadata(_ account: CodexAccount) {
+        guard let index = accounts.firstIndex(where: { $0.id == account.id }) else { return }
+
+        var updatedAccounts = accounts
+        updatedAccounts[index] = account
         do {
-            let result = try persistSavedAccountMetadataUseCase.run(
-                account: account,
-                accounts: accounts
-            )
-            catalogState.applyPersistedMetadata(result)
+            try accountCatalogStore.saveAccounts(updatedAccounts)
+            catalogState.applyPersistedMetadata(updatedAccounts)
         } catch {
             accountsControllerLogger.log("Persisted metadata update skipped for \(account.name, privacy: .public): \(error.localizedDescription, privacy: .public)")
         }
@@ -241,6 +163,7 @@ final class AccountsController {
         }
         accountsControllerLogger.log("Starting isolated add-account flow")
         operationState.begin(status: "Adding account...")
+        await finishSavedAccountsRefresh()
         do {
             let session = try await addAccountWorkflow.startIsolatedAddAccount(
                 named: pendingAccountName,
@@ -264,7 +187,7 @@ final class AccountsController {
                 result.savedAccount,
                 activeAccountID: result.activeAccountID
             )
-            await hydrateSavedAccountsMetadataAfterAddingAccount()
+            await refreshSavedAccountsMetadata(refreshExistingMetadata: false)
             operationState.succeed()
             return result.savedAccount
         } catch {
@@ -308,38 +231,64 @@ final class AccountsController {
     }
 
     func hydrateSavedAccountsMetadataIfNeeded() async {
-        guard !isBusy, !isHydratingSavedAccountsMetadata else { return }
         guard accounts.contains(where: { $0.id != activeAccountID && $0.rateLimits == nil }) else { return }
-
-        isHydratingSavedAccountsMetadata = true
-        defer { isHydratingSavedAccountsMetadata = false }
-
-        do {
-            let result = try await hydrateSavedAccountsMetadataUseCase.run(
-                accounts: accounts,
-                activeAccountID: activeAccountID
-            )
-            catalogState.applyHydrated(result)
-        } catch {
-            accountsControllerLogger.log("Saved account metadata hydration skipped: \(error.localizedDescription, privacy: .public)")
-        }
+        await runSavedAccountsRefresh(refreshExistingMetadata: false)
     }
 
     func refreshInactiveSavedAccountsMetadata() async {
-        guard !isBusy, !isHydratingSavedAccountsMetadata else { return }
+        guard canStartSavedAccountsRefresh else { return }
+        let startedAt = now()
+        if let lastInactiveSavedAccountsRefreshAt,
+           startedAt.timeIntervalSince(lastInactiveSavedAccountsRefreshAt) < Self.inactiveSavedAccountsRefreshInterval {
+            return
+        }
 
-        isHydratingSavedAccountsMetadata = true
-        defer { isHydratingSavedAccountsMetadata = false }
+        lastInactiveSavedAccountsRefreshAt = startedAt
+        await runSavedAccountsRefresh(refreshExistingMetadata: true)
+    }
 
-        do {
-            let result = try await hydrateSavedAccountsMetadataUseCase.run(
-                accounts: accounts,
-                activeAccountID: activeAccountID,
-                refreshExistingMetadata: true
-            )
-            catalogState.applyHydrated(result)
-        } catch {
-            accountsControllerLogger.log("Saved account metadata refresh skipped: \(error.localizedDescription, privacy: .public)")
+    private var canStartSavedAccountsRefresh: Bool {
+        !isBusy && savedAccountsRefresh == nil
+    }
+
+    private func runSavedAccountsRefresh(refreshExistingMetadata: Bool) async {
+        guard canStartSavedAccountsRefresh else { return }
+        let refresh = Task {
+            await refreshSavedAccountsMetadata(refreshExistingMetadata: refreshExistingMetadata)
+        }
+        savedAccountsRefresh = refresh
+        await refresh.value
+        savedAccountsRefresh = nil
+    }
+
+    // Lets the account being read finish, so a rotated token is saved before the operation touches auth.
+    private func finishSavedAccountsRefresh() async {
+        guard let savedAccountsRefresh else { return }
+        isStoppingSavedAccountsRefresh = true
+        await savedAccountsRefresh.value
+        isStoppingSavedAccountsRefresh = false
+    }
+
+    private func refreshSavedAccountsMetadata(refreshExistingMetadata: Bool) async {
+        let accountIDs = hydrateSavedAccountsMetadataUseCase.accountIDsToRefresh(
+            in: accounts,
+            activeAccountID: activeAccountID,
+            refreshExistingMetadata: refreshExistingMetadata
+        )
+        for accountID in accountIDs {
+            guard !isStoppingSavedAccountsRefresh else { return }
+            guard accountID != activeAccountID,
+                  let account = accounts.first(where: { $0.id == accountID }),
+                  let update = await hydrateSavedAccountsMetadataUseCase.refresh(account, among: accounts)
+            else { continue }
+
+            do {
+                if let updatedAccounts = try hydrateSavedAccountsMetadataUseCase.save(update, into: accounts) {
+                    catalogState.applyPersistedMetadata(updatedAccounts)
+                }
+            } catch {
+                accountsControllerLogger.log("Saved account metadata refresh skipped: \(error.localizedDescription, privacy: .public)")
+            }
         }
     }
 
@@ -359,18 +308,6 @@ final class AccountsController {
         inactiveAccountAvailabilityRanking.sort(inactiveAccounts)
     }
 
-    func compareForMenu(_ lhs: CodexAccount, _ rhs: CodexAccount) -> Bool {
-        if lhs.id == activeAccountID, rhs.id != activeAccountID {
-            return true
-        }
-
-        if rhs.id == activeAccountID, lhs.id != activeAccountID {
-            return false
-        }
-
-        return inactiveAccountAvailabilityRanking.compare(lhs, rhs)
-    }
-
     func consumePendingErrorMessage() -> String? {
         operationState.consumePendingErrorMessage()
     }
@@ -378,6 +315,7 @@ final class AccountsController {
     private func perform(_ status: String, operation: () async throws -> Void) async {
         accountsControllerLogger.log("Beginning operation with status: \(status, privacy: .public)")
         operationState.begin(status: status)
+        await finishSavedAccountsRefresh()
         do {
             try await operation()
             operationState.succeed()
@@ -388,50 +326,25 @@ final class AccountsController {
         }
     }
 
-    private func applySilentPostActionRefresh(after delay: Duration) async -> Bool {
-        if let result = await silentPostActionRefresh.run(
-            after: delay,
-            activeAccountID: activeAccountID,
-            accounts: accounts
-        ) {
-            catalogState.applyRefreshed(result)
-            return true
+    private func applySilentPostActionRefresh() async -> Bool {
+        let activeAccountIDBeforeRefresh = activeAccountID
+        guard activeAccountIDBeforeRefresh != nil else { return false }
+        let accountsBeforeDelay = accounts
+
+        if postSwitchRefreshDelay > .zero {
+            try? await Task.sleep(for: postSwitchRefreshDelay)
         }
-        return false
-    }
-
-    private func hydrateSavedAccountsMetadataAfterAddingAccount() async {
-        guard !isHydratingSavedAccountsMetadata else { return }
-        guard accounts.contains(where: { $0.id != activeAccountID && $0.rateLimits == nil }) else { return }
-
-        isHydratingSavedAccountsMetadata = true
-        defer { isHydratingSavedAccountsMetadata = false }
 
         do {
-            let result = try await hydrateSavedAccountsMetadataUseCase.run(
-                accounts: accounts,
-                activeAccountID: activeAccountID
-            )
-            catalogState.applyHydrated(result)
+            let result = try await refreshActiveAccountUseCase.run(accounts: accountsBeforeDelay)
+            try applyRefreshed(result, activeAccountIDBeforeRefresh: activeAccountIDBeforeRefresh)
+            return true
         } catch {
-            accountsControllerLogger.log("Post-add saved account metadata hydration skipped: \(error.localizedDescription, privacy: .public)")
+            accountsControllerLogger.log("Silent post-action refresh skipped: \(error.localizedDescription, privacy: .public)")
+            return false
         }
     }
 
-}
-
-private struct RemoteHostSwitchVerificationError: LocalizedError, Equatable {
-    let message: String
-
-    var errorDescription: String? { message }
-}
-
-private func isReachableRemoteVerificationFailure(_ error: Error) -> Bool {
-    guard let clientError = error as? RemoteHostClientError else { return false }
-    if case .authReadFailed = clientError {
-        return true
-    }
-    return false
 }
 
 enum AccountsControllerError: LocalizedError, Equatable {

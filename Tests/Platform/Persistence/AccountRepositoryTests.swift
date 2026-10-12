@@ -101,22 +101,7 @@ struct AccountRepositoryTests {
 
     private func makeRepository(root: URL) throws -> AccountRepository {
         try AccountRepository(
-            fileManager: .default,
-            environment: [AppRuntimeEnvironment.validationAppSupportDirectoryEnvironmentKey: root.path]
-        )
-    }
-
-    private func makeAccount() -> CodexAccount {
-        CodexAccount(
-            id: UUID(),
-            name: "Research",
-            snapshotFileName: "research.json",
-            createdAt: .distantPast,
-            updatedAt: .distantPast,
-            email: nil,
-            planType: nil,
-            rateLimits: nil,
-            identity: .empty
+            isolatedRootDirectory: root
         )
     }
 

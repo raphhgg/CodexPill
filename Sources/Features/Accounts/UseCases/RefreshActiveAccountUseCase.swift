@@ -1,8 +1,7 @@
 import Foundation
 
-struct RefreshActiveAccountResult {
-    let accounts: [CodexAccount]
-    let refreshedAccountID: UUID
+struct RefreshActiveAccountResult: Equatable {
+    let update: SavedAccountMetadataUpdate
 }
 
 protocol ActiveAuthSnapshotRelinking: Sendable {
@@ -32,8 +31,11 @@ struct RefreshActiveAccountUseCase: Sendable {
     }
 
     func run(accounts: [CodexAccount]) async throws -> RefreshActiveAccountResult {
+        // Resolves against the auth read before the await, since a switch can replace it meanwhile.
+        let liveIdentity = identityResolver.readCurrentLiveIdentity()
         let remote = try await accountStatusClient.readCurrentAccountStatus()
         let matchOutcome = identityResolver.resolve(
+            liveIdentity: liveIdentity,
             accounts: accounts,
             liveRemoteIdentity: remote.remoteIdentity
         )
@@ -47,60 +49,53 @@ struct RefreshActiveAccountUseCase: Sendable {
         }
 
         let hasFreshRateLimits = remote.rateLimits != nil
-        var updatedAccounts = accounts
-        if activeAuthSnapshotRelinker?.currentAuthFingerprint() != updatedAccounts[matchedIndex].identity.snapshotFingerprint,
-           let relinkedAccount = try? relinkActiveAuthSnapshot(for: updatedAccounts[matchedIndex]) {
-            updatedAccounts[matchedIndex] = relinkedAccount
-        }
-
-        updatedAccounts[matchedIndex].applyRemoteMetadata(
+        var refreshedAccount = accounts[matchedIndex]
+        refreshedAccount.applyRemoteMetadata(
             email: remote.email,
             planType: remote.planType,
-            rateLimits: remote.rateLimits ?? updatedAccounts[matchedIndex].rateLimits,
+            rateLimits: remote.rateLimits ?? refreshedAccount.rateLimits,
             preferRateLimitPlan: hasFreshRateLimits
         )
         if hasFreshRateLimits {
-            updatedAccounts[matchedIndex].updatedAt = .now
+            refreshedAccount.updatedAt = .now
         }
-        try repository.saveAccounts(updatedAccounts)
-
-        return RefreshActiveAccountResult(
-            accounts: updatedAccounts,
-            refreshedAccountID: matchedAccountID
-        )
+        return RefreshActiveAccountResult(update: SavedAccountMetadataUpdate(refreshedAccount))
     }
 
     func relinkCurrentAuthSnapshotIfNeeded(
         accounts: [CodexAccount],
         targetAccountID: UUID
     ) throws -> RefreshActiveAccountResult? {
-        guard let matchedAccountID = identityResolver.resolveCurrentAccountID(accounts: accounts),
-              matchedAccountID == targetAccountID,
-              let matchedIndex = accounts.firstIndex(where: { $0.id == matchedAccountID })
+        guard let targetAccount = accounts.first(where: { $0.id == targetAccountID }),
+              let relinkedAccount = try relinkActiveAuthSnapshotIfNeeded(for: targetAccount, among: accounts)
         else {
             return nil
         }
-
-        let matchedAccount = accounts[matchedIndex]
-        guard activeAuthSnapshotRelinker?.currentAuthFingerprint() != matchedAccount.identity.snapshotFingerprint else {
-            return nil
-        }
-
-        guard let relinkedAccount = try relinkActiveAuthSnapshot(for: matchedAccount) else {
-            return nil
-        }
-
-        var updatedAccounts = accounts
-        updatedAccounts[matchedIndex] = relinkedAccount
-        try repository.saveAccounts(updatedAccounts)
-        return RefreshActiveAccountResult(
-            accounts: updatedAccounts,
-            refreshedAccountID: matchedAccountID
-        )
+        return RefreshActiveAccountResult(update: SavedAccountMetadataUpdate(relinkedAccount))
     }
 
-    private func relinkActiveAuthSnapshot(for account: CodexAccount) throws -> CodexAccount? {
-        guard let activeAuthSnapshotRelinker else { return nil }
+    // Merges into the accounts as they are now, since a remove or rename can land while `run` awaits.
+    // Relinking waits until here so a removed account never gets its auth snapshot written back.
+    func save(_ result: RefreshActiveAccountResult, into accounts: [CodexAccount]) throws -> [CodexAccount]? {
+        guard var account = accounts.first(where: { $0.id == result.update.accountID }) else { return nil }
+        account.apply(result.update)
+        if let relinkedAccount = try? relinkActiveAuthSnapshotIfNeeded(for: account, among: accounts) {
+            account.identity = relinkedAccount.identity
+            account.identity.remoteIdentity = result.update.identity.remoteIdentity
+        }
+        return try repository.save(SavedAccountMetadataUpdate(account), into: accounts)
+    }
+
+    private func relinkActiveAuthSnapshotIfNeeded(
+        for account: CodexAccount,
+        among accounts: [CodexAccount]
+    ) throws -> CodexAccount? {
+        guard let activeAuthSnapshotRelinker,
+              identityResolver.resolveCurrentAccountID(accounts: accounts) == account.id,
+              activeAuthSnapshotRelinker.currentAuthFingerprint() != account.identity.snapshotFingerprint
+        else {
+            return nil
+        }
         let currentAuthData = try activeAuthSnapshotRelinker.readCurrentAuthData()
         var relinkedAccount = try activeAuthSnapshotRelinker.saveAuthSnapshot(
             currentAuthData,

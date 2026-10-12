@@ -36,8 +36,6 @@ remove CodexPill-owned beta state if needed.
 
 ## What To Test First
 
-Start with the local workflow before testing remote hosts.
-
 1. Download the signed beta from the GitHub Release.
 2. Or install it with `brew install --cask raphhgg/tap/codexpill`.
 3. Unzip and launch `CodexPill.app` if you used the GitHub Release zip.
@@ -50,8 +48,6 @@ Start with the local workflow before testing remote hosts.
 10. Confirm Codex uses the expected account after switching.
 11. Rename and remove a test account if you are comfortable doing so.
 
-Only test remote hosts after the local workflow is stable for you.
-
 ## What Feedback Is Most Useful
 
 Useful beta feedback is specific and boring:
@@ -61,8 +57,7 @@ Useful beta feedback is specific and boring:
 - what you clicked or selected immediately before it happened;
 - whether the issue reproduced;
 - macOS version;
-- CodexPill version;
-- whether this affected local accounts, remote hosts, or both.
+- CodexPill version.
 
 Use the matching GitHub beta issue template for public bugs, confusion, or
 feedback.
@@ -83,7 +78,6 @@ discussion:
 - tokens, refresh tokens, API keys, or signing credentials;
 - private hostnames;
 - private local paths;
-- raw SSH output that includes account or host details;
 - complete unreviewed logs.
 
 If a bug requires sensitive details, report it privately instead of opening a
@@ -94,5 +88,4 @@ public issue.
 - the active Codex account changes unexpectedly;
 - an account snapshot appears lost or corrupted;
 - a token, auth payload, or private account identifier appears in UI or logs;
-- remote-host switching touches a host you did not select;
 - Gatekeeper, signing, or notarization behavior looks suspicious.

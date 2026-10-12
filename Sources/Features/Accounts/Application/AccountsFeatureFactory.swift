@@ -6,24 +6,20 @@ struct AccountsFeatureFactory {
     private let authService: CodexAuthSnapshotService
     private let codexAppProcessClient: CodexAppProcessClient
     private let accountStatusClient: CodexAccountStatusClient & SavedCodexAccountStatusClient
-    private let remoteHostSwitchOperations: RemoteHostSwitchWorkflowOperations
+    private let postSwitchRefreshDelay: Duration
 
     init(
         repository: AccountRepository,
         authService: CodexAuthSnapshotService,
         codexAppProcessClient: CodexAppProcessClient,
         accountStatusClient: CodexAccountStatusClient & SavedCodexAccountStatusClient,
-        remoteHostSwitchOperations: RemoteHostSwitchWorkflowOperations = UnavailableRemoteHostClient()
+        postSwitchRefreshDelay: Duration = .seconds(2)
     ) {
         self.repository = repository
         self.authService = authService
         self.codexAppProcessClient = codexAppProcessClient
         self.accountStatusClient = accountStatusClient
-        self.remoteHostSwitchOperations = remoteHostSwitchOperations
-    }
-
-    func makeMenuBarAccountsStore() -> MenuBarAccountsStore {
-        MenuBarAccountsStore(controller: makeController())
+        self.postSwitchRefreshDelay = postSwitchRefreshDelay
     }
 
     func makeController() -> AccountsController {
@@ -47,14 +43,9 @@ struct AccountsFeatureFactory {
                 identityResolver: identityResolver
             ),
             refreshActiveAccountUseCase: refreshActiveAccountUseCase,
-            silentPostActionRefresh: SilentPostActionRefresh(
-                refreshActiveAccountUseCase: refreshActiveAccountUseCase
-            ),
             hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase(
                 authService: authService,
-                accountStatusClient: accountStatusClient,
                 savedAccountStatusClient: accountStatusClient,
-                identityResolver: identityResolver,
                 repository: repository
             ),
             deleteSavedAccountUseCase: DeleteSavedAccountUseCase(
@@ -66,22 +57,19 @@ struct AccountsFeatureFactory {
                 )
             ),
             renameSavedAccountUseCase: RenameSavedAccountUseCase(repository: repository),
-            persistSavedAccountMetadataUseCase: PersistSavedAccountMetadataUseCase(repository: repository),
+            accountCatalogStore: repository,
             switchAccountWorkflow: SwitchAccountWorkflow(
                 authService: authService,
                 repository: repository,
                 codexAppProcessClient: codexAppProcessClient,
                 identityResolver: identityResolver
             ),
-            switchAccountOnHostWorkflow: SwitchAccountOnHostWorkflow(
-                remoteHostSwitchOperations: remoteHostSwitchOperations
-            ),
-            remoteHostAccountVerifier: RemoteHostAccountVerifier(),
             addAccountWorkflow: AddAccountWorkflow(
                 authService: authService,
                 repository: repository,
                 identityResolver: identityResolver
-            )
+            ),
+            postSwitchRefreshDelay: postSwitchRefreshDelay
         )
     }
 }

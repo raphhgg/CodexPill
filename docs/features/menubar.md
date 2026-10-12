@@ -6,13 +6,13 @@ It does not own every behavior behind each row. Instead, it defines where featur
 
 ## Purpose
 
-The menubar popup is CodexPill's primary product surface. It combines account status, remote status, saved account actions, and app-level controls in one native menu.
+The menubar popup is CodexPill's primary product surface. It combines account status, saved account actions, and app-level controls in one native menu.
 
 ## Section Order
 
 The menu is ordered as:
 
-1. `Active Account` or `Active Accounts`
+1. `Active Account`
 2. `Accounts`, when saved catalog entries are visible
 3. `More Accounts…`, when saved catalog entries overflow the visible limit
 4. App Controls
@@ -25,10 +25,8 @@ Owned behavior: [Accounts](accounts/00-accounts.md).
 
 UX responsibility here:
 
-- Use `Active Account` for one active account card and `Active Accounts` for multiple active account cards.
-- Present the active local saved account and connected verified remote active accounts in one unified section.
-- Collapse the local and remote surfaces into one card when the same saved account is active on This Mac and a connected verified remote host.
-- Show enough plan, location, and session/weekly usage information to answer "what am I using right now and where?"
+- Use `Active Account` for the one active account card.
+- Show enough plan and session/weekly usage information to answer "what am I using right now?"
 - If no saved account matches any live active account, show a clear empty state instead of pretending an account is active.
 
 ## Accounts Section
@@ -37,9 +35,9 @@ Owned behavior: [Accounts](accounts/00-accounts.md).
 
 UX responsibility here:
 
-- Show saved catalog rows below current/remote cards.
+- Show saved catalog rows below the active account card.
 - Keep rows compact: account display name plus session/weekly summary.
-- Use a submenu per row for target switching and account management.
+- Use a submenu per row for switching and account management.
 - Use `More Accounts…` when the visible-account limit hides additional saved accounts.
 
 ## App Controls Section
@@ -49,11 +47,9 @@ The lower section is called App Controls in product docs. It is not called Prefe
 Entries:
 
 - `Add Account…`: entry point owned by [Accounts](accounts/00-accounts.md).
-- `Hosts`: entry point owned by [Remote Hosts](remote-hosts.md).
-- `Notifications`: entry point owned by [Notifications](notifications.md).
 - `Refresh Interval`: setting that controls scheduled refresh cadence.
 - `Preferences`: visual settings owned by [Status Bar](status-bar.md), plus app-level controls such as [Launch at Login](app-controls/01-launch-at-login.md).
-- `Diagnostics…`: user-initiated support artifact export. CodexPill first explains what the export contains, then writes a redacted JSON file only if the user confirms. The report is built from allowlisted diagnostic fields, per-export account/host aliases, summarized freshness/result states, and recent CodexPill-owned workflow events. It must not include raw logs, auth JSON, saved snapshots, raw UserDefaults, raw SSH output, emails, hostnames, local paths, tokens, stable account IDs, prompt/session content, or raw stderr.
+- `Diagnostics…`: user-initiated support artifact export. CodexPill first explains what the export contains, then writes a redacted JSON file only if the user confirms. The report is built from allowlisted diagnostic fields, per-export account aliases, summarized freshness/result states, and recent CodexPill-owned workflow events. It must not include raw logs, auth JSON, saved snapshots, raw UserDefaults, emails, hostnames, local paths, tokens, stable account IDs, prompt/session content, or raw stderr.
 - `About`: app-level informational alert.
 - `Quit`: app-level quit command, separated from status and controls.
 
@@ -65,4 +61,4 @@ If `statusMessage` is visible, it appears below App Controls and above `Quit`.
 
 ## Validation Notes
 
-Menu UI validation should assert section ordering, direct-row versus submenu placement, action wiring, disabled states during busy work, and the presence or absence of optional sections.
+Menu tests build the `NSMenu` with `MenuBarMenuBuilder` and assert section ordering, direct-row versus submenu placement, action wiring, disabled states during busy work, and the presence or absence of optional sections. Coordinator flow tests live in `MenuBarCoordinatorTests`.

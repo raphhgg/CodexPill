@@ -90,8 +90,6 @@ Actions:
 
 If Codex terminals are running, the success alert should include the same restart warning used by normal local switch confirmations before the user chooses `Use on This Mac`.
 
-Remote host actions are intentionally omitted from the v0 success alert. Users can switch the new account on a remote host from the normal account menu.
-
 ## Acceptance Criteria
 
 ### Unique Display Name
@@ -219,7 +217,7 @@ Given CodexPill crashes during isolated sign-in, when CodexPill next launches, t
 
 ## Validation Targets
 
-The Add Account acceptance criteria should drive unit, integration, and live UI validation. At minimum, validation should cover:
+The Add Account acceptance criteria should drive unit and integration tests. At minimum, tests should cover:
 
 - `add_account_duplicate_display_name_blocks_before_sign_in`
 - `add_account_shows_device_code_and_copy_action`

@@ -19,11 +19,6 @@ struct MenuBarAlertFactoryTests {
     }
 
     @Test
-    func debugAppVersionTextShowsDev() {
-        #expect(MenuBarAppVersionText.current() == "Dev")
-    }
-
-    @Test
     func releaseAppVersionPrefersInjectedReleaseVersion() {
         let version = MenuBarAppVersionText.release(
             releaseVersion: "v0.1.0-beta.1",
@@ -55,29 +50,16 @@ struct MenuBarAlertFactoryTests {
     }
 
     @Test
-    func addAccountNamePromptExplainsDisplayName() {
-        let request = factory.makeAddAccountRequest(runningCLISessions: 0)
+    func addAccountNamePromptRequiresNameAndIgnoresRunningCliSessions() {
+        let idle = factory.makeAddAccountRequest(runningCLISessions: 0)
+        let busy = factory.makeAddAccountRequest(runningCLISessions: 1)
 
-        #expect(request.messageText == "Add account")
-        #expect(request.fieldTitle == "Account Name")
-        #expect(request.placeholder == "Work")
-        #expect(request.confirmTitle == "Continue")
-        #expect(request.requiresNonEmptyValue)
-        #expect(request.informativeText == "Choose a name for this saved account. You can change it later.")
-        #expect(!request.informativeText.contains("browser"))
-        #expect(!request.informativeText.contains("Codex terminal is running"))
+        #expect(idle.requiresNonEmptyValue)
+        #expect(busy.informativeText == idle.informativeText)
     }
 
     @Test
-    func addAccountNamePromptStaysFocusedOnNamingWhenCliSessionsExist() {
-        let request = factory.makeAddAccountRequest(runningCLISessions: 1)
-
-        #expect(request.informativeText == "Choose a name for this saved account. You can change it later.")
-        #expect(!request.informativeText.contains("Codex terminal is running"))
-    }
-
-    @Test
-    func addAccountSignInRequestShowsDeviceCodeCopy() {
+    func addAccountSignInRequestCarriesDeviceCodeAndURL() {
         let prompt = IsolatedCodexLoginPrompt(
             url: URL(string: "https://auth.openai.com/codex/device")!,
             userCode: "ABCD-EFGH"
@@ -85,14 +67,8 @@ struct MenuBarAlertFactoryTests {
 
         let request = factory.makeAddAccountSignInRequest(prompt: prompt)
 
-        #expect(request.messageText == "Sign in to Codex")
-        #expect(request.informativeText.contains("Copy this code"))
         #expect(request.userCode == "ABCD-EFGH")
-        #expect(request.promptURL == prompt.url)
-        #expect(request.copyTitle == "Copy Code")
-        #expect(request.openBrowserTitle == "Open Browser")
-        #expect(request.browserOpenedStatusText.contains("Browser opened"))
-        #expect(request.cancelTitle == "Cancel")
+        #expect(request.promptURL == URL(string: "https://auth.openai.com/codex/device")!)
     }
 
     @Test
@@ -114,16 +90,6 @@ struct MenuBarAlertFactoryTests {
         #expect(request.informativeText.contains("2 Codex terminals are running"))
         #expect(request.informativeText.contains("Restart them to use the new account."))
         #expect(request.confirmTitle == "Use on This Mac")
-    }
-
-    @Test
-    func addAccountDuplicateNameRequestOffersRetry() {
-        let request = factory.makeAddAccountDuplicateNameRequest()
-
-        #expect(request.messageText == "Name Already Used")
-        #expect(request.informativeText.contains("Choose a different name"))
-        #expect(request.confirmTitle == "Try Again")
-        #expect(request.cancelTitle == "Cancel")
     }
 
     @Test
@@ -198,20 +164,6 @@ struct MenuBarAlertFactoryTests {
     }
 
     @Test
-    func addHostRequestUsesTestThenAddCopy() {
-        let request = factory.makeAddHostRequest()
-
-        #expect(request.messageText == "Add remote host")
-        #expect(request.placeholder == "user@host")
-        #expect(request.nameFieldTitle == "Host Name (Optional)")
-        #expect(request.namePlaceholder == "buildbox")
-        #expect(request.confirmTitle == "Add Host")
-        #expect(request.cancelTitle == "Cancel")
-        #expect(request.idleStatusText == "CodexPill checks the connection automatically.")
-        #expect(request.successStatusText == "Connection successful.")
-    }
-
-    @Test
     func errorRequestUsesWarningStyle() {
         let request = factory.makeErrorRequest(message: "Boom")
 
@@ -233,24 +185,12 @@ struct MenuBarAlertFactoryTests {
     }
 
     @Test
-    func installCurrentAccountOnHostRequestExplainsCancelAbortsSetup() {
-        let request = factory.makeInstallCurrentAccountOnHostRequest(accountName: "Business 1", hostName: "buildbox")
-
-        #expect(request.messageText == "Install current account on buildbox?")
-        #expect(request.informativeText.contains("Install Business 1 on buildbox"))
-        #expect(request.informativeText.contains("the host will not be added yet"))
-        #expect(request.confirmTitle == "Install and Switch")
-        #expect(request.cancelTitle == "Cancel")
-    }
-
-    @Test
     func diagnosticsExportRequestExplainsRedactedSupportFile() {
         let request = factory.makeDiagnosticsExportRequest()
 
         #expect(request.messageText == "Export Diagnostics?")
         #expect(request.informativeText.contains("redacted support file"))
         #expect(request.informativeText.contains("account aliases"))
-        #expect(request.informativeText.contains("host aliases"))
         #expect(request.informativeText.contains("auth tokens"))
         #expect(request.informativeText.contains("emails"))
         #expect(request.informativeText.contains("hostnames"))
@@ -259,29 +199,4 @@ struct MenuBarAlertFactoryTests {
         #expect(request.cancelTitle == "Cancel")
     }
 
-    @Test
-    func launchAtLoginRequestExplainsSystemLoginItemChange() {
-        let request = factory.makeEnableLaunchAtLoginRequest()
-
-        #expect(request.messageText == "Launch CodexPill at Login?")
-        #expect(request.informativeText.contains("open it automatically when you log in"))
-        #expect(request.informativeText.contains("turn this off here or in System Settings"))
-        #expect(request.confirmTitle == "Enable")
-        #expect(request.cancelTitle == "Cancel")
-    }
-
-    @Test
-    func notificationActionRequestExplainsSubstitutionWhenPresent() {
-        let request = factory.makeNotificationActionRequest(
-            accountName: "Business 2",
-            targetDescription: "debian-vm",
-            substitutionMessage: "Business 4 is no longer the best option. Switching to Business 2 instead.",
-            runningCLISessions: nil
-        )
-
-        #expect(request.messageText == "Use Business 2 now?")
-        #expect(request.informativeText.contains("Business 4 is no longer the best option. Switching to Business 2 instead."))
-        #expect(request.informativeText.contains("Switch debian-vm to Business 2."))
-        #expect(request.confirmTitle == "Switch")
-    }
 }

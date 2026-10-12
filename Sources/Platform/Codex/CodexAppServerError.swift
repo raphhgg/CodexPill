@@ -39,7 +39,6 @@ enum CodexAppServerError: LocalizedError, Equatable {
     case server(String)
     case terminated(Int)
     case timeout
-    case remoteConnectionFailed(String)
 
     var errorDescription: String? {
         switch self {
@@ -49,8 +48,6 @@ enum CodexAppServerError: LocalizedError, Equatable {
             "Codex app-server exited with code \(code)."
         case .timeout:
             "Timed out while reading Codex account data."
-        case .remoteConnectionFailed(let message):
-            message
         }
     }
 }

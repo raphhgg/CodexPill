@@ -126,7 +126,7 @@ struct CodexAccountMatcher: Sendable {
         if let liveAuthPrincipalIdentity,
            liveAuthPrincipalIdentity.isMeaningful {
             let principalMatches = stableAccounts
-                .filter { $0.identity.authPrincipalIdentity == liveAuthPrincipalIdentity }
+                .filter { liveAuthPrincipalIdentity.isSameUser(as: $0.identity.authPrincipalIdentity) }
                 .map(\.id)
 
             switch principalMatches.count {

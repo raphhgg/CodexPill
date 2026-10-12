@@ -6,10 +6,10 @@ import Testing
 struct SavedAccountIdentityResolverTests {
     @Test
     func resolveUsesCurrentAuthFingerprintByDefault() {
-        let account = makeAccount(name: "Work", fingerprint: "live-fingerprint", email: "work@example.com")
+        let account = makeAccount(name: "Work", email: "work@example.com", fingerprint: "live-fingerprint")
         let resolver = SavedAccountIdentityResolver(
-            liveIdentitySource: LiveIdentityProbe(currentFingerprint: "live-fingerprint", stableAccountID: nil),
-            storedAccountReconciler: IdentityReconcilerAdapter()
+            liveIdentitySource: LiveIdentityStub(fingerprint: "live-fingerprint"),
+            storedAccountReconciler: PassthroughIdentityReconciler()
         )
 
         let result = resolver.resolve(accounts: [account])
@@ -19,10 +19,10 @@ struct SavedAccountIdentityResolverTests {
 
     @Test
     func resolveFallsBackToRemoteIdentityWhenFingerprintDoesNotMatch() {
-        let account = makeAccount(name: "Work", fingerprint: "stale-fingerprint", email: "work@example.com")
+        let account = makeAccount(name: "Work", email: "work@example.com", fingerprint: "stale-fingerprint")
         let resolver = SavedAccountIdentityResolver(
-            liveIdentitySource: LiveIdentityProbe(currentFingerprint: "live-fingerprint", stableAccountID: nil),
-            storedAccountReconciler: IdentityReconcilerAdapter()
+            liveIdentitySource: LiveIdentityStub(fingerprint: "live-fingerprint"),
+            storedAccountReconciler: PassthroughIdentityReconciler()
         )
 
         let result = resolver.resolve(
@@ -37,8 +37,8 @@ struct SavedAccountIdentityResolverTests {
     func resolvePrefersScopedPrincipalIdentityWhenStableAccountIDIsShared() {
         let businessOne = makeAccount(
             name: "Business 1",
-            fingerprint: "business-one-fingerprint",
             email: "admin@example.com",
+            fingerprint: "business-one-fingerprint",
             stableAccountID: "acct-team",
             authPrincipalIdentity: CodexAuthPrincipalIdentity(
                 subject: "auth0|business-1",
@@ -51,8 +51,8 @@ struct SavedAccountIdentityResolverTests {
         )
         let businessFour = makeAccount(
             name: "Business 4",
-            fingerprint: "business-four-fingerprint",
             email: "team@example.com",
+            fingerprint: "business-four-fingerprint",
             stableAccountID: "acct-team",
             authPrincipalIdentity: CodexAuthPrincipalIdentity(
                 subject: "auth0|business-4",
@@ -64,15 +64,14 @@ struct SavedAccountIdentityResolverTests {
             )
         )
         let resolver = SavedAccountIdentityResolver(
-            liveIdentitySource: LiveIdentityProbe(
-                currentFingerprint: nil,
+            liveIdentitySource: LiveIdentityStub(
                 stableAccountID: "acct-team",
                 authPrincipalIdentity: CodexAuthPrincipalIdentity(
                     subject: "auth0|business-4",
                     chatGPTUserID: "user-business-4"
                 )
             ),
-            storedAccountReconciler: IdentityReconcilerAdapter()
+            storedAccountReconciler: PassthroughIdentityReconciler()
         )
 
         let result = resolver.resolve(accounts: [businessOne, businessFour])
@@ -84,8 +83,8 @@ struct SavedAccountIdentityResolverTests {
     func resolveDoesNotFallbackToRemoteIdentityWhenScopedStableCandidatesDisagree() {
         let businessOne = makeAccount(
             name: "Business 1",
-            fingerprint: "business-one-fingerprint",
             email: "admin@example.com",
+            fingerprint: "business-one-fingerprint",
             stableAccountID: "acct-team",
             authPrincipalIdentity: CodexAuthPrincipalIdentity(
                 subject: "auth0|business-1",
@@ -98,8 +97,8 @@ struct SavedAccountIdentityResolverTests {
         )
         let businessFour = makeAccount(
             name: "Business 4",
-            fingerprint: "business-four-fingerprint",
             email: "team@example.com",
+            fingerprint: "business-four-fingerprint",
             stableAccountID: "acct-team",
             authPrincipalIdentity: CodexAuthPrincipalIdentity(
                 subject: "auth0|business-4",
@@ -111,15 +110,14 @@ struct SavedAccountIdentityResolverTests {
             )
         )
         let resolver = SavedAccountIdentityResolver(
-            liveIdentitySource: LiveIdentityProbe(
-                currentFingerprint: nil,
+            liveIdentitySource: LiveIdentityStub(
                 stableAccountID: "acct-team",
                 authPrincipalIdentity: CodexAuthPrincipalIdentity(
                     subject: "auth0|other-business",
                     chatGPTUserID: "user-other-business"
                 )
             ),
-            storedAccountReconciler: IdentityReconcilerAdapter()
+            storedAccountReconciler: PassthroughIdentityReconciler()
         )
 
         let result = resolver.resolve(
@@ -128,64 +126,5 @@ struct SavedAccountIdentityResolverTests {
         )
 
         #expect(result == .noMatch)
-    }
-
-    private func makeAccount(
-        name: String,
-        fingerprint: String,
-        email: String,
-        stableAccountID: String? = nil,
-        authPrincipalIdentity: CodexAuthPrincipalIdentity? = nil,
-        workspaceIdentity: CodexWorkspaceIdentity? = nil
-    ) -> CodexAccount {
-        CodexAccount(
-            id: UUID(),
-            name: name,
-            snapshotFileName: "\(UUID().uuidString).json",
-            createdAt: .distantPast,
-            updatedAt: .distantPast,
-            email: email,
-            planType: nil,
-            rateLimits: nil,
-            identity: CodexAccountIdentity(
-                stableAccountID: stableAccountID,
-                authPrincipalIdentity: authPrincipalIdentity,
-                workspaceIdentity: workspaceIdentity,
-                snapshotFingerprint: fingerprint,
-                remoteIdentity: CodexRemoteAccountIdentity(emailAddress: email)
-            )
-        )
-    }
-}
-
-private struct LiveIdentityProbe: LiveCodexAccountIdentitySource {
-    let currentFingerprint: String?
-    let stableAccountID: String?
-    let authPrincipalIdentity: CodexAuthPrincipalIdentity?
-    let workspaceIdentity: CodexWorkspaceIdentity? = nil
-
-    init(
-        currentFingerprint: String?,
-        stableAccountID: String?,
-        authPrincipalIdentity: CodexAuthPrincipalIdentity? = nil
-    ) {
-        self.currentFingerprint = currentFingerprint
-        self.stableAccountID = stableAccountID
-        self.authPrincipalIdentity = authPrincipalIdentity
-    }
-
-    func readCurrentLiveAccountIdentity() -> LiveCodexAccountIdentity {
-        LiveCodexAccountIdentity(
-            stableAccountID: stableAccountID,
-            authPrincipalIdentity: authPrincipalIdentity,
-            workspaceIdentity: workspaceIdentity,
-            snapshotFingerprint: currentFingerprint
-        )
-    }
-}
-
-private struct IdentityReconcilerAdapter: StoredAccountIdentityReconciler {
-    func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {
-        accounts
     }
 }

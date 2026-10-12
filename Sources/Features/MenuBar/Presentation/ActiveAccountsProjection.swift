@@ -8,70 +8,13 @@ struct ActiveAccountCard: Equatable {
 
 struct ActiveAccountsProjection {
     let activeAccount: CodexAccount?
-    let connectedRemoteHosts: [RemoteHostMenuState]
 
     var activeAccountCards: [ActiveAccountCard] {
-        var cards: [ActiveAccountCard] = []
-        let verifiedRemoteHosts = connectedRemoteHosts.filter(\.isVerified)
-        let localRemoteHosts = verifiedRemoteHosts.filter { remoteHost in
-            guard let activeAccount,
-                  let remoteAccount = remoteHost.activeAccount else {
-                return false
-            }
-            return remoteAccount.matchesSameAccount(as: activeAccount)
-        }
-        let remoteHostsNotRepresentedByLocal = verifiedRemoteHosts.filter { remoteHost in
-            guard let activeAccount,
-                  let remoteAccount = remoteHost.activeAccount else {
-                return true
-            }
-            return !remoteAccount.matchesSameAccount(as: activeAccount)
-        }
-
-        if let activeAccount {
-            let locations = localRemoteHosts.isEmpty && remoteHostsNotRepresentedByLocal.isEmpty
-                ? []
-                : ["This Mac"] + localRemoteHosts.map(\.name)
-            cards.append(
-                ActiveAccountCard(
-                    account: activeAccount,
-                    locations: locations,
-                    showsUpdatedTime: locations.isEmpty
-                )
-            )
-        }
-
-        for group in groupedRemoteActiveHosts(remoteHostsNotRepresentedByLocal) {
-            guard let displayAccount = group.first?.activeAccount else { continue }
-            cards.append(
-                ActiveAccountCard(
-                    account: displayAccount,
-                    locations: group.map(\.name),
-                    showsUpdatedTime: false
-                )
-            )
-        }
-
-        return cards
+        activeAccount.map { [ActiveAccountCard(account: $0, locations: [], showsUpdatedTime: true)] } ?? []
     }
 
     var sectionTitle: String {
-        activeAccountCards.count == 1 ? "Active Account" : "Active Accounts"
-    }
-
-    private func groupedRemoteActiveHosts(_ remoteHosts: [RemoteHostMenuState]) -> [[RemoteHostMenuState]] {
-        remoteHosts.reduce(into: [[RemoteHostMenuState]]()) { groups, remoteHost in
-            guard let remoteAccount = remoteHost.activeAccount else { return }
-            if let index = groups.firstIndex(where: { group in
-                group.contains { existingHost in
-                    existingHost.activeAccount?.matchesSameAccount(as: remoteAccount) == true
-                }
-            }) {
-                groups[index].append(remoteHost)
-            } else {
-                groups.append([remoteHost])
-            }
-        }
+        "Active Account"
     }
 }
 
