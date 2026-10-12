@@ -1,5 +1,38 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Renamed CodexPill to Refill, with the new bundle ID `com.raphhgg.refill`.
+  On its first launch Refill copies CodexPill's saved accounts, settings and
+  Keychain items, unless Refill already has data. CodexPill's copies stay as a
+  backup. [Uninstall And Reset](docs/UNINSTALL_RESET.md) explains how to remove
+  them.
+- New capsule app icon, built in Icon Composer.
+
+### Added
+
+- Claude Code and Cursor usage limits, with switching between saved accounts.
+- One card per tool, with account actions in side menus and the app's own
+  items right under the cards. `Appearance › Show Tools` hides a tool.
+- Codex reset credits.
+- App Icon colour setting under `Appearance`, with six colours. It
+  changes the icon in About and in alerts. Finder keeps Cobalt.
+
+### Removed
+
+- Remote Hosts and Notifications.
+
+### Fixed
+
+- Adding a Codex account works with the Codex app installed as ChatGPT.app,
+  which keeps its CLI in a new place.
+- Switching Codex accounts no longer needs the Codex app. Without it, Refill
+  switches and skips the restart.
+- With nothing connected, the menu bar icon draws the chosen Icon Style, so
+  changing it shows at once.
+
 ## v0.1.0-beta.2 - 2026-05-31
 
 Second public beta of CodexPill.

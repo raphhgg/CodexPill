@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import CodexPill
+@testable import Refill
 
 struct CodexUsageTests {
     private let fetchedAt = Date(timeIntervalSince1970: 2_000_000_100)
@@ -311,6 +311,6 @@ struct CodexUsageTests {
     private func usage(fromAppServerJSON json: String) throws -> UsageSnapshot {
         let response = try JSONDecoder().decode(AppServerRateLimitsResponse.self, from: Data(json.utf8))
         let appServerRateLimits = try #require(CodexAppServerRateLimitParser().parse(response, fetchedAt: fetchedAt))
-        return CodexPillAccountStatusMapper().usage(from: appServerRateLimits)
+        return RefillAccountStatusMapper().usage(from: appServerRateLimits)
     }
 }

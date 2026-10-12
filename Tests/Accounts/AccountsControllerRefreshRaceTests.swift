@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import CodexPill
+@testable import Refill
 
 @MainActor
 struct AccountsControllerRefreshRaceTests {
@@ -372,8 +372,7 @@ private actor SuspendedActiveStatusClient: CodexAccountStatusClient {
 }
 
 private struct RaceCodexAppProcessClient: CodexAppProcessClient {
-    func assertCodexAvailable() throws {}
-    func relaunchCodex() async throws {}
+    func relaunchCodex() async throws -> CodexRelaunch { .relaunched }
 }
 
 private struct RaceStoredIdentityAdapter: StoredAccountIdentityReconciler {

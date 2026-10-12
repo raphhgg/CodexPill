@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import CodexPill
+@testable import Refill
 
 /// The real runner, with a shell script standing in for `claude`.
 struct ClaudeCodeProcessRunnerTests {
@@ -56,7 +56,7 @@ struct ClaudeCodeProcessRunnerTests {
 
     @Test
     func aMissingClaudeIsReportedWithoutRunningAnything() async throws {
-        let runner = SystemClaudeCodeProcessRunner(searchDirectories: [URL(fileURLWithPath: "/nonexistent-codexpill-test")])
+        let runner = SystemClaudeCodeProcessRunner(searchDirectories: [URL(fileURLWithPath: "/nonexistent-refill-test")])
 
         #expect(runner.executable == nil)
         await #expect(throws: ClaudeCodeCommandError.notInstalled) {

@@ -1,9 +1,9 @@
 import Foundation
 import Testing
 
-@testable import CodexPill
+@testable import Refill
 
-/// Claude Code renews its own expired live sign-in when CodexPill runs `claude doctor`. CodexPill never writes it.
+/// Claude Code renews its own expired live sign-in when Refill runs `claude doctor`. Refill never writes it.
 @MainActor
 struct ClaudeLiveRenewalTests {
     private let now = Date(timeIntervalSince1970: 1_800_000_000)

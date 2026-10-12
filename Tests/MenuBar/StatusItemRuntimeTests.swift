@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 import Testing
 
-@testable import CodexPill
+@testable import Refill
 
 @MainActor
 struct StatusItemRuntimeTests {
@@ -20,8 +20,7 @@ struct StatusItemRuntimeTests {
         runtime.start(
             presentation: .init(
                 source: primaryAccountSource(),
-                indicatorStyle: .dualArcBadge,
-                monochrome: false,
+                indicatorStyle: .moon,
                 displayMode: .iconAndText
             )
         )
@@ -31,6 +30,24 @@ struct StatusItemRuntimeTests {
         #expect(snapshot.isTitleVisible)
         #expect(snapshot.displayedTitle == "S 42% W 68%")
         #expect(snapshot.imagePosition == "imageLeading")
+    }
+
+    @Test
+    func nothingConnectedDrawsTheChosenStyleSoAStyleChangeShowsAtOnce() throws {
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        defer { NSStatusBar.system.removeStatusItem(statusItem) }
+        let runtime = StatusItemRuntime(statusItem: statusItem, hoverActivationDelay: 0, hoverExitDelay: 0, hoverPollingInterval: 60)
+        func pixels() throws -> Data { try #require(statusItem.button?.image?.tiffRepresentation) }
+
+        runtime.start(presentation: .init(source: .nothingConnected, indicatorStyle: .hourglass, displayMode: .iconOnly))
+        let hourglass = try pixels()
+        runtime.update(presentation: .init(source: .nothingConnected, indicatorStyle: .moon, displayMode: .iconOnly))
+        let moon = try pixels()
+        runtime.update(presentation: .init(source: .nothingConnected, indicatorStyle: .punchCard, displayMode: .iconOnly))
+        let punchCard = try pixels()
+
+        #expect(Set([hourglass, moon, punchCard]).count == 3)
+        #expect(punchCard == StatusBarIconRenderer().makeImage(style: .punchCard, reading: .noData, percentMode: .used).tiffRepresentation)
     }
 
     @Test
@@ -47,8 +64,7 @@ struct StatusItemRuntimeTests {
         runtime.start(
             presentation: .init(
                 source: primaryAccountSource(),
-                indicatorStyle: .dualArcBadge,
-                monochrome: false,
+                indicatorStyle: .moon,
                 displayMode: .iconOnly
             )
         )
@@ -58,8 +74,7 @@ struct StatusItemRuntimeTests {
         runtime.update(
             presentation: .init(
                 source: primaryAccountSource(),
-                indicatorStyle: .dualArcBadge,
-                monochrome: false,
+                indicatorStyle: .moon,
                 displayMode: .iconAndText
             )
         )
@@ -68,8 +83,7 @@ struct StatusItemRuntimeTests {
         runtime.update(
             presentation: .init(
                 source: primaryAccountSource(),
-                indicatorStyle: .dualArcBadge,
-                monochrome: false,
+                indicatorStyle: .moon,
                 displayMode: .textOnHover
             )
         )
@@ -78,8 +92,7 @@ struct StatusItemRuntimeTests {
         runtime.update(
             presentation: .init(
                 source: primaryAccountSource(),
-                indicatorStyle: .dualArcBadge,
-                monochrome: false,
+                indicatorStyle: .moon,
                 displayMode: .iconOnly
             )
         )
@@ -102,8 +115,7 @@ struct StatusItemRuntimeTests {
         runtime.start(
             presentation: .init(
                 source: primaryAccountSource(),
-                indicatorStyle: .dualArcBadge,
-                monochrome: false,
+                indicatorStyle: .moon,
                 displayMode: .textOnHover
             )
         )
@@ -132,8 +144,7 @@ struct StatusItemRuntimeTests {
         runtime.start(
             presentation: .init(
                 source: primaryAccountSource(),
-                indicatorStyle: .dualArcBadge,
-                monochrome: false,
+                indicatorStyle: .moon,
                 displayMode: .iconOnly
             )
         )
@@ -163,8 +174,7 @@ struct StatusItemRuntimeTests {
         runtime.start(
             presentation: .init(
                 source: primaryAccountSource(),
-                indicatorStyle: .dualArcBadge,
-                monochrome: false,
+                indicatorStyle: .moon,
                 displayMode: .iconOnly
             )
         )

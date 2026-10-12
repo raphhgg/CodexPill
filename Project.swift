@@ -1,21 +1,20 @@
 import ProjectDescription
 
 let project = Project(
-    name: "CodexPill",
+    name: "Refill",
     organizationName: "raphhgg",
     packages: [],
     targets: [
         .target(
-            name: "CodexPill",
+            name: "Refill",
             destinations: .macOS,
             product: .app,
-            bundleId: "com.raphhgg.codexpill",
+            bundleId: "com.raphhgg.refill",
             deploymentTargets: .macOS("14.0"),
             infoPlist: .dictionary([
                 "CFBundleDevelopmentRegion": "en",
-                "CFBundleDisplayName": "CodexPill",
+                "CFBundleDisplayName": "Refill",
                 "CFBundleExecutable": "$(EXECUTABLE_NAME)",
-                "CFBundleIconFile": "AppIcon",
                 "CFBundleIdentifier": "$(PRODUCT_BUNDLE_IDENTIFIER)",
                 "CFBundleInfoDictionaryVersion": "6.0",
                 "CFBundleName": "$(PRODUCT_NAME)",
@@ -28,12 +27,13 @@ let project = Project(
             ]),
             sources: ["Sources/**"],
             resources: [
-                "Resources/AppIcon.icns",
-                "Resources/AppIcon.png",
+                "Resources/AppIcon.icon",
+                "Resources/AppIconColors/*.png",
                 "Resources/Assets.xcassets",
             ],
             dependencies: [],
             settings: .settings(base: [
+                "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon",
                 "CODE_SIGN_INJECT_BASE_ENTITLEMENTS": "NO",
                 "CURRENT_PROJECT_VERSION": "2",
                 "ENABLE_DEBUG_DYLIB": "NO",
@@ -41,15 +41,15 @@ let project = Project(
             ])
         ),
         .target(
-            name: "CodexPillTests",
+            name: "RefillTests",
             destinations: .macOS,
             product: .unitTests,
-            bundleId: "com.raphhgg.codexpill.tests",
+            bundleId: "com.raphhgg.refill.tests",
             deploymentTargets: .macOS("14.0"),
             infoPlist: .default,
             sources: ["Tests/**"],
             dependencies: [
-                .target(name: "CodexPill")
+                .target(name: "Refill")
             ],
             settings: .settings(base: [
                 "SWIFT_VERSION": "6.0",

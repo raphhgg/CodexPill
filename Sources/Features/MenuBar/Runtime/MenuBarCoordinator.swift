@@ -2,7 +2,7 @@ import AppKit
 import Observation
 import OSLog
 
-private let menuBarCoordinatorLogger = Logger(subsystem: "com.raphhgg.codexpill", category: "MenuBarCoordinator")
+private let menuBarCoordinatorLogger = Logger(subsystem: "com.raphhgg.refill", category: "MenuBarCoordinator")
 
 @MainActor
 final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
@@ -13,6 +13,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let statusItemSettings: StatusItemSettingsStore
     private let tokenUsagePreferences: TokenUsagePreferencesStore
     private let claudeUsageSettings: ClaudeUsageSettingsStore
+    private let appIconPreferences: AppIconPreferencesStore
+    private let appIconApplier: AppIconApplying
     private let cliProcessInspector: CodexCLIProcessInspector
     private let alertPresenter: AlertPresenter
     private let panelPresenter: PanelPresenter
@@ -62,6 +64,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         statusItemSettings: StatusItemSettingsStore,
         tokenUsagePreferences: TokenUsagePreferencesStore,
         claudeUsageSettings: ClaudeUsageSettingsStore,
+        appIconPreferences: AppIconPreferencesStore,
+        appIconApplier: AppIconApplying,
         cliProcessInspector: CodexCLIProcessInspector,
         alertPresenter: AlertPresenter,
         panelPresenter: PanelPresenter,
@@ -81,6 +85,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.statusItemSettings = statusItemSettings
         self.tokenUsagePreferences = tokenUsagePreferences
         self.claudeUsageSettings = claudeUsageSettings
+        self.appIconPreferences = appIconPreferences
+        self.appIconApplier = appIconApplier
         self.cliProcessInspector = cliProcessInspector
         self.alertPresenter = alertPresenter
         self.panelPresenter = panelPresenter
@@ -95,6 +101,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     func start() {
+        appIconApplier.apply(appIconPreferences.appIconColor)
         shortcutRuntime.onShortcut = { [weak self] in
             self?.statusItemRuntime.revealTitleTemporarily(duration: 3)
         }
@@ -106,6 +113,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         syncBackgroundState()
         registerRevealShortcutFromSettings()
         refreshMenuUsageIfNeeded()
+    }
+
+    func presentNotice(_ request: MenuBarInfoAlertRequest) {
+        alertPresenter.presentInfo(request)
     }
 
     func invalidate() {
@@ -133,6 +144,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     private func addCodexAccount() {
         recordMenuAction("addAccount")
+        menuDisplaySettings.hidesCodex = false
         menuBarCoordinatorLogger.log("Dispatching isolated add-account task to accounts controller")
         tasks.start { [weak self] in await self?.beginIsolatedAddAccount() }
     }
@@ -179,12 +191,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     @objc
-    func toggleStatusBarMonochrome(_ sender: NSMenuItem) {
-        recordMenuAction("toggleStatusBarMonochrome")
-        statusItemSettings.statusBarMonochrome.toggle()
-    }
-
-    @objc
     func selectStatusBarDisplayMode(_ sender: NSMenuItem) {
         recordMenuAction("selectStatusBarDisplayMode")
         guard
@@ -217,6 +223,19 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         recordMenuAction("toggleShowsModelLimits")
         claudeUsageSettings.showsModelLimits.toggle()
         rebuildMenu()
+    }
+
+    @objc
+    func selectAppIconColor(_ sender: NSMenuItem) {
+        recordMenuAction("selectAppIconColor")
+        guard
+            let rawValue = sender.representedObject as? String,
+            let color = AppIconColor(rawValue: rawValue)
+        else {
+            return
+        }
+        appIconPreferences.appIconColor = color
+        appIconApplier.apply(color)
     }
 
     @objc
@@ -350,9 +369,25 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             removeCodexAccount(id)
         case .useResetCredit:
             useCodexResetCredit()
-        case .connect, .allowKeychainAccess, .disconnect:
+        case .connect:
+            showCodex()
+        case .disconnect:
+            recordMenuAction("hideCodex")
+            menuDisplaySettings.hidesCodex = true
+        case .allowKeychainAccess:
             break
         }
+    }
+
+    /// Shows a hidden Codex card and reads it again. With no saved Codex account, adds one.
+    private func showCodex() {
+        guard !accountsController.accounts.isEmpty else {
+            addCodexAccount()
+            return
+        }
+        recordMenuAction("showCodex")
+        menuDisplaySettings.hidesCodex = false
+        tasks.start { [weak self] in await self?.refreshCodex(includingSavedAccounts: true) }
     }
 
     private func useCodexResetCredit() {
@@ -479,7 +514,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             inactiveAccounts: accountsController.sortedInactiveAccounts,
             refreshIntervalMinutes: menuDisplaySettings.refreshIntervalMinutes,
             refreshIntervalOptions: menuDisplaySettings.refreshIntervalOptions,
-            statusBarMonochrome: statusItemSettings.statusBarMonochrome,
             statusBarIndicatorStyle: statusItemSettings.statusBarIndicatorStyle,
             statusBarDisplayMode: statusItemSettings.statusBarDisplayMode,
             revealStatusItemTitleShortcut: statusItemSettings.revealStatusItemTitleShortcut,
@@ -498,7 +532,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             providerUsage: providerUsageRuntime.states,
             toolOrder: menuDisplaySettings.toolOrder,
             masksEmails: menuDisplaySettings.masksEmails,
+            hidesCodex: menuDisplaySettings.hidesCodex,
             showsModelLimits: claudeUsageSettings.showsModelLimits,
+            appIconColor: appIconPreferences.appIconColor,
             now: now()
         )
     }
@@ -684,6 +720,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             tasks.start { [weak self] in await self?.beginIsolatedAddAccount() }
         case .showError(let message):
             alertPresenter.presentInfo(alertFactory.makeErrorRequest(message: message))
+        case .showCodexAppNotFound:
+            alertPresenter.presentInfo(alertFactory.makeCodexAppNotFoundForAddRequest())
         case .showUnsafeAuthChange:
             alertPresenter.presentInfo(alertFactory.makeAddAccountUnsafeAuthChangeRequest())
         case .showSaveFailure:
@@ -694,8 +732,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     private func beginLocalSwitch(to account: CodexAccount) {
-        tasks.start { [accountsController] in
-            _ = await accountsController.switchToAccount(account)
+        tasks.start { [weak self] in
+            guard let self, await accountsController.switchToAccount(account).relaunch == .appNotFound else { return }
+            alertPresenter.presentInfo(alertFactory.makeCodexAppNotFoundAfterSwitchRequest())
         }
     }
 
@@ -713,7 +752,12 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     func performScheduledRefresh() async {
         refreshProviderUsageIfDue()
-        guard !accountsController.isBusy else { return }
+        await refreshCodex(includingSavedAccounts: true)
+    }
+
+    /// Reads the Codex limits unless the Codex card is hidden. At launch only the account in use is read.
+    func refreshCodex(includingSavedAccounts: Bool) async {
+        guard !menuDisplaySettings.hidesCodex, !accountsController.isBusy else { return }
         if let activeAccount = accountsController.activeAccount {
             switch await accountsController.refreshAccountData(for: activeAccount) {
             case .refreshed:
@@ -723,7 +767,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             }
         }
 
-        await accountsController.refreshInactiveSavedAccountsMetadata()
+        if includingSavedAccounts {
+            await accountsController.refreshInactiveSavedAccountsMetadata()
+        }
     }
 
     private func startObservingStore() {
@@ -769,16 +815,17 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         withObservationTracking {
             _ = menuDisplaySettings.refreshIntervalMinutes
             _ = statusItemSettings.statusBarIndicatorStyle
-            _ = statusItemSettings.statusBarMonochrome
             _ = statusItemSettings.statusBarDisplayMode
             _ = menuDisplaySettings.toolOrder
             _ = menuDisplaySettings.masksEmails
+            _ = menuDisplaySettings.hidesCodex
             _ = statusItemSettings.sessionAccentColor
             _ = statusItemSettings.weeklyAccentColor
             _ = statusItemSettings.usesOneUsageColor
             _ = statusItemSettings.usagePercentMode
             _ = statusItemSettings.usageMeterLayout
             _ = statusItemSettings.pacingMarkersEnabled
+            _ = appIconPreferences.appIconColor
         } onChange: { [weak self] in
             self?.tasks.start { [weak self] in
                 guard let self else { return }
@@ -827,11 +874,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         StatusItemRuntimePresentation(
             source: state.statusItemSource,
             indicatorStyle: statusItemSettings.statusBarIndicatorStyle,
-            monochrome: statusItemSettings.statusBarMonochrome,
             displayMode: state.effectiveStatusBarDisplayMode,
-            percentMode: state.usagePercentMode,
-            sessionAccentColor: state.sessionAccentColor,
-            weeklyAccentColor: state.weeklyAccentColor
+            percentMode: state.usagePercentMode
         )
     }
 

@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import CodexPill
+@testable import Refill
 
 @MainActor
 struct MenuDisplaySettingsStoreTests {
@@ -45,11 +45,29 @@ struct MenuDisplaySettingsStoreTests {
 
 @MainActor
 struct StatusItemSettingsStoreTests {
+    @Test
+    func defaultsUseCurrentStatusBarPreferences() {
+        let store = StatusItemSettingsStore(userDefaults: makeDefaults())
+
+        #expect(store.statusBarIndicatorStyle == .hourglass)
+        #expect(store.statusBarDisplayMode == .textOnHover)
+        #expect(store.pacingMarkersEnabled)
+        #expect(store.revealStatusItemTitleShortcut == .defaultRevealStatusItemTitle)
+        #expect(store.sessionAccentColor == nil)
+    }
+
     @Test(arguments: [
-        ("notchedSquare", StatusBarIndicatorStyle.stackedBars),
-        ("splitCapsule", StatusBarIndicatorStyle.twinPills)
+        ("dualArcBadge", StatusBarIndicatorStyle.moon),
+        ("stackedBars", .punchCard),
+        ("twinPills", .hourglass),
+        ("notchedSquare", .punchCard),
+        ("splitCapsule", .hourglass),
+        ("hourglass", .hourglass),
+        ("moon", .moon),
+        ("punchCard", .punchCard),
+        ("somethingUnknown", .hourglass)
     ])
-    func legacyStyleAliasesMigrate(rawValue: String, expectedStyle: StatusBarIndicatorStyle) {
+    func storedStyleValuesMapToCurrentStyles(rawValue: String, expectedStyle: StatusBarIndicatorStyle) {
         let defaults = makeDefaults()
         defaults.set(rawValue, forKey: "statusBarIndicatorStyle")
 
@@ -175,6 +193,30 @@ struct TokenUsagePreferencesStoreTests {
 
         #expect(store.period == .last30Days)
         #expect(defaults.object(forKey: "tokenUsagePeriod") as? Int == CodexTokenUsagePeriod.last30Days.rawValue)
+    }
+}
+
+@MainActor
+struct AppIconPreferencesStoreTests {
+    @Test
+    func appIconColorDefaultsToCobalt() {
+        #expect(AppIconPreferencesStore(userDefaults: makeDefaults()).appIconColor == .cobalt)
+    }
+
+    @Test
+    func appIconColorPersistsAcrossInstances() {
+        let defaults = makeDefaults()
+        AppIconPreferencesStore(userDefaults: defaults).appIconColor = .emerald
+
+        #expect(AppIconPreferencesStore(userDefaults: defaults).appIconColor == .emerald)
+    }
+
+    @Test
+    func unknownAppIconColorFallsBackToCobalt() {
+        let defaults = makeDefaults()
+        defaults.set("tangerine", forKey: "appIconColor")
+
+        #expect(AppIconPreferencesStore(userDefaults: defaults).appIconColor == .cobalt)
     }
 }
 

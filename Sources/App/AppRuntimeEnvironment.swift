@@ -1,8 +1,8 @@
 import Foundation
 
 enum AppRuntimeEnvironment {
-    static let isolatedAppSupportDirectoryEnvironmentKey = "CODEXPILL_ISOLATED_APP_SUPPORT_DIR"
-    static let isolatedDefaultsSuiteEnvironmentKey = "CODEXPILL_ISOLATED_DEFAULTS_SUITE"
+    static let isolatedAppSupportDirectoryEnvironmentKey = "REFILL_ISOLATED_APP_SUPPORT_DIR"
+    static let isolatedDefaultsSuiteEnvironmentKey = "REFILL_ISOLATED_DEFAULTS_SUITE"
     static let xctestConfigurationFilePathEnvironmentKey = "XCTestConfigurationFilePath"
 
     static func isolatedDefaultsSuiteName(
@@ -35,7 +35,7 @@ enum AppRuntimeEnvironment {
         guard isRunningAutomatedTests(environment: environment) else { return nil }
 
         return FileManager.default.temporaryDirectory
-            .appendingPathComponent("CodexPillTests-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true)
+            .appendingPathComponent("RefillTests-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true)
     }
 
     static func shouldStartAppRuntime(

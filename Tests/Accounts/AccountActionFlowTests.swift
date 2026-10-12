@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import CodexPill
+@testable import Refill
 
 struct AccountActionFlowTests {
     @Test
@@ -53,6 +53,13 @@ struct AccountActionFlowTests {
             Issue.record("Expected cancellation to end the Add Account flow silently")
             return
         }
+    }
+
+    @Test
+    func missingCodexAppGetsItsOwnAlertInsteadOfAGenericError() {
+        let step = AccountActionFlow().resolveAddAccountStartFailure(CodexAppNotFoundError())
+
+        #expect(step == .showCodexAppNotFound)
     }
 
     @Test

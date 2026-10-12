@@ -2,25 +2,25 @@
 
 ## User Story
 
-As a CodexPill user, I want to see when my Codex token usage is light or heavy over time, so I can understand my working rhythm from the menu bar without sending usage data anywhere.
+As a Refill user, I want to see when my Codex token usage is light or heavy over time, so I can understand my working rhythm from the menu bar without sending usage data anywhere.
 
 ## Product Contract
 
-Token Usage is an optional, local-first menu bar feature. When enabled, CodexPill scans local Codex session records on this Mac, aggregates token-count events into daily buckets, and shows a compact token usage summary in the main menu.
+Token Usage is an optional, local-first menu bar feature. When enabled, Refill scans local Codex session records on this Mac, aggregates token-count events into daily buckets, and shows a compact token usage summary in the main menu.
 
 The scan should be treated as a background data-loading job, not as work owned by the transient menu view. Opening or closing the menu must not restart the scan. Once enough local history has been scanned, changing period or chart style should derive a new presentation from cached aggregate data instead of visibly re-scanning local session files.
 
 The feature is about local Codex usage history, not saved-account usage history. V1 must not imply that the graph is split by saved account, workspace, organization, or remote host.
 
-CodexPill must not use undocumented backend usage endpoints, browser cookies, hidden WebViews, ChatGPT dashboard scraping, or manual prompt token counters for this feature.
+Refill must not use undocumented backend usage endpoints, browser cookies, hidden WebViews, ChatGPT dashboard scraping, or manual prompt token counters for this feature.
 
-CodexPill may read local Codex session logs as an observation surface, but it must not expose prompt content, raw session rows, file paths, auth payloads, account identifiers, emails, hostnames, or raw log bodies in UI, diagnostics, tracker comments, or test fixtures.
+Refill may read local Codex session logs as an observation surface, but it must not expose prompt content, raw session rows, file paths, auth payloads, account identifiers, emails, hostnames, or raw log bodies in UI, diagnostics, tracker comments, or test fixtures.
 
 ## Source Contract
 
 The selected source is local Codex session history, not private backend usage endpoints.
 
-Codex writes session JSONL files under its local sessions directory. Rows with `payload.type == "token_count"` can contain token usage snapshots for a turn or session, currently under `payload.info.last_token_usage` and `payload.info.total_token_usage`. CodexPill may scan those rows only through a `Platform/Codex` adapter. Feature and UI code must not know JSONL file layout, Codex internal row shapes, or local Codex storage paths.
+Codex writes session JSONL files under its local sessions directory. Rows with `payload.type == "token_count"` can contain token usage snapshots for a turn or session, currently under `payload.info.last_token_usage` and `payload.info.total_token_usage`. Refill may scan those rows only through a `Platform/Codex` adapter. Feature and UI code must not know JSONL file layout, Codex internal row shapes, or local Codex storage paths.
 
 Useful field classes in the local session rows:
 
@@ -35,15 +35,15 @@ Token Usage treats daily buckets as local-session scoped. It does not promise a 
 
 ## Happy Path
 
-1. User enables `Settings › Appearance › Show Token Usage`.
-2. CodexPill starts scanning recent local Codex session JSONL files in the background.
+1. User enables `Appearance › Show Token Usage`.
+2. Refill starts scanning recent local Codex session JSONL files in the background.
 3. User can close the menu or continue working while the scan completes.
-4. CodexPill aggregates safe token totals by day and stores them in a derived cache.
+4. Refill aggregates safe token totals by day and stores them in a derived cache.
 5. The Codex side menu gains `Token Usage ›`, which shows the card.
 
 ## UI / Copy / States
 
-Settings › Appearance:
+Appearance:
 
 - `Show Token Usage`
 
@@ -116,7 +116,7 @@ Expected behavior:
 
 ## Acceptance Criteria
 
-- Token Usage can be enabled and disabled from `Settings › Appearance`.
+- Token Usage can be enabled and disabled from `Appearance`.
 - When disabled, the main menu does not show the Token Usage card.
 - When enabled, the main menu shows a compact Token Usage card inside the active account area, directly below the Session and Weekly limit rows.
 - The card displays the selected chart style for the selected period.
@@ -172,7 +172,7 @@ RGR-360 compared chart variants with synthetic fixture data inside the active ac
 
 ## Open Questions
 
-- Should cached aggregates live under `~/Library/Caches/CodexPill` or be recomputed on demand?
+- Should cached aggregates live under `~/Library/Caches/Refill` or be recomputed on demand?
 - What refresh cadence is enough without making menu opening feel slow?
 - Should the app expose a manual `Refresh Token Usage` action, or rely on the existing refresh flow?
 

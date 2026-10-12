@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import CodexPill
+@testable import Refill
 
 struct ToolSectionTests {
     private let now = Date(timeIntervalSince1970: 1_791_000_000)
@@ -124,6 +124,20 @@ struct ToolSectionTests {
         #expect(staleSection.card.title == nil)
         #expect(staleSection.card.isDimmed)
         #expect(staleSection.planTag == "Max x20")
+    }
+
+    @Test
+    func lostKeychainAccessKeepsTheLastMetersAsOfTheirTimeAndOffersAccessInsteadOfSignIn() throws {
+        let lastSnapshot = claudeSnapshot(fetchedAt: now.addingTimeInterval(-30 * 60))
+        let usage = ProviderUsageState(provider: .claude, status: .unavailable(.keychainAccessNeeded, lastSnapshot: lastSnapshot))
+
+        let section = try #require(state(providerUsage: [usage]).toolSections.first)
+
+        #expect(section.card.title == nil)
+        #expect(section.card.detail?.hasPrefix("As of ") == true)
+        #expect(section.card.isDimmed)
+        #expect(section.card.windows.map(\.kind) == [.session, .weekly])
+        #expect(section.followUp == ToolFollowUp(title: "Allow Keychain Access…", systemImage: "key", action: .allowKeychainAccess))
     }
 
     @Test

@@ -92,7 +92,7 @@ func statusItemTitle(for windows: [UsageWindow], percentMode: UsagePercentMode =
 }
 
 func statusItemTooltipText(for source: StatusItemSource, now: Date = .now) -> String {
-    guard case let .tool(section) = source else { return "CodexPill" }
+    guard case let .tool(section) = source else { return "Refill" }
     var lines = [[section.provider.copy.sectionTitle, section.planTag].compactMap(\.self).joined(separator: " · ")]
     if let activeLabel = section.activeLabel {
         lines.append(activeLabel)

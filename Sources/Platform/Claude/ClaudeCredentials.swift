@@ -26,7 +26,7 @@ struct ClaudeAccessToken: Sendable, CustomStringConvertible, CustomDebugStringCo
     }
 }
 
-/// The parts of Claude Code's sign-in that CodexPill uses. The refresh token is never decoded.
+/// The parts of Claude Code's sign-in that Refill uses. The refresh token is never decoded.
 struct ClaudeCredentials: Sendable {
     let accessToken: ClaudeAccessToken
     let expiresAt: Date?

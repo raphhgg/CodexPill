@@ -1,0 +1,354 @@
+{
+  "fill-specializations": [
+    {
+      "value": {
+        "linear-gradient": [
+          "srgb:0.06275,0.13333,0.10980,1.00000",
+          "srgb:0.01176,0.03922,0.03137,1.00000"
+        ],
+        "orientation": {
+          "start": {
+            "x": 0.5,
+            "y": 0
+          },
+          "stop": {
+            "x": 0.5,
+            "y": 1
+          }
+        }
+      }
+    },
+    {
+      "appearance": "dark",
+      "value": {
+        "linear-gradient": [
+          "srgb:0.03922,0.08627,0.07059,1.00000",
+          "srgb:0.00784,0.01961,0.01569,1.00000"
+        ],
+        "orientation": {
+          "start": {
+            "x": 0.5,
+            "y": 0
+          },
+          "stop": {
+            "x": 0.5,
+            "y": 1
+          }
+        }
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "Highlights",
+      "layers": [
+        {
+          "name": "9-gloss",
+          "image-name": "9-gloss.svg",
+          "glass": true,
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "srgb:1.00000,1.00000,1.00000,1.00000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "srgb:1.00000,1.00000,1.00000,1.00000"
+              }
+            }
+          ],
+          "opacity": 0.26
+        },
+        {
+          "name": "8-rim",
+          "image-name": "8-rim.svg",
+          "glass": true,
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "srgb:0.65098,0.96078,0.83529,1.00000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "srgb:0.65098,0.96078,0.83529,1.00000"
+              }
+            }
+          ],
+          "opacity": 0.75
+        }
+      ],
+      "specular": true,
+      "shadow": {
+        "kind": "none",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.3
+      }
+    },
+    {
+      "name": "Capsule",
+      "layers": [
+        {
+          "name": "7-seam",
+          "image-name": "7-seam.svg",
+          "glass": true,
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "srgb:0.68235,0.72549,0.80000,1.00000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "srgb:0.55686,0.60392,0.69020,1.00000"
+              }
+            }
+          ],
+          "opacity": 0.6
+        },
+        {
+          "name": "6-porcelain",
+          "image-name": "6-porcelain.svg",
+          "glass": true,
+          "fill-specializations": [
+            {
+              "value": {
+                "linear-gradient": [
+                  "srgb:1.00000,1.00000,1.00000,1.00000",
+                  "srgb:0.80784,0.83922,0.89412,1.00000"
+                ],
+                "orientation": {
+                  "start": {
+                    "x": 0.1,
+                    "y": 0
+                  },
+                  "stop": {
+                    "x": 0.9,
+                    "y": 1
+                  }
+                }
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "linear-gradient": [
+                  "srgb:0.94902,0.96078,0.98039,1.00000",
+                  "srgb:0.72941,0.76863,0.83922,1.00000"
+                ],
+                "orientation": {
+                  "start": {
+                    "x": 0.1,
+                    "y": 0
+                  },
+                  "stop": {
+                    "x": 0.9,
+                    "y": 1
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "5-liquid",
+          "image-name": "5-liquid.svg",
+          "glass": true,
+          "fill-specializations": [
+            {
+              "value": {
+                "linear-gradient": [
+                  "srgb:0.24706,0.87843,0.63922,1.00000",
+                  "srgb:0.02353,0.47843,0.29804,1.00000"
+                ],
+                "orientation": {
+                  "start": {
+                    "x": 0.2,
+                    "y": 0
+                  },
+                  "stop": {
+                    "x": 0.8,
+                    "y": 1
+                  }
+                }
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "linear-gradient": [
+                  "srgb:0.22745,0.82353,0.59608,1.00000",
+                  "srgb:0.02353,0.43137,0.26667,1.00000"
+                ],
+                "orientation": {
+                  "start": {
+                    "x": 0.2,
+                    "y": 0
+                  },
+                  "stop": {
+                    "x": 0.8,
+                    "y": 1
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "4-glow-glass",
+          "image-name": "4-glow-glass.svg",
+          "glass": true,
+          "fill-specializations": [
+            {
+              "value": {
+                "linear-gradient": [
+                  "srgb:0.30980,0.85098,0.65098,1.00000",
+                  "srgb:0.05490,0.43137,0.29020,1.00000"
+                ],
+                "orientation": {
+                  "start": {
+                    "x": 0.2,
+                    "y": 0
+                  },
+                  "stop": {
+                    "x": 0.8,
+                    "y": 1
+                  }
+                }
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "linear-gradient": [
+                  "srgb:0.27451,0.76863,0.58824,1.00000",
+                  "srgb:0.04706,0.37255,0.25098,1.00000"
+                ],
+                "orientation": {
+                  "start": {
+                    "x": 0.2,
+                    "y": 0
+                  },
+                  "stop": {
+                    "x": 0.8,
+                    "y": 1
+                  }
+                }
+              }
+            }
+          ],
+          "opacity": 0.55
+        }
+      ],
+      "specular": true,
+      "shadow": {
+        "kind": "layer-color",
+        "opacity": 1.0
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.15
+      }
+    },
+    {
+      "name": "Glass shell",
+      "layers": [
+        {
+          "name": "3-glass",
+          "image-name": "3-glass.svg",
+          "glass": true,
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "srgb:1.00000,1.00000,1.00000,1.00000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "srgb:1.00000,1.00000,1.00000,1.00000"
+              }
+            }
+          ],
+          "opacity": 0.16
+        }
+      ],
+      "specular": true,
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.4
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.7
+      },
+      "refractivity": {
+        "enabled": true,
+        "strength": 0.3,
+        "depth": 0.4
+      }
+    },
+    {
+      "name": "Bloom",
+      "layers": [
+        {
+          "name": "2-bloom-inner",
+          "image-name": "2-bloom-inner.svg",
+          "glass": false,
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "srgb:0.12157,0.72549,0.49412,1.00000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "srgb:0.12157,0.72549,0.49412,1.00000"
+              }
+            }
+          ],
+          "opacity": 0.18
+        },
+        {
+          "name": "1-bloom-outer",
+          "image-name": "1-bloom-outer.svg",
+          "glass": false,
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "srgb:0.12157,0.72549,0.49412,1.00000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "srgb:0.12157,0.72549,0.49412,1.00000"
+              }
+            }
+          ],
+          "opacity": 0.07
+        }
+      ],
+      "specular": false,
+      "shadow": {
+        "kind": "none",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": false,
+        "value": 0.5
+      }
+    }
+  ],
+  "supported-platforms": {
+    "squares": "shared"
+  }
+}

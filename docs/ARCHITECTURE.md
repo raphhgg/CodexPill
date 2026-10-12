@@ -1,6 +1,6 @@
 # Architecture
 
-CodexPill is a local-first macOS menubar app for Codex account switching, and for limits of Codex, Claude and Cursor on this Mac.
+Refill is a local-first macOS menubar app for Codex, Claude Code and Cursor usage limits and Codex account switching on this Mac. It was called CodexPill before.
 
 This document owns codebase structure and dependency boundaries. Product behavior and UX contracts live in [features](features/README.md).
 
@@ -35,7 +35,7 @@ Features -> Core
 
 A port lives in one of two places:
 
-- In Platform, next to its adapter, when the adapter is the only thing that implements it: `CodexAppProcessClient`, `CodexResetCreditClient`, `IsolatedCodexLoginClient`, `ClaudeCodeProcessRunning`, `ClaudeCodeProcessDetecting`.
+- In Platform, next to its adapter, when the adapter is the only thing that implements it: `CodexAppProcessClient`, `CodexResetCreditClient`, `IsolatedCodexLoginClient`, `ClaudeCodeProcessRunning`, `ClaudeCodeProcessDetecting`, `SecurityCommandRunning`.
 - In the Features file that uses it, when a feature needs a narrower view of a Platform type. The Platform type adopts it through an extension in that same Features file, so Platform stays unaware of it: `AccountCatalogStore`, `AccountCatalogLoader`, `CodexAuthActivator`, `LiveCodexAccountIdentitySource`.
 
 App injects the adapter either way.
@@ -111,7 +111,7 @@ Its words go in `ProviderCopy` under its `UsageProvider` case. Nothing else chan
 - The coordinator asks the `ProviderCopy` confirmation, if any, then runs the action in a tracked task through `ProviderUsageRuntime.perform(_:on:)`.
 - The runtime reads the tool again after every action.
 - After a read, the coordinator asks the runtime to renew each tool whose reading is sign-in expired. One renewal runs at a time. A tool that renewed is read again.
-- The port has no account methods: Claude Code and Cursor show only the account their own app is signed in to, and CodexPill never writes their sign-ins.
+- The port has no account methods: Claude Code and Cursor show only the account their own app is signed in to, and Refill never writes their sign-ins.
 - Codex is not a connection: its usage lives on each saved `CodexAccount` and adding an account is an interactive sign-in panel. The coordinator routes `.codex` actions to `AccountsController`, which refreshes the new active account after a switch and never runs a reset credit and an account change at the same time.
 
 `Features/AppControls` owns app-level controls the menu offers: Launch at Login through `LoginItemController` and the System Settings launcher.
@@ -153,27 +153,27 @@ Key boundaries:
 
 Reusable Codex app-server access is split into these platform boundaries:
 
-- `CodexAppServerClient` is the production facade used by CodexPill account reads. It turns a local `CodexAppServerConfiguration` into a session command for the shared session runner.
+- `CodexAppServerClient` is the production facade used by Refill account reads. It turns a local `CodexAppServerConfiguration` into a session command for the shared session runner.
 - `CodexAppServerConfiguration` owns executable path, environment, and timeout policy.
 - `CodexAppServerSession` owns JSON-RPC request construction and response sequencing.
 - `CodexAppServerSessionRunner` owns the reusable app-server session execution loop used by local reads: process launch, stdin/stdout/stderr pipe wiring, request writing, output draining, timeout completion, partial-status completion, and finish-once coordination. It also runs the one-request `account/rateLimitResetCredit/consume` session that spends a Codex reset credit.
 - `CodexAppServerAccountParser` and `CodexAppServerRateLimitParser` map raw app-server payload DTOs into generic app-server DTOs.
-- `CodexPillAccountStatusMapper` maps generic app-server DTOs into CodexPill account and rate-limit models.
+- `RefillAccountStatusMapper` maps generic app-server DTOs into Refill account and rate-limit models.
 
 Local app-server reads enter this session runner through `CodexAppServerClient`, which keeps local executable, environment, client-info, timeout, and saved-account strict rate-limit requirements in `CodexAppServerConfiguration`.
 
 The active account's read is complete once it has the account and at least one limit window of any length. A Pro plan reports only a weekly window and a free plan only a monthly one. Only a read with no window runs the app-server again, once after 1 second with `refreshToken: true`. A failed read is tried again after 1 second, and once more after 3 seconds when Codex says the rate-limit read failed. Windows and account fields from the attempts merge, the newest winning.
 
-`Platform/Claude` owns everything CodexPill knows about Claude Code. It never writes Claude Code's files or Keychain item. It owns:
+`Platform/Claude` owns everything Refill knows about Claude Code. It never writes Claude Code's files or Keychain item. It owns:
 
-- reading its sign-in from `.credentials.json` and the `Claude Code-credentials` Keychain item, with the Keychain prompt shown only after a user action (`ClaudeCredentialsSource`, `SystemClaudeKeychain`), and the plan tier and email from the account record in its global config;
+- reading its sign-in from `.credentials.json` and the `Claude Code-credentials` Keychain item, which it reads through `/usr/bin/security` as Claude Code does, so renewals don't bring back a Keychain prompt, and never writes (`ClaudeCredentialsSource`, `SystemClaudeKeychain`, `ClaudeCodeSecurityKeychain`), and the plan tier and email from the account record in its global config;
 - the `api.anthropic.com/api/oauth/usage` request, its redirect rule, its rate-limit wait, and parsing its response (`ClaudeUsageAPI`, `ClaudeUsageClient`);
 - running `claude doctor` so Claude Code renews its own expired sign-in (`ClaudeCodeCommands`, `SystemClaudeCodeProcessRunner`);
 - whether terminal Claude Code is running, behind the `ClaudeCodeProcessDetecting` port. Renewal waits while it runs. The Claude desktop app's own Claude Code is ignored.
 
 The access token leaves this module only as the usage request's `Authorization` header. Nothing in it reads, sends, or renews Claude Code's refresh token; a test scans the Claude sources to keep it that way. Renewal is always Claude Code's own, through `claude doctor`.
 
-`Platform/Cursor` owns everything CodexPill knows about Cursor. It never writes Cursor's database or quits Cursor. It owns:
+`Platform/Cursor` owns everything Refill knows about Cursor. It never writes Cursor's database or quits Cursor. It owns:
 
 - `CursorStateDatabase`, keyed read-only access to `state.vscdb`. It never scans. A read opens the database with `immutable=1` only when no `-wal`, `-shm`, or `-journal` file sits next to it, so it never reads a writer's uncommitted pages;
 - `CursorStateDatabaseTokenSource`, the read-only lookup of the token and the cached email used for usage, and `CursorAccessToken`, which prints redacted;
@@ -185,10 +185,11 @@ The token leaves this module only as the usage request's cookie.
 
 `Platform/Persistence` owns:
 
-- CodexPill catalog paths;
+- Refill catalog paths;
 - account catalog persistence;
 - auth snapshot storage;
 - isolated `CODEX_HOME` session paths;
+- `CodexPillMigration`, the one-time copy of CodexPill's folder, preferences and Keychain items at launch;
 - the token-usage cache file, `TokenUsageCacheFileStore` at `AppPaths.tokenUsageCacheFile(isolatedRootDirectory:)`.
 
 Platform adapters are the only place where the app should know about live auth files, `codex app-server`, process inspection, or relaunch mechanics.
@@ -208,7 +209,7 @@ Core models should remain free of process control, storage policy, AppKit, Swift
 Settings persistence is split by feature boundary:
 
 - `MenuDisplaySettingsStore` owns menu refresh cadence and visible inactive-account count options.
-- `StatusItemSettingsStore` owns status-item indicator style, monochrome mode, display mode, pacing marker visibility, progress accent color helpers, and persisted reveal-shortcut values.
+- `StatusItemSettingsStore` owns status-item indicator style, display mode, pacing marker visibility, progress accent color helpers, and persisted reveal-shortcut values.
 - `TokenUsagePreferencesStore` owns token-usage visibility and the fixed 30-day period. Its stored chart style, loading animation and peak scope have no menu control anymore and keep their defaults.
 - `ClaudeUsageSettingsStore` owns whether Claude Code usage is connected (`claudeUsageEnabled`). It is off by default.
 - `CursorUsageSettingsStore` owns whether Cursor usage is connected (`cursorUsageEnabled`). It is off by default.
@@ -251,7 +252,7 @@ Reveal-shortcut capture, menu key-equivalent rendering, display formatting, and 
 The current truth sources are split by concern:
 
 - active local Codex auth: `~/.codex/auth.json`;
-- CodexPill catalog and saved snapshots: `~/Library/Application Support/CodexPill`;
+- Refill catalog and saved snapshots: `~/Library/Application Support/Refill`;
 - local account metadata and rate limits: local `codex app-server`;
 - running CLI session observation: local process table inspection;
 - Claude Code usage: `api.anthropic.com/api/oauth/usage`, authenticated with Claude Code's local sign-in token;
@@ -259,7 +260,7 @@ The current truth sources are split by concern:
 
 Rules:
 
-- `~/Library/Application Support/CodexPill` is CodexPill-owned state, not the source of truth for the live Codex account.
+- `~/Library/Application Support/Refill` is Refill-owned state, not the source of truth for the live Codex account.
 - `~/Library/Application Support/Codex` is only an observation surface when needed.
 - Rate limits should come from app-server surfaces, not manual counters.
 - Tests must use temp paths and injected process clients.

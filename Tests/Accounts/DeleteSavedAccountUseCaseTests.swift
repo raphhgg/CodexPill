@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import CodexPill
+@testable import Refill
 
 struct DeleteSavedAccountUseCaseTests {
     @Test
@@ -82,7 +82,6 @@ struct DeleteSavedAccountUseCaseTests {
 
         try await signerOut.signOut()
 
-        #expect(processClient.availabilityCheckCount == 1)
         #expect(processClient.relaunchCount == 1)
         #expect(!FileManager.default.fileExists(atPath: repository.paths.codexAuthFile.path))
     }

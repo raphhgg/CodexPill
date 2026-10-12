@@ -24,6 +24,7 @@ struct AccountActionFlow {
         case showSignInFailure(AddAccountSignInFailureOutcome)
         case offerSignInRetry(outcome: AddAccountSignInFailureOutcome)
         case showError(message: String)
+        case showCodexAppNotFound
         case showUnsafeAuthChange
         case showSaveFailure
         case showAccountAlreadySaved(accountID: UUID)
@@ -79,6 +80,10 @@ struct AccountActionFlow {
             case .accountAlreadySaved(let accountID):
                 return .showAccountAlreadySaved(accountID: accountID)
             }
+        }
+
+        if error is CodexAppNotFoundError {
+            return .showCodexAppNotFound
         }
 
         return .showError(message: error.localizedDescription)

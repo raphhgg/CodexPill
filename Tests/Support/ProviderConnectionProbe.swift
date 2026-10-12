@@ -1,22 +1,30 @@
 import Foundation
 import os
 
-@testable import CodexPill
+@testable import Refill
 
-/// A tool connection whose reading the test sets. It counts reads.
+/// A tool connection whose reading the test sets. It counts reads. Once disconnected it reads nothing.
 final class ProviderConnectionProbe: ProviderConnection {
     struct State {
         var reading: UsageProviderReading
         var readCount = 0
+        var isDisconnected = false
     }
 
     let provider: UsageProvider
     let staleAfter: TimeInterval
+    let refreshInterval: TimeInterval
     private let state: OSAllocatedUnfairLock<State>
 
-    init(provider: UsageProvider, staleAfter: TimeInterval = 3_600, reading: UsageProviderReading) {
+    init(
+        provider: UsageProvider,
+        staleAfter: TimeInterval = 3_600,
+        refreshInterval: TimeInterval = ProviderUsageRuntime.refreshInterval,
+        reading: UsageProviderReading
+    ) {
         self.provider = provider
         self.staleAfter = staleAfter
+        self.refreshInterval = refreshInterval
         state = OSAllocatedUnfairLock(initialState: State(reading: reading))
     }
 
@@ -33,13 +41,14 @@ final class ProviderConnectionProbe: ProviderConnection {
 
     func readUsage(now _: Date) async -> UsageProviderReading {
         state.withLock { state in
+            guard !state.isDisconnected else { return .notConnected }
             state.readCount += 1
             return state.reading
         }
     }
 
-    var isConnected: Bool { reading != .notConnected }
+    var isConnected: Bool { state.withLock { !$0.isDisconnected && $0.reading != .notConnected } }
 
-    func connect() async {}
-    func disconnect() async {}
+    func connect() async { update { $0.isDisconnected = false } }
+    func disconnect() async { update { $0.isDisconnected = true } }
 }

@@ -5,22 +5,12 @@ protocol CodexExecutableResolving: Sendable {
     func resolveCodexExecutable() throws -> URL
 }
 
-struct NSWorkspaceCodexExecutableResolver: CodexExecutableResolving, @unchecked Sendable {
-    let bundleIdentifier = "com.openai.codex"
-    var fileManager: FileManager = .default
+struct NSWorkspaceCodexExecutableResolver: CodexExecutableResolving {
+    var locator = CodexAppLocator.live
 
     func resolveCodexExecutable() throws -> URL {
-        guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) else {
-            throw CodexAppProcessClientError.applicationNotFound
-        }
-
-        let codexURL = appURL
-            .appendingPathComponent("Contents", isDirectory: true)
-            .appendingPathComponent("Resources", isDirectory: true)
-            .appendingPathComponent("codex", isDirectory: false)
-
-        guard fileManager.isExecutableFile(atPath: codexURL.path) else {
-            throw CodexAppProcessClientError.applicationNotFound
+        guard let codexURL = locator.appURL().flatMap({ CodexBundledCLI.executable(inAppAt: $0) }) else {
+            throw CodexAppNotFoundError()
         }
         return codexURL
     }

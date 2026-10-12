@@ -40,7 +40,7 @@ enum ClaudeUsageWebError: Error, Equatable {
     case transport
 }
 
-/// The one Anthropic endpoint CodexPill calls, and the pure rules around it.
+/// The one Anthropic endpoint Refill calls, and the pure rules around it.
 enum ClaudeUsageAPI {
     static let usageURL = URL(string: "https://api.anthropic.com/api/oauth/usage")!
 

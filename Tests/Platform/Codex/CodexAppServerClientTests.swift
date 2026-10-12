@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import CodexPill
+@testable import Refill
 
 struct CodexAppServerClientTests {
     @Test
@@ -478,7 +478,7 @@ struct CodexAppServerClientTests {
     func readSavedAccountStatusTreatsPrematureExitBeforeRateLimitResponseAsSessionFailure() async throws {
         let fileManager = FileManager.default
         let directory = fileManager.temporaryDirectory
-            .appendingPathComponent("CodexPill-AppServerClientTests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("Refill-AppServerClientTests-\(UUID().uuidString)", isDirectory: true)
         try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? fileManager.removeItem(at: directory) }
 
@@ -512,7 +512,7 @@ struct CodexAppServerClientTests {
     func readSavedAccountStatusReturnsAuthRotatedInsideIsolatedHome(rotates: Bool) async throws {
         let fileManager = FileManager.default
         let directory = fileManager.temporaryDirectory
-            .appendingPathComponent("CodexPill-AppServerClientTests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("Refill-AppServerClientTests-\(UUID().uuidString)", isDirectory: true)
         try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? fileManager.removeItem(at: directory) }
 
@@ -540,7 +540,7 @@ struct CodexAppServerClientTests {
     func savedAccountReadKeepsLocalFailureClassificationWhenSharedSessionExitsNonZero() async throws {
         let fileManager = FileManager.default
         let directory = fileManager.temporaryDirectory
-            .appendingPathComponent("CodexPill-AppServerClientTests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("Refill-AppServerClientTests-\(UUID().uuidString)", isDirectory: true)
         try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? fileManager.removeItem(at: directory) }
 
@@ -669,7 +669,7 @@ private struct AppServerFixture {
     init(output: String) throws {
         let fileManager = FileManager.default
         directory = fileManager.temporaryDirectory
-            .appendingPathComponent("CodexPill-AppServerClientTests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("Refill-AppServerClientTests-\(UUID().uuidString)", isDirectory: true)
         try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
         requestsFile = directory.appendingPathComponent("requests.jsonl")
         let script = directory.appendingPathComponent("codex-fixture.sh")

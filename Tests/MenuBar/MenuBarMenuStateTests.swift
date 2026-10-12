@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import CodexPill
+@testable import Refill
 
 struct MenuBarMenuStateTests {
     @Test
@@ -173,8 +173,7 @@ struct MenuBarMenuStateTests {
             inactiveAccounts: inactiveAccounts,
             refreshIntervalMinutes: 5,
             refreshIntervalOptions: [1, 5, 10],
-            statusBarMonochrome: false,
-            statusBarIndicatorStyle: .dualArcBadge,
+            statusBarIndicatorStyle: .moon,
             statusBarDisplayMode: .textOnHover,
             isBusy: isBusy,
             statusMessage: statusMessage

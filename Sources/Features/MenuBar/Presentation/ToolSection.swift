@@ -7,10 +7,12 @@ struct ToolSection: Equatable {
     let card: ToolCard
     /// Saved Codex accounts. Labels are emails, masked when Hide Emails is on. Claude and Cursor have none.
     let accounts: [ToolAccount]
-    /// An action row under the card while its state lasts, such as "Allow Keychain access…".
+    /// An action row under the card while its state lasts, such as "Allow Keychain Access…".
     let followUp: ToolFollowUp?
     /// The email Claude or Cursor is signed in to, masked when Hide Emails is on.
     var signedInLabel: String? = nil
+    /// The models with their own Claude limit in the current reading, such as ["Fable"], even while they are hidden.
+    var modelLimitNames: [String] = []
 
     var activeAccount: ToolAccount? {
         accounts.first(where: \.isActive)
@@ -68,7 +70,7 @@ enum ToolSectionMove: CaseIterable {
 }
 
 extension MenuBarMenuState {
-    /// One section per tool with a saved account or a connection, in the user's order.
+    /// One section per tool with a saved account or a connection, in the user's order. Codex can be hidden.
     var toolSections: [ToolSection] {
         toolOrder.compactMap { provider in
             if provider == .codex {
@@ -108,7 +110,7 @@ extension MenuBarMenuState {
     }
 
     private var codexSection: ToolSection? {
-        guard !allSavedAccounts.isEmpty else { return nil }
+        guard !hidesCodex, !allSavedAccounts.isEmpty else { return nil }
         let accounts = codexAccountLabels()
 
         let card = if let activeAccount, let usage = activeAccount.usage {
@@ -146,9 +148,12 @@ extension MenuBarMenuState {
             snapshot = lastSnapshot
             let message = copy.unavailableMessage(for: reason)
             card = lastSnapshot.map { usageCard($0, isStale: true) } ?? ToolCard(detail: message.detail)
-            card.title = message.title
+            // The sign-in is still there, so the last numbers stay under their time instead of an error.
+            if reason != .keychainAccessNeeded || lastSnapshot == nil {
+                card.title = message.title
+            }
             if reason == .keychainAccessNeeded {
-                followUp = ToolFollowUp(title: "Allow Keychain access…", systemImage: "key", action: .allowKeychainAccess)
+                followUp = ToolFollowUp(title: "Allow Keychain Access…", systemImage: "key", action: .allowKeychainAccess)
             }
         }
 
@@ -158,7 +163,10 @@ extension MenuBarMenuState {
             card: card,
             accounts: [],
             followUp: followUp,
-            signedInLabel: snapshot?.accountEmail.map { displayedEmail($0, masked: masksEmails) }
+            signedInLabel: snapshot?.accountEmail.map { displayedEmail($0, masked: masksEmails) },
+            modelLimitNames: snapshot?.windows.compactMap { window in
+                if case let .modelWeekly(modelName) = window.kind { modelName } else { nil }
+            } ?? []
         )
     }
 
@@ -212,7 +220,7 @@ extension MenuBarMenuState {
         )
     }
 
-    /// Claude's per-model limits show unless Show Model Limits is off.
+    /// Claude's per-model limits show unless their toggle in the Claude side menu is off.
     private func displayedWindows(_ snapshot: UsageSnapshot) -> [UsageWindow] {
         snapshot.displayedWindows.filter { showsModelLimits || !$0.kind.isModelLimit }
     }

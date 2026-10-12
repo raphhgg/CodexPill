@@ -15,7 +15,7 @@ struct CodexAppServerConfiguration: Equatable {
         command: CodexCLICommand,
         environment: [String: String]?,
         responseTimeout: Duration = .seconds(10),
-        clientInfo: CodexAppServerClientInfo = .codexPill
+        clientInfo: CodexAppServerClientInfo = .refill
     ) {
         self.command = command
         self.environment = environment
@@ -28,7 +28,7 @@ struct CodexAppServerConfiguration: Equatable {
             command: makeAppServerCommand(environment: environment),
             environment: environment,
             responseTimeout: .seconds(10),
-            clientInfo: .codexPill
+            clientInfo: .refill
         )
     }
 
@@ -48,7 +48,7 @@ struct CodexAppServerConfiguration: Equatable {
         }
         let fallbackPaths = [
             bundlePath,
-            "/Applications/Codex.app/Contents/Resources/codex"
+            CodexAppLocator.live.appURL().flatMap { CodexBundledCLI.executable(inAppAt: $0) }?.path
         ].compactMap { $0 }
 
         let fileManager = FileManager.default
@@ -71,9 +71,9 @@ struct CodexAppServerClientInfo: Equatable {
     var title: String
     var version: String
 
-    static let codexPill = CodexAppServerClientInfo(
-        name: "codexpill",
-        title: "CodexPill",
+    static let refill = CodexAppServerClientInfo(
+        name: "refill",
+        title: "Refill",
         version: "0.1.0"
     )
 }

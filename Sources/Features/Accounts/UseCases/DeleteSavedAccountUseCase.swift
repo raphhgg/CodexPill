@@ -20,9 +20,8 @@ struct CodexLocalAuthSignOut: CodexAuthSignerOut {
     }
 
     func signOut() async throws {
-        try codexAppProcessClient.assertCodexAvailable()
         try authService.signOut()
-        try await codexAppProcessClient.relaunchCodex()
+        _ = try await codexAppProcessClient.relaunchCodex()
     }
 }
 

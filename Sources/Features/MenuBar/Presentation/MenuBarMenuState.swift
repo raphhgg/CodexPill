@@ -6,7 +6,6 @@ struct MenuBarMenuState {
     let inactiveAccounts: [CodexAccount]
     let refreshIntervalMinutes: Int
     let refreshIntervalOptions: [Int]
-    let statusBarMonochrome: Bool
     let statusBarIndicatorStyle: StatusBarIndicatorStyle
     let statusBarDisplayMode: StatusBarDisplayMode
     let revealStatusItemTitleShortcut: KeyboardShortcut?
@@ -25,7 +24,9 @@ struct MenuBarMenuState {
     let providerUsage: [ProviderUsageState]
     let toolOrder: [UsageProvider]
     let masksEmails: Bool
+    let hidesCodex: Bool
     let showsModelLimits: Bool
+    let appIconColor: AppIconColor
     /// The moment reset countdowns and elapsed times in the menu are measured from.
     let now: Date
 
@@ -34,8 +35,7 @@ struct MenuBarMenuState {
         inactiveAccounts: [CodexAccount],
         refreshIntervalMinutes: Int = 5,
         refreshIntervalOptions: [Int] = [1, 2, 5, 10, 15, 30],
-        statusBarMonochrome: Bool = true,
-        statusBarIndicatorStyle: StatusBarIndicatorStyle = .twinPills,
+        statusBarIndicatorStyle: StatusBarIndicatorStyle = .hourglass,
         statusBarDisplayMode: StatusBarDisplayMode = .iconOnly,
         revealStatusItemTitleShortcut: KeyboardShortcut? = .defaultRevealStatusItemTitle,
         sessionAccentColor: NSColor = StatusBarProgressColorDefaults.accent,
@@ -53,14 +53,15 @@ struct MenuBarMenuState {
         providerUsage: [ProviderUsageState] = [],
         toolOrder: [UsageProvider] = MenuDisplaySettingsStore.defaultToolOrder,
         masksEmails: Bool = false,
+        hidesCodex: Bool = false,
         showsModelLimits: Bool = true,
+        appIconColor: AppIconColor = .defaultColor,
         now: Date = .now
     ) {
         self.activeAccount = activeAccount
         self.inactiveAccounts = inactiveAccounts
         self.refreshIntervalMinutes = refreshIntervalMinutes
         self.refreshIntervalOptions = refreshIntervalOptions
-        self.statusBarMonochrome = statusBarMonochrome
         self.statusBarIndicatorStyle = statusBarIndicatorStyle
         self.statusBarDisplayMode = statusBarDisplayMode
         self.revealStatusItemTitleShortcut = revealStatusItemTitleShortcut
@@ -79,7 +80,9 @@ struct MenuBarMenuState {
         self.providerUsage = providerUsage
         self.toolOrder = toolOrder
         self.masksEmails = masksEmails
+        self.hidesCodex = hidesCodex
         self.showsModelLimits = showsModelLimits
+        self.appIconColor = appIconColor
         self.now = now
     }
 

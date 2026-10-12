@@ -1,6 +1,6 @@
 import Foundation
 
-/// How the menu drives a tool other than Codex: Claude Code and Cursor. CodexPill reads the one account each tool is
+/// How the menu drives a tool other than Codex: Claude Code and Cursor. Refill reads the one account each tool is
 /// signed in to and never writes the tool's sign-in.
 ///
 /// A tool plugs in by conforming once and being listed in `AppComposition`. The menu never names a tool: it sends a
@@ -11,7 +11,7 @@ protocol ProviderConnection: UsageProviderSource {
     /// The user connected this tool, so the menu shows its card before its first read lands.
     var isConnected: Bool { get }
     /// Reads with the tool's live sign-in from now on, and lets the next read show a macOS prompt because the user
-    /// asked. Calling it again, as "Allow Keychain access…" does, only allows the prompt again.
+    /// asked. Calling it again, as "Allow Keychain Access…" does, only allows the prompt again.
     func connect() async
     func disconnect() async
     /// Lets the tool renew its own expired live sign-in while the tool is not running. True when the sign-in changed,

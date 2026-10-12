@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import CodexPill
+@testable import Refill
 
 struct DiagnosticReportBuilderTests {
     @Test
@@ -11,7 +11,7 @@ struct DiagnosticReportBuilderTests {
 
         #expect(copy.panelTitle == "Export Diagnostics")
         #expect(copy.panelPrompt == "Export")
-        #expect(copy.defaultFilename(for: date) == "CodexPill-Diagnostics-20270115-080000.json")
+        #expect(copy.defaultFilename(for: date) == "Refill-Diagnostics-20270115-080000.json")
     }
 
     @Test
@@ -202,7 +202,7 @@ private extension DiagnosticAppMetadata {
     static let fixture = DiagnosticAppMetadata(
         appVersion: "1.0",
         buildNumber: "1",
-        bundleIdentifier: "com.raphhgg.codexpill"
+        bundleIdentifier: "com.raphhgg.refill"
     )
 }
 
@@ -236,8 +236,7 @@ private func makeMenuState(
         inactiveAccounts: inactiveAccounts,
         refreshIntervalMinutes: 5,
         refreshIntervalOptions: [5, 15],
-        statusBarMonochrome: false,
-        statusBarIndicatorStyle: .stackedBars,
+        statusBarIndicatorStyle: .punchCard,
         statusBarDisplayMode: .iconOnly,
         isBusy: false,
         statusMessage: ""

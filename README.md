@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="Resources/AppIcon.png" width="128" alt="CodexPill app icon">
+  <img src="docs/images/app-icon.png" width="128" alt="Refill app icon">
 </p>
 
-<h1 align="center">CodexPill</h1>
+<h1 align="center">Refill</h1>
 
 <p align="center">
-  <i>A native macOS menubar companion for Codex accounts, limits and token usage.</i>
+  <i>A native macOS menubar app that shows when your AI coding limits refill, and switches accounts in a click.</i>
 </p>
 
 <p align="center">
@@ -17,27 +17,36 @@
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/codexpill-menu-dark.png">
-    <img src="docs/assets/codexpill-menu.png" width="360" alt="CodexPill menu with Claude, Codex and Cursor cards, then Settings and Quit">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/refill-menu-dark.png">
+    <img src="docs/assets/refill-menu.png" width="360" alt="Refill menu with Claude, Codex and Cursor cards, then Settings and Quit">
   </picture>
 </p>
 
+Refill was called CodexPill before this release. See
+[Upgrading From CodexPill](#upgrading-from-codexpill).
+
 ## What It Does
 
-- See your Codex limits at a glance.
-- Track local Codex token usage history from the menu bar.
+- See Codex, Claude Code and Cursor usage limits and when they reset.
 - Switch between saved Codex accounts.
-- Add accounts without disrupting your current session.
+- Add Codex accounts without disrupting your current session.
+- Track local Codex token usage history from the menu bar.
 - Stay local-first: no cloud sync, no hidden browser automation, no account data upload.
 
-## New In Beta 2
+Claude Code and Cursor are optional. Refill reads the account each one is signed
+in to, only after you turn it on in `Appearance › Show Tools`.
 
-- Optional Token Usage card for this Mac, with daily bars, heat strip and
-  sparkline chart styles.
-- Local session history scanning with an incremental cache, so refreshes reuse
-  unchanged session files instead of rescanning everything.
-- Swift 6 language mode for the app and tests.
-- CI coverage for pull requests and `main`.
+## What's New
+
+- Claude Code and Cursor: see their limits next to Codex.
+- One card per tool, with account actions in side menus and the app's own
+  items right under the cards.
+- Codex reset credits: see how many you have and use one from the Codex menu.
+- A new name, a new capsule icon, and six icon colours under
+  `Appearance › App Icon`.
+- Remote Hosts and Notifications are gone.
+
+See the [Changelog](CHANGELOG.md) for earlier releases.
 
 ## Install
 
@@ -47,8 +56,10 @@ Install with Homebrew:
 brew install --cask raphhgg/tap/codexpill
 ```
 
+The cask still uses the old name. It will be renamed in a later release.
+
 Or download the latest zip from
-[GitHub Releases](https://github.com/raphhgg/CodexPill/releases).
+[GitHub Releases](https://github.com/raphhgg/Refill/releases).
 
 ## Build From Source
 
@@ -56,7 +67,7 @@ Prerequisites:
 
 - macOS with Xcode command line tools installed.
 - Tuist installed locally.
-- Codex installed and signed in on this Mac.
+- Codex, Claude Code or Cursor installed and signed in on this Mac.
 
 Build and run:
 
@@ -78,8 +89,9 @@ for maintainer packaging details.
 
 ## Prerequisite
 
-Codex must already be installed and signed in on your Mac, either through the
-Codex app, the Codex CLI or both.
+Install and sign in to at least one tool on your Mac: Codex (the app, the CLI or
+both), Claude Code or Cursor. Refill shows a Codex card once you save a Codex account. Claude Code and
+Cursor appear once you turn them on in `Appearance › Show Tools`.
 
 Token Usage is optional and local to this Mac. It reads local Codex session
 history, stores derived aggregate buckets, and does not upload prompt content,
@@ -89,22 +101,30 @@ session rows or auth data.
 
 | Add Account | Codex Side Menu |
 | --- | --- |
-| <img src="docs/assets/codexpill-add-account.png" width="420" alt="CodexPill Add Account dialog"> | <img src="docs/assets/codexpill-account-actions.png" width="420" alt="CodexPill Codex side menu with account, reset and section actions"> |
-
-| Settings |
-| --- |
-| <img src="docs/assets/codexpill-settings.png" width="420" alt="CodexPill Settings submenu"> |
+| <img src="docs/assets/refill-add-account.png" width="420" alt="Refill Add Account dialog with the capsule icon"> | <img src="docs/assets/refill-account-actions.png" width="420" alt="Refill Codex side menu with account, reset and section actions"> |
 
 ## Local-First
 
-CodexPill works with Codex state on your Mac. It does not run a cloud service.
+Refill works with Codex, Claude Code and Cursor state on your Mac. It does not
+run a cloud service.
 
-Saved accounts stay on your Mac under
-`~/Library/Application Support/CodexPill`. They contain authentication material,
-so treat them like credentials.
+Saved Codex accounts stay on your Mac under
+`~/Library/Application Support/Refill`. They contain authentication material, so
+treat them like credentials. Refill only reads Claude Code's and Cursor's own
+sign-ins and never writes them.
 
-CodexPill does not use browser cookies, hidden browser windows, Full Disk
+Refill does not use browser cookies, hidden browser windows, Full Disk
 Access, Screen Recording or Accessibility permissions for normal use.
+
+## Upgrading From CodexPill
+
+Refill is a new app to macOS, with its own bundle ID. Quit and delete
+`CodexPill.app` first. On its first launch Refill copies CodexPill's saved
+accounts, settings and Keychain items, unless Refill already has accounts of its
+own. macOS may ask once per Keychain item whether Refill can read it. Turn
+Launch at Login back on if you used it. CodexPill's copies stay on this Mac as a
+backup. [Uninstall And Reset](docs/UNINSTALL_RESET.md#leftovers-from-codexpill)
+shows how to remove them.
 
 ## Product Docs
 

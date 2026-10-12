@@ -1,6 +1,6 @@
 import Foundation
 
-/// Tells whether Claude Code is running. A running Claude Code renews its own token, so CodexPill leaves renewal to it.
+/// Tells whether Claude Code is running. A running Claude Code renews its own token, so Refill leaves renewal to it.
 protocol ClaudeCodeProcessDetecting: Sendable {
     func isClaudeCodeRunning() -> Bool
 }

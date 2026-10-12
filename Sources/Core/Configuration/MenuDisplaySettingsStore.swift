@@ -23,6 +23,13 @@ final class MenuDisplaySettingsStore {
         }
     }
 
+    /// Hides the Codex card and stops reading Codex, as Show Tools › Codex unchecked.
+    var hidesCodex: Bool {
+        didSet {
+            userDefaults.set(hidesCodex, forKey: Self.hidesCodexKey)
+        }
+    }
+
     let refreshIntervalOptions = [1, 2, 5, 10, 15, 30]
     nonisolated static let defaultToolOrder: [UsageProvider] = [.claude, .codex, .cursor]
 
@@ -31,6 +38,7 @@ final class MenuDisplaySettingsStore {
     private static let refreshIntervalKey = "refreshIntervalMinutes"
     private static let toolOrderKey = "toolOrder"
     private static let masksEmailsKey = "masksEmails"
+    private static let hidesCodexKey = "hidesCodex"
 
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
@@ -45,5 +53,6 @@ final class MenuDisplaySettingsStore {
         }
         toolOrder = storedOrder + Self.defaultToolOrder.filter { !storedOrder.contains($0) }
         masksEmails = userDefaults.bool(forKey: Self.masksEmailsKey)
+        hidesCodex = userDefaults.bool(forKey: Self.hidesCodexKey)
     }
 }

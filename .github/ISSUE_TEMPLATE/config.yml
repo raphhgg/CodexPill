@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
   - name: Sensitive security or auth-handling report
-    url: https://github.com/raphhgg/CodexPill/security/policy
+    url: https://github.com/raphhgg/Refill/security/policy
     about: Do not open public issues with auth payloads, tokens, private hostnames, or raw logs.

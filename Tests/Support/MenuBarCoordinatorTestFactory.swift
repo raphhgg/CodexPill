@@ -1,6 +1,6 @@
 import Foundation
 
-@testable import CodexPill
+@testable import Refill
 
 @MainActor
 extension MenuBarCoordinator {
@@ -9,13 +9,14 @@ extension MenuBarCoordinator {
         accountsController: MenuBarAccounts,
         settings: SettingsStores,
         alertPresenter: AlertPresenter,
+        appIconApplier: AppIconApplying = AppIconApplierProbe(),
         panelPresenter: PanelPresenter = SystemPanelPresenter(suppressesInteractivePrompts: true),
         loginItemController: LoginItemControlling = SystemLoginItemController(),
         loginItemsSettingsLauncher: LoginItemsSettingsLaunching = SystemLoginItemsSettingsLauncher(),
         diagnosticReportPresenter: DiagnosticReportPresenting = SystemDiagnosticReportPresenter(),
         tokenUsageProvider: TokenUsageMenuProviding = LocalCodexSessionTokenUsageMenuProvider(
             cacheFile: FileManager.default.temporaryDirectory
-                .appendingPathComponent("CodexPillTests-\(ProcessInfo.processInfo.processIdentifier)/Caches/token-usage-cache.json")
+                .appendingPathComponent("RefillTests-\(ProcessInfo.processInfo.processIdentifier)/Caches/token-usage-cache.json")
         ),
         providerConnections: [any ProviderConnection] = [],
         allowsEmptyStatePrompt: Bool = true,
@@ -29,6 +30,8 @@ extension MenuBarCoordinator {
             statusItemSettings: settings.statusItemSettings,
             tokenUsagePreferences: settings.tokenUsagePreferences,
             claudeUsageSettings: settings.claudeUsageSettings,
+            appIconPreferences: settings.appIconPreferences,
+            appIconApplier: appIconApplier,
             cliProcessInspector: CodexCLIProcessInspector(),
             alertPresenter: alertPresenter,
             panelPresenter: panelPresenter,

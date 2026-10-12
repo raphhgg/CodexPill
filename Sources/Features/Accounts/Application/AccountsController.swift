@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import OSLog
 
-private let accountsControllerLogger = Logger(subsystem: "com.raphhgg.codexpill", category: "AccountsController")
+private let accountsControllerLogger = Logger(subsystem: "com.raphhgg.refill", category: "AccountsController")
 
 @MainActor
 @Observable
@@ -80,20 +80,17 @@ final class AccountsController {
         }
     }
 
-    func switchToAccount(_ account: CodexAccount) async -> Bool {
-        guard !isApplyingResetCredit else { return false }
-        var didRefreshAfterSwitch = false
+    func switchToAccount(_ account: CodexAccount) async -> SwitchToAccountOutcome {
+        var outcome = SwitchToAccountOutcome(didRefresh: false, relaunch: nil)
+        guard !isApplyingResetCredit else { return outcome }
         await perform("Switching account...") {
             try saveRotatedLiveAuth(switchingTo: account)
-            catalogState.setActiveAccountID(
-                try await switchAccountWorkflow.run(
-                    account: account,
-                    accounts: accounts
-                )
-            )
-            didRefreshAfterSwitch = await applySilentPostActionRefresh(after: postSwitchRefreshDelay)
+            let result = try await switchAccountWorkflow.run(account: account, accounts: accounts)
+            catalogState.setActiveAccountID(result.activeAccountID)
+            outcome.relaunch = result.relaunch
+            outcome.didRefresh = await applySilentPostActionRefresh(after: postSwitchRefreshDelay)
         }
-        return didRefreshAfterSwitch
+        return outcome
     }
 
     private func saveRotatedLiveAuth(switchingTo account: CodexAccount) throws {
@@ -371,6 +368,12 @@ final class AccountsController {
         }
     }
 
+}
+
+struct SwitchToAccountOutcome: Equatable {
+    var didRefresh: Bool
+    /// Nil when the switch failed before Codex was relaunched.
+    var relaunch: CodexRelaunch?
 }
 
 enum AccountsControllerError: LocalizedError, Equatable {

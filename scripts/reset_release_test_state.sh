@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_NAME="CodexPill"
+APP_NAME="Refill"
+# Before the rename the app was CodexPill. Its state is cleaned up too.
+LEGACY_APP_NAME="CodexPill"
+REPO_DIR="${HOME}/Projects/CodexPill"
 BUNDLE_IDS=(
+  "com.raphhgg.refill"
+  "com.raphhgg.refill.dev"
+  "com.raphhgg.refill.demo"
+  "com.raphhgg.refill.staging"
   "com.raphhgg.codexpill"
   "com.raphhgg.codexpill.dev"
   "com.raphhgg.codexpill.demo"
@@ -21,9 +28,9 @@ Usage:
 Default mode is a dry run. It prints what would be removed.
 
 Options:
-  --apply            Actually remove local CodexPill dev/build/test state.
+  --apply            Actually remove local Refill dev/build/test state.
   --install          After cleanup, install the release via Homebrew.
-  --remote HOST      Also clear CodexPill's remote cache on HOST.
+  --remote HOST      Also clear Refill's remote cache on HOST.
   --remote-sign-out  With --remote, also remove HOST:~/.codex/auth.json.
                     This signs out Codex on the remote host.
   -h, --help         Show this help.
@@ -155,47 +162,54 @@ fi
 echo
 echo "Stopping running app..."
 run_allow_failure pkill -x "${APP_NAME}"
+run_allow_failure pkill -x "${LEGACY_APP_NAME}"
 
 echo
 echo "Removing installed apps and local build artifacts..."
-remove_path "/Applications/${APP_NAME}.app"
-remove_path "${HOME}/Applications/${APP_NAME}.app"
-remove_path "${HOME}/Projects/${APP_NAME}/build"
-remove_path "${HOME}/Projects/${APP_NAME}/${APP_NAME}.xcodeproj"
-remove_path "${HOME}/Projects/${APP_NAME}/${APP_NAME}.xcworkspace"
-remove_path "${HOME}/Projects/${APP_NAME}/Derived"
+for name in "${APP_NAME}" "${LEGACY_APP_NAME}"; do
+  remove_path "/Applications/${name}.app"
+  remove_path "${HOME}/Applications/${name}.app"
+  remove_path "${REPO_DIR}/${name}.xcodeproj"
+  remove_path "${REPO_DIR}/${name}.xcworkspace"
+done
+remove_path "${REPO_DIR}/build"
+remove_path "${REPO_DIR}/Derived"
 
 echo
-echo "Removing CodexPill app state and legacy state..."
-remove_path "${HOME}/Library/Application Support/CodexPill"
+echo "Removing Refill app state and legacy state..."
+remove_path "${HOME}/Library/Application Support/${APP_NAME}"
+remove_path "${HOME}/Library/Caches/${APP_NAME}"
+remove_path "${HOME}/Library/Application Support/${LEGACY_APP_NAME}"
+remove_path "${HOME}/Library/Caches/${LEGACY_APP_NAME}"
 remove_path "${HOME}/Library/Application Support/CodexSwitchboard"
 
 echo
-echo "Removing CodexPill preferences and validation/demo/test leftovers..."
-remove_path "${HOME}/Library/Preferences/com.raphhgg.codexpill.plist"
-remove_path "${HOME}/Library/Preferences/com.raphhgg.codexpill.dev.plist"
-remove_path "${HOME}/Library/Preferences/com.raphhgg.codexpill.demo.plist"
-remove_path "${HOME}/Library/Preferences/com.raphhgg.codexpill.staging.plist"
+echo "Removing Refill preferences and validation/demo/test leftovers..."
+for bundle_id in "${BUNDLE_IDS[@]}"; do
+  remove_path "${HOME}/Library/Preferences/${bundle_id}.plist"
+done
 remove_path "${HOME}/Library/Preferences/CodexPill.demo.plist"
 remove_path "${HOME}/Library/Preferences/CodexPillScreenshotDemo.plist"
 remove_glob "${HOME}/Library/Preferences/CodexPill.validation*.plist"
 remove_glob "${HOME}/Library/Preferences/CodexPillSettingsStoreTests-*.plist"
 
 echo
-echo "Removing CodexPill macOS notification preferences..."
+echo "Removing Refill macOS notification preferences..."
 reset_notification_preferences
 
 echo
 echo "Removing isolated temporary Codex homes..."
-remove_glob "${TMPDIR:-/tmp}/CodexPill-CODEX_HOME-*"
+remove_glob "${TMPDIR:-/tmp}/${APP_NAME}-CODEX_HOME-*"
+remove_glob "${TMPDIR:-/tmp}/${LEGACY_APP_NAME}-CODEX_HOME-*"
 
 echo
-echo "Removing local CodexPill crash reports..."
-remove_glob "${HOME}/Library/Logs/DiagnosticReports/CodexPill-*.ips"
+echo "Removing local Refill crash reports..."
+remove_glob "${HOME}/Library/Logs/DiagnosticReports/${APP_NAME}-*.ips"
+remove_glob "${HOME}/Library/Logs/DiagnosticReports/${LEGACY_APP_NAME}-*.ips"
 
 if [[ -n "${REMOTE_HOST}" ]]; then
   echo
-  echo "Removing remote CodexPill cache on ${REMOTE_HOST}..."
+  echo "Removing remote Refill cache on ${REMOTE_HOST}..."
   run ssh "${REMOTE_HOST}" "rm -rf ~/.codexpill"
 
   if [[ "${REMOTE_SIGN_OUT}" == "1" ]]; then

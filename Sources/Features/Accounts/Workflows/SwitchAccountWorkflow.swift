@@ -12,6 +12,11 @@ protocol AccountCatalogStore: Sendable {
 
 extension AccountRepository: AccountCatalogStore {}
 
+struct SwitchAccountResult: Equatable {
+    let activeAccountID: UUID?
+    let relaunch: CodexRelaunch
+}
+
 struct SwitchAccountWorkflow: Sendable {
     private let authService: CodexAuthActivator
     private let repository: AccountCatalogStore
@@ -33,14 +38,13 @@ struct SwitchAccountWorkflow: Sendable {
     func run(
         account: CodexAccount,
         accounts: [CodexAccount]
-    ) async throws -> UUID? {
-        try codexAppProcessClient.assertCodexAvailable()
+    ) async throws -> SwitchAccountResult {
         try authService.activate(account)
         try repository.saveAccounts(accounts)
 
         let activeAccountID = identityResolver.resolveCurrentAccountID(accounts: accounts)
 
-        try await codexAppProcessClient.relaunchCodex()
-        return activeAccountID
+        let relaunch = try await codexAppProcessClient.relaunchCodex()
+        return SwitchAccountResult(activeAccountID: activeAccountID, relaunch: relaunch)
     }
 }

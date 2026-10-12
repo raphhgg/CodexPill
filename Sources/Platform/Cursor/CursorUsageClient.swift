@@ -30,6 +30,7 @@ actor CursorUsageClient {
         } catch CursorStateDatabaseError.busy {
             return .unavailable(.localStateBusy)
         } catch {
+            UsageReadFailure.parse.log(for: .cursor)
             return .unavailable(.localStateUnreadable)
         }
 
@@ -52,17 +53,22 @@ actor CursorUsageClient {
         let data: Data
         do {
             data = try await webClient.usageSummary(using: token)
-        } catch CursorUsageWebError.unauthorized {
-            return .unauthorized
-        } catch CursorUsageWebError.forbidden {
-            return .unavailable(.forbidden)
-        } catch let CursorUsageWebError.rateLimited(retryAfter) {
-            rateLimitedUntil = now().addingTimeInterval(retryAfter ?? Self.defaultRetryAfter)
-            return .unavailable(.rateLimited)
-        } catch CursorUsageWebError.httpStatus {
-            return .unavailable(.serviceError)
         } catch {
-            return .unavailable(.network)
+            let webError = (error as? CursorUsageWebError) ?? .transport
+            UsageReadFailure(webError).log(for: .cursor)
+            switch webError {
+            case .unauthorized:
+                return .unauthorized
+            case .forbidden:
+                return .unavailable(.forbidden)
+            case let .rateLimited(retryAfter):
+                rateLimitedUntil = now().addingTimeInterval(retryAfter ?? Self.defaultRetryAfter)
+                return .unavailable(.rateLimited)
+            case .httpStatus:
+                return .unavailable(.serviceError)
+            case .transport:
+                return .unavailable(.network)
+            }
         }
 
         do {
@@ -70,6 +76,7 @@ actor CursorUsageClient {
             snapshot.accountEmail = email
             return .available(snapshot)
         } catch {
+            UsageReadFailure.parse.log(for: .cursor)
             return .unavailable(.unexpectedResponse)
         }
     }

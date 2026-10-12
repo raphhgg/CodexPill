@@ -2,13 +2,13 @@
 
 ## User Story
 
-As a CodexPill user with a large local Codex history, I want the Token Usage card to clearly show that scanning is progressing, so I do not think the app is stuck while the first local scan is still running.
+As a Refill user with a large local Codex history, I want the Token Usage card to clearly show that scanning is progressing, so I do not think the app is stuck while the first local scan is still running.
 
 ## Product Contract
 
 Token Usage first-load progress is a menu-card feedback feature. It does not make scanning faster by itself, and it must not pretend to know precise progress unless the scanner exposes real progress metadata.
 
-When Token Usage has no cached aggregate data yet, CodexPill should replace the static `Scanning local sessions...` state with an animated, low-key loading card that feels alive and matches the selected chart style.
+When Token Usage has no cached aggregate data yet, Refill should replace the static `Scanning local sessions...` state with an animated, low-key loading card that feels alive and matches the selected chart style.
 
 The loading state must be honest:
 

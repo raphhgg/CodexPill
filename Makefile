@@ -1,11 +1,11 @@
-APP_NAME := CodexPill
+APP_NAME := Refill
 PROJECT_PATH := $(APP_NAME).xcodeproj
 AGENT_NAME ?= local
 BUILD_ROOT := build
 DERIVED_DATA := $(BUILD_ROOT)/DerivedData/$(AGENT_NAME)
 RESULT_BUNDLE := $(BUILD_ROOT)/results/$(AGENT_NAME)/$(APP_NAME).xcresult
-DEV_BUNDLE_ID ?= com.raphhgg.codexpill.dev
-STAGING_BUNDLE_ID ?= com.raphhgg.codexpill.staging
+DEV_BUNDLE_ID ?= com.raphhgg.refill.dev
+STAGING_BUNDLE_ID ?= com.raphhgg.refill.staging
 
 .PHONY: diagnose generate prepare-result-bundle build test package-release run clean
 

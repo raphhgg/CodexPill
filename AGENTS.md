@@ -5,7 +5,8 @@
 - Platform: native macOS menubar app.
 - UI: AppKit `NSMenu` and status item, with SwiftUI views inside menu items, plus AppKit alerts and panels.
 - Build system: Tuist.
-- Product focus: Codex account switching, and limits for Codex, Claude and Cursor on this Mac.
+- Product: Refill (formerly CodexPill). Usage limits for Codex, Claude Code and Cursor on this Mac, and switching
+  between saved Codex accounts.
 
 ## Read First
 

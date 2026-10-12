@@ -1,13 +1,13 @@
 import Foundation
 
-@testable import CodexPill
+@testable import Refill
 
 /// A `ClaudeCodeUsage` over an isolated defaults suite, a temp Claude config folder, a settable Keychain item,
 /// and a settable usage response. All tokens are fake.
 final class ClaudeUsageFixture: ClaudeKeychainReading, ClaudeUsageWebClient, @unchecked Sendable {
     static let fakeAccessToken = "fake-claude-access-token"
 
-    /// Synthetic `/api/oauth/usage` response with an Opus window that CodexPill ignores.
+    /// Synthetic `/api/oauth/usage` response with an Opus window that Refill ignores.
     static let usageResponse = #"""
     {"five_hour":{"utilization":64.4,"resets_at":"2026-10-10T15:00:00.000000+00:00"},
      "seven_day":{"utilization":21,"resets_at":"2026-10-14T09:00:00+00:00"},

@@ -1,7 +1,7 @@
 import Foundation
 import OSLog
 
-private let appPathsLogger = Logger(subsystem: "com.raphhgg.codexpill", category: "AppPaths")
+private let appPathsLogger = Logger(subsystem: "com.raphhgg.refill", category: "AppPaths")
 
 struct AppPaths {
     let appSupportDirectory: URL
@@ -9,7 +9,7 @@ struct AppPaths {
     let snapshotsDirectory: URL
     let codexAuthFile: URL
 
-    private static let appSupportFolderName = "CodexPill"
+    static let appSupportFolderName = "Refill"
     private static let legacyAppSupportFolderName = "CodexSwitchboard"
 
     init(
@@ -78,7 +78,7 @@ struct AppPaths {
 }
 
 struct IsolatedCodexHomeSession {
-    private static let directoryPrefix = "CodexPill-CODEX_HOME-"
+    private static let directoryPrefix = "Refill-CODEX_HOME-"
 
     let rootDirectory: URL
     let authFile: URL

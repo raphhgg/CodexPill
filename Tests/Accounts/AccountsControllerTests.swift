@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import CodexPill
+@testable import Refill
 
 @MainActor
 struct AccountsControllerTests {
@@ -255,7 +255,7 @@ struct AccountsControllerTests {
         )
         controller.load()
 
-        let didRefresh = await controller.switchToAccount(account)
+        let didRefresh = await controller.switchToAccount(account).didRefresh
 
         #expect(didRefresh == false)
         #expect(controller.activeAccountID == nil)
@@ -276,7 +276,7 @@ struct AccountsControllerTests {
         )
         controller.load()
 
-        let didRefresh = await controller.switchToAccount(account)
+        let didRefresh = await controller.switchToAccount(account).didRefresh
 
         #expect(didRefresh == false)
         #expect(controller.activeAccountID == account.id)
@@ -306,7 +306,7 @@ struct AccountsControllerTests {
         )
         controller.load()
 
-        let didRefresh = await controller.switchToAccount(account)
+        let didRefresh = await controller.switchToAccount(account).didRefresh
 
         #expect(didRefresh == true)
         #expect(controller.accounts.count == 1)
@@ -484,7 +484,7 @@ struct AccountsControllerTests {
         let switchedDuringReset = await controller.switchToAccount(work)
 
         #expect(controller.isApplyingResetCredit)
-        #expect(switchedDuringReset == false)
+        #expect(switchedDuringReset == SwitchToAccountOutcome(didRefresh: false, relaunch: nil))
         #expect(codexApp.relaunchCount == 0)
 
         await resetCredits.answer(.nothingToReset)
@@ -814,7 +814,7 @@ private final class IsolatedAddAccountLoginSessionProbe: IsolatedCodexLoginSessi
         url: URL(string: "https://auth.openai.com/codex/device")!,
         userCode: "ABCD-EFGH"
     )
-    let codexHome = URL(fileURLWithPath: "/tmp/codexpill-test-codex-home")
+    let codexHome = URL(fileURLWithPath: "/tmp/refill-test-codex-home")
     let authData: Data
     private(set) var cleanupCount = 0
 

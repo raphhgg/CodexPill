@@ -4,9 +4,13 @@ import Foundation
 struct AppComposition {
     let accountsController: AccountsController
     let coordinator: MenuBarCoordinator
+    /// Shown once after launch when CodexPill's data did not fully carry over.
+    let launchNotice: MenuBarInfoAlertRequest?
 
     init(environment: [String: String], defaults: UserDefaults) {
         let isolatedRootDirectory = AppRuntimeEnvironment.isolatedAppSupportDirectory(environment: environment)
+        let isIsolated = isolatedRootDirectory != nil || AppRuntimeEnvironment.isolatedDefaultsSuiteName(environment: environment) != nil
+        launchNotice = isIsolated ? nil : Self.migrateCodexPillData(defaults: defaults)
         let suppressesInteractivePrompts = AppRuntimeEnvironment.isRunningAutomatedTests(environment: environment)
         let repository = try! AccountRepository(isolatedRootDirectory: isolatedRootDirectory)
         let authService = CodexAuthSnapshotService(repository: repository)
@@ -29,6 +33,8 @@ struct AppComposition {
             statusItemSettings: StatusItemSettingsStore(userDefaults: defaults),
             tokenUsagePreferences: TokenUsagePreferencesStore(userDefaults: defaults),
             claudeUsageSettings: claudeCodeUsage.settings,
+            appIconPreferences: AppIconPreferencesStore(userDefaults: defaults),
+            appIconApplier: SystemAppIconApplier(),
             cliProcessInspector: CodexCLIProcessInspector(),
             alertPresenter: SystemAlertPresenter(suppressesInteractivePrompts: suppressesInteractivePrompts),
             panelPresenter: SystemPanelPresenter(suppressesInteractivePrompts: suppressesInteractivePrompts),
@@ -42,6 +48,13 @@ struct AppComposition {
             providerConnections: [claudeCodeUsage, cursorUsage],
             allowsEmptyStatePrompt: true
         )
+    }
+
+    /// Runs before anything reads the catalog or the settings, so the first read already sees CodexPill's data.
+    private static func migrateCodexPillData(defaults: UserDefaults) -> MenuBarInfoAlertRequest? {
+        let outcome = (try? CodexPillMigration.live(defaults: defaults, bundleIdentifier: Bundle.main.bundleIdentifier))?.run() ?? .failed
+        guard outcome == .failed else { return nil }
+        return MenuBarAlertFactory().makeCodexPillDataNotCopiedRequest()
     }
 
     /// An isolated run never touches the real Claude sign-in or the real `claude`: it reads `.credentials.json` from

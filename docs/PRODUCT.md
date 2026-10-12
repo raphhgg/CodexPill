@@ -1,6 +1,6 @@
 # Product
 
-CodexPill is a native macOS menubar app for Codex account switching, and for limits of Codex, Claude and Cursor on this Mac.
+Refill is a native macOS menubar app that shows Codex, Claude Code and Cursor usage limits and when they reset, and switches between saved Codex accounts. Refill was called CodexPill before.
 
 It is for people who use more than one Codex account, or Codex next to Claude Code and Cursor, and want to see at a glance how much of each limit is left:
 
@@ -9,7 +9,7 @@ It is for people who use more than one Codex account, or Codex next to Claude Co
 - see current usage (session, weekly, monthly, or billing cycle) before choosing which account or tool to use;
 - spend a Codex reset credit when one is available.
 
-Codex is always on. Claude Code and Cursor are opt-in and read-only: each is read only after the user connects it, and CodexPill shows the one account each tool is signed in to, by its email. It never writes their files or Keychain items. The one thing it runs is `claude doctor`, which lets Claude Code renew its own expired sign-in.
+Codex is always on. Claude Code and Cursor are opt-in and read-only: each is read only after the user connects it, and Refill shows the one account each tool is signed in to, by its email. It never writes their files or Keychain items. The one thing it runs is `claude doctor`, which lets Claude Code renew its own expired sign-in.
 
 Detailed product behavior and UX contracts live in [features](features/README.md).
 
@@ -37,7 +37,7 @@ Secondary user:
 ## Product Principles
 
 - Menubar-first, not settings-first.
-- Local-first, no CodexPill cloud service.
+- Local-first, no Refill cloud service.
 - Fast account switching over broad account administration.
 - Every tool section works the same way: a header with the plan, then the meters.
 - In-app copy is a title plus at most one short line.
@@ -52,7 +52,7 @@ Codex, Claude Code or Cursor. Each has one menu card with its usage, and a side 
 
 ### Saved Account
 
-A Codex sign-in stored by CodexPill, so the user can switch back to it: a saved `auth.json` snapshot with a user-facing label, optional Codex metadata, and the latest known limits. Claude Code and Cursor have no saved accounts.
+A Codex sign-in stored by Refill, so the user can switch back to it: a saved `auth.json` snapshot with a user-facing label, optional Codex metadata, and the latest known limits. Claude Code and Cursor have no saved accounts.
 
 ### Active Account
 
@@ -64,12 +64,12 @@ The most recent reading of a tool's limits: one window per limit the tool report
 
 ### Reset Credit
 
-A Codex credit that resets the current limits early. CodexPill shows how many are left and spends one only after the user confirms.
+A Codex credit that resets the current limits early. Refill shows how many are left and spends one only after the user confirms.
 
 ## Non-Goals
 
 - Browser-based ChatGPT account switching.
-- Signing in to Claude Code or Cursor, switching their accounts, or renewing their sessions with CodexPill's own code. Claude Code renews its own expired sign-in when CodexPill runs `claude doctor` while Claude Code is not running.
+- Signing in to Claude Code or Cursor, switching their accounts, or renewing their sessions with Refill's own code. Claude Code renews its own expired sign-in when Refill runs `claude doctor` while Claude Code is not running.
 - Cloud sync or multi-device account storage.
 - Team/shared account management.
 - Background telemetry pipeline.

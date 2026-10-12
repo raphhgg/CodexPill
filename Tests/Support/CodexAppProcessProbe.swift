@@ -1,23 +1,16 @@
 import Foundation
 
-@testable import CodexPill
+@testable import Refill
 
 final class CodexAppProcessProbe: CodexAppProcessClient, @unchecked Sendable {
-    var availabilityError: Error?
-    private(set) var availabilityCheckCount = 0
+    var relaunchResult = CodexRelaunch.relaunched
     private(set) var relaunchCount = 0
     /// When set, relaunching waits at this gate, which keeps a switch in flight.
     var relaunchGate: TestGate?
 
-    func assertCodexAvailable() throws {
-        availabilityCheckCount += 1
-        if let availabilityError {
-            throw availabilityError
-        }
-    }
-
-    func relaunchCodex() async throws {
+    func relaunchCodex() async throws -> CodexRelaunch {
         await relaunchGate?.pass()
         relaunchCount += 1
+        return relaunchResult
     }
 }

@@ -23,7 +23,7 @@ protocol ClaudeCodeProcessRunning: Sendable {
 }
 
 /// Runs `claude doctor`, which makes Claude Code renew its own expired live sign-in. Claude Code writes the result
-/// itself, in its own config folder. CodexPill never writes Claude Code's files or Keychain item.
+/// itself, in its own config folder. Refill never writes Claude Code's files or Keychain item.
 struct ClaudeCodeCommands: Sendable {
     /// Claude Code renews a sign-in that is past its expiry whenever this runs. It makes no model call.
     static let renewalArguments = ["doctor"]

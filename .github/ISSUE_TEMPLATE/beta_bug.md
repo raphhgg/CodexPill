@@ -1,6 +1,6 @@
 ---
 name: Beta bug
-about: Report a sanitized CodexPill beta bug
+about: Report a sanitized Refill beta bug
 title: "[Beta bug]: "
 labels: beta, bug
 assignees: ""
@@ -24,7 +24,7 @@ assignees: ""
 
 ## Environment
 
-- CodexPill version:
+- Refill version:
 - macOS version:
 
 ## Redaction Check

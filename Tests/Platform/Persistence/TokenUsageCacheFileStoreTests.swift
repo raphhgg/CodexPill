@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import CodexPill
+@testable import Refill
 
 struct TokenUsageCacheFileStoreTests {
     @Test
@@ -84,7 +84,7 @@ struct TokenUsageCacheFileStoreTests {
         TokenUsageCacheFileStore(
             cacheFile: FileManager.default.temporaryDirectory
                 .appendingPathComponent(UUID().uuidString, isDirectory: true)
-                .appendingPathComponent("CodexPill", isDirectory: true)
+                .appendingPathComponent("Refill", isDirectory: true)
                 .appendingPathComponent("token-usage-cache.json"),
             schemaVersion: 1
         )

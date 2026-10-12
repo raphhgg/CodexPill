@@ -1,8 +1,8 @@
 import Foundation
 
-@testable import CodexPill
+@testable import Refill
 
-/// Claude Code's Keychain item as a file that CodexPill is already allowed to read.
+/// Claude Code's Keychain item as a file that Refill is already allowed to read.
 struct FileClaudeCodeKeychain: ClaudeKeychainReading {
     let fileURL: URL
 
@@ -27,7 +27,7 @@ final class ClaudeCodeProcessProbe: ClaudeCodeProcessDetecting, @unchecked Senda
     }
 }
 
-/// The `claude` command as far as CodexPill runs it: `doctor` with Claude Code's own config, which renews an expired
+/// The `claude` command as far as Refill runs it: `doctor` with Claude Code's own config, which renews an expired
 /// sign-in through `renewClaudeCode`.
 final class FakeClaudeCode: ClaudeCodeProcessRunning, @unchecked Sendable {
     private let lock = NSLock()

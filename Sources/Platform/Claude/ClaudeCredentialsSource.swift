@@ -8,7 +8,7 @@ protocol ClaudeKeychainReading: Sendable {
 
 enum ClaudeKeychainRead: Sendable {
     case notFound
-    /// The item exists but macOS needs the user to allow CodexPill to read it.
+    /// The item exists but macOS needs the user to allow Refill to read it.
     case needsPermission
     case failed
     case found(Data)
