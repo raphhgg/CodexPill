@@ -77,8 +77,8 @@ It coordinates cache-first loading, scan-task identity, duplicate-scan preventio
 Key boundaries:
 
 - `UsageProviderSource`, the port for one provider. It returns a `UsageProviderReading`: not connected, unavailable with a `UsageUnavailableReason`, awaiting usage, or a `UsageSnapshot`. The reasons are not installed, signed out, sign-in expired (401 or past expiry), Keychain access needed, sign-in unreadable, access denied (403), rate limited (429), unreachable, service error (other status), and unexpected response. Each has its own menu copy.
-- `ClaudeCodeUsage`, the Claude Code source. It wraps the `Platform/Claude` adapter, maps its values onto `UsageSnapshot`, and owns the opt-in setting and the connect and disconnect steps. It also carries the saved-account store and `switchAccount(to:)`, so a menu can switch Claude Code sign-ins without reaching into `Platform`.
-- `CursorUsage`, the Cursor source, built the same way: it wraps `Platform/Cursor`, maps its values onto `UsageSnapshot`, and owns the opt-in setting, connect, disconnect, the saved accounts (`CursorAccounts`), and `switchAccount(to:)`.
+- `ClaudeCodeUsage`, the Claude Code source. It wraps the `Platform/Claude` adapter, maps its values onto `UsageSnapshot`, and owns the opt-in setting and the connect and disconnect steps.
+- `CursorUsage`, the Cursor source, built the same way: it wraps `Platform/Cursor`, maps its values onto `UsageSnapshot`, and owns the opt-in setting, connect, and disconnect.
 - `ProviderUsageRuntime`, which reads each source at most once per the source's `refreshInterval`, however often the menu opens, and publishes `ProviderUsageState` values. The default interval is 5 minutes. A snapshot older than the source's `staleAfter` is published as `.stale`. When a source is unavailable for a reason that keeps the same account, such as an expired sign-in or a failed read, the runtime keeps the last good snapshot next to the reason.
 
 Provider states only feed menu sections. They never reach `AccountAvailability` or `InactiveAccountAvailabilityRanking`: those read `CodexAccount.usage`, and the runtime reports changes through a menu-rebuild callback instead of the account store. The runtime refuses a source for `.codex`.
@@ -127,26 +127,20 @@ Reusable Codex app-server access is split into these platform boundaries:
 
 Local app-server reads enter this session runner through `CodexAppServerClient`, which keeps local executable, environment, client-info, timeout, and saved-account strict rate-limit requirements in `CodexAppServerConfiguration`.
 
-`Platform/Claude` owns everything CodexPill knows about Claude Code:
+`Platform/Claude` owns everything CodexPill knows about Claude Code. It never writes Claude Code's files or Keychain item. It owns:
 
 - reading its sign-in from `.credentials.json` and the `Claude Code-credentials` Keychain item, with the Keychain prompt shown only after a user action (`ClaudeCredentialsSource`, `SystemClaudeKeychain`);
-- the `api.anthropic.com/api/oauth/usage` request, its redirect rule, its rate-limit wait, and parsing its response (`ClaudeUsageAPI`, `ClaudeUsageClient`);
-- saved Claude Code accounts and switching (`ClaudeCodeAccountStore`, `ClaudeCodeSignInStore`, `SystemClaudeCodeAccountItems`). A switch writes CodexPill's own item and list, then Claude Code's credentials, then `oauthAccount` in Claude Code's global config, and puts every earlier step back when a later one fails. Accounts match by Claude Code's account record, never by token;
-- whether Claude Code is running, behind the `ClaudeCodeProcessDetecting` port. A switch is refused while it runs.
+- the `api.anthropic.com/api/oauth/usage` request, its redirect rule, its rate-limit wait, and parsing its response (`ClaudeUsageAPI`, `ClaudeUsageClient`).
 
 The access token leaves this module only as the usage request's `Authorization` header. Nothing in it reads, sends, or renews Claude Code's refresh token; a test scans the Claude sources to keep it that way.
 
-`Platform/Cursor` owns everything CodexPill knows about Cursor:
+`Platform/Cursor` owns everything CodexPill knows about Cursor. It never writes Cursor's database or quits Cursor. It owns:
 
-- `CursorStateDatabase`, keyed reads and the one write path for `state.vscdb`. It never scans. A read opens the database with `immutable=1` only when no `-wal`, `-shm`, or `-journal` file sits next to it, so it never reads a writer's uncommitted pages. A write folds the WAL into the database, refuses while another connection holds it, and replaces only the named rows in one transaction;
+- `CursorStateDatabase`, keyed read-only access to `state.vscdb`. It never scans. A read opens the database with `immutable=1` only when no `-wal`, `-shm`, or `-journal` file sits next to it, so it never reads a writer's uncommitted pages;
 - `CursorStateDatabaseTokenSource`, the read-only token lookup used for usage, and `CursorAccessToken`, which prints redacted;
-- the `cursor.com/api/usage-summary` request, its redirect rule, its `Retry-After` wait, and parsing its response (`URLSessionCursorUsageWebClient`, `CursorUsageClient`, `CursorUsageSummaryParser`);
-- `CursorSignIn`, the eight `cursorAuth/*` rows that are a Cursor sign-in, and `CursorSavedAccount`, a named copy of one;
-- `CursorAccountStore` and `SystemCursorAccountKeychain`, the `CodexPill Cursor accounts` Keychain item holding every saved account;
-- `CursorAccounts`: capture, rename, remove, and activate. Activation quits Cursor, saves the outgoing sign-in again, writes the saved one, and reopens Cursor. It throws one `CursorAccountsError` per outcome the menu must tell apart;
-- `CursorAppProcessClient` and `SystemCursorAppProcessClient`, quitting and opening Cursor.app. It never force-quits and knows nothing about Cursor's files.
+- the `cursor.com/api/usage-summary` request, its redirect rule, its `Retry-After` wait, and parsing its response (`URLSessionCursorUsageWebClient`, `CursorUsageClient`, `CursorUsageSummaryParser`).
 
-Tokens leave this module only as the usage request's cookie or in CodexPill's Keychain item.
+The token leaves this module only as the usage request's cookie.
 
 `Platform/Persistence` owns:
 
@@ -220,10 +214,7 @@ The current truth sources are split by concern:
 - local account metadata and rate limits: local `codex app-server`;
 - running CLI session observation: local process table inspection;
 - Claude Code usage: `api.anthropic.com/api/oauth/usage`, authenticated with Claude Code's local sign-in token;
-- active Claude Code account: `oauthAccount` in Claude Code's global config, `~/.claude.json`;
-- Cursor usage: `cursor.com/api/usage-summary`, authenticated with Cursor's local sign-in token;
-- active Cursor account: the `cursorAuth/*` rows in Cursor's `state.vscdb`;
-- saved Cursor accounts: CodexPill's `CodexPill Cursor accounts` Keychain item.
+- Cursor usage: `cursor.com/api/usage-summary`, authenticated with Cursor's local sign-in token.
 
 Rules:
 

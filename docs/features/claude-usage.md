@@ -8,7 +8,7 @@ As a CodexPill user who also works in Claude Code on a Pro or Max plan, I want t
 
 Claude Usage is an optional menu bar feature. When connected, CodexPill shows the 5-hour and weekly limits of the Claude account that Claude Code is signed in to.
 
-Reading usage never changes anything in Claude Code. CodexPill never signs in to Claude and never renews Claude Code's sign-in. If Claude Code's sign-in is missing or expired, CodexPill says so and points the user back to Claude Code. Switching Claude Code between saved sign-ins is a separate, explicit action, described in [Claude Code Account Switching](#claude-code-account-switching).
+Reading usage never changes anything in Claude Code. CodexPill never signs in to Claude and never renews Claude Code's sign-in. If Claude Code's sign-in is missing or expired, CodexPill says so and points the user back to Claude Code. CodexPill shows only the account Claude Code is signed in to. It never saves, adds, or switches Claude accounts, and it never writes Claude Code's files or Keychain item.
 
 The feature is off by default. Connecting it is the user's consent for CodexPill to read Claude Code's sign-in and send it to Anthropic.
 
@@ -79,18 +79,6 @@ With `CODEXPILL_ISOLATED_APP_SUPPORT_DIR` set, CodexPill never reads the real Cl
 
 - The config folder is `CLAUDE_CONFIG_DIR` when set, otherwise `<root>/.claude`. Only its `.credentials.json` is read.
 - The Keychain is skipped, so a missing file reads as signed out. An expired sign-in in that file shows the sign-in expired state without any request.
-- There is no account switching, so an isolated run never writes a Keychain item.
-
-## Claude Code Account Switching
-
-CodexPill can save Claude Code sign-ins and switch Claude Code between them, the way it switches Codex accounts through `auth.json`. This is the data layer only. No menu shows it yet; `ClaudeCodeUsage.accounts` and `ClaudeCodeUsage.switchAccount(to:)` are the entry points a menu uses. It works whether or not Claude usage is connected.
-
-- **Saving.** Reads Claude Code's current sign-in and its `oauthAccount`, and stores both in a CodexPill Keychain item (`CodexPill Claude Code account`, one per account). The list in `claude-code-accounts.json` holds the name, email, organization, plan, and account IDs, never tokens. Saving an account that is already saved refreshes its copy. A sign-in whose global config records no `oauthAccount` is refused, since CodexPill can't tell which account it is.
-- **Matching.** Accounts match by Claude's account and organization IDs from `oauthAccount`. Tokens are never compared.
-- **Switching.** Refused while any `claude` process runs, because a running Claude Code would write its old sign-in back. Otherwise the outgoing sign-in is saved again first, because Claude Code may have renewed it since. Then CodexPill writes the target's `claudeAiOauth` where Claude Code keeps its sign-in (its Keychain item or `.credentials.json`) and the target's `oauthAccount` into the global config, keeping every other key. A sign-in that is not saved is never overwritten.
-- **Rollback.** If saving the outgoing copy, writing the list, writing the credentials, or writing the global config fails, every earlier step is put back byte for byte. If putting it back fails too, the error says so (`restoreFailed`).
-- **After a switch.** The next usage read may show the Keychain prompt, since the switch rewrote Claude Code's item.
-- **Errors.** Each `ClaudeCodeAccountError` has a short alert from `MenuBarAlertFactory.makeClaudeCodeAccountErrorRequest`, for example `Quit Claude Code first` / `Close every claude session.`
 
 ## Privacy
 
@@ -100,8 +88,7 @@ The user-facing summary lives in [PRIVACY.md](../PRIVACY.md).
 
 - `ClaudeCredentialsTests` parse literal credentials, including the `mcpOAuth`-only case, prove the file wins over the Keychain, and prove the token appears in no `String(describing:)`, `String(reflecting:)`, or `dump` output of the credentials or the request.
 - `ClaudeUsageAPITests` cover the response mapping, the request headers, the redirect rule, and status mapping for `401` and `429` with and without `Retry-After`.
-- `ClaudeCodeUsageTests` cover opt-in, the Keychain prompt only after a user action, the expiry gate, each failure state, the rate-limit wait, and that a switch changes whose limits the next read shows.
-- `ClaudeCodeAccountStoreTests` cover saving, matching by account record, switching in the Keychain item and the credentials file, refusing while Claude Code runs, rollback with a failure injected at each step, and a scan proving no Claude source uses a refresh token.
-- `ProviderUsageMenuCopyTests` and `ClaudeCodeAccountAlertTests` check that every failure reads differently and stays a title plus one short line.
+- `ClaudeCodeUsageTests` cover opt-in, the Keychain prompt only after a user action, the expiry gate, each failure state, and the rate-limit wait. A scan in `ClaudeCredentialsTests` proves no Claude source uses a refresh token.
+- `ProviderUsageMenuCopyTests` checks that every failure reads differently and stays a title plus one short line.
 - A coordinator test walks the menu from `Connect Claude Code…` through declined consent, current usage, `Allow Keychain access…`, and disconnect, reading the built `NSMenu`.
 - No test touches the network or the real Keychain.

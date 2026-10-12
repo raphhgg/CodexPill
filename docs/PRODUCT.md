@@ -7,7 +7,7 @@ The product replaces manual auth-file swapping and repeated app restarts with a 
 - save Codex accounts as reusable local snapshots;
 - switch the active Codex account from the menubar;
 - see current session and weekly Codex usage before choosing which account to use;
-- optionally see Claude Code and Cursor usage next to Codex, and switch either tool between saved sign-ins.
+- optionally see Claude Code and Cursor usage next to Codex.
 
 Detailed product behavior and UX contracts live in [features](features/README.md).
 
@@ -62,15 +62,14 @@ The most recently fetched view of Codex session and weekly availability.
 
 ### Other Providers
 
-A non-Codex tool whose usage CodexPill shows. Claude Code and Cursor are the two. Each is opt-in and has its own menu section below the saved accounts. Their usage never affects Codex account availability, ranking, or notifications. The menu for switching either one is not built yet.
+A non-Codex tool whose usage CodexPill shows. Claude Code and Cursor are the two. Each is opt-in and has its own menu section below the saved accounts. Their usage never affects Codex account availability, ranking, or notifications.
 
-- **Claude Code.** CodexPill can also save Claude Code sign-ins and switch between them, through Claude Code's own credentials. CodexPill never signs in to Claude itself and never renews Claude Code's sign-in.
-- **Cursor.** CodexPill can save Cursor sign-ins and switch between them. A switch quits Cursor, puts the saved sign-in back into Cursor's local database, and reopens Cursor. CodexPill never signs in to Cursor itself and never renews Cursor's sign-in.
+CodexPill only reads Claude Code and Cursor. It shows the one account each tool is signed in to, never writes their files or Keychain items, never signs in to either tool, and never renews their sign-ins.
 
 ## Non-Goals
 
 - Browser-based ChatGPT account switching.
-- Signing in to a non-Codex tool, or renewing its session, on its behalf. Switching only puts back a sign-in the tool itself created.
+- Signing in to a non-Codex tool, renewing its session, or switching its account.
 - Cloud sync or multi-device account storage.
 - Team/shared account management.
 - Background telemetry pipeline.
