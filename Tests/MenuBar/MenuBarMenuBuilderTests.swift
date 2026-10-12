@@ -924,7 +924,7 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func codexSideMenuSwitchesAccountsUsesResetsAndShowsTokenUsage() throws {
+    func codexSideMenuSwitchesAccountsAndUsesResetsWhileTokenUsageFollowsTheToolCards() throws {
         let nov5 = Date(timeIntervalSince1970: 1_793_880_000)
         var usage = makeUsage(resettingAfter: .now)
         usage.resetCredits = UsageResetCredits(
@@ -949,9 +949,14 @@ struct MenuBarMenuBuilderTests {
 
         #expect(side.items.map(\.title) == [
             "alex@example.com", "side@example.com", "team@example.com", "",
-            "Use a Reset…", "Expires 5 Nov", "Expires 20 Nov", "Token Usage", "",
+            "Use a Reset…", "Expires 5 Nov", "Expires 20 Nov", "",
             "Add Codex Account…",
         ])
+        let codexIndex = try #require(menu.items.firstIndex { $0.title == "Codex" })
+        let tokenUsageIndex = try #require(menu.items.firstIndex { $0.title == "Token Usage" })
+        let addAccountIndex = try #require(menu.items.firstIndex { $0.title.hasPrefix("Add Account") })
+        #expect(codexIndex < tokenUsageIndex && tokenUsageIndex < addAccountIndex)
+        #expect(menu.items[tokenUsageIndex].view != nil && menu.items[tokenUsageIndex].submenu == nil)
         #expect(side.items[0].state == .on && !side.items[0].isEnabled && side.items[0].submenu == nil)
         #expect(rows.map { $0.items.map(\.title) } == [["Use", "Remove…"], ["Use", "Remove…"]])
         #expect(rows.map { $0.items.map(providerAction) } == [

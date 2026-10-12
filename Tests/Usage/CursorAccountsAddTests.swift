@@ -393,4 +393,8 @@ final class RecordingCursorWebClient: CursorUsageWebClient, @unchecked Sendable 
         duringRequest?()
         return try response.get()
     }
+
+    func usageEvents(using _: CursorAccessToken, from _: Date, to _: Date, page _: Int, pageSize _: Int) async throws -> Data {
+        Data("{}".utf8)
+    }
 }

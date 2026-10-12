@@ -19,9 +19,9 @@ struct CursorUsage: ProviderConnection {
     init(
         settings: CursorUsageSettingsStore,
         client: CursorUsageClient,
+        tokenUsageClient: CursorTokenUsageClient? = nil,
         accounts: CursorAccounts? = nil,
         login: CursorIsolatedLogin? = nil,
-        tokenUsageClient: CursorTokenUsageClient? = nil,
         refreshInterval: TimeInterval = ProviderUsageRuntime.refreshInterval
     ) {
         self.settings = settings
