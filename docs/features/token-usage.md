@@ -12,7 +12,7 @@ The scan should be treated as a background data-loading job, not as work owned b
 
 The feature is about local Codex usage history, not saved-account usage history. V1 must not imply that the graph is split by saved account, workspace, organization, or remote host.
 
-Refill must not use undocumented backend usage endpoints, browser cookies, hidden WebViews, ChatGPT dashboard scraping, or manual prompt token counters for this feature.
+For Codex, Refill must not use undocumented backend usage endpoints, browser cookies, hidden WebViews, ChatGPT dashboard scraping, or manual prompt token counters for this feature. Cursor is the one exception, described in [Other Tools](#other-tools): Cursor keeps usage only on its servers, so Refill reads it the way Cursor's own dashboard does.
 
 Refill may read local Codex session logs as an observation surface, but it must not expose prompt content, raw session rows, file paths, auth payloads, account identifiers, emails, hostnames, or raw log bodies in UI, diagnostics, tracker comments, or test fixtures.
 
@@ -33,13 +33,42 @@ Useful field classes in the local session rows:
 
 Token Usage treats daily buckets as local-session scoped. It does not promise a safe account boundary. Account-specific history remains deferred unless Codex session data exposes a stable, privacy-safe account marker or an official local API provides account-scoped usage history.
 
+## Other Tools
+
+When Claude Code or Cursor is connected in Refill, the Token Usage card adds its daily tokens. Each tool is read only while it is connected, and a tool that can't be read shows `Unavailable` on its own line without hiding the others.
+
+Every tool counts the same way so days compare: input, cached input, cache writes, and output, all included. Dollars are not shown, because Codex and Claude plans are flat subscriptions.
+
+| Tool | Source | Scope | Model |
+| --- | --- | --- | --- |
+| Codex | Local session JSONL, as above. | This Mac | `payload.model` of the latest `turn_context` (or `session_meta`) row before each `token_count`. Earlier rows count as `unknown`. |
+| Claude Code | Local transcripts under `<CLAUDE_CONFIG_DIR or ~/.claude>/projects/**/*.jsonl`, through `Platform/Claude`. | This Mac | `message.model` of each assistant row. |
+| Cursor | `POST https://cursor.com/api/dashboard/get-filtered-usage-events` with Cursor's session cookie and `Origin: https://cursor.com`, through `Platform/Cursor`. Undocumented: it is the endpoint Cursor's usage page calls. | Cursor account | `model` of each event. |
+
+Claude Code rules:
+
+- Only assistant rows with `message.usage` are decoded, and only the type, timestamp, `requestId`, `message.id`, `message.model`, and the four token counts are kept. Content is never kept.
+- A response is identified by `message.id` and `requestId`. Claude Code writes a response once per content block and copies it into resumed sessions, so each response counts once across all files.
+- The day is the local day of the row's `timestamp`.
+- Rows are cached per transcript (path relative to the projects folder, size, and modification date), so unchanged transcripts are not read again. Claude Code deletes transcripts after 30 days by default. Cached rows for deleted transcripts are kept for 400 days.
+
+Cursor rules:
+
+- The request body is `{startDate, endDate, page, pageSize}`, with Unix milliseconds as strings and pages of 1,000. Refill reads at most 20 pages and shows Cursor as unavailable rather than undercount.
+- Each event's tokens are `inputTokens + outputTokens + cacheWriteTokens + cacheReadTokens`. Events without `tokenUsage` count as zero.
+- The day is the local day of the event's `timestamp`.
+
+Card:
+
+- `All-time peak` uses the larger of Codex's all-time peak and the busiest combined day in the period, because only Codex has all-time history. The card no longer shows a peak; the value stays for a later detail view.
+
 ## Happy Path
 
 1. User enables `Appearance › Show Token Usage`.
 2. Refill starts scanning recent local Codex session JSONL files in the background.
 3. User can close the menu or continue working while the scan completes.
 4. Refill aggregates safe token totals by day and stores them in a derived cache.
-5. The Codex side menu gains `Token Usage ›`, which shows the card.
+5. The main menu shows the Token Usage card after the tool cards.
 
 ## UI / Copy / States
 
@@ -47,36 +76,40 @@ Appearance:
 
 - `Show Token Usage`
 
-The card uses daily bars. Chart style, loading animation and peak-day scope have no menu control.
-
 Default:
 
 - Token Usage is off by default.
-- Default period is `Last 30 Days`.
+- The period is always `Last 30 days`.
+- Chart `Bars`, split `By tool`.
 
-Menu card:
+Menu card, in the main menu after the tool cards and before `Add Account`:
 
-- Position: inside the active account area, directly below the Session and Weekly limit rows and before the divider/account-action sections.
-- Title: `Token Usage`
-- Scope label: `This Mac`
-- Chart: compact chart for the selected period.
-- Chart styles: `Daily Bars`, `Heat Strip`, and `Sparkline`.
-- Chart design must go through a human review checkpoint before final implementation. RGR-360 should validate these three styles with screenshots and make sure the final Token Usage card lets the user choose between them.
-- Summary copy:
-  - `Today: <tokens> tokens`
-  - `Last 30 days: <tokens> tokens`
-  - `Peak day`
-  - `<date>: <tokens> tokens`
+- Title row: `Token Usage` and the chart toggle, three icons: bars, area, lines.
+- Subtitle: `Last 30 days · 10B · Today 390M`.
+- Chart, 44 pt high:
+  - `Bars`: one bar per day, stacked by tool, Codex at the bottom.
+  - `Area`: the same stack as smoothed areas.
+  - `Lines`: one line per tool, each against its own busiest day, so a small tool keeps its shape. The split gives the amounts.
+  - Hovering a day shows a tooltip: `Oct 12: 390M tokens`, then each tool's tokens.
+- Split toggle: `By tool` or `Top models`.
+  - `By tool`: one row per tool with today and the 30-day total, a bar of its models, and a legend with the top two models and `Other`.
+  - `Top models`: each tool's share of the period, then the five biggest models across tools.
+- Model names are shortened: `claude-opus-5-5` reads `Opus 5.5`, `gpt-5.6-sol` reads `GPT-5.6 Sol`.
+- Toggle clicks switch the view and leave the menu open. Refill remembers both choices. Saved styles from before (`dailyBars`, `heatStrip`, `sparkline`) open as `Bars`.
+- The card keeps the same height whichever split is shown.
 
-V1 always uses `Last 30 days`. Period selection is intentionally not exposed in the menu until the cache/incremental scanner is proven on larger histories.
+Colors follow the [theme](app-controls/02-theme.md):
+
+- Single-color themes and Monochrome draw Codex, Claude Code and Cursor as a strong, a middle and a soft shade. Tool Colors uses Codex teal, Claude Code orange, Cursor indigo. A tool's models are fading shades of its color.
+- So no part relies on color alone, every theme gives each tool a marker shape (circle, square, triangle), a line dash in `Lines` and `Top models` (solid, dashed, dotted), a 1 pt gap between stacked bars, and an edge between areas.
 
 States:
 
-- Off: no Token Usage card is shown.
-- Loading: animated Token Usage placeholder with `Scanning local sessions...`; shown only while no cached aggregate result is available. See [Token Usage Loading Progress](token-usage-loading-progress.md).
-- Updating: keep the previous chart visible while a background refresh is running.
-- No data: `No token usage found yet`
-- Unavailable/error: `Token usage unavailable`
+- Off: no card.
+- Reading: Codex's first scan. Claude Code and Cursor show at once, and only the Codex parts wait. See [Token Usage Loading Progress](token-usage-loading-progress.md).
+- Updating: the previous chart stays while a background refresh runs.
+- No data: `No token usage found yet`.
+- Unavailable: `Token usage unavailable`. A single connected tool that can't be read shows `Unavailable` on its own row.
 
 ## Cache / Refresh Contract
 
@@ -140,7 +173,7 @@ Expected behavior:
 
 ## Chart Style History
 
-RGR-360 compared chart variants with synthetic fixture data inside the active account card. That review chose `Daily Bars`, `Heat Strip`, and `Sparkline`, which shipped with RGR-362. The prototype cards, fixture data, and screenshot script were removed after the production card shipped. [RGR-360-token-usage-chart-variants.md](../delivery/RGR-360-token-usage-chart-variants.md) keeps the review record.
+RGR-360 compared chart variants inside the active account card and shipped `Daily Bars`, `Heat Strip`, and `Sparkline` with RGR-362. [RGR-360-token-usage-chart-variants.md](../delivery/RGR-360-token-usage-chart-variants.md) keeps that review record. The multi-tool card replaced them with `Bars`, `Area`, and `Lines`, chosen from rendered prototypes in October 2026.
 
 ## Validation Targets
 
@@ -159,7 +192,7 @@ RGR-360 compared chart variants with synthetic fixture data inside the active ac
 - Click-through detail panel.
 - Inspecting an individual day.
 - Secondary metrics such as average per day.
-- Model breakdown.
+- Model breakdown beyond the top three models per tool.
 - Saved-account attribution.
 - Remote-host usage history.
 - User-selectable periods.
@@ -167,7 +200,7 @@ RGR-360 compared chart variants with synthetic fixture data inside the active ac
 - Exporting usage data.
 - Browser dashboard scraping.
 - Hidden WebView/cookie import.
-- Backend private endpoint integration.
+- Backend private endpoint integration for Codex.
 - Cloud sync or telemetry upload.
 
 ## Open Questions

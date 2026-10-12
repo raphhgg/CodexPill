@@ -67,6 +67,10 @@ Both hold the same JSON. Refill decodes only `claudeAiOauth.accessToken`, `claud
 
 **Response.** `five_hour` and `seven_day` are each `{utilization, resets_at}`: `utilization` runs from 0 to 100 and `resets_at` is ISO 8601. Refill maps `five_hour` to `Session` (300 minutes) and `seven_day` to `Weekly` (10,080 minutes). Each `limits[]` entry with `kind` `weekly_scoped` is a per-model weekly limit: its name is `scope.model.display_name` (both Claude clients title it that way), its used share is `percent` and its reset is `resets_at`. Refill shows it as `<name> this week` (10,080 minutes), in response order after `Weekly`. An entry without a name or percent is skipped, a repeated name keeps the first, and a malformed `limits` never fails the read. The menu bar icon ignores these windows. It ignores other windows such as `seven_day_opus` and `seven_day_sonnet`. A null or missing window is left out. The plan name comes from `subscriptionType`, for example `max`.
 
+## Token Usage
+
+When Token Usage is also on, the Token Usage card adds Claude Code's daily tokens by model from its local transcripts. That read uses no sign-in and no network. See [Token Usage](token-usage.md#other-tools).
+
 ## Read Policy
 
 - Expired token (`expiresAt` in the past): no request. The menu shows sign-in expired, then Refill lets Claude Code renew it (see [Live Renewal](#live-renewal)).

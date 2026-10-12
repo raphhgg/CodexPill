@@ -182,117 +182,75 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func tokenUsageCardVisibleWhenEnabledWithSelectedPeriodCopy() throws {
-        let state = makeState(
-            activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
-            inactiveAccounts: [makeAccount(name: "Other", usage: makeUsage(resettingAfter: .now))],
-            tokenUsageEnabled: true,
-            tokenUsageCard: makeTokenUsageCard(
-                period: .last30Days,
-                style: .heatStrip,
-                loadState: loadedTokenUsageData([
-                    dailyUsage(daysAgo: 1, totalTokens: 1_200),
-                    dailyUsage(daysAgo: 0, totalTokens: 3_400)
-                ])
-            )
-        )
+    func tokenUsageCardSummarizesEachToolWithReadableModelNames() throws {
+        let card = makeTokenUsageCard(loadState: .loaded(TokenUsageMenuLoadedData(
+            buckets: [],
+            allTimePeak: nil,
+            tools: [
+                toolSeries(.codex, [0: ["gpt-5.6-sol": 3_000, "gpt-6-sol": 1_000]]),
+                toolSeries(.claudeCode, [0: ["claude-opus-5-5": 9_000], 1: ["claude-sonnet-5-5": 1_000]]),
+            ],
+            unavailableTools: [.cursor]
+        )))
 
-        let tokenUsage = try #require(state.tokenUsageCard?.accessibilitySummary)
-
-        #expect(tokenUsage.contains("Token Usage"))
-        #expect(tokenUsage.contains("Last 30 days"))
-        #expect(tokenUsage.contains("Today: 3,400 tokens"))
-        #expect(tokenUsage.contains("Last 30 days: 4,600 tokens"))
-        #expect(tokenUsage.contains("Peak day:"))
-        #expect(tokenUsage.contains("May 20: 3,400 tokens"))
+        #expect(card.subtitle == "Last 30 days · 14K · Today 13K")
+        #expect(card.toolSummaries.map(\.tool) == [.codex, .claudeCode, .cursor])
+        #expect(card.toolSummaries[0].models == [
+            TokenUsageMenuCard.ModelShare(name: "GPT-5.6 Sol", share: 0.75),
+            TokenUsageMenuCard.ModelShare(name: "GPT-6 Sol", share: 0.25),
+        ])
+        #expect(card.toolSummaries[2].isUnavailable)
+        #expect(card.topModels.map(\.name) == ["Opus 5.5", "GPT-5.6 Sol", "GPT-6 Sol", "Sonnet 5.5"])
+        #expect(card.share(of: .claudeCode) == 10_000.0 / 14_000.0)
+        #expect(card.tooltip(forDay: 29) == "May 20: 13K tokens\nCodex 4K · Claude Code 9K")
     }
 
     @Test
-    func tokenUsageCardUsesCompactTokenFormattingForLargeTotals() {
-        let card = makeTokenUsageCard(
-            period: .last30Days,
-            loadState: loadedTokenUsageData([
-                dailyUsage(daysAgo: 1, totalTokens: 7_433_881_744),
-                dailyUsage(daysAgo: 0, totalTokens: 108_637_804)
-            ])
-        )
+    func tokenUsageCardShowsReadyToolsWhileCodexIsStillReading() {
+        let calendar = Calendar(identifier: .gregorian)
+        let today = calendar.startOfDay(for: tokenUsageNow)
+        let threeDaysAgo = calendar.date(byAdding: .day, value: -3, to: today)!
+        let card = makeTokenUsageCard(loadState: .loading(TokenUsageScanProgress(
+            scannedFiles: 4,
+            totalFiles: 10,
+            codexDays: [CodexDailyTokenUsage(day: today, usage: totals(500), tokensByModel: ["gpt-5.6-sol": 500])],
+            pendingDay: threeDaysAgo,
+            otherTools: [toolSeries(.claudeCode, [0: ["claude-opus-5-5": 2_000]])]
+        )))
 
-        #expect(card.accessibilitySummary.contains("Today: 108.6M tokens"))
-        #expect(card.accessibilitySummary.contains("Last 30 days: 7.5B tokens"))
-        #expect(card.accessibilitySummary.contains("Peak day: May 19: 7.4B tokens"))
+        #expect(card.isReading)
+        #expect(card.subtitle == "Last 30 days · Reading Codex sessions · 40%")
+        #expect(card.isPending(.codex, onDay: 26))
+        #expect(!card.isPending(.codex, onDay: 27))
+        #expect(!card.isPending(.claudeCode, onDay: 0))
+        #expect(card.todayTokenCount == 2_500)
+        #expect(card.topModels.map(\.name) == ["Opus 5.5"])
+        #expect(card.share(of: .codex) == nil)
+        #expect(card.toolSummaries.first { $0.tool == .codex }?.isReading == true)
     }
 
     @Test
-    func tokenUsageCardCanShowAllTimePeakWhenSelected() {
-        let card = makeTokenUsageCard(
-            period: .last30Days,
-            peakScope: .allTime,
-            loadState: loadedTokenUsageData(
-                [
-                    dailyUsage(daysAgo: 1, totalTokens: 7_433_881),
-                    dailyUsage(daysAgo: 0, totalTokens: 108_637)
-                ],
-                allTimePeak: dailyUsage(daysAgo: 120, totalTokens: 9_800_000_000)
-            )
-        )
+    func tokenUsageCardWithOnlyCodexBucketsStillShowsCodex() {
+        let card = makeTokenUsageCard(loadState: loadedTokenUsageData([
+            dailyUsage(daysAgo: 1, totalTokens: 7_433_881_744),
+            dailyUsage(daysAgo: 0, totalTokens: 108_637_804)
+        ]))
 
-        #expect(card.peakDayTitle == "All-time peak")
-        #expect(card.accessibilitySummary.contains("All-time peak: Jan 20: 9.8B tokens"))
+        #expect(card.subtitle == "Last 30 days · 7.5B · Today 108.6M")
+        #expect(card.toolSummaries.map(\.tool) == [.codex])
+        #expect(card.toolSummaries[0].models == [TokenUsageMenuCard.ModelShare(name: "Other", share: 1)])
     }
 
     @Test
-    func tokenUsageCardShowsLoadingNoDataAndErrorStates() {
-        let loading = makeTokenUsageCard(loadState: .loading(nil))
+    func tokenUsageCardShowsNoDataAndErrorStates() {
         let noData = makeTokenUsageCard(loadState: loadedTokenUsageData([
             dailyUsage(daysAgo: 1, totalTokens: 0),
             dailyUsage(daysAgo: 0, totalTokens: 0)
         ]))
         let unavailable = makeTokenUsageCard(loadState: .unavailable)
 
-        #expect(loading.accessibilitySummary.contains("Scanning local sessions..."))
-        #expect(noData.accessibilitySummary.contains("No token usage found yet"))
+        #expect(!noData.hasData)
         #expect(unavailable.accessibilitySummary.contains("Token usage unavailable"))
-    }
-
-    @Test
-    func tokenUsageLoadingFrameAnimatesMessageAndHighlightWithoutFakeProgress() {
-        let firstFrame = TokenUsageLoadingFrame.make(
-            at: Date(timeIntervalSince1970: 0),
-            itemCount: 30
-        )
-        let secondFrame = TokenUsageLoadingFrame.make(
-            at: Date(timeIntervalSince1970: 0.5),
-            itemCount: 30
-        )
-        let reducedMotionFrame = TokenUsageLoadingFrame.make(
-            at: Date(timeIntervalSince1970: 10),
-            itemCount: 30,
-            reduceMotion: true
-        )
-
-        #expect(firstFrame.message == "Scanning local sessions.")
-        #expect(secondFrame.message == "Scanning local sessions..")
-        #expect(firstFrame.highlightedIndex == 0)
-        #expect(secondFrame.highlightedIndex == 1)
-        #expect(firstFrame.phase == 0)
-        #expect(secondFrame.phase == 0.5)
-        #expect(!firstFrame.message.contains("%"))
-        #expect(reducedMotionFrame.message == "Scanning local sessions...")
-        #expect(reducedMotionFrame.highlightedIndex == 0)
-        #expect(reducedMotionFrame.phase == 0)
-    }
-
-    @Test
-    func tokenUsageLoadingFrameCanShowRealScanProgress() {
-        let progress = TokenUsageScanProgress(scannedFiles: 42, totalFiles: 310)
-        let frame = TokenUsageLoadingFrame.make(
-            at: Date(timeIntervalSince1970: 0),
-            itemCount: 30,
-            baseMessage: progress.message
-        )
-
-        #expect(frame.message == "Scanning 42 of 310 sessions.")
-        #expect(!frame.message.contains("%"))
     }
 
     @Test
@@ -473,7 +431,7 @@ struct MenuBarMenuBuilderTests {
         let session = try #require(usageBarsMenu.items.first(where: { $0.title == "Session Color…" }))
         let weekly = try #require(usageBarsMenu.items.first(where: { $0.title == "Weekly Color…" }))
         let sameColor = try #require(usageBarsMenu.items.first(where: { $0.title == "Same Color for Both" }))
-        let reset = try #require(usageBarsMenu.items.first(where: { $0.title == "Use Default Colors" }))
+        let reset = try #require(usageBarsMenu.items.first(where: { $0.title == "Use Theme Colors" }))
 
         #expect(session.action == #selector(MenuBarCoordinator.chooseSessionAccentColor(_:)))
         #expect(session.image == nil)
@@ -485,20 +443,20 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func appIconMenuListsColorsWithCurrentOneChecked() throws {
+    func themeMenuListsThemesWithCurrentOneChecked() throws {
         let menu = MenuBarMenuBuilder().makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)), appIconColor: .honey),
+            state: makeState(activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)), theme: .honey),
             target: try makeCoordinator()
         )
 
-        let appIconMenu = try #require(appearanceMenu(in: menu).items.first(where: { $0.title == "App Icon" })?.submenu)
+        let themeMenu = try #require(appearanceMenu(in: menu).items.first(where: { $0.title == "Theme" })?.submenu)
 
-        #expect(appIconMenu.items.map(\.title) == ["Cobalt", "Deep teal", "Emerald", "Violet", "Honey", "Rose"])
-        #expect(appIconMenu.items.filter { $0.state == .on }.map(\.title) == ["Honey"])
+        #expect(themeMenu.items.map(\.title) == ["Cobalt", "Deep Teal", "Emerald", "Violet", "Honey", "Rose", "", "Monochrome", "Tool Colors"])
+        #expect(themeMenu.items.filter { $0.state == .on }.map(\.title) == ["Honey"])
     }
 
     @Test
-    func selectingAnAppIconColorSavesAndAppliesIt() throws {
+    func selectingAThemeSavesItAndAppliesItsIcon() throws {
         let applier = AppIconApplierProbe()
         let suiteName = "MenuBarMenuBuilderTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -517,13 +475,19 @@ struct MenuBarMenuBuilderTests {
             alertPresenter: AlertPresenterProbe(),
             appIconApplier: applier
         )
-        let item = NSMenuItem()
-        item.representedObject = AppIconColor.violet.rawValue
+        func select(_ theme: AppTheme) {
+            let item = NSMenuItem()
+            item.representedObject = theme.rawValue
+            coordinator.selectTheme(item)
+        }
 
-        coordinator.selectAppIconColor(item)
+        select(.violet)
+        select(.toolColors)
+        select(.monochrome)
 
-        #expect(settings.appIconPreferences.appIconColor == .violet)
-        #expect(applier.appliedColors == [.violet])
+        #expect(settings.themePreferences.theme == .monochrome)
+        // Tool Colors has no icon of its own, so Violet's stays until Monochrome picks Graphite.
+        #expect(applier.appliedColors == [.violet, .violet, .graphite])
     }
 
     @Test
@@ -540,12 +504,12 @@ struct MenuBarMenuBuilderTests {
         let usageBarTitles = usageBarsMenu.items.map(\.title)
         let showMarkers = try #require(usageBarsMenu.items.first(where: { $0.title == "Show Pace Markers" }))
 
-        #expect(preferencesMenu.items.map(\.title) == ["Show Tools", "Menu Bar Label", "Icon Style", "Usage Bars", "App Icon", "", "Show Token Usage"])
+        #expect(preferencesMenu.items.map(\.title) == ["Show Tools", "Menu Bar Label", "Icon Style", "Usage Bars", "Theme", "", "Show Token Usage"])
         #expect(usageBarTitles == [
             "Show % Used", "Show % Left", "",
             "Classic Layout", "Compact Layout", "",
             "Show Pace Markers", "",
-            "Session Color…", "Weekly Color…", "Same Color for Both", "Use Default Colors"
+            "Session Color…", "Weekly Color…", "Same Color for Both", "Use Theme Colors"
         ])
         #expect(preferencesMenu.items.first(where: { $0.title == "Menu Bar Label" })?.image == nil)
         #expect(preferencesMenu.items.first(where: { $0.title == "Icon Style" })?.image == nil)
@@ -739,7 +703,7 @@ struct MenuBarMenuBuilderTests {
 
         let preferencesMenu = try appearanceMenu(in: menu)
         let usageBarsMenu = try #require(preferencesMenu.items.first(where: { $0.title == "Usage Bars" })?.submenu)
-        let reset = try #require(usageBarsMenu.items.first(where: { $0.title == "Use Default Colors" }))
+        let reset = try #require(usageBarsMenu.items.first(where: { $0.title == "Use Theme Colors" }))
 
         #expect(reset.action == #selector(MenuBarCoordinator.resetUsageColors(_:)))
         #expect(reset.isEnabled)
@@ -829,6 +793,27 @@ struct MenuBarMenuBuilderTests {
         await waitUntil { !menuItems(menu.items, areSameInstancesAs: itemsBeforeProgress) }
 
         #expect(!menuItems(menu.items, areSameInstancesAs: itemsBeforeProgress))
+    }
+
+    @Test
+    func openTokenUsageCardUpdatesInPlaceAsDataArrives() async throws {
+        let provider = TokenUsageMenuProviderProbe()
+        let (coordinator, statusItem) = try makeCoordinatorWithStatusItem(
+            tokenUsageProvider: provider,
+            configureTokenUsage: { $0.isEnabled = true }
+        )
+        defer { NSStatusBar.system.removeStatusItem(statusItem) }
+        let menu = MenuBarMenuBuilder().makeMenu(state: coordinator.menuState(), target: coordinator)
+        statusItem.menu = menu
+        let liveCard = try #require(coordinator.menuState().tokenUsage)
+
+        coordinator.menuWillOpen(menu)
+        await waitUntil { await provider.loadCount == 1 }
+        await provider.finish(with: [dailyUsage(daysAgo: 0, totalTokens: 1_200)])
+        await waitUntil { liveCard.card.phase == .loaded }
+
+        #expect(liveCard.card.phase == .loaded)
+        #expect(coordinator.menuState().tokenUsage === liveCard)
     }
 
     @Test
@@ -924,7 +909,7 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func codexSideMenuSwitchesAccountsUsesResetsAndShowsTokenUsage() throws {
+    func codexSideMenuSwitchesAccountsAndUsesResetsWhileTokenUsageFollowsTheToolCards() throws {
         let nov5 = Date(timeIntervalSince1970: 1_793_880_000)
         var usage = makeUsage(resettingAfter: .now)
         usage.resetCredits = UsageResetCredits(
@@ -949,9 +934,14 @@ struct MenuBarMenuBuilderTests {
 
         #expect(side.items.map(\.title) == [
             "alex@example.com", "side@example.com", "team@example.com", "",
-            "Use a Reset…", "Expires 5 Nov", "Expires 20 Nov", "Token Usage", "",
+            "Use a Reset…", "Expires 5 Nov", "Expires 20 Nov", "",
             "Add Codex Account…",
         ])
+        let codexIndex = try #require(menu.items.firstIndex { $0.title == "Codex" })
+        let tokenUsageIndex = try #require(menu.items.firstIndex { $0.title == "Token Usage" })
+        let addAccountIndex = try #require(menu.items.firstIndex { $0.title.hasPrefix("Add Account") })
+        #expect(codexIndex < tokenUsageIndex && tokenUsageIndex < addAccountIndex)
+        #expect(menu.items[tokenUsageIndex].view != nil && menu.items[tokenUsageIndex].submenu == nil)
         #expect(side.items[0].state == .on && !side.items[0].isEnabled && side.items[0].submenu == nil)
         #expect(rows.map { $0.items.map(\.title) } == [["Use", "Remove…"], ["Use", "Remove…"]])
         #expect(rows.map { $0.items.map(providerAction) } == [
@@ -1229,7 +1219,7 @@ struct MenuBarMenuBuilderTests {
     private func makeState(
         activeAccount: CodexAccount?,
         inactiveAccounts: [CodexAccount] = [],
-        sessionAccentColor: NSColor = .controlAccentColor,
+        sessionAccentColor: NSColor? = nil,
         hasCustomUsageColors: Bool = false,
         usagePercentMode: UsagePercentMode = .used,
         loginItemState: LoginItemState = .disabled,
@@ -1240,7 +1230,7 @@ struct MenuBarMenuBuilderTests {
         providerUsage: [ProviderUsageState] = [],
         toolOrder: [UsageProvider] = [.claude, .codex, .cursor],
         masksEmails: Bool = false,
-        appIconColor: AppIconColor = .cobalt,
+        theme: AppTheme = .cobalt,
         showsModelLimits: Bool = true,
         now: Date = .now
     ) -> MenuBarMenuState {
@@ -1259,29 +1249,45 @@ struct MenuBarMenuBuilderTests {
             statusMessage: "Ready",
             loginItemState: loginItemState,
             tokenUsageEnabled: tokenUsageEnabled,
-            tokenUsageCard: tokenUsageCard,
+            tokenUsage: tokenUsageCard.map {
+                TokenUsageCardModel(card: $0, preferences: TokenUsagePreferencesStore(userDefaults: UserDefaults(suiteName: "token-usage-\(UUID().uuidString)")!))
+            },
             providerUsage: providerUsage,
             toolOrder: toolOrder,
             masksEmails: masksEmails,
             showsModelLimits: showsModelLimits,
-            appIconColor: appIconColor,
+            theme: theme,
             now: now
         )
     }
 
+    private var tokenUsageNow: Date {
+        Calendar(identifier: .gregorian).date(from: DateComponents(year: 2026, month: 5, day: 20, hour: 12))!
+    }
+
     private func makeTokenUsageCard(
         period: CodexTokenUsagePeriod = .last30Days,
-        style: TokenUsageChartStyle = .dailyBars,
-        peakScope: TokenUsagePeakScope = .currentPeriod,
         loadState: TokenUsageMenuLoadState
     ) -> TokenUsageMenuCard {
         TokenUsageMenuCard.make(
-            style: style,
-            peakScope: peakScope,
             period: period,
             loadState: loadState,
-            calendar: Calendar(identifier: .gregorian)
+            calendar: Calendar(identifier: .gregorian),
+            now: tokenUsageNow
         )
+    }
+
+    /// Daily models by days before `tokenUsageNow`.
+    private func toolSeries(_ tool: TokenUsageTool, _ modelsByDaysAgo: [Int: [String: Int]]) -> ToolTokenUsageSeries {
+        let calendar = Calendar(identifier: .gregorian)
+        let today = calendar.startOfDay(for: tokenUsageNow)
+        return ToolTokenUsageSeries(tool: tool, days: modelsByDaysAgo.map { daysAgo, models in
+            ToolDailyTokenUsage(day: calendar.date(byAdding: .day, value: -daysAgo, to: today)!, tokensByModel: models)
+        })
+    }
+
+    private func totals(_ total: Int) -> CodexTokenUsageTotals {
+        CodexTokenUsageTotals(inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, reasoningOutputTokens: 0, totalTokens: total)
     }
 
     private func loadedTokenUsageData(

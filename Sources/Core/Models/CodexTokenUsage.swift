@@ -21,11 +21,6 @@ enum CodexTokenUsagePeriod: Int, CaseIterable, Codable, Hashable {
     }
 }
 
-enum TokenUsageLoadingAnimationStyle: String, CaseIterable, Equatable {
-    case waves
-    case random
-}
-
 enum TokenUsagePeakScope: String, CaseIterable, Equatable {
     case currentPeriod
     case allTime
@@ -43,6 +38,17 @@ enum TokenUsagePeakScope: String, CaseIterable, Equatable {
 struct TokenUsageScanProgress: Equatable, Sendable {
     var scannedFiles: Int
     var totalFiles: Int
+    /// Codex days read so far. Sessions are read newest day first, so every day after `pendingDay` is final.
+    var codexDays: [CodexDailyTokenUsage] = []
+    /// The newest day that still has unread sessions. Nil once every day is read.
+    var pendingDay: Date?
+    /// Other tools, which are ready before Codex finishes.
+    var otherTools: [ToolTokenUsageSeries] = []
+    var unavailableTools: [TokenUsageTool] = []
+
+    var fraction: Double {
+        totalFiles > 0 ? min(Double(scannedFiles) / Double(totalFiles), 1) : 0
+    }
 
     var message: String {
         guard totalFiles > 0 else {
@@ -55,6 +61,8 @@ struct TokenUsageScanProgress: Equatable, Sendable {
 struct CodexDailyTokenUsage: Codable, Equatable {
     var day: Date
     var usage: CodexTokenUsageTotals
+    /// Total tokens per model, from the session's latest `turn_context`. Nil in caches written before models were read.
+    var tokensByModel: [String: Int]? = nil
 }
 
 struct CodexTokenUsageTotals: Equatable, Codable {

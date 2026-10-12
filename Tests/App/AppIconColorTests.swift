@@ -11,7 +11,7 @@ struct AppIconColorTests {
         #expect(AppIconColor.cobalt.overrideImage(in: appBundle) == nil)
     }
 
-    @Test(arguments: [AppIconColor.lagoon, .emerald, .violet, .honey, .rose])
+    @Test(arguments: [AppIconColor.lagoon, .emerald, .violet, .honey, .rose, .graphite])
     func alternateColorsLoadTheirBundledIcon(color: AppIconColor) throws {
         let image = try #require(color.overrideImage(in: appBundle))
 

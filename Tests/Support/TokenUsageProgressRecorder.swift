@@ -19,6 +19,11 @@ final class TokenUsageProgressRecorder: @unchecked Sendable {
         return updates
     }
 
+    /// File counts only, for tests that don't look at the days read so far.
+    var fileCounts: [TokenUsageScanProgress] {
+        updates.map { TokenUsageScanProgress(scannedFiles: $0.scannedFiles, totalFiles: $0.totalFiles) }
+    }
+
     var isEmpty: Bool {
         updates.isEmpty
     }
