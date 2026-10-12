@@ -177,6 +177,27 @@ struct CodexAccountMatcherTests {
     }
 
     @Test
+    func sameChatGPTUserSignedInAnotherWayMatchesTheSavedAccount() {
+        let saved = makeAccount(
+            email: "pro@example.com",
+            fingerprint: "saved-fingerprint",
+            stableAccountID: "acct-pro",
+            authPrincipalIdentity: CodexAuthPrincipalIdentity(subject: "auth0|pro", chatGPTUserID: "user-pro")
+        )
+
+        let outcome = matcher.match(
+            liveStableAccountID: "acct-pro",
+            liveAuthPrincipalIdentity: CodexAuthPrincipalIdentity(subject: "google-oauth2|pro", chatGPTUserID: "user-pro"),
+            liveWorkspaceIdentity: nil,
+            liveAuthFingerprint: "live-fingerprint",
+            liveRemoteIdentity: CodexRemoteAccountIdentity(emailAddress: "pro@example.com"),
+            accounts: [saved]
+        )
+
+        #expect(outcome == .exactScopedStableAccountID(saved.id))
+    }
+
+    @Test
     func stableAccountIDDoesNotFallbackWhenScopedPrincipalDoesNotMatch() {
         let businessOne = makeAccount(
             email: "admin@example.com",
