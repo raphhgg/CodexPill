@@ -89,7 +89,14 @@ struct ClaudeCodeUsage: ProviderConnection {
             let windows = mainWindows + report.modelWeeks.map {
                 usageWindow(.modelWeekly(modelName: $0.modelName), $0.usedPercent, $0.resetsAt, durationMinutes: 10_080)
             }
-            return .snapshot(UsageSnapshot(provider: .claude, planName: planName, windows: windows, fetchedAt: fetchedAt, accountEmail: email))
+            return .snapshot(UsageSnapshot(
+                provider: .claude,
+                planName: planName,
+                windows: windows,
+                fetchedAt: fetchedAt,
+                credits: report.extraUsage.map { .extraUsage(spent: $0.spent, limit: $0.limit, currencyCode: $0.currencyCode) },
+                accountEmail: email
+            ))
         }
     }
 
