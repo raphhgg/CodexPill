@@ -6,7 +6,7 @@ import Testing
 struct AccountAvailabilityTests {
     @Test
     func availabilityReadsSessionAndWeeklyUsage() {
-        let account = makeAccount(name: "Ready", rateLimits: makeRateLimits(sessionUsedPercent: 35, weeklyUsedPercent: 40))
+        let account = makeAccount(name: "Ready", usage: makeUsage(sessionUsedPercent: 35, weeklyUsedPercent: 40))
 
         let availability = AccountAvailabilityService().availability(for: account)
 
@@ -24,15 +24,9 @@ struct AccountAvailabilityTests {
             updatedAt: .now,
             email: "free@example.com",
             planType: "free",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: "codex",
-                limitName: nil,
-                planType: "free",
-                primary: CodexRateLimitWindow(
-                    usedPercent: 0,
-                    resetsAt: Date().addingTimeInterval(6 * 24 * 60 * 60),
-                    windowDurationMinutes: 10_080
-                ),
+            usage: UsageSnapshot.codex(
+                planName: "free",
+                primary: (usedPercent: 0, resetsAt: Date().addingTimeInterval(6 * 24 * 60 * 60), durationMinutes: 10_080),
                 secondary: nil,
                 fetchedAt: .now
             )
@@ -51,7 +45,7 @@ struct AccountAvailabilityTests {
         let resetAt = now.addingTimeInterval(1800)
         let account = makeAccount(
             name: "Session Blocked",
-            rateLimits: makeRateLimits(sessionUsedPercent: 100, sessionResetsAt: resetAt, weeklyUsedPercent: 10)
+            usage: makeUsage(sessionUsedPercent: 100, sessionResetsAt: resetAt, weeklyUsedPercent: 10)
         )
 
         let availability = AccountAvailabilityService().availability(for: account, now: now)
@@ -71,7 +65,7 @@ struct AccountAvailabilityTests {
             updatedAt: .now,
             email: nil,
             planType: nil,
-            rateLimits: nil
+            usage: nil
         )
 
         let availability = AccountAvailabilityService().availability(for: account)
@@ -87,11 +81,11 @@ struct InactiveAccountAvailabilityRankingTests {
         let ranking = InactiveAccountAvailabilityRanking()
         let weeklyHealthy = makeAccount(
             name: "Weekly Healthy",
-            rateLimits: makeRateLimits(sessionUsedPercent: 35, weeklyUsedPercent: 40)
+            usage: makeUsage(sessionUsedPercent: 35, weeklyUsedPercent: 40)
         )
         let weeklyConstrained = makeAccount(
             name: "Weekly Constrained",
-            rateLimits: makeRateLimits(sessionUsedPercent: 0, weeklyUsedPercent: 96)
+            usage: makeUsage(sessionUsedPercent: 0, weeklyUsedPercent: 96)
         )
 
         let sorted = ranking.sort([weeklyConstrained, weeklyHealthy])
@@ -107,23 +101,23 @@ struct InactiveAccountAvailabilityRankingTests {
         let earlierReset = now.addingTimeInterval(3_600)
         let earlierAvailable = makeAccount(
             name: "Earlier",
-            rateLimits: makeRateLimits(sessionUsedPercent: 60, sessionResetsAt: earlierReset, weeklyUsedPercent: 60)
+            usage: makeUsage(sessionUsedPercent: 60, sessionResetsAt: earlierReset, weeklyUsedPercent: 60)
         )
         let laterAvailable = makeAccount(
             name: "Later",
-            rateLimits: makeRateLimits(sessionUsedPercent: 60, sessionResetsAt: laterReset, weeklyUsedPercent: 60)
+            usage: makeUsage(sessionUsedPercent: 60, sessionResetsAt: laterReset, weeklyUsedPercent: 60)
         )
         let sameAvailabilityHigherUsage = makeAccount(
             name: "Higher Usage",
-            rateLimits: makeRateLimits(sessionUsedPercent: 60, sessionResetsAt: earlierReset, weeklyUsedPercent: 90)
+            usage: makeUsage(sessionUsedPercent: 60, sessionResetsAt: earlierReset, weeklyUsedPercent: 90)
         )
         let sameMetricsNameB = makeAccount(
             name: "Zulu",
-            rateLimits: makeRateLimits(sessionUsedPercent: 60, sessionResetsAt: earlierReset, weeklyUsedPercent: 80)
+            usage: makeUsage(sessionUsedPercent: 60, sessionResetsAt: earlierReset, weeklyUsedPercent: 80)
         )
         let sameMetricsNameA = makeAccount(
             name: "Alpha",
-            rateLimits: makeRateLimits(sessionUsedPercent: 60, sessionResetsAt: earlierReset, weeklyUsedPercent: 80)
+            usage: makeUsage(sessionUsedPercent: 60, sessionResetsAt: earlierReset, weeklyUsedPercent: 80)
         )
 
         let sorted = ranking.sort([
@@ -140,9 +134,9 @@ struct InactiveAccountAvailabilityRankingTests {
     @MainActor
     @Test
     func accountsControllerDelegatesInactiveSortingToRankingPolicy() async {
-        let preferred = makeAccount(name: "Preferred", rateLimits: makeRateLimits(sessionUsedPercent: 0, weeklyUsedPercent: 10))
-        let constrained = makeAccount(name: "Constrained", rateLimits: makeRateLimits(sessionUsedPercent: 90, weeklyUsedPercent: 100))
-        let active = makeAccount(name: "Active", fingerprint: "active", rateLimits: makeRateLimits(sessionUsedPercent: 20, weeklyUsedPercent: 20))
+        let preferred = makeAccount(name: "Preferred", usage: makeUsage(sessionUsedPercent: 0, weeklyUsedPercent: 10))
+        let constrained = makeAccount(name: "Constrained", usage: makeUsage(sessionUsedPercent: 90, weeklyUsedPercent: 100))
+        let active = makeAccount(name: "Active", fingerprint: "active", usage: makeUsage(sessionUsedPercent: 20, weeklyUsedPercent: 20))
         let repository = RankingLoadingPersistingAccountCatalogProbe(accountsToLoad: [constrained, active, preferred])
         let identityResolver = SavedAccountIdentityResolver(
             liveIdentitySource: LiveIdentityStub(fingerprint: "active"),
@@ -237,7 +231,7 @@ private struct RankingNullAuthService: CodexAuthSessionStore, CodexSignInAuthSto
             updatedAt: .distantPast,
             email: nil,
             planType: nil,
-            rateLimits: nil,
+            usage: nil,
             identity: .empty
         )
     }

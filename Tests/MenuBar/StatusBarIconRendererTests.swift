@@ -55,6 +55,33 @@ struct StatusBarIconRendererTests {
         #expect(weeklyPink != weeklyBlue)
     }
 
+    @Test
+    func missingWindowIsItsOwnMeterStateAndNotZero() {
+        #expect(StatusBarMeter(percent: nil) == .missing)
+        #expect(StatusBarMeter(percent: 0) == .level(0))
+        #expect(StatusBarMeter(percent: 40) == .level(0.4))
+        #expect(StatusBarMeter(percent: 140) == .level(1))
+    }
+
+    @Test(arguments: [StatusBarIndicatorStyle.dualArcBadge, .stackedBars, .twinPills])
+    func missingWindowDrawsDifferentlyFromZeroPercent(style: StatusBarIndicatorStyle) throws {
+        let renderer = StatusBarIconRenderer()
+        func digest(sessionPercent: Int?) throws -> String {
+            try imageDigest(
+                renderer.makeImage(
+                    style: style,
+                    primaryPercent: sessionPercent,
+                    secondaryPercent: 40,
+                    monochrome: false,
+                    primaryColor: .systemGreen,
+                    secondaryColor: .systemBlue
+                )
+            )
+        }
+
+        #expect(try digest(sessionPercent: nil) != digest(sessionPercent: 0))
+    }
+
     private func imageDigest(_ image: NSImage) throws -> String {
         let data = try #require(image.tiffRepresentation)
         return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()

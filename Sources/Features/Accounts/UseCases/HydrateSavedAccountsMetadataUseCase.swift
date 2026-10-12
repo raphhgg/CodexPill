@@ -15,7 +15,7 @@ struct SavedAccountMetadataUpdate: Equatable {
     let accountID: UUID
     let email: String?
     let planType: String?
-    let rateLimits: CodexRateLimitSnapshot?
+    let usage: UsageSnapshot?
     let updatedAt: Date
     let identity: CodexAccountIdentity
 
@@ -23,7 +23,7 @@ struct SavedAccountMetadataUpdate: Equatable {
         accountID = account.id
         email = account.email
         planType = account.planType
-        rateLimits = account.rateLimits
+        usage = account.usage
         updatedAt = account.updatedAt
         identity = account.identity
     }
@@ -33,7 +33,7 @@ extension CodexAccount {
     mutating func apply(_ update: SavedAccountMetadataUpdate) {
         email = update.email
         planType = update.planType
-        rateLimits = update.rateLimits
+        usage = update.usage
         updatedAt = update.updatedAt
         identity = update.identity
     }
@@ -72,7 +72,7 @@ struct HydrateSavedAccountsMetadataUseCase: Sendable {
         accounts
             .filter { account in
                 account.id != activeAccountID &&
-                    (refreshExistingMetadata || account.rateLimits == nil)
+                    (refreshExistingMetadata || account.usage == nil)
             }
             .map(\.id)
     }
@@ -93,13 +93,13 @@ struct HydrateSavedAccountsMetadataUseCase: Sendable {
         }
 
         if case .success(let remote) = read.status {
-            let hasFreshRateLimits = appServerRateLimitsHaveUsableWindow(remote.rateLimits)
-                && !appServerRateLimitsLookSuspiciouslyZeroed(remote.rateLimits)
+            let hasFreshRateLimits = appServerUsageHasUsableWindow(remote.usage)
+                && !appServerUsageLooksSuspiciouslyZeroed(remote.usage)
 
             refreshed.applyRemoteMetadata(
                 email: remote.email ?? refreshed.email,
                 planType: remote.planType ?? refreshed.planType,
-                rateLimits: hasFreshRateLimits ? remote.rateLimits : refreshed.rateLimits,
+                usage: hasFreshRateLimits ? remote.usage : refreshed.usage,
                 preferRateLimitPlan: hasFreshRateLimits
             )
             if hasFreshRateLimits {

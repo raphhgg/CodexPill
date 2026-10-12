@@ -33,7 +33,7 @@ struct CodexAuthSnapshotService: Sendable {
             updatedAt: Date(),
             email: nil,
             planType: nil,
-            rateLimits: nil,
+            usage: nil,
             identity: .empty
         )
         account.name = name

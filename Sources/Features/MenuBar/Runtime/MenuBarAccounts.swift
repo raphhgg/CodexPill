@@ -9,6 +9,7 @@ protocol MenuBarAccounts: AnyObject {
     var pendingErrorMessage: String? { get }
     var statusMessage: String { get }
     var isBusy: Bool { get }
+    var isApplyingResetCredit: Bool { get }
 
     func switchToAccount(_ account: CodexAccount) async -> Bool
     func removeSavedAccount(_ account: CodexAccount, signOutLocalAccount: Bool) async

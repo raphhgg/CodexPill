@@ -11,9 +11,13 @@ struct MenuBarMenuState {
     let statusBarIndicatorStyle: StatusBarIndicatorStyle
     let statusBarDisplayMode: StatusBarDisplayMode
     let revealStatusItemTitleShortcut: KeyboardShortcut?
-    let progressAccentColor: NSColor
+    let sessionAccentColor: NSColor
+    let weeklyAccentColor: NSColor
+    let usesOneUsageColor: Bool
+    let hasCustomUsageColors: Bool
+    let usagePercentMode: UsagePercentMode
+    let usageMeterLayout: UsageMeterLayout
     let pacingMarkersEnabled: Bool
-    let hasCustomProgressAccentColor: Bool
     let isBusy: Bool
     let statusMessage: String
     let loginItemState: LoginItemState
@@ -23,6 +27,9 @@ struct MenuBarMenuState {
     let tokenUsageLoadingAnimationStyle: TokenUsageLoadingAnimationStyle
     let tokenUsagePeakScope: TokenUsagePeakScope
     let tokenUsageCard: TokenUsageMenuCard?
+    let providerUsage: [ProviderUsageState]
+    /// The moment reset countdowns and elapsed times in the menu are measured from.
+    let now: Date
 
     init(
         activeAccount: CodexAccount?,
@@ -35,9 +42,13 @@ struct MenuBarMenuState {
         statusBarIndicatorStyle: StatusBarIndicatorStyle,
         statusBarDisplayMode: StatusBarDisplayMode,
         revealStatusItemTitleShortcut: KeyboardShortcut? = .defaultRevealStatusItemTitle,
-        progressAccentColor: NSColor = StatusBarProgressColorDefaults.accent,
+        sessionAccentColor: NSColor = StatusBarProgressColorDefaults.accent,
+        weeklyAccentColor: NSColor = StatusBarProgressColorDefaults.accent,
+        usesOneUsageColor: Bool = true,
+        hasCustomUsageColors: Bool = false,
+        usagePercentMode: UsagePercentMode = .used,
+        usageMeterLayout: UsageMeterLayout = .classic,
         pacingMarkersEnabled: Bool = true,
-        hasCustomProgressAccentColor: Bool = false,
         isBusy: Bool,
         statusMessage: String,
         loginItemState: LoginItemState = .unavailable,
@@ -46,7 +57,9 @@ struct MenuBarMenuState {
         tokenUsageChartStyle: TokenUsageChartStyle = .dailyBars,
         tokenUsageLoadingAnimationStyle: TokenUsageLoadingAnimationStyle = .waves,
         tokenUsagePeakScope: TokenUsagePeakScope = .currentPeriod,
-        tokenUsageCard: TokenUsageMenuCard? = nil
+        tokenUsageCard: TokenUsageMenuCard? = nil,
+        providerUsage: [ProviderUsageState] = [],
+        now: Date = .now
     ) {
         self.activeAccount = activeAccount
         self.inactiveAccounts = inactiveAccounts
@@ -58,9 +71,13 @@ struct MenuBarMenuState {
         self.statusBarIndicatorStyle = statusBarIndicatorStyle
         self.statusBarDisplayMode = statusBarDisplayMode
         self.revealStatusItemTitleShortcut = revealStatusItemTitleShortcut
-        self.progressAccentColor = progressAccentColor
+        self.sessionAccentColor = sessionAccentColor
+        self.weeklyAccentColor = weeklyAccentColor
+        self.usesOneUsageColor = usesOneUsageColor
+        self.hasCustomUsageColors = hasCustomUsageColors
+        self.usagePercentMode = usagePercentMode
+        self.usageMeterLayout = usageMeterLayout
         self.pacingMarkersEnabled = pacingMarkersEnabled
-        self.hasCustomProgressAccentColor = hasCustomProgressAccentColor
         self.isBusy = isBusy
         self.statusMessage = statusMessage
         self.loginItemState = loginItemState
@@ -70,6 +87,8 @@ struct MenuBarMenuState {
         self.tokenUsageLoadingAnimationStyle = tokenUsageLoadingAnimationStyle
         self.tokenUsagePeakScope = tokenUsagePeakScope
         self.tokenUsageCard = tokenUsageCard
+        self.providerUsage = providerUsage
+        self.now = now
     }
 
     var canAddAccount: Bool {
@@ -191,7 +210,7 @@ struct MenuBarMenuState {
 
     var hasStatusItemContentData: Bool {
         guard let activeAccount else { return false }
-        return activeAccount.rateLimits?.sessionWindow != nil || activeAccount.rateLimits?.weeklyWindow != nil
+        return activeAccount.usage?.window(.session) != nil || activeAccount.usage?.window(.weekly) != nil
     }
 
     var effectiveStatusBarDisplayMode: StatusBarDisplayMode {

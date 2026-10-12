@@ -6,6 +6,7 @@ struct AccountsFeatureFactory {
     private let authService: CodexAuthSnapshotService
     private let codexAppProcessClient: CodexAppProcessClient
     private let accountStatusClient: CodexAccountStatusClient & SavedCodexAccountStatusClient
+    private let resetCreditClient: CodexResetCreditClient
     private let postSwitchRefreshDelay: Duration
 
     init(
@@ -13,12 +14,14 @@ struct AccountsFeatureFactory {
         authService: CodexAuthSnapshotService,
         codexAppProcessClient: CodexAppProcessClient,
         accountStatusClient: CodexAccountStatusClient & SavedCodexAccountStatusClient,
+        resetCreditClient: CodexResetCreditClient = UnavailableResetCreditClient(),
         postSwitchRefreshDelay: Duration = .seconds(2)
     ) {
         self.repository = repository
         self.authService = authService
         self.codexAppProcessClient = codexAppProcessClient
         self.accountStatusClient = accountStatusClient
+        self.resetCreditClient = resetCreditClient
         self.postSwitchRefreshDelay = postSwitchRefreshDelay
     }
 
@@ -69,6 +72,7 @@ struct AccountsFeatureFactory {
                 repository: repository,
                 identityResolver: identityResolver
             ),
+            resetCreditClient: resetCreditClient,
             postSwitchRefreshDelay: postSwitchRefreshDelay
         )
     }

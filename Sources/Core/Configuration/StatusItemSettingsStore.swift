@@ -29,9 +29,33 @@ final class StatusItemSettingsStore {
         }
     }
 
-    var progressAccentColor: StatusItemAccentColor? {
+    var sessionAccentColor: StatusItemAccentColor? {
         didSet {
-            persistColor(progressAccentColor, key: Self.progressAccentColorKey)
+            persistColor(sessionAccentColor, key: Self.sessionAccentColorKey)
+        }
+    }
+
+    var weeklyAccentColor: StatusItemAccentColor? {
+        didSet {
+            persistColor(weeklyAccentColor, key: Self.weeklyAccentColorKey)
+        }
+    }
+
+    var usesOneUsageColor: Bool {
+        didSet {
+            userDefaults.set(usesOneUsageColor, forKey: Self.usesOneUsageColorKey)
+        }
+    }
+
+    var usagePercentMode: UsagePercentMode {
+        didSet {
+            userDefaults.set(usagePercentMode.rawValue, forKey: Self.usagePercentModeKey)
+        }
+    }
+
+    var usageMeterLayout: UsageMeterLayout {
+        didSet {
+            userDefaults.set(usageMeterLayout.rawValue, forKey: Self.usageMeterLayoutKey)
         }
     }
 
@@ -52,7 +76,11 @@ final class StatusItemSettingsStore {
     private static let statusBarIndicatorStyleKey = "statusBarIndicatorStyle"
     private static let statusBarMonochromeKey = "statusBarMonochrome"
     private static let statusBarDisplayModeKey = "statusBarDisplayMode"
-    private static let progressAccentColorKey = "progressAccentColor"
+    private static let sessionAccentColorKey = "progressAccentColor"
+    private static let weeklyAccentColorKey = "weeklyAccentColor"
+    private static let usesOneUsageColorKey = "usesOneUsageColor"
+    private static let usagePercentModeKey = "usagePercentMode"
+    private static let usageMeterLayoutKey = "usageMeterLayout"
     private static let pacingMarkersEnabledKey = "pacingMarkersEnabled"
     private static let revealStatusItemTitleShortcutKey = "revealStatusItemTitleShortcut"
     private static let revealStatusItemTitleShortcutEnabledKey = "revealStatusItemTitleShortcutEnabled"
@@ -72,17 +100,29 @@ final class StatusItemSettingsStore {
         statusBarMonochrome = userDefaults.object(forKey: Self.statusBarMonochromeKey) as? Bool ?? true
         statusBarDisplayMode = userDefaults.string(forKey: Self.statusBarDisplayModeKey)
             .flatMap(StatusBarDisplayMode.init(rawValue:)) ?? .textOnHover
-        progressAccentColor = Self.loadColor(from: userDefaults, key: Self.progressAccentColorKey)
+        sessionAccentColor = Self.loadColor(from: userDefaults, key: Self.sessionAccentColorKey)
+        weeklyAccentColor = Self.loadColor(from: userDefaults, key: Self.weeklyAccentColorKey)
+        usesOneUsageColor = userDefaults.object(forKey: Self.usesOneUsageColorKey) as? Bool ?? true
+        usagePercentMode = userDefaults.string(forKey: Self.usagePercentModeKey)
+            .flatMap(UsagePercentMode.init(rawValue:)) ?? .used
+        usageMeterLayout = userDefaults.string(forKey: Self.usageMeterLayoutKey)
+            .flatMap(UsageMeterLayout.init(rawValue:)) ?? .classic
         pacingMarkersEnabled = userDefaults.object(forKey: Self.pacingMarkersEnabledKey) as? Bool ?? true
         revealStatusItemTitleShortcut = Self.loadRevealShortcut(from: userDefaults)
     }
 
-    var hasCustomProgressAccentColor: Bool {
-        progressAccentColor != nil
+    var effectiveWeeklyAccentColor: StatusItemAccentColor? {
+        usesOneUsageColor ? sessionAccentColor : weeklyAccentColor ?? sessionAccentColor
     }
 
-    func resetProgressAccentColor() {
-        progressAccentColor = nil
+    var hasCustomUsageColors: Bool {
+        sessionAccentColor != nil || weeklyAccentColor != nil || !usesOneUsageColor
+    }
+
+    func resetUsageColors() {
+        sessionAccentColor = nil
+        weeklyAccentColor = nil
+        usesOneUsageColor = true
     }
 
     private func persistColor(_ color: StatusItemAccentColor?, key: String) {

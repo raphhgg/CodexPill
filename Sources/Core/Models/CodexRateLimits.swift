@@ -1,44 +1,48 @@
 import Foundation
 
-struct CodexRateLimitSnapshot: Codable, Hashable {
-    var limitID: String?
-    var limitName: String?
-    var planType: String?
-    var primary: CodexRateLimitWindow?
-    var secondary: CodexRateLimitWindow?
-    var fetchedAt: Date
+extension UsageSnapshot {
+    typealias CodexReportedWindow = (usedPercent: Int, resetsAt: Date?, durationMinutes: Int?)
 
-    var sessionWindow: CodexRateLimitWindow? {
-        if let window = knownDurationWindows.first(where: { $0.isSessionDuration }) {
-            return window
+    private static let weeklyDurationMinutes = 10_080
+    private static let weeklyDurationToleranceMinutes = 60
+
+    /// Codex reports a primary and a secondary window. Windows with a known duration are classified by
+    /// that duration. Older payloads without durations are read by position: primary is the session
+    /// window and secondary the weekly window, but only when neither window reports a duration.
+    static func codex(
+        planName: String?,
+        primary: CodexReportedWindow?,
+        secondary: CodexReportedWindow?,
+        fetchedAt: Date
+    ) -> UsageSnapshot {
+        let reported = [primary, secondary].compactMap { $0 }
+        let classified: [(kind: UsageWindowKind, window: CodexReportedWindow)]
+        if reported.contains(where: { $0.durationMinutes != nil }) {
+            classified = reported.compactMap { window in
+                window.durationMinutes.map { (kind: kind(forDurationMinutes: $0), window: window) }
+            }
+        } else {
+            classified = [
+                primary.map { (kind: UsageWindowKind.session, window: $0) },
+                secondary.map { (kind: UsageWindowKind.weekly, window: $0) },
+            ].compactMap { $0 }
         }
 
-        return legacyWindow(primary, fallbackWhenOtherWindowHasKnownDuration: secondary)
-    }
-
-    var weeklyWindow: CodexRateLimitWindow? {
-        if let window = knownDurationWindows.first(where: { $0.isWeeklyDuration }) {
-            return window
+        let windows = [UsageWindowKind.session, .weekly].compactMap { kind in
+            classified.first { $0.kind == kind }.map {
+                UsageWindow(
+                    kind: kind,
+                    usedPercent: $0.window.usedPercent,
+                    resetsAt: $0.window.resetsAt,
+                    durationMinutes: $0.window.durationMinutes
+                )
+            }
         }
-
-        return legacyWindow(secondary, fallbackWhenOtherWindowHasKnownDuration: primary)
+        return UsageSnapshot(provider: .codex, planName: planName, windows: windows, fetchedAt: fetchedAt)
     }
 
-    private var knownDurationWindows: [CodexRateLimitWindow] {
-        [primary, secondary]
-            .compactMap { $0 }
-            .filter { $0.windowDurationMinutes != nil }
-    }
-
-    private func legacyWindow(
-        _ positionalWindow: CodexRateLimitWindow?,
-        fallbackWhenOtherWindowHasKnownDuration otherWindow: CodexRateLimitWindow?
-    ) -> CodexRateLimitWindow? {
-        guard positionalWindow?.windowDurationMinutes == nil,
-              otherWindow?.windowDurationMinutes == nil else {
-            return nil
-        }
-        return positionalWindow
+    private static func kind(forDurationMinutes durationMinutes: Int) -> UsageWindowKind {
+        durationMinutes < weeklyDurationMinutes - weeklyDurationToleranceMinutes ? .session : .weekly
     }
 }
 
@@ -105,28 +109,4 @@ func displayNameForCodexPlanType(_ planType: String?) -> String {
 private func knownCodexPlanType(_ planType: String?) -> String? {
     let normalized = normalizedCodexPlanType(planType)
     return normalized == "unknown" ? nil : normalized
-}
-
-struct CodexRateLimitWindow: Codable, Hashable {
-    static let weeklyDurationMinutes = 10_080
-    static let weeklyDurationToleranceMinutes = 60
-
-    var usedPercent: Int
-    var resetsAt: Date?
-    var windowDurationMinutes: Int?
-
-    func displayedUsedPercent(at now: Date = .now) -> Int {
-        guard let resetsAt else { return usedPercent }
-        return resetsAt <= now ? 0 : usedPercent
-    }
-
-    fileprivate var isSessionDuration: Bool {
-        guard let windowDurationMinutes else { return false }
-        return windowDurationMinutes < Self.weeklyDurationMinutes - Self.weeklyDurationToleranceMinutes
-    }
-
-    fileprivate var isWeeklyDuration: Bool {
-        guard let windowDurationMinutes else { return false }
-        return windowDurationMinutes >= Self.weeklyDurationMinutes - Self.weeklyDurationToleranceMinutes
-    }
 }

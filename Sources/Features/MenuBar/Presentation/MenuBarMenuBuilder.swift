@@ -85,16 +85,18 @@ struct MenuBarMenuBuilder {
         width: CGFloat
     ) -> NSMenuItem {
         let item = NSMenuItem()
-        let now = Date()
         let view = NSHostingView(
             rootView: ActiveAccountMenuContent(
                 account: card.account,
                 locations: card.locations,
                 showsUpdatedTime: card.showsUpdatedTime,
-                progressAccentColor: Color(nsColor: state.progressAccentColor),
+                sessionAccentColor: Color(nsColor: state.sessionAccentColor),
+                weeklyAccentColor: Color(nsColor: state.weeklyAccentColor),
+                percentMode: state.usagePercentMode,
+                meterLayout: state.usageMeterLayout,
                 showsPacingMarkers: state.pacingMarkersEnabled,
                 tokenUsageCard: tokenUsageCard,
-                now: now
+                now: state.now
             )
         )
         item.view = configuredHostedMenuView(view, width: width)
@@ -132,7 +134,9 @@ struct MenuBarMenuBuilder {
                 inactiveAccountTitleWidth(
                     for: $0.account,
                     displayName: compactMenuRowDisplayName(for: $0.account.name),
-                    menuContentWidth: minimumMenuContentWidth
+                    menuContentWidth: minimumMenuContentWidth,
+                    percentMode: state.usagePercentMode,
+                    now: state.now
                 ) + nativeMenuItemPaddingAllowance
             }
             .max() ?? 0
@@ -152,7 +156,9 @@ struct MenuBarMenuBuilder {
         item.attributedTitle = inactiveAccountTitle(
             for: entry.account,
             displayName: compactMenuRowDisplayName(for: entry.account.name),
-            menuContentWidth: width
+            menuContentWidth: width,
+            percentMode: state.usagePercentMode,
+            now: state.now
         )
         item.submenu = inactiveAccountTargetMenu(for: entry, state: state, target: target)
         return item
@@ -327,9 +333,28 @@ struct MenuBarMenuBuilder {
     private func usageBarsPreferencesMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
         let item = NSMenuItem(title: "Usage Bars", action: nil, keyEquivalent: "")
         let submenu = configuredMenu(title: "Usage Bars")
+        for mode in UsagePercentMode.allCases {
+            let option = NSMenuItem(title: mode.menuTitle, action: #selector(MenuBarCoordinator.selectUsagePercentMode(_:)), keyEquivalent: "")
+            option.target = target
+            option.representedObject = mode.rawValue
+            option.state = state.usagePercentMode == mode ? .on : .off
+            submenu.addItem(option)
+        }
+        submenu.addItem(.separator())
+        for layout in UsageMeterLayout.allCases {
+            let option = NSMenuItem(title: layout.menuTitle, action: #selector(MenuBarCoordinator.selectUsageMeterLayout(_:)), keyEquivalent: "")
+            option.target = target
+            option.representedObject = layout.rawValue
+            option.state = state.usageMeterLayout == layout ? .on : .off
+            submenu.addItem(option)
+        }
+        submenu.addItem(.separator())
         submenu.addItem(pacingMarkersMenuItem(state: state, target: target))
-        submenu.addItem(progressAccentColorItem(state: state, target: target))
-        submenu.addItem(resetProgressAccentColorItem(state: state, target: target))
+        submenu.addItem(.separator())
+        submenu.addItem(usageColorItem(title: "Session Color…", action: #selector(MenuBarCoordinator.chooseSessionAccentColor(_:)), target: target))
+        submenu.addItem(usageColorItem(title: "Weekly Color…", action: #selector(MenuBarCoordinator.chooseWeeklyAccentColor(_:)), target: target))
+        submenu.addItem(oneUsageColorMenuItem(state: state, target: target))
+        submenu.addItem(resetUsageColorsItem(state: state, target: target))
         item.submenu = submenu
         return item
     }
@@ -394,9 +419,16 @@ struct MenuBarMenuBuilder {
         return item
     }
 
-    private func progressAccentColorItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Accent Color…", action: #selector(MenuBarCoordinator.chooseProgressAccentColor(_:)), keyEquivalent: "")
+    private func usageColorItem(title: String, action: Selector, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
         item.target = target
+        return item
+    }
+
+    private func oneUsageColorMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Same Color for Both", action: #selector(MenuBarCoordinator.toggleOneUsageColor(_:)), keyEquivalent: "")
+        item.target = target
+        item.state = state.usesOneUsageColor ? .on : .off
         return item
     }
 
@@ -407,10 +439,10 @@ struct MenuBarMenuBuilder {
         return item
     }
 
-    private func resetProgressAccentColorItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = NSMenuItem(title: "Use Default", action: #selector(MenuBarCoordinator.resetProgressAccentColor(_:)), keyEquivalent: "")
+    private func resetUsageColorsItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
+        let item = NSMenuItem(title: "Use Default Colors", action: #selector(MenuBarCoordinator.resetUsageColors(_:)), keyEquivalent: "")
         item.target = target
-        item.isEnabled = state.hasCustomProgressAccentColor
+        item.isEnabled = state.hasCustomUsageColors
         return item
     }
 

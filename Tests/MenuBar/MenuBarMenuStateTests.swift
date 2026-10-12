@@ -55,12 +55,10 @@ struct MenuBarMenuStateTests {
             updatedAt: now,
             email: "constrained@example.com",
             planType: "team",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: nil,
-                limitName: nil,
-                planType: "team",
-                primary: CodexRateLimitWindow(usedPercent: 90, resetsAt: now.addingTimeInterval(7200), windowDurationMinutes: 300),
-                secondary: CodexRateLimitWindow(usedPercent: 100, resetsAt: now.addingTimeInterval(172800), windowDurationMinutes: 10_080),
+            usage: UsageSnapshot.codex(
+                planName: "team",
+                primary: (usedPercent: 90, resetsAt: now.addingTimeInterval(7200), durationMinutes: 300),
+                secondary: (usedPercent: 100, resetsAt: now.addingTimeInterval(172800), durationMinutes: 10_080),
                 fetchedAt: now
             ),
             identity: .empty
@@ -73,12 +71,10 @@ struct MenuBarMenuStateTests {
             updatedAt: now,
             email: "preferred@example.com",
             planType: "team",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: nil,
-                limitName: nil,
-                planType: "team",
-                primary: CodexRateLimitWindow(usedPercent: 0, resetsAt: now.addingTimeInterval(3600), windowDurationMinutes: 300),
-                secondary: CodexRateLimitWindow(usedPercent: 10, resetsAt: now.addingTimeInterval(86400), windowDurationMinutes: 10_080),
+            usage: UsageSnapshot.codex(
+                planName: "team",
+                primary: (usedPercent: 0, resetsAt: now.addingTimeInterval(3600), durationMinutes: 300),
+                secondary: (usedPercent: 10, resetsAt: now.addingTimeInterval(86400), durationMinutes: 10_080),
                 fetchedAt: now
             ),
             identity: .empty
@@ -161,7 +157,7 @@ struct MenuBarMenuStateTests {
     @Test
     func activeAccountUsesStoredStatusItemContentMode() {
         let state = makeState(
-            activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
+            activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
             inactiveAccounts: [],
             isBusy: false
         )

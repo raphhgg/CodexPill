@@ -26,10 +26,13 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let accountActionFlow = AccountActionFlow()
     private let menuBuilder = MenuBarMenuBuilder()
     private var autoRefreshTimer: Timer?
+    private var colorPanelTarget: UsageColorTarget?
     private var wakeRefreshTask: Task<Void, Never>?
     private let tasks = TrackedTasks()
-    private var pendingTokenUsageMenuRebuild = false
-    private var deferredTokenUsageMenuRebuild = false
+    private var rebuildsMenuAfterClose = false
+    private var rebuildsMenuBeforeOpen = false
+    private var menuBuiltAt: Date?
+    private let now: () -> Date
     private var hasPromptedForEmptyState = false
     private var isObservingSettings = false
     private var isObservingStore = false
@@ -37,7 +40,14 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private lazy var tokenUsageRuntime = TokenUsageMenuRuntime(
         provider: tokenUsageProvider,
         onStateChange: { [weak self] _ in
-            self?.rebuildTokenUsageMenuWhenSafe()
+            self?.rebuildMenuWhenSafe()
+        }
+    )
+    private let providerUsageSources: [any UsageProviderSource]
+    private lazy var providerUsageRuntime = ProviderUsageRuntime(
+        sources: providerUsageSources,
+        onChange: { [weak self] in
+            self?.rebuildMenuWhenSafe()
         }
     )
 
@@ -56,7 +66,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         loginItemsSettingsLauncher: LoginItemsSettingsLaunching,
         diagnosticReportPresenter: DiagnosticReportPresenting,
         tokenUsageProvider: TokenUsageMenuProviding,
-        allowsEmptyStatePrompt: Bool
+        providerUsageSources: [any UsageProviderSource],
+        allowsEmptyStatePrompt: Bool,
+        now: @escaping () -> Date = Date.init
     ) {
         self.statusItemRuntime = statusItemRuntime
         self.shortcutRuntime = shortcutRuntime
@@ -72,7 +84,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.loginItemsSettingsLauncher = loginItemsSettingsLauncher
         self.diagnosticReportPresenter = diagnosticReportPresenter
         self.tokenUsageProvider = tokenUsageProvider
+        self.providerUsageSources = providerUsageSources
         self.allowsEmptyStatePrompt = allowsEmptyStatePrompt
+        self.now = now
     }
 
     func start() {
@@ -86,7 +100,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         scheduleAutoRefresh()
         syncBackgroundState()
         registerRevealShortcutFromSettings()
-        refreshTokenUsageIfNeeded()
+        refreshMenuUsageIfNeeded()
     }
 
     func invalidate() {
@@ -286,16 +300,54 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     @objc
-    func chooseProgressAccentColor(_ sender: NSMenuItem) {
-        recordMenuAction("chooseProgressAccentColor")
-        presentProgressColorPanel()
+    func selectUsagePercentMode(_ sender: NSMenuItem) {
+        recordMenuAction("selectUsagePercentMode")
+        guard
+            let rawValue = sender.representedObject as? String,
+            let mode = UsagePercentMode(rawValue: rawValue)
+        else {
+            return
+        }
+        statusItemSettings.usagePercentMode = mode
     }
 
     @objc
-    func resetProgressAccentColor(_ sender: NSMenuItem) {
-        recordMenuAction("resetProgressAccentColor")
-        statusItemSettings.resetProgressAccentColor()
-        NSColorPanel.shared.color = statusItemSettings.progressAccentColor.resolvedStatusItemAccentColor
+    func selectUsageMeterLayout(_ sender: NSMenuItem) {
+        recordMenuAction("selectUsageMeterLayout")
+        guard
+            let rawValue = sender.representedObject as? String,
+            let layout = UsageMeterLayout(rawValue: rawValue)
+        else {
+            return
+        }
+        statusItemSettings.usageMeterLayout = layout
+    }
+
+    @objc
+    func chooseSessionAccentColor(_ sender: NSMenuItem) {
+        recordMenuAction("chooseSessionAccentColor")
+        presentUsageColorPanel(for: .session)
+    }
+
+    @objc
+    func chooseWeeklyAccentColor(_ sender: NSMenuItem) {
+        recordMenuAction("chooseWeeklyAccentColor")
+        presentUsageColorPanel(for: .weekly)
+    }
+
+    @objc
+    func toggleOneUsageColor(_ sender: NSMenuItem) {
+        recordMenuAction("toggleOneUsageColor")
+        statusItemSettings.usesOneUsageColor.toggle()
+    }
+
+    @objc
+    func resetUsageColors(_ sender: NSMenuItem) {
+        recordMenuAction("resetUsageColors")
+        statusItemSettings.resetUsageColors()
+        if let colorPanelTarget {
+            NSColorPanel.shared.color = resolvedUsageColor(for: colorPanelTarget)
+        }
     }
 
     @objc
@@ -412,9 +464,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     func menuWillOpen(_ menu: NSMenu) {
-        rebuildDeferredTokenUsageMenuIfNeeded()
+        rebuildDeferredMenuIfNeeded()
         statusItemRuntime.handleMenuWillOpen()
-        refreshTokenUsageIfNeeded()
+        refreshMenuUsageIfNeeded()
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
@@ -425,8 +477,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     func menuDidClose(_ menu: NSMenu) {
         statusItemRuntime.handleMenuDidClose()
-        if pendingTokenUsageMenuRebuild {
-            pendingTokenUsageMenuRebuild = false
+        if rebuildsMenuAfterClose {
+            rebuildsMenuAfterClose = false
             rebuildMenu()
         }
     }
@@ -456,6 +508,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         let menu = statusItemRuntime.menu ?? NSMenu()
         menuBuilder.populate(menu: menu, state: state, target: self)
         statusItemRuntime.menu = menu
+        menuBuiltAt = state.now
     }
 
     func menuState() -> MenuBarMenuState {
@@ -470,9 +523,13 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             statusBarIndicatorStyle: statusItemSettings.statusBarIndicatorStyle,
             statusBarDisplayMode: statusItemSettings.statusBarDisplayMode,
             revealStatusItemTitleShortcut: statusItemSettings.revealStatusItemTitleShortcut,
-            progressAccentColor: statusItemSettings.progressAccentColor.resolvedStatusItemAccentColor,
+            sessionAccentColor: resolvedUsageColor(for: .session),
+            weeklyAccentColor: resolvedUsageColor(for: .weekly),
+            usesOneUsageColor: statusItemSettings.usesOneUsageColor,
+            hasCustomUsageColors: statusItemSettings.hasCustomUsageColors,
+            usagePercentMode: statusItemSettings.usagePercentMode,
+            usageMeterLayout: statusItemSettings.usageMeterLayout,
             pacingMarkersEnabled: statusItemSettings.pacingMarkersEnabled,
-            hasCustomProgressAccentColor: statusItemSettings.hasCustomProgressAccentColor,
             isBusy: accountsController.isBusy,
             statusMessage: accountsController.statusMessage,
             loginItemState: loginItemController.state(),
@@ -481,7 +538,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             tokenUsageChartStyle: tokenUsagePreferences.chartStyle,
             tokenUsageLoadingAnimationStyle: tokenUsagePreferences.loadingAnimationStyle,
             tokenUsagePeakScope: tokenUsagePreferences.peakScope,
-            tokenUsageCard: makeTokenUsageCard()
+            tokenUsageCard: makeTokenUsageCard(),
+            providerUsage: providerUsageRuntime.states,
+            now: now()
         )
     }
 
@@ -496,7 +555,9 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         )
     }
 
-    private func refreshTokenUsageIfNeeded() {
+    /// Token usage and provider usage only appear inside the menu, so opening it is the moment to bring them up to date.
+    private func refreshMenuUsageIfNeeded() {
+        refreshProviderUsageIfDue()
         guard tokenUsagePreferences.isEnabled else {
             tokenUsageRuntime.cancel()
             return
@@ -505,19 +566,28 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         tokenUsageRuntime.refreshIfNeeded(period: tokenUsagePreferences.period, peakScope: tokenUsagePreferences.peakScope)
     }
 
-    private func rebuildTokenUsageMenuWhenSafe() {
-        guard !statusItemRuntime.isMenuTrackingOpen else {
-            pendingTokenUsageMenuRebuild = true
-            return
-        }
-        deferredTokenUsageMenuRebuild = true
+    private func refreshProviderUsageIfDue() {
+        tasks.start { [weak self] in await self?.providerUsageRuntime.refreshIfDue() }
     }
 
-    private func rebuildDeferredTokenUsageMenuIfNeeded() {
-        guard deferredTokenUsageMenuRebuild else { return }
-        deferredTokenUsageMenuRebuild = false
+    /// Rebuilding an open menu makes it jump, so menu-only content rebuilds after the menu closes, or right before it next opens.
+    private func rebuildMenuWhenSafe() {
+        guard !statusItemRuntime.isMenuTrackingOpen else {
+            rebuildsMenuAfterClose = true
+            return
+        }
+        rebuildsMenuBeforeOpen = true
+    }
+
+    /// Reset countdowns are measured from when the menu was built, so a menu built a while ago is rebuilt as it opens.
+    private func rebuildDeferredMenuIfNeeded() {
+        let showsStaleTimes = menuBuiltAt.map { now().timeIntervalSince($0) >= Self.menuTimesStaleAfter } ?? false
+        guard rebuildsMenuBeforeOpen || showsStaleTimes else { return }
+        rebuildsMenuBeforeOpen = false
         rebuildMenu()
     }
+
+    private static let menuTimesStaleAfter: TimeInterval = 30
 
     private func setLaunchAtLoginEnabled(_ isEnabled: Bool) {
         do {
@@ -545,6 +615,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     private func requestSwitch(to account: CodexAccount) {
+        guard !accountsController.isApplyingResetCredit else {
+            alertPresenter.presentInfo(alertFactory.makeResetInProgressRequest())
+            return
+        }
         let runningCLISessions = cliProcessInspector.runningCLISessionCount()
         let request = alertFactory.makeSwitchAccountRequest(accountName: account.name, runningCLISessions: runningCLISessions)
 
@@ -676,12 +750,13 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private func scheduleAutoRefresh() {
         autoRefreshTimer?.invalidate()
         let interval = TimeInterval(menuDisplaySettings.refreshIntervalMinutes * 60)
-        autoRefreshTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+        autoRefreshTimer = Timer.repeatingInCommonModes(interval: interval) { [weak self] in
             self?.tasks.start { await self?.performScheduledRefresh() }
         }
     }
 
     func performScheduledRefresh() async {
+        refreshProviderUsageIfDue()
         guard !accountsController.isBusy else { return }
         if let activeAccount = accountsController.activeAccount {
             switch await accountsController.refreshAccountData(for: activeAccount) {
@@ -741,7 +816,11 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             _ = statusItemSettings.statusBarMonochrome
             _ = statusItemSettings.statusBarDisplayMode
             _ = menuDisplaySettings.visibleInactiveAccountCount
-            _ = statusItemSettings.progressAccentColor
+            _ = statusItemSettings.sessionAccentColor
+            _ = statusItemSettings.weeklyAccentColor
+            _ = statusItemSettings.usesOneUsageColor
+            _ = statusItemSettings.usagePercentMode
+            _ = statusItemSettings.usageMeterLayout
             _ = statusItemSettings.pacingMarkersEnabled
         } onChange: { [weak self] in
             self?.tasks.start { [weak self] in
@@ -790,28 +869,61 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             indicatorStyle: statusItemSettings.statusBarIndicatorStyle,
             monochrome: statusItemSettings.statusBarMonochrome,
             displayMode: state.effectiveStatusBarDisplayMode,
-            progressAccentColor: statusItemSettings.progressAccentColor.resolvedStatusItemAccentColor
+            percentMode: state.usagePercentMode,
+            sessionAccentColor: state.sessionAccentColor,
+            weeklyAccentColor: state.weeklyAccentColor
         )
     }
 
-    private func presentProgressColorPanel() {
-        recordMenuAction("chooseProgressAccentColor")
+    private func resolvedUsageColor(for target: UsageColorTarget) -> NSColor {
+        switch target {
+        case .session:
+            statusItemSettings.sessionAccentColor.resolvedStatusItemAccentColor
+        case .weekly:
+            statusItemSettings.effectiveWeeklyAccentColor.resolvedStatusItemAccentColor
+        }
+    }
+
+    private func presentUsageColorPanel(for target: UsageColorTarget) {
+        colorPanelTarget = target
         let panel = NSColorPanel.shared
-        panel.title = "Accent Color"
+        panel.title = target.panelTitle
         panel.showsAlpha = false
         panel.isContinuous = true
         panel.setTarget(self)
-        panel.setAction(#selector(handleProgressColorPanelChanged(_:)))
-        panel.color = statusItemSettings.progressAccentColor.resolvedStatusItemAccentColor
+        panel.setAction(#selector(handleUsageColorPanelChanged(_:)))
+        panel.color = resolvedUsageColor(for: target)
         NSApp.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
     }
 
     @objc
-    private func handleProgressColorPanelChanged(_ sender: NSColorPanel) {
+    private func handleUsageColorPanelChanged(_ sender: NSColorPanel) {
+        guard let colorPanelTarget else { return }
         let color = sender.color.withAlphaComponent(1)
-        statusItemSettings.progressAccentColor = color.isEqualToStatusItemAccentColor(StatusBarProgressColorDefaults.accent)
-            ? nil
-            : StatusItemAccentColor(nsColor: color)
+        switch colorPanelTarget {
+        case .session:
+            statusItemSettings.sessionAccentColor = color.isEqualToStatusItemAccentColor(StatusBarProgressColorDefaults.accent)
+                ? nil
+                : StatusItemAccentColor(nsColor: color)
+        case .weekly:
+            guard !color.isEqualToStatusItemAccentColor(resolvedUsageColor(for: .weekly)) else { return }
+            statusItemSettings.weeklyAccentColor = StatusItemAccentColor(nsColor: color)
+            statusItemSettings.usesOneUsageColor = false
+        }
+    }
+}
+
+private enum UsageColorTarget {
+    case session
+    case weekly
+
+    var panelTitle: String {
+        switch self {
+        case .session:
+            "Session Color"
+        case .weekly:
+            "Weekly Color"
+        }
     }
 }

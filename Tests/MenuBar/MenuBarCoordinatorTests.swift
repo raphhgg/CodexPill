@@ -24,6 +24,109 @@ struct MenuBarCoordinatorTests {
         #expect(harness.accountsController.accounts.isEmpty)
         #expect(!FileManager.default.fileExists(atPath: harness.repository.paths.codexAuthFile.path))
     }
+
+    @Test
+    func fullyUsedProviderDoesNotChangeAccountRanking() async throws {
+        let harness = try MenuBarCoordinatorHarness()
+        defer { harness.tearDown() }
+        let now = Date()
+        var personal = try harness.makeActiveAccount(named: "Personal", email: "personal@example.com")
+        personal.usage = makeUsage(resettingAfter: now, sessionUsedPercent: 20, weeklyUsedPercent: 20)
+        let busier = makeAccount(name: "Business 1", usage: makeUsage(resettingAfter: now, sessionUsedPercent: 30, weeklyUsedPercent: 30))
+        let quieter = makeAccount(name: "Business 2", usage: makeUsage(resettingAfter: now, sessionUsedPercent: 10, weeklyUsedPercent: 10))
+        try harness.repository.saveAccounts([personal, busier, quieter])
+        let claudeUsage = UsageSnapshot(
+            provider: .claude,
+            planName: nil,
+            windows: [
+                UsageWindow(kind: .session, usedPercent: 100, resetsAt: now.addingTimeInterval(3_600), durationMinutes: 300),
+                UsageWindow(kind: .weekly, usedPercent: 100, resetsAt: now.addingTimeInterval(86_400), durationMinutes: 10_080)
+            ],
+            fetchedAt: now
+        )
+        let coordinator = harness.makeCoordinator(
+            providerUsageSources: [UsageProviderSourceProbe(provider: .claude, reading: .snapshot(claudeUsage))]
+        )
+
+        coordinator.start()
+        await coordinator.waitForPendingWork()
+
+        let state = coordinator.menuState()
+        #expect(state.providerUsage == [ProviderUsageState(provider: .claude, status: .current(claudeUsage))])
+        #expect(state.activeAccount?.name == "Personal")
+        #expect(state.inactiveAccounts.map(\.name) == ["Business 2", "Business 1"])
+    }
+
+    @Test
+    func openingTheMenuMeasuresResetCountdownsFromTheMomentItOpens() async throws {
+        let harness = try MenuBarCoordinatorHarness()
+        defer { harness.tearDown() }
+        let builtAt = Date(timeIntervalSince1970: 1_800_000_000)
+        var clock = builtAt
+        let active = try harness.makeActiveAccount(named: "Personal", email: "personal@example.com")
+        let limited = makeAccount(
+            name: "Business 2",
+            usage: makeUsage(
+                sessionUsedPercent: 100,
+                sessionResetsAt: builtAt.addingTimeInterval(2 * 60 * 60),
+                weeklyUsedPercent: 20,
+                weeklyResetsAt: builtAt.addingTimeInterval(3 * 24 * 60 * 60),
+                fetchedAt: builtAt
+            )
+        )
+        try harness.repository.saveAccounts([active, limited])
+        let coordinator = harness.makeCoordinator(now: { clock })
+        coordinator.start()
+        await coordinator.waitForPendingWork()
+        let menu = try #require(harness.menu)
+        func limitedRowTitle() -> String? {
+            menu.items.first { ($0.representedObject as? String) == limited.id.uuidString }?.attributedTitle?.string
+        }
+        #expect(limitedRowTitle()?.contains("S 100% (2h00)") == true)
+
+        clock = builtAt.addingTimeInterval(10)
+        coordinator.menuWillOpen(menu)
+        #expect(limitedRowTitle()?.contains("S 100% (2h00)") == true)
+
+        clock = builtAt.addingTimeInterval(30 * 60)
+        coordinator.menuWillOpen(menu)
+        #expect(limitedRowTitle()?.contains("S 100% (1h30)") == true)
+    }
+
+    @Test
+    func switchingWhileAResetCreditIsAppliedExplainsWhyInsteadOfAskingToSwitch() async throws {
+        let harness = try MenuBarCoordinatorHarness()
+        defer { harness.tearDown() }
+        let active = try harness.makeActiveAccount(named: "Personal", email: "personal@example.com")
+        let work = makeAccount(name: "Work")
+        try harness.repository.saveAccounts([active, work])
+        let resetCredits = SuspendedResetCreditClient()
+        let coordinator = harness.makeCoordinator(resetCreditClient: resetCredits)
+        coordinator.start()
+        await coordinator.waitForPendingWork()
+
+        let reset = Task { await harness.accountsController.useResetCredit() }
+        await resetCredits.waitUntilCalled()
+        coordinator.switchAccount(harness.menuItem(representing: work.id.uuidString))
+
+        #expect(harness.alertPresenter.confirmationRequests.isEmpty)
+        #expect(harness.alertPresenter.infoRequests.map(\.messageText) == ["Reset in progress"])
+        #expect(harness.alertPresenter.infoRequests.map(\.informativeText) == ["Switch accounts when it finishes."])
+
+        await resetCredits.answer(.nothingToReset)
+        _ = await reset.value
+    }
+
+    @Test
+    func commonModeTimerFiresWhileAMenuIsTracking() {
+        var fireCount = 0
+        let timer = Timer.repeatingInCommonModes(interval: 0.01) { fireCount += 1 }
+        defer { timer.invalidate() }
+
+        CFRunLoopRunInMode(CFRunLoopMode(RunLoop.Mode.eventTracking.rawValue as CFString), 0.2, false)
+
+        #expect(fireCount > 0)
+    }
 }
 
 @MainActor
@@ -45,12 +148,17 @@ private final class MenuBarCoordinatorHarness {
         settings = SettingsStores(userDefaults: UserDefaults(suiteName: suiteName)!)
     }
 
-    func makeCoordinator() -> MenuBarCoordinator {
+    func makeCoordinator(
+        providerUsageSources: [any UsageProviderSource] = [],
+        resetCreditClient: CodexResetCreditClient = UnavailableResetCreditClient(),
+        now: @escaping () -> Date = Date.init
+    ) -> MenuBarCoordinator {
         accountsController = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),
             codexAppProcessClient: CodexAppProcessProbe(),
             accountStatusClient: DisabledAccountStatusClient(),
+            resetCreditClient: resetCreditClient,
             postSwitchRefreshDelay: .zero
         ).makeController()
         accountsController.load()
@@ -60,7 +168,9 @@ private final class MenuBarCoordinatorHarness {
             settings: settings,
             alertPresenter: alertPresenter,
             panelPresenter: panelPresenter,
-            allowsEmptyStatePrompt: false
+            providerUsageSources: providerUsageSources,
+            allowsEmptyStatePrompt: false,
+            now: now
         )
         self.coordinator = coordinator
         return coordinator
@@ -76,6 +186,8 @@ private final class MenuBarCoordinatorHarness {
         try authData.write(to: repository.paths.codexAuthFile, options: .atomic)
         return account
     }
+
+    var menu: NSMenu? { statusItem.menu }
 
     func menuItem(representing payload: Any) -> NSMenuItem {
         let item = NSMenuItem()

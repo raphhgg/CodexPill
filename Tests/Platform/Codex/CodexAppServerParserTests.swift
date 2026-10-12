@@ -184,11 +184,10 @@ struct CodexAppServerParserTests {
         #expect(status.planType == "team")
         #expect(status.stableAccountID == "stable-account")
         #expect(status.snapshotFingerprint == "snapshot-fingerprint")
-        #expect(status.rateLimits?.limitID == "codex")
-        #expect(status.rateLimits?.limitName == "Codex")
-        #expect(status.rateLimits?.primary?.usedPercent == 12)
-        #expect(status.rateLimits?.secondary?.windowDurationMinutes == 10_080)
-        #expect(status.rateLimits?.fetchedAt == fetchedAt)
+        #expect(status.usage?.planName == "team")
+        #expect(status.usage?.window(.session)?.usedPercent == 12)
+        #expect(status.usage?.window(.weekly)?.durationMinutes == 10_080)
+        #expect(status.usage?.fetchedAt == fetchedAt)
     }
 
     private func decodeAccountResponse(_ json: String) throws -> AppServerAccountResponse {

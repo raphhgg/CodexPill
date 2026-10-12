@@ -12,6 +12,7 @@ The source tree is organized by responsibility:
 - `Sources/Features/Accounts/`
 - `Sources/Features/MenuBar/`
 - `Sources/Features/TokenUsage/`
+- `Sources/Features/Usage/`
 - `Sources/Core/Configuration/`
 - `Sources/Core/Models/`
 - `Sources/Platform/Codex/`
@@ -69,6 +70,15 @@ Key boundaries:
 
 It coordinates cache-first loading, scan-task identity, duplicate-scan prevention, progress throttling, and cancellation when Token Usage is disabled. It depends on `Platform/Codex` scanner adapters for local Codex session records, but must not know AppKit menu construction or raw JSONL/session-path details.
 
+`Features/Usage` owns usage reading for providers other than Codex, such as Claude and Cursor.
+
+Key boundaries:
+
+- `UsageProviderSource`, the port a Platform adapter implements for one provider. It returns a `UsageProviderReading`: not connected, unavailable (sign-in expired or read failed), awaiting usage, or a `UsageSnapshot`.
+- `ProviderUsageRuntime`, which reads each registered source at most once every 5 minutes, however often the menu opens, and publishes `ProviderUsageState` values. A snapshot older than the source's `staleAfter` is published as `.stale`.
+
+Provider states only feed menu sections. They never reach `AccountAvailability` or `InactiveAccountAvailabilityRanking`: those read `CodexAccount.usage`, and the runtime reports changes through a menu-rebuild callback instead of the account store. The runtime refuses a source for `.codex`.
+
 `Features/MenuBar` owns menubar runtime, menu-state projection, menu rendering, native alert/panel presentation, and status-item behavior.
 
 Key boundaries:
@@ -77,6 +87,7 @@ Key boundaries:
 - `MenuBarAccounts`
 - `MenuBarAccountCatalogProjection`
 - `MenuBarMenuBuilder`
+- `UsageMeterRow`, the SwiftUI row (label, bar, used percent, reset text) drawn for one `UsageWindow` in the account card
 - `MenuBarAlertFactory`
 - `AlertPresenter`
 - `SystemAlertPresenter`
@@ -106,7 +117,7 @@ Reusable Codex app-server access is split into these platform boundaries:
 - `CodexAppServerClient` is the production facade used by CodexPill account reads. It turns a local `CodexAppServerConfiguration` into a session command for the shared session runner.
 - `CodexAppServerConfiguration` owns executable path, environment, and timeout policy.
 - `CodexAppServerSession` owns JSON-RPC request construction and response sequencing.
-- `CodexAppServerSessionRunner` owns the reusable app-server session execution loop used by local reads: process launch, stdin/stdout/stderr pipe wiring, request writing, output draining, timeout completion, partial-status completion, and finish-once coordination.
+- `CodexAppServerSessionRunner` owns the reusable app-server session execution loop used by local reads: process launch, stdin/stdout/stderr pipe wiring, request writing, output draining, timeout completion, partial-status completion, and finish-once coordination. It also runs the one-request `account/rateLimitResetCredit/consume` session that spends a Codex reset credit.
 - `CodexAppServerAccountParser` and `CodexAppServerRateLimitParser` map raw app-server payload DTOs into generic app-server DTOs.
 - `CodexPillAccountStatusMapper` maps generic app-server DTOs into CodexPill account and rate-limit models.
 
@@ -127,7 +138,8 @@ Platform adapters are the only place where the app should know about live auth f
 `Sources/Core/` owns shared data models and app-wide configuration:
 
 - `CodexAccount`
-- `CodexRateLimits`
+- `CodexRateLimits`, Codex plan-type rules and `UsageSnapshot.codex(planName:primary:secondary:fetchedAt:)`, the only place that turns Codex's positional primary and secondary windows into session and weekly windows
+- `Usage`, the provider-neutral usage model: `UsageSnapshot` holds a provider, the plan name the provider reported, and `UsageWindow` values keyed by `UsageWindowKind` (session, weekly, billing cycle). `UsageWindow.displayedUsedPercent(at:)` is the one rule for showing 0% once a window has reset. `CodexAccount.usage` and `CodexAccountStatus.usage` store it directly. `CodexAccount` reads and writes the `rateLimits` primary/secondary shape `accounts.json` has always used through a private storage type, so files from earlier versions still load and earlier versions can still read new files.
 - `StatusBarIndicatorStyle` and `StatusBarDisplayMode`, the persisted status-item choices
 - typed `UserDefaults`-backed settings stores
 
@@ -158,6 +170,8 @@ App startup builds each store from one `UserDefaults` instance and injects the o
 `InactiveAccountAvailabilityRanking` owns ordering and best-account comparison only.
 
 `TokenUsageMenuRuntime` is the token-usage feature boundary used by MenuBar. It owns background scan lifecycle, cache-first load state, duplicate-scan prevention, progress throttling, and disable-time cancellation. `MenuBarCoordinator` should only mutate Token Usage preferences, ask the runtime for current load state, and decide whether AppKit menu rebuilds are safe while a menu is being tracked.
+
+`MenuBarCoordinator` owns the `ProviderUsageRuntime` and exposes its states as `MenuBarMenuState.providerUsage`. Token usage and provider usage share one path: startup and opening the menu ask both to refresh if due, the scheduled refresh also refreshes providers, and both report changes through `rebuildMenuWhenSafe()`, which waits until the menu is closed.
 
 `MenuBarAccounts` is the port MenuBar declares for account state and intents. It lists only the members the menu reads or calls, and `AccountsController` conforms to it directly. MenuBar never sees the account use cases or Platform adapters behind the controller.
 
@@ -225,6 +239,7 @@ Tests should mirror stable source ownership boundaries once those boundaries exi
 - `Tests/Accounts/`
 - `Tests/MenuBar/`
 - `Tests/TokenUsage/`
+- `Tests/Usage/`
 - `Tests/Platform/Codex/`
 - `Tests/Platform/Persistence/`
 - `Tests/Core/Models/`

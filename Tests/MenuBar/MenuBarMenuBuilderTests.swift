@@ -245,8 +245,8 @@ struct MenuBarMenuBuilderTests {
     @Test
     func tokenUsageCardVisibleWhenEnabledWithSelectedPeriodCopy() throws {
         let state = makeState(
-            activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
-            inactiveAccounts: [makeAccount(name: "Other", rateLimits: makeRateLimits(resettingAfter: .now))],
+            activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
+            inactiveAccounts: [makeAccount(name: "Other", usage: makeUsage(resettingAfter: .now))],
             tokenUsageEnabled: true,
             tokenUsagePeriod: .last30Days,
             tokenUsageChartStyle: .heatStrip,
@@ -364,7 +364,7 @@ struct MenuBarMenuBuilderTests {
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
                 tokenUsageEnabled: true,
                 tokenUsagePeriod: .last30Days,
                 tokenUsageChartStyle: .sparkline,
@@ -420,7 +420,7 @@ struct MenuBarMenuBuilderTests {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now))),
+            state: makeState(activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now))),
             target: coordinator
         )
 
@@ -439,7 +439,7 @@ struct MenuBarMenuBuilderTests {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now))),
+            state: makeState(activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now))),
             target: coordinator
         )
 
@@ -516,7 +516,7 @@ struct MenuBarMenuBuilderTests {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now))),
+            state: makeState(activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now))),
             target: coordinator
         )
 
@@ -537,7 +537,7 @@ struct MenuBarMenuBuilderTests {
         let shortcut = KeyboardShortcut(keyCode: 11, modifiers: [.control, .shift])
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
                 revealStatusItemTitleShortcut: shortcut
             ),
             target: coordinator
@@ -558,7 +558,7 @@ struct MenuBarMenuBuilderTests {
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
                 revealStatusItemTitleShortcut: nil
             ),
             target: coordinator
@@ -575,12 +575,12 @@ struct MenuBarMenuBuilderTests {
     func visibleAccountsUseNativeSubmenusForSwitching() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
-        let business3 = makeAccount(name: "Business 3", rateLimits: makeRateLimits(resettingAfter: .now))
-        let business4 = makeAccount(name: "Business 4", rateLimits: makeRateLimits(resettingAfter: .now))
-        let business2 = makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: .now))
+        let business3 = makeAccount(name: "Business 3", usage: makeUsage(resettingAfter: .now))
+        let business4 = makeAccount(name: "Business 4", usage: makeUsage(resettingAfter: .now))
+        let business2 = makeAccount(name: "Business 2", usage: makeUsage(resettingAfter: .now))
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
                 inactiveAccounts: [business3, business4, business2]
             ),
             target: coordinator
@@ -627,7 +627,7 @@ struct MenuBarMenuBuilderTests {
     func singleAccountWithoutHostsUsesAccountManagementSubmenu() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
-        let active = makeAccount(name: "Personal", rateLimits: makeRateLimits(resettingAfter: .now))
+        let active = makeAccount(name: "Personal", usage: makeUsage(resettingAfter: .now))
         let state = makeState(activeAccount: active)
         let menu = builder.makeMenu(state: state, target: coordinator)
 
@@ -649,9 +649,9 @@ struct MenuBarMenuBuilderTests {
     func multipleAccountsWithoutHostsShowsOtherAccountsAndManagesActiveAccountSeparately() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
-        let active = makeAccount(name: "Personal", rateLimits: makeRateLimits(resettingAfter: .now))
-        let business1 = makeAccount(name: "Business 1", rateLimits: makeRateLimits(resettingAfter: .now))
-        let business2 = makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: .now))
+        let active = makeAccount(name: "Personal", usage: makeUsage(resettingAfter: .now))
+        let business1 = makeAccount(name: "Business 1", usage: makeUsage(resettingAfter: .now))
+        let business2 = makeAccount(name: "Business 2", usage: makeUsage(resettingAfter: .now))
         let state = makeState(
             activeAccount: active,
             inactiveAccounts: [business1, business2]
@@ -678,11 +678,11 @@ struct MenuBarMenuBuilderTests {
     func inactiveAccountSubmenuShowsNoEmailFallbackBeforeUsage() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
-        var account = makeAccount(name: "Business 3", rateLimits: makeRateLimits(resettingAfter: .now))
+        var account = makeAccount(name: "Business 3", usage: makeUsage(resettingAfter: .now))
         account.email = nil
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
                 inactiveAccounts: [account]
             ),
             target: coordinator
@@ -705,12 +705,12 @@ struct MenuBarMenuBuilderTests {
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
                 inactiveAccounts: [
-                    makeAccount(name: "Business 3", rateLimits: makeRateLimits(resettingAfter: .now)),
-                    makeAccount(name: "Business 4", rateLimits: makeRateLimits(resettingAfter: .now)),
-                    makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: .now)),
-                    makeAccount(name: "Business 1", rateLimits: makeRateLimits(resettingAfter: .now))
+                    makeAccount(name: "Business 3", usage: makeUsage(resettingAfter: .now)),
+                    makeAccount(name: "Business 4", usage: makeUsage(resettingAfter: .now)),
+                    makeAccount(name: "Business 2", usage: makeUsage(resettingAfter: .now)),
+                    makeAccount(name: "Business 1", usage: makeUsage(resettingAfter: .now))
                 ]
             ),
             target: coordinator
@@ -743,10 +743,13 @@ struct MenuBarMenuBuilderTests {
     func activeAccountHostedViewFitsWithinConfiguredMenuWidth() {
         let view = NSHostingView(
             rootView: ActiveAccountMenuContent(
-                account: makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: .now)),
+                account: makeAccount(name: "Business 2", usage: makeUsage(resettingAfter: .now)),
                 locations: [],
                 showsUpdatedTime: true,
-                progressAccentColor: .blue,
+                sessionAccentColor: .blue,
+                weeklyAccentColor: .blue,
+                percentMode: .used,
+                meterLayout: .classic,
                 showsPacingMarkers: true
             )
         )
@@ -762,7 +765,7 @@ struct MenuBarMenuBuilderTests {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now))),
+            state: makeState(activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now))),
             target: coordinator
         )
 
@@ -778,10 +781,10 @@ struct MenuBarMenuBuilderTests {
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Personal", rateLimits: makeRateLimits(resettingAfter: .now)),
+                activeAccount: makeAccount(name: "Personal", usage: makeUsage(resettingAfter: .now)),
                 inactiveAccounts: [
-                    makeAccount(name: "Business 1", rateLimits: makeRateLimits(resettingAfter: .now)),
-                    makeAccount(name: "Business 2", rateLimits: makeRateLimits(resettingAfter: .now))
+                    makeAccount(name: "Business 1", usage: makeUsage(resettingAfter: .now)),
+                    makeAccount(name: "Business 2", usage: makeUsage(resettingAfter: .now))
                 ]
             ),
             target: coordinator
@@ -808,26 +811,16 @@ struct MenuBarMenuBuilderTests {
             updatedAt: now,
             email: "wide@example.com",
             planType: "team",
-            rateLimits: CodexRateLimitSnapshot(
-                limitID: "codex",
-                limitName: nil,
-                planType: "team",
-                primary: CodexRateLimitWindow(
-                    usedPercent: 100,
-                    resetsAt: now.addingTimeInterval((4 * 60 + 59) * 60),
-                    windowDurationMinutes: 300
-                ),
-                secondary: CodexRateLimitWindow(
-                    usedPercent: 78,
-                    resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60),
-                    windowDurationMinutes: 10_080
-                ),
+            usage: UsageSnapshot.codex(
+                planName: "team",
+                primary: (usedPercent: 100, resetsAt: now.addingTimeInterval((4 * 60 + 59) * 60), durationMinutes: 300),
+                secondary: (usedPercent: 78, resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60), durationMinutes: 10_080),
                 fetchedAt: now
             )
         )
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Personal", rateLimits: makeRateLimits(resettingAfter: .now)),
+                activeAccount: makeAccount(name: "Personal", usage: makeUsage(resettingAfter: .now)),
                 inactiveAccounts: [wideAccount]
             ),
             target: coordinator
@@ -854,18 +847,23 @@ struct MenuBarMenuBuilderTests {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now))),
+            state: makeState(activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now))),
             target: coordinator
         )
 
         let preferencesMenu = try #require(menu.items.first(where: { $0.title == "Preferences" })?.submenu)
         let usageBarsMenu = try #require(preferencesMenu.items.first(where: { $0.title == "Usage Bars" })?.submenu)
-        let accent = try #require(usageBarsMenu.items.first(where: { $0.title == "Accent Color…" }))
-        let reset = try #require(usageBarsMenu.items.first(where: { $0.title == "Use Default" }))
+        let session = try #require(usageBarsMenu.items.first(where: { $0.title == "Session Color…" }))
+        let weekly = try #require(usageBarsMenu.items.first(where: { $0.title == "Weekly Color…" }))
+        let sameColor = try #require(usageBarsMenu.items.first(where: { $0.title == "Same Color for Both" }))
+        let reset = try #require(usageBarsMenu.items.first(where: { $0.title == "Use Default Colors" }))
 
-        #expect(accent.action == #selector(MenuBarCoordinator.chooseProgressAccentColor(_:)))
-        #expect(accent.image == nil)
-        #expect(reset.action == #selector(MenuBarCoordinator.resetProgressAccentColor(_:)))
+        #expect(session.action == #selector(MenuBarCoordinator.chooseSessionAccentColor(_:)))
+        #expect(session.image == nil)
+        #expect(weekly.action == #selector(MenuBarCoordinator.chooseWeeklyAccentColor(_:)))
+        #expect(sameColor.action == #selector(MenuBarCoordinator.toggleOneUsageColor(_:)))
+        #expect(sameColor.state == .on)
+        #expect(reset.action == #selector(MenuBarCoordinator.resetUsageColors(_:)))
         #expect(!reset.isEnabled)
     }
 
@@ -874,7 +872,7 @@ struct MenuBarMenuBuilderTests {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now))),
+            state: makeState(activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now))),
             target: coordinator
         )
 
@@ -885,10 +883,16 @@ struct MenuBarMenuBuilderTests {
 
         #expect(preferencesMenu.items.map(\.title) == ["Menu Bar Label", "Icon Style", "Usage Bars", "Token Usage", "", "Launch at Login"])
         #expect(preferencesMenu.items[4].isSeparatorItem)
-        #expect(usageBarTitles == ["Show Pace Markers", "Accent Color…", "Use Default"])
+        #expect(usageBarTitles == [
+            "Show % Used", "Show % Left", "",
+            "Classic Layout", "Compact Layout", "",
+            "Show Pace Markers", "",
+            "Session Color…", "Weekly Color…", "Same Color for Both", "Use Default Colors"
+        ])
         #expect(preferencesMenu.items.first(where: { $0.title == "Menu Bar Label" })?.image == nil)
         #expect(preferencesMenu.items.first(where: { $0.title == "Icon Style" })?.image == nil)
-        #expect(usageBarsMenu.items.first(where: { $0.title == "Accent Color…" })?.image == nil)
+        #expect(usageBarsMenu.items.first(where: { $0.title == "Show % Used" })?.state == .on)
+        #expect(usageBarsMenu.items.first(where: { $0.title == "Classic Layout" })?.state == .on)
         #expect(showMarkers.action == #selector(MenuBarCoordinator.togglePacingMarkers(_:)))
         #expect(showMarkers.state == .on)
     }
@@ -897,7 +901,7 @@ struct MenuBarMenuBuilderTests {
     func launchAtLoginPreferenceReflectsEnabledState() throws {
         let menu = MenuBarMenuBuilder().makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
                 loginItemState: .enabled
             ),
             target: try makeCoordinator()
@@ -915,7 +919,7 @@ struct MenuBarMenuBuilderTests {
     func launchAtLoginPreferenceReflectsDisabledState() throws {
         let menu = MenuBarMenuBuilder().makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
                 loginItemState: .disabled
             ),
             target: try makeCoordinator()
@@ -933,7 +937,7 @@ struct MenuBarMenuBuilderTests {
     func launchAtLoginPreferenceOpensSettingsWhenApprovalIsRequired() throws {
         let menu = MenuBarMenuBuilder().makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
                 loginItemState: .requiresApproval
             ),
             target: try makeCoordinator()
@@ -951,7 +955,7 @@ struct MenuBarMenuBuilderTests {
     func launchAtLoginPreferenceOpensSettingsWhenUnavailable() throws {
         let menu = MenuBarMenuBuilder().makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
                 loginItemState: .unavailable
             ),
             target: try makeCoordinator()
@@ -1068,18 +1072,18 @@ struct MenuBarMenuBuilderTests {
         let coordinator = try makeCoordinator()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
-                progressAccentColor: NSColor(deviceRed: 0.12, green: 0.45, blue: 0.78, alpha: 1),
-                hasCustomProgressAccentColor: true
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
+                sessionAccentColor: NSColor(deviceRed: 0.12, green: 0.45, blue: 0.78, alpha: 1),
+                hasCustomUsageColors: true
             ),
             target: coordinator
         )
 
         let preferencesMenu = try #require(menu.items.first(where: { $0.title == "Preferences" })?.submenu)
         let usageBarsMenu = try #require(preferencesMenu.items.first(where: { $0.title == "Usage Bars" })?.submenu)
-        let reset = try #require(usageBarsMenu.items.first(where: { $0.title == "Use Default" }))
+        let reset = try #require(usageBarsMenu.items.first(where: { $0.title == "Use Default Colors" }))
 
-        #expect(reset.action == #selector(MenuBarCoordinator.resetProgressAccentColor(_:)))
+        #expect(reset.action == #selector(MenuBarCoordinator.resetUsageColors(_:)))
         #expect(reset.isEnabled)
     }
 
@@ -1089,8 +1093,8 @@ struct MenuBarMenuBuilderTests {
         let (coordinator, statusItem) = try makeCoordinatorWithStatusItem()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
-                inactiveAccounts: [makeAccount(name: "Business 3", rateLimits: makeRateLimits(resettingAfter: .now))]
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
+                inactiveAccounts: [makeAccount(name: "Business 3", usage: makeUsage(resettingAfter: .now))]
             ),
             target: coordinator
         )
@@ -1105,10 +1109,10 @@ struct MenuBarMenuBuilderTests {
     func openingMenuDoesNotReplaceInactiveAccountRowsDuringOpen() throws {
         let builder = MenuBarMenuBuilder()
         let (coordinator, statusItem) = try makeCoordinatorWithStatusItem()
-        let inactive = makeAccount(name: "Business 3", rateLimits: makeRateLimits(resettingAfter: .now))
+        let inactive = makeAccount(name: "Business 3", usage: makeUsage(resettingAfter: .now))
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
                 inactiveAccounts: [inactive]
             ),
             target: coordinator
@@ -1141,8 +1145,8 @@ struct MenuBarMenuBuilderTests {
         let (coordinator, statusItem) = try makeCoordinatorWithStatusItem()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
-                inactiveAccounts: [makeAccount(name: "Business 3", rateLimits: makeRateLimits(resettingAfter: .now))]
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
+                inactiveAccounts: [makeAccount(name: "Business 3", usage: makeUsage(resettingAfter: .now))]
             ),
             target: coordinator
         )
@@ -1173,7 +1177,7 @@ struct MenuBarMenuBuilderTests {
         )
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
                 tokenUsageEnabled: true,
                 tokenUsagePeriod: .last30Days,
                 tokenUsageCard: makeTokenUsageCard(loadState: .loading(nil))
@@ -1219,7 +1223,7 @@ struct MenuBarMenuBuilderTests {
         )
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", rateLimits: makeRateLimits(resettingAfter: .now)),
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
                 tokenUsageEnabled: true,
                 tokenUsagePeriod: .last30Days,
                 tokenUsageCard: makeTokenUsageCard(loadState: .loading(nil))
@@ -1350,8 +1354,9 @@ struct MenuBarMenuBuilderTests {
     private func makeState(
         activeAccount: CodexAccount?,
         inactiveAccounts: [CodexAccount] = [],
-        progressAccentColor: NSColor = .controlAccentColor,
-        hasCustomProgressAccentColor: Bool = false,
+        sessionAccentColor: NSColor = .controlAccentColor,
+        hasCustomUsageColors: Bool = false,
+        usagePercentMode: UsagePercentMode = .used,
         loginItemState: LoginItemState = .disabled,
         revealStatusItemTitleShortcut: CodexPill.KeyboardShortcut? = .defaultRevealStatusItemTitle,
         tokenUsageEnabled: Bool = false,
@@ -1372,8 +1377,9 @@ struct MenuBarMenuBuilderTests {
             statusBarIndicatorStyle: .dualArcBadge,
             statusBarDisplayMode: .textOnHover,
             revealStatusItemTitleShortcut: revealStatusItemTitleShortcut,
-            progressAccentColor: progressAccentColor,
-            hasCustomProgressAccentColor: hasCustomProgressAccentColor,
+            sessionAccentColor: sessionAccentColor,
+            hasCustomUsageColors: hasCustomUsageColors,
+            usagePercentMode: usagePercentMode,
             isBusy: false,
             statusMessage: "Ready",
             loginItemState: loginItemState,

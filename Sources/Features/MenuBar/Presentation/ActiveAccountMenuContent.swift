@@ -4,7 +4,10 @@ struct ActiveAccountMenuContent: View {
     let account: CodexAccount
     let locations: [String]
     let showsUpdatedTime: Bool
-    let progressAccentColor: Color
+    let sessionAccentColor: Color
+    let weeklyAccentColor: Color
+    let percentMode: UsagePercentMode
+    let meterLayout: UsageMeterLayout
     let showsPacingMarkers: Bool
     let tokenUsageCard: TokenUsageMenuCard?
     let now: Date
@@ -13,7 +16,10 @@ struct ActiveAccountMenuContent: View {
         account: CodexAccount,
         locations: [String],
         showsUpdatedTime: Bool,
-        progressAccentColor: Color,
+        sessionAccentColor: Color,
+        weeklyAccentColor: Color,
+        percentMode: UsagePercentMode,
+        meterLayout: UsageMeterLayout,
         showsPacingMarkers: Bool,
         tokenUsageCard: TokenUsageMenuCard? = nil,
         now: Date = .now
@@ -21,7 +27,10 @@ struct ActiveAccountMenuContent: View {
         self.account = account
         self.locations = locations
         self.showsUpdatedTime = showsUpdatedTime
-        self.progressAccentColor = progressAccentColor
+        self.sessionAccentColor = sessionAccentColor
+        self.weeklyAccentColor = weeklyAccentColor
+        self.percentMode = percentMode
+        self.meterLayout = meterLayout
         self.showsPacingMarkers = showsPacingMarkers
         self.tokenUsageCard = tokenUsageCard
         self.now = now
@@ -45,20 +54,18 @@ struct ActiveAccountMenuContent: View {
                 .foregroundStyle(.secondary)
                 .padding(.top, -2)
 
-            ActiveLimitRow(
-                title: "Session",
-                window: account.rateLimits?.sessionWindow,
-                tintColor: progressAccentColor,
+            UsageMeters(
+                meters: UsageMeter.codexMeters(
+                    for: account.usage,
+                    sessionTint: sessionAccentColor,
+                    weeklyTint: weeklyAccentColor
+                ),
+                layout: meterLayout,
+                percentMode: percentMode,
                 showsPacingMarkers: showsPacingMarkers,
                 now: now
             )
-            ActiveLimitRow(
-                title: "Weekly",
-                window: account.rateLimits?.weeklyWindow,
-                tintColor: progressAccentColor,
-                showsPacingMarkers: showsPacingMarkers,
-                now: now
-            )
+            .padding(.top, meterLayout == .compact ? 3 : 0)
 
             if let tokenUsageCard {
                 ActiveAccountCardDivider()
@@ -116,83 +123,5 @@ struct ActiveAccountCardDivider: View {
             Spacer(minLength: 9)
         }
         .padding(.horizontal, 14)
-    }
-}
-
-struct ActiveLimitRow: View {
-    let title: String
-    let window: CodexRateLimitWindow?
-    let tintColor: Color
-    let showsPacingMarkers: Bool
-    let now: Date
-
-    var body: some View {
-        let displayedUsedPercent = window?.displayedUsedPercent(at: now) ?? 0
-        let usageText = window.map { "\($0.displayedUsedPercent(at: now))% used" } ?? "--"
-        let expectedPercent = expectedPaceMarkerPercent(
-            for: window,
-            showsPacingMarkers: showsPacingMarkers,
-            now: now
-        )
-
-        VStack(alignment: .leading, spacing: 5) {
-            Text(title)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.primary)
-            ActiveLimitProgressBar(
-                usedPercent: displayedUsedPercent,
-                expectedPercent: expectedPercent,
-                tintColor: tintColor
-            )
-            .frame(height: 5)
-            HStack {
-                Text(usageText)
-                    .monospacedDigit()
-                    .foregroundStyle(.primary)
-                Spacer()
-                if let window, let resetStatus = resetStatusText(for: window, now: now) {
-                    Text(resetStatus)
-                        .foregroundStyle(.secondary)
-                } else if window == nil {
-                    Text("Unavailable")
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .font(.caption)
-        }
-    }
-}
-
-private struct ActiveLimitProgressBar: View {
-    let usedPercent: Int
-    let expectedPercent: Int?
-    let tintColor: Color
-
-    var body: some View {
-        GeometryReader { geometry in
-            let width = geometry.size.width
-            let progressWidth = width * clampedFraction(usedPercent)
-            let markerX = expectedPercent.map { width * clampedFraction($0) }
-
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(Color.secondary.opacity(0.16))
-                Capsule()
-                    .fill(tintColor)
-                    .frame(width: progressWidth)
-
-                if let markerX {
-                    Rectangle()
-                        .fill(Color.secondary.opacity(0.72))
-                        .frame(width: 2)
-                        .offset(x: min(max(markerX - 1, 0), max(width - 2, 0)))
-                }
-            }
-        }
-        .accessibilityHidden(true)
-    }
-
-    private func clampedFraction(_ percent: Int) -> Double {
-        min(max(Double(percent), 0), 100) / 100
     }
 }

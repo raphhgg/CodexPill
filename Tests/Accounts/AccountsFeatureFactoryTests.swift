@@ -16,7 +16,7 @@ struct AccountsFeatureFactoryTests {
             updatedAt: .distantPast,
             email: "business@example.com",
             planType: nil,
-            rateLimits: nil,
+            usage: nil,
             identity: .empty
         )
         try repository.bootstrapStorage()

@@ -25,6 +25,8 @@ final class AccountsController {
     private let accountCatalogStore: AccountCatalogStore
     private let switchAccountWorkflow: SwitchAccountWorkflow
     private let addAccountWorkflow: AddAccountWorkflow
+    private let resetCreditClient: CodexResetCreditClient
+    private let makeIdempotencyKey: () -> UUID
     private let now: () -> Date
     private let postSwitchRefreshDelay: Duration
 
@@ -32,6 +34,8 @@ final class AccountsController {
     private var savedAccountsRefresh: Task<Void, Never>?
     private var isStoppingSavedAccountsRefresh = false
     private var lastInactiveSavedAccountsRefreshAt: Date?
+    private var pendingResetCreditKeys: [UUID: UUID] = [:]
+    private(set) var isApplyingResetCredit = false
 
     init(
         identityResolver: SavedAccountIdentityResolver,
@@ -45,6 +49,8 @@ final class AccountsController {
         accountCatalogStore: AccountCatalogStore,
         switchAccountWorkflow: SwitchAccountWorkflow,
         addAccountWorkflow: AddAccountWorkflow,
+        resetCreditClient: CodexResetCreditClient = UnavailableResetCreditClient(),
+        makeIdempotencyKey: @escaping () -> UUID = UUID.init,
         now: @escaping () -> Date = Date.init,
         postSwitchRefreshDelay: Duration = .seconds(2)
     ) {
@@ -59,6 +65,8 @@ final class AccountsController {
         self.accountCatalogStore = accountCatalogStore
         self.switchAccountWorkflow = switchAccountWorkflow
         self.addAccountWorkflow = addAccountWorkflow
+        self.resetCreditClient = resetCreditClient
+        self.makeIdempotencyKey = makeIdempotencyKey
         self.now = now
         self.postSwitchRefreshDelay = postSwitchRefreshDelay
     }
@@ -76,6 +84,7 @@ final class AccountsController {
     }
 
     func switchToAccount(_ account: CodexAccount) async -> Bool {
+        guard !isApplyingResetCredit else { return false }
         var didRefreshAfterSwitch = false
         await perform("Switching to \(account.name)...") {
             try saveRotatedLiveAuth(switchingTo: account)
@@ -85,7 +94,7 @@ final class AccountsController {
                     accounts: accounts
                 )
             )
-            didRefreshAfterSwitch = await applySilentPostActionRefresh()
+            didRefreshAfterSwitch = await applySilentPostActionRefresh(after: postSwitchRefreshDelay)
         }
         return didRefreshAfterSwitch
     }
@@ -142,6 +151,35 @@ final class AccountsController {
             accountsControllerLogger.log("Background refresh skipped for \(account.name, privacy: .public): \(error.localizedDescription, privacy: .public)")
             return .failed(error.localizedDescription)
         }
+    }
+
+    /// Spends one reset credit on the live Codex account, then refreshes its limits.
+    /// Each account keeps its attempt's idempotency key until Codex answers, so a retry after a
+    /// lost response cannot spend a second credit. Switching waits until the reset finishes.
+    func useResetCredit() async -> ResetCreditResult {
+        guard let accountID = activeAccountID, !isApplyingResetCredit else { return .failed }
+        isApplyingResetCredit = true
+        defer { isApplyingResetCredit = false }
+        let key = pendingResetCreditKeys[accountID] ?? makeIdempotencyKey()
+        pendingResetCreditKeys[accountID] = key
+
+        let outcome: CodexResetCreditOutcome
+        do {
+            outcome = try await resetCreditClient.consumeResetCredit(idempotencyKey: key)
+        } catch {
+            accountsControllerLogger.log("Reset credit not used: \(error.localizedDescription, privacy: .public)")
+            return .failed
+        }
+
+        let result = ResetCreditResult(outcome)
+        if result != .unconfirmed {
+            pendingResetCreditKeys[accountID] = nil
+        }
+        accountsControllerLogger.log("Reset credit outcome: \(outcome.rawValue, privacy: .public)")
+        if result == .reset || result == .unconfirmed {
+            _ = await applySilentPostActionRefresh(after: .zero)
+        }
+        return result
     }
 
     func persistAccountMetadata(_ account: CodexAccount) {
@@ -231,7 +269,7 @@ final class AccountsController {
     }
 
     func hydrateSavedAccountsMetadataIfNeeded() async {
-        guard accounts.contains(where: { $0.id != activeAccountID && $0.rateLimits == nil }) else { return }
+        guard accounts.contains(where: { $0.id != activeAccountID && $0.usage == nil }) else { return }
         await runSavedAccountsRefresh(refreshExistingMetadata: false)
     }
 
@@ -326,13 +364,13 @@ final class AccountsController {
         }
     }
 
-    private func applySilentPostActionRefresh() async -> Bool {
+    private func applySilentPostActionRefresh(after delay: Duration) async -> Bool {
         let activeAccountIDBeforeRefresh = activeAccountID
         guard activeAccountIDBeforeRefresh != nil else { return false }
         let accountsBeforeDelay = accounts
 
-        if postSwitchRefreshDelay > .zero {
-            try? await Task.sleep(for: postSwitchRefreshDelay)
+        if delay > .zero {
+            try? await Task.sleep(for: delay)
         }
 
         do {

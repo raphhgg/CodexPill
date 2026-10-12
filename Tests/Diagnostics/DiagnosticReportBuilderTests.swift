@@ -22,14 +22,14 @@ struct DiagnosticReportBuilderTests {
             name: "Work Account",
             email: "person@example.com",
             stableAccountID: "acct_stable_secret",
-            rateLimits: makeRateLimits(fetchedAt: now.addingTimeInterval(-120))
+            usage: makeUsage(fetchedAt: now.addingTimeInterval(-120))
         )
         let inactive = makeAccount(
             id: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
             name: "Personal Account",
             email: "me@example.org",
             stableAccountID: "acct_other_secret",
-            rateLimits: makeRateLimits(fetchedAt: now.addingTimeInterval(-3600))
+            usage: makeUsage(fetchedAt: now.addingTimeInterval(-3600))
         )
         let state = makeMenuState(activeAccount: active, inactiveAccounts: [inactive])
 
@@ -100,7 +100,7 @@ struct DiagnosticReportBuilderTests {
             name: rawValues.joined(separator: " "),
             email: "secret@example.com",
             stableAccountID: rawValues.last,
-            rateLimits: makeRateLimits()
+            usage: makeUsage()
         )
         let report = DiagnosticReportBuilder(
             appMetadata: .fixture,
