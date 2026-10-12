@@ -24,7 +24,7 @@ reads 32% used fills 32% of the glyph, and with `Show % Left` a card that reads
 
 | Style | Session limit | Weekly limit | No data |
 | --- | --- | --- | --- |
-| Hourglass (default) | Sand by area. Used sand has fallen into the bottom bulb; with `Show % Left` the sand still waiting sits in the top bulb. The measuring bulb has a faint track. | A base bar under the glass, filled left to right. | Empty glass and a faint base. |
+| Glasses (default) | The left glass's liquid by area: 32% fills 32% of the glass. | The right glass, the same way. | Two faint empty glasses. |
 | Moon | The lit share of a moon, lit from the right, by area: 32% lights 32% of the disc. | An orbit ring, filled clockwise from 12 o'clock. | A faint moon outline and a faint ring. |
 | Punch card | Top row of five slots. | Bottom row of five slots. | All slots hollow and faint. |
 
@@ -33,8 +33,9 @@ Punch card fills the nearest slot count, rounding half up (32% fills 2 of 5,
 the whole row.
 
 Some accounts report only one limit. The glyph then shows that limit in its
-main element (the sand, the moon phase, or a single centred row of slots) and
-drops the secondary element (the base bar, the orbit ring, or the second row).
+main element (one wide glass, the moon phase, or a single centred row of slots)
+and drops the secondary element (the right glass, the orbit ring, or the second
+row).
 It never draws a second mark for a limit the account does not have. The menu
 names which limit it is.
 
@@ -44,8 +45,8 @@ tracks and used parts. macOS recolors it for light and dark menu bars, so the
 Pace markers stay in the menu's usage bars, where there is room to read them.
 
 Saved styles from earlier builds map to the closest new style: `Dual Arc Badge`
-to Moon, `Stacked Bars` to Punch card, `Twin Pills` to Hourglass, and any
-unknown value to Hourglass.
+to Moon, `Stacked Bars` to Punch card, and `Hourglass`, `Twin Pills` and any
+unknown value to Glasses.
 
 ## Menu Bar Label Reveal Shortcut
 
