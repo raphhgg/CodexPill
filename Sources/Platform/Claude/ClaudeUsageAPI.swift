@@ -1,6 +1,7 @@
 import Foundation
 
-/// Claude's 5-hour and 7-day subscription windows, and any per-model weekly limits, as Anthropic reports them.
+/// Claude's 5-hour and 7-day subscription windows, any per-model weekly limits, and paid extra usage, as Anthropic
+/// reports them.
 struct ClaudeUsageReport: Codable, Equatable, Sendable {
     struct Window: Codable, Equatable, Sendable {
         let usedPercent: Double
@@ -13,18 +14,27 @@ struct ClaudeUsageReport: Codable, Equatable, Sendable {
         let resetsAt: Date?
     }
 
+    /// Paid usage beyond the plan this month, in the account's currency.
+    struct ExtraUsage: Codable, Equatable, Sendable {
+        let spent: Decimal
+        let limit: Decimal?
+        let currencyCode: String
+    }
+
     let fiveHour: Window?
     let sevenDay: Window?
     var modelWeeks: [ModelWindow] = []
+    var extraUsage: ExtraUsage? = nil
 }
 
 extension ClaudeUsageReport {
-    /// Usage saved before per-model limits existed has no `modelWeeks`.
+    /// Usage saved before per-model limits or extra usage existed has no `modelWeeks` or `extraUsage`.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         fiveHour = try container.decodeIfPresent(Window.self, forKey: .fiveHour)
         sevenDay = try container.decodeIfPresent(Window.self, forKey: .sevenDay)
         modelWeeks = try container.decodeIfPresent([ModelWindow].self, forKey: .modelWeeks) ?? []
+        extraUsage = try container.decodeIfPresent(ExtraUsage.self, forKey: .extraUsage)
     }
 }
 
@@ -72,7 +82,8 @@ enum ClaudeUsageAPI {
 
     /// Reads `five_hour`, `seven_day`, and each `weekly_scoped` entry in `limits`, the per-model weekly limits
     /// that both Claude clients title by `scope.model.display_name`. Other windows, such as `seven_day_opus`, are
-    /// ignored. A `limits` entry without a name or percent is skipped and never fails the read.
+    /// ignored. A `limits` entry without a name or percent is skipped and never fails the read. `extra_usage` counts
+    /// only while enabled, and an unreadable one is skipped.
     static func parseUsage(_ data: Data) throws -> ClaudeUsageReport {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
@@ -85,7 +96,25 @@ enum ClaudeUsageAPI {
                   !modelWeeks.contains(where: { $0.modelName == name }) else { continue }
             modelWeeks.append(.init(modelName: name, usedPercent: min(max(percent, 0), 100), resetsAt: limit.resetsAt.flatMap(date(from:))))
         }
-        return ClaudeUsageReport(fiveHour: window(response.fiveHour), sevenDay: window(response.sevenDay), modelWeeks: modelWeeks)
+        return ClaudeUsageReport(
+            fiveHour: window(response.fiveHour),
+            sevenDay: window(response.sevenDay),
+            modelWeeks: modelWeeks,
+            extraUsage: (try? decoder.decode(ExtraUsageResponseDTO.self, from: data))?.extraUsage.flatMap(extraUsage)
+        )
+    }
+
+    /// Amounts arrive in minor units, such as cents.
+    private static func extraUsage(_ dto: ExtraUsageDTO) -> ClaudeUsageReport.ExtraUsage? {
+        let decimalPlaces = dto.decimalPlaces ?? 2
+        guard dto.isEnabled == true, let usedCredits = dto.usedCredits, decimalPlaces >= 0 else { return nil }
+        let unit = pow(Decimal(10), decimalPlaces)
+        let currency = dto.currency?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return ClaudeUsageReport.ExtraUsage(
+            spent: usedCredits / unit,
+            limit: dto.monthlyLimit.map { $0 / unit },
+            currencyCode: currency.isEmpty ? "USD" : currency
+        )
     }
 
     private static func window(_ dto: WindowDTO?) -> ClaudeUsageReport.Window? {
@@ -112,6 +141,18 @@ private struct UsageResponseDTO: Decodable {
 private struct WindowDTO: Decodable {
     let utilization: Double?
     let resetsAt: String?
+}
+
+private struct ExtraUsageResponseDTO: Decodable {
+    let extraUsage: ExtraUsageDTO?
+}
+
+private struct ExtraUsageDTO: Decodable {
+    let isEnabled: Bool?
+    let usedCredits: Decimal?
+    let monthlyLimit: Decimal?
+    let currency: String?
+    let decimalPlaces: Int?
 }
 
 private struct LimitsDTO: Decodable {

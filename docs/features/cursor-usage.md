@@ -6,7 +6,7 @@ As a Refill user who also codes in Cursor, I want to see how much of my Cursor p
 
 ## Product Contract
 
-Cursor Usage is an optional menu bar feature. When connected, Refill shows the signed-in Cursor account's included-plan usage, any on-demand spend, and the billing-cycle reset date.
+Cursor Usage is an optional menu bar feature. When connected, Refill shows the signed-in Cursor account's included-plan usage, any on-demand spend as extra usage, and the billing-cycle reset date.
 
 Reading usage never changes anything in Cursor. Refill never signs in to Cursor and never renews Cursor's session. If Cursor's sign-in is missing or expired, Refill says so and points the user back to Cursor. Refill shows only the account Cursor is signed in to, by the email Cursor cached. It never saves, adds, or switches Cursor accounts, never quits Cursor, and never writes Cursor's database or a Keychain item.
 
@@ -26,7 +26,7 @@ The `Cursor` card follows the shared card and side menu in [Menubar](menubar.md)
 
   Confirming saves the choice and reads at once.
 - **Connected.** The choice is saved in user defaults (`cursorUsageEnabled`, off by default). Unchecking `Appearance › Show Tools › Cursor` turns the feature off at once with no alert, because it changes nothing outside Refill. Checking it again connects through the same consent alert.
-- **Current.** The plan tag (`Pro`), one `Billing cycle` meter with `Resets 30 Oct`, and, when on-demand usage is enabled, a text line: `On-demand: $12.34 of $50.00`, or `On-demand: $12.34` with no cap. Spend is never drawn as a bar. The meter follows the percent mode, layout, pacing markers, and the weekly color.
+- **Current.** The plan tag (`Pro`), one `Billing cycle` meter with `Resets 30 Oct`, and, when on-demand usage is enabled, a text line: `$12.34 of $50.00 extra usage`, or `$12.34 extra usage` with no cap. Spend is never drawn as a bar. The meter follows the percent mode, layout, pacing markers, and the weekly color.
 - **No percent.** A plan with no included-usage percent, such as an unlimited plan, shows the header with no meter. It never shows 0%.
 - **Failures.** Each failure shows a title and at most one short line. Except for not installed and signed out, the last good values stay dimmed below it with their `As of` time.
 
@@ -67,7 +67,7 @@ All knowledge of Cursor's database and of cursor.com lives in `Sources/Platform/
 - `individualUsage.onDemand` carries on-demand spend in cents when `enabled` is true. A null `limit` means no cap.
 - `billingCycleStart` and `billingCycleEnd` are ISO 8601. The end is the reset.
 
-**Mapping.** One `UsageWindow` of kind `billingCycle`, with `usedPercent` from the percent, `resetsAt` from `billingCycleEnd`, and `durationMinutes` from the cycle length. No percent means no window. On-demand spend goes to `UsageSnapshot.spend` as dollars with an optional cap, because it is money, not a percent of a limit.
+**Mapping.** One `UsageWindow` of kind `billingCycle`, with `usedPercent` from the percent, `resetsAt` from `billingCycleEnd`, and `durationMinutes` from the cycle length. No percent means no window. On-demand spend goes to `UsageSnapshot.credits` as extra usage in USD with an optional cap, because it is money, not a percent of a limit. Disabled on-demand shows nothing. `breakdown.bonus` is bonus usage already consumed, not a balance, so Refill does not show it.
 
 When Token Usage is also on, Refill reads daily tokens by model from `POST https://cursor.com/api/dashboard/get-filtered-usage-events` with the same token and rules. See [Token Usage](token-usage.md#other-tools).
 

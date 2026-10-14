@@ -277,7 +277,7 @@ struct MenuBarCoordinatorTests {
             planName: "pro",
             windows: [UsageWindow(kind: .billingCycle, usedPercent: 82, resetsAt: Date(timeIntervalSince1970: 1_793_373_788), durationMinutes: 43_200)],
             fetchedAt: now,
-            spend: UsageSpend(usedUSD: Decimal(string: "12.34")!, limitUSD: 50)
+            credits: .extraUsage(spent: Decimal(string: "12.34")!, limit: 50, currencyCode: "USD")
         )
         #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .cursor, status: .current(current))])
         #expect(cardAreaTitles(coordinator) == ["Cursor"])

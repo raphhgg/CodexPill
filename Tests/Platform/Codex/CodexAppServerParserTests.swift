@@ -142,6 +142,43 @@ struct CodexAppServerParserTests {
         #expect(rateLimits.secondary?.usedPercent == 18)
     }
 
+    @Test(arguments: [
+        (#""credits":{"hasCredits":true,"unlimited":false,"balance":"62498.0761312500"},"#, UsageCredits?.some(.balance(Decimal(string: "62498.0761312500")!))),
+        (#""credits":{"hasCredits":false,"unlimited":false,"balance":"0"},"#, nil),
+        (#""credits":{"hasCredits":true,"unlimited":true,"balance":null},"#, .unlimited),
+        ("", nil),
+        (#""credits":{"hasCredits":true,"unlimited":false,"balance":62498.07},"#, nil),
+        (#""credits":{"hasCredits":true,"unlimited":false,"balance":"lots"},"#, nil),
+        (#""credits":"unknown","#, nil),
+    ])
+    func rateLimitParserReadsCreditsFromTheChosenLimitWithoutFailingTheWindows(creditsField: String, credits: UsageCredits?) throws {
+        let response = try decodeRateLimitsResponse("""
+        {
+          "rateLimits": {
+            "limitId": "legacy",
+            "credits": { "hasCredits": true, "unlimited": false, "balance": "5" },
+            "primary": { "usedPercent": 1 },
+            "secondary": { "usedPercent": 2 }
+          },
+          "rateLimitsByLimitId": {
+            "codex": {
+              "limitId": "codex",
+              \(creditsField)
+              "primary": { "usedPercent": 21, "windowDurationMins": 300 },
+              "secondary": { "usedPercent": 34, "windowDurationMins": 10080 }
+            }
+          }
+        }
+        """)
+
+        let rateLimits = try #require(CodexAppServerRateLimitParser().parse(response))
+
+        #expect(rateLimits.limitID == "codex")
+        #expect(rateLimits.primary?.usedPercent == 21)
+        #expect(rateLimits.secondary?.usedPercent == 34)
+        #expect(rateLimits.credits == credits)
+    }
+
     @Test
     func rateLimitParserReturnsNilWhenPayloadContainsNoUsableRateLimits() throws {
         let response = try decodeRateLimitsResponse(#"{}"#)

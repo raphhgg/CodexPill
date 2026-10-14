@@ -424,6 +424,14 @@ struct CodexAppServerClientTests {
     }
 
     @Test
+    func consumeOutputDataReadsTheCreditBalance() throws {
+        let status = try readStatus(rateLimitsResult: #"{"rateLimits":{"credits":{"hasCredits":true,"unlimited":false,"balance":"62498.0761312500"},"primary":{"usedPercent":90,"windowDurationMins":300}}}"#)
+
+        #expect(status?.usage?.window(.session)?.usedPercent == 90)
+        #expect(status?.usage?.credits == .balance(Decimal(string: "62498.0761312500")!))
+    }
+
+    @Test
     func consumeOutputDataReadsOlderCodexWithoutResetCredits() throws {
         let status = try readStatus(rateLimitsResult: #"{"rateLimits":{"primary":{"usedPercent":90,"windowDurationMins":300}},"rateLimitResetCredits":null}"#)
         let olderStatus = try readStatus(rateLimitsResult: #"{"rateLimits":{"primary":{"usedPercent":90,"windowDurationMins":300}}}"#)

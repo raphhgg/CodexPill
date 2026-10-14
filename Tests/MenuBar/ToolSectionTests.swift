@@ -151,14 +151,14 @@ struct ToolSectionTests {
     }
 
     @Test
-    func cursorShowsItsBillingCycleAndSpendAndAnUnlimitedPlanHasNoMeter() throws {
-        let spend = UsageSpend(usedUSD: 12.5, limitUSD: 50)
+    func cursorShowsItsBillingCycleAndCreditsAndAnUnlimitedPlanHasNoMeter() throws {
+        let credits = UsageCredits.extraUsage(spent: 12.5, limit: 50, currencyCode: "USD")
         let limited = UsageSnapshot(
             provider: .cursor,
             planName: "pro",
             windows: [UsageWindow(kind: .billingCycle, usedPercent: 82, resetsAt: now.addingTimeInterval(20 * 86_400), durationMinutes: nil)],
             fetchedAt: now,
-            spend: spend
+            credits: credits
         )
         let unlimited = UsageSnapshot(provider: .cursor, planName: "pro", windows: [], fetchedAt: now)
 
@@ -167,10 +167,22 @@ struct ToolSectionTests {
 
         #expect(limitedSection.planTag == "Pro")
         #expect(limitedSection.card.windows.map(\.kind) == [.billingCycle])
-        #expect(limitedSection.card.spend == spend)
+        #expect(limitedSection.card.credits == credits)
         #expect(unlimitedCard.windows.isEmpty)
         #expect(unlimitedCard.title == nil)
-        #expect(onDemandSpendText(spend, locale: Locale(identifier: "en_US")) == "On-demand: $12.50 of $50.00")
+        #expect(unlimitedCard.credits == nil)
+    }
+
+    @Test
+    func creditsReadAsWholeCreditsOrMoney() {
+        let locale = Locale(identifier: "en_US")
+
+        #expect(creditsText(.balance(Decimal(string: "62498.0761312500")!), locale: locale) == "62,498 credits")
+        #expect(creditsText(.balance(Decimal(string: "1.9")!), locale: locale) == "1 credit")
+        #expect(creditsText(.balance(0), locale: locale) == "0 credits")
+        #expect(creditsText(.unlimited, locale: locale) == "Unlimited credits")
+        #expect(creditsText(.extraUsage(spent: Decimal(string: "12.4")!, limit: 50, currencyCode: "USD"), locale: locale) == "$12.40 of $50.00 extra usage")
+        #expect(creditsText(.extraUsage(spent: Decimal(string: "12.4")!, limit: nil, currencyCode: "USD"), locale: locale) == "$12.40 extra usage")
     }
 
     @Test

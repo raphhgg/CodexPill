@@ -29,6 +29,48 @@ struct ClaudeUsageAPITests {
     }
 
     @Test
+    func enabledExtraUsageReadsAsMoneyFromMinorUnits() throws {
+        let report = try ClaudeUsageAPI.parseUsage(Data(#"""
+        {"five_hour":null,"seven_day":{"utilization":21,"resets_at":null},
+         "extra_usage":{"is_enabled":true,"used_credits":1240,"monthly_limit":5000,"currency":"USD","decimal_places":2}}
+        """#.utf8))
+
+        #expect(report.extraUsage == ClaudeUsageReport.ExtraUsage(spent: Decimal(string: "12.4")!, limit: 50, currencyCode: "USD"))
+    }
+
+    @Test
+    func uncappedExtraUsageWithoutACurrencyReadsAsDollars() throws {
+        let report = try ClaudeUsageAPI.parseUsage(Data(#"""
+        {"seven_day":{"utilization":21,"resets_at":null},
+         "extra_usage":{"is_enabled":true,"used_credits":1240,"monthly_limit":null,"currency":null,"decimal_places":null}}
+        """#.utf8))
+
+        #expect(report.extraUsage == ClaudeUsageReport.ExtraUsage(spent: Decimal(string: "12.4")!, limit: nil, currencyCode: "USD"))
+    }
+
+    @Test(arguments: [
+        #"{"is_enabled":false,"monthly_limit":null,"used_credits":null,"utilization":null,"currency":null,"decimal_places":null,"disabled_reason":null,"user_disabled":true,"spend_limit_reached":false,"credits_ever_enabled":true,"daily":null,"weekly":null}"#,
+        #"{"is_enabled":true,"used_credits":"lots","monthly_limit":5000}"#,
+        #""on""#,
+    ])
+    func disabledOrUnreadableExtraUsageIsAbsentAndKeepsTheWindows(extraUsage: String) throws {
+        let report = try ClaudeUsageAPI.parseUsage(Data(#"{"seven_day":{"utilization":21,"resets_at":null},"extra_usage":\#(extraUsage)}"#.utf8))
+
+        #expect(report == ClaudeUsageReport(fiveHour: nil, sevenDay: .init(usedPercent: 21, resetsAt: nil)))
+    }
+
+    @Test
+    func savedExtraUsageRoundTrips() throws {
+        let report = ClaudeUsageReport(
+            fiveHour: nil,
+            sevenDay: .init(usedPercent: 21, resetsAt: nil),
+            extraUsage: .init(spent: Decimal(string: "12.4")!, limit: 50, currencyCode: "EUR")
+        )
+
+        #expect(try JSONDecoder().decode(ClaudeUsageReport.self, from: JSONEncoder().encode(report)) == report)
+    }
+
+    @Test
     func theRequestCarriesTheTokenAndBetaHeaderToAnthropicOnly() throws {
         let token = try #require(ClaudeAccessToken("fake-claude-access-token"))
         let request = ClaudeUsageAPI.request(using: token)

@@ -37,8 +37,9 @@ Every tool uses the same card. It is one hover cell with a side menu and no chev
 
 - **Header.** The tool's monochrome mark, its name, and the plan tag on the right: `Pro x20` or `Pro x5` for Codex, `Max x20` or `Max x5` for Claude, `Pro` for Cursor. The marks come from Lobe Icons (MIT, see `THIRD_PARTY_NOTICES.md`).
 - **Meters.** One per window the tool reports, shortest first, named by its length: `Session` (5 hours), `Weekly` (7 days), `Monthly` (28 to 31 days), or `Billing cycle` for Cursor. Any other length is titled by that length, such as `8 days`. Claude's per-model weekly limits follow `Weekly`, one meter each, titled `<model> this week`, such as `Fable this week`. The Claude side menu's `Show Fable Limits` hides them. A Codex Free account shows only `Monthly`. A window the tool does not report has no meter. Codex Pro and Pro Lite hide the session window. Each meter shows the bar with an even-pace tick placed by the window's real length, `11% used` on the left and `Resets in 2h53` in grey on the right. A reset more than a week away, and any billing cycle's, reads as a date: `Resets 30 Oct`. Meters follow the `Usage Bars` settings.
+- **Credits.** One line before the reset row when the tool reports credits or paid usage: `62,498 credits` or `Unlimited credits` for Codex, `$12.40 of $50.00 extra usage` (or `$12.40 extra usage` with no cap) for Claude extra usage and Cursor on-demand. A balance shows whole credits, rounded down. Nothing reported means no line, never `0`. Credits never change a meter or the account ranking.
 - **Codex resets.** `2 resets available` with `Next expires 5 Nov` on the right, or `Expires 5 Nov` for one credit ([Codex Reset Credits](codex-reset-credits.md)). Claude has no reset row.
-- **Cursor spend.** `On-demand: $12.34 of $50.00` under the meter. An unlimited plan has no meter.
+- **Cursor.** An unlimited plan has no meter.
 - **States.** A title and at most one short line replace or precede the meters:
 
   | State | Title | Line |

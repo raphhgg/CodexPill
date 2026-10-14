@@ -48,7 +48,8 @@ func mergeAppServerUsage(
         planName: current.planName ?? previous.planName,
         windows: mergeAppServerUsageWindows(previous: previous.windows, current: current.windows),
         fetchedAt: max(previous.fetchedAt, current.fetchedAt),
-        resetCredits: current.resetCredits ?? previous.resetCredits
+        resetCredits: current.resetCredits ?? previous.resetCredits,
+        credits: current.credits ?? previous.credits
     )
 }
 

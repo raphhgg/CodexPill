@@ -40,10 +40,11 @@ struct ToolCardView: View {
                 now: now
             )
         }
-        if let spend = section.card.spend {
-            Text(onDemandSpendText(spend))
+        if let credits = section.card.credits {
+            Text(creditsText(credits))
                 .font(.caption)
                 .monospacedDigit()
+                .padding(.top, 4)
         }
         if let credits = section.card.resetCredits {
             ResetCreditsLine(credits: credits)
@@ -128,12 +129,29 @@ func shortDate(_ date: Date, locale: Locale = .autoupdatingCurrent, timeZone: Ti
     return date.formatted(Date.FormatStyle(locale: locale, calendar: calendar, timeZone: timeZone).day().month(.abbreviated))
 }
 
-/// Spend is a dollar amount, never a percent: "On-demand: $12.34 of $50.00", or the amount alone when uncapped.
-func onDemandSpendText(_ spend: UsageSpend, locale: Locale = .current) -> String {
-    let currency = Decimal.FormatStyle.Currency(code: "USD", locale: locale)
-    let used = spend.usedUSD.formatted(currency)
-    guard let limit = spend.limitUSD else { return "On-demand: \(used)" }
-    return "On-demand: \(used) of \(limit.formatted(currency))"
+/// "62,498 credits", "Unlimited credits", or money such as "$12.40 of $50.00 extra usage". Never a percent.
+func creditsText(_ credits: UsageCredits, locale: Locale = .current) -> String {
+    switch credits {
+    case let .balance(balance):
+        let whole = balance.rounded(.down)
+        let count = whole.formatted(Decimal.FormatStyle(locale: locale).precision(.fractionLength(0)))
+        return whole == 1 ? "\(count) credit" : "\(count) credits"
+    case .unlimited:
+        return "Unlimited credits"
+    case let .extraUsage(spent, limit, currencyCode):
+        let currency = Decimal.FormatStyle.Currency(code: currencyCode, locale: locale)
+        guard let limit else { return "\(spent.formatted(currency)) extra usage" }
+        return "\(spent.formatted(currency)) of \(limit.formatted(currency)) extra usage"
+    }
+}
+
+private extension Decimal {
+    func rounded(_ mode: NSDecimalNumber.RoundingMode) -> Decimal {
+        var value = self
+        var result = Decimal()
+        NSDecimalRound(&result, &value, 0, mode)
+        return result
+    }
 }
 
 /// The time alone for today, otherwise the date and time.

@@ -37,6 +37,25 @@ struct ClaudeCodeUsageTests {
     }
 
     @Test
+    func extraUsageBecomesTheCardsCredits() {
+        let report = ClaudeUsageReport(
+            fiveHour: nil,
+            sevenDay: .init(usedPercent: 21, resetsAt: nil),
+            extraUsage: .init(spent: Decimal(string: "12.4")!, limit: 50, currencyCode: "USD")
+        )
+
+        let reading = ClaudeCodeUsage.reading(from: .available(report, planName: "max", email: nil), fetchedAt: now)
+
+        #expect(reading == .snapshot(UsageSnapshot(
+            provider: .claude,
+            planName: "max",
+            windows: [UsageWindow(kind: .weekly, usedPercent: 21, resetsAt: nil, durationMinutes: 10_080)],
+            fetchedAt: now,
+            credits: .extraUsage(spent: Decimal(string: "12.4")!, limit: 50, currencyCode: "USD")
+        )))
+    }
+
+    @Test
     func onlyTheReadRightAfterAUserActionMayShowTheKeychainPrompt() async {
         let fixture = ClaudeUsageFixture()
         defer { fixture.remove() }
