@@ -105,6 +105,36 @@ struct AllToolsTokenUsageMenuProviderTests {
         #expect(preview.tools.map(\.totalTokens) == [40, 0])
     }
 
+    @Test(.timeLimit(.minutes(1)))
+    func reportsCodexProgressWhileOtherToolsAreRead() async {
+        let codexReported = TestGate()
+        let provider = AllToolsTokenUsageMenuProvider(
+            codex: FixedCodexProvider(
+                state: .loaded(TokenUsageMenuLoadedData(buckets: [], allTimePeak: nil)),
+                progress: TokenUsageScanProgress(scannedFiles: 0, totalFiles: 3)
+            ),
+            otherTools: [TokenUsageToolSource(tool: .claudeCode, isConnected: { true }, read: { interval in
+                await codexReported.pass()
+                return .days(ToolTokenUsageDays.filled([], in: interval, calendar: calendar))
+            })],
+            calendar: calendar,
+            now: { day(2026, 10, 10) }
+        )
+        let progressUpdates = TokenUsageProgressRecorder()
+
+        let state = await provider.load(period: .last30Days, peakScope: .currentPeriod, forceRefresh: false) { progress in
+            progressUpdates.append(progress)
+            Task { await codexReported.open() }
+        }
+
+        #expect(progressUpdates.updates == [TokenUsageScanProgress(scannedFiles: 0, totalFiles: 3)])
+        guard case .loaded(let data) = state else {
+            Issue.record("Expected the load to finish")
+            return
+        }
+        #expect(data.tools.map(\.tool) == [.codex, .claudeCode])
+    }
+
     private func day(_ year: Int, _ month: Int, _ day: Int) -> Date {
         calendar.date(from: DateComponents(year: year, month: month, day: day))!
     }
@@ -113,6 +143,7 @@ struct AllToolsTokenUsageMenuProviderTests {
 private struct FixedCodexProvider: TokenUsageMenuProviding {
     let state: TokenUsageMenuLoadState
     var preview: TokenUsageMenuLoadedData? = nil
+    var progress: TokenUsageScanProgress? = nil
 
     func preview(period _: CodexTokenUsagePeriod) async -> TokenUsageMenuLoadedData? {
         preview
@@ -122,8 +153,9 @@ private struct FixedCodexProvider: TokenUsageMenuProviding {
         period _: CodexTokenUsagePeriod,
         peakScope _: TokenUsagePeakScope,
         forceRefresh _: Bool,
-        progress _: @escaping @Sendable (TokenUsageScanProgress) -> Void
+        progress report: @escaping @Sendable (TokenUsageScanProgress) -> Void
     ) async -> TokenUsageMenuLoadState {
-        state
+        progress.map(report)
+        return state
     }
 }

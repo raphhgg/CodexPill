@@ -15,16 +15,16 @@ The loading state never exposes session rows, prompts, file paths, account ident
 ## While Loading
 
 - Subtitle: `Last 30 days · Loading 8%`. It is the only loading signal.
-- Chart: the last finished reading from the cache, dimmed. With no cache, neutral placeholder bars.
+- Chart: the last finished reading from the cache, dimmed, even from an older cache version that the scan rebuilds. With no cache, neutral placeholder bars.
 - No hover numbers on the chart.
-- The `By tool` / `Top models` switch, the per-tool rows and the model lists are hidden.
+- The `By tool` / `Top models` switch and the selected split show as neutral placeholder blocks, in the shape of the finished rows.
 - The card keeps the height it has once loaded, so nothing moves when the scan finishes.
 - The open card updates in place. The menu is not rebuilt while it's open.
 
 ## Happy Path
 
 1. User turns on Token Usage, or opens Refill on a new day.
-2. The card shows the last finished chart dimmed, or placeholder bars on a first run, and `Loading 0%`.
+2. The card shows the last finished chart dimmed, or placeholder bars on a first run, and `Loading 0%`. The percentage starts at once, while Claude Code and Cursor are read alongside.
 3. The percentage climbs.
 4. User closes and reopens the menu. The scan keeps running and the card shows its current progress.
 5. When the scan finishes, the chart, the switch, the tool rows and the models appear in place.

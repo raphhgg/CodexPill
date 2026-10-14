@@ -90,6 +90,12 @@ file in the selected period.
 This reuse should also apply across local day rollover when the previous cache
 overlaps the new selected window.
 
+A cache from an older schema version is not reused for refresh, but its daily
+totals still draw the dimmed loading chart while the rescan rebuilds it.
+
+Cold scans read at utility priority with no added delay. Reading 30 days of a large
+history (703 files, about 4 GB) takes about 20 seconds of one core.
+
 Disabling Token Usage hides the card and cancels active scan work, but should keep the persisted cache. Re-enabling should reuse cached aggregates immediately, then refresh in the background.
 
 ## Runtime Boundary

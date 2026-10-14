@@ -8,6 +8,11 @@ struct TokenUsageCacheFileStore<Entry: Codable>: Sendable {
         readPayload().map { Array($0.entries.values) } ?? []
     }
 
+    /// Entries from this schema or an older one that still decodes, for display while the cache is rebuilt.
+    func readEntries(fromSchemaVersion oldest: Int) -> [Entry] {
+        readPayload(acceptedSchemaVersions: oldest...schemaVersion).map { Array($0.entries.values) } ?? []
+    }
+
     func writeEntry(_ entry: Entry, forKey key: String) throws {
         try FilePermissionHardening.createPrivateDirectory(at: cacheFile.deletingLastPathComponent())
 
@@ -20,10 +25,10 @@ struct TokenUsageCacheFileStore<Entry: Codable>: Sendable {
         try FilePermissionHardening.repairPrivateFile(at: cacheFile)
     }
 
-    private func readPayload() -> Payload? {
+    private func readPayload(acceptedSchemaVersions: ClosedRange<Int>? = nil) -> Payload? {
         guard let data = try? Data(contentsOf: cacheFile),
               let payload = try? JSONDecoder().decode(Payload.self, from: data),
-              payload.schemaVersion == schemaVersion
+              (acceptedSchemaVersions ?? schemaVersion...schemaVersion).contains(payload.schemaVersion)
         else {
             return nil
         }

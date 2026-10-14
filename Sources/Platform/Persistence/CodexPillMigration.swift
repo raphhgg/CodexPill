@@ -35,6 +35,7 @@ struct CodexPillMigration {
     var fileManager: FileManager = .default
 
     func run() -> Outcome {
+        removeNotCopiedEntries(from: folder)
         guard !defaults.bool(forKey: Self.doneKey) else { return .alreadyRan }
         defer { defaults.set(true, forKey: Self.doneKey) }
 
@@ -57,6 +58,19 @@ struct CodexPillMigration {
         let current = defaults.persistentDomain(forName: defaultsDomain) ?? [:]
         for (key, value) in legacy.preferences where current[key] == nil {
             defaults.set(value, forKey: key)
+        }
+    }
+
+    /// Earlier test builds copied these entries too. Nothing in Refill reads them, and CodexPill keeps its copies.
+    private func removeNotCopiedEntries(from folder: URL) {
+        for entry in Self.notCopiedEntries {
+            let url = folder.appendingPathComponent(entry)
+            guard fileManager.fileExists(atPath: url.path) else { continue }
+            do {
+                try fileManager.removeItem(at: url)
+            } catch {
+                migrationLogger.error("Removing a leftover entry failed: \(error.localizedDescription, privacy: .public)")
+            }
         }
     }
 

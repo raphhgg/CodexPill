@@ -61,6 +61,21 @@ struct CodexPillMigrationTests {
     }
 
     @Test
+    func removesSavedClaudeAccountsAnEarlierBuildCopiedToRefill() throws {
+        let fixture = try MigrationFixture()
+        defer { fixture.remove() }
+        try fixture.writeCodexPillData()
+        #expect(fixture.migration().run() == .copied)
+        try fixture.writeRefill("claude-code-accounts.json", "copied claude")
+        try fixture.writeRefill("claude-sign-in/scratch", "scratch")
+
+        #expect(fixture.migration().run() == .alreadyRan)
+
+        #expect(try fixture.listing(of: fixture.refillFolder).keys.sorted() == ["accounts.json", "bin", "bin/tool", "snapshots", "snapshots/saved.json"])
+        #expect(FileManager.default.fileExists(atPath: fixture.codexPillFolder.appendingPathComponent("claude-code-accounts.json").path))
+    }
+
+    @Test
     func secondRunChangesNothing() throws {
         let fixture = try MigrationFixture()
         defer { fixture.remove() }

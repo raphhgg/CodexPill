@@ -405,8 +405,6 @@ private protocol CodexSessionTokenUsageFileParsing: Sendable {
 
 private struct CodexSessionTokenUsageFileParser: CodexSessionTokenUsageFileParsing {
     private static let chunkByteCount = 64 * 1024
-    private static let throttleChunkInterval = 1
-    private static let throttleSleepInterval: TimeInterval = 0.025
     private static let tokenCountNeedle = Data(#""token_count""#.utf8)
     private static let turnContextNeedle = Data(#""turn_context""#.utf8)
     private static let sessionMetaNeedle = Data(#""session_meta""#.utf8)
@@ -430,12 +428,10 @@ private struct CodexSessionTokenUsageFileParser: CodexSessionTokenUsageFileParsi
 
         var buffer = Data()
         var discardingOversizedLine = false
-        var chunkCount = 0
         while true {
             try Task.checkCancellation()
             let chunk = handle.readData(ofLength: Self.chunkByteCount)
             guard !chunk.isEmpty else { break }
-            chunkCount += 1
             buffer.append(chunk)
 
             var lineStartIndex = buffer.startIndex
@@ -465,10 +461,6 @@ private struct CodexSessionTokenUsageFileParser: CodexSessionTokenUsageFileParsi
                 buffer.removeAll()
                 discardingOversizedLine = true
                 summary.malformedRowsIgnored += 1
-            }
-
-            if chunkCount.isMultiple(of: Self.throttleChunkInterval) {
-                Thread.sleep(forTimeInterval: Self.throttleSleepInterval)
             }
         }
         if !buffer.isEmpty, !discardingOversizedLine {

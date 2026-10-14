@@ -70,7 +70,8 @@ final class TokenUsageMenuRuntime: Sendable {
 
         let provider = provider
         let relay = TokenUsageMenuRefreshRelay(runtime: self, request: request)
-        refreshTask = Task.detached { [provider, relay, request] in
+        // Utility priority keeps a long cold scan off the cores the user is working on.
+        refreshTask = Task.detached(priority: .utility) { [provider, relay, request] in
             if !forceRefresh {
                 await relay.showPreview(await provider.preview(period: request.period))
             }
@@ -306,7 +307,10 @@ private actor LocalCodexSessionTokenUsageCache {
     }
 
     func preview(period: CodexTokenUsagePeriod) -> TokenUsageMenuLoadedData? {
-        let entries = cachedEntriesByPeriod.isEmpty ? cacheStore.readEntries() : Array(cachedEntriesByPeriod.values)
+        // Version 1 has no per-model totals, but its daily totals still draw the dimmed chart while the rescan runs.
+        let entries = cachedEntriesByPeriod.isEmpty
+            ? cacheStore.readEntries(fromSchemaVersion: 1)
+            : Array(cachedEntriesByPeriod.values)
         return refreshPolicy.previewEntry(from: entries, covering: period, now: now())
             .map { loadedData(from: $0, for: period) }
     }
