@@ -8,6 +8,8 @@ struct ProviderCopy: Sendable {
     /// Who answers usage requests, for "Can't reach …" style messages.
     let serviceName: String
     let connectPrompt: ProviderPrompt?
+    /// What the menu asks before Refill's own sign-in, for a tool that offers one.
+    var signInPrompt: ProviderPrompt? = nil
     /// How to sign in after signing out. By default, signing in to the tool.
     var signInHint: String? = nil
     /// What renews an expired sign-in. By default, opening the tool.
@@ -17,7 +19,8 @@ struct ProviderCopy: Sendable {
     func prompt(for action: ProviderAction) -> ProviderPrompt? {
         switch action {
         case .connect: connectPrompt
-        case .allowKeychainAccess, .disconnect, .switchAccount, .addAccount, .removeAccount, .useResetCredit: nil
+        case .signIn: signInPrompt
+        case .allowKeychainAccess, .disconnect, .switchAccount, .addAccount, .removeAccount, .useResetCredit, .signOut: nil
         }
     }
 
@@ -27,6 +30,7 @@ struct ProviderCopy: Sendable {
         case .notInstalled: ("\(name) isn't installed", nil)
         case .signedOut: ("Not signed in to \(name)", signInHint ?? "Sign in to \(name) to see usage.")
         case .signInExpired: ("\(name) sign-in expired", renewHint ?? "Open \(name) to renew it.")
+        case .signInRequired: ("Sign in to \(sectionTitle) again", nil)
         case .keychainAccessNeeded: ("Allow Keychain access", nil)
         case .signInUnreadable: ("Can't read the \(name) sign-in", "Sign in to \(name) again.")
         case .signInBusy: ("\(name) is busy", retrying)
@@ -54,8 +58,13 @@ extension UsageProvider {
                     detail: "Uses Claude Code's sign-in to read your limits.",
                     confirmTitle: "Connect"
                 ),
+                signInPrompt: ProviderPrompt(
+                    title: "Sign in with Claude?",
+                    detail: "Opens your browser. Refill keeps this sign-in in its own Keychain item.",
+                    confirmTitle: "Sign In"
+                ),
                 signInHint: "Run claude, then /login.",
-                renewHint: "Run claude to renew it."
+                renewHint: "Run claude, or sign in with Claude."
             )
         case .cursor:
             ProviderCopy(
@@ -69,5 +78,19 @@ extension UsageProvider {
                 )
             )
         }
+    }
+}
+
+extension ClaudeSignInError {
+    var notice: ProviderNotice {
+        let (title, detail) = switch self {
+        case .denied: ("Claude sign-in declined", "Sign in again to see your limits.")
+        case .timedOut: ("Claude sign-in timed out", "Start it again from the menu.")
+        case .stateMismatch, .token(.invalidGrant): ("Claude sign-in didn't finish", "Start it again from the menu.")
+        case .listenerFailed: ("Couldn't start Claude sign-in", "Try again in a moment.")
+        case .token(.transport): ("Can't reach Claude", "Check your connection and retry.")
+        case .token(.rejected), .token(.malformedResponse): ("Claude sign-in failed", "Try again in a moment.")
+        }
+        return ProviderNotice(title: title, detail: detail)
     }
 }

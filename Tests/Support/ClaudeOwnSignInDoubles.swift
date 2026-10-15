@@ -140,3 +140,16 @@ final class FakeClaudeTokenServer: ClaudeTokenEndpoint, @unchecked Sendable {
         state.withLock { $0.revoked.append(refreshToken.exposedValue) }
     }
 }
+
+/// A browser sign-in that opens nothing and answers with the next result the test set.
+final class ScriptedClaudeSignInFlow: ClaudeSignInAuthorizing, @unchecked Sendable {
+    private let next = OSAllocatedUnfairLock<Result<ClaudeSignIn, ClaudeSignInError>>(initialState: .failure(.denied))
+
+    func answer(_ result: Result<ClaudeSignIn, ClaudeSignInError>) {
+        next.withLock { $0 = result }
+    }
+
+    func signIn() async throws -> ClaudeSignIn {
+        try next.withLock { $0 }.get()
+    }
+}

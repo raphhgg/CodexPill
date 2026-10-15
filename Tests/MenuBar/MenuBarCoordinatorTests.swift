@@ -245,6 +245,39 @@ struct MenuBarCoordinatorTests {
     }
 
     @Test
+    func claudeSignInAsksFirstThenShowsWhatWentWrong() async throws {
+        let harness = try MenuBarCoordinatorHarness()
+        defer { harness.tearDown() }
+        let claude = ProviderConnectionProbe(provider: .claude, reading: .unavailable(.signInExpired))
+        claude.update {
+            $0.ownSignIn = .signedOut
+            $0.notice = ProviderNotice(title: "Claude sign-in timed out", detail: "Start it again from the menu.")
+        }
+        let coordinator = harness.makeCoordinator(providerConnections: [claude])
+        coordinator.start()
+        await coordinator.waitForPendingWork()
+
+        harness.send(.signIn, for: .claude)
+        await coordinator.waitForPendingWork()
+
+        #expect(harness.alertPresenter.confirmationRequests.map(\.messageText) == ["Sign in with Claude?"])
+        #expect(harness.alertPresenter.infoRequests.isEmpty)
+
+        harness.alertPresenter.confirmationResponse = true
+        harness.send(.signIn, for: .claude)
+        await coordinator.waitForPendingWork()
+
+        #expect(harness.alertPresenter.infoRequests.map(\.messageText) == ["Claude sign-in timed out"])
+        #expect(harness.alertPresenter.infoRequests.map(\.informativeText) == ["Start it again from the menu."])
+
+        harness.send(.signOut, for: .claude)
+        await coordinator.waitForPendingWork()
+
+        #expect(harness.alertPresenter.confirmationRequests.count == 2)
+        #expect(harness.alertPresenter.infoRequests.count == 2)
+    }
+
+    @Test
     func cursorSectionAsksForConsentThenShowsUsageAndKeepsItThroughAFailedRead() async throws {
         let harness = try MenuBarCoordinatorHarness()
         let now = Date()

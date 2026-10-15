@@ -6,6 +6,7 @@ import Foundation
 final class ClaudeUsageSettingsStore: @unchecked Sendable {
     private static let isEnabledKey = "claudeUsageEnabled"
     private static let showsModelLimitsKey = "claudeShowsModelLimits"
+    private static let usesOwnSignInKey = "claudeUsesOwnSignIn"
 
     private let userDefaults: UserDefaults
 
@@ -16,6 +17,13 @@ final class ClaudeUsageSettingsStore: @unchecked Sendable {
     var isEnabled: Bool {
         get { userDefaults.bool(forKey: Self.isEnabledKey) }
         set { userDefaults.set(newValue, forKey: Self.isEnabledKey) }
+    }
+
+    /// Whether usage reads use Refill's own "Sign in with Claude" instead of Claude Code's sign-in. On after a browser
+    /// sign-in succeeds, off after Sign Out or disconnect.
+    var usesOwnSignIn: Bool {
+        get { userDefaults.bool(forKey: Self.usesOwnSignInKey) }
+        set { userDefaults.set(newValue, forKey: Self.usesOwnSignInKey) }
     }
 
     /// Whether the Claude card shows per-model weekly limits, such as "Fable this week". On until

@@ -128,6 +128,19 @@ struct ProviderUsageRuntimeTests {
         #expect(runtime.states == [ProviderUsageState(provider: .cursor, status: .unavailable(.notInstalled, lastSnapshot: nil))])
     }
 
+    @Test
+    func signingInOrOutDropsTheLastSnapshotBecauseTheAccountMayHaveChanged() async {
+        let claude = ProviderConnectionProbe(provider: .claude, reading: .snapshot(claudeSnapshot(sessionPercent: 40)))
+        let runtime = ProviderUsageRuntime(connections: [claude], now: { start }, onChange: {})
+        await runtime.refreshIfDue()
+        claude.reading = .unavailable(.unreachable)
+        let notice = ProviderNotice(title: "Claude sign-in timed out", detail: "Start it again from the menu.")
+        claude.update { $0.notice = notice }
+
+        #expect(await runtime.perform(.signIn, on: .claude) == notice)
+        #expect(runtime.states == [ProviderUsageState(provider: .claude, status: .unavailable(.unreachable, lastSnapshot: nil))])
+    }
+
     private func claudeSnapshot(sessionPercent: Int) -> UsageSnapshot {
         UsageSnapshot(
             provider: .claude,

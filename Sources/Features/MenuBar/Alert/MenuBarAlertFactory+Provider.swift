@@ -10,6 +10,15 @@ extension MenuBarAlertFactory {
         )
     }
 
+    func makeNoticeRequest(_ notice: ProviderNotice) -> MenuBarInfoAlertRequest {
+        MenuBarInfoAlertRequest(
+            messageText: notice.title,
+            informativeText: notice.detail ?? "",
+            style: .informational,
+            buttonTitle: "OK"
+        )
+    }
+
     func makeUseResetCreditRequest(_ credits: UsageResetCredits?) -> MenuBarConfirmationAlertRequest {
         let count = credits?.availableCount ?? 0
         let detail = if count == 1, let expiry = credits?.nextExpiry {

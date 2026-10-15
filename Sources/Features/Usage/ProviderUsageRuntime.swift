@@ -6,7 +6,8 @@ private let providerUsageLogger = Logger(subsystem: "com.raphhgg.refill", catego
 /// Owns every connected tool other than Codex: reads each at most once per its `refreshInterval`, keeps its latest
 /// reading and its last good snapshot for the menu, and runs the actions the menu sends.
 ///
-/// Refill never renews a tool's sign-in. When it expires or goes away, the tool's card asks the user to open the tool.
+/// Refill never renews a tool's own sign-in. When it expires or goes away, the tool's card asks the user to open the
+/// tool, or to sign in with Refill's own sign-in where the tool offers one.
 @MainActor
 final class ProviderUsageRuntime {
     nonisolated static let refreshInterval: TimeInterval = 5 * 60
@@ -58,18 +59,34 @@ final class ProviderUsageRuntime {
         connections.first { $0.provider == provider }
     }
 
-    /// Runs `action` for one tool, then reads that tool again.
-    func perform(_ action: ProviderAction, on provider: UsageProvider) async {
-        guard let connection = connection(for: provider) else { return }
+    /// Runs `action` for one tool, then reads that tool again. Returns what the user should be told, if anything.
+    @discardableResult
+    func perform(_ action: ProviderAction, on provider: UsageProvider) async -> ProviderNotice? {
+        guard let connection = connection(for: provider) else { return nil }
+        var notice: ProviderNotice?
         switch action {
         case .connect, .allowKeychainAccess:
             await connection.connect()
         case .disconnect:
             await connection.disconnect()
+        case .signIn, .signOut:
+            do throws(ProviderNotice) {
+                if action == .signIn {
+                    try await connection.signIn()
+                } else {
+                    try await connection.signOut()
+                }
+            } catch {
+                notice = error
+            }
+            // The account may have changed, so the last numbers may belong to another one.
+            readings[provider] = nil
+            lastSnapshots[provider] = nil
         case .switchAccount, .addAccount, .removeAccount, .useResetCredit:
-            return
+            return nil
         }
         await refreshIfDue(forcing: provider)
+        return notice
     }
 
     /// `forcing` reads that tool even inside its interval, for example right after the user connects it.
@@ -111,6 +128,7 @@ final class ProviderUsageRuntime {
         switch reason {
         case .signedOut: providerUsageLogger.notice("\(name, privacy: .public) is now signed out")
         case .signInExpired: providerUsageLogger.notice("\(name, privacy: .public) sign-in is now expired")
+        case .signInRequired: providerUsageLogger.notice("\(name, privacy: .public) now needs a new sign-in")
         default: break
         }
     }
