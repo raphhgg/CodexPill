@@ -101,6 +101,10 @@ final class ClaudeUsageFixture: ClaudeKeychainReading, ClaudeUsageWebClient, @un
         return try response.get()
     }
 
+    func profile(using _: ClaudeAccessToken) async -> ClaudeProfile? {
+        nil
+    }
+
     func remove() {
         defaults.removePersistentDomain(forName: suiteName)
         try? FileManager.default.removeItem(at: configDirectory)

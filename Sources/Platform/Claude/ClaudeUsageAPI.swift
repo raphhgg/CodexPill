@@ -40,6 +40,15 @@ extension ClaudeUsageReport {
 
 protocol ClaudeUsageWebClient: Sendable {
     func usage(using token: ClaudeAccessToken) async throws(ClaudeUsageWebError) -> Data
+    /// Best effort: nil on any failure.
+    func profile(using token: ClaudeAccessToken) async -> ClaudeProfile?
+}
+
+/// The plan and email of the account behind a token, read once after "Sign in with Claude".
+struct ClaudeProfile: Equatable, Sendable {
+    /// Such as `max_20x`, in the format `ClaudeCredentials.planName` uses.
+    let planName: String?
+    let email: String?
 }
 
 enum ClaudeUsageWebError: Error, Equatable {
@@ -50,12 +59,13 @@ enum ClaudeUsageWebError: Error, Equatable {
     case transport
 }
 
-/// The one Anthropic endpoint Refill calls, and the pure rules around it.
+/// The Anthropic API endpoints Refill calls, and the pure rules around them.
 enum ClaudeUsageAPI {
     static let usageURL = URL(string: "https://api.anthropic.com/api/oauth/usage")!
+    static let profileURL = URL(string: "https://api.anthropic.com/api/oauth/profile")!
 
-    static func request(using token: ClaudeAccessToken) -> URLRequest {
-        var request = URLRequest(url: usageURL, timeoutInterval: 15)
+    static func request(using token: ClaudeAccessToken, url: URL = usageURL) -> URLRequest {
+        var request = URLRequest(url: url, timeoutInterval: 15)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue(token.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
@@ -104,6 +114,35 @@ enum ClaudeUsageAPI {
         )
     }
 
+    /// Reads `organization.organization_type` with the `NNx` suffix of `organization.rate_limit_tier` as the plan, such
+    /// as `max_20x`, and `account.email` or `account.email_address` as the email. Unknown or missing parts read as nil.
+    static func parseProfile(_ data: Data) -> ClaudeProfile? {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        guard let response = try? decoder.decode(ProfileResponseDTO.self, from: data) else { return nil }
+        let plan: String? = switch response.organization?.organizationType {
+        case "claude_max": "max"
+        case "claude_pro": "pro"
+        case "claude_team": "team"
+        case "claude_enterprise": "enterprise"
+        default: nil
+        }
+        let multiplier = response.organization?.rateLimitTier?.split(separator: "_").last
+            .flatMap { $0.hasSuffix("x") && Int($0.dropLast()) != nil ? $0 : nil }
+        let email = [response.account?.email, response.account?.emailAddress].compactMap(\.self).first { !$0.isEmpty }
+        return ClaudeProfile(planName: plan.map { plan in multiplier.map { "\(plan)_\($0)" } ?? plan }, email: email)
+    }
+
+    /// No cookies, no cache, and redirects only to the same host over HTTPS, so a token never reaches another host.
+    static func makeSession() -> URLSession {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.httpShouldSetCookies = false
+        configuration.httpCookieStorage = nil
+        configuration.urlCache = nil
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        return URLSession(configuration: configuration, delegate: SameHostRedirectDelegate(), delegateQueue: nil)
+    }
+
     /// Amounts arrive in minor units, such as cents.
     private static func extraUsage(_ dto: ExtraUsageDTO) -> ClaudeUsageReport.ExtraUsage? {
         let decimalPlaces = dto.decimalPlaces ?? 2
@@ -131,6 +170,21 @@ enum ClaudeUsageAPI {
         }
         return try? Date.ISO8601FormatStyle().parse(value)
     }
+}
+
+private struct ProfileResponseDTO: Decodable {
+    struct Account: Decodable {
+        let email: String?
+        let emailAddress: String?
+    }
+
+    struct Organization: Decodable {
+        let organizationType: String?
+        let rateLimitTier: String?
+    }
+
+    let account: Account?
+    let organization: Organization?
 }
 
 private struct UsageResponseDTO: Decodable {
@@ -188,16 +242,7 @@ private struct LimitDTO: Decodable {
 }
 
 final class URLSessionClaudeUsageWebClient: ClaudeUsageWebClient {
-    private let session: URLSession
-
-    init() {
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.httpShouldSetCookies = false
-        configuration.httpCookieStorage = nil
-        configuration.urlCache = nil
-        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
-        session = URLSession(configuration: configuration, delegate: SameHostRedirectDelegate(), delegateQueue: nil)
-    }
+    private let session = ClaudeUsageAPI.makeSession()
 
     deinit {
         session.finishTasksAndInvalidate()
@@ -221,6 +266,16 @@ final class URLSessionClaudeUsageWebClient: ClaudeUsageWebClient {
             throw error
         }
         return data
+    }
+
+    func profile(using token: ClaudeAccessToken) async -> ClaudeProfile? {
+        guard
+            let (data, response) = try? await session.data(for: ClaudeUsageAPI.request(using: token, url: ClaudeUsageAPI.profileURL)),
+            (response as? HTTPURLResponse)?.statusCode == 200
+        else {
+            return nil
+        }
+        return ClaudeUsageAPI.parseProfile(data)
     }
 }
 

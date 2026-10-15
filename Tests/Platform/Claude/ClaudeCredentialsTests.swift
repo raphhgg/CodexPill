@@ -4,20 +4,29 @@ import Testing
 @testable import Refill
 
 struct ClaudeCredentialsTests {
+    /// Only the files of Refill's own sign-in may hold a refresh token, and none of them names Claude Code's sign-in.
     @Test
-    func noClaudeCodeIsEverAskedToRenewItsSignIn() throws {
+    func noClaudeCodeSignInIsEverRenewed() throws {
         let repository = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let sources = try #require(FileManager.default.enumerator(at: repository.appendingPathComponent("Sources"), includingPropertiesForKeys: nil))
         let claudeFiles = sources.compactMap { $0 as? URL }.filter { $0.pathExtension == "swift" && $0.path.contains("Claude") }
         #expect(claudeFiles.count > 5)
 
+        let ownSignInFiles: Set = ["ClaudeOAuth.swift", "ClaudeSignIn.swift", "ClaudeTokenEndpoint.swift"]
         let refreshMarkers = ["refreshToken", "refresh_token", "grant_type", "/oauth/token"]
-        let offenders = try claudeFiles.filter { file in
-            let source = try String(contentsOf: file, encoding: .utf8)
-            return refreshMarkers.contains { source.contains($0) }
+        let claudeCodeMarkers = ["Claude Code-credentials", "SystemClaudeKeychain", "ClaudeCredentialsSource", "ClaudeCredentials("]
+        let sourcesByName = try Dictionary(uniqueKeysWithValues: claudeFiles.map { ($0.lastPathComponent, try String(contentsOf: $0, encoding: .utf8)) })
+
+        let renewing = sourcesByName.filter { name, source in
+            !ownSignInFiles.contains(name) && refreshMarkers.contains { source.contains($0) }
         }
-        #expect(offenders.map(\.lastPathComponent) == [])
+        let ownSignInReadingClaudeCode = sourcesByName.filter { name, source in
+            ownSignInFiles.contains(name) && claudeCodeMarkers.contains { source.contains($0) }
+        }
+        #expect(renewing.keys.sorted() == [])
+        #expect(ownSignInReadingClaudeCode.keys.sorted() == [])
+        #expect(ownSignInFiles.isSubset(of: sourcesByName.keys))
     }
 
     @Test
