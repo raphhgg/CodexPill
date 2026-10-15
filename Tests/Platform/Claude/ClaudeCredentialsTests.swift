@@ -13,7 +13,7 @@ struct ClaudeCredentialsTests {
         let claudeFiles = sources.compactMap { $0 as? URL }.filter { $0.pathExtension == "swift" && $0.path.contains("Claude") }
         #expect(claudeFiles.count > 5)
 
-        let ownSignInFiles: Set = ["ClaudeOAuth.swift", "ClaudeSignIn.swift", "ClaudeTokenEndpoint.swift"]
+        let ownSignInFiles: Set = ["ClaudeOAuth.swift", "ClaudeSignIn.swift", "ClaudeOwnSignIn.swift", "ClaudeTokenEndpoint.swift"]
         let refreshMarkers = ["refreshToken", "refresh_token", "grant_type", "/oauth/token"]
         let claudeCodeMarkers = ["Claude Code-credentials", "SystemClaudeKeychain", "ClaudeCredentialsSource", "ClaudeCredentials("]
         let sourcesByName = try Dictionary(uniqueKeysWithValues: claudeFiles.map { ($0.lastPathComponent, try String(contentsOf: $0, encoding: .utf8)) })
