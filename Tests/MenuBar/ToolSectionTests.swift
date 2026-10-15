@@ -88,10 +88,10 @@ struct ToolSectionTests {
     @Test(arguments: [
         (UsageProvider.claude, UsageUnavailableReason.unreachable, "Can't reach Anthropic", "Retrying in a few minutes."),
         (.claude, .rateLimited, "Anthropic asked to wait", "Retrying in a few minutes."),
-        (.claude, .signInExpired, "Claude Code sign-in expired", "Run claude, or sign in with Claude."),
-        (.claude, .signedOut, "Not signed in to Claude Code", "Run claude, then /login."),
+        (.claude, .signInExpired, "Sign-in expired", "Sign in to keep your limits current."),
+        (.claude, .signedOut, "Not signed in", "Sign in to see your limits."),
         (.claude, .keychainAccessNeeded, "Allow Keychain access", nil),
-        (.claude, .signInRequired, "Sign in to Claude again", nil),
+        (.claude, .signInRequired, "Sign in again", nil),
         (.cursor, .signedOut, "Not signed in to Cursor", "Sign in to Cursor to see usage."),
         (.cursor, .signInBusy, "Cursor is busy", "Retrying in a few minutes."),
         (.cursor, .notInstalled, "Cursor isn't installed", nil),

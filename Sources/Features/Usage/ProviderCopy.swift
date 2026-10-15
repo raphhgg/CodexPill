@@ -10,10 +10,10 @@ struct ProviderCopy: Sendable {
     let connectPrompt: ProviderPrompt?
     /// What the menu asks before Refill's own sign-in, for a tool that offers one.
     var signInPrompt: ProviderPrompt? = nil
-    /// How to sign in after signing out. By default, signing in to the tool.
-    var signInHint: String? = nil
-    /// What renews an expired sign-in. By default, opening the tool.
-    var renewHint: String? = nil
+    /// What the card says when the tool is signed out. By default, sign in to the tool.
+    var signedOutMessage: (title: String, detail: String?)? = nil
+    /// What the card says when the sign-in expired. By default, open the tool to renew it.
+    var expiredMessage: (title: String, detail: String?)? = nil
 
     /// What the menu asks before running `action`, or nil to run it right away.
     func prompt(for action: ProviderAction) -> ProviderPrompt? {
@@ -28,9 +28,9 @@ struct ProviderCopy: Sendable {
         let retrying = "Retrying in a few minutes."
         return switch reason {
         case .notInstalled: ("\(name) isn't installed", nil)
-        case .signedOut: ("Not signed in to \(name)", signInHint ?? "Sign in to \(name) to see usage.")
-        case .signInExpired: ("\(name) sign-in expired", renewHint ?? "Open \(name) to renew it.")
-        case .signInRequired: ("Sign in to \(sectionTitle) again", nil)
+        case .signedOut: signedOutMessage ?? ("Not signed in to \(name)", "Sign in to \(name) to see usage.")
+        case .signInExpired: expiredMessage ?? ("\(name) sign-in expired", "Open \(name) to renew it.")
+        case .signInRequired: ("Sign in again", nil)
         case .keychainAccessNeeded: ("Allow Keychain access", nil)
         case .signInUnreadable: ("Can't read the \(name) sign-in", "Sign in to \(name) again.")
         case .signInBusy: ("\(name) is busy", retrying)
@@ -63,8 +63,8 @@ extension UsageProvider {
                     detail: "Opens your browser. Refill keeps this sign-in in its own Keychain item.",
                     confirmTitle: "Sign In"
                 ),
-                signInHint: "Run claude, then /login.",
-                renewHint: "Run claude, or sign in with Claude."
+                signedOutMessage: ("Not signed in", "Sign in to see your limits."),
+                expiredMessage: ("Sign-in expired", "Sign in to keep your limits current.")
             )
         case .cursor:
             ProviderCopy(

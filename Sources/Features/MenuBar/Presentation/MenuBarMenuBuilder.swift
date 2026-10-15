@@ -89,6 +89,9 @@ struct MenuBarMenuBuilder {
             item.state = .on
             menu.addItem(item)
         }
+        if let source = section.signInSourceLabel {
+            menu.addItem(disabledItem(source))
+        }
         for other in section.otherAccounts {
             let actions = NSMenu(title: other.label)
             actions.addItem(providerItem(title: "Use", .switchAccount(other.id), for: provider, target: target))

@@ -43,9 +43,9 @@ The `Claude` card follows the shared card and side menu in [Menubar](menubar.md)
 
   | Cause | Title | Second line |
   |---|---|---|
-  | No sign-in | `Not signed in to Claude Code` | `Run claude, then /login.` |
-  | Token past its expiry, or `401` | `Claude Code sign-in expired` | `Run claude, or sign in with Claude.` |
-  | Refill's own sign-in gone, rejected, or `401` after one renewal | `Sign in to Claude again` | none |
+  | No sign-in | `Not signed in` | `Sign in to see your limits.` |
+  | Token past its expiry, or `401` | `Sign-in expired` | `Sign in to keep your limits current.` |
+  | Refill's own sign-in gone, rejected, or `401` after one renewal | `Sign in again` | none |
   | Credentials file or Keychain item unreadable or not JSON | `Can't read the Claude Code sign-in` | `Sign in to Claude Code again.` |
   | `403` | `Anthropic won't share usage` | `Sign in to Claude Code again.` |
   | `429`, or waiting out `Retry-After` | `Anthropic asked to wait` | `Retrying in a few minutes.` |
@@ -80,7 +80,7 @@ Both hold the same JSON. Refill decodes only `claudeAiOauth.accessToken`, `claud
 
 ## Refill's Own Sign-In
 
-**Source order.** `claudeUsesOwnSignIn` in user defaults picks the sign-in. While it is on, reads use Refill's own sign-in only. When that is missing or rejected, the card says `Sign in to Claude again`. It never falls back to Claude Code's sign-in, which may be another account. While it is off, reads use Claude Code's sign-in exactly as [Source Contract](#source-contract) describes. A browser sign-in that succeeds turns it on, even when the Keychain refused to save the sign-in. `Sign Out of Claude` and disconnecting turn it off.
+**Source order.** `claudeUsesOwnSignIn` in user defaults picks the sign-in. While it is on, reads use Refill's own sign-in only. When that is missing or rejected, the card says `Sign in again`. It never falls back to Claude Code's sign-in, which may be another account. While it is off, reads use Claude Code's sign-in exactly as [Source Contract](#source-contract) describes. A browser sign-in that succeeds turns it on, even when the Keychain refused to save the sign-in. `Sign Out of Claude` and disconnecting turn it off.
 
 **Sign-in.** OAuth 2.0 authorization code with PKCE (S256), the flow and public client Claude Code uses (client ID `9d1c250a-e61b-44d9-88ed-5944d1962f5e`). The browser opens `https://claude.com/cai/oauth/authorize` with scope `user:profile`, a random `state`, and a redirect to `http://localhost:<port>/callback` on a listener bound to the loopback interface. A callback with another `state` is refused. Refill trades the code at `https://platform.claude.com/v1/oauth/token`, reads the email from `account.email_address` if present, then reads `GET https://api.anthropic.com/api/oauth/profile` once for the plan (`organization.organization_type` with the `NNx` suffix of `organization.rate_limit_tier`, such as `max_20x`) and the email as a fallback. A failed profile read never fails the sign-in. The sign-in times out after 5 minutes.
 
