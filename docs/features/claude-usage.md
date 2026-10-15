@@ -8,7 +8,7 @@ As a Refill user who also works in Claude Code on a Pro or Max plan, I want to s
 
 Claude Usage is an optional menu bar feature. When connected, Refill shows the 5-hour and weekly limits of the Claude account that Claude Code is signed in to.
 
-Reading usage never changes anything in Claude Code. Refill never signs in to Claude, never renews a sign-in itself, and never calls Anthropic's token endpoint. If Claude Code's sign-in is missing, Refill says so and points the user back to Claude Code. When it has expired and no terminal `claude` runs, Refill runs `claude doctor` so Claude Code renews it, described in [Live Renewal](#live-renewal). Refill shows only the account Claude Code is signed in to, by its email. It never saves, adds, or switches Claude accounts, and it never writes Claude Code's files or Keychain item.
+Reading usage never changes anything in Claude Code. Refill never signs in to Claude, never renews a sign-in, never calls Anthropic's token endpoint, and never runs `claude`. If Claude Code's sign-in is missing or expired, Refill says so and points the user back to Claude Code, as [No Renewal](#no-renewal) explains. Refill shows only the account Claude Code is signed in to, by its email. It never saves, adds, or switches Claude accounts, and it never writes Claude Code's files or Keychain item.
 
 The feature is off by default. Connecting it is the user's consent for Refill to read Claude Code's sign-in and send it to Anthropic.
 
@@ -35,7 +35,7 @@ The `Claude` card follows the shared card and side menu in [Menubar](menubar.md)
 
   | Cause | Title | Second line |
   |---|---|---|
-  | No sign-in | `Not signed in to Claude Code` | `Sign in to Claude Code to see usage.` |
+  | No sign-in | `Not signed in to Claude Code` | `Run claude, then /login.` |
   | Token past its expiry, or `401` | `Claude Code sign-in expired` | `Run claude to renew it.` |
   | Credentials file or Keychain item unreadable or not JSON | `Can't read the Claude Code sign-in` | `Sign in to Claude Code again.` |
   | `403` | `Anthropic won't share usage` | `Sign in to Claude Code again.` |
@@ -75,31 +75,27 @@ When Token Usage is also on, the Token Usage card adds Claude Code's daily token
 
 ## Read Policy
 
-- Expired token (`expiresAt` in the past): no request. The menu shows sign-in expired, then Refill lets Claude Code renew it (see [Live Renewal](#live-renewal)).
+- Expired token (`expiresAt` in the past): no request. The menu shows sign-in expired until Claude Code renews it (see [No Renewal](#no-renewal)).
 - `401`: sign-in expired.
 - `403`: access denied. Anthropic knows the token but won't share usage with it, for example a token without the profile scope.
 - `429`: no request until `Retry-After` passes, given as seconds or an HTTP date, or 5 minutes when the header is missing or unreadable. The menu shows rate limited meanwhile.
 - Network failure: unreachable. Another status: service error. An unreadable body: unexpected response. The shared provider runtime keeps the last good values for all of these.
 - Refill holds the token only for the length of one read. It never stores, logs, displays, or refreshes it. `ClaudeAccessToken` prints as `ClaudeAccessToken(redacted)` and reflects no children.
 
-## Live Renewal
+## No Renewal
 
-Claude Code's access token lasts 8 hours, and Claude Code renews it only while it runs. So after a read finds the live sign-in expired, Refill runs `claude doctor` with Claude Code's own config (no `CLAUDE_CONFIG_DIR` unless Claude Code itself uses one). Claude Code renews an expired sign-in whenever it runs, without a model call, rotates the refresh token, and saves the result where it always does. Refill then reads usage again.
+Claude Code's access token lasts 8 hours, and Claude Code renews it only while it runs. Refill never renews it and never starts `claude` to make Claude Code do it. Running `claude` in a terminal renews it, and the next read picks up the new token.
 
-- Only when the token's `expiresAt` has passed, never early. A `401` on a token that has not expired does not count.
-- Only when `claude` is installed and no terminal `claude` session runs, since a running one renews its own token. The Claude desktop app's own Claude Code, under `~/Library/Application Support/Claude/claude-code/`, is ignored because it keeps its own sign-in.
-- At most once per expiry, and again for the same expiry only after 30 minutes, so a sign-in Claude Code can't renew does not run `claude doctor` on every read. It then stays `Claude Code sign-in expired`.
-- One renewal at a time.
-- The expiry is read without the Keychain prompt. If the read needs the prompt, nothing runs.
-- `claude` runs with a minimal environment (none of the user's shell variables), stdin open and empty, and its output discarded.
+A test build once ran `claude doctor` in the background to renew an expired sign-in. That logged Claude Code out on 2026-10-15. `doctor` renews the token only as a side effect and can exit before it saves the renewed token. A later run then sends the used refresh token, Anthropic answers `invalid_grant`, and Claude Code clears both tokens. Claude Code has no command that renews a sign-in safely without a terminal, so Refill does not try.
+
+Refill logs when a tool's sign-in becomes expired or signed out, with the category only.
 
 ## Isolated Runs
 
-With `REFILL_ISOLATED_APP_SUPPORT_DIR` set, Refill never reads the real Claude sign-in or runs the real `claude`:
+With `REFILL_ISOLATED_APP_SUPPORT_DIR` set, Refill never reads the real Claude sign-in:
 
 - The config folder is `CLAUDE_CONFIG_DIR` when set, otherwise `<root>/.claude`. Only its `.credentials.json` and `.claude.json` are read.
 - The Keychain is skipped, so a missing file reads as signed out. An expired sign-in in that file shows the sign-in expired state without any request.
-- The only `claude` it runs is `<root>/bin/claude`, so a test build can use a stand-in script for renewal.
 
 ## Privacy
 
@@ -110,9 +106,7 @@ The user-facing summary lives in [PRIVACY.md](../PRIVACY.md).
 - `ClaudeCredentialsTests` parse literal credentials, including the `mcpOAuth`-only case, prove the file wins over the Keychain, and prove the token appears in no `String(describing:)`, `String(reflecting:)`, or `dump` output of the credentials or the request.
 - `ClaudeUsageAPITests` cover the response mapping, the request headers, the redirect rule, and status mapping for `401` and `429`. `RetryAfterTests` cover the shared `Retry-After` parser.
 - `ClaudeCodeUsageTests` cover opt-in, the Keychain prompt only after a user action, the expiry gate, each failure state, and the rate-limit wait. A scan in `ClaudeCredentialsTests` proves no Claude source uses a refresh token, and other `ClaudeCredentialsTests` read the plan tier and the email from the account record.
-- `ClaudeLiveRenewalTests` run `ClaudeCodeUsage` against a fake `claude`: renewal after expiry only, not while `claude` runs, the 30-minute retry, and a fresh read once Claude Code renewed.
-- `ClaudeCodeProcessDetectorTests` feed `ps` lines and check that terminal Claude Code counts in every install form, and that the Claude desktop app's own Claude Code does not.
-- `ClaudeCodeProcessRunnerTests` run a stand-in `claude` script to check the exact `CLAUDE_CONFIG_DIR`, the minimal environment, and that cancelling stops a waiting run.
+- `ClaudeLiveSignInTests` run the provider runtime over a temp sign-in: an expired one stays expired over an hour of reads and sends no token, one Claude Code renewed is read on the next refresh, and one Claude Code cleared shows signed out.
 - `ProviderCopyTests` checks that every failure reads differently and stays a title plus one short line.
 - `ClaudeCodeSecurityKeychainTests` check the `security` arguments and timeouts, text and hex passwords, and that each exit status reads as signed out, access needed or unreadable.
 - `UsageReadFailureTests` check that a failed read logs only its category, such as `http 503`.

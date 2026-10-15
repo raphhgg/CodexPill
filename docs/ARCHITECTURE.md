@@ -35,7 +35,7 @@ Features -> Core
 
 A port lives in one of two places:
 
-- In Platform, next to its adapter, when the adapter is the only thing that implements it: `CodexAppProcessClient`, `CodexResetCreditClient`, `IsolatedCodexLoginClient`, `ClaudeCodeProcessRunning`, `ClaudeCodeProcessDetecting`, `SecurityCommandRunning`.
+- In Platform, next to its adapter, when the adapter is the only thing that implements it: `CodexAppProcessClient`, `CodexResetCreditClient`, `IsolatedCodexLoginClient`, `SecurityCommandRunning`.
 - In the Features file that uses it, when a feature needs a narrower view of a Platform type. The Platform type adopts it through an extension in that same Features file, so Platform stays unaware of it: `AccountCatalogStore`, `AccountCatalogLoader`, `CodexAuthActivator`, `LiveCodexAccountIdentitySource`.
 
 App injects the adapter either way.
@@ -99,18 +99,15 @@ protocol ProviderConnection: UsageProviderSource {
     var isConnected: Bool { get }
     func connect() async
     func disconnect() async
-    func renewLiveSignInIfNeeded(now: Date) async -> Bool
 }
 ```
-
-`renewLiveSignInIfNeeded(now:)` lets the tool renew its own expired live sign-in while the tool is not running, and returns true when the sign-in changed. Claude runs `claude doctor` with Claude Code's own config, once per expiry with a 30-minute retry. The default does nothing.
 
 Its words go in `ProviderCopy` under its `UsageProvider` case. Nothing else changes: no selector, coordinator property, or menu-builder branch names a tool.
 
 - Every tool menu item, Codex included, carries a `ProviderMenuAction` (tool plus `ProviderAction`) and calls `MenuBarCoordinator.performProviderAction(_:)`.
 - The coordinator asks the `ProviderCopy` confirmation, if any, then runs the action in a tracked task through `ProviderUsageRuntime.perform(_:on:)`.
 - The runtime reads the tool again after every action.
-- After a read, the coordinator asks the runtime to renew each tool whose reading is sign-in expired. One renewal runs at a time. A tool that renewed is read again.
+- Refill never renews a tool's sign-in or starts the tool. The runtime logs when a reading becomes expired or signed out, with the category only.
 - The port has no account methods: Claude Code and Cursor show only the account their own app is signed in to, and Refill never writes their sign-ins.
 - Codex is not a connection: its usage lives on each saved `CodexAccount` and adding an account is an interactive sign-in panel. The coordinator routes `.codex` actions to `AccountsController`, which refreshes the new active account after a switch and never runs a reset credit and an account change at the same time.
 
@@ -166,12 +163,10 @@ The active account's read is complete once it has the account and at least one l
 
 `Platform/Claude` owns everything Refill knows about Claude Code. It never writes Claude Code's files or Keychain item. It owns:
 
-- reading its sign-in from `.credentials.json` and the `Claude Code-credentials` Keychain item, which it reads through `/usr/bin/security` as Claude Code does, so renewals don't bring back a Keychain prompt, and never writes (`ClaudeCredentialsSource`, `SystemClaudeKeychain`, `ClaudeCodeSecurityKeychain`), and the plan tier and email from the account record in its global config;
+- reading its sign-in from `.credentials.json` and the `Claude Code-credentials` Keychain item, which it reads through `/usr/bin/security` as Claude Code does, so Claude Code's renewals don't bring back a Keychain prompt, and never writes (`ClaudeCredentialsSource`, `SystemClaudeKeychain`, `ClaudeCodeSecurityKeychain`), and the plan tier and email from the account record in its global config;
 - the `api.anthropic.com/api/oauth/usage` request, its redirect rule, its rate-limit wait, and parsing its response (`ClaudeUsageAPI`, `ClaudeUsageClient`);
-- running `claude doctor` so Claude Code renews its own expired sign-in (`ClaudeCodeCommands`, `SystemClaudeCodeProcessRunner`);
-- whether terminal Claude Code is running, behind the `ClaudeCodeProcessDetecting` port. Renewal waits while it runs. The Claude desktop app's own Claude Code is ignored.
 
-The access token leaves this module only as the usage request's `Authorization` header. Nothing in it reads, sends, or renews Claude Code's refresh token; a test scans the Claude sources to keep it that way. Renewal is always Claude Code's own, through `claude doctor`.
+The access token leaves this module only as the usage request's `Authorization` header. Nothing in it reads, sends, or renews Claude Code's refresh token; a test scans the Claude sources to keep it that way. Nothing in it starts `claude`: only the user's own `claude` renews the sign-in.
 
 `Platform/Cursor` owns everything Refill knows about Cursor. It never writes Cursor's database or quits Cursor. It owns:
 
