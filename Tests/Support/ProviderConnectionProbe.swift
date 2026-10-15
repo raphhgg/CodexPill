@@ -3,12 +3,15 @@ import os
 
 @testable import Refill
 
-/// A tool connection whose reading the test sets. It counts reads. Once disconnected it reads nothing.
+/// A tool connection whose reading the test sets. It counts reads. Once disconnected it reads nothing. Its own sign-in
+/// and sign-out fail with `notice` when one is set.
 final class ProviderConnectionProbe: ProviderConnection {
     struct State {
         var reading: UsageProviderReading
         var readCount = 0
         var isDisconnected = false
+        var ownSignIn = ProviderOwnSignIn.unsupported
+        var notice: ProviderNotice?
     }
 
     let provider: UsageProvider
@@ -51,4 +54,14 @@ final class ProviderConnectionProbe: ProviderConnection {
 
     func connect() async { update { $0.isDisconnected = false } }
     func disconnect() async { update { $0.isDisconnected = true } }
+
+    var ownSignIn: ProviderOwnSignIn { state.withLock { $0.ownSignIn } }
+
+    func signIn() async throws(ProviderNotice) {
+        if let notice = state.withLock({ $0.notice }) { throw notice }
+    }
+
+    func signOut() async throws(ProviderNotice) {
+        if let notice = state.withLock({ $0.notice }) { throw notice }
+    }
 }

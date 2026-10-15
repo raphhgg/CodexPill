@@ -57,16 +57,17 @@ Every tool uses the same card. It is one hover cell with a side menu and no chev
 
 Hovering a card opens its side menu:
 
-1. The email of the account in use, checked and disabled. For Claude and Cursor it is the account their own app is signed in to, from the last reading.
+1. The email of the account in use, checked and disabled. For Claude and Cursor it is the account of the last reading: their own app's sign-in, or Refill's own Claude sign-in.
 2. Codex only: one row per other saved account, by email. Each row opens `Use` and `Remove…`. `Remove…` asks first. Removing a Codex account also signs this Mac out when `auth.json` still uses it.
    An account without an email reads as its workspace, then its plan (`Plus account`), else `Saved account`. Repeated labels get a number in saved order: `Saved account 2`. Alerts name an account with the same label.
    Each one carries that account's last limits on a second, smaller line, in the user's % used or % left: `Session 12% · Weekly 40% used`, `Weekly 17% used` for Codex Pro, or `Monthly 3% used` for Codex Free. A reading older than 30 minutes adds `· as of 10:26`.
-3. Codex only: `Use a Reset…`, then one disabled `Expires <date>` line per credit Codex listed, and `Token Usage ›` when token usage is on ([Token Usage](token-usage.md)).
-4. `Move to Top`, `Move Up`, `Move Down`, when there is more than one card. Moves that do not apply are disabled.
-5. Claude only: `Show Fable Limits`, named after the models with their own limit in the current reading (`Show Fable and Opus Limits` for two). Hidden when the reading has none. See [Claude Usage](claude-usage.md).
-6. Codex only: `Add Codex Account…`.
+3. Claude only: `Sign in with Claude…` while Refill's own Claude sign-in is off, or `Sign Out of Claude` while it is on. See [Claude Usage](claude-usage.md#refills-own-sign-in).
+4. Codex only: `Use a Reset…`, then one disabled `Expires <date>` line per credit Codex listed, and `Token Usage ›` when token usage is on ([Token Usage](token-usage.md)).
+5. `Move to Top`, `Move Up`, `Move Down`, when there is more than one card. Moves that do not apply are disabled.
+6. Claude only: `Show Fable Limits`, named after the models with their own limit in the current reading (`Show Fable and Opus Limits` for two). Hidden when the reading has none. See [Claude Usage](claude-usage.md).
+7. Codex only: `Add Codex Account…`.
 
-Claude and Cursor have no other account rows: Refill reads only the account their own app is signed in to. A Claude or Cursor side menu with one card and no model limit holds only the email. The Codex account in use has no remove item. `Appearance › Show Tools` hides a tool.
+Claude and Cursor have no other account rows: Refill reads one account at a time. A Cursor side menu with one card holds only the email. The Codex account in use has no remove item. `Appearance › Show Tools` hides a tool.
 
 `Hide Emails` masks every email the menu, its alerts and the tooltip show: `alex.side@example.com` reads `al•••e@example.com`. The domain stays visible.
 

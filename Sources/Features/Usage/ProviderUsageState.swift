@@ -4,6 +4,8 @@ import Foundation
 struct ProviderUsageState: Equatable {
     let provider: UsageProvider
     let status: ProviderUsageStatus
+    /// Whether the menu can offer Refill's own sign-in for this tool, and which way.
+    var ownSignIn: ProviderOwnSignIn = .unsupported
 }
 
 enum ProviderUsageStatus: Equatable {

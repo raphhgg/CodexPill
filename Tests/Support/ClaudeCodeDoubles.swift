@@ -15,8 +15,20 @@ struct FileClaudeCodeKeychain: ClaudeKeychainReading {
 /// `/api/oauth/usage` answering each fake access token with its own numbers. Unknown tokens get 401.
 final class FakeClaudeUsageServer: ClaudeUsageWebClient, @unchecked Sendable {
     private let lock = NSLock()
+    private let log: ClaudeEventLog?
     private var sessionPercents: [String: Int] = [:]
     private var tokens: [String] = []
+    private var currentProfile: ClaudeProfile?
+
+    init(log: ClaudeEventLog? = nil) {
+        self.log = log
+    }
+
+    /// What `/api/oauth/profile` answers. Nil reads as a failed profile request.
+    var profile: ClaudeProfile? {
+        get { lock.withLock { currentProfile } }
+        set { lock.withLock { currentProfile = newValue } }
+    }
 
     func answer(_ token: String, sessionPercent: Int) {
         lock.withLock { sessionPercents[token] = sessionPercent }
@@ -26,12 +38,17 @@ final class FakeClaudeUsageServer: ClaudeUsageWebClient, @unchecked Sendable {
     var requests: [String] { lock.withLock { tokens } }
 
     func usage(using token: ClaudeAccessToken) async throws(ClaudeUsageWebError) -> Data {
-        let value = String(token.authorizationHeaderValue.dropFirst("Bearer ".count))
+        let value = token.exposedValue
+        log?.append("usage(\(value))")
         let percent = lock.withLock {
             tokens.append(value)
             return sessionPercents[value]
         }
         guard let percent else { throw .unauthorized }
         return Data(#"{"five_hour":{"utilization":\#(percent),"resets_at":"2030-01-01T00:00:00Z"},"seven_day":{"utilization":21,"resets_at":"2030-01-05T00:00:00Z"}}"#.utf8)
+    }
+
+    func profile(using _: ClaudeAccessToken) async -> ClaudeProfile? {
+        profile
     }
 }

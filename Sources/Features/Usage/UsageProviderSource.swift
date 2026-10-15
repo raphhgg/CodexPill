@@ -31,6 +31,8 @@ enum UsageUnavailableReason: Equatable, Sendable {
     case signedOut
     /// The sign-in is past its expiry, or the provider rejected it (HTTP 401).
     case signInExpired
+    /// Refill's own sign-in is gone or was rejected. Only a new sign-in helps.
+    case signInRequired
     /// The sign-in exists, but macOS needs the user to allow Refill to read it.
     case keychainAccessNeeded
     /// The sign-in exists but could not be read or parsed.
@@ -48,8 +50,9 @@ enum UsageUnavailableReason: Equatable, Sendable {
     /// The provider answered, but not in the shape Refill reads.
     case unexpectedResponse
 
-    /// The last good numbers stay on screen only while they still belong to the same signed-in account.
+    /// The last good numbers stay on screen only while they still belong to the same signed-in account. After a new
+    /// sign-in is required, the next one may be another account.
     var keepsLastSnapshot: Bool {
-        self != .signedOut && self != .notInstalled
+        self != .signedOut && self != .notInstalled && self != .signInRequired
     }
 }

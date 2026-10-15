@@ -28,6 +28,15 @@ it again.
 
 It is fine if `defaults delete` says the domain does not exist.
 
+If you used `Sign in with Claude…`, choose `Sign Out of Claude` first, so
+Anthropic revokes the sign-in. Then remove Refill's own Claude sign-in and its
+lock file:
+
+```sh
+security delete-generic-password -s "Refill Claude sign-in"
+rm -f "$HOME/Library/Application Support/Refill/claude-sign-in.lock"
+```
+
 Refill never writes Claude Code's or Cursor's files or Keychain items, so
 there is nothing of theirs to remove. Test builds could save Claude Code and
 Cursor accounts. If you ran one, remove what it left. Run the first command

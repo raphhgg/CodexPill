@@ -9,6 +9,10 @@ struct ToolSection: Equatable {
     let accounts: [ToolAccount]
     /// An action row under the card while its state lasts, such as "Allow Keychain Access…".
     let followUp: ToolFollowUp?
+    /// "Sign in with Claude…" or "Sign Out of Claude" in the side menu, for a tool Refill can sign in to itself.
+    var signInItem: ToolMenuItem? = nil
+    /// Which sign-in the reading came from, when it isn't Refill's own, such as "Uses Claude Code's sign-in".
+    var signInSourceLabel: String? = nil
     /// The email Claude or Cursor is signed in to, masked when Hide Emails is on.
     var signedInLabel: String? = nil
     /// The models with their own Claude limit in the current reading, such as ["Fable"], even while they are hidden.
@@ -52,6 +56,11 @@ struct ToolAccount: Equatable {
 struct ToolFollowUp: Equatable {
     let title: String
     let systemImage: String
+    let action: ProviderAction
+}
+
+struct ToolMenuItem: Equatable {
+    let title: String
     let action: ProviderAction
 }
 
@@ -154,7 +163,15 @@ extension MenuBarMenuState {
             }
             if reason == .keychainAccessNeeded {
                 followUp = ToolFollowUp(title: "Allow Keychain Access…", systemImage: "key", action: .allowKeychainAccess)
+            } else if usage.ownSignIn != .unsupported, [.signedOut, .signInExpired, .signInRequired].contains(reason) {
+                followUp = ToolFollowUp(title: "Sign in with \(copy.sectionTitle)…", systemImage: "person.crop.circle", action: .signIn)
             }
+        }
+        // A card that needs a sign-in already shows it as its follow-up, so the side menu doesn't repeat it.
+        let signInItem: ToolMenuItem? = switch usage.ownSignIn {
+        case .unsupported: nil
+        case .signedOut: followUp?.action == .signIn ? nil : ToolMenuItem(title: "Sign in with \(copy.sectionTitle)…", action: .signIn)
+        case .signedIn: ToolMenuItem(title: "Sign Out of \(copy.sectionTitle)", action: .signOut)
         }
 
         return ToolSection(
@@ -163,6 +180,8 @@ extension MenuBarMenuState {
             card: card,
             accounts: [],
             followUp: followUp,
+            signInItem: signInItem,
+            signInSourceLabel: usage.ownSignIn == .signedOut && snapshot != nil ? "Uses \(copy.name)'s sign-in" : nil,
             signedInLabel: snapshot?.accountEmail.map { displayedEmail($0, masked: masksEmails) },
             modelLimitNames: snapshot?.windows.compactMap { window in
                 if case let .modelWeekly(modelName) = window.kind { modelName } else { nil }

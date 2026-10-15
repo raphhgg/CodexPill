@@ -141,7 +141,10 @@ open -n \
 - `CODEX_HOME` points the `codex app-server` that Refill starts at the same
   `auth.json`.
 - Claude usage reads `.credentials.json` from `CLAUDE_CONFIG_DIR`, or from
-  `<root>/.claude`, and never the Keychain.
+  `<root>/.claude`, and never the Keychain. Refill's own Claude sign-in lives
+  in `<root>/claude-sign-in.json` (0600) with its lock in
+  `<root>/claude-sign-in.lock`, never in the Keychain. `Sign in with Claude…`
+  still opens the real browser and a loopback port.
 - Cursor usage reads `<root>/Cursor/state.vscdb`, never Cursor's real database.
 - Token Usage reads Codex sessions from `<root>/sessions`, never
   `~/.codex/sessions`.

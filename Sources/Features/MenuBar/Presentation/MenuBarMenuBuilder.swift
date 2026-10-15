@@ -89,6 +89,9 @@ struct MenuBarMenuBuilder {
             item.state = .on
             menu.addItem(item)
         }
+        if let source = section.signInSourceLabel {
+            menu.addItem(disabledItem(source))
+        }
         for other in section.otherAccounts {
             let actions = NSMenu(title: other.label)
             actions.addItem(providerItem(title: "Use", .switchAccount(other.id), for: provider, target: target))
@@ -97,6 +100,11 @@ struct MenuBarMenuBuilder {
             menu.addItem(accountItem(other, submenu: actions))
         }
         addSeparatorIfNeeded(to: menu)
+
+        if let signIn = section.signInItem {
+            menu.addItem(providerItem(title: signIn.title, signIn.action, for: provider, target: target))
+            addSeparatorIfNeeded(to: menu)
+        }
 
         if let credits = section.card.resetCredits {
             let use = providerItem(title: "Use a Reset…", .useResetCredit, for: provider, target: target)

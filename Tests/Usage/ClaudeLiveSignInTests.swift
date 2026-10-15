@@ -83,8 +83,14 @@ private final class ClaudeLiveSignInFixture: @unchecked Sendable {
                     configDirectory: root.appendingPathComponent(".claude", isDirectory: true),
                     keychain: FileClaudeCodeKeychain(fileURL: root.appendingPathComponent("keychain-item.json"))
                 ),
+                ownSignIn: ClaudeOwnSignIn(
+                    store: FileClaudeSignInStore(fileURL: root.appendingPathComponent("claude-sign-in.json")),
+                    tokenEndpoint: FakeClaudeTokenServer(),
+                    lock: ClaudeRefreshLock(fileURL: root.appendingPathComponent("claude-sign-in.lock"))
+                ),
                 webClient: server
-            )
+            ),
+            signInFlow: ScriptedClaudeSignInFlow()
         )
     }
 
