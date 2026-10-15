@@ -1,6 +1,6 @@
 # Privacy And Data Handling
 
-Refill is a local macOS menubar utility for Codex account switching and limit visibility. It can also show Claude Code and Cursor usage if you connect them. For those two tools it only reads. It never writes their files or Keychain items. The one thing it runs is `claude doctor`, which lets Claude Code renew its own expired sign-in. Its most sensitive data is Codex authentication state. Treat saved account snapshots as secrets.
+Refill is a local macOS menubar utility for Codex account switching and limit visibility. It can also show Claude Code and Cursor usage if you connect them. For those two tools it only reads. It never writes their files or Keychain items, and it never runs them. Its most sensitive data is Codex authentication state. Treat saved account snapshots as secrets.
 
 Refill was called CodexPill before. On its first launch Refill copies CodexPill's saved Codex accounts and settings into its own folder and preferences, unless Refill already has data. It does not copy Claude or Cursor accounts a test build may have saved. It never changes or deletes CodexPill's copies. [Uninstall And Reset](UNINSTALL_RESET.md) explains how to remove them.
 
@@ -14,7 +14,6 @@ During normal use, Refill may read:
 - Local process information to detect running Codex CLI sessions when a switch may require a restart or user action.
 - Refill-owned state under `~/Library/Application Support/Refill`.
 - Claude Code's sign-in, from `~/.claude/.credentials.json` or the `Claude Code-credentials` Keychain item, while Claude Code usage is connected. See [Claude Code](#claude-code).
-- Local process information to detect a running terminal Claude Code before letting Claude Code renew its expired sign-in.
 - Cursor's access token and cached email from Cursor's local database, while Cursor usage is connected. See [Cursor](#cursor).
 
 ## What Refill Writes Or Stores
@@ -45,9 +44,7 @@ Refill never signs in to Claude, never calls Anthropic's token endpoint, and nev
 
 If macOS refuses `security` access, for example while the Keychain is locked, the card keeps the last limits and offers `Allow Keychain Access…`. That retry gives you time to answer a macOS prompt. Refill never stores, logs, or displays the token, and it never reads browser cookies or Claude conversations. Unchecking `Appearance › Show Tools › Claude` turns usage off and stops all reads.
 
-**Renewal by Claude Code.** When Claude Code usage is connected, Claude Code's live token has expired, and no terminal `claude` session runs, Refill runs `claude doctor` with Claude Code's own config folder (no `CLAUDE_CONFIG_DIR` unless Claude Code itself uses one). Claude Code renews its own sign-in, makes no model call, and saves the result where it always does. Refill only reads the new expiry, then reads usage again. It runs at most once per expiry, and again for the same expiry only after 30 minutes.
-
-Refill runs the `claude` command it finds in `~/.local/bin`, `~/.claude/local`, `/opt/homebrew/bin`, or `/usr/local/bin`, with only `HOME`, `USER`, `LOGNAME`, `PATH`, `TMPDIR`, and `CLAUDE_CONFIG_DIR` set, so none of your shell variables, such as an API key, reach it. Its output is discarded. The process check counts only terminal `claude` sessions. The Claude desktop app's own Claude Code, under `~/Library/Application Support/Claude/claude-code/`, is ignored because it keeps its own sign-in. If the process table can't be read, Refill treats Claude Code as running.
+**No renewal.** Refill never starts `claude`. When Claude Code's token expires, the card says so until you run `claude`, which renews it. A background renewal could log Claude Code out, so Refill leaves it to you.
 
 ## Cursor
 
@@ -83,7 +80,7 @@ Accessibility may still be useful for development or validation tooling that ins
 
 ## Network And External Services
 
-Refill talks to Codex through local Codex surfaces. When Claude Code usage is on, it also calls api.anthropic.com with Claude Code's own sign-in token, and `claude doctor` lets Claude Code talk to Anthropic itself to renew an expired sign-in. When Cursor usage is on, it calls cursor.com with Cursor's own sign-in token. It must not send Codex auth snapshots, raw auth payloads, or tokens to analytics services, crash-reporting systems, issue trackers, or any other third-party API. A token may go only to the service that issued it.
+Refill talks to Codex through local Codex surfaces. When Claude Code usage is on, it also calls api.anthropic.com with Claude Code's own sign-in token. When Cursor usage is on, it calls cursor.com with Cursor's own sign-in token. It must not send Codex auth snapshots, raw auth payloads, or tokens to analytics services, crash-reporting systems, issue trackers, or any other third-party API. A token may go only to the service that issued it.
 
 If future features add status-page checks, diagnostics export, or usage statistics, they must keep the same rule: aggregate or redact data before it leaves the machine, and never include raw auth payloads or tokens.
 

@@ -14,13 +14,6 @@ protocol ProviderConnection: UsageProviderSource {
     /// asked. Calling it again, as "Allow Keychain Access…" does, only allows the prompt again.
     func connect() async
     func disconnect() async
-    /// Lets the tool renew its own expired live sign-in while the tool is not running. True when the sign-in changed,
-    /// so the tool should be read again.
-    func renewLiveSignInIfNeeded(now: Date) async -> Bool
-}
-
-extension ProviderConnection {
-    func renewLiveSignInIfNeeded(now _: Date) async -> Bool { false }
 }
 
 /// One thing the user asked a tool section to do. Every tool menu item carries one, for any tool.

@@ -60,9 +60,8 @@ struct AppComposition {
         return MenuBarAlertFactory().makeCodexPillDataNotCopiedRequest()
     }
 
-    /// An isolated run never touches the real Claude sign-in or the real `claude`: it reads `.credentials.json` from
-    /// `CLAUDE_CONFIG_DIR`, or from `.claude` inside the isolated root, skips the Keychain, and runs only a `claude`
-    /// placed in `bin` inside the isolated root.
+    /// An isolated run never touches the real Claude sign-in: it reads `.credentials.json` from `CLAUDE_CONFIG_DIR`,
+    /// or from `.claude` inside the isolated root, and skips the Keychain.
     private static func makeClaudeCodeUsage(
         environment: [String: String],
         defaults: UserDefaults,
@@ -85,14 +84,7 @@ struct AppComposition {
                         globalConfigFile: configDirectory.appendingPathComponent(".claude.json")
                     ),
                     webClient: webClient
-                ),
-                commands: ClaudeCodeCommands(
-                    processes: SystemClaudeCodeProcessRunner(
-                        searchDirectories: [isolatedRootDirectory.appendingPathComponent("bin", isDirectory: true)]
-                    )
-                ),
-                processes: SystemClaudeCodeProcessDetector(),
-                liveConfigDirectory: configDirectory.path
+                )
             )
         }
 
@@ -109,10 +101,7 @@ struct AppComposition {
                     )
                 ),
                 webClient: webClient
-            ),
-            commands: ClaudeCodeCommands(processes: SystemClaudeCodeProcessRunner()),
-            processes: SystemClaudeCodeProcessDetector(),
-            liveConfigDirectory: hasConfigDirectoryOverride ? environment["CLAUDE_CONFIG_DIR"] : nil
+            )
         )
     }
 

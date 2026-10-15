@@ -575,7 +575,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private func refreshProviderUsageIfDue(forcing forcedProvider: UsageProvider? = nil) {
         tasks.start { [weak self] in
             await self?.providerUsageRuntime.refreshIfDue(forcing: forcedProvider)
-            await self?.providerUsageRuntime.renewLiveSignInsIfNeeded()
         }
     }
 
