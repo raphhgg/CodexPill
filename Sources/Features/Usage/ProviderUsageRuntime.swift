@@ -1,9 +1,12 @@
 import Foundation
+import OSLog
+
+private let providerUsageLogger = Logger(subsystem: "com.raphhgg.refill", category: "ProviderUsage")
 
 /// Owns every connected tool other than Codex: reads each at most once per its `refreshInterval`, keeps its latest
 /// reading and its last good snapshot for the menu, and runs the actions the menu sends.
 ///
-/// A tool's expired live sign-in is renewed by the tool itself, one renewal at a time.
+/// Refill never renews a tool's sign-in. When it expires or goes away, the tool's card asks the user to open the tool.
 @MainActor
 final class ProviderUsageRuntime {
     nonisolated static let refreshInterval: TimeInterval = 5 * 60
@@ -14,7 +17,6 @@ final class ProviderUsageRuntime {
     private var readings: [UsageProvider: UsageProviderReading] = [:]
     private var lastSnapshots: [UsageProvider: UsageSnapshot] = [:]
     private var lastRefreshStartedAt: [UsageProvider: Date] = [:]
-    private var isRenewingLiveSignIns = false
 
     init(
         connections: [any ProviderConnection],
@@ -87,6 +89,7 @@ final class ProviderUsageRuntime {
                 group.addTask { (connection.provider, await connection.readUsage(now: startedAt)) }
             }
             for await (provider, reading) in group {
+                Self.logSignInLoss(of: provider, from: readings[provider], to: reading)
                 readings[provider] = reading
                 switch reading {
                 case let .snapshot(snapshot):
@@ -101,18 +104,14 @@ final class ProviderUsageRuntime {
         onChange()
     }
 
-    /// Lets each tool whose last read found its sign-in expired renew it, then reads again every tool that renewed.
-    func renewLiveSignInsIfNeeded() async {
-        let expired = connections.filter { readings[$0.provider] == .unavailable(.signInExpired) }
-        guard !expired.isEmpty, !isRenewingLiveSignIns else { return }
-        isRenewingLiveSignIns = true
-        var renewed: [UsageProvider] = []
-        for connection in expired where await connection.renewLiveSignInIfNeeded(now: now()) {
-            renewed.append(connection.provider)
-        }
-        isRenewingLiveSignIns = false
-        for provider in renewed {
-            await refreshIfDue(forcing: provider)
+    /// Logs the moment a tool's sign-in expires or goes away, with the reason's category only.
+    private static func logSignInLoss(of provider: UsageProvider, from previous: UsageProviderReading?, to reading: UsageProviderReading) {
+        guard reading != previous, case let .unavailable(reason) = reading else { return }
+        let name = provider.copy.name
+        switch reason {
+        case .signedOut: providerUsageLogger.notice("\(name, privacy: .public) is now signed out")
+        case .signInExpired: providerUsageLogger.notice("\(name, privacy: .public) sign-in is now expired")
+        default: break
         }
     }
 }
