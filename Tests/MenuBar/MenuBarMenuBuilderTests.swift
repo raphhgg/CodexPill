@@ -1028,6 +1028,40 @@ struct MenuBarMenuBuilderTests {
         #expect(side.items[2...4].compactMap { $0.representedObject as? [UsageProvider] } == [[.codex, .claude, .cursor]])
     }
 
+    @Test
+    func aSignedOutClaudeOffersRefillsOwnSignInUnderTheCardAndInItsSideMenu() throws {
+        let menu = MenuBarMenuBuilder().makeMenu(
+            state: makeState(
+                activeAccount: nil,
+                providerUsage: [ProviderUsageState(provider: .claude, status: .unavailable(.signInExpired, lastSnapshot: nil), ownSignIn: .signedOut)]
+            ),
+            target: try makeCoordinator()
+        )
+
+        let side = try #require(menu.items.first?.submenu)
+
+        #expect(Array(menu.items.map(\.title).prefix(4)) == ["Claude", "Sign in with Claude…", "", "Add Account"])
+        #expect(providerAction(menu.items[1]) == .signIn)
+        #expect(side.items.map(\.title) == ["Sign in with Claude…"])
+        #expect(side.items.map(providerAction) == [.signIn])
+    }
+
+    @Test
+    func claudeSignedInWithRefillShowsItsEmailThenSignOut() throws {
+        var usage = providerSnapshot(.claude)
+        usage.accountEmail = "alex@example.com"
+        let menu = MenuBarMenuBuilder().makeMenu(
+            state: makeState(activeAccount: nil, providerUsage: [ProviderUsageState(provider: .claude, status: .current(usage), ownSignIn: .signedIn)]),
+            target: try makeCoordinator()
+        )
+
+        let side = try #require(menu.items.first?.submenu)
+
+        #expect(Array(menu.items.map(\.title).prefix(3)) == ["Claude", "", "Add Account"])
+        #expect(side.items.map(\.title) == ["alex@example.com", "", "Sign Out of Claude"])
+        #expect(providerAction(side.items[2]) == .signOut)
+    }
+
     @Test(arguments: [UsageProvider.claude, .cursor])
     func aSignedOutToolOffersNoSignIn(provider: UsageProvider) throws {
         let menu = MenuBarMenuBuilder().makeMenu(

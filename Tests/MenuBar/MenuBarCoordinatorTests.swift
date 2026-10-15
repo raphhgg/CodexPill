@@ -190,7 +190,7 @@ struct MenuBarCoordinatorTests {
         coordinator.start()
         await coordinator.waitForPendingWork()
 
-        #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .claude, status: .notConnected)])
+        #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .claude, status: .notConnected, ownSignIn: .signedOut)])
         #expect(cardAreaTitles(coordinator) == [])
 
         harness.click("Appearance", "Show Tools", "Claude")
@@ -240,7 +240,7 @@ struct MenuBarCoordinatorTests {
 
         #expect(harness.alertPresenter.confirmationRequests.count == 2)
         #expect(fixture.settings.isEnabled == false)
-        #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .claude, status: .notConnected)])
+        #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .claude, status: .notConnected, ownSignIn: .signedOut)])
         #expect(cardAreaTitles(coordinator) == [])
     }
 

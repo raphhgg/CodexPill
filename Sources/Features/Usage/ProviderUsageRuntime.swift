@@ -45,7 +45,8 @@ final class ProviderUsageRuntime {
                         lastSnapshot: lastSnapshots[provider],
                         at: date,
                         staleAfter: connection.staleAfter
-                    )
+                    ),
+                    ownSignIn: connection.ownSignIn
                 )
             }
         }

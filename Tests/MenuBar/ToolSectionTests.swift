@@ -91,6 +91,7 @@ struct ToolSectionTests {
         (.claude, .signInExpired, "Claude Code sign-in expired", "Run claude, or sign in with Claude."),
         (.claude, .signedOut, "Not signed in to Claude Code", "Run claude, then /login."),
         (.claude, .keychainAccessNeeded, "Allow Keychain access", nil),
+        (.claude, .signInRequired, "Sign in to Claude again", nil),
         (.cursor, .signedOut, "Not signed in to Cursor", "Sign in to Cursor to see usage."),
         (.cursor, .signInBusy, "Cursor is busy", "Retrying in a few minutes."),
         (.cursor, .notInstalled, "Cursor isn't installed", nil),
@@ -107,6 +108,37 @@ struct ToolSectionTests {
 
         #expect(section.card == ToolCard(title: title, detail: detail))
         #expect(section.followUp?.action == (reason == .keychainAccessNeeded ? .allowKeychainAccess : nil))
+    }
+
+    @Test(arguments: [
+        (UsageUnavailableReason.signedOut, ProviderOwnSignIn.signedOut, ProviderAction?.some(.signIn)),
+        (.signInExpired, .signedOut, .signIn),
+        (.signInRequired, .signedIn, .signIn),
+        (.unreachable, .signedIn, nil),
+        (.keychainAccessNeeded, .signedOut, .allowKeychainAccess),
+        (.signInExpired, .unsupported, nil),
+    ] as [(UsageUnavailableReason, ProviderOwnSignIn, ProviderAction?)])
+    func aLostClaudeSignInOffersRefillsOwnSignInUnderTheCard(reason: UsageUnavailableReason, ownSignIn: ProviderOwnSignIn, action: ProviderAction?) throws {
+        let usage = ProviderUsageState(provider: .claude, status: .unavailable(reason, lastSnapshot: nil), ownSignIn: ownSignIn)
+
+        let section = try #require(state(providerUsage: [usage]).toolSections.first)
+
+        #expect(section.followUp?.action == action)
+        if action == .signIn {
+            #expect(section.followUp == ToolFollowUp(title: "Sign in with Claude…", systemImage: "person.crop.circle", action: .signIn))
+        }
+    }
+
+    @Test
+    func theClaudeSideMenuSignsInOrOutOfRefillsOwnSignIn() throws {
+        func signInItem(_ ownSignIn: ProviderOwnSignIn) throws -> ToolMenuItem? {
+            let usage = ProviderUsageState(provider: .claude, status: .current(claudeSnapshot()), ownSignIn: ownSignIn)
+            return try #require(state(providerUsage: [usage]).toolSections.first).signInItem
+        }
+
+        #expect(try signInItem(.signedOut) == ToolMenuItem(title: "Sign in with Claude…", action: .signIn))
+        #expect(try signInItem(.signedIn) == ToolMenuItem(title: "Sign Out of Claude", action: .signOut))
+        #expect(try signInItem(.unsupported) == nil)
     }
 
     @Test

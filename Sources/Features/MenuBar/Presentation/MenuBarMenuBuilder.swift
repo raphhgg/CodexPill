@@ -98,6 +98,11 @@ struct MenuBarMenuBuilder {
         }
         addSeparatorIfNeeded(to: menu)
 
+        if let signIn = section.signInItem {
+            menu.addItem(providerItem(title: signIn.title, signIn.action, for: provider, target: target))
+            addSeparatorIfNeeded(to: menu)
+        }
+
         if let credits = section.card.resetCredits {
             let use = providerItem(title: "Use a Reset…", .useResetCredit, for: provider, target: target)
             use.isEnabled = accountActionsEnabled
