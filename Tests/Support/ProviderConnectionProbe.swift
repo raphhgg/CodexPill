@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-@testable import Refill
+@testable import rusage
 
 /// A tool connection whose reading the test sets. It counts reads. Once disconnected it reads nothing. Its own sign-in
 /// and sign-out fail with `notice` when one is set.

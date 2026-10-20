@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import Refill
+@testable import rusage
 
 struct ToolSectionTests {
     private let now = Date(timeIntervalSince1970: 1_791_000_000)
@@ -118,7 +118,7 @@ struct ToolSectionTests {
         (.keychainAccessNeeded, .signedOut, .allowKeychainAccess),
         (.signInExpired, .unsupported, nil),
     ] as [(UsageUnavailableReason, ProviderOwnSignIn, ProviderAction?)])
-    func aLostClaudeSignInOffersRefillsOwnSignInUnderTheCard(reason: UsageUnavailableReason, ownSignIn: ProviderOwnSignIn, action: ProviderAction?) throws {
+    func aLostClaudeSignInOffersRUsagesOwnSignInUnderTheCard(reason: UsageUnavailableReason, ownSignIn: ProviderOwnSignIn, action: ProviderAction?) throws {
         let usage = ProviderUsageState(provider: .claude, status: .unavailable(reason, lastSnapshot: nil), ownSignIn: ownSignIn)
 
         let section = try #require(state(providerUsage: [usage]).toolSections.first)
@@ -130,7 +130,7 @@ struct ToolSectionTests {
     }
 
     @Test
-    func theClaudeSideMenuSignsInOrOutOfRefillsOwnSignIn() throws {
+    func theClaudeSideMenuSignsInOrOutOfRUsagesOwnSignIn() throws {
         func signInItem(_ ownSignIn: ProviderOwnSignIn) throws -> ToolMenuItem? {
             let usage = ProviderUsageState(provider: .claude, status: .current(claudeSnapshot()), ownSignIn: ownSignIn)
             return try #require(state(providerUsage: [usage]).toolSections.first).signInItem

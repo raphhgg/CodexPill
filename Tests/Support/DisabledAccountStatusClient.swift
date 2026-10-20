@@ -1,6 +1,6 @@
 import Foundation
 
-@testable import Refill
+@testable import rusage
 
 struct DisabledAccountStatusClient: CodexAccountStatusClient, SavedCodexAccountStatusClient {
     func readCurrentAccountStatus() async throws -> CodexAccountStatus {

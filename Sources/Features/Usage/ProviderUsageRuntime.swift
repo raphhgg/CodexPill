@@ -1,13 +1,13 @@
 import Foundation
 import OSLog
 
-private let providerUsageLogger = Logger(subsystem: "com.raphhgg.refill", category: "ProviderUsage")
+private let providerUsageLogger = Logger(subsystem: "com.raphhgg.rusage", category: "ProviderUsage")
 
 /// Owns every connected tool other than Codex: reads each at most once per its `refreshInterval`, keeps its latest
 /// reading and its last good snapshot for the menu, and runs the actions the menu sends.
 ///
-/// Refill never renews a tool's own sign-in. When it expires or goes away, the tool's card asks the user to open the
-/// tool, or to sign in with Refill's own sign-in where the tool offers one.
+/// rusage never renews a tool's own sign-in. When it expires or goes away, the tool's card asks the user to open the
+/// tool, or to sign in with rusage's own sign-in where the tool offers one.
 @MainActor
 final class ProviderUsageRuntime {
     nonisolated static let refreshInterval: TimeInterval = 5 * 60

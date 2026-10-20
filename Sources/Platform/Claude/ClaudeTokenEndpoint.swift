@@ -1,6 +1,6 @@
 import Foundation
 
-/// Claude's OAuth token endpoint: code exchange, refresh, and revoke for Refill's own sign-in.
+/// Claude's OAuth token endpoint: code exchange, refresh, and revoke for rusage's own sign-in.
 protocol ClaudeTokenEndpoint: Sendable {
     func exchange(code: String, pkce: ClaudePKCE, state: String, redirectURI: URL, now: Date) async throws(ClaudeTokenError) -> ClaudeSignIn
     /// Sends `current`'s refresh token once. The new sign-in keeps what the reply leaves out, such as the plan.

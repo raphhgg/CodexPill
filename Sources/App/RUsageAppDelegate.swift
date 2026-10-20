@@ -1,7 +1,7 @@
 import AppKit
 
 @MainActor
-final class RefillAppDelegate: NSObject, NSApplicationDelegate {
+final class RUsageAppDelegate: NSObject, NSApplicationDelegate {
     private var coordinator: MenuBarCoordinator?
     private var wakeObserver: NSObjectProtocol?
 

@@ -2,25 +2,25 @@
 
 ## User Story
 
-As a Refill user, I want to see when my Codex token usage is light or heavy over time, so I can understand my working rhythm from the menu bar without sending usage data anywhere.
+As a rusage user, I want to see when my Codex token usage is light or heavy over time, so I can understand my working rhythm from the menu bar without sending usage data anywhere.
 
 ## Product Contract
 
-Token Usage is an optional, local-first menu bar feature. When enabled, Refill scans local Codex session records on this Mac, aggregates token-count events into daily buckets, and shows a compact token usage summary in the main menu.
+Token Usage is an optional, local-first menu bar feature. When enabled, rusage scans local Codex session records on this Mac, aggregates token-count events into daily buckets, and shows a compact token usage summary in the main menu.
 
 The scan should be treated as a background data-loading job, not as work owned by the transient menu view. Opening or closing the menu must not restart the scan. Once enough local history has been scanned, changing period or chart style should derive a new presentation from cached aggregate data instead of visibly re-scanning local session files.
 
 The feature is about local Codex usage history, not saved-account usage history. V1 must not imply that the graph is split by saved account, workspace, organization, or remote host.
 
-For Codex, Refill must not use undocumented backend usage endpoints, browser cookies, hidden WebViews, ChatGPT dashboard scraping, or manual prompt token counters for this feature. Cursor is the one exception, described in [Other Tools](#other-tools): Cursor keeps usage only on its servers, so Refill reads it the way Cursor's own dashboard does.
+For Codex, rusage must not use undocumented backend usage endpoints, browser cookies, hidden WebViews, ChatGPT dashboard scraping, or manual prompt token counters for this feature. Cursor is the one exception, described in [Other Tools](#other-tools): Cursor keeps usage only on its servers, so rusage reads it the way Cursor's own dashboard does.
 
-Refill may read local Codex session logs as an observation surface, but it must not expose prompt content, raw session rows, file paths, auth payloads, account identifiers, emails, hostnames, or raw log bodies in UI, diagnostics, tracker comments, or test fixtures.
+rusage may read local Codex session logs as an observation surface, but it must not expose prompt content, raw session rows, file paths, auth payloads, account identifiers, emails, hostnames, or raw log bodies in UI, diagnostics, tracker comments, or test fixtures.
 
 ## Source Contract
 
 The selected source is local Codex session history, not private backend usage endpoints.
 
-Codex writes session JSONL files under its local sessions directory. Rows with `payload.type == "token_count"` can contain token usage snapshots for a turn or session, currently under `payload.info.last_token_usage` and `payload.info.total_token_usage`. Refill may scan those rows only through a `Platform/Codex` adapter. Feature and UI code must not know JSONL file layout, Codex internal row shapes, or local Codex storage paths.
+Codex writes session JSONL files under its local sessions directory. Rows with `payload.type == "token_count"` can contain token usage snapshots for a turn or session, currently under `payload.info.last_token_usage` and `payload.info.total_token_usage`. rusage may scan those rows only through a `Platform/Codex` adapter. Feature and UI code must not know JSONL file layout, Codex internal row shapes, or local Codex storage paths.
 
 Useful field classes in the local session rows:
 
@@ -35,7 +35,7 @@ Token Usage treats daily buckets as local-session scoped. It does not promise a 
 
 ## Other Tools
 
-When Claude Code or Cursor is connected in Refill, the Token Usage card adds its daily tokens. Each tool is read only while it is connected, and a tool that can't be read shows `Unavailable` on its own line without hiding the others.
+When Claude Code or Cursor is connected in rusage, the Token Usage card adds its daily tokens. Each tool is read only while it is connected, and a tool that can't be read shows `Unavailable` on its own line without hiding the others.
 
 Every tool counts the same way so days compare: input, cached input, cache writes, and output, all included. Dollars are not shown, because Codex and Claude plans are flat subscriptions.
 
@@ -54,7 +54,7 @@ Claude Code rules:
 
 Cursor rules:
 
-- The request body is `{startDate, endDate, page, pageSize}`, with Unix milliseconds as strings and pages of 1,000. Refill reads at most 20 pages and shows Cursor as unavailable rather than undercount.
+- The request body is `{startDate, endDate, page, pageSize}`, with Unix milliseconds as strings and pages of 1,000. rusage reads at most 20 pages and shows Cursor as unavailable rather than undercount.
 - Each event's tokens are `inputTokens + outputTokens + cacheWriteTokens + cacheReadTokens`. Events without `tokenUsage` count as zero.
 - The day is the local day of the event's `timestamp`.
 
@@ -65,9 +65,9 @@ Card:
 ## Happy Path
 
 1. User enables `Appearance › Show Token Usage`.
-2. Refill starts scanning recent local Codex session JSONL files in the background.
+2. rusage starts scanning recent local Codex session JSONL files in the background.
 3. User can close the menu or continue working while the scan completes.
-4. Refill aggregates safe token totals by day and stores them in a derived cache.
+4. rusage aggregates safe token totals by day and stores them in a derived cache.
 5. The main menu shows the Token Usage card after the tool cards.
 
 ## UI / Copy / States
@@ -95,7 +95,7 @@ Menu card, in the main menu after the tool cards and before `Add Account`:
   - `By tool`: one row per tool with today and the 30-day total, a bar of its models, and a legend with the top two models and `Other`.
   - `Top models`: each tool's share of the period, then the five biggest models across tools.
 - Model names are shortened: `claude-opus-5-5` reads `Opus 5.5`, `gpt-5.6-sol` reads `GPT-5.6 Sol`.
-- Toggle clicks switch the view and leave the menu open. Refill remembers both choices. Saved styles from before (`dailyBars`, `heatStrip`, `sparkline`) open as `Bars`.
+- Toggle clicks switch the view and leave the menu open. rusage remembers both choices. Saved styles from before (`dailyBars`, `heatStrip`, `sparkline`) open as `Bars`.
 - The card keeps the same height whichever split is shown.
 
 Colors follow the [theme](app-controls/02-theme.md):
@@ -205,7 +205,7 @@ RGR-360 compared chart variants inside the active account card and shipped `Dail
 
 ## Open Questions
 
-- Should cached aggregates live under `~/Library/Caches/Refill` or be recomputed on demand?
+- Should cached aggregates live under `~/Library/Caches/rusage` or be recomputed on demand?
 - What refresh cadence is enough without making menu opening feel slow?
 - Should the app expose a manual `Refresh Token Usage` action, or rely on the existing refresh flow?
 

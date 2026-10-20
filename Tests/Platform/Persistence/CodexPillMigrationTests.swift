@@ -1,77 +1,77 @@
 import Foundation
 import Testing
 
-@testable import Refill
+@testable import rusage
 
 struct CodexPillMigrationTests {
     @Test
-    func copiesCodexPillFolderWithoutSavedClaudeAccountsWhenRefillHasNone() throws {
+    func copiesCodexPillFolderWithoutSavedClaudeAccountsWhenRUsageHasNone() throws {
         let fixture = try MigrationFixture()
         defer { fixture.remove() }
         try fixture.writeCodexPillData()
 
         #expect(fixture.migration().run() == .copied)
 
-        #expect(try fixture.refill("accounts.json") == #"[{"id":"saved"}]"#)
-        #expect(try fixture.refill("snapshots/saved.json") == "snapshot")
-        #expect(try fixture.refill("bin/tool") == "#!/bin/sh")
-        #expect(try fixture.listing(of: fixture.refillFolder).keys.sorted() == ["accounts.json", "bin", "bin/tool", "snapshots", "snapshots/saved.json"])
+        #expect(try fixture.rusage("accounts.json") == #"[{"id":"saved"}]"#)
+        #expect(try fixture.rusage("snapshots/saved.json") == "snapshot")
+        #expect(try fixture.rusage("bin/tool") == "#!/bin/sh")
+        #expect(try fixture.listing(of: fixture.rusageFolder).keys.sorted() == ["accounts.json", "bin", "bin/tool", "snapshots", "snapshots/saved.json"])
     }
 
     @Test
-    func replacesAnEmptyRefillCatalogWithCodexPillData() throws {
+    func replacesAnEmptyRUsageCatalogWithCodexPillData() throws {
         let fixture = try MigrationFixture()
         defer { fixture.remove() }
         try fixture.writeCodexPillData()
-        try fixture.writeRefill("accounts.json", "[]\n")
-        try FileManager.default.createDirectory(at: fixture.refillFolder.appendingPathComponent("snapshots"), withIntermediateDirectories: true)
+        try fixture.writeRUsage("accounts.json", "[]\n")
+        try FileManager.default.createDirectory(at: fixture.rusageFolder.appendingPathComponent("snapshots"), withIntermediateDirectories: true)
 
         #expect(fixture.migration().run() == .copied)
 
-        #expect(try fixture.refill("accounts.json") == #"[{"id":"saved"}]"#)
-        #expect(try fixture.refill("snapshots/saved.json") == "snapshot")
+        #expect(try fixture.rusage("accounts.json") == #"[{"id":"saved"}]"#)
+        #expect(try fixture.rusage("snapshots/saved.json") == "snapshot")
     }
 
     @Test(arguments: [
-        ("accounts.json", #"[{"id":"refill"}]"#),
-        ("snapshots/refill.json", "refill snapshot"),
+        ("accounts.json", #"[{"id":"rusage"}]"#),
+        ("snapshots/rusage.json", "rusage snapshot"),
     ])
-    func leavesRealRefillDataUntouched(path: String, contents: String) throws {
+    func leavesRealRUsageDataUntouched(path: String, contents: String) throws {
         let fixture = try MigrationFixture()
         defer { fixture.remove() }
         try fixture.writeCodexPillData()
-        try fixture.writeRefill(path, contents)
+        try fixture.writeRUsage(path, contents)
 
-        #expect(fixture.migration().run() == .keptRefillData)
+        #expect(fixture.migration().run() == .keptRUsageData)
 
-        #expect(try fixture.refill(path) == contents)
-        #expect(!FileManager.default.fileExists(atPath: fixture.refillFolder.appendingPathComponent("bin").path))
+        #expect(try fixture.rusage(path) == contents)
+        #expect(!FileManager.default.fileExists(atPath: fixture.rusageFolder.appendingPathComponent("bin").path))
     }
 
     @Test
-    func savedClaudeAccountsATestBuildLeftInRefillDoNotCountAsRefillData() throws {
+    func savedClaudeAccountsATestBuildLeftInRUsageDoNotCountAsRUsageData() throws {
         let fixture = try MigrationFixture()
         defer { fixture.remove() }
         try fixture.writeCodexPillData()
-        try fixture.writeRefill("claude-code-accounts.json", "refill claude")
+        try fixture.writeRUsage("claude-code-accounts.json", "rusage claude")
 
         #expect(fixture.migration().run() == .copied)
 
-        #expect(try fixture.refill("accounts.json") == #"[{"id":"saved"}]"#)
+        #expect(try fixture.rusage("accounts.json") == #"[{"id":"saved"}]"#)
     }
 
     @Test
-    func removesSavedClaudeAccountsAnEarlierBuildCopiedToRefill() throws {
+    func removesSavedClaudeAccountsAnEarlierBuildCopiedToRUsage() throws {
         let fixture = try MigrationFixture()
         defer { fixture.remove() }
         try fixture.writeCodexPillData()
         #expect(fixture.migration().run() == .copied)
-        try fixture.writeRefill("claude-code-accounts.json", "copied claude")
-        try fixture.writeRefill("claude-sign-in/scratch", "scratch")
+        try fixture.writeRUsage("claude-code-accounts.json", "copied claude")
+        try fixture.writeRUsage("claude-sign-in/scratch", "scratch")
 
         #expect(fixture.migration().run() == .alreadyRan)
 
-        #expect(try fixture.listing(of: fixture.refillFolder).keys.sorted() == ["accounts.json", "bin", "bin/tool", "snapshots", "snapshots/saved.json"])
+        #expect(try fixture.listing(of: fixture.rusageFolder).keys.sorted() == ["accounts.json", "bin", "bin/tool", "snapshots", "snapshots/saved.json"])
         #expect(FileManager.default.fileExists(atPath: fixture.codexPillFolder.appendingPathComponent("claude-code-accounts.json").path))
     }
 
@@ -81,12 +81,12 @@ struct CodexPillMigrationTests {
         defer { fixture.remove() }
         try fixture.writeCodexPillData()
         #expect(fixture.migration().run() == .copied)
-        try fixture.writeRefill("accounts.json", "[]")
-        try FileManager.default.removeItem(at: fixture.refillFolder.appendingPathComponent("snapshots"))
+        try fixture.writeRUsage("accounts.json", "[]")
+        try FileManager.default.removeItem(at: fixture.rusageFolder.appendingPathComponent("snapshots"))
 
         #expect(fixture.migration().run() == .alreadyRan)
 
-        #expect(try fixture.refill("accounts.json") == "[]")
+        #expect(try fixture.rusage("accounts.json") == "[]")
     }
 
     @Test
@@ -111,14 +111,14 @@ struct CodexPillMigrationTests {
 
         _ = fixture.migration().run()
 
-        #expect(try fixture.permissions(of: fixture.refillFolder) == 0o700)
-        #expect(try fixture.permissions(of: fixture.refillFolder.appendingPathComponent("snapshots")) == 0o700)
-        #expect(try fixture.permissions(of: fixture.refillFolder.appendingPathComponent("accounts.json")) == 0o600)
-        #expect(try fixture.permissions(of: fixture.refillFolder.appendingPathComponent("bin/tool")) == 0o700)
+        #expect(try fixture.permissions(of: fixture.rusageFolder) == 0o700)
+        #expect(try fixture.permissions(of: fixture.rusageFolder.appendingPathComponent("snapshots")) == 0o700)
+        #expect(try fixture.permissions(of: fixture.rusageFolder.appendingPathComponent("accounts.json")) == 0o600)
+        #expect(try fixture.permissions(of: fixture.rusageFolder.appendingPathComponent("bin/tool")) == 0o700)
     }
 
     @Test
-    func copiesPreferencesRefillHasNotSet() throws {
+    func copiesPreferencesRUsageHasNotSet() throws {
         let fixture = try MigrationFixture()
         defer { fixture.remove() }
         fixture.defaults.set(15, forKey: "refreshIntervalMinutes")
@@ -130,9 +130,9 @@ struct CodexPillMigrationTests {
     }
 
     @Test(arguments: [
-        ("com.raphhgg.refill", "com.raphhgg.codexpill"),
-        ("com.raphhgg.refill.dev", "com.raphhgg.codexpill.dev"),
-        ("com.raphhgg.refillx", nil),
+        ("com.raphhgg.rusage", "com.raphhgg.codexpill"),
+        ("com.raphhgg.rusage.dev", "com.raphhgg.codexpill.dev"),
+        ("com.raphhgg.rusagex", nil),
     ])
     func readsTheCodexPillDomainOfTheSameBuild(bundleIdentifier: String, expected: String?) {
         #expect(CodexPillMigration.legacyDefaultsDomain(for: bundleIdentifier) == expected)
@@ -145,7 +145,7 @@ private struct MigrationFixture {
     let defaults: UserDefaults
 
     var codexPillFolder: URL { root.appendingPathComponent("CodexPill", isDirectory: true) }
-    var refillFolder: URL { root.appendingPathComponent("Refill", isDirectory: true) }
+    var rusageFolder: URL { root.appendingPathComponent("rusage", isDirectory: true) }
 
     init() throws {
         root = FileManager.default.temporaryDirectory.appendingPathComponent("CodexPillMigrationTests-\(UUID().uuidString)")
@@ -156,7 +156,7 @@ private struct MigrationFixture {
     func migration(preferences: [String: Any] = [:]) -> CodexPillMigration {
         CodexPillMigration(
             legacy: CodexPillLegacyData(folder: codexPillFolder, preferences: preferences),
-            folder: refillFolder,
+            folder: rusageFolder,
             defaults: defaults,
             defaultsDomain: suiteName
         )
@@ -171,12 +171,12 @@ private struct MigrationFixture {
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: tool.path)
     }
 
-    func writeRefill(_ path: String, _ contents: String) throws {
-        try write(refillFolder.appendingPathComponent(path), contents)
+    func writeRUsage(_ path: String, _ contents: String) throws {
+        try write(rusageFolder.appendingPathComponent(path), contents)
     }
 
-    func refill(_ path: String) throws -> String {
-        try String(contentsOf: refillFolder.appendingPathComponent(path), encoding: .utf8)
+    func rusage(_ path: String) throws -> String {
+        try String(contentsOf: rusageFolder.appendingPathComponent(path), encoding: .utf8)
     }
 
     func listing(of folder: URL) throws -> [String: String] {

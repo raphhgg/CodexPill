@@ -19,7 +19,7 @@ extension RedactedClaudeSecret {
 
 /// A Claude OAuth access token. It is only ever placed in the `Authorization` header and never printed.
 struct ClaudeAccessToken: RedactedClaudeSecret {
-    /// Read only to build a request or to store Refill's own sign-in.
+    /// Read only to build a request or to store rusage's own sign-in.
     let exposedValue: String
 
     init?(_ value: String) {
@@ -32,9 +32,9 @@ struct ClaudeAccessToken: RedactedClaudeSecret {
     }
 }
 
-/// The refresh token of Refill's own Claude sign-in. Claude Code's refresh token is never decoded.
+/// The refresh token of rusage's own Claude sign-in. Claude Code's refresh token is never decoded.
 struct ClaudeRefreshToken: RedactedClaudeSecret {
-    /// Read only to build a token request or to store Refill's own sign-in.
+    /// Read only to build a token request or to store rusage's own sign-in.
     let exposedValue: String
 
     init?(_ value: String) {
@@ -43,7 +43,7 @@ struct ClaudeRefreshToken: RedactedClaudeSecret {
     }
 }
 
-/// The parts of Claude Code's sign-in that Refill uses. The refresh token is never decoded.
+/// The parts of Claude Code's sign-in that rusage uses. The refresh token is never decoded.
 struct ClaudeCredentials: Sendable {
     let accessToken: ClaudeAccessToken
     let expiresAt: Date?

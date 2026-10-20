@@ -2,7 +2,7 @@ import AppKit
 import Observation
 import OSLog
 
-private let menuBarCoordinatorLogger = Logger(subsystem: "com.raphhgg.refill", category: "MenuBarCoordinator")
+private let menuBarCoordinatorLogger = Logger(subsystem: "com.raphhgg.rusage", category: "MenuBarCoordinator")
 
 @MainActor
 final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {

@@ -8,7 +8,7 @@ final class CodexAppServerClient {
     private let statusSource: AppServerStatusSource
     private let sleeper: Sleeper
     private let configuration: CodexAppServerConfiguration
-    private let mapper: RefillAccountStatusMapper
+    private let mapper: RUsageAccountStatusMapper
 
     init(environment: [String: String] = ProcessInfo.processInfo.environment) {
         let configuration = CodexAppServerConfiguration.live(environment: environment)
@@ -23,7 +23,7 @@ final class CodexAppServerClient {
         sleeper = { duration in
             try? await Task.sleep(for: duration)
         }
-        mapper = RefillAccountStatusMapper()
+        mapper = RUsageAccountStatusMapper()
     }
 
     init(
@@ -63,7 +63,7 @@ final class CodexAppServerClient {
             )
         }
         self.sleeper = sleeper
-        mapper = RefillAccountStatusMapper()
+        mapper = RUsageAccountStatusMapper()
     }
 
     private static func appServerWindow(from window: UsageWindow) -> CodexAppServerRateLimitWindow {

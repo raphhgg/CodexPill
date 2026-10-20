@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import Refill
+@testable import rusage
 
 @MainActor
 struct AccountsControllerTests {
@@ -814,7 +814,7 @@ private final class IsolatedAddAccountLoginSessionProbe: IsolatedCodexLoginSessi
         url: URL(string: "https://auth.openai.com/codex/device")!,
         userCode: "ABCD-EFGH"
     )
-    let codexHome = URL(fileURLWithPath: "/tmp/refill-test-codex-home")
+    let codexHome = URL(fileURLWithPath: "/tmp/rusage-test-codex-home")
     let authData: Data
     private(set) var cleanupCount = 0
 

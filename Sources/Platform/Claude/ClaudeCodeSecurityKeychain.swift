@@ -12,8 +12,8 @@ enum SecurityCommandResult: Equatable, Sendable {
 }
 
 /// Claude Code's Keychain item, read through `/usr/bin/security` as Claude Code does. Claude Code creates it with
-/// `security`, so only `security` is on its access list: a direct Keychain read from Refill shows a prompt, even with
-/// authentication UI set to skip, while `security` reads it without one. Refill never writes or deletes it.
+/// `security`, so only `security` is on its access list: a direct Keychain read from rusage shows a prompt, even with
+/// authentication UI set to skip, while `security` reads it without one. rusage never writes or deletes it.
 struct ClaudeCodeSecurityKeychain: Sendable {
     static let readTimeout: Duration = .seconds(10)
     /// Long enough for the user to answer a Keychain prompt after a click.

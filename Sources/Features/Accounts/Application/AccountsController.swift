@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import OSLog
 
-private let accountsControllerLogger = Logger(subsystem: "com.raphhgg.refill", category: "AccountsController")
+private let accountsControllerLogger = Logger(subsystem: "com.raphhgg.rusage", category: "AccountsController")
 
 @MainActor
 @Observable

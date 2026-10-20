@@ -1,7 +1,7 @@
 import AppKit
 import Testing
 
-@testable import Refill
+@testable import rusage
 
 struct ThemePaletteTests {
     @Test

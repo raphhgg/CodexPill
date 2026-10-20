@@ -7,7 +7,7 @@ enum ClaudeUsageStatus: Equatable, Sendable {
     case signInUnreadable
     /// Claude Code's token has expired or Anthropic rejected it (401). Claude Code renews it when it next runs.
     case signInExpired
-    /// Refill's own sign-in is gone or Anthropic rejected it. Only a new browser sign-in helps.
+    /// rusage's own sign-in is gone or Anthropic rejected it. Only a new browser sign-in helps.
     case signInRequired
     /// Anthropic knows the token but refuses the usage read (403), for example a token without the profile scope.
     case forbidden
@@ -23,12 +23,12 @@ enum ClaudeUsageStatus: Equatable, Sendable {
 enum ClaudeSignInSource: Sendable {
     /// Claude Code's sign-in, read only.
     case claudeCode
-    /// Refill's own "Sign in with Claude".
-    case refill
+    /// rusage's own "Sign in with Claude".
+    case rusage
 }
 
-/// Fetches Claude usage once per call, with Claude Code's sign-in or Refill's own. It holds no Claude Code token
-/// between calls and renews only Refill's own sign-in.
+/// Fetches Claude usage once per call, with Claude Code's sign-in or rusage's own. It holds no Claude Code token
+/// between calls and renews only rusage's own sign-in.
 actor ClaudeUsageClient {
     static let defaultRetryAfter: TimeInterval = 5 * 60
 
@@ -50,7 +50,7 @@ actor ClaudeUsageClient {
     }
 
     /// Saves a new browser sign-in with its plan and email from Anthropic's profile, when that answers. Returns false
-    /// when the Keychain refused it: it then lasts until Refill quits.
+    /// when the Keychain refused it: it then lasts until rusage quits.
     func store(_ signIn: ClaudeSignIn) async -> Bool {
         rateLimitedUntil = nil
         var signIn = signIn
@@ -60,7 +60,7 @@ actor ClaudeUsageClient {
         return await ownSignIn.store(signIn)
     }
 
-    /// Deletes and revokes Refill's own sign-in. Claude Code's sign-in is untouched.
+    /// Deletes and revokes rusage's own sign-in. Claude Code's sign-in is untouched.
     func signOut() async -> Bool {
         rateLimitedUntil = nil
         return await ownSignIn.signOut()
@@ -74,7 +74,7 @@ actor ClaudeUsageClient {
         }
         return switch source {
         case .claudeCode: await claudeCodeUsage(now: now, allowingPrompt: allowingPrompt)
-        case .refill: await ownUsage(now: now, allowingPrompt: allowingPrompt)
+        case .rusage: await ownUsage(now: now, allowingPrompt: allowingPrompt)
         }
     }
 
@@ -175,7 +175,7 @@ actor ClaudeUsageClient {
     }
 }
 
-/// Ends a read when Refill's own sign-in gives no token, with the status the read ends with.
+/// Ends a read when rusage's own sign-in gives no token, with the status the read ends with.
 private struct ReadEnded: Error {
     let status: ClaudeUsageStatus
 }

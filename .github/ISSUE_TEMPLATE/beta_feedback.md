@@ -1,6 +1,6 @@
 ---
 name: Beta feedback
-about: Share general Refill beta feedback
+about: Share general rusage beta feedback
 title: "[Beta feedback]: "
 labels: beta, feedback
 assignees: ""
@@ -14,7 +14,7 @@ assignees: ""
 ## What Worked?
 
 
-## Did Refill Solve A Real Workflow Problem?
+## Did rusage Solve A Real Workflow Problem?
 
 
 ## Which Part Felt Riskiest Or Least Trustworthy?
@@ -25,7 +25,7 @@ assignees: ""
 
 ## Did Any Language Sound Like Limit Bypassing?
 
-<!-- Refill should feel like account management, not a way to bypass limits. -->
+<!-- rusage should feel like account management, not a way to bypass limits. -->
 
 
 ## Would You Keep It Running In Your Menu Bar?
@@ -36,7 +36,7 @@ assignees: ""
 
 ## Environment
 
-- Refill version:
+- rusage version:
 - macOS version:
 
 ## Redaction Check

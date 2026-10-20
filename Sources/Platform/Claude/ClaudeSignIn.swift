@@ -2,7 +2,7 @@ import Foundation
 import LocalAuthentication
 import Security
 
-/// Refill's own Claude sign-in, from "Sign in with Claude". It is kept in Refill's own Keychain item, never in Claude
+/// rusage's own Claude sign-in, from "Sign in with Claude". It is kept in rusage's own Keychain item, never in Claude
 /// Code's.
 struct ClaudeSignIn: Sendable, Equatable {
     /// Refresh this long before the access token expires, so a read never sends an expired token.
@@ -26,7 +26,7 @@ struct ClaudeSignIn: Sendable, Equatable {
 
 enum ClaudeSignInRead: Sendable, Equatable {
     case notFound
-    /// The item exists but macOS needs the user to allow Refill to read it.
+    /// The item exists but macOS needs the user to allow rusage to read it.
     case needsPermission
     case failed
     /// `refreshPending` means a refresh started with this refresh token and its result was never saved, so the token
@@ -34,7 +34,7 @@ enum ClaudeSignInRead: Sendable, Equatable {
     case found(ClaudeSignIn, refreshPending: Bool)
 }
 
-/// Where Refill keeps its own sign-in. Claude Code's item is never written.
+/// Where rusage keeps its own sign-in. Claude Code's item is never written.
 protocol ClaudeSignInStoring: Sendable {
     /// `allowingPrompt` is true only right after a user action, so background reads never show a Keychain prompt.
     func read(allowingPrompt: Bool) -> ClaudeSignInRead
@@ -85,10 +85,10 @@ enum ClaudeSignInRecord {
     }
 }
 
-/// The `Refill Claude sign-in` generic password in the login Keychain. Refill creates it, so Refill is on its access
+/// The `rusage Claude sign-in` generic password in the login Keychain. rusage creates it, so rusage is on its access
 /// list and reads it without a prompt.
 struct SystemClaudeSignInKeychain: ClaudeSignInStoring {
-    static let service = "Refill Claude sign-in"
+    static let service = "rusage Claude sign-in"
     static let account = "Claude"
 
     func read(allowingPrompt: Bool) -> ClaudeSignInRead {
@@ -140,8 +140,8 @@ struct SystemClaudeSignInKeychain: ClaudeSignInStoring {
     }
 }
 
-/// Refill's own sign-in as a 0600 JSON file. Isolated runs use it in place of the Keychain, and tests share one file
-/// between clients the way two Refill processes share the Keychain item.
+/// rusage's own sign-in as a 0600 JSON file. Isolated runs use it in place of the Keychain, and tests share one file
+/// between clients the way two rusage processes share the Keychain item.
 struct FileClaudeSignInStore: ClaudeSignInStoring {
     let fileURL: URL
 

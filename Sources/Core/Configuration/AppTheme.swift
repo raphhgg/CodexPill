@@ -1,6 +1,6 @@
 import Foundation
 
-/// The look of Refill: the app icon, the usage bars on each tool card, and the Token Usage chart.
+/// The look of rusage: the app icon, the usage bars on each tool card, and the Token Usage chart.
 enum AppTheme: String, CaseIterable {
     case cobalt
     case lagoon

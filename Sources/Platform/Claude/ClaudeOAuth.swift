@@ -39,7 +39,7 @@ enum ClaudeTokenError: Error, Equatable {
 }
 
 /// Claude's OAuth contract as Claude Code uses it: the same public client, authorize page, and token endpoint.
-/// Refill asks only for `user:profile`, the scope `api/oauth/usage` needs.
+/// rusage asks only for `user:profile`, the scope `api/oauth/usage` needs.
 enum ClaudeOAuth {
     static let clientID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
     static let authorizeURL = URL(string: "https://claude.com/cai/oauth/authorize")!

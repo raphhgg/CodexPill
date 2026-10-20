@@ -2,13 +2,13 @@
 
 ## User Story
 
-As a Refill user, I want to choose whether Refill starts automatically
+As a rusage user, I want to choose whether rusage starts automatically
 when I log in to macOS, so my account limits are visible without manually
 opening the app every day.
 
 ## Product Contract
 
-Refill exposes a `Launch at Login` control in the main menu, under the tool cards.
+rusage exposes a `Launch at Login` control in the main menu, under the tool cards.
 
 The setting controls the macOS login item for the main app. It must use the
 native macOS login item mechanism and reflect the current system state when the
@@ -18,12 +18,12 @@ The product term is `Launch at Login`, not `Launch at Startup`.
 
 ## Happy Path
 
-1. The user opens the Refill menu.
+1. The user opens the rusage menu.
 2. The user selects `Launch at Login`.
-3. Refill explains that it will ask macOS to open the app automatically
+3. rusage explains that it will ask macOS to open the app automatically
    when the user logs in.
 4. The user confirms.
-5. Refill enables the macOS login item.
+5. rusage enables the macOS login item.
 6. The menu reflects the resulting checked state.
 
 ## UI / Copy / States
@@ -46,9 +46,9 @@ Normal states:
 - Selecting unchecked `Launch at Login` first shows:
 
 ```text
-Launch Refill at Login?
+Launch rusage at Login?
 
-Refill will ask macOS to open it automatically when you log in. You can turn
+rusage will ask macOS to open it automatically when you log in. You can turn
 this off here or in System Settings.
 ```
 - Selecting checked `Launch at Login` disables it directly.
@@ -66,22 +66,22 @@ Settings to the relevant Login Items surface instead of trying to toggle again.
 
 ## Edge Cases
 
-- If enabling fails because macOS requires approval, Refill must not pretend
+- If enabling fails because macOS requires approval, rusage must not pretend
   the setting is enabled.
-- If the login item is disabled or blocked in System Settings, Refill shows
+- If the login item is disabled or blocked in System Settings, rusage shows
   `Launch at Login…` and routes the user to System Settings.
-- If System Settings cannot be opened, Refill shows a short error and leaves
+- If System Settings cannot be opened, rusage shows a short error and leaves
   the current login item state unchanged.
-- If Refill cannot determine the login item state, the menu should fail safe:
+- If rusage cannot determine the login item state, the menu should fail safe:
   show `Launch at Login…`, keep it unchecked, and route to System Settings.
 
 ## Acceptance Criteria
 
 - The main menu includes `Launch at Login` after `Hide Emails`.
 - The normal row behaves like a native checkbox item.
-- Enabling the row requires explicit confirmation before registering Refill
+- Enabling the row requires explicit confirmation before registering rusage
   as a macOS login item.
-- Disabling the row unregisters Refill as a macOS login item.
+- Disabling the row unregisters rusage as a macOS login item.
 - A blocked or requires-approval system state renders `Launch at Login…`.
 - Selecting `Launch at Login…` opens System Settings instead of toggling the
   setting.
@@ -115,6 +115,6 @@ Settings to the relevant Login Items surface instead of trying to toggle again.
 Manual QA on a signed or local macOS build:
 
 1. Toggle `Launch at Login` on.
-2. Confirm Refill appears in macOS System Settings Login Items.
+2. Confirm rusage appears in macOS System Settings Login Items.
 3. Toggle it off.
 4. Confirm the System Settings entry is removed or disabled.

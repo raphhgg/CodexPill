@@ -1,9 +1,9 @@
 import Foundation
 import Testing
 
-@testable import Refill
+@testable import rusage
 
-/// Usage reads with Refill's own sign-in. Every token is fake, the store is a temp file, and Claude Code's sign-in is
+/// Usage reads with rusage's own sign-in. Every token is fake, the store is a temp file, and Claude Code's sign-in is
 /// a temp file that the own sign-in must never use.
 struct ClaudeOwnSignInUsageTests {
     private let now = Date(timeIntervalSince1970: 1_800_000_000)
@@ -37,7 +37,7 @@ struct ClaudeOwnSignInUsageTests {
     }
 
     @Test
-    func aRejectedRefreshTokenDeletesOnlyRefillsSignInAndNeverFallsBackToClaudeCode() async throws {
+    func aRejectedRefreshTokenDeletesOnlyRUsagesSignInAndNeverFallsBackToClaudeCode() async throws {
         let fixture = ClaudeOwnSignInUsageFixture(tokenGeneration: 2)
         defer { fixture.remove() }
         fixture.signedIn(access: "a1", refresh: "r1", expiresAt: now)
@@ -89,7 +89,7 @@ struct ClaudeOwnSignInUsageTests {
         #expect(fixture.settings.isEnabled && fixture.settings.usesOwnSignIn)
         #expect(fixture.usage.ownSignIn == .signedIn)
         guard case let .snapshot(snapshot) = await fixture.usage.readUsage(now: now) else {
-            Issue.record("Expected usage with Refill's own sign-in")
+            Issue.record("Expected usage with rusage's own sign-in")
             return
         }
         #expect(snapshot.planName == "max_20x")
@@ -120,7 +120,7 @@ struct ClaudeOwnSignInUsageTests {
         refused.usageServer.answer("a1", sessionPercent: 12)
         refused.store.answerSaves([], thenAccept: false)
 
-        await #expect(throws: ProviderNotice(title: "Claude sign-in not saved", detail: "It lasts until Refill quits.")) {
+        await #expect(throws: ProviderNotice(title: "Claude sign-in not saved", detail: "It lasts until rusage quits.")) {
             try await refused.usage.signIn()
         }
         #expect(refused.settings.usesOwnSignIn)
@@ -128,7 +128,7 @@ struct ClaudeOwnSignInUsageTests {
     }
 
     @Test
-    func disconnectingSignsOutOfRefillsOwnSignIn() async {
+    func disconnectingSignsOutOfRUsagesOwnSignIn() async {
         let fixture = ClaudeOwnSignInUsageFixture()
         defer { fixture.remove() }
         fixture.signedIn(access: "a1", refresh: "r1", expiresAt: now.addingTimeInterval(3_600))
@@ -148,7 +148,7 @@ private extension UsageProviderReading {
     }
 }
 
-/// A connected `ClaudeCodeUsage` over Refill's own sign-in in temp files, a fake token server and a fake usage server
+/// A connected `ClaudeCodeUsage` over rusage's own sign-in in temp files, a fake token server and a fake usage server
 /// that log to one stream, and Claude Code's sign-in as a temp file.
 private final class ClaudeOwnSignInUsageFixture: @unchecked Sendable {
     let files = ClaudeOwnSignInFiles()

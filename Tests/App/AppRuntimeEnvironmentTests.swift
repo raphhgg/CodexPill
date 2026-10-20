@@ -1,17 +1,17 @@
 import Foundation
 import Testing
 
-@testable import Refill
+@testable import rusage
 
 struct AppRuntimeEnvironmentTests {
     @Test
     func isolatedLaunchReadsTrimmedDirectoryAndDefaultsSuite() {
         let environment = [
-            AppRuntimeEnvironment.isolatedAppSupportDirectoryEnvironmentKey: " /tmp/refill-isolated ",
+            AppRuntimeEnvironment.isolatedAppSupportDirectoryEnvironmentKey: " /tmp/rusage-isolated ",
             AppRuntimeEnvironment.isolatedDefaultsSuiteEnvironmentKey: " isolated-suite "
         ]
 
-        #expect(AppRuntimeEnvironment.isolatedAppSupportDirectory(environment: environment)?.path == "/tmp/refill-isolated")
+        #expect(AppRuntimeEnvironment.isolatedAppSupportDirectory(environment: environment)?.path == "/tmp/rusage-isolated")
         #expect(AppRuntimeEnvironment.isolatedDefaultsSuiteName(environment: environment) == "isolated-suite")
     }
 
@@ -46,12 +46,12 @@ struct AppRuntimeEnvironmentTests {
     @Test
     func isolatedAppSupportDirectoryPrefersIsolatedLaunchThenAutomatedTestDirectory() {
         let testDirectory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("RefillTests-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true)
+            .appendingPathComponent("rusageTests-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true)
 
         #expect(
             AppRuntimeEnvironment.isolatedAppSupportDirectory(
-                environment: [AppRuntimeEnvironment.isolatedAppSupportDirectoryEnvironmentKey: "/tmp/refill-isolated"]
-            )?.path == "/tmp/refill-isolated"
+                environment: [AppRuntimeEnvironment.isolatedAppSupportDirectoryEnvironmentKey: "/tmp/rusage-isolated"]
+            )?.path == "/tmp/rusage-isolated"
         )
         #expect(
             AppRuntimeEnvironment.isolatedAppSupportDirectory(

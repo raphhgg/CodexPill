@@ -16,7 +16,7 @@ extension UsageProviderSource {
 }
 
 enum UsageProviderReading: Equatable, Sendable {
-    /// Refill is not connected to the provider, so the menu offers to connect it.
+    /// rusage is not connected to the provider, so the menu offers to connect it.
     case notConnected
     case unavailable(UsageUnavailableReason)
     /// Connected, but the provider has not reported any usage windows yet.
@@ -31,9 +31,9 @@ enum UsageUnavailableReason: Equatable, Sendable {
     case signedOut
     /// The sign-in is past its expiry, or the provider rejected it (HTTP 401).
     case signInExpired
-    /// Refill's own sign-in is gone or was rejected. Only a new sign-in helps.
+    /// rusage's own sign-in is gone or was rejected. Only a new sign-in helps.
     case signInRequired
-    /// The sign-in exists, but macOS needs the user to allow Refill to read it.
+    /// The sign-in exists, but macOS needs the user to allow rusage to read it.
     case keychainAccessNeeded
     /// The sign-in exists but could not be read or parsed.
     case signInUnreadable
@@ -41,13 +41,13 @@ enum UsageUnavailableReason: Equatable, Sendable {
     case signInBusy
     /// The provider knows the sign-in but refuses to share usage with it (HTTP 403).
     case accessDenied
-    /// The provider asked Refill to slow down (HTTP 429).
+    /// The provider asked rusage to slow down (HTTP 429).
     case rateLimited
     /// No answer at all: offline, DNS, TLS, or a timeout.
     case unreachable
     /// The provider answered with a server error or another unexpected status.
     case serviceError
-    /// The provider answered, but not in the shape Refill reads.
+    /// The provider answered, but not in the shape rusage reads.
     case unexpectedResponse
 
     /// The last good numbers stay on screen only while they still belong to the same signed-in account. After a new

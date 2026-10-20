@@ -1,19 +1,19 @@
 import ProjectDescription
 
 let project = Project(
-    name: "Refill",
+    name: "rusage",
     organizationName: "raphhgg",
     packages: [],
     targets: [
         .target(
-            name: "Refill",
+            name: "rusage",
             destinations: .macOS,
             product: .app,
-            bundleId: "com.raphhgg.refill",
+            bundleId: "com.raphhgg.rusage",
             deploymentTargets: .macOS("14.0"),
             infoPlist: .dictionary([
                 "CFBundleDevelopmentRegion": "en",
-                "CFBundleDisplayName": "Refill",
+                "CFBundleDisplayName": "rusage",
                 "CFBundleExecutable": "$(EXECUTABLE_NAME)",
                 "CFBundleIdentifier": "$(PRODUCT_BUNDLE_IDENTIFIER)",
                 "CFBundleInfoDictionaryVersion": "6.0",
@@ -41,15 +41,15 @@ let project = Project(
             ])
         ),
         .target(
-            name: "RefillTests",
+            name: "rusageTests",
             destinations: .macOS,
             product: .unitTests,
-            bundleId: "com.raphhgg.refill.tests",
+            bundleId: "com.raphhgg.rusage.tests",
             deploymentTargets: .macOS("14.0"),
             infoPlist: .default,
             sources: ["Tests/**"],
             dependencies: [
-                .target(name: "Refill")
+                .target(name: "rusage")
             ],
             settings: .settings(base: [
                 "SWIFT_VERSION": "6.0",

@@ -1,6 +1,6 @@
 import Foundation
 
-@testable import Refill
+@testable import rusage
 
 @MainActor
 extension MenuBarCoordinator {
@@ -16,7 +16,7 @@ extension MenuBarCoordinator {
         diagnosticReportPresenter: DiagnosticReportPresenting = SystemDiagnosticReportPresenter(),
         tokenUsageProvider: TokenUsageMenuProviding = LocalCodexSessionTokenUsageMenuProvider(
             cacheFile: FileManager.default.temporaryDirectory
-                .appendingPathComponent("RefillTests-\(ProcessInfo.processInfo.processIdentifier)/Caches/token-usage-cache.json")
+                .appendingPathComponent("rusageTests-\(ProcessInfo.processInfo.processIdentifier)/Caches/token-usage-cache.json")
         ),
         providerConnections: [any ProviderConnection] = [],
         allowsEmptyStatePrompt: Bool = true,

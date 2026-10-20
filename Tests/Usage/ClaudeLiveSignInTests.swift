@@ -1,9 +1,9 @@
 import Foundation
 import Testing
 
-@testable import Refill
+@testable import rusage
 
-/// Refill only reads Claude Code's live sign-in. Claude Code renews it when the user runs `claude`.
+/// rusage only reads Claude Code's live sign-in. Claude Code renews it when the user runs `claude`.
 @MainActor
 struct ClaudeLiveSignInTests {
     private let now = Date(timeIntervalSince1970: 1_800_000_000)

@@ -3,7 +3,7 @@ import Foundation
 import SwiftUI
 import Testing
 
-@testable import Refill
+@testable import rusage
 
 @MainActor
 final class AlertPresenterProbe: AlertPresenter {
@@ -115,7 +115,7 @@ final class DiagnosticReportPresenterProbe: DiagnosticReportPresenting {
 
     func export(report: DiagnosticReport) throws -> URL? {
         reports.append(report)
-        return URL(fileURLWithPath: "/tmp/Refill-Diagnostics.json")
+        return URL(fileURLWithPath: "/tmp/rusage-Diagnostics.json")
     }
 }
 
@@ -136,7 +136,7 @@ struct MenuBarMenuBuilderTests {
         )
         alertPresenter.presentInfo(
             MenuBarInfoAlertRequest(
-                messageText: "Refill Error",
+                messageText: "rusage Error",
                 informativeText: "Permission denied",
                 style: .warning,
                 buttonTitle: "OK"
@@ -614,7 +614,7 @@ struct MenuBarMenuBuilderTests {
 
         coordinator.toggleLaunchAtLogin(NSMenuItem())
 
-        #expect(alertPresenter.confirmationRequests.last?.messageText == "Launch Refill at Login?")
+        #expect(alertPresenter.confirmationRequests.last?.messageText == "Launch rusage at Login?")
         #expect(loginItemController.setEnabledCalls == [true])
     }
 
@@ -630,7 +630,7 @@ struct MenuBarMenuBuilderTests {
 
         coordinator.toggleLaunchAtLogin(NSMenuItem())
 
-        #expect(alertPresenter.confirmationRequests.last?.messageText == "Launch Refill at Login?")
+        #expect(alertPresenter.confirmationRequests.last?.messageText == "Launch rusage at Login?")
         #expect(loginItemController.setEnabledCalls.isEmpty)
         #expect(loginItemController.currentState == .disabled)
     }
@@ -694,7 +694,7 @@ struct MenuBarMenuBuilderTests {
         coordinator.toggleLaunchAtLogin(NSMenuItem())
 
         #expect(loginItemController.setEnabledCalls.isEmpty)
-        #expect(alertPresenter.confirmationRequests.last?.messageText == "Launch Refill at Login?")
+        #expect(alertPresenter.confirmationRequests.last?.messageText == "Launch rusage at Login?")
         #expect(loginItemController.currentState == .disabled)
         #expect(alertPresenter.infoRequests.last?.informativeText == "Could not update Launch at Login. Open System Settings and try again.")
     }
@@ -1029,7 +1029,7 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func aSignedOutClaudeOffersRefillsOwnSignInUnderTheCardOnly() throws {
+    func aSignedOutClaudeOffersRUsagesOwnSignInUnderTheCardOnly() throws {
         let menu = MenuBarMenuBuilder().makeMenu(
             state: makeState(
                 activeAccount: nil,
@@ -1046,7 +1046,7 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func claudeReadingClaudeCodesSignInSaysSoAndOffersRefillsOwn() throws {
+    func claudeReadingClaudeCodesSignInSaysSoAndOffersRUsagesOwn() throws {
         var usage = providerSnapshot(.claude)
         usage.accountEmail = "alex@example.com"
         let menu = MenuBarMenuBuilder().makeMenu(
@@ -1063,7 +1063,7 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func claudeSignedInWithRefillShowsItsEmailThenSignOut() throws {
+    func claudeSignedInWithRUsageShowsItsEmailThenSignOut() throws {
         var usage = providerSnapshot(.claude)
         usage.accountEmail = "alex@example.com"
         let menu = MenuBarMenuBuilder().makeMenu(
@@ -1284,7 +1284,7 @@ struct MenuBarMenuBuilderTests {
         hasCustomUsageColors: Bool = false,
         usagePercentMode: UsagePercentMode = .used,
         loginItemState: LoginItemState = .disabled,
-        revealStatusItemTitleShortcut: Refill.KeyboardShortcut? = .defaultRevealStatusItemTitle,
+        revealStatusItemTitleShortcut: rusage.KeyboardShortcut? = .defaultRevealStatusItemTitle,
         isBusy: Bool = false,
         tokenUsageEnabled: Bool = false,
         tokenUsageCard: TokenUsageMenuCard? = nil,

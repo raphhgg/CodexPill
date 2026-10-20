@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import Refill
+@testable import rusage
 
 struct CodexAppServerParserTests {
     @Test
@@ -187,8 +187,8 @@ struct CodexAppServerParserTests {
     }
 
     @Test
-    func refillMapperConvertsGenericDTOsIntoAccountStatusAndSnapshot() {
-        let mapper = RefillAccountStatusMapper()
+    func rusageMapperConvertsGenericDTOsIntoAccountStatusAndSnapshot() {
+        let mapper = RUsageAccountStatusMapper()
         let fetchedAt = Date(timeIntervalSince1970: 2_000_000_100)
         let status = mapper.status(from: CodexAppServerStatus(
             account: CodexAppServerAccount(

@@ -1,7 +1,7 @@
 import CoreGraphics
 import Testing
 
-@testable import Refill
+@testable import rusage
 
 struct StatusItemHoverExitPolicyTests {
     @Test

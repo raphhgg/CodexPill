@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import Refill
+@testable import rusage
 
 struct CursorUsageTests {
     private let now = CursorAccessTokenFixtures.referenceDate

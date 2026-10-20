@@ -2,7 +2,7 @@
 
 ## User Story
 
-As a Refill user, I want to pick one look for Refill, so the app icon, the usage bars and the Token Usage chart match.
+As a rusage user, I want to pick one look for rusage, so the app icon, the usage bars and the Token Usage chart match.
 
 ## Product Contract
 
@@ -18,11 +18,11 @@ Themes: Cobalt (default), Deep Teal, Emerald, Violet, Honey, Rose, Monochrome, T
 
 The icon is a porcelain-and-glass capsule built as an Icon Composer document (`Resources/AppIcon.icon`). Its colour is Cobalt. Xcode compiles it into the asset catalog for macOS 26 and later, and generates an `AppIcon.icns` fallback for macOS 14 and 15.
 
-macOS has no API that lets an app change its own Finder icon. Refill sets its in-app icon (`NSApplication.applicationIconImage`) instead. The choice changes:
+macOS has no API that lets an app change its own Finder icon. rusage sets its in-app icon (`NSApplication.applicationIconImage`) instead. The choice changes:
 
-- The `About Refill` alert.
-- Every Refill alert and confirmation.
-- The title-bar icon of Refill panels, such as shortcut capture.
+- The `About rusage` alert.
+- Every rusage alert and confirmation.
+- The title-bar icon of rusage panels, such as shortcut capture.
 
 The choice does not change Finder, Spotlight, Launchpad, or the Login Items list in System Settings. These always show Cobalt.
 
@@ -52,7 +52,7 @@ The current theme has a checkmark.
 
 ## Edge Cases
 
-- Before themes, Refill saved only an icon color. The first theme is the one with that icon, so nobody's icon changes.
+- Before themes, rusage saved only an icon color. The first theme is the one with that icon, so nobody's icon changes.
 - A missing or unknown stored value falls back to Cobalt.
 - Cobalt clears the in-app override, so alerts use the bundle icon.
 

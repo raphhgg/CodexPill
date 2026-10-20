@@ -67,7 +67,7 @@ struct AppComposition {
     }
 
     /// An isolated run never touches the real Claude sign-in: it reads `.credentials.json` from `CLAUDE_CONFIG_DIR`,
-    /// or from `.claude` inside the isolated root, and skips the Keychain. Refill's own sign-in then lives in
+    /// or from `.claude` inside the isolated root, and skips the Keychain. rusage's own sign-in then lives in
     /// `claude-sign-in.json` inside the isolated root instead of its Keychain item.
     private static func makeClaudeCodeUsage(
         environment: [String: String],

@@ -1,7 +1,7 @@
 import AppKit
 import Testing
 
-@testable import Refill
+@testable import rusage
 
 struct AppIconColorTests {
     private let appBundle = Bundle(for: MenuBarCoordinator.self)

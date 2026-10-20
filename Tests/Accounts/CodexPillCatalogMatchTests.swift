@@ -1,9 +1,9 @@
 import Foundation
 import Testing
 
-@testable import Refill
+@testable import rusage
 
-/// A CodexPill catalog copied to Refill must still find the account Codex is signed in to.
+/// A CodexPill catalog copied to rusage must still find the account Codex is signed in to.
 @MainActor
 struct CodexPillCatalogMatchTests {
     /// The live sign-in is newer than the saved snapshot, and may come from another sign-in method.
@@ -86,7 +86,7 @@ private struct CatalogFixture {
     let defaults: UserDefaults
 
     var codexPillFolder: URL { root.appendingPathComponent("CodexPill", isDirectory: true) }
-    var refillFolder: URL { root.appendingPathComponent("Refill", isDirectory: true) }
+    var rusageFolder: URL { root.appendingPathComponent("rusage", isDirectory: true) }
 
     init() throws {
         root = FileManager.default.temporaryDirectory.appendingPathComponent("CodexPillCatalogMatchTests-\(UUID().uuidString)")
@@ -102,22 +102,22 @@ private struct CatalogFixture {
         try snapshot.write(to: snapshots.appendingPathComponent(try #require(account["snapshotFileName"] as? String)))
     }
 
-    /// The isolated root holds Codex's auth.json too, so Refill's folder doubles as CODEX_HOME.
+    /// The isolated root holds Codex's auth.json too, so rusage's folder doubles as CODEX_HOME.
     func writeLiveAuth(_ data: Data) throws {
-        try data.write(to: refillFolder.appendingPathComponent("auth.json"))
+        try data.write(to: rusageFolder.appendingPathComponent("auth.json"))
     }
 
     func migration() -> CodexPillMigration {
         CodexPillMigration(
             legacy: CodexPillLegacyData(folder: codexPillFolder, preferences: [:]),
-            folder: refillFolder,
+            folder: rusageFolder,
             defaults: defaults,
             defaultsDomain: suiteName
         )
     }
 
     func loadController() throws -> AccountsController {
-        let repository = try AccountRepository(isolatedRootDirectory: refillFolder)
+        let repository = try AccountRepository(isolatedRootDirectory: rusageFolder)
         let controller = AccountsFeatureFactory(
             repository: repository,
             authService: CodexAuthSnapshotService(repository: repository),

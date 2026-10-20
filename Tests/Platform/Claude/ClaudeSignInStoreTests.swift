@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import Refill
+@testable import rusage
 
 struct ClaudeSignInStoreTests {
     private let expiry = Date(timeIntervalSince1970: 1_800_000_000)

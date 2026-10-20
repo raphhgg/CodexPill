@@ -8,16 +8,16 @@ Reset credits are not the Codex credit balance. The balance has its own card lin
 
 - Source: `account/rateLimits/read` on the local Codex app-server, field `rateLimitResetCredits`.
 - Codex sends `availableCount` and a `credits` list with one `expiresAt` per credit (`null` for a credit that never expires). The list can be shorter than the count.
-- Refill keeps the count and the expiry of each listed credit with status `available`, as `UsageSnapshot.resetCredits`. `nextExpiry` is the earliest of those dates.
-- `credits: null` means Codex knows only the count. Refill keeps `credits` as `nil` and shows the count without a date.
+- rusage keeps the count and the expiry of each listed credit with status `available`, as `UsageSnapshot.resetCredits`. `nextExpiry` is the earliest of those dates.
+- `credits: null` means Codex knows only the count. rusage keeps `credits` as `nil` and shows the count without a date.
 - Codex versions without the field keep working. `resetCredits` stays `nil` and nothing about resets is shown.
 - The last known count and expiries are saved with the account, like its limits.
 
 ## Using A Reset
 
 - `account/rateLimitResetCredit/consume` spends one credit on the live account the local Codex app-server runs as, so it applies only to the active local account.
-- Each attempt sends one idempotency key. Refill keeps one key per saved account and reuses it when the call fails or Codex returns an outcome it does not know, so a retry cannot spend a second credit. It starts a new key once Codex answers.
-- After a reset, Refill refreshes the active account's limits.
+- Each attempt sends one idempotency key. rusage keeps one key per saved account and reuses it when the call fails or Codex returns an outcome it does not know, so a retry cannot spend a second credit. It starts a new key once Codex answers.
+- After a reset, rusage refreshes the active account's limits.
 - Switching accounts waits until the reset and that refresh finish. A switch asked for meanwhile shows "Reset in progress" instead of switching.
 
 | Codex outcome | Message |

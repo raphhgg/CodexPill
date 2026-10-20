@@ -12,7 +12,7 @@ struct DiagnosticReportExportCopy {
     let panelPrompt = "Export"
 
     func defaultFilename(for date: Date) -> String {
-        "Refill-Diagnostics-\(filenameTimestamp(from: date)).json"
+        "rusage-Diagnostics-\(filenameTimestamp(from: date)).json"
     }
 
     private func filenameTimestamp(from date: Date) -> String {

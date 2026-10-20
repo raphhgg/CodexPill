@@ -1,4 +1,4 @@
-@testable import Refill
+@testable import rusage
 
 @MainActor
 final class AppIconApplierProbe: AppIconApplying {

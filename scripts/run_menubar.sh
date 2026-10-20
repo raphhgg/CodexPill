@@ -5,14 +5,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${REPO_ROOT}"
 
-APP_NAME="Refill"
+APP_NAME="rusage"
 AGENT_NAME="${AGENT_NAME:-local}"
 DERIVED_DATA="build/DerivedData/${AGENT_NAME}"
 APP_PATH="${DERIVED_DATA}/Build/Products/Debug/${APP_NAME}.app"
 PROJECT_PATH="${APP_NAME}.xcodeproj"
 LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
 BUILD_VERSION="$(date +%Y%m%d%H%M%S)"
-BUNDLE_ID_OVERRIDE="${REFILL_BUNDLE_ID:-com.raphhgg.refill.dev}"
+BUNDLE_ID_OVERRIDE="${RUSAGE_BUNDLE_ID:-com.raphhgg.rusage.dev}"
 
 command -v tuist >/dev/null || {
   echo "Tuist is not installed. Install it first."

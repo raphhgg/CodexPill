@@ -1,21 +1,21 @@
 import Foundation
 import OSLog
 
-private let migrationLogger = Logger(subsystem: "com.raphhgg.refill", category: "CodexPillMigration")
+private let migrationLogger = Logger(subsystem: "com.raphhgg.rusage", category: "CodexPillMigration")
 
-/// What CodexPill left on this Mac before the app became Refill.
+/// What CodexPill left on this Mac before the app became rusage.
 struct CodexPillLegacyData {
     let folder: URL
     let preferences: [String: Any]
 }
 
-/// Copies CodexPill's saved Codex accounts and settings to Refill once, at the first launch after the rename.
-/// CodexPill's copies are never changed, so they stay as a backup. Refill data that already exists wins.
+/// Copies CodexPill's saved Codex accounts and settings to rusage once, at the first launch after the rename.
+/// CodexPill's copies are never changed, so they stay as a backup. rusage data that already exists wins.
 struct CodexPillMigration {
     enum Outcome: Equatable {
         case alreadyRan
         case nothingToCopy
-        case keptRefillData
+        case keptRUsageData
         case copied
         /// Something was not copied. Whatever did copy stays, and the migration does not run again.
         case failed
@@ -23,9 +23,9 @@ struct CodexPillMigration {
 
     static let doneKey = "codexPillMigrationDone"
     /// Saved Claude accounts and the scratch folders for adding Claude or Cursor accounts, which test builds left.
-    /// Refill shows only the account each tool is signed in to, so they are not copied.
+    /// rusage shows only the account each tool is signed in to, so they are not copied.
     private static let notCopiedEntries: Set<String> = ["claude-code-accounts.json", "claude-sign-in", "cursor-sign-in"]
-    /// Finder's file and the entries above: none of them make the Refill folder hold data.
+    /// Finder's file and the entries above: none of them make the rusage folder hold data.
     private static let ignoredEntries = notCopiedEntries.union([".DS_Store"])
 
     let legacy: CodexPillLegacyData
@@ -42,9 +42,9 @@ struct CodexPillMigration {
         copyPreferences()
         guard fileManager.fileExists(atPath: legacy.folder.path) else { return .nothingToCopy }
         do {
-            guard try !refillHasData() else {
-                migrationLogger.log("Refill already has data, CodexPill's folder left as is")
-                return .keptRefillData
+            guard try !rusageHasData() else {
+                migrationLogger.log("rusage already has data, CodexPill's folder left as is")
+                return .keptRUsageData
             }
             try copyFolder()
         } catch {
@@ -61,7 +61,7 @@ struct CodexPillMigration {
         }
     }
 
-    /// Earlier test builds copied these entries too. Nothing in Refill reads them, and CodexPill keeps its copies.
+    /// Earlier test builds copied these entries too. Nothing in rusage reads them, and CodexPill keeps its copies.
     private func removeNotCopiedEntries(from folder: URL) {
         for entry in Self.notCopiedEntries {
             let url = folder.appendingPathComponent(entry)
@@ -74,7 +74,7 @@ struct CodexPillMigration {
         }
     }
 
-    private func refillHasData() throws -> Bool {
+    private func rusageHasData() throws -> Bool {
         guard fileManager.fileExists(atPath: folder.path) else { return false }
         for entry in try entries(of: folder) {
             switch entry.lastPathComponent {
@@ -95,7 +95,7 @@ struct CodexPillMigration {
             .filter { !Self.ignoredEntries.contains($0.lastPathComponent) }
     }
 
-    /// Copies into a staging folder first, so a crash midway leaves either no Refill folder or the empty one, and the
+    /// Copies into a staging folder first, so a crash midway leaves either no rusage folder or the empty one, and the
     /// next launch copies again.
     private func copyFolder() throws {
         let staging = folder.deletingLastPathComponent()
@@ -112,7 +112,7 @@ struct CodexPillMigration {
             try fileManager.removeItem(at: folder)
         }
         try fileManager.moveItem(at: staging, to: folder)
-        migrationLogger.log("Copied CodexPill's folder to Refill")
+        migrationLogger.log("Copied CodexPill's folder to rusage")
     }
 
     /// Owner-only access throughout. Files keep their owner execute bit.
@@ -135,7 +135,7 @@ struct CodexPillMigration {
 }
 
 extension CodexPillMigration {
-    /// The real folders and the CodexPill defaults domain that matches this build: `com.raphhgg.refill.dev` reads
+    /// The real folders and the CodexPill defaults domain that matches this build: `com.raphhgg.rusage.dev` reads
     /// `com.raphhgg.codexpill.dev`.
     static func live(defaults: UserDefaults, bundleIdentifier: String?, fileManager: FileManager = .default) throws -> CodexPillMigration {
         let supportRoot = try fileManager.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
@@ -154,7 +154,7 @@ extension CodexPillMigration {
     }
 
     static func legacyDefaultsDomain(for bundleIdentifier: String) -> String? {
-        let prefix = "com.raphhgg.refill"
+        let prefix = "com.raphhgg.rusage"
         guard bundleIdentifier == prefix || bundleIdentifier.hasPrefix(prefix + ".") else { return nil }
         return "com.raphhgg.codexpill" + bundleIdentifier.dropFirst(prefix.count)
     }

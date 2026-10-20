@@ -1,10 +1,10 @@
 import Foundation
 
-/// Lets one Refill process at a time renew or change Refill's own Claude sign-in, so two processes never send the same
+/// Lets one rusage process at a time renew or change rusage's own Claude sign-in, so two processes never send the same
 /// single-use refresh token. It holds an exclusive `flock` on a lock file.
 ///
 /// Each acquisition opens its own file descriptor. A `flock` belongs to the open file, so two holders in one process
-/// exclude each other too. Closing the descriptor releases it, and the kernel releases it if Refill crashes.
+/// exclude each other too. Closing the descriptor releases it, and the kernel releases it if rusage crashes.
 struct ClaudeRefreshLock: Sendable {
     static let defaultTimeout: Duration = .seconds(30)
 

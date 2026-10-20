@@ -1,8 +1,8 @@
 import Foundation
 
 enum AppRuntimeEnvironment {
-    static let isolatedAppSupportDirectoryEnvironmentKey = "REFILL_ISOLATED_APP_SUPPORT_DIR"
-    static let isolatedDefaultsSuiteEnvironmentKey = "REFILL_ISOLATED_DEFAULTS_SUITE"
+    static let isolatedAppSupportDirectoryEnvironmentKey = "RUSAGE_ISOLATED_APP_SUPPORT_DIR"
+    static let isolatedDefaultsSuiteEnvironmentKey = "RUSAGE_ISOLATED_DEFAULTS_SUITE"
     static let xctestConfigurationFilePathEnvironmentKey = "XCTestConfigurationFilePath"
 
     static func isolatedDefaultsSuiteName(
@@ -35,7 +35,7 @@ enum AppRuntimeEnvironment {
         guard isRunningAutomatedTests(environment: environment) else { return nil }
 
         return FileManager.default.temporaryDirectory
-            .appendingPathComponent("RefillTests-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true)
+            .appendingPathComponent("rusageTests-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true)
     }
 
     static func shouldStartAppRuntime(

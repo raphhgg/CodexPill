@@ -1,9 +1,9 @@
 import Foundation
 import OSLog
 
-private let claudeSignInLogger = Logger(subsystem: "com.raphhgg.refill", category: "ClaudeSignIn")
+private let claudeSignInLogger = Logger(subsystem: "com.raphhgg.rusage", category: "ClaudeSignIn")
 
-/// Why Refill's own sign-in was not renewed this time. Its tokens stay, and a later read tries again.
+/// Why rusage's own sign-in was not renewed this time. Its tokens stay, and a later read tries again.
 enum ClaudeRefreshFailure: Equatable, Sendable {
     case network
     /// The token endpoint refused with something other than `invalid_grant`.
@@ -11,7 +11,7 @@ enum ClaudeRefreshFailure: Equatable, Sendable {
     case malformed
     /// The refresh marker could not be saved, so no refresh token was sent.
     case saveFailed
-    /// Another Refill process held the refresh lock too long.
+    /// Another rusage process held the refresh lock too long.
     case busy
 }
 
@@ -24,7 +24,7 @@ enum ClaudeOwnToken: Equatable, Sendable {
     case unavailable(ClaudeRefreshFailure)
 }
 
-/// Refill's own Claude sign-in and its renewal. Claude rotates the refresh token on every refresh and accepts each
+/// rusage's own Claude sign-in and its renewal. Claude rotates the refresh token on every refresh and accepts each
 /// one once, so a refresh token is never sent unless the store first records that it is about to be spent:
 ///
 /// 1. Under the refresh lock, read the item again. One still marked `refreshPending` never saved its result, so its
@@ -33,7 +33,7 @@ enum ClaudeOwnToken: Equatable, Sendable {
 /// 3. Send the refresh token, then save the new pair with the marker cleared. A pair the store refuses stays in memory
 ///    and wins over the store until a save succeeds.
 ///
-/// A crash between 2 and 3 costs only Refill's own sign-in. Claude Code's sign-in is never read or written here.
+/// A crash between 2 and 3 costs only rusage's own sign-in. Claude Code's sign-in is never read or written here.
 actor ClaudeOwnSignIn {
     private let signInStore: any ClaudeSignInStoring
     private let tokenEndpoint: any ClaudeTokenEndpoint
@@ -70,13 +70,13 @@ actor ClaudeOwnSignIn {
         return result
     }
 
-    /// Anthropic answered 401 to `rejected`. Uses the stored token when another Refill process already renewed it,
+    /// Anthropic answered 401 to `rejected`. Uses the stored token when another rusage process already renewed it,
     /// and renews otherwise.
     func refreshAfterRejection(of rejected: ClaudeAccessToken, now: Date) async -> ClaudeOwnToken {
         await refresh(now: now, rejecting: rejected, allowingPrompt: false)
     }
 
-    /// Saves a new browser sign-in. Returns false when the store refused it: it then lasts until Refill quits.
+    /// Saves a new browser sign-in. Returns false when the store refused it: it then lasts until rusage quits.
     func store(_ signIn: ClaudeSignIn) async -> Bool {
         let saved = await lock.withLock {
             signInStore.save(signIn, refreshPending: false, allowingPrompt: true)
