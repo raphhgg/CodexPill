@@ -31,12 +31,19 @@ final class ClaudeUsageFixture: ClaudeKeychainReading, ClaudeUsageWebClient, @un
         settings = ClaudeUsageSettingsStore(userDefaults: defaults)
         configDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("ClaudeUsageFixture-\(UUID().uuidString)", isDirectory: true)
+        let ownSignInFiles = configDirectory.appendingPathComponent("refill", isDirectory: true)
         usage = ClaudeCodeUsage(
             settings: settings,
             client: ClaudeUsageClient(
                 credentials: ClaudeCredentialsSource(configDirectory: configDirectory, keychain: self),
+                ownSignIn: ClaudeOwnSignIn(
+                    store: FileClaudeSignInStore(fileURL: ownSignInFiles.appendingPathComponent("claude-sign-in.json")),
+                    tokenEndpoint: FakeClaudeTokenServer(),
+                    lock: ClaudeRefreshLock(fileURL: ownSignInFiles.appendingPathComponent("claude-sign-in.lock"))
+                ),
                 webClient: self
             ),
+            signInFlow: ScriptedClaudeSignInFlow(),
             refreshInterval: refreshInterval
         )
     }
@@ -99,6 +106,10 @@ final class ClaudeUsageFixture: ClaudeKeychainReading, ClaudeUsageWebClient, @un
             throw ClaudeUsageWebError.unauthorized
         }
         return try response.get()
+    }
+
+    func profile(using _: ClaudeAccessToken) async -> ClaudeProfile? {
+        nil
     }
 
     func remove() {

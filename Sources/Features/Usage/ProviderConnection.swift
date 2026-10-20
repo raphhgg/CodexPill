@@ -1,7 +1,8 @@
 import Foundation
 
 /// How the menu drives a tool other than Codex: Claude Code and Cursor. Refill reads the one account each tool is
-/// signed in to and never writes the tool's sign-in.
+/// signed in to and never writes the tool's sign-in. Claude also offers Refill's own sign-in, kept apart from Claude
+/// Code's.
 ///
 /// A tool plugs in by conforming once and being listed in `AppComposition`. The menu never names a tool: it sends a
 /// `ProviderAction`, and `ProviderUsageRuntime` runs it, then refreshes that tool. Codex is not a connection, because
@@ -14,6 +15,30 @@ protocol ProviderConnection: UsageProviderSource {
     /// asked. Calling it again, as "Allow Keychain Access…" does, only allows the prompt again.
     func connect() async
     func disconnect() async
+    /// Whether Refill can sign in to this tool itself, and whether it is.
+    var ownSignIn: ProviderOwnSignIn { get }
+    /// Runs Refill's own sign-in. A cancelled sign-in ends without a notice.
+    func signIn() async throws(ProviderNotice)
+    func signOut() async throws(ProviderNotice)
+}
+
+extension ProviderConnection {
+    var ownSignIn: ProviderOwnSignIn { .unsupported }
+    func signIn() async throws(ProviderNotice) {}
+    func signOut() async throws(ProviderNotice) {}
+}
+
+enum ProviderOwnSignIn: Equatable, Sendable {
+    /// The tool only offers its own app's sign-in.
+    case unsupported
+    case signedOut
+    case signedIn
+}
+
+/// What the user should be told after an action, as a title plus at most one short line.
+struct ProviderNotice: Error, Equatable {
+    let title: String
+    let detail: String?
 }
 
 /// One thing the user asked a tool section to do. Every tool menu item carries one, for any tool.
@@ -27,6 +52,9 @@ enum ProviderAction: Hashable, Sendable {
     case removeAccount(UUID)
     /// Spends one reset credit on the active account.
     case useResetCredit
+    /// Refill's own sign-in, for a tool that offers one.
+    case signIn
+    case signOut
 
     /// The action without its account ID, for diagnostics.
     var name: String {
@@ -38,6 +66,8 @@ enum ProviderAction: Hashable, Sendable {
         case .addAccount: "addAccount"
         case .removeAccount: "removeAccount"
         case .useResetCredit: "useResetCredit"
+        case .signIn: "signIn"
+        case .signOut: "signOut"
         }
     }
 }

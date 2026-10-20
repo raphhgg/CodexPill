@@ -9,7 +9,7 @@ It is for people who use more than one Codex account, or Codex next to Claude Co
 - see current usage (session, weekly, monthly, or billing cycle) before choosing which account or tool to use;
 - spend a Codex reset credit when one is available.
 
-Codex is always on. Claude Code and Cursor are opt-in and read-only: each is read only after the user connects it, and Refill shows the one account each tool is signed in to, by its email. It never writes their files or Keychain items, and it never runs them.
+Codex is always on. Claude Code and Cursor are opt-in and read-only: each is read only after the user connects it, and Refill shows the one account each tool is signed in to, by its email. It never writes their files or Keychain items, and it never runs them. For Claude, the user can also opt in to Refill's own "Sign in with Claude", which Refill keeps in its own Keychain item and renews itself.
 
 Detailed product behavior and UX contracts live in [features](features/README.md).
 
@@ -69,7 +69,7 @@ A Codex credit that resets the current limits early. Refill shows how many are l
 ## Non-Goals
 
 - Browser-based ChatGPT account switching.
-- Signing in to Claude Code or Cursor, switching their accounts, renewing their sessions, or starting them to renew. Each tool renews its own sign-in when the user runs it.
+- Signing in to Claude Code or Cursor, switching their accounts, renewing their sessions, or starting them to renew. Each tool renews its own sign-in when the user runs it. Refill's own Claude sign-in is separate and never touches Claude Code's.
 - Cloud sync or multi-device account storage.
 - Team/shared account management.
 - Background telemetry pipeline.

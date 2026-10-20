@@ -101,4 +101,16 @@ struct ClaudeUsageAPITests {
         #expect(ClaudeUsageAPI.error(forStatus: 429, retryAfter: nil) == .rateLimited(retryAfter: nil))
         #expect(ClaudeUsageAPI.error(forStatus: 503, retryAfter: nil) == .httpStatus(503))
     }
+
+    @Test
+    func theProfileGivesThePlanWithItsMultiplierAndTheEmail() {
+        let max = Data(#"{"account":{"uuid":"fake-uuid","email":"sam@example.com"},"organization":{"organization_type":"claude_max","rate_limit_tier":"default_claude_max_20x"}}"#.utf8)
+        let pro = Data(#"{"account":{"email_address":"kim@example.com"},"organization":{"organization_type":"claude_pro","rate_limit_tier":"default_claude_pro"}}"#.utf8)
+        let unknown = Data(#"{"organization":{"organization_type":"claude_free"}}"#.utf8)
+
+        #expect(ClaudeUsageAPI.parseProfile(max) == ClaudeProfile(planName: "max_20x", email: "sam@example.com"))
+        #expect(ClaudeUsageAPI.parseProfile(pro) == ClaudeProfile(planName: "pro", email: "kim@example.com"))
+        #expect(ClaudeUsageAPI.parseProfile(unknown) == ClaudeProfile(planName: nil, email: nil))
+        #expect(ClaudeUsageAPI.parseProfile(Data("<html>".utf8)) == nil)
+    }
 }

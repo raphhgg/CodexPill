@@ -358,7 +358,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         if let prompt = provider.copy.prompt(for: action) {
             guard alertPresenter.presentConfirmation(alertFactory.makeConfirmationRequest(prompt)) else { return }
         }
-        tasks.start { [weak self] in await self?.providerUsageRuntime.perform(action, on: provider) }
+        tasks.start { [weak self] in
+            guard let self, let notice = await providerUsageRuntime.perform(action, on: provider) else { return }
+            alertPresenter.presentInfo(alertFactory.makeNoticeRequest(notice))
+        }
     }
 
     /// Codex accounts are saved `auth.json` snapshots, switched and added through `AccountsController`.
@@ -380,7 +383,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         case .disconnect:
             recordMenuAction("hideCodex")
             menuDisplaySettings.hidesCodex = true
-        case .allowKeychainAccess:
+        case .allowKeychainAccess, .signIn, .signOut:
             break
         }
     }
