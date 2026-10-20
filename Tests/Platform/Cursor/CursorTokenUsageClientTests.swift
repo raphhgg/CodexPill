@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import Refill
+@testable import RUsage
 
 struct CursorTokenUsageClientTests {
     private let calendar: Calendar = {

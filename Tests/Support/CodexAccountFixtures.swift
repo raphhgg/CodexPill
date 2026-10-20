@@ -1,6 +1,6 @@
 import Foundation
 
-@testable import Refill
+@testable import RUsage
 
 /// Builds a saved account whose email is derived from its name, for example "Business 2" → "business 2@example.com".
 func makeAccount(

@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 import Testing
 
-@testable import Refill
+@testable import RUsage
 
 struct UsagePresentationTests {
     @Test
@@ -228,6 +228,6 @@ struct UsagePresentationTests {
 
         #expect(statusItemTooltipText(for: state.statusItemSource, now: now) == "Codex · Team\nbusiness@example.com\nSession resets in 4h00")
         #expect(statusItemTooltipText(for: masked.statusItemSource, now: now) == "Codex · Team\nbu•••s@example.com\nSession resets in 4h00")
-        #expect(statusItemTooltipText(for: .nothingConnected, now: now) == "Refill")
+        #expect(statusItemTooltipText(for: .nothingConnected, now: now) == "rusage")
     }
 }

@@ -2,7 +2,7 @@
 
 ## User Story
 
-As a Refill user, I want to add another Codex account without changing This Mac, so that I can prepare accounts for later use without disrupting current Codex work.
+As a rusage user, I want to add another Codex account without changing This Mac, so that I can prepare accounts for later use without disrupting current Codex work.
 
 ## Product Contract
 
@@ -12,27 +12,27 @@ As a Refill user, I want to add another Codex account without changing This Mac,
 - Temporary isolated auth state is treated as sensitive and must be cleaned up after success, cancellation, timeout, or failure.
 - Only one Add Account sign-in may run at a time.
 - Add Account classifies isolated sign-in failures as account-domain outcomes before the menubar renders native alerts or retry panels.
-- After the account is saved, Refill attempts a best-effort isolated status read so the new account can show available session or weekly usage immediately. Returned windows are classified by duration instead of App Server `primary` / `secondary` field position.
+- After the account is saved, rusage attempts a best-effort isolated status read so the new account can show available session or weekly usage immediately. Returned windows are classified by duration instead of App Server `primary` / `secondary` field position.
 - An account is identified by its email, as the side menu shows it (masked with Hide Emails). Without an email it reads as its workspace, then its plan (`Plus account`), then `Saved account`. Users never type a name.
 - Duplicates are detected by account identity, never by label.
-- Refill must not log or expose raw auth payloads.
+- rusage must not log or expose raw auth payloads.
 
 ## Happy Path
 
 1. The user chooses `Add Account…`.
-2. Refill starts an isolated Codex sign-in session.
-3. Refill shows a sign-in alert with the device code, `Copy Code`, and `Open Browser`.
+2. rusage starts an isolated Codex sign-in session.
+3. rusage shows a sign-in alert with the device code, `Copy Code`, and `Open Browser`.
 4. The user copies the code and opens the Codex device-auth page from the alert.
 5. The user completes sign-in in the browser.
-6. Refill captures the isolated auth snapshot and verifies it.
-7. Refill saves the account in the local catalog.
-8. Refill attempts to hydrate the saved account metadata and rate limits without switching local auth.
-9. Refill confirms that This Mac was not changed.
-10. Refill shows a success alert with `Done` and `Use on This Mac`.
+6. rusage captures the isolated auth snapshot and verifies it.
+7. rusage saves the account in the local catalog.
+8. rusage attempts to hydrate the saved account metadata and rate limits without switching local auth.
+9. rusage confirms that This Mac was not changed.
+10. rusage shows a success alert with `Done` and `Use on This Mac`.
 
 ## First Run
 
-With no saved Codex account and no other tool connected, Refill asks once at launch:
+With no saved Codex account and no other tool connected, rusage asks once at launch:
 
 Title: `Add a Codex account?`
 
@@ -85,41 +85,41 @@ If Codex terminals are running, the success alert should include the same restar
 
 ### Device Code Visibility
 
-Given Refill starts isolated sign-in, when Codex provides a device code, then Refill displays the code in the app with `Copy Code` and `Open Browser` actions before opening the browser.
+Given rusage starts isolated sign-in, when Codex provides a device code, then rusage displays the code in the app with `Copy Code` and `Open Browser` actions before opening the browser.
 
 ### Copy Code Keeps Waiting
 
-Given the sign-in alert is visible, when the user selects `Copy Code`, then the code is copied and the alert remains open while Refill continues waiting for browser sign-in.
+Given the sign-in alert is visible, when the user selects `Copy Code`, then the code is copied and the alert remains open while rusage continues waiting for browser sign-in.
 
 ### Add Without Switching
 
-Given the user completes browser sign-in, when Refill captures and saves the isolated account, then the saved account appears in the catalog and the live local Codex auth remains unchanged.
+Given the user completes browser sign-in, when rusage captures and saves the isolated account, then the saved account appears in the catalog and the live local Codex auth remains unchanged.
 
 ### Post-Add Usage Hydration
 
-Given Add Account saves a new inactive account, when Refill can read that account's status through the isolated app-server path, then Refill updates the saved account with returned email, plan, and any usable rate-limit window before leaving the Add Account flow.
+Given Add Account saves a new inactive account, when rusage can read that account's status through the isolated app-server path, then rusage updates the saved account with returned email, plan, and any usable rate-limit window before leaving the Add Account flow.
 
-If Codex returns only session or only weekly usage, Refill must preserve the returned usable window instead of treating the whole status as missing. Each window is named by its length, never its field. For example, a Free account returns one 30-day window as `secondary`; Refill shows it as `Monthly`, not weekly or session usage.
+If Codex returns only session or only weekly usage, rusage must preserve the returned usable window instead of treating the whole status as missing. Each window is named by its length, never its field. For example, a Free account returns one 30-day window as `secondary`; rusage shows it as `Monthly`, not weekly or session usage.
 
-If hydration fails, Add Account still succeeds and the account remains saved; Refill may show missing usage until a later refresh succeeds.
+If hydration fails, Add Account still succeeds and the account remains saved; rusage may show missing usage until a later refresh succeeds.
 
 ### Overlapping Sign-In
 
-Given Add Account is already waiting for browser sign-in, when the user or runtime attempts to start another Add Account flow, then Refill rejects the second attempt without cancelling or clearing the first pending sign-in.
+Given Add Account is already waiting for browser sign-in, when the user or runtime attempts to start another Add Account flow, then rusage rejects the second attempt without cancelling or clearing the first pending sign-in.
 
 ### Use On This Mac
 
-Given the success alert is visible, when the user selects `Use on This Mac`, then Refill switches to the saved account directly and does not show a second switch confirmation.
+Given the success alert is visible, when the user selects `Use on This Mac`, then rusage switches to the saved account directly and does not show a second switch confirmation.
 
 Given one or more Codex terminals are running, when the success alert is visible, then the alert warns that they must be restarted to use the new account.
 
 ### Cancel During Sign-In
 
-Given isolated sign-in is in progress, when the user selects `Cancel`, then Refill terminates the isolated Codex login process, deletes the temporary `CODEX_HOME`, clears pending Add Account state, saves no account, and does not switch local auth.
+Given isolated sign-in is in progress, when the user selects `Cancel`, then rusage terminates the isolated Codex login process, deletes the temporary `CODEX_HOME`, clears pending Add Account state, saves no account, and does not switch local auth.
 
 ### Duplicate Account Identity
 
-Given the user completes browser sign-in with an account that is already saved, when Refill resolves the captured account identity, then Refill does not save a duplicate snapshot and shows:
+Given the user completes browser sign-in with an account that is already saved, when rusage resolves the captured account identity, then rusage does not save a duplicate snapshot and shows:
 
 Title: `Account Already Saved`
 
@@ -131,7 +131,7 @@ This Codex account is already saved as work@example.com.
 
 ### Expired Code
 
-Given isolated sign-in is waiting, when the device code expires before the account is added, then Refill clears pending state, cleans temporary auth state, and shows:
+Given isolated sign-in is waiting, when the device code expires before the account is added, then rusage clears pending state, cleans temporary auth state, and shows:
 
 Title: `Sign-In Expired`
 
@@ -152,7 +152,7 @@ Actions:
 
 ### Failed Before Code
 
-Given Codex cannot start a device-auth session, when no device code is available, then Refill clears pending state, cleans temporary auth state, and shows:
+Given Codex cannot start a device-auth session, when no device code is available, then rusage clears pending state, cleans temporary auth state, and shows:
 
 Title: `Couldn't Start Sign-In`
 
@@ -168,43 +168,43 @@ Action:
 
 - `OK`
 
-If Codex provides a startup error before the device code is available, Refill may append a sanitized `Codex reported: ...` diagnostic. Device codes and auth URL query strings must be redacted before any diagnostic is shown.
+If Codex provides a startup error before the device code is available, rusage may append a sanitized `Codex reported: ...` diagnostic. Device codes and auth URL query strings must be redacted before any diagnostic is shown.
 
 ### Live Auth Mutation Guard
 
-Given isolated Add Account starts, when Refill detects that live local auth changed during the flow, then Refill treats the attempt as unsafe, does not save the captured account, cleans temporary auth state, and shows:
+Given isolated Add Account starts, when rusage detects that live local auth changed during the flow, then rusage treats the attempt as unsafe, does not save the captured account, cleans temporary auth state, and shows:
 
 Title: `Couldn't Add Account`
 
 Body:
 
 ```text
-Refill could not verify that This Mac stayed unchanged. No account was added.
+rusage could not verify that This Mac stayed unchanged. No account was added.
 ```
 
 ### Catalog Save Failure
 
-Given isolated auth capture succeeds, when Refill cannot save the account to the catalog, then Refill cleans temporary auth state, does not switch local auth, and shows:
+Given isolated auth capture succeeds, when rusage cannot save the account to the catalog, then rusage cleans temporary auth state, does not switch local auth, and shows:
 
 Title: `Couldn't Save Account`
 
 Body:
 
 ```text
-The sign-in completed, but Refill could not save the account. This Mac was not changed.
+The sign-in completed, but rusage could not save the account. This Mac was not changed.
 ```
 
 ### Codex App Not Found
 
-Sign-in runs the Codex CLI that the Codex app ships (`Contents/Resources/codex-cli/bin/codex` in ChatGPT.app, `Contents/Resources/codex` in earlier Codex.app builds). Refill finds the app by bundle ID, so its name does not matter. Given no Codex app is found, when the user adds an account, then Refill shows `Codex app not found` / `Install the Codex app, then add the account again.`
+Sign-in runs the Codex CLI that the Codex app ships (`Contents/Resources/codex-cli/bin/codex` in ChatGPT.app, `Contents/Resources/codex` in earlier Codex.app builds). rusage finds the app by bundle ID, so its name does not matter. Given no Codex app is found, when the user adds an account, then rusage shows `Codex app not found` / `Install the Codex app, then add the account again.`
 
 ### Quit During Sign-In
 
-Given isolated sign-in is in progress, when Refill quits, then Refill aborts the isolated Codex login process and cleans temporary auth state.
+Given isolated sign-in is in progress, when rusage quits, then rusage aborts the isolated Codex login process and cleans temporary auth state.
 
 ### Crash Recovery Cleanup
 
-Given Refill crashes during isolated sign-in, when Refill next launches, then it removes stale isolated Add Account temporary homes older than a safe threshold.
+Given rusage crashes during isolated sign-in, when rusage next launches, then it removes stale isolated Add Account temporary homes older than a safe threshold.
 
 ## Validation Targets
 

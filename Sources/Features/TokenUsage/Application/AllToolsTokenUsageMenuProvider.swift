@@ -8,7 +8,7 @@ struct TokenUsageToolSource: Sendable {
     }
 
     let tool: TokenUsageTool
-    /// Only tools the user connected in Refill are read.
+    /// Only tools the user connected in rusage are read.
     let isConnected: @Sendable () -> Bool
     let read: @Sendable (DateInterval) async -> Reading
 }

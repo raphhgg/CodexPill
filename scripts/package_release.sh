@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_NAME="Refill"
-PROJECT_PATH="${APP_NAME}.xcodeproj"
-SCHEME="${APP_NAME}"
+APP_NAME="rusage"
+SCHEME="RUsage"
+PROJECT_PATH="${SCHEME}.xcodeproj"
 CONFIGURATION="Release"
 AGENT_NAME="${AGENT_NAME:-local}"
 BUILD_ROOT="${BUILD_ROOT:-build}"
@@ -101,8 +101,8 @@ prepare_package_app() {
   if [[ -n "${RELEASE_VERSION}" ]]; then
     local display_version="${RELEASE_VERSION#v}"
     local info_plist="${SIGNED_APP}/Contents/Info.plist"
-    /usr/libexec/PlistBuddy -c "Delete :RefillReleaseVersion" "${info_plist}" >/dev/null 2>&1 || true
-    /usr/libexec/PlistBuddy -c "Add :RefillReleaseVersion string ${display_version}" "${info_plist}"
+    /usr/libexec/PlistBuddy -c "Delete :RUsageReleaseVersion" "${info_plist}" >/dev/null 2>&1 || true
+    /usr/libexec/PlistBuddy -c "Add :RUsageReleaseVersion string ${display_version}" "${info_plist}"
   fi
 }
 

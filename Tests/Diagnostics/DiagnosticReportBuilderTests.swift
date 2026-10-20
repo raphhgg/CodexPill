@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import Refill
+@testable import RUsage
 
 struct DiagnosticReportBuilderTests {
     @Test
@@ -11,7 +11,7 @@ struct DiagnosticReportBuilderTests {
 
         #expect(copy.panelTitle == "Export Diagnostics")
         #expect(copy.panelPrompt == "Export")
-        #expect(copy.defaultFilename(for: date) == "Refill-Diagnostics-20270115-080000.json")
+        #expect(copy.defaultFilename(for: date) == "rusage-Diagnostics-20270115-080000.json")
     }
 
     @Test
@@ -202,7 +202,7 @@ private extension DiagnosticAppMetadata {
     static let fixture = DiagnosticAppMetadata(
         appVersion: "1.0",
         buildNumber: "1",
-        bundleIdentifier: "com.raphhgg.refill"
+        bundleIdentifier: "com.raphhgg.rusage"
     )
 }
 

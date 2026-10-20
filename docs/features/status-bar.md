@@ -1,6 +1,6 @@
 # Status Bar
 
-The status bar feature owns Refill's closed-state menubar presentation: icon, label, hover behavior, and compact usage indicators.
+The status bar feature owns rusage's closed-state menubar presentation: icon, label, hover behavior, and compact usage indicators.
 
 ## Purpose
 
@@ -50,7 +50,7 @@ unknown value to Glasses.
 
 ## Menu Bar Label Reveal Shortcut
 
-Refill ships with the global shortcut `⌃⌥⌘L` while the app is running.
+rusage ships with the global shortcut `⌃⌥⌘L` while the app is running.
 Pressing it temporarily reveals the same status item label that appears on hover
 for about three seconds without opening the menu and without changing the saved
 `Menu Bar Label` display mode. Pressing the shortcut again while the label is
@@ -64,7 +64,7 @@ Appearance
     Reveal Shortcut…    ⌃⌥⌘L
 ```
 
-If a configured shortcut cannot be registered, Refill keeps the previous
+If a configured shortcut cannot be registered, rusage keeps the previous
 working shortcut and shows an error.
 
 ## Usage Bars
@@ -86,7 +86,7 @@ Appearance
     Use Theme Colors
 ```
 
-- `Show % Left` changes every usage percentage Refill shows (status item
+- `Show % Left` changes every usage percentage rusage shows (status item
   label, active account meters, saved account rows) to the share still
   available. The glyph follows the same choice. Pace markers move to the
   matching position. Countdowns for full windows are unchanged.

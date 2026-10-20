@@ -57,17 +57,17 @@ Every tool uses the same card. It is one hover cell with a side menu and no chev
 
 Hovering a card opens its side menu:
 
-1. The email of the account in use, checked and disabled. For Claude and Cursor it is the account of the last reading: their own app's sign-in, or Refill's own Claude sign-in.
+1. The email of the account in use, checked and disabled. For Claude and Cursor it is the account of the last reading: their own app's sign-in, or rusage's own Claude sign-in.
 2. Codex only: one row per other saved account, by email. Each row opens `Use` and `Remove…`. `Remove…` asks first. Removing a Codex account also signs this Mac out when `auth.json` still uses it.
    An account without an email reads as its workspace, then its plan (`Plus account`), else `Saved account`. Repeated labels get a number in saved order: `Saved account 2`. Alerts name an account with the same label.
    Each one carries that account's last limits on a second, smaller line, in the user's % used or % left: `Session 12% · Weekly 40% used`, `Weekly 17% used` for Codex Pro, or `Monthly 3% used` for Codex Free. A reading older than 30 minutes adds `· as of 10:26`.
-3. Claude only: `Sign in with Claude…` while Refill's own Claude sign-in is off, or `Sign Out of Claude` while it is on. See [Claude Usage](claude-usage.md#refills-own-sign-in).
+3. Claude only: `Sign in with Claude…` while rusage's own Claude sign-in is off, or `Sign Out of Claude` while it is on. See [Claude Usage](claude-usage.md#rusages-own-sign-in).
 4. Codex only: `Use a Reset…`, then one disabled `Expires <date>` line per credit Codex listed, and `Token Usage ›` when token usage is on ([Token Usage](token-usage.md)).
 5. `Move to Top`, `Move Up`, `Move Down`, when there is more than one card. Moves that do not apply are disabled.
 6. Claude only: `Show Fable Limits`, named after the models with their own limit in the current reading (`Show Fable and Opus Limits` for two). Hidden when the reading has none. See [Claude Usage](claude-usage.md).
 7. Codex only: `Add Codex Account…`.
 
-Claude and Cursor have no other account rows: Refill reads one account at a time. A Cursor side menu with one card holds only the email. The Codex account in use has no remove item. `Appearance › Show Tools` hides a tool.
+Claude and Cursor have no other account rows: rusage reads one account at a time. A Cursor side menu with one card holds only the email. The Codex account in use has no remove item. `Appearance › Show Tools` hides a tool.
 
 `Hide Emails` masks every email the menu, its alerts and the tooltip show: `alex.side@example.com` reads `al•••e@example.com`. The domain stays visible.
 
@@ -78,7 +78,7 @@ Every tool item carries a `ProviderMenuAction` and goes through `MenuBarCoordina
 `Add Account ›` offers only `Codex…`. Adding a Codex account shows the Codex card again if it was hidden. Claude and Cursor have no accounts to add: `Show Tools` connects them.
 
 ```text
-Appearance ›   Show Tools ›  Menu Bar Label ›  Icon Style ›  Usage Bars ›  App Icon ›  ─  Show Token Usage
+Appearance ›   Show Tools ›  Menu Bar Label ›  Icon Style ›  Usage Bars ›  Theme ›  ─  Show Token Usage
 ```
 
 `Show Tools` has one checkmark item each for `Claude`, `Codex` and `Cursor`, checked while that tool's card shows.
@@ -87,9 +87,9 @@ Appearance ›   Show Tools ›  Menu Bar Label ›  Icon Style ›  Usage Bars 
 - Unchecking `Codex` hides its card and stops the Codex reads. Saved accounts and `auth.json` stay as they are. Checking it shows the card and reads it again. With no saved Codex account, checking it adds one. The choice is saved as `hidesCodex` in user defaults.
 - Every tool can be hidden. The menu bar icon then shows the app's own glyph, and the menu is the first-run one.
 
-`Theme` picks the app icon, the usage bar colors and the Token Usage colors. [Theme](app-controls/02-theme.md) owns it.
+`Theme` picks the usage bar colors and the Token Usage colors. [Theme](app-controls/02-theme.md) owns it.
 
-`Diagnostics…` first explains what the export contains, then writes a redacted JSON file only if the user confirms. The report holds allowlisted fields, per-export account aliases, every limit window each account reported (its kind, its menu title and a used-share category: available, limited or exhausted), summarized freshness states and recent Refill workflow events. It never includes raw logs, auth JSON, snapshots, raw UserDefaults, emails, hostnames, local paths, tokens, stable account IDs, prompt or session content, or raw stderr.
+`Diagnostics…` first explains what the export contains, then writes a redacted JSON file only if the user confirms. The report holds allowlisted fields, per-export account aliases, every limit window each account reported (its kind, its menu title and a used-share category: available, limited or exhausted), summarized freshness states and recent rusage workflow events. It never includes raw logs, auth JSON, snapshots, raw UserDefaults, emails, hostnames, local paths, tokens, stable account IDs, prompt or session content, or raw stderr.
 
 ## Rendering
 

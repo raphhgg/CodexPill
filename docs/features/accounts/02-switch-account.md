@@ -2,14 +2,14 @@
 
 ## User Story
 
-As a Refill user, I want to switch a saved Codex account onto This Mac, so that I can continue working with an account that has available capacity.
+As a rusage user, I want to switch a saved Codex account onto This Mac, so that I can continue working with an account that has available capacity.
 
 ## Product Contract
 
 - Switching is always explicit. Adding, renaming, or removing an account must not implicitly switch the active account.
 - `Switch on This Mac` activates the selected saved snapshot as the local Codex auth state.
 - Local switching relaunches Codex so the app-server reads the newly active account.
-- Refill must not log or expose raw auth payloads during switch operations.
+- rusage must not log or expose raw auth payloads during switch operations.
 
 ## Entry Points
 
@@ -20,11 +20,11 @@ As a Refill user, I want to switch a saved Codex account onto This Mac, so that 
 
 1. The user opens a saved account submenu.
 2. The user chooses `Switch on This Mac`.
-3. Refill asks for confirmation.
-4. Refill replaces the local Codex auth state with the saved snapshot.
-5. Refill persists the catalog state.
-6. Refill relaunches Codex.
-7. Refill refreshes account data after the switch.
+3. rusage asks for confirmation.
+4. rusage replaces the local Codex auth state with the saved snapshot.
+5. rusage persists the catalog state.
+6. rusage relaunches Codex.
+7. rusage refreshes account data after the switch.
 
 ## Confirmation Copy
 
@@ -46,19 +46,19 @@ If Codex terminals are running, the confirmation warns that they must be restart
 
 ### Explicit Local Switch
 
-Given a saved account exists, when the user chooses `Switch on This Mac`, then Refill asks for confirmation before activating the selected snapshot.
+Given a saved account exists, when the user chooses `Switch on This Mac`, then rusage asks for confirmation before activating the selected snapshot.
 
 ### Local Switch Relaunches Codex
 
-Given the user confirms a local switch, when Refill activates the selected snapshot, then Refill relaunches Codex and refreshes account data after the switch.
+Given the user confirms a local switch, when rusage activates the selected snapshot, then rusage relaunches Codex and refreshes account data after the switch.
 
 ### Switch Without The Codex App
 
-Given the Codex app (`com.openai.codex`, which may be named ChatGPT.app) is not found, when the user confirms a local switch, then Refill still switches `auth.json`, skips the relaunch and shows `Codex app not found` / `Switched. Codex uses the account when it opens.`
+Given the Codex app (`com.openai.codex`, which may be named ChatGPT.app) is not found, when the user confirms a local switch, then rusage still switches `auth.json`, skips the relaunch and shows `Codex app not found` / `Switched. Codex uses the account when it opens.`
 
 ### Add Account Uses Existing Switch Path
 
-Given Add Account succeeds, when the user chooses `Use on This Mac`, then Refill switches through the existing local switch path and does not show a second switch confirmation.
+Given Add Account succeeds, when the user chooses `Use on This Mac`, then rusage switches through the existing local switch path and does not show a second switch confirmation.
 
 ## Validation Targets
 

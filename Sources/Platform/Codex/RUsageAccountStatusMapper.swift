@@ -1,6 +1,6 @@
 import Foundation
 
-struct RefillAccountStatusMapper {
+struct RUsageAccountStatusMapper {
     func status(from appServerStatus: CodexAppServerStatus) -> CodexAccountStatus {
         CodexAccountStatus(
             email: appServerStatus.account.email,

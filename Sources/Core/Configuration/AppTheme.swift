@@ -1,6 +1,6 @@
 import Foundation
 
-/// The look of Refill: the app icon, the usage bars on each tool card, and the Token Usage chart.
+/// The look of rusage: the usage bars on each tool card and the Token Usage chart.
 enum AppTheme: String, CaseIterable {
     case cobalt
     case lagoon
@@ -9,7 +9,7 @@ enum AppTheme: String, CaseIterable {
     case honey
     case rose
     case monochrome
-    /// Each tool in its own color. The app icon keeps the last color picked.
+    /// Each tool in its own color.
     case toolColors
 
     static let defaultTheme: AppTheme = .cobalt
@@ -24,20 +24,6 @@ enum AppTheme: String, CaseIterable {
         case .rose: "Rose"
         case .monochrome: "Monochrome"
         case .toolColors: "Tool Colors"
-        }
-    }
-
-    /// The icon this theme sets. Nil when the theme keeps the current icon.
-    var iconColor: AppIconColor? {
-        switch self {
-        case .cobalt: .cobalt
-        case .lagoon: .lagoon
-        case .emerald: .emerald
-        case .violet: .violet
-        case .honey: .honey
-        case .rose: .rose
-        case .monochrome: .graphite
-        case .toolColors: nil
         }
     }
 }

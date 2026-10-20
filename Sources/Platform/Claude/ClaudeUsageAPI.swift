@@ -59,7 +59,7 @@ enum ClaudeUsageWebError: Error, Equatable {
     case transport
 }
 
-/// The Anthropic API endpoints Refill calls, and the pure rules around them.
+/// The Anthropic API endpoints rusage calls, and the pure rules around them.
 enum ClaudeUsageAPI {
     static let usageURL = URL(string: "https://api.anthropic.com/api/oauth/usage")!
     static let profileURL = URL(string: "https://api.anthropic.com/api/oauth/profile")!

@@ -1,7 +1,7 @@
 import Foundation
 
-/// How the menu drives a tool other than Codex: Claude Code and Cursor. Refill reads the one account each tool is
-/// signed in to and never writes the tool's sign-in. Claude also offers Refill's own sign-in, kept apart from Claude
+/// How the menu drives a tool other than Codex: Claude Code and Cursor. rusage reads the one account each tool is
+/// signed in to and never writes the tool's sign-in. Claude also offers rusage's own sign-in, kept apart from Claude
 /// Code's.
 ///
 /// A tool plugs in by conforming once and being listed in `AppComposition`. The menu never names a tool: it sends a
@@ -15,9 +15,9 @@ protocol ProviderConnection: UsageProviderSource {
     /// asked. Calling it again, as "Allow Keychain Access…" does, only allows the prompt again.
     func connect() async
     func disconnect() async
-    /// Whether Refill can sign in to this tool itself, and whether it is.
+    /// Whether rusage can sign in to this tool itself, and whether it is.
     var ownSignIn: ProviderOwnSignIn { get }
-    /// Runs Refill's own sign-in. A cancelled sign-in ends without a notice.
+    /// Runs rusage's own sign-in. A cancelled sign-in ends without a notice.
     func signIn() async throws(ProviderNotice)
     func signOut() async throws(ProviderNotice)
 }
@@ -52,7 +52,7 @@ enum ProviderAction: Hashable, Sendable {
     case removeAccount(UUID)
     /// Spends one reset credit on the active account.
     case useResetCredit
-    /// Refill's own sign-in, for a tool that offers one.
+    /// rusage's own sign-in, for a tool that offers one.
     case signIn
     case signOut
 

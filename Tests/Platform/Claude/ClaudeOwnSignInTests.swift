@@ -1,9 +1,9 @@
 import Foundation
 import Testing
 
-@testable import Refill
+@testable import RUsage
 
-/// The renewal of Refill's own sign-in never sends a refresh token twice, even across processes or after a crash.
+/// The renewal of rusage's own sign-in never sends a refresh token twice, even across processes or after a crash.
 struct ClaudeOwnSignInTests {
     private let now = Date(timeIntervalSince1970: 1_800_000_000)
 

@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import Refill
+@testable import RUsage
 
 struct CursorUsageSummaryParserTests {
     private let fetchedAt = Date(timeIntervalSince1970: 1_791_000_000)

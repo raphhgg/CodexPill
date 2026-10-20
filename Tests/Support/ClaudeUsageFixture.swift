@@ -1,13 +1,13 @@
 import Foundation
 
-@testable import Refill
+@testable import RUsage
 
 /// A `ClaudeCodeUsage` over an isolated defaults suite, a temp Claude config folder, a settable Keychain item,
 /// and a settable usage response. All tokens are fake.
 final class ClaudeUsageFixture: ClaudeKeychainReading, ClaudeUsageWebClient, @unchecked Sendable {
     static let fakeAccessToken = "fake-claude-access-token"
 
-    /// Synthetic `/api/oauth/usage` response with an Opus window that Refill ignores.
+    /// Synthetic `/api/oauth/usage` response with an Opus window that rusage ignores.
     static let usageResponse = #"""
     {"five_hour":{"utilization":64.4,"resets_at":"2026-10-10T15:00:00.000000+00:00"},
      "seven_day":{"utilization":21,"resets_at":"2026-10-14T09:00:00+00:00"},
@@ -31,7 +31,7 @@ final class ClaudeUsageFixture: ClaudeKeychainReading, ClaudeUsageWebClient, @un
         settings = ClaudeUsageSettingsStore(userDefaults: defaults)
         configDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("ClaudeUsageFixture-\(UUID().uuidString)", isDirectory: true)
-        let ownSignInFiles = configDirectory.appendingPathComponent("refill", isDirectory: true)
+        let ownSignInFiles = configDirectory.appendingPathComponent("rusage", isDirectory: true)
         usage = ClaudeCodeUsage(
             settings: settings,
             client: ClaudeUsageClient(

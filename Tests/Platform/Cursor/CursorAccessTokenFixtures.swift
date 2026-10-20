@@ -1,6 +1,6 @@
 import Foundation
 
-@testable import Refill
+@testable import RUsage
 
 enum CursorAccessTokenFixtures {
     static let referenceDate = Date(timeIntervalSince1970: 1_791_000_000)

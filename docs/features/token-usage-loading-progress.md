@@ -2,7 +2,7 @@
 
 ## User Story
 
-As a Refill user with a large local Codex history, I want the Token Usage card to show one clear loading signal during a long scan, and no half-read numbers, so I never think the app is stuck or that I used nothing last month.
+As a rusage user with a large local Codex history, I want the Token Usage card to show one clear loading signal during a long scan, and no half-read numbers, so I never think the app is stuck or that I used nothing last month.
 
 ## Product Contract
 
@@ -23,7 +23,7 @@ The loading state never exposes session rows, prompts, file paths, account ident
 
 ## Happy Path
 
-1. User turns on Token Usage, or opens Refill on a new day.
+1. User turns on Token Usage, or opens rusage on a new day.
 2. The card shows the last finished chart dimmed, or placeholder bars on a first run, and `Loading 0%`. The percentage starts at once, while Claude Code and Cursor are read alongside.
 3. The percentage climbs.
 4. User closes and reopens the menu. The scan keeps running and the card shows its current progress.

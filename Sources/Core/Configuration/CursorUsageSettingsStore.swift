@@ -1,6 +1,6 @@
 import Foundation
 
-/// Whether the user agreed to let Refill read Cursor's sign-in. Off until they connect Cursor.
+/// Whether the user agreed to let rusage read Cursor's sign-in. Off until they connect Cursor.
 /// The usage source reads it off the main actor; `UserDefaults` is documented as thread-safe.
 final class CursorUsageSettingsStore: @unchecked Sendable {
     private static let isEnabledKey = "cursorUsageEnabled"

@@ -1,6 +1,6 @@
 import Foundation
 
-@testable import Refill
+@testable import RUsage
 
 /// Holds each reset-credit call until the test answers it.
 actor SuspendedResetCreditClient: CodexResetCreditClient {

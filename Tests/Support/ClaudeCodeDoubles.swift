@@ -1,8 +1,8 @@
 import Foundation
 
-@testable import Refill
+@testable import RUsage
 
-/// Claude Code's Keychain item as a file that Refill is already allowed to read.
+/// Claude Code's Keychain item as a file that rusage is already allowed to read.
 struct FileClaudeCodeKeychain: ClaudeKeychainReading {
     let fileURL: URL
 

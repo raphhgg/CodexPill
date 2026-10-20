@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import Refill
+@testable import RUsage
 
 struct CodexAppLocationTests {
     @Test(arguments: ["Contents/Resources/codex-cli/bin/codex", "Contents/Resources/codex"])

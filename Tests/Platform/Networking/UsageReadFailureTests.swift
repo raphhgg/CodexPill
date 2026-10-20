@@ -1,6 +1,6 @@
 import Testing
 
-@testable import Refill
+@testable import RUsage
 
 struct UsageReadFailureTests {
     @Test(arguments: [

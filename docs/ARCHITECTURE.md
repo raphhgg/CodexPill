@@ -1,6 +1,6 @@
 # Architecture
 
-Refill is a local-first macOS menubar app for Codex, Claude Code and Cursor usage limits and Codex account switching on this Mac. It was called CodexPill before.
+rusage is a local-first macOS menubar app for Codex, Claude Code and Cursor usage limits and Codex account switching on this Mac. It was called CodexPill before.
 
 This document owns codebase structure and dependency boundaries. Product behavior and UX contracts live in [features](features/README.md).
 
@@ -83,7 +83,7 @@ It coordinates cache-first loading, scan-task identity, duplicate-scan preventio
 Key boundaries:
 
 - `ProviderConnection`, the port one tool conforms to. See "How a tool plugs in" below.
-- `UsageProviderSource`, the read half of that port. It returns a `UsageProviderReading`: not connected, unavailable with a `UsageUnavailableReason`, awaiting usage, or a `UsageSnapshot`. The reasons are not installed, signed out, sign-in expired (401 or past expiry), sign-in required (Refill's own sign-in is gone or rejected), Keychain access needed, sign-in unreadable, sign-in busy (the tool is writing it right now), access denied (403), rate limited (429), unreachable, service error (other status), and unexpected response.
+- `UsageProviderSource`, the read half of that port. It returns a `UsageProviderReading`: not connected, unavailable with a `UsageUnavailableReason`, awaiting usage, or a `UsageSnapshot`. The reasons are not installed, signed out, sign-in expired (401 or past expiry), sign-in required (rusage's own sign-in is gone or rejected), Keychain access needed, sign-in unreadable, sign-in busy (the tool is writing it right now), access denied (403), rate limited (429), unreachable, service error (other status), and unexpected response.
 - `ProviderCopy`, the one table of every word the menu shows for a tool: its name, who answers its usage requests, the confirmation before connecting or signing in, the message for each unavailable reason, and the notices a Claude sign-in can end with.
 - `ClaudeCodeUsage` and `CursorUsage`, the two connections. Each wraps its Platform adapter, maps its values onto `UsageSnapshot`, and owns the opt-in setting. `ClaudeCodeUsage` also runs one browser sign-in at a time (`ClaudeBrowserSignInSession`) and picks the sign-in each read uses from `claudeUsesOwnSignIn`.
 - `ProviderUsageRuntime`, which reads each connection at most once per its `refreshInterval` (5 minutes by default), however often the menu opens, and publishes one `ProviderUsageState` per tool: its status. A snapshot carries the email of the account the tool is signed in to, which the side menu shows. A snapshot older than `staleAfter` is published as `.stale`. When a tool is unavailable for a reason that keeps the same account, the runtime keeps the last good snapshot next to the reason. It also runs the actions the menu sends.
@@ -105,15 +105,15 @@ protocol ProviderConnection: UsageProviderSource {
 }
 ```
 
-`ownSignIn`, `signIn()` and `signOut()` have default implementations for a tool without Refill's own sign-in, which is every tool but Claude. `ProviderUsageState` carries `ownSignIn`, so the menu decides from data whether to offer `Sign in with Claude…` or `Sign Out of Claude`.
+`ownSignIn`, `signIn()` and `signOut()` have default implementations for a tool without rusage's own sign-in, which is every tool but Claude. `ProviderUsageState` carries `ownSignIn`, so the menu decides from data whether to offer `Sign in with Claude…` or `Sign Out of Claude`.
 
 Its words go in `ProviderCopy` under its `UsageProvider` case. Nothing else changes: no selector, coordinator property, or menu-builder branch names a tool.
 
 - Every tool menu item, Codex included, carries a `ProviderMenuAction` (tool plus `ProviderAction`) and calls `MenuBarCoordinator.performProviderAction(_:)`.
 - The coordinator asks the `ProviderCopy` confirmation, if any, then runs the action in a tracked task through `ProviderUsageRuntime.perform(_:on:)`.
 - The runtime reads the tool again after every action. After a sign-in or sign-out it drops the tool's last snapshot first, because the account may have changed. A `ProviderNotice` from the action comes back to the coordinator, which shows it as an info alert.
-- Refill never renews a tool's own sign-in or starts the tool. The runtime logs when a reading becomes expired, signed out, or in need of a new sign-in, with the category only.
-- The port has no account methods: Claude Code and Cursor show only the account they are signed in to, and Refill never writes their sign-ins.
+- rusage never renews a tool's own sign-in or starts the tool. The runtime logs when a reading becomes expired, signed out, or in need of a new sign-in, with the category only.
+- The port has no account methods: Claude Code and Cursor show only the account they are signed in to, and rusage never writes their sign-ins.
 - Codex is not a connection: its usage lives on each saved `CodexAccount` and adding an account is an interactive sign-in panel. The coordinator routes `.codex` actions to `AccountsController`, which refreshes the new active account after a switch and never runs a reset credit and an account change at the same time.
 
 `Features/AppControls` owns app-level controls the menu offers: Launch at Login through `LoginItemController` and the System Settings launcher.
@@ -155,28 +155,28 @@ Key boundaries:
 
 Reusable Codex app-server access is split into these platform boundaries:
 
-- `CodexAppServerClient` is the production facade used by Refill account reads. It turns a local `CodexAppServerConfiguration` into a session command for the shared session runner.
+- `CodexAppServerClient` is the production facade used by rusage account reads. It turns a local `CodexAppServerConfiguration` into a session command for the shared session runner.
 - `CodexAppServerConfiguration` owns executable path, environment, and timeout policy.
 - `CodexAppServerSession` owns JSON-RPC request construction and response sequencing.
 - `CodexAppServerSessionRunner` owns the reusable app-server session execution loop used by local reads: process launch, stdin/stdout/stderr pipe wiring, request writing, output draining, timeout completion, partial-status completion, and finish-once coordination. It also runs the one-request `account/rateLimitResetCredit/consume` session that spends a Codex reset credit.
 - `CodexAppServerAccountParser` and `CodexAppServerRateLimitParser` map raw app-server payload DTOs into generic app-server DTOs.
-- `RefillAccountStatusMapper` maps generic app-server DTOs into Refill account and rate-limit models.
+- `RUsageAccountStatusMapper` maps generic app-server DTOs into rusage account and rate-limit models.
 
 Local app-server reads enter this session runner through `CodexAppServerClient`, which keeps local executable, environment, client-info, timeout, and saved-account strict rate-limit requirements in `CodexAppServerConfiguration`.
 
 The active account's read is complete once it has the account and at least one limit window of any length. A Pro plan reports only a weekly window and a free plan only a monthly one. Only a read with no window runs the app-server again, once after 1 second with `refreshToken: true`. A failed read is tried again after 1 second, and once more after 3 seconds when Codex says the rate-limit read failed. Windows and account fields from the attempts merge, the newest winning.
 
-`Platform/Claude` owns everything Refill knows about Claude Code and Claude's OAuth. It never writes Claude Code's files or Keychain item. It owns:
+`Platform/Claude` owns everything rusage knows about Claude Code and Claude's OAuth. It never writes Claude Code's files or Keychain item. It owns:
 
 - reading its sign-in from `.credentials.json` and the `Claude Code-credentials` Keychain item, which it reads through `/usr/bin/security` as Claude Code does, so Claude Code's renewals don't bring back a Keychain prompt, and never writes (`ClaudeCredentialsSource`, `SystemClaudeKeychain`, `ClaudeCodeSecurityKeychain`), and the plan tier and email from the account record in its global config;
-- the `api.anthropic.com/api/oauth/usage` and `/api/oauth/profile` requests, their redirect rule, the rate-limit wait, and parsing the responses (`ClaudeUsageAPI`, `ClaudeUsageClient`). `ClaudeUsageClient` reads with Claude Code's sign-in or Refill's own, as `ClaudeSignInSource` says, and never falls back from one to the other;
-- Refill's own opt-in sign-in: the PKCE browser flow with its loopback receiver (`ClaudeOAuth`, `ClaudeBrowserSignIn`, `LoopbackClaudeOAuthReceiver`), the token endpoint (`ClaudeTokenEndpoint`), the stored sign-in (`ClaudeSignIn`, `ClaudeSignInStoring` with `SystemClaudeSignInKeychain` for the `Refill Claude sign-in` item and `FileClaudeSignInStore` for isolated runs and tests), the cross-process lock (`ClaudeRefreshLock`), and its renewal (`ClaudeOwnSignIn`).
+- the `api.anthropic.com/api/oauth/usage` and `/api/oauth/profile` requests, their redirect rule, the rate-limit wait, and parsing the responses (`ClaudeUsageAPI`, `ClaudeUsageClient`). `ClaudeUsageClient` reads with Claude Code's sign-in or rusage's own, as `ClaudeSignInSource` says, and never falls back from one to the other;
+- rusage's own opt-in sign-in: the PKCE browser flow with its loopback receiver (`ClaudeOAuth`, `ClaudeBrowserSignIn`, `LoopbackClaudeOAuthReceiver`), the token endpoint (`ClaudeTokenEndpoint`), the stored sign-in (`ClaudeSignIn`, `ClaudeSignInStoring` with `SystemClaudeSignInKeychain` for the `rusage Claude sign-in` item and `FileClaudeSignInStore` for isolated runs and tests), the cross-process lock (`ClaudeRefreshLock`), and its renewal (`ClaudeOwnSignIn`).
 
-**Renewal boundary.** Only `ClaudeOwnSignIn` sends a refresh token, and only Refill's own. It renews inside one in-process task and under the `flock` on `claude-sign-in.lock`. Under the lock it reads the item again and uses it when another process already renewed it. It saves the item with `refreshPending` set before it sends the refresh token, and clears it in the same write that saves the new pair. An item still marked when the lock is taken never saved its result: it is deleted and the user signs in again, so a spent token is never sent twice. A pair the store refuses stays in memory and wins over the store. `invalid_grant` deletes only Refill's item.
+**Renewal boundary.** Only `ClaudeOwnSignIn` sends a refresh token, and only rusage's own. It renews inside one in-process task and under the `flock` on `claude-sign-in.lock`. Under the lock it reads the item again and uses it when another process already renewed it. It saves the item with `refreshPending` set before it sends the refresh token, and clears it in the same write that saves the new pair. An item still marked when the lock is taken never saved its result: it is deleted and the user signs in again, so a spent token is never sent twice. A pair the store refuses stays in memory and wins over the store. `invalid_grant` deletes only rusage's item.
 
 The access token leaves this module only as an `Authorization` header to api.anthropic.com. Nothing in it reads, sends, or renews Claude Code's refresh token; a test scans the Claude sources so that only the own-sign-in files mention a refresh token and none of them names Claude Code's sign-in. Nothing in it starts `claude`: only the user's own `claude` renews Claude Code's sign-in.
 
-`Platform/Cursor` owns everything Refill knows about Cursor. It never writes Cursor's database or quits Cursor. It owns:
+`Platform/Cursor` owns everything rusage knows about Cursor. It never writes Cursor's database or quits Cursor. It owns:
 
 - `CursorStateDatabase`, keyed read-only access to `state.vscdb`. It never scans. A read opens the database with `immutable=1` only when no `-wal`, `-shm`, or `-journal` file sits next to it, so it never reads a writer's uncommitted pages;
 - `CursorStateDatabaseTokenSource`, the read-only lookup of the token and the cached email used for usage, and `CursorAccessToken`, which prints redacted;
@@ -188,7 +188,7 @@ The token leaves this module only as the usage request's cookie.
 
 `Platform/Persistence` owns:
 
-- Refill catalog paths;
+- rusage catalog paths;
 - account catalog persistence;
 - auth snapshot storage;
 - isolated `CODEX_HOME` session paths;
@@ -214,7 +214,7 @@ Settings persistence is split by feature boundary:
 - `MenuDisplaySettingsStore` owns menu refresh cadence and visible inactive-account count options.
 - `StatusItemSettingsStore` owns status-item indicator style, display mode, pacing marker visibility, progress accent color helpers, and persisted reveal-shortcut values.
 - `TokenUsagePreferencesStore` owns token-usage visibility and the fixed 30-day period. Its stored chart style, loading animation and peak scope have no menu control anymore and keep their defaults.
-- `ClaudeUsageSettingsStore` owns whether Claude usage is connected (`claudeUsageEnabled`) and whether reads use Refill's own sign-in (`claudeUsesOwnSignIn`). Both are off by default.
+- `ClaudeUsageSettingsStore` owns whether Claude usage is connected (`claudeUsageEnabled`) and whether reads use rusage's own sign-in (`claudeUsesOwnSignIn`). Both are off by default.
 - `CursorUsageSettingsStore` owns whether Cursor usage is connected (`cursorUsageEnabled`). It is off by default.
 
 App startup builds each store from one `UserDefaults` instance and injects the ones each runtime boundary needs. There is no shared settings facade.
@@ -255,16 +255,16 @@ Reveal-shortcut capture, menu key-equivalent rendering, display formatting, and 
 The current truth sources are split by concern:
 
 - active local Codex auth: `~/.codex/auth.json`;
-- Refill catalog and saved snapshots: `~/Library/Application Support/Refill`;
+- rusage catalog and saved snapshots: `~/Library/Application Support/rusage`;
 - local account metadata and rate limits: local `codex app-server`;
 - running CLI session observation: local process table inspection;
-- Claude Code usage: `api.anthropic.com/api/oauth/usage`, authenticated with Claude Code's local sign-in token, or with Refill's own sign-in once the user chose it;
-- Refill's own Claude sign-in: claude.com in the browser to approve it, and `platform.claude.com/v1/oauth/token` to sign in, renew and revoke;
+- Claude Code usage: `api.anthropic.com/api/oauth/usage`, authenticated with Claude Code's local sign-in token, or with rusage's own sign-in once the user chose it;
+- rusage's own Claude sign-in: claude.com in the browser to approve it, and `platform.claude.com/v1/oauth/token` to sign in, renew and revoke;
 - Cursor usage: `cursor.com/api/usage-summary`, authenticated with Cursor's local sign-in token.
 
 Rules:
 
-- `~/Library/Application Support/Refill` is Refill-owned state, not the source of truth for the live Codex account.
+- `~/Library/Application Support/rusage` is rusage-owned state, not the source of truth for the live Codex account.
 - `~/Library/Application Support/Codex` is only an observation surface when needed.
 - Rate limits should come from app-server surfaces, not manual counters.
 - Tests must use temp paths and injected process clients.

@@ -1,7 +1,7 @@
 import AppKit
 import Testing
 
-@testable import Refill
+@testable import RUsage
 
 struct StatusBarIconRendererTests {
     @Test(arguments: [

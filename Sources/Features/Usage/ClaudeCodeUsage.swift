@@ -1,7 +1,7 @@
 import Foundation
 
 /// Claude subscription limits for the menu, read once the user connects Claude: with Claude Code's live sign-in, or
-/// with Refill's own "Sign in with Claude" once the user signs in. Refill's own sign-in never falls back to Claude
+/// with rusage's own "Sign in with Claude" once the user signs in. rusage's own sign-in never falls back to Claude
 /// Code's, which may be another account.
 struct ClaudeCodeUsage: ProviderConnection {
     let provider = UsageProvider.claude
@@ -34,7 +34,7 @@ struct ClaudeCodeUsage: ProviderConnection {
         settings.isEnabled
     }
 
-    /// Also signs out of Refill's own sign-in. Claude Code's sign-in is untouched.
+    /// Also signs out of rusage's own sign-in. Claude Code's sign-in is untouched.
     func disconnect() async {
         await browserSignIn.cancel()
         settings.isEnabled = false
@@ -61,7 +61,7 @@ struct ClaudeCodeUsage: ProviderConnection {
 
     func readUsage(now: Date) async -> UsageProviderReading {
         guard settings.isEnabled else { return .notConnected }
-        return Self.reading(from: await client.refresh(now: now, using: settings.usesOwnSignIn ? .refill : .claudeCode), fetchedAt: now)
+        return Self.reading(from: await client.refresh(now: now, using: settings.usesOwnSignIn ? .rusage : .claudeCode), fetchedAt: now)
     }
 
     static func reading(from status: ClaudeUsageStatus, fetchedAt: Date) -> UsageProviderReading {
@@ -137,7 +137,7 @@ actor ClaudeBrowserSignInSession {
         settings.isEnabled = true
         settings.usesOwnSignIn = true
         guard saved else {
-            throw ProviderNotice(title: "Claude sign-in not saved", detail: "It lasts until Refill quits.")
+            throw ProviderNotice(title: "Claude sign-in not saved", detail: "It lasts until rusage quits.")
         }
     }
 

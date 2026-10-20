@@ -2,7 +2,7 @@ import AppKit
 import Observation
 import OSLog
 
-private let menuBarCoordinatorLogger = Logger(subsystem: "com.raphhgg.refill", category: "MenuBarCoordinator")
+private let menuBarCoordinatorLogger = Logger(subsystem: "com.raphhgg.rusage", category: "MenuBarCoordinator")
 
 @MainActor
 final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
@@ -14,7 +14,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let tokenUsagePreferences: TokenUsagePreferencesStore
     private let claudeUsageSettings: ClaudeUsageSettingsStore
     private let themePreferences: ThemePreferencesStore
-    private let appIconApplier: AppIconApplying
     private let cliProcessInspector: CodexCLIProcessInspector
     private let alertPresenter: AlertPresenter
     private let panelPresenter: PanelPresenter
@@ -69,7 +68,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         tokenUsagePreferences: TokenUsagePreferencesStore,
         claudeUsageSettings: ClaudeUsageSettingsStore,
         themePreferences: ThemePreferencesStore,
-        appIconApplier: AppIconApplying,
         cliProcessInspector: CodexCLIProcessInspector,
         alertPresenter: AlertPresenter,
         panelPresenter: PanelPresenter,
@@ -90,7 +88,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.tokenUsagePreferences = tokenUsagePreferences
         self.claudeUsageSettings = claudeUsageSettings
         self.themePreferences = themePreferences
-        self.appIconApplier = appIconApplier
         self.cliProcessInspector = cliProcessInspector
         self.alertPresenter = alertPresenter
         self.panelPresenter = panelPresenter
@@ -105,7 +102,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     func start() {
-        appIconApplier.apply(themePreferences.appIconColor)
         shortcutRuntime.onShortcut = { [weak self] in
             self?.statusItemRuntime.revealTitleTemporarily(duration: 3)
         }
@@ -239,7 +235,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             return
         }
         themePreferences.theme = theme
-        appIconApplier.apply(themePreferences.appIconColor)
         tokenUsageCard.theme = theme
         rebuildMenu()
     }

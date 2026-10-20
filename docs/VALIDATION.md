@@ -11,7 +11,7 @@ make test
 ```
 
 Tests use temporary directories, injected clients, and fakes for process side
-effects. They never read or write the real `~/.codex/auth.json`, real Refill
+effects. They never read or write the real `~/.codex/auth.json`, real rusage
 data, or a running Codex app. Tests and fixtures use synthetic accounts and
 emails, and never print auth snapshots, tokens, or device codes.
 

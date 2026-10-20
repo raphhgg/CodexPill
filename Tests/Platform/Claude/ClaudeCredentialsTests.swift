@@ -1,10 +1,10 @@
 import Foundation
 import Testing
 
-@testable import Refill
+@testable import RUsage
 
 struct ClaudeCredentialsTests {
-    /// Only the files of Refill's own sign-in may hold a refresh token, and none of them names Claude Code's sign-in.
+    /// Only the files of rusage's own sign-in may hold a refresh token, and none of them names Claude Code's sign-in.
     @Test
     func noClaudeCodeSignInIsEverRenewed() throws {
         let repository = URL(fileURLWithPath: #filePath)

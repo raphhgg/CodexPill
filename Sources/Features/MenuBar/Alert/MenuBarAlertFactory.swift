@@ -110,7 +110,7 @@ struct MenuBarAlertFactory {
         case .verificationFailed:
             return MenuBarInfoAlertRequest(
                 messageText: "Couldn't Add Account",
-                informativeText: "Refill could not verify the signed-in account.",
+                informativeText: "rusage could not verify the signed-in account.",
                 style: .warning,
                 buttonTitle: "OK"
             )
@@ -140,7 +140,7 @@ struct MenuBarAlertFactory {
     func makeAddAccountUnsafeAuthChangeRequest() -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
             messageText: "Couldn't Add Account",
-            informativeText: "Refill could not verify that This Mac stayed unchanged. No account was added.",
+            informativeText: "rusage could not verify that This Mac stayed unchanged. No account was added.",
             style: .warning,
             buttonTitle: "OK"
         )
@@ -149,7 +149,7 @@ struct MenuBarAlertFactory {
     func makeAddAccountSaveFailureRequest() -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
             messageText: "Couldn't Save Account",
-            informativeText: "The sign-in completed, but Refill could not save the account. This Mac was not changed.",
+            informativeText: "The sign-in completed, but rusage could not save the account. This Mac was not changed.",
             style: .warning,
             buttonTitle: "OK"
         )
@@ -168,7 +168,7 @@ struct MenuBarAlertFactory {
         guard !activeTargets.isEmpty else {
             return MenuBarConfirmationAlertRequest(
                 messageText: "Remove saved account?",
-                informativeText: "This removes \(accountLabel) from Refill.\n\nThis action cannot be undone.",
+                informativeText: "This removes \(accountLabel) from rusage.\n\nThis action cannot be undone.",
                 confirmTitle: "Remove",
                 cancelTitle: "Cancel"
             )
@@ -182,7 +182,7 @@ struct MenuBarAlertFactory {
         )
     }
 
-    /// Shown once at launch when the move from CodexPill to Refill could not copy everything.
+    /// Shown once at launch when the move from CodexPill to rusage could not copy everything.
     func makeCodexPillDataNotCopiedRequest() -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
             messageText: "Some CodexPill data not copied",
@@ -194,9 +194,9 @@ struct MenuBarAlertFactory {
 
     func makeAboutRequest() -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
-            messageText: "About Refill",
+            messageText: "About rusage",
             informativeText: """
-            Refill
+            rusage
             Version \(appVersionText)
 
             A macOS menu bar app for your Codex, Claude Code and Cursor usage limits, with one-click account switching.
@@ -211,7 +211,7 @@ struct MenuBarAlertFactory {
     func makeDiagnosticsExportRequest() -> MenuBarConfirmationAlertRequest {
         MenuBarConfirmationAlertRequest(
             messageText: "Export Diagnostics?",
-            informativeText: "Refill will create a redacted support file with app version, settings, account aliases, limit freshness, and recent workflow events. It does not include auth tokens, emails, hostnames, local paths, or raw logs.",
+            informativeText: "rusage will create a redacted support file with app version, settings, account aliases, limit freshness, and recent workflow events. It does not include auth tokens, emails, hostnames, local paths, or raw logs.",
             confirmTitle: "Export",
             cancelTitle: "Cancel"
         )
@@ -219,8 +219,8 @@ struct MenuBarAlertFactory {
 
     func makeEnableLaunchAtLoginRequest() -> MenuBarConfirmationAlertRequest {
         MenuBarConfirmationAlertRequest(
-            messageText: "Launch Refill at Login?",
-            informativeText: "Refill will ask macOS to open it automatically when you log in. You can turn this off here or in System Settings.",
+            messageText: "Launch rusage at Login?",
+            informativeText: "rusage will ask macOS to open it automatically when you log in. You can turn this off here or in System Settings.",
             confirmTitle: "Enable",
             cancelTitle: "Cancel"
         )
@@ -255,7 +255,7 @@ struct MenuBarAlertFactory {
 
     func makeErrorRequest(message: String) -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
-            messageText: "Refill Error",
+            messageText: "rusage Error",
             informativeText: userFacingErrorMessage(for: message),
             style: .warning,
             buttonTitle: "OK"
@@ -300,7 +300,7 @@ enum MenuBarAppVersionText {
     }
 
     static func release(bundle: Bundle) -> String {
-        let releaseVersion = bundle.object(forInfoDictionaryKey: "RefillReleaseVersion") as? String
+        let releaseVersion = bundle.object(forInfoDictionaryKey: "RUsageReleaseVersion") as? String
         let marketingVersion = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
         let buildNumber = bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String
 

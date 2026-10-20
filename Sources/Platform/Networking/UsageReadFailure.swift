@@ -1,7 +1,7 @@
 import Foundation
 import OSLog
 
-private let usageReadLogger = Logger(subsystem: "com.raphhgg.refill", category: "UsageRead")
+private let usageReadLogger = Logger(subsystem: "com.raphhgg.rusage", category: "UsageRead")
 
 /// Why a Claude or Cursor usage read failed, as a log line may say it: a category, plus the status of an HTTP error.
 /// It never carries a token, an email, an account ID or a URL.

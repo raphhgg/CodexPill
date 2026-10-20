@@ -1,6 +1,6 @@
 ---
 name: Beta bug
-about: Report a sanitized Refill beta bug
+about: Report a sanitized rusage beta bug
 title: "[Beta bug]: "
 labels: beta, bug
 assignees: ""
@@ -24,7 +24,7 @@ assignees: ""
 
 ## Environment
 
-- Refill version:
+- rusage version:
 - macOS version:
 
 ## Redaction Check

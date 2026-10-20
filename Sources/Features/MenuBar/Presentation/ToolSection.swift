@@ -9,9 +9,9 @@ struct ToolSection: Equatable {
     let accounts: [ToolAccount]
     /// An action row under the card while its state lasts, such as "Allow Keychain Access…".
     let followUp: ToolFollowUp?
-    /// "Sign in with Claude…" or "Sign Out of Claude" in the side menu, for a tool Refill can sign in to itself.
+    /// "Sign in with Claude…" or "Sign Out of Claude" in the side menu, for a tool rusage can sign in to itself.
     var signInItem: ToolMenuItem? = nil
-    /// Which sign-in the reading came from, when it isn't Refill's own, such as "Uses Claude Code's sign-in".
+    /// Which sign-in the reading came from, when it isn't rusage's own, such as "Uses Claude Code's sign-in".
     var signInSourceLabel: String? = nil
     /// The email Claude or Cursor is signed in to, masked when Hide Emails is on.
     var signedInLabel: String? = nil

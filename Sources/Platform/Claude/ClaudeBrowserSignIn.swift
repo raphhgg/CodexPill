@@ -61,7 +61,7 @@ final class LoopbackClaudeOAuthReceiver: ClaudeOAuthRedirectReceiver, @unchecked
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width,initial-scale=1">
         <meta name="color-scheme" content="light dark">
-        <title>Signed in · Refill</title>
+        <title>Signed in · rusage</title>
         <style>
         :root { --bg: #f5f5f7; --card: #fff; --text: #1d1d1f; --muted: #6e6e73; --ok: #34c759; }
         @media (prefers-color-scheme: dark) { :root { --bg: #1c1c1e; --card: #2c2c2e; --text: #f5f5f7; --muted: #98989d; --ok: #30d158; } }
@@ -76,7 +76,7 @@ final class LoopbackClaudeOAuthReceiver: ClaudeOAuthRedirectReceiver, @unchecked
         <main>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m7.5 12.5 3 3 6-6.5"/></svg>
         <h1>Signed in to Claude</h1>
-        <p>You can close this tab and go back to Refill.</p>
+        <p>You can close this tab and go back to rusage.</p>
         </main>
         </html>
         """
@@ -84,7 +84,7 @@ final class LoopbackClaudeOAuthReceiver: ClaudeOAuthRedirectReceiver, @unchecked
     /// Set once the listener is ready, before `start()` returns the receiver.
     private(set) var redirectURI = ClaudeOAuth.redirectURI(port: 0)
     private let listener: NWListener
-    private let queue = DispatchQueue(label: "Refill.ClaudeOAuthCallback")
+    private let queue = DispatchQueue(label: "rusage.ClaudeOAuthCallback")
     private let lock = NSLock()
     private var waiter: CheckedContinuation<ClaudeOAuthCallback, any Error>?
     private var result: Result<ClaudeOAuthCallback, any Error>?

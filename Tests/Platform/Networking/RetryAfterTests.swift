@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import Refill
+@testable import RUsage
 
 struct RetryAfterTests {
     private let now = Date(timeIntervalSince1970: 1_792_567_600) // Wed, 21 Oct 2026 07:26:40 GMT

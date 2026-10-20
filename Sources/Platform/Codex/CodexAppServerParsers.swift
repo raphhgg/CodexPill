@@ -130,7 +130,7 @@ extension RateLimitSnapshot {
         case limitId, limitName, planType, primary, secondary, credits
     }
 
-    /// A credits object Refill cannot read leaves the limits readable.
+    /// A credits object rusage cannot read leaves the limits readable.
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         limitId = try container.decodeIfPresent(String.self, forKey: .limitId)

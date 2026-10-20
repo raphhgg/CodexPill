@@ -8,7 +8,7 @@ struct ProviderCopy: Sendable {
     /// Who answers usage requests, for "Can't reach …" style messages.
     let serviceName: String
     let connectPrompt: ProviderPrompt?
-    /// What the menu asks before Refill's own sign-in, for a tool that offers one.
+    /// What the menu asks before rusage's own sign-in, for a tool that offers one.
     var signInPrompt: ProviderPrompt? = nil
     /// What the card says when the tool is signed out. By default, sign in to the tool.
     var signedOutMessage: (title: String, detail: String?)? = nil
@@ -60,7 +60,7 @@ extension UsageProvider {
                 ),
                 signInPrompt: ProviderPrompt(
                     title: "Sign in with Claude?",
-                    detail: "Opens your browser. Refill keeps this sign-in in its own Keychain item.",
+                    detail: "Opens your browser. rusage keeps this sign-in in its own Keychain item.",
                     confirmTitle: "Sign In"
                 ),
                 signedOutMessage: ("Not signed in", "Sign in to see your limits."),

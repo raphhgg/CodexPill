@@ -1,19 +1,20 @@
 import ProjectDescription
 
 let project = Project(
-    name: "Refill",
+    name: "RUsage",
     organizationName: "raphhgg",
     packages: [],
     targets: [
         .target(
-            name: "Refill",
+            name: "RUsage",
             destinations: .macOS,
             product: .app,
-            bundleId: "com.raphhgg.refill",
+            productName: "rusage",
+            bundleId: "com.raphhgg.rusage",
             deploymentTargets: .macOS("14.0"),
             infoPlist: .dictionary([
                 "CFBundleDevelopmentRegion": "en",
-                "CFBundleDisplayName": "Refill",
+                "CFBundleDisplayName": "rusage",
                 "CFBundleExecutable": "$(EXECUTABLE_NAME)",
                 "CFBundleIdentifier": "$(PRODUCT_BUNDLE_IDENTIFIER)",
                 "CFBundleInfoDictionaryVersion": "6.0",
@@ -28,7 +29,6 @@ let project = Project(
             sources: ["Sources/**"],
             resources: [
                 "Resources/AppIcon.icon",
-                "Resources/AppIconColors/*.png",
                 "Resources/Assets.xcassets",
             ],
             dependencies: [],
@@ -37,19 +37,21 @@ let project = Project(
                 "CODE_SIGN_INJECT_BASE_ENTITLEMENTS": "NO",
                 "CURRENT_PROJECT_VERSION": "2",
                 "ENABLE_DEBUG_DYLIB": "NO",
+                // "rusage" would shadow Darwin's `struct rusage` in Swift, so the module keeps the target's name.
+                "PRODUCT_MODULE_NAME": "RUsage",
                 "SWIFT_VERSION": "6.0",
             ])
         ),
         .target(
-            name: "RefillTests",
+            name: "RUsageTests",
             destinations: .macOS,
             product: .unitTests,
-            bundleId: "com.raphhgg.refill.tests",
+            bundleId: "com.raphhgg.rusage.tests",
             deploymentTargets: .macOS("14.0"),
             infoPlist: .default,
             sources: ["Tests/**"],
             dependencies: [
-                .target(name: "Refill")
+                .target(name: "RUsage")
             ],
             settings: .settings(base: [
                 "SWIFT_VERSION": "6.0",

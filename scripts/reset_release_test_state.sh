@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_NAME="Refill"
+APP_NAME="rusage"
 # Before the rename the app was CodexPill. Its state is cleaned up too.
 LEGACY_APP_NAME="CodexPill"
 REPO_DIR="${HOME}/Projects/CodexPill"
 BUNDLE_IDS=(
-  "com.raphhgg.refill"
-  "com.raphhgg.refill.dev"
-  "com.raphhgg.refill.demo"
-  "com.raphhgg.refill.staging"
+  "com.raphhgg.rusage"
+  "com.raphhgg.rusage.dev"
+  "com.raphhgg.rusage.demo"
+  "com.raphhgg.rusage.staging"
   "com.raphhgg.codexpill"
   "com.raphhgg.codexpill.dev"
   "com.raphhgg.codexpill.demo"
@@ -28,9 +28,9 @@ Usage:
 Default mode is a dry run. It prints what would be removed.
 
 Options:
-  --apply            Actually remove local Refill dev/build/test state.
+  --apply            Actually remove local rusage dev/build/test state.
   --install          After cleanup, install the release via Homebrew.
-  --remote HOST      Also clear Refill's remote cache on HOST.
+  --remote HOST      Also clear rusage's remote cache on HOST.
   --remote-sign-out  With --remote, also remove HOST:~/.codex/auth.json.
                     This signs out Codex on the remote host.
   -h, --help         Show this help.
@@ -176,7 +176,7 @@ remove_path "${REPO_DIR}/build"
 remove_path "${REPO_DIR}/Derived"
 
 echo
-echo "Removing Refill app state and legacy state..."
+echo "Removing rusage app state and legacy state..."
 remove_path "${HOME}/Library/Application Support/${APP_NAME}"
 remove_path "${HOME}/Library/Caches/${APP_NAME}"
 remove_path "${HOME}/Library/Application Support/${LEGACY_APP_NAME}"
@@ -184,7 +184,7 @@ remove_path "${HOME}/Library/Caches/${LEGACY_APP_NAME}"
 remove_path "${HOME}/Library/Application Support/CodexSwitchboard"
 
 echo
-echo "Removing Refill preferences and validation/demo/test leftovers..."
+echo "Removing rusage preferences and validation/demo/test leftovers..."
 for bundle_id in "${BUNDLE_IDS[@]}"; do
   remove_path "${HOME}/Library/Preferences/${bundle_id}.plist"
 done
@@ -194,7 +194,7 @@ remove_glob "${HOME}/Library/Preferences/CodexPill.validation*.plist"
 remove_glob "${HOME}/Library/Preferences/CodexPillSettingsStoreTests-*.plist"
 
 echo
-echo "Removing Refill macOS notification preferences..."
+echo "Removing rusage macOS notification preferences..."
 reset_notification_preferences
 
 echo
@@ -203,13 +203,13 @@ remove_glob "${TMPDIR:-/tmp}/${APP_NAME}-CODEX_HOME-*"
 remove_glob "${TMPDIR:-/tmp}/${LEGACY_APP_NAME}-CODEX_HOME-*"
 
 echo
-echo "Removing local Refill crash reports..."
+echo "Removing local rusage crash reports..."
 remove_glob "${HOME}/Library/Logs/DiagnosticReports/${APP_NAME}-*.ips"
 remove_glob "${HOME}/Library/Logs/DiagnosticReports/${LEGACY_APP_NAME}-*.ips"
 
 if [[ -n "${REMOTE_HOST}" ]]; then
   echo
-  echo "Removing remote Refill cache on ${REMOTE_HOST}..."
+  echo "Removing remote rusage cache on ${REMOTE_HOST}..."
   run ssh "${REMOTE_HOST}" "rm -rf ~/.codexpill"
 
   if [[ "${REMOTE_SIGN_OUT}" == "1" ]]; then

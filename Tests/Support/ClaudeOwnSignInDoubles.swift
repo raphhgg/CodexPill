@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-@testable import Refill
+@testable import RUsage
 
 extension ClaudeSignIn {
     /// A sign-in with fake tokens, such as access `a1` and refresh `r1`.
@@ -27,7 +27,7 @@ final class ClaudeEventLog: Sendable {
     }
 }
 
-/// A temp directory with Refill's own sign-in file and lock file. Nothing here touches the real Keychain.
+/// A temp directory with rusage's own sign-in file and lock file. Nothing here touches the real Keychain.
 struct ClaudeOwnSignInFiles {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("ClaudeOwnSignIn-\(UUID().uuidString)", isDirectory: true)
 
