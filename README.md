@@ -42,8 +42,8 @@ in to, only after you turn it on in `Appearance › Show Tools`.
 - One card per tool, with account actions in side menus and the app's own
   items right under the cards.
 - Codex reset credits: see how many you have and use one from the Codex menu.
-- A new name, a new capsule icon, and six icon colours under
-  `Appearance › App Icon`.
+- A new name and a new icon: a glass lens half full of cobalt, the pair to
+  rbar's.
 - Remote Hosts and Notifications are gone.
 
 See the [Changelog](CHANGELOG.md) for earlier releases.
@@ -101,7 +101,7 @@ session rows or auth data.
 
 | Add Account | Codex Side Menu |
 | --- | --- |
-| <img src="docs/assets/rusage-add-account.png" width="420" alt="rusage Add Account dialog with the capsule icon"> | <img src="docs/assets/rusage-account-actions.png" width="420" alt="rusage Codex side menu with account, reset and section actions"> |
+| <img src="docs/assets/rusage-add-account.png" width="420" alt="rusage Add Account dialog"> | <img src="docs/assets/rusage-account-actions.png" width="420" alt="rusage Codex side menu with account, reset and section actions"> |
 
 ## Local-First
 

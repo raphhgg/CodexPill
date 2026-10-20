@@ -1,6 +1,6 @@
 import Foundation
 
-@testable import rusage
+@testable import RUsage
 
 final class TokenUsageProgressRecorder: @unchecked Sendable {
     private let lock = NSLock()

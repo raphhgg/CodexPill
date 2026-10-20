@@ -3,7 +3,7 @@ import Foundation
 import SwiftUI
 import Testing
 
-@testable import rusage
+@testable import RUsage
 
 @MainActor
 final class AlertPresenterProbe: AlertPresenter {
@@ -467,8 +467,7 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func selectingAThemeSavesItAndAppliesItsIcon() throws {
-        let applier = AppIconApplierProbe()
+    func selectingAThemeSavesIt() throws {
         let suiteName = "MenuBarMenuBuilderTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
@@ -483,8 +482,7 @@ struct MenuBarMenuBuilderTests {
                 accountStatusClient: DisabledAccountStatusClient()
             ).makeController(),
             settings: settings,
-            alertPresenter: AlertPresenterProbe(),
-            appIconApplier: applier
+            alertPresenter: AlertPresenterProbe()
         )
         func select(_ theme: AppTheme) {
             let item = NSMenuItem()
@@ -497,8 +495,6 @@ struct MenuBarMenuBuilderTests {
         select(.monochrome)
 
         #expect(settings.themePreferences.theme == .monochrome)
-        // Tool Colors has no icon of its own, so Violet's stays until Monochrome picks Graphite.
-        #expect(applier.appliedColors == [.violet, .violet, .graphite])
     }
 
     @Test
@@ -1284,7 +1280,7 @@ struct MenuBarMenuBuilderTests {
         hasCustomUsageColors: Bool = false,
         usagePercentMode: UsagePercentMode = .used,
         loginItemState: LoginItemState = .disabled,
-        revealStatusItemTitleShortcut: rusage.KeyboardShortcut? = .defaultRevealStatusItemTitle,
+        revealStatusItemTitleShortcut: RUsage.KeyboardShortcut? = .defaultRevealStatusItemTitle,
         isBusy: Bool = false,
         tokenUsageEnabled: Bool = false,
         tokenUsageCard: TokenUsageMenuCard? = nil,

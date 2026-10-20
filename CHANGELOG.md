@@ -9,7 +9,8 @@
   Keychain items, unless rusage already has data. CodexPill's copies stay as a
   backup. [Uninstall And Reset](docs/UNINSTALL_RESET.md) explains how to remove
   them.
-- New capsule app icon, built in Icon Composer.
+- New app icon, built in Icon Composer: a glass lens half full of cobalt, the
+  pair to rbar's.
 
 ### Added
 
@@ -17,8 +18,6 @@
 - One card per tool, with account actions in side menus and the app's own
   items right under the cards. `Appearance › Show Tools` hides a tool.
 - Codex reset credits.
-- App Icon colour setting under `Appearance`, with six colours. It
-  changes the icon in About and in alerts. Finder keeps Cobalt.
 
 ### Removed
 

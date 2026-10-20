@@ -1,6 +1,6 @@
 import Foundation
 
-@testable import rusage
+@testable import RUsage
 
 struct LiveIdentityStub: LiveCodexAccountIdentitySource {
     let identity: LiveCodexAccountIdentity

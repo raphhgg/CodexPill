@@ -1,6 +1,6 @@
 import Foundation
 
-@testable import rusage
+@testable import RUsage
 
 /// A `CursorUsage` over an isolated defaults suite, a settable token lookup, and a settable usage-summary response.
 final class CursorUsageFixture: CursorAccessTokenSource, CursorUsageWebClient, @unchecked Sendable {

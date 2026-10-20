@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import rusage
+@testable import RUsage
 
 /// A CodexPill catalog copied to rusage must still find the account Codex is signed in to.
 @MainActor

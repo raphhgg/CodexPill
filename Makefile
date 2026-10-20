@@ -1,4 +1,4 @@
-APP_NAME := rusage
+APP_NAME := RUsage
 PROJECT_PATH := $(APP_NAME).xcodeproj
 AGENT_NAME ?= local
 BUILD_ROOT := build

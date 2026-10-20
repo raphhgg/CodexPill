@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import rusage
+@testable import RUsage
 
 struct CursorStateDatabaseTokenSourceTests {
     private let jwt = CursorAccessTokenFixtures.jwt(

@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 import Testing
 
-@testable import rusage
+@testable import RUsage
 
 @MainActor
 struct MenuBarCoordinatorTests {

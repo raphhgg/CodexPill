@@ -1,14 +1,15 @@
 import ProjectDescription
 
 let project = Project(
-    name: "rusage",
+    name: "RUsage",
     organizationName: "raphhgg",
     packages: [],
     targets: [
         .target(
-            name: "rusage",
+            name: "RUsage",
             destinations: .macOS,
             product: .app,
+            productName: "rusage",
             bundleId: "com.raphhgg.rusage",
             deploymentTargets: .macOS("14.0"),
             infoPlist: .dictionary([
@@ -28,7 +29,6 @@ let project = Project(
             sources: ["Sources/**"],
             resources: [
                 "Resources/AppIcon.icon",
-                "Resources/AppIconColors/*.png",
                 "Resources/Assets.xcassets",
             ],
             dependencies: [],
@@ -37,11 +37,13 @@ let project = Project(
                 "CODE_SIGN_INJECT_BASE_ENTITLEMENTS": "NO",
                 "CURRENT_PROJECT_VERSION": "2",
                 "ENABLE_DEBUG_DYLIB": "NO",
+                // "rusage" would shadow Darwin's `struct rusage` in Swift, so the module keeps the target's name.
+                "PRODUCT_MODULE_NAME": "RUsage",
                 "SWIFT_VERSION": "6.0",
             ])
         ),
         .target(
-            name: "rusageTests",
+            name: "RUsageTests",
             destinations: .macOS,
             product: .unitTests,
             bundleId: "com.raphhgg.rusage.tests",
@@ -49,7 +51,7 @@ let project = Project(
             infoPlist: .default,
             sources: ["Tests/**"],
             dependencies: [
-                .target(name: "rusage")
+                .target(name: "RUsage")
             ],
             settings: .settings(base: [
                 "SWIFT_VERSION": "6.0",

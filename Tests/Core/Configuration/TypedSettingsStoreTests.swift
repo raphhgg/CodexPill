@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import rusage
+@testable import RUsage
 
 @MainActor
 struct MenuDisplaySettingsStoreTests {
@@ -221,41 +221,19 @@ struct ThemePreferencesStoreTests {
         let store = ThemePreferencesStore(userDefaults: makeDefaults())
 
         #expect(store.theme == .cobalt)
-        #expect(store.appIconColor == .cobalt)
     }
 
     @Test
-    func firstThemeMatchesTheIconColorSavedBeforeThemes() {
+    func theThemePersists() {
         let defaults = makeDefaults()
-        defaults.set("rose", forKey: "appIconColor")
+        ThemePreferencesStore(userDefaults: defaults).theme = .toolColors
 
-        #expect(ThemePreferencesStore(userDefaults: defaults).theme == .rose)
-    }
-
-    @Test
-    func toolColorsKeepsTheLastIconAndBothPersist() {
-        let defaults = makeDefaults()
-        let first = ThemePreferencesStore(userDefaults: defaults)
-        first.theme = .emerald
-        first.theme = .toolColors
-
-        let second = ThemePreferencesStore(userDefaults: defaults)
-        #expect(second.theme == .toolColors)
-        #expect(second.appIconColor == .emerald)
-    }
-
-    @Test
-    func monochromeUsesTheGraphiteIcon() {
-        let store = ThemePreferencesStore(userDefaults: makeDefaults())
-        store.theme = .monochrome
-
-        #expect(store.appIconColor == .graphite)
+        #expect(ThemePreferencesStore(userDefaults: defaults).theme == .toolColors)
     }
 
     @Test
     func unknownStoredValuesFallBackToCobalt() {
         let defaults = makeDefaults()
-        defaults.set("tangerine", forKey: "appIconColor")
         defaults.set("neon", forKey: "appTheme")
 
         #expect(ThemePreferencesStore(userDefaults: defaults).theme == .cobalt)

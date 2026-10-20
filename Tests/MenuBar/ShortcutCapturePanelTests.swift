@@ -1,6 +1,6 @@
 import Testing
 
-@testable import rusage
+@testable import RUsage
 
 struct ShortcutCapturePanelTests {
     @Test

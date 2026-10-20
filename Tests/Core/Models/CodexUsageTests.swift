@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import rusage
+@testable import RUsage
 
 struct CodexUsageTests {
     private let fetchedAt = Date(timeIntervalSince1970: 2_000_000_100)

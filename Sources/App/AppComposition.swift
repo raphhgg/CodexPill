@@ -40,7 +40,6 @@ struct AppComposition {
             tokenUsagePreferences: TokenUsagePreferencesStore(userDefaults: defaults),
             claudeUsageSettings: claudeCodeUsage.settings,
             themePreferences: ThemePreferencesStore(userDefaults: defaults),
-            appIconApplier: SystemAppIconApplier(),
             cliProcessInspector: CodexCLIProcessInspector(),
             alertPresenter: SystemAlertPresenter(suppressesInteractivePrompts: suppressesInteractivePrompts),
             panelPresenter: SystemPanelPresenter(suppressesInteractivePrompts: suppressesInteractivePrompts),

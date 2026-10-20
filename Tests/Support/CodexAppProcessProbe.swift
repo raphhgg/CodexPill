@@ -1,6 +1,6 @@
 import Foundation
 
-@testable import rusage
+@testable import RUsage
 
 final class CodexAppProcessProbe: CodexAppProcessClient, @unchecked Sendable {
     var relaunchResult = CodexRelaunch.relaunched

@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import rusage
+@testable import RUsage
 
 /// `security` stood in by a runner that answers each call with a scripted result.
 private final class FakeSecurity: SecurityCommandRunning, @unchecked Sendable {

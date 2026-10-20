@@ -1,6 +1,6 @@
 import Foundation
 
-@testable import rusage
+@testable import RUsage
 
 struct StubAccountStatusClient: CodexAccountStatusClient {
     private let result: Result<CodexAccountStatus, Error>

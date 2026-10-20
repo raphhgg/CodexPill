@@ -1,7 +1,7 @@
 import Carbon
 import Testing
 
-@testable import rusage
+@testable import RUsage
 
 @MainActor
 struct GlobalShortcutRuntimeTests {

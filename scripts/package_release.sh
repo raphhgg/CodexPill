@@ -2,8 +2,8 @@
 set -euo pipefail
 
 APP_NAME="rusage"
-PROJECT_PATH="${APP_NAME}.xcodeproj"
-SCHEME="${APP_NAME}"
+SCHEME="RUsage"
+PROJECT_PATH="${SCHEME}.xcodeproj"
 CONFIGURATION="Release"
 AGENT_NAME="${AGENT_NAME:-local}"
 BUILD_ROOT="${BUILD_ROOT:-build}"

@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import rusage
+@testable import RUsage
 
 struct ClaudeCredentialsTests {
     /// Only the files of rusage's own sign-in may hold a refresh token, and none of them names Claude Code's sign-in.

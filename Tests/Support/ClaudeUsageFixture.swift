@@ -1,6 +1,6 @@
 import Foundation
 
-@testable import rusage
+@testable import RUsage
 
 /// A `ClaudeCodeUsage` over an isolated defaults suite, a temp Claude config folder, a settable Keychain item,
 /// and a settable usage response. All tokens are fake.

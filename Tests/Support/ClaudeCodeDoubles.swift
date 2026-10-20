@@ -1,6 +1,6 @@
 import Foundation
 
-@testable import rusage
+@testable import RUsage
 
 /// Claude Code's Keychain item as a file that rusage is already allowed to read.
 struct FileClaudeCodeKeychain: ClaudeKeychainReading {

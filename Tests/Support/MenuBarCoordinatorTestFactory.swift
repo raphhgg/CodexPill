@@ -1,6 +1,6 @@
 import Foundation
 
-@testable import rusage
+@testable import RUsage
 
 @MainActor
 extension MenuBarCoordinator {
@@ -9,7 +9,6 @@ extension MenuBarCoordinator {
         accountsController: MenuBarAccounts,
         settings: SettingsStores,
         alertPresenter: AlertPresenter,
-        appIconApplier: AppIconApplying = AppIconApplierProbe(),
         panelPresenter: PanelPresenter = SystemPanelPresenter(suppressesInteractivePrompts: true),
         loginItemController: LoginItemControlling = SystemLoginItemController(),
         loginItemsSettingsLauncher: LoginItemsSettingsLaunching = SystemLoginItemsSettingsLauncher(),
@@ -31,7 +30,6 @@ extension MenuBarCoordinator {
             tokenUsagePreferences: settings.tokenUsagePreferences,
             claudeUsageSettings: settings.claudeUsageSettings,
             themePreferences: settings.themePreferences,
-            appIconApplier: appIconApplier,
             cliProcessInspector: CodexCLIProcessInspector(),
             alertPresenter: alertPresenter,
             panelPresenter: panelPresenter,

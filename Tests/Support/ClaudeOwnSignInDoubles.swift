@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-@testable import rusage
+@testable import RUsage
 
 extension ClaudeSignIn {
     /// A sign-in with fake tokens, such as access `a1` and refresh `r1`.

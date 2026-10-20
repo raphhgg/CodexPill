@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-@testable import rusage
+@testable import RUsage
 
 /// A Codex status source that counts every read, of the account in use or a saved one, and has nothing to return.
 final class CountingAccountStatusClient: CodexAccountStatusClient, SavedCodexAccountStatusClient {

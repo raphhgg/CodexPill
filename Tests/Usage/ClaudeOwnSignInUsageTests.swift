@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import rusage
+@testable import RUsage
 
 /// Usage reads with rusage's own sign-in. Every token is fake, the store is a temp file, and Claude Code's sign-in is
 /// a temp file that the own sign-in must never use.

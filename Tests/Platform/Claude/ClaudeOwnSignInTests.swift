@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import rusage
+@testable import RUsage
 
 /// The renewal of rusage's own sign-in never sends a refresh token twice, even across processes or after a crash.
 struct ClaudeOwnSignInTests {

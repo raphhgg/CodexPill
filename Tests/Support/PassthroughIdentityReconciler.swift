@@ -1,6 +1,6 @@
 import Foundation
 
-@testable import rusage
+@testable import RUsage
 
 struct PassthroughIdentityReconciler: StoredAccountIdentityReconciler {
     func reconcileStoredAccountIdentities(_ accounts: [CodexAccount]) -> [CodexAccount] {

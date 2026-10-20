@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import rusage
+@testable import RUsage
 
 struct ToolSectionTests {
     private let now = Date(timeIntervalSince1970: 1_791_000_000)

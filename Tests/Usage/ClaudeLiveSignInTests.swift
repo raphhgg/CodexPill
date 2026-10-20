@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import rusage
+@testable import RUsage
 
 /// rusage only reads Claude Code's live sign-in. Claude Code renews it when the user runs `claude`.
 @MainActor
