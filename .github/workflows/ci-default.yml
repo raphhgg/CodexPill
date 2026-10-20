@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - refill
+      - rusage
 
 jobs:
   test:
