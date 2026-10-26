@@ -8,7 +8,7 @@ struct ProvidersPane: View {
     @Bindable var state: SettingsWindowState
     let actions: any SettingsActions
 
-    static let size = CGSize(width: 680, height: 420)
+    static let size = CGSize(width: SettingsPane.width, height: 420)
 
     var body: some View {
         HStack(spacing: 0) {
