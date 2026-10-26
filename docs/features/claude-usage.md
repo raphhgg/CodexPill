@@ -20,7 +20,7 @@ rusage never reads or writes Claude Code's `settings.json`. Reading limits from 
 
 ## Menu
 
-The `Claude` card follows the shared card and side menu in [Menubar](menubar.md). The side menu shows only the signed-in email, checked and disabled. `Settings › Providers › Claude` shows where the sign-in comes from and offers `Use Another Account…`, which runs rusage's own sign-in below and replaces an earlier one, then `Sign Out…` while rusage's own sign-in is in use, or `Disconnect` while Claude Code's is. rusage never changes Claude Code's own sign-in. The browser signs in with whichever account claude.com is signed in to, so switch accounts there first to pick another one. `Settings › Providers › Claude › Show in Menu Bar` disconnects it.
+The `Claude` card follows the shared card and side menu in [Menubar](menubar.md). The side menu shows only the signed-in email, checked and disabled. `Settings › Providers › Claude` shows where the sign-in comes from and offers `Use Another Account…`, which runs rusage's own sign-in below and replaces an earlier one, then `Sign Out…` while rusage's own sign-in is in use. `−` under the sidebar disconnects Claude. rusage never changes Claude Code's own sign-in. The browser signs in with whichever account claude.com is signed in to, so switch accounts there first to pick another one. `Settings › Providers › Claude › Show in Menu Bar` disconnects it.
 
 - **Not connected.** There is no card. Turning on `Settings › Providers › Claude › Show in Menu Bar` connects. Choosing it opens a consent alert first. Nothing is read until the user confirms.
 - **Consent alert.** One short alert:
