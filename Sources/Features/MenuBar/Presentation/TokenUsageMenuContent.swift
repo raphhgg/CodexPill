@@ -1,3 +1,6 @@
+import AppKit
+import SwiftUI
+
 /// The Token Usage card: a chart and a split, each with its own toggle, in the theme's colors. With the breakdown on
 /// hover, the main menu shows the chart and the card's side menu shows the split, as Settings › Token Usage says.
 ///
