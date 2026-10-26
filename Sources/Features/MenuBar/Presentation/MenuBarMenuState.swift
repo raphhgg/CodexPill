@@ -5,7 +5,6 @@ struct MenuBarMenuState {
     /// Ranked by room left, best first.
     let inactiveAccounts: [CodexAccount]
     let refreshIntervalMinutes: Int
-    let refreshIntervalOptions: [Int]
     let statusBarIndicatorStyle: StatusBarIndicatorStyle
     let statusBarDisplayMode: StatusBarDisplayMode
     let revealStatusItemTitleShortcut: KeyboardShortcut?
@@ -36,7 +35,6 @@ struct MenuBarMenuState {
         activeAccount: CodexAccount?,
         inactiveAccounts: [CodexAccount],
         refreshIntervalMinutes: Int = 5,
-        refreshIntervalOptions: [Int] = GeneralSettings.refreshIntervalOptions,
         statusBarIndicatorStyle: StatusBarIndicatorStyle = .glasses,
         statusBarDisplayMode: StatusBarDisplayMode = .iconOnly,
         revealStatusItemTitleShortcut: KeyboardShortcut? = .defaultRevealStatusItemTitle,
@@ -63,7 +61,6 @@ struct MenuBarMenuState {
         self.activeAccount = activeAccount
         self.inactiveAccounts = inactiveAccounts
         self.refreshIntervalMinutes = refreshIntervalMinutes
-        self.refreshIntervalOptions = refreshIntervalOptions
         self.statusBarIndicatorStyle = statusBarIndicatorStyle
         self.statusBarDisplayMode = statusBarDisplayMode
         self.revealStatusItemTitleShortcut = revealStatusItemTitleShortcut
@@ -115,11 +112,6 @@ struct MenuBarMenuState {
     var effectiveStatusBarDisplayMode: StatusBarDisplayMode {
         guard hasStatusItemContentData else { return .iconOnly }
         return statusBarDisplayMode
-    }
-
-    func canSelectStatusBarDisplayMode(_ mode: StatusBarDisplayMode) -> Bool {
-        guard hasStatusItemContentData else { return mode == .iconOnly }
-        return true
     }
 }
 

@@ -193,7 +193,7 @@ struct MenuBarCoordinatorTests {
         #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .claude, status: .notConnected, ownSignIn: .signedOut)])
         #expect(cardAreaTitles(coordinator) == [])
 
-        harness.click("Appearance", "Show Tools", "Claude")
+        harness.toggleTool(.claude)
         await coordinator.waitForPendingWork()
 
         #expect(harness.alertPresenter.confirmationRequests.map(\.messageText) == ["Connect Claude Code?"])
@@ -201,7 +201,7 @@ struct MenuBarCoordinatorTests {
         #expect(fixture.keychainReadPrompts == [])
 
         harness.alertPresenter.confirmationResponse = true
-        harness.click("Appearance", "Show Tools", "Claude")
+        harness.toggleTool(.claude)
         await coordinator.waitForPendingWork()
 
         #expect(fixture.keychainReadPrompts == [true])
@@ -235,7 +235,7 @@ struct MenuBarCoordinatorTests {
         }
         #expect(fixture.keychainReadPrompts.suffix(2) == [false, true])
 
-        harness.click("Appearance", "Show Tools", "Claude")
+        harness.toggleTool(.claude)
         await coordinator.waitForPendingWork()
 
         #expect(harness.alertPresenter.confirmationRequests.count == 2)
@@ -294,7 +294,7 @@ struct MenuBarCoordinatorTests {
         #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .cursor, status: .notConnected)])
         #expect(cardAreaTitles(coordinator) == [])
 
-        harness.click("Appearance", "Show Tools", "Cursor")
+        harness.toggleTool(.cursor)
         await coordinator.waitForPendingWork()
 
         #expect(harness.alertPresenter.confirmationRequests.map(\.messageText) == ["Connect Cursor?"])
@@ -302,7 +302,7 @@ struct MenuBarCoordinatorTests {
         #expect(fixture.requestCount == 0)
 
         harness.alertPresenter.confirmationResponse = true
-        harness.click("Appearance", "Show Tools", "Cursor")
+        harness.toggleTool(.cursor)
         await coordinator.waitForPendingWork()
 
         let current = UsageSnapshot(
@@ -323,7 +323,7 @@ struct MenuBarCoordinatorTests {
             ProviderUsageState(provider: .cursor, status: .unavailable(.unreachable, lastSnapshot: current))
         ])
 
-        harness.click("Appearance", "Show Tools", "Cursor")
+        harness.toggleTool(.cursor)
         await coordinator.waitForPendingWork()
 
         #expect(fixture.settings.value.isConnected == false)
@@ -345,8 +345,8 @@ struct MenuBarCoordinatorTests {
         await coordinator.waitForPendingWork()
         #expect(cardAreaTitles(coordinator) == ["Claude", "", "Codex"])
 
-        harness.click("Appearance", "Show Tools", "Claude")
-        harness.click("Appearance", "Show Tools", "Codex")
+        harness.toggleTool(.claude)
+        harness.toggleTool(.codex)
         await coordinator.waitForPendingWork()
         let (claudeReads, codexReadsWhenHidden) = (claude.readCount, codexReads.readCount)
         await coordinator.performScheduledRefresh()
@@ -357,8 +357,8 @@ struct MenuBarCoordinatorTests {
         #expect(codexReads.readCount == codexReadsWhenHidden)
         #expect(!harness.settings.codex.isConnected)
 
-        harness.click("Appearance", "Show Tools", "Codex")
-        harness.click("Appearance", "Show Tools", "Claude")
+        harness.toggleTool(.codex)
+        harness.toggleTool(.claude)
         await coordinator.waitForPendingWork()
 
         #expect(cardAreaTitles(coordinator) == ["Claude", "", "Codex"])
@@ -401,10 +401,10 @@ struct MenuBarCoordinatorTests {
         #expect(fireCount > 0)
     }
 
-    /// The main menu's titles above Add Account: the cards and their follow-up rows.
+    /// The main menu's titles above Settings…: the cards and their follow-up rows.
     private func cardAreaTitles(_ coordinator: MenuBarCoordinator) -> [String] {
         let titles = MenuBarMenuBuilder().makeMenu(state: coordinator.menuState(), target: coordinator).items.map(\.title)
-        var cardArea = Array(titles.prefix { $0 != "Add Account" })
+        var cardArea = Array(titles.prefix { $0 != "Settings…" })
         if cardArea.last == "" {
             cardArea.removeLast()
         }
@@ -482,7 +482,14 @@ private final class MenuBarCoordinatorHarness {
         coordinator?.performProviderAction(item)
     }
 
-    /// Clicks the enabled item at `path`, such as "Appearance", "Show Tools", "Claude", in the menu the coordinator would build now.
+    /// Flips a tool's switch in Settings › Tools, as the user would from what the menu shows now.
+    func toggleTool(_ provider: UsageProvider) {
+        guard let coordinator else { return }
+        let isShown = coordinator.menuState().toolSections.contains { $0.provider == provider }
+        coordinator.setTool(provider, shown: !isShown)
+    }
+
+    /// Clicks the enabled item at `path`, such as "Claude", "Move Down", in the menu the coordinator would build now.
     func click(_ path: String...) {
         guard let coordinator else { return }
         var menu: NSMenu? = MenuBarMenuBuilder().makeMenu(state: coordinator.menuState(), target: coordinator)

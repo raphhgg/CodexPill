@@ -73,4 +73,3 @@ A Codex credit that resets the current limits early. rusage shows how many are l
 - Cloud sync or multi-device account storage.
 - Team/shared account management.
 - Background telemetry pipeline.
-- Large multi-window preferences UI unless the menubar surface becomes too constrained.

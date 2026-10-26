@@ -15,8 +15,6 @@ struct ToolSection: Equatable {
     var signInSourceLabel: String? = nil
     /// The email Claude or Cursor is signed in to, masked when Hide Emails is on.
     var signedInLabel: String? = nil
-    /// The models with their own Claude limit in the current reading, such as ["Fable"], even while they are hidden.
-    var modelLimitNames: [String] = []
 
     var activeAccount: ToolAccount? {
         accounts.first(where: \.isActive)
@@ -64,20 +62,6 @@ struct ToolMenuItem: Equatable {
     let action: ProviderAction
 }
 
-enum ToolSectionMove: CaseIterable {
-    case toTop
-    case up
-    case down
-
-    var title: String {
-        switch self {
-        case .toTop: "Move to Top"
-        case .up: "Move Up"
-        case .down: "Move Down"
-        }
-    }
-}
-
 extension MenuBarMenuState {
     /// One section per tool with a saved account or a connection, in the user's order. Codex can be hidden.
     var toolSections: [ToolSection] {
@@ -90,22 +74,6 @@ extension MenuBarMenuState {
             }
             return section(for: usage)
         }
-    }
-
-    /// The full tool order after moving `provider` past its visible neighbor, or nil when it can't move that way.
-    func toolOrder(moving provider: UsageProvider, _ move: ToolSectionMove) -> [UsageProvider]? {
-        let visible = toolSections.map(\.provider)
-        guard let position = visible.firstIndex(of: provider) else { return nil }
-        let neighbor: UsageProvider? = switch move {
-        case .toTop: position > 0 ? visible[0] : nil
-        case .up: position > 0 ? visible[position - 1] : nil
-        case .down: position < visible.count - 1 ? visible[position + 1] : nil
-        }
-        guard let neighbor else { return nil }
-        var order = toolOrder.filter { $0 != provider }
-        guard let neighborIndex = order.firstIndex(of: neighbor) else { return nil }
-        order.insert(provider, at: move == .down ? neighborIndex + 1 : neighborIndex)
-        return order
     }
 
     /// What the side menu calls a saved account, so alerts name it the same way, Hide Emails included.
@@ -182,10 +150,7 @@ extension MenuBarMenuState {
             followUp: followUp,
             signInItem: signInItem,
             signInSourceLabel: usage.ownSignIn == .signedOut && snapshot != nil ? "Uses \(copy.name)'s sign-in" : nil,
-            signedInLabel: snapshot?.accountEmail.map { displayedEmail($0, masked: masksEmails) },
-            modelLimitNames: snapshot?.windows.compactMap { window in
-                if case let .modelWeekly(modelName) = window.kind { modelName } else { nil }
-            } ?? []
+            signedInLabel: snapshot?.accountEmail.map { displayedEmail($0, masked: masksEmails) }
         )
     }
 

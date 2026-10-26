@@ -12,7 +12,7 @@ The status bar gives the user a lightweight answer before opening the menu: how 
 - Optional label text.
 - Hover-expanded and shortcut-revealed text behavior.
 - Compact indicators for the first menu card's windows (see below).
-- `Appearance` exposes `Menu Bar Label`, `Icon Style`, and `Usage Bars` controls for label mode, the reveal shortcut, icon style, usage percent mode, meter layout, pacing marker visibility, and usage colors. Other app items are owned by their own feature docs. Its `Usage Bars` controls style the usage bars inside the menu, not the glyph. Claude's per-model weekly limits (`Show Fable Limits` in the Claude side menu) never reach the icon or its label.
+- The Settings window's `Menu Bar` pane (label mode, icon style, the reveal shortcut) and `Usage Bars` pane (usage percent mode, meter layout, pacing marker visibility, usage colors). Other panes are owned by their own feature docs. The `Usage Bars` pane styles the usage bars inside the menu, not the glyph. Claude's per-model weekly limits (`Show Fable Limits` in the Claude side menu) never reach the icon or its label.
 - Tooltip text.
 
 ## Menu Bar Glyph
@@ -59,10 +59,11 @@ visible collapses it.
 Users can configure the shortcut from:
 
 ```text
-Appearance
-  Menu Bar Label
-    Reveal Shortcut…    ⌃⌥⌘L
+Settings › Menu Bar
+  Reveal Shortcut      ⌃⌥⌘L  [Change…]
 ```
+
+`Menu Bar Label` offers only `Icon Only` until the first tool has a reading.
 
 If a configured shortcut cannot be registered, rusage keeps the previous
 working shortcut and shows an error.
@@ -70,30 +71,25 @@ working shortcut and shows an error.
 ## Usage Bars
 
 ```text
-Appearance
-  Usage Bars
-    Show % Used           (default)
-    Show % Left
-    ─────
-    Classic Layout        (default)
-    Compact Layout
-    ─────
-    Show Pace Markers
-    ─────
-    Session Color…
-    Weekly Color…
-    Same Color for Both   (default on)
-    Use Theme Colors
+Settings › Usage Bars
+  Show                 [% Used | % Left]        (% Used by default)
+  Layout               [Classic | Compact]      (Classic by default)
+  Pace Markers         (default on)
+  ─────
+  Session Color
+  Weekly Color
+  Same Color for Both  (default on)
+  Use Theme Colors
 ```
 
-- `Show % Left` changes every usage percentage rusage shows (status item
+- `% Left` changes every usage percentage rusage shows (status item
   label, active account meters, saved account rows) to the share still
   available. The glyph follows the same choice. Pace markers move to the
   matching position. Countdowns for full windows are unchanged.
-- `Session Color…` and `Weekly Color…` color the session and weekly bars in the
-  menu. With `Same Color
-  for Both` on, the session color is used for both. Picking a weekly color turns
-  `Same Color for Both` off.
+- `Session Color` and `Weekly Color` color the session and weekly bars in the
+  menu. With `Same Color for Both` on, the session color is used for both and
+  `Weekly Color` is disabled. A session color equal to the theme's is stored as
+  no custom color, so the bar keeps following the theme.
 - An accent color chosen before this option existed becomes the session color,
   and with `Same Color for Both` on by default it keeps coloring both bars.
 - Without custom colors, the bars use the [theme](app-controls/02-theme.md)'s colors.
