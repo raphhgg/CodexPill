@@ -5,22 +5,9 @@ import Testing
 
 struct MenuBarMenuStateTests {
     @Test
-    func allSavedAccountsFollowRankedAccountsOrder() {
-        let accounts = [
-            makeAccount(name: "A"),
-            makeAccount(name: "B"),
-            makeAccount(name: "C")
-        ]
-
-        let state = makeState(inactiveAccounts: accounts)
-
-        #expect(state.allSavedAccounts.map(\.email) == ["a@example.com", "b@example.com", "c@example.com"])
-    }
-
-    @Test
     func statusMessageOnlyShowsWhileBusy() {
-        let hidden = makeState(inactiveAccounts: [], isBusy: false, statusMessage: "Refreshing...")
-        let shown = makeState(inactiveAccounts: [], isBusy: true, statusMessage: "Refreshing...")
+        let hidden = makeState(isBusy: false, statusMessage: "Refreshing...")
+        let shown = makeState(isBusy: true, statusMessage: "Refreshing...")
 
         #expect(!hidden.shouldShowStatusMessage)
         #expect(shown.shouldShowStatusMessage)
@@ -28,7 +15,7 @@ struct MenuBarMenuStateTests {
 
     @Test
     func emptyStateForcesStatusItemContentToIconOnly() {
-        let state = makeState(inactiveAccounts: [], isBusy: false)
+        let state = makeState(isBusy: false)
 
         #expect(!state.hasStatusItemContentData)
         #expect(state.effectiveStatusBarDisplayMode == .iconOnly)
@@ -38,7 +25,6 @@ struct MenuBarMenuStateTests {
     func activeAccountUsesStoredStatusItemContentMode() {
         let state = makeState(
             activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
-            inactiveAccounts: [],
             isBusy: false
         )
 
@@ -50,7 +36,6 @@ struct MenuBarMenuStateTests {
     func activeAccountWithoutRateLimitsStillForcesIconOnly() {
         let state = makeState(
             activeAccount: makeAccount(name: "Active"),
-            inactiveAccounts: [],
             isBusy: false
         )
 
@@ -155,13 +140,11 @@ struct MenuBarMenuStateTests {
 
     private func makeState(
         activeAccount: CodexAccount? = nil,
-        inactiveAccounts: [CodexAccount],
         isBusy: Bool = false,
         statusMessage: String = "Ready"
     ) -> MenuBarMenuState {
         MenuBarMenuState(
             activeAccount: activeAccount,
-            inactiveAccounts: inactiveAccounts,
             refreshIntervalMinutes: 5,
             statusBarIndicatorStyle: .moon,
             statusBarDisplayMode: .textOnHover,

@@ -120,44 +120,6 @@ final class CodexAppServerClient {
         throw latestError ?? CocoaError(.coderReadCorrupt)
     }
 
-    func readSavedAccountStatus(authData: Data) async -> SavedCodexAccountStatusRead {
-        let session: IsolatedCodexHomeSession
-        do {
-            session = try IsolatedCodexHomeSession.create()
-        } catch {
-            return SavedCodexAccountStatusRead(status: .failure(error), rotatedAuthData: nil)
-        }
-        defer { try? session.cleanup() }
-
-        do {
-            try authData.write(to: session.authFile, options: .atomic)
-        } catch {
-            return SavedCodexAccountStatusRead(status: .failure(error), rotatedAuthData: nil)
-        }
-
-        let status: Result<CodexAccountStatus, Error>
-        do {
-            let appServerStatus = try await Self.readAppServerStatus(
-                configuration: CodexAppServerConfiguration(
-                    command: configuration.command,
-                    environment: Self.isolatedAppServerEnvironment(command: configuration.command, session: session),
-                    responseTimeout: configuration.responseTimeout,
-                    clientInfo: configuration.clientInfo
-                ),
-                refreshToken: false,
-                requireRateLimitResponse: true
-            )
-            status = .success(mapper.status(from: appServerStatus))
-        } catch {
-            status = .failure(error)
-        }
-
-        return SavedCodexAccountStatusRead(
-            status: status,
-            rotatedAuthData: Self.rotatedAuthData(in: session, original: authData)
-        )
-    }
-
     func consumeResetCredit(idempotencyKey: UUID) async throws -> CodexResetCreditOutcome {
         try await CodexAppServerSessionRunner().consumeResetCredit(command: CodexResetCreditConsumeCommand(
             executableURL: configuration.command.executableURL,
@@ -191,17 +153,6 @@ final class CodexAppServerClient {
         ))
     }
 
-    // Codex may rotate the single-use refresh token while reading and persists it into the isolated home.
-    private static func rotatedAuthData(in session: IsolatedCodexHomeSession, original: Data) -> Data? {
-        guard let current = try? Data(contentsOf: session.authFile),
-              !current.isEmpty,
-              current != original
-        else {
-            return nil
-        }
-        return current
-    }
-
     private func shouldRetry(status: CodexAccountStatus?, attemptIndex: Int, totalAttempts: Int) -> Bool {
         guard attemptIndex < totalAttempts - 1 else { return false }
         guard attemptIndex == 0 else { return false }
@@ -233,24 +184,7 @@ final class CodexAppServerClient {
     static func makeAppServerRequests(refreshToken: Bool) -> [String] {
         CodexAppServerSession.makeRequests(refreshToken: refreshToken)
     }
-
-    private static func isolatedAppServerEnvironment(
-        command: CodexCLICommand,
-        session: IsolatedCodexHomeSession,
-        base: [String: String] = ProcessInfo.processInfo.environment
-    ) -> [String: String] {
-        var environment = base
-        let executableDirectory = command.executableURL.deletingLastPathComponent().path
-        environment["CODEX_HOME"] = session.rootDirectory.path
-        environment["HOME"] = FileManager.default.homeDirectoryForCurrentUser.path
-        environment["LOGNAME"] = NSUserName()
-        environment["PATH"] = "\(executableDirectory):/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-        environment["TMPDIR"] = session.tempDirectory.path
-        environment["USER"] = NSUserName()
-        return environment
-    }
 }
 
 extension CodexAppServerClient: CodexAccountStatusClient {}
-extension CodexAppServerClient: SavedCodexAccountStatusClient {}
 extension CodexAppServerClient: CodexResetCreditClient {}

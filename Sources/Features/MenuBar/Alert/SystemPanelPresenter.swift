@@ -17,7 +17,7 @@ final class SystemPanelPresenter {
 extension SystemPanelPresenter: PanelPresenter {
     func presentAddAccountSignIn(
         _ request: MenuBarAddAccountSignInPanelRequest,
-        waitForCompletion: @escaping () async -> Result<CodexAccount, Error>,
+        waitForCompletion: @escaping () async -> Result<CodexSignedInAccount, Error>,
         onCancel: @escaping () -> Void
     ) async -> MenuBarAddAccountSignInPanelResult {
         guard !suppressesInteractivePrompts else {

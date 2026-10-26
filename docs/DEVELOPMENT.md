@@ -17,9 +17,10 @@ rusage was called CodexPill before. Every identifier moved to the new name: the
 environment variables.
 
 `CodexPillMigration` (`Sources/Platform/Persistence`) runs once at launch,
-before anything reads the catalog or settings. It copies
+before anything reads settings. It copies
 `Application Support/CodexPill` to `Application Support/rusage` when rusage has
-no data yet (no folder, or only an empty `[]` catalog and empty `snapshots`),
+no data yet (no folder, or only an empty `[]` `accounts.json` and empty
+`snapshots`, which this version no longer reads),
 copies preferences from the CodexPill domain of the same build
 (`com.raphhgg.codexpill` for release, `com.raphhgg.codexpill.dev` for
 `make build`) without overwriting set keys. It leaves out
@@ -133,9 +134,9 @@ open -n \
   build/DerivedData/<name>/Build/Products/Debug/rusage.app
 ```
 
-- `RUSAGE_ISOLATED_APP_SUPPORT_DIR` holds the account catalog, saved
-  snapshots, the token-usage cache, and the live `auth.json` that switching
-  writes.
+- `RUSAGE_ISOLATED_APP_SUPPORT_DIR` holds the token-usage cache, Claude's own
+  sign-in, and the live `auth.json` that rusage reads and that a confirmed
+  Codex sign-in replaces.
 - `RUSAGE_ISOLATED_DEFAULTS_SUITE` keeps preferences out of the real
   `UserDefaults` domain.
 - `CODEX_HOME` points the `codex app-server` that rusage starts at the same
@@ -149,7 +150,7 @@ open -n \
 - Token Usage reads Codex sessions from `<root>/sessions`, never
   `~/.codex/sessions`.
 
-Switching still asks the real Codex app to relaunch. Quit the isolated app by
+A confirmed Codex sign-in still asks the real Codex app to relaunch. Quit the isolated app by
 its process ID, not with `scripts/stop_menubar.sh`, which stops every running
 rusage. It does not stop an older `CodexPill.app`.
 

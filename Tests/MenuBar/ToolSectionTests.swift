@@ -71,13 +71,13 @@ struct ToolSectionTests {
     @Test
     func codexStatesReadAsATitleAndAtMostOneLine() throws {
         let waiting = try #require(state(activeAccount: makeAccount(name: "Work")).toolSections.first).card
-        let noneInUse = try #require(state(inactiveAccounts: [makeAccount(name: "Work")]).toolSections.first).card
+        let signedOut = state(activeAccount: nil).toolSections.first { $0.provider == .codex }
         let staleUsage = makeUsage(fetchedAt: now.addingTimeInterval(-20 * 60))
         let stale = try #require(state(activeAccount: makeAccount(name: "Work", usage: staleUsage)).toolSections.first).card
         let fresh = try #require(state(activeAccount: makeAccount(name: "Work", usage: makeUsage(fetchedAt: now))).toolSections.first).card
 
         #expect(waiting == ToolCard(title: "Waiting for Codex usage"))
-        #expect(noneInUse == ToolCard(title: "No saved account in use", detail: "Pick one in this menu."))
+        #expect(signedOut == nil)
         #expect(stale.title == nil)
         #expect(stale.detail?.hasPrefix("As of ") == true)
         #expect(stale.isDimmed)
@@ -130,15 +130,16 @@ struct ToolSectionTests {
     }
 
     @Test
-    func theClaudeSideMenuSignsInOrOutOfRUsagesOwnSignIn() throws {
-        func signInItem(_ ownSignIn: ProviderOwnSignIn) throws -> ToolMenuItem? {
+    func theClaudeSectionSaysWhichSignInItReadsWith() throws {
+        func section(_ ownSignIn: ProviderOwnSignIn) throws -> ToolSection {
             let usage = ProviderUsageState(provider: .claude, status: .current(claudeSnapshot()), ownSignIn: ownSignIn)
-            return try #require(state(providerUsage: [usage]).toolSections.first).signInItem
+            return try #require(state(providerUsage: [usage]).toolSections.first)
         }
 
-        #expect(try signInItem(.signedOut) == ToolMenuItem(title: "Sign in with Claude…", action: .signIn))
-        #expect(try signInItem(.signedIn) == ToolMenuItem(title: "Sign Out of Claude", action: .signOut))
-        #expect(try signInItem(.unsupported) == nil)
+        #expect(try section(.signedIn).ownSignIn == .signedIn)
+        #expect(try section(.signedIn).signInSourceLabel == nil)
+        #expect(try section(.signedOut).ownSignIn == .signedOut)
+        #expect(try section(.signedOut).signInSourceLabel == "Uses Claude Code's sign-in")
     }
 
     @Test
@@ -219,15 +220,14 @@ struct ToolSectionTests {
     }
 
     @Test
-    func accountsListTheOneInUseFirstWithEmailsMaskedWhenHidden() throws {
+    func eachToolShowsItsAccountWithEmailsMaskedWhenHidden() throws {
         let active = makeAccount(email: "alex@example.com", usage: makeUsage(fetchedAt: now))
-        let other = makeAccount(email: "alex.side@example.com")
         var claudeUsage = claudeSnapshot()
         claudeUsage.accountEmail = "sam@acme.dev"
         let claude = ProviderUsageState(provider: .claude, status: .current(claudeUsage))
 
-        let shown = state(activeAccount: active, inactiveAccounts: [other], providerUsage: [claude])
-        let hidden = state(activeAccount: active, inactiveAccounts: [other], providerUsage: [claude], masksEmails: true)
+        let shown = state(activeAccount: active, providerUsage: [claude])
+        let hidden = state(activeAccount: active, providerUsage: [claude], masksEmails: true)
 
         let codex = try #require(shown.toolSections.first { $0.provider == .codex })
         let maskedCodex = try #require(hidden.toolSections.first { $0.provider == .codex })
@@ -235,29 +235,9 @@ struct ToolSectionTests {
         let maskedClaude = try #require(hidden.toolSections.first { $0.provider == .claude })
 
         #expect(codex.activeLabel == "alex@example.com")
-        #expect(codex.otherAccounts.map(\.label) == ["alex.side@example.com"])
-        #expect(maskedCodex.accounts.map(\.label) == ["a•••x@example.com", "al•••e@example.com"])
+        #expect(maskedCodex.activeLabel == "a•••x@example.com")
         #expect(claudeSection.activeLabel == "sam@acme.dev")
         #expect(maskedClaude.activeLabel == "s•••m@acme.dev")
-        #expect(maskedClaude.accounts.isEmpty)
-    }
-
-    @Test
-    func savedCodexAccountsShowTheirLastLimitsOnOneLineAndSayWhenTheyAreOld() throws {
-        let active = makeAccount(email: "alex@example.com", usage: makeUsage(fetchedAt: now))
-        let pro = makeAccount(email: "pro@example.com", planType: "pro", usage: makeUsage(planType: "pro", fetchedAt: now))
-        let old = makeAccount(email: "old@example.com", usage: makeUsage(fetchedAt: now.addingTimeInterval(-31 * 60)))
-        let new = makeAccount(email: "new@example.com")
-
-        let used = state(activeAccount: active, inactiveAccounts: [pro, old, new])
-        let left = state(activeAccount: active, inactiveAccounts: [pro], usagePercentMode: .left)
-        let codexOthers = try #require(used.toolSections.first { $0.provider == .codex }).otherAccounts
-        let codexLeft = try #require(left.toolSections.first { $0.provider == .codex }).otherAccounts
-
-        #expect(codexOthers[0].usageLine == "Weekly 68% used")
-        #expect(codexOthers[1].usageLine?.hasPrefix("Session 42% · Weekly 68% used · as of ") == true)
-        #expect(codexOthers[2].usageLine == nil)
-        #expect(codexLeft.map(\.usageLine) == ["Weekly 32% left"])
     }
 
     @Test
@@ -268,15 +248,14 @@ struct ToolSectionTests {
             planType: "team"
         )
         let plus = makeAccount(email: nil, planType: "plus")
-        let otherPlus = makeAccount(email: nil, planType: "plus")
         let unknown = makeAccount(email: nil)
+        func label(_ account: CodexAccount) -> String? {
+            state(activeAccount: account).toolSections.first { $0.provider == .codex }?.activeLabel
+        }
 
-        let section = try #require(
-            state(activeAccount: workspace, inactiveAccounts: [plus, otherPlus, unknown]).toolSections.first { $0.provider == .codex }
-        )
-
-        #expect(section.accounts.map(\.label) == ["Acme", "Plus account", "Plus account 2", "Saved account"])
-        #expect(state(activeAccount: workspace, inactiveAccounts: [plus]).accountLabel(plus.id, of: .codex) == "Plus account")
+        #expect(label(workspace) == "Acme")
+        #expect(label(plus) == "Plus account")
+        #expect(label(unknown) == "Codex account")
     }
 
     @Test
@@ -357,7 +336,6 @@ struct ToolSectionTests {
         }
         return MenuBarMenuState(
             activeAccount: nil,
-            inactiveAccounts: [],
             providerUsage: [ProviderUsageState(provider: .claude, status: .current(snapshot))],
             showsModelLimits: showsModelLimits,
             now: now
@@ -366,7 +344,6 @@ struct ToolSectionTests {
 
     private func state(
         activeAccount: CodexAccount? = nil,
-        inactiveAccounts: [CodexAccount] = [],
         providerUsage: [ProviderUsageState] = [],
         toolOrder: [UsageProvider] = [.claude, .codex, .cursor],
         masksEmails: Bool = false,
@@ -374,7 +351,6 @@ struct ToolSectionTests {
     ) -> MenuBarMenuState {
         MenuBarMenuState(
             activeAccount: activeAccount,
-            inactiveAccounts: inactiveAccounts,
             usagePercentMode: usagePercentMode,
             providerUsage: providerUsage,
             toolOrder: toolOrder,

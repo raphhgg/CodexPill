@@ -5,47 +5,27 @@ import Testing
 
 struct AccountActionFlowTests {
     @Test
-    func completedAddAccountOffersOptionalLocalSwitch() throws {
-        let account = makeAccount(name: "Business 2")
-
-        let step = AccountActionFlow().resolveAddAccountCompletion(
-            .completed(account)
+    func aFinishedSignInAsksBeforeReplacingTheAccount() async throws {
+        let authFile = makeCodexAuthFile()
+        let workflow = CodexSignInWorkflow(
+            authFile: authFile,
+            isolatedLoginClient: IsolatedCodexLoginProbe(authData: makeCodexAuthData(email: "sam@example.com")),
+            codexAppProcessClient: CodexAppProcessProbe()
         )
+        let signedIn = try await workflow.complete(try await workflow.start())
 
-        guard case .offerLocalSwitch(let resolvedAccount) = step else {
-            Issue.record("Expected completed Add Account to offer a local switch")
+        let step = AccountActionFlow().resolveSignInCompletion(.completed(signedIn))
+
+        guard case .confirmReplace(let resolved) = step else {
+            Issue.record("Expected a finished sign-in to ask before replacing the account")
             return
         }
-        #expect(resolvedAccount == account)
-    }
-
-    @Test
-    func acceptedAddAccountSuccessBypassesSwitchConfirmationAndSwitchesLocally() {
-        let account = makeAccount(name: "Business 2")
-
-        let step = AccountActionFlow().resolveAddAccountSuccessConfirmation(
-            account: account,
-            accepted: true
-        )
-
-        #expect(step == .switchLocally(account))
-    }
-
-    @Test
-    func declinedAddAccountSuccessDoesNotSwitchLocally() {
-        let account = makeAccount(name: "Business 2")
-
-        let step = AccountActionFlow().resolveAddAccountSuccessConfirmation(
-            account: account,
-            accepted: false
-        )
-
-        #expect(step == .none)
+        #expect(resolved.account.email == "sam@example.com")
     }
 
     @Test
     func cancelledSignInCompletionDoesNotShowGenericError() {
-        let step = AccountActionFlow().resolveAddAccountCompletion(
+        let step = AccountActionFlow().resolveSignInCompletion(
             .failed(CancellationError())
         )
 
@@ -57,14 +37,14 @@ struct AccountActionFlowTests {
 
     @Test
     func missingCodexAppGetsItsOwnAlertInsteadOfAGenericError() {
-        let step = AccountActionFlow().resolveAddAccountStartFailure(CodexAppNotFoundError())
+        let step = AccountActionFlow().resolveSignInFailure(CodexAppNotFoundError())
 
         #expect(step == .showCodexAppNotFound)
     }
 
     @Test
     func expiredSignInCodeOffersRetry() {
-        let step = AccountActionFlow().resolveAddAccountStartFailure(
+        let step = AccountActionFlow().resolveSignInFailure(
             IsolatedCodexLoginError.authCaptureTimedOut
         )
 
@@ -73,7 +53,7 @@ struct AccountActionFlowTests {
 
     @Test
     func promptUnavailablePreservesSanitizedFailureReason() {
-        let step = AccountActionFlow().resolveAddAccountStartFailure(
+        let step = AccountActionFlow().resolveSignInFailure(
             IsolatedCodexLoginError.promptUnavailable(reason: "error sending request")
         )
 
@@ -82,7 +62,7 @@ struct AccountActionFlowTests {
 
     @Test
     func authCaptureFailureMapsToAccountSignInOutcome() {
-        let step = AccountActionFlow().resolveAddAccountStartFailure(
+        let step = AccountActionFlow().resolveSignInFailure(
             IsolatedCodexLoginError.authCaptureFailed
         )
 
@@ -91,7 +71,7 @@ struct AccountActionFlowTests {
 
     @Test
     func loginVerificationFailureMapsToAccountSignInOutcome() {
-        let step = AccountActionFlow().resolveAddAccountStartFailure(
+        let step = AccountActionFlow().resolveSignInFailure(
             IsolatedCodexLoginError.loginStatusVerificationFailed
         )
 
@@ -100,29 +80,17 @@ struct AccountActionFlowTests {
 
     @Test
     func liveAuthMutationRoutesToUnsafeAuthChangeStep() {
-        let step = AccountActionFlow().resolveAddAccountStartFailure(
-            AddAccountWorkflowError.liveAuthChanged
+        let step = AccountActionFlow().resolveSignInFailure(
+            CodexSignInWorkflowError.liveAuthChanged
         )
 
         #expect(step == .showUnsafeAuthChange)
     }
 
     @Test
-    func catalogSaveFailureRoutesToSaveFailureStep() {
-        let step = AccountActionFlow().resolveAddAccountStartFailure(
-            AddAccountWorkflowError.catalogSaveFailed
-        )
+    func signingInToTheAccountInUseRoutesToItsOwnStep() {
+        let step = AccountActionFlow().resolveSignInFailure(CodexSignInWorkflowError.accountAlreadyInUse)
 
-        #expect(step == .showSaveFailure)
-    }
-
-    @Test
-    func duplicateCapturedIdentityRoutesToAlreadySavedStep() {
-        let savedID = UUID()
-        let step = AccountActionFlow().resolveAddAccountStartFailure(
-            AddAccountWorkflowError.accountAlreadySaved(savedID)
-        )
-
-        #expect(step == .showAccountAlreadySaved(accountID: savedID))
+        #expect(step == .showAccountAlreadyInUse)
     }
 }

@@ -83,7 +83,7 @@ Settings › Usage Bars
 ```
 
 - `% Left` changes every usage percentage rusage shows (status item
-  label, active account meters, saved account rows) to the share still
+  label and card meters) to the share still
   available. The glyph follows the same choice. Pace markers move to the
   matching position. Countdowns for full windows are unchanged.
 - `Session Color` and `Weekly Color` color the session and weekly bars in the
@@ -108,7 +108,7 @@ The icon follows the first card in the menu, so the user picks it by moving that
 
 ## Relationship To Accounts
 
-The status bar consumes account availability data, but account identity, switching, and refresh behavior remain owned by [Accounts](accounts/00-accounts.md).
+The status bar consumes account availability data, but account identity, sign-in, and refresh behavior remain owned by [Accounts](accounts/00-accounts.md).
 
 ## Relationship To Menubar
 

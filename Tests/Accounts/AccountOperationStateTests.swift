@@ -47,16 +47,6 @@ struct AccountOperationStateTests {
         #expect(state.consumePendingErrorMessage() == "Background refresh failed.")
         #expect(state.consumePendingErrorMessage() == nil)
     }
-
-    @Test
-    func setIdleStatusUpdatesMessageWithoutMarkingBusy() {
-        let state = AccountOperationState()
-
-        state.setIdleStatus("Loaded 3 account(s)")
-
-        #expect(state.statusMessage == "Loaded 3 account(s)")
-        #expect(state.isBusy == false)
-    }
 }
 
 private enum AccountOperationStateTestFailure: LocalizedError {

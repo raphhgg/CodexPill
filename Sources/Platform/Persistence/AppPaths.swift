@@ -5,8 +5,6 @@ private let appPathsLogger = Logger(subsystem: "com.raphhgg.rusage", category: "
 
 struct AppPaths {
     let appSupportDirectory: URL
-    let accountsFile: URL
-    let snapshotsDirectory: URL
     let codexAuthFile: URL
 
     static let appSupportFolderName = "rusage"
@@ -40,8 +38,6 @@ struct AppPaths {
         }
 
         appSupportDirectory = targetDirectory
-        accountsFile = appSupportDirectory.appendingPathComponent("accounts.json")
-        snapshotsDirectory = appSupportDirectory.appendingPathComponent("snapshots", isDirectory: true)
         if let isolatedRootDirectory {
             codexAuthFile = isolatedRootDirectory
                 .appendingPathComponent("auth.json")
@@ -52,12 +48,8 @@ struct AppPaths {
         }
 
         let resolvedAppSupportPath = appSupportDirectory.path
-        let resolvedAccountsPath = accountsFile.path
-        let resolvedSnapshotsPath = snapshotsDirectory.path
         let resolvedAuthPath = codexAuthFile.path
         appPathsLogger.log("Resolved app support directory: \(resolvedAppSupportPath, privacy: .public)")
-        appPathsLogger.log("Resolved accounts file: \(resolvedAccountsPath, privacy: .public)")
-        appPathsLogger.log("Resolved snapshots directory: \(resolvedSnapshotsPath, privacy: .public)")
         appPathsLogger.log("Resolved auth file: \(resolvedAuthPath, privacy: .public)")
     }
 

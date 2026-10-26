@@ -5,7 +5,7 @@ import SwiftUI
 final class CodexSignInPanelController: NSObject, NSWindowDelegate {
     private let request: MenuBarAddAccountSignInPanelRequest
     private let panelWindowFactory: PanelWindowFactory
-    private let waitForCompletion: () async -> Result<CodexAccount, Error>
+    private let waitForCompletion: () async -> Result<CodexSignedInAccount, Error>
     private let onCancel: () -> Void
 
     private var completion: CheckedContinuation<MenuBarAddAccountSignInPanelResult, Never>?
@@ -26,7 +26,7 @@ final class CodexSignInPanelController: NSObject, NSWindowDelegate {
     init(
         request: MenuBarAddAccountSignInPanelRequest,
         panelWindowFactory: PanelWindowFactory,
-        waitForCompletion: @escaping () async -> Result<CodexAccount, Error>,
+        waitForCompletion: @escaping () async -> Result<CodexSignedInAccount, Error>,
         onCancel: @escaping () -> Void
     ) {
         self.request = request

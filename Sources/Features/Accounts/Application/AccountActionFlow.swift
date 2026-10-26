@@ -1,63 +1,50 @@
 import Foundation
 
+/// Turns a Codex sign-in's outcome into the next step the menu presents, without AppKit.
 struct AccountActionFlow {
-    enum AddAccountResult {
-        case completed(CodexAccount)
+    enum SignInResult {
+        case completed(CodexSignedInAccount)
         case failed(Error)
         case cancelled
     }
 
-    enum AddAccountCompletionStep {
-        case offerLocalSwitch(CodexAccount)
-        case handleFailure(AddAccountFailureStep)
+    enum SignInCompletionStep {
+        case confirmReplace(CodexSignedInAccount)
+        case handleFailure(SignInFailureStep)
         case none
     }
 
-    enum AddAccountSignInFailureOutcome: Equatable {
+    enum SignInFailureOutcome: Equatable {
         case promptUnavailable(reason: String?)
         case expiredCode
         case captureFailed
         case verificationFailed
     }
 
-    enum AddAccountFailureStep: Equatable {
-        case showSignInFailure(AddAccountSignInFailureOutcome)
-        case offerSignInRetry(outcome: AddAccountSignInFailureOutcome)
+    enum SignInFailureStep: Equatable {
+        case showSignInFailure(SignInFailureOutcome)
+        case offerSignInRetry(outcome: SignInFailureOutcome)
         case showError(message: String)
         case showCodexAppNotFound
         case showUnsafeAuthChange
-        case showSaveFailure
-        case showAccountAlreadySaved(accountID: UUID)
+        case showAccountAlreadyInUse
     }
 
-    enum AddAccountConfirmationStep: Equatable {
-        case switchLocally(CodexAccount)
-        case none
-    }
-
-    func resolveAddAccountCompletion(_ result: AddAccountResult) -> AddAccountCompletionStep {
+    func resolveSignInCompletion(_ result: SignInResult) -> SignInCompletionStep {
         switch result {
-        case .completed(let account):
-            return .offerLocalSwitch(account)
+        case .completed(let signedIn):
+            return .confirmReplace(signedIn)
         case .failed(let error):
             if error is CancellationError {
                 return .none
             }
-            return .handleFailure(resolveAddAccountFailure(error))
+            return .handleFailure(resolveSignInFailure(error))
         case .cancelled:
             return .none
         }
     }
 
-    func resolveAddAccountStartFailure(_ error: Error) -> AddAccountFailureStep {
-        resolveAddAccountFailure(error)
-    }
-
-    func resolveAddAccountSuccessConfirmation(account: CodexAccount, accepted: Bool) -> AddAccountConfirmationStep {
-        accepted ? .switchLocally(account) : .none
-    }
-
-    private func resolveAddAccountFailure(_ error: Error) -> AddAccountFailureStep {
+    func resolveSignInFailure(_ error: Error) -> SignInFailureStep {
         if let loginError = error as? IsolatedCodexLoginError {
             switch loginError {
             case .promptUnavailable(let reason):
@@ -71,14 +58,12 @@ struct AccountActionFlow {
             }
         }
 
-        if let workflowError = error as? AddAccountWorkflowError {
+        if let workflowError = error as? CodexSignInWorkflowError {
             switch workflowError {
             case .liveAuthChanged:
                 return .showUnsafeAuthChange
-            case .catalogSaveFailed:
-                return .showSaveFailure
-            case .accountAlreadySaved(let accountID):
-                return .showAccountAlreadySaved(accountID: accountID)
+            case .accountAlreadyInUse:
+                return .showAccountAlreadyInUse
             }
         }
 

@@ -36,7 +36,7 @@ final class RUsageAppDelegate: NSObject, NSApplicationDelegate {
             coordinator?.presentNotice(notice)
         }
         Task { @MainActor in
-            await coordinator?.refreshCodex(includingSavedAccounts: false)
+            await coordinator?.refreshCodex()
         }
     }
 

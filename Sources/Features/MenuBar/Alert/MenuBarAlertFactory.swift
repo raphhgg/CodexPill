@@ -9,14 +9,14 @@ struct MenuBarAlertFactory {
 
     func makeFirstRunAddAccountRequest() -> MenuBarConfirmationAlertRequest {
         MenuBarConfirmationAlertRequest(
-            messageText: "Add a Codex account?",
+            messageText: "Sign in to Codex?",
             informativeText: "Sign in to Codex in your browser.",
             confirmTitle: "Continue",
             cancelTitle: "Not Now"
         )
     }
 
-    func makeAddAccountSignInRequest(prompt: IsolatedCodexLoginPrompt) -> MenuBarAddAccountSignInPanelRequest {
+    func makeSignInRequest(prompt: IsolatedCodexLoginPrompt) -> MenuBarAddAccountSignInPanelRequest {
         MenuBarAddAccountSignInPanelRequest(
             messageText: "Sign in to Codex",
             informativeText: "Copy this code, then open the Codex sign-in page in your browser.",
@@ -31,33 +31,30 @@ struct MenuBarAlertFactory {
         )
     }
 
-    func makeAddAccountSuccessRequest(accountLabel: String, runningCLISessions: Int) -> MenuBarConfirmationAlertRequest {
-        let cliNotice: String
-        if runningCLISessions == 1 {
-            cliNotice = "\n\n1 Codex terminal is running. Restart it to use the new account."
-        } else if runningCLISessions > 1 {
-            cliNotice = "\n\n\(runningCLISessions) Codex terminals are running. Restart them to use the new account."
-        } else {
-            cliNotice = ""
+    /// Asked before a new sign-in replaces the Codex account on this Mac.
+    func makeReplaceCodexAccountRequest(newLabel: String, currentLabel: String?, runningCLISessions: Int) -> MenuBarConfirmationAlertRequest {
+        var lines = [currentLabel.map { "\(newLabel) replaces \($0) on this Mac, and Codex restarts." } ?? "\(newLabel) becomes the Codex account on this Mac, and Codex restarts."]
+        if runningCLISessions > 0 {
+            let sessionText = runningCLISessions == 1 ? "1 Codex terminal is" : "\(runningCLISessions) Codex terminals are"
+            lines.append("\(sessionText) running. Restart to use the new account.")
         }
-
         return MenuBarConfirmationAlertRequest(
-            messageText: "Account Added",
-            informativeText: "\(accountLabel) was saved. This Mac was not changed.\(cliNotice)",
+            messageText: "Use \(newLabel) for Codex?",
+            informativeText: lines.joined(separator: " "),
             confirmTitle: "Use on This Mac",
-            cancelTitle: "Done"
+            cancelTitle: "Cancel"
         )
     }
 
-    func makeAddAccountSignInRetryRequest(
-        outcome: AccountActionFlow.AddAccountSignInFailureOutcome
+    func makeSignInRetryRequest(
+        outcome: AccountActionFlow.SignInFailureOutcome
     ) -> MenuBarConfirmationAlertRequest {
         switch outcome {
         case .expiredCode:
             MenuBarConfirmationAlertRequest(
                 messageText: "Sign-In Expired",
                 informativeText: """
-                The Codex sign-in code expired before the account was added.
+                The Codex sign-in code expired before you finished signing in.
 
                 If ChatGPT asked you to enable device-code authorization, enable it in ChatGPT Security Settings, then try again.
                 """,
@@ -66,34 +63,43 @@ struct MenuBarAlertFactory {
             )
         case .promptUnavailable, .captureFailed, .verificationFailed:
             MenuBarConfirmationAlertRequest(
-                messageText: "Couldn't Add Account",
-                informativeText: makeAddAccountSignInFailureRequest(outcome: outcome).informativeText,
+                messageText: "Couldn't Sign In",
+                informativeText: makeSignInFailureRequest(outcome: outcome).informativeText,
                 confirmTitle: "Try Again",
                 cancelTitle: "Cancel"
             )
         }
     }
 
-    func makeAccountAlreadySavedRequest(accountLabel: String) -> MenuBarInfoAlertRequest {
+    func makeCodexSignOutRequest() -> MenuBarConfirmationAlertRequest {
+        MenuBarConfirmationAlertRequest(
+            messageText: "Sign Out of Codex?",
+            informativeText: "This signs Codex out on this Mac, including the Codex app and CLI.",
+            confirmTitle: "Sign Out",
+            cancelTitle: "Cancel"
+        )
+    }
+
+    func makeAccountAlreadyInUseRequest() -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
-            messageText: "Account Already Saved",
-            informativeText: "This Codex account is already saved as \(accountLabel).",
+            messageText: "Already Signed In",
+            informativeText: "This Codex account is already the one on this Mac.",
             style: .informational,
             buttonTitle: "OK"
         )
     }
 
-    func makeAddAccountSignInFailureRequest(
-        outcome: AccountActionFlow.AddAccountSignInFailureOutcome
+    func makeSignInFailureRequest(
+        outcome: AccountActionFlow.SignInFailureOutcome
     ) -> MenuBarInfoAlertRequest {
         switch outcome {
         case .promptUnavailable(let reason):
-            return makeAddAccountStartFailureRequest(reason: reason)
+            return makeSignInStartFailureRequest(reason: reason)
         case .expiredCode:
             return MenuBarInfoAlertRequest(
                 messageText: "Sign-In Expired",
                 informativeText: """
-                The Codex sign-in code expired before the account was added.
+                The Codex sign-in code expired before you finished signing in.
 
                 If ChatGPT asked you to enable device-code authorization, enable it in ChatGPT Security Settings, then try again.
                 """,
@@ -102,14 +108,14 @@ struct MenuBarAlertFactory {
             )
         case .captureFailed:
             return MenuBarInfoAlertRequest(
-                messageText: "Couldn't Add Account",
+                messageText: "Couldn't Sign In",
                 informativeText: "The Codex sign-in did not complete.",
                 style: .warning,
                 buttonTitle: "OK"
             )
         case .verificationFailed:
             return MenuBarInfoAlertRequest(
-                messageText: "Couldn't Add Account",
+                messageText: "Couldn't Sign In",
                 informativeText: "rusage could not verify the signed-in account.",
                 style: .warning,
                 buttonTitle: "OK"
@@ -117,7 +123,7 @@ struct MenuBarAlertFactory {
         }
     }
 
-    private func makeAddAccountStartFailureRequest(reason: String? = nil) -> MenuBarInfoAlertRequest {
+    private func makeSignInStartFailureRequest(reason: String? = nil) -> MenuBarInfoAlertRequest {
         let detail: String
         if let reason, !reason.isEmpty {
             detail = "\n\nCodex reported: \(reason)"
@@ -137,48 +143,12 @@ struct MenuBarAlertFactory {
         )
     }
 
-    func makeAddAccountUnsafeAuthChangeRequest() -> MenuBarInfoAlertRequest {
+    func makeSignInUnsafeAuthChangeRequest() -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
-            messageText: "Couldn't Add Account",
-            informativeText: "rusage could not verify that This Mac stayed unchanged. No account was added.",
+            messageText: "Couldn't Sign In",
+            informativeText: "The Codex sign-in on this Mac changed meanwhile. Nothing was replaced.",
             style: .warning,
             buttonTitle: "OK"
-        )
-    }
-
-    func makeAddAccountSaveFailureRequest() -> MenuBarInfoAlertRequest {
-        MenuBarInfoAlertRequest(
-            messageText: "Couldn't Save Account",
-            informativeText: "The sign-in completed, but rusage could not save the account. This Mac was not changed.",
-            style: .warning,
-            buttonTitle: "OK"
-        )
-    }
-
-    func makeSwitchAccountRequest(accountLabel: String, runningCLISessions: Int) -> MenuBarConfirmationAlertRequest {
-        MenuBarConfirmationAlertRequest(
-            messageText: "Switch account?",
-            informativeText: switchInformativeText(for: accountLabel, runningCLISessions: runningCLISessions),
-            confirmTitle: "Switch",
-            cancelTitle: "Cancel"
-        )
-    }
-
-    func makeRemoveAccountRequest(accountLabel: String, activeTargets: [String] = []) -> MenuBarConfirmationAlertRequest {
-        guard !activeTargets.isEmpty else {
-            return MenuBarConfirmationAlertRequest(
-                messageText: "Remove saved account?",
-                informativeText: "This removes \(accountLabel) from rusage.\n\nThis action cannot be undone.",
-                confirmTitle: "Remove",
-                cancelTitle: "Cancel"
-            )
-        }
-
-        return MenuBarConfirmationAlertRequest(
-            messageText: "\(accountLabel) is in use",
-            informativeText: "Sign out on \(formattedTargetList(activeTargets)) before removing it?",
-            confirmTitle: "Sign Out and Remove",
-            cancelTitle: "Cancel"
         )
     }
 
@@ -199,7 +169,7 @@ struct MenuBarAlertFactory {
             rusage
             Version \(appVersionText)
 
-            A macOS menu bar app for your Codex, Claude Code and Cursor usage limits, with one-click account switching.
+            A macOS menu bar app for your Codex, Claude Code and Cursor usage limits.
 
             Developed by Raphael Grau.
             """,
@@ -229,25 +199,25 @@ struct MenuBarAlertFactory {
     func makeResetInProgressRequest() -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
             messageText: "Reset in progress",
-            informativeText: "Switch accounts when it finishes.",
+            informativeText: "Try again when it finishes.",
             style: .informational,
             buttonTitle: "OK"
         )
     }
 
-    func makeCodexAppNotFoundForAddRequest() -> MenuBarInfoAlertRequest {
+    func makeCodexAppNotFoundForSignInRequest() -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
             messageText: "Codex app not found",
-            informativeText: "Install the Codex app, then add the account again.",
+            informativeText: "Install the Codex app, then sign in again.",
             style: .warning,
             buttonTitle: "OK"
         )
     }
 
-    func makeCodexAppNotFoundAfterSwitchRequest() -> MenuBarInfoAlertRequest {
+    func makeCodexAppNotFoundAfterSignInRequest() -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
             messageText: "Codex app not found",
-            informativeText: "Switched. Codex uses the account when it opens.",
+            informativeText: "Signed in. Codex uses the account when it opens.",
             style: .informational,
             buttonTitle: "OK"
         )
@@ -260,33 +230,6 @@ struct MenuBarAlertFactory {
             style: .warning,
             buttonTitle: "OK"
         )
-    }
-
-    private func switchInformativeText(for accountLabel: String, runningCLISessions: Int) -> String {
-        var lines = [
-            "This switches This Mac to \(accountLabel) and restarts Codex."
-        ]
-
-        if runningCLISessions > 0 {
-            let sessionText = runningCLISessions == 1 ? "1 Codex terminal is" : "\(runningCLISessions) Codex terminals are"
-            lines.append("\(sessionText) running. Restart to use the new account.")
-        }
-
-        return lines.joined(separator: " ")
-    }
-
-    private func formattedTargetList(_ targets: [String]) -> String {
-        switch targets.count {
-        case 0:
-            return ""
-        case 1:
-            return targets[0]
-        case 2:
-            return "\(targets[0]) and \(targets[1])"
-        default:
-            let leadingTargets = targets.dropLast().joined(separator: ", ")
-            return "\(leadingTargets), and \(targets[targets.count - 1])"
-        }
     }
 }
 
@@ -346,7 +289,7 @@ private func userFacingErrorMessage(for message: String) -> String {
     if lowercased.contains("token_invalidated") ||
         lowercased.contains("authentication token has been invalidated") ||
         lowercased.contains("refresh token was revoked") {
-        return "This saved Codex account needs to be signed in again before it can be used. Remove and add the account again, then retry."
+        return "Codex needs you to sign in again. Sign in from Settings › Accounts, then retry."
     }
     return message
 }

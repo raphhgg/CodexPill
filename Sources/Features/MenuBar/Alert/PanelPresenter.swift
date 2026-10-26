@@ -4,7 +4,7 @@ import Foundation
 protocol PanelPresenter {
     func presentAddAccountSignIn(
         _ request: MenuBarAddAccountSignInPanelRequest,
-        waitForCompletion: @escaping () async -> Result<CodexAccount, Error>,
+        waitForCompletion: @escaping () async -> Result<CodexSignedInAccount, Error>,
         onCancel: @escaping () -> Void
     ) async -> MenuBarAddAccountSignInPanelResult
 }
@@ -23,7 +23,7 @@ struct MenuBarAddAccountSignInPanelRequest {
 }
 
 enum MenuBarAddAccountSignInPanelResult {
-    case completed(CodexAccount)
+    case completed(CodexSignedInAccount)
     case cancelled
     case failed(Error)
 }

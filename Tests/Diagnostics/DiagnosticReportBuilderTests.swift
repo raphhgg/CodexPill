@@ -23,13 +23,7 @@ struct DiagnosticReportBuilderTests {
             stableAccountID: "acct_stable_secret",
             usage: makeUsage(fetchedAt: now.addingTimeInterval(-120))
         )
-        let inactive = makeAccount(
-            id: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
-            email: "me@example.org",
-            stableAccountID: "acct_other_secret",
-            usage: makeUsage(fetchedAt: now.addingTimeInterval(-3600))
-        )
-        let state = makeMenuState(activeAccount: active, inactiveAccounts: [inactive])
+        let state = makeMenuState(activeAccount: active)
 
         let report = DiagnosticReportBuilder(
             appMetadata: .fixture,
@@ -38,8 +32,8 @@ struct DiagnosticReportBuilderTests {
             state: state,
             events: [
                 DiagnosticWorkflowEvent(
-                    name: "switch_account",
-                    category: .switchAccount,
+                    name: "codex_sign_in",
+                    category: .addAccount,
                     occurredAt: now,
                     fields: [.account(active.id, redaction: .accountAlias)]
                 )
@@ -47,10 +41,9 @@ struct DiagnosticReportBuilderTests {
         )
         let json = try encodedJSONString(report)
 
-        #expect(report.accounts.map(\.alias) == ["account-1", "account-2"])
+        #expect(report.accounts.map(\.alias) == ["account-1"])
         #expect(report.events.first?.fields["account"] == "account-1")
         #expect(!json.contains("person@example.com"))
-        #expect(!json.contains("me@example.org"))
         #expect(!json.contains("acct_stable_secret"))
         #expect(!json.contains(active.id.uuidString))
     }
@@ -79,24 +72,19 @@ struct DiagnosticReportBuilderTests {
         let unusual = makeAccount(id: UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!, usage: usage([(11_520, 60)]))
         let unread = makeAccount(id: UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB")!, usage: nil)
 
-        let report = DiagnosticReportBuilder(
-            appMetadata: .fixture,
-            systemMetadata: .fixture(now: now)
-        ).makeReport(
-            state: makeMenuState(activeAccount: plus, inactiveAccounts: [pro, free, unusual, unread]),
-            events: []
-        )
+        let builder = DiagnosticReportBuilder(appMetadata: .fixture, systemMetadata: .fixture(now: now))
+        func windows(_ account: CodexAccount) -> [DiagnosticUsageWindow] {
+            builder.makeReport(state: makeMenuState(activeAccount: account), events: []).accounts.first?.usageWindows ?? []
+        }
 
-        #expect(report.accounts.map(\.usageWindows) == [
-            [
-                DiagnosticUsageWindow(kind: "session", title: "Session", usageCategory: "available"),
-                DiagnosticUsageWindow(kind: "weekly", title: "Weekly", usageCategory: "limited")
-            ],
-            [DiagnosticUsageWindow(kind: "weekly", title: "Weekly", usageCategory: "exhausted")],
-            [DiagnosticUsageWindow(kind: "monthly", title: "Monthly", usageCategory: "available")],
-            [DiagnosticUsageWindow(kind: "other", title: "8 days", usageCategory: "limited")],
-            []
+        #expect(windows(plus) == [
+            DiagnosticUsageWindow(kind: "session", title: "Session", usageCategory: "available"),
+            DiagnosticUsageWindow(kind: "weekly", title: "Weekly", usageCategory: "limited")
         ])
+        #expect(windows(pro) == [DiagnosticUsageWindow(kind: "weekly", title: "Weekly", usageCategory: "exhausted")])
+        #expect(windows(free) == [DiagnosticUsageWindow(kind: "monthly", title: "Monthly", usageCategory: "available")])
+        #expect(windows(unusual) == [DiagnosticUsageWindow(kind: "other", title: "8 days", usageCategory: "limited")])
+        #expect(windows(unread) == [])
     }
 
     @Test
@@ -106,7 +94,7 @@ struct DiagnosticReportBuilderTests {
             appMetadata: .fixture,
             systemMetadata: .fixture()
         ).makeReport(
-            state: makeMenuState(activeAccount: makeAccount(id: accountID), inactiveAccounts: []),
+            state: makeMenuState(activeAccount: makeAccount(id: accountID)),
             events: [
                 DiagnosticWorkflowEvent(
                     name: "raw_failure",
@@ -147,7 +135,7 @@ struct DiagnosticReportBuilderTests {
             appMetadata: .fixture,
             systemMetadata: .fixture()
         ).makeReport(
-            state: makeMenuState(activeAccount: account, inactiveAccounts: []),
+            state: makeMenuState(activeAccount: account),
             events: []
         )
         let json = try encodedJSONString(report)
@@ -167,26 +155,24 @@ struct DiagnosticReportBuilderTests {
 
         let firstReport = builder.makeReport(
             state: makeMenuState(
-                activeAccount: makeAccount(id: firstID),
-                inactiveAccounts: [makeAccount(id: secondID)]
+                activeAccount: makeAccount(id: firstID)
             ),
             events: [
                 DiagnosticWorkflowEvent(
-                    name: "switch_account",
-                    category: .switchAccount,
+                    name: "codex_sign_in",
+                    category: .addAccount,
                     fields: [.account(firstID, redaction: .accountAlias)]
                 )
             ]
         )
         let secondReport = builder.makeReport(
             state: makeMenuState(
-                activeAccount: makeAccount(id: secondID),
-                inactiveAccounts: [makeAccount(id: firstID)]
+                activeAccount: makeAccount(id: secondID)
             ),
             events: [
                 DiagnosticWorkflowEvent(
-                    name: "switch_account",
-                    category: .switchAccount,
+                    name: "codex_sign_in",
+                    category: .addAccount,
                     fields: [.account(firstID, redaction: .accountAlias)]
                 )
             ]
@@ -228,12 +214,10 @@ private func encodedJSONString<T: Encodable>(_ value: T) throws -> String {
 }
 
 private func makeMenuState(
-    activeAccount: CodexAccount?,
-    inactiveAccounts: [CodexAccount]
+    activeAccount: CodexAccount?
 ) -> MenuBarMenuState {
     MenuBarMenuState(
         activeAccount: activeAccount,
-        inactiveAccounts: inactiveAccounts,
         refreshIntervalMinutes: 5,
         statusBarIndicatorStyle: .punchCard,
         statusBarDisplayMode: .iconOnly,

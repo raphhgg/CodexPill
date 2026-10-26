@@ -14,13 +14,13 @@ rusage's own sign-in is opt-in. It exists for the Claude desktop app, whose Clau
 
 The feature is off by default. Connecting it is the user's consent for rusage to read Claude Code's sign-in and send it to Anthropic.
 
-Claude usage is display-only. It never feeds account availability, ranking, or notifications, which stay Codex-only.
+Claude usage is display-only. It never affects Codex or its account.
 
 rusage never reads or writes Claude Code's `settings.json`. Reading limits from Anthropic, rather than from Claude Code's status line, means usage stays current when Claude Code runs in the Claude desktop app or remotely.
 
 ## Menu
 
-The `Claude` card follows the shared card and side menu in [Menubar](menubar.md). The side menu shows only the signed-in email, checked and disabled. `Settings › Accounts › Claude` shows where the sign-in comes from and offers `Sign in with Claude…` while rusage's own sign-in is off or `Sign Out of Claude` while it is on. `Settings › Tools › Claude` disconnects it.
+The `Claude` card follows the shared card and side menu in [Menubar](menubar.md). The side menu shows only the signed-in email, checked and disabled. `Settings › Accounts › Claude` shows where the sign-in comes from and offers `Use Another Account…`, which runs rusage's own sign-in below and replaces an earlier one, then `Sign Out of Claude` while rusage's own sign-in is in use, or `Disconnect` while Claude Code's is. rusage never changes Claude Code's own sign-in. The browser signs in with whichever account claude.com is signed in to, so switch accounts there first to pick another one. `Settings › Tools › Claude` disconnects it.
 
 - **Not connected.** There is no card. Turning on `Settings › Tools › Claude` connects. Choosing it opens a consent alert first. Nothing is read until the user confirms.
 - **Consent alert.** One short alert:
@@ -143,7 +143,7 @@ The user-facing summary lives in [PRIVACY.md](../PRIVACY.md).
 - `ClaudeOAuthTests` and `ClaudeBrowserSignInTests` cover the RFC 7636 PKCE vector, the authorize URL, callback parsing, the `state` check, token parsing, the timeout, and the loopback listener. `ClaudeSignInStoreTests` and `ClaudeRefreshLockTests` cover the stored item with its marker and the lock.
 - `ClaudeOwnSignInTests` prove that a renewal that never saved its result is not retried on the next launch, that two processes renewing at once send the refresh token once, that a failed renewal keeps the token, and that sign-out deletes and revokes.
 - `ClaudeOwnSignInUsageTests` check the order mark, refresh, save, usage, a refused save retried without a second refresh, `invalid_grant` never falling back to Claude Code's sign-in, the one renewal after a `401`, and sign-in, sign-out and disconnect.
-- `ToolSectionTests` check `Sign in with Claude…` and `Sign Out of Claude` on the section the Accounts pane shows, and `MenuBarMenuBuilderTests` check `Sign in with Claude…` under the card and a side menu with only the email. A coordinator test checks the sign-in alert and the notice after a failed sign-in.
+- `ToolSectionTests` check which sign-in the section the Accounts pane shows reads with, and `MenuBarMenuBuilderTests` check `Sign in with Claude…` under the card and a side menu with only the email. A coordinator test checks the sign-in alert and the notice after a failed sign-in.
 - `ClaudeCodeSecurityKeychainTests` check the `security` arguments and timeouts, text and hex passwords, and that each exit status reads as signed out, access needed or unreadable.
 - `UsageReadFailureTests` check that a failed read logs only its category, such as `http 503`.
 - A coordinator test walks the menu from `Settings › Tools › Claude` through declined consent, current usage, `Allow Keychain Access…`, and disconnect, reading the built `NSMenu`.

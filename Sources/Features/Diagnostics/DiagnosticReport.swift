@@ -111,8 +111,6 @@ struct DiagnosticRedactionManifest: Codable, Equatable {
 
 enum DiagnosticEventCategory: String, Codable, Equatable {
     case addAccount = "add_account"
-    case switchAccount = "switch_account"
-    case removeAccount = "remove_account"
     case refresh = "refresh"
     case failure = "failure"
     case decision = "decision"
@@ -234,22 +232,19 @@ struct DiagnosticReportBuilder {
         )
     }
 
+    /// The one Codex account on this Mac, or none while Codex is signed out.
+    private func codexAccounts(in state: MenuBarMenuState) -> [CodexAccount] {
+        [state.activeAccount].compactMap(\.self)
+    }
+
     private func diagnosticAccounts(
         from state: MenuBarMenuState,
         aliases: inout DiagnosticAliasContext
     ) -> [DiagnosticAccount] {
-        state.allSavedAccounts.map { account in
-            var roles: [String] = []
-            if state.activeAccount?.id == account.id {
-                roles.append("active_local")
-            }
-            if roles.isEmpty {
-                roles.append("saved")
-            }
-
-            return DiagnosticAccount(
+        codexAccounts(in: state).map { account in
+            DiagnosticAccount(
                 alias: aliases.accountAlias(for: account.id),
-                roles: roles,
+                roles: ["active_local"],
                 planCategory: normalizedCodexPlanType(account.effectivePlanType) ?? "unknown",
                 hasRateLimitSnapshot: account.usage != nil,
                 usageWindows: (account.usage?.windows ?? []).map { window in
@@ -267,7 +262,7 @@ struct DiagnosticReportBuilder {
         from state: MenuBarMenuState,
         aliases: inout DiagnosticAliasContext
     ) -> [DiagnosticFreshnessState] {
-        state.allSavedAccounts.map { account in
+        codexAccounts(in: state).map { account in
             freshnessState(
                 subjectAlias: aliases.accountAlias(for: account.id),
                 subjectKind: "account",
@@ -350,11 +345,11 @@ struct DiagnosticReportBuilder {
                 subjectAlias: nil,
                 subjectKind: "local_account",
                 decision: "account_unavailable",
-                reasonCode: "no_active_saved_account"
+                reasonCode: "codex_signed_out"
             ))
         }
 
-        for account in state.allSavedAccounts where account.usage == nil {
+        for account in codexAccounts(in: state) where account.usage == nil {
             traces.append(.init(
                 subjectAlias: aliases.accountAlias(for: account.id),
                 subjectKind: "account",

@@ -11,11 +11,6 @@ final class AccountOperationState {
         statusMessage = status
     }
 
-    func setIdleStatus(_ status: String) {
-        statusMessage = status
-        isBusy = false
-    }
-
     func succeed() {
         statusMessage = "Done"
         isBusy = false

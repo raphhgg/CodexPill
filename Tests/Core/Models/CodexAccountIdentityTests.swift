@@ -7,10 +7,6 @@ struct CodexAccountIdentityTests {
     @Test
     func applyRemoteMetadataRefreshesCachedRemoteIdentity() {
         var account = CodexAccount(
-            id: UUID(),
-            snapshotFileName: "\(UUID().uuidString).json",
-            createdAt: .distantPast,
-            updatedAt: .distantPast,
             email: "old@example.com",
             planType: nil,
             usage: nil,
@@ -27,6 +23,6 @@ struct CodexAccountIdentityTests {
         )
 
         #expect(account.email == "new@example.com")
-        #expect(account.resolvedRemoteIdentity == CodexRemoteAccountIdentity(emailAddress: "new@example.com"))
+        #expect(account.identity.remoteIdentity == CodexRemoteAccountIdentity(emailAddress: "new@example.com"))
     }
 }

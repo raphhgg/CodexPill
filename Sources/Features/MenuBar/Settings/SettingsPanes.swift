@@ -67,8 +67,8 @@ struct GeneralPane: View {
     }
 }
 
-/// Each tool's account in the menu's order: the one in use, Codex's other saved accounts, sign-in and the actions
-/// the menu used to offer. Every action runs through the coordinator, so its alerts still show.
+/// Each tool's account in the menu's order: the one it is signed in to, its sign-in and the actions the menu used to
+/// offer. Every action runs through the coordinator, so its alerts still show.
 struct AccountsPane: View {
     let settings: SettingsModel
     let state: SettingsWindowState
@@ -81,8 +81,8 @@ struct AccountsPane: View {
                     if let section = state.toolSections.first(where: { $0.provider == provider }) {
                         rows(for: section)
                     } else {
-                        LabeledContent("Not shown in the menu") {
-                            Button(provider == .codex ? "Show" : "Connect…") { actions.setTool(provider, shown: true) }
+                        LabeledContent(notShownLabel(provider)) {
+                            Button(connectTitle(provider)) { actions.setTool(provider, shown: true) }
                                 .disabled(provider == .codex && state.isBusy)
                         }
                         .foregroundStyle(.secondary)
@@ -103,30 +103,46 @@ struct AccountsPane: View {
         } else {
             Text(section.card.title ?? "No account in use").foregroundStyle(.secondary)
         }
-        ForEach(section.otherAccounts, id: \.id) { account in
-            LabeledContent {
-                HStack {
-                    Button("Use") { actions.perform(.switchAccount(account.id), on: provider) }
-                    Button("Remove…") { actions.perform(.removeAccount(account.id), on: provider) }
-                }
-                .disabled(state.isBusy)
-            } label: {
-                Text(account.label)
-                if let usageLine = account.usageLine {
-                    Text(usageLine)
-                }
-            }
-        }
-        if let followUp = section.followUp {
+        if let followUp = section.followUp, followUp.action != .signIn {
             Button(followUp.title) { actions.perform(followUp.action, on: provider) }
         }
-        if let signIn = section.signInItem {
-            Button(signIn.title) { actions.perform(signIn.action, on: provider) }
-        }
         if provider == .codex {
-            Button("Add Codex Account…") { actions.perform(.addAccount, on: provider) }
-                .disabled(state.isBusy)
+            HStack {
+                Button("Use Another Account…") { actions.perform(.addAccount, on: provider) }
+                    .help("Replaces the Codex sign-in on this Mac.")
+                Button("Sign Out of Codex…") { actions.perform(.signOut, on: provider) }
+                    .help("Signs the Codex app and CLI out on this Mac.")
+            }
+            .disabled(state.isBusy)
+        } else if section.ownSignIn != .unsupported {
+            ownSignInRow(for: section)
         }
+    }
+
+    /// rusage's own sign-in reads another account without touching the tool's own. Signing out of it goes back to the
+    /// tool's sign-in; while that one is in use, the tool can only be disconnected.
+    private func ownSignInRow(for section: ToolSection) -> some View {
+        let provider = section.provider
+        let name = provider.copy.sectionTitle
+        return HStack {
+            Button("Use Another Account…") { actions.perform(.signIn, on: provider) }
+                .help("Signs in with rusage's own \(name) sign-in. \(provider.copy.name) keeps its own.")
+            if section.ownSignIn == .signedIn {
+                Button("Sign Out of \(name)") { actions.perform(.signOut, on: provider) }
+            } else {
+                Button("Disconnect") { actions.setTool(provider, shown: false) }
+            }
+        }
+    }
+
+    private func notShownLabel(_ provider: UsageProvider) -> String {
+        provider == .codex && !state.isSignedInToCodex ? "Signed out" : "Not shown in the menu"
+    }
+
+    /// Codex signed out signs in first. Claude and Cursor ask for consent first.
+    private func connectTitle(_ provider: UsageProvider) -> String {
+        guard provider == .codex else { return "Connect…" }
+        return state.isSignedInToCodex ? "Show" : "Sign In…"
     }
 }
 

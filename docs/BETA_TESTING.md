@@ -1,8 +1,8 @@
 # Beta Testing Guide
 
 rusage is in beta. The goal of beta testing is to verify that the signed app
-installs cleanly, handles local Codex account snapshots carefully, and makes
-account switching easier without surprising the user.
+installs cleanly, shows believable limits, and handles the local Codex sign-in
+carefully without surprising the user.
 
 ## Who This Beta Is For
 
@@ -12,10 +12,10 @@ comfortable testing software that reads and writes local Codex auth state.
 Best-fit testers:
 
 - use Codex on macOS today;
-- use more than one Codex account, or regularly hit Codex limits;
+- regularly hit Codex limits, or use Codex next to Claude Code or Cursor;
 - can describe bugs clearly;
 - are comfortable sharing screenshots and redacted logs when needed;
-- understand that saved auth snapshots should be treated like credentials.
+- understand that `~/.codex/auth.json` should be treated like a credential.
 
 ## Before Testing
 
@@ -23,14 +23,14 @@ Confirm:
 
 - Codex, Claude Code or Cursor is installed and signed in on this Mac.
 - You have a current backup or recovery path for anything important.
-- You understand that rusage stores saved Codex auth snapshots locally under
-  `~/Library/Application Support/rusage`, and only reads Claude Code's and
-  Cursor's own sign-ins.
+- You understand that rusage reads `~/.codex/auth.json`, replaces it only when
+  you sign in to another Codex account from rusage and confirm, and only reads
+  Claude Code's and Cursor's own sign-ins.
 - You will not share raw auth payloads, tokens, refresh tokens, complete logs,
   or screenshots containing private account or host details.
 
-Do not test rusage on a machine where account switching disruption would be
-unacceptable.
+Do not test rusage on a machine where a Codex restart or sign-in change would
+be unacceptable.
 
 Read [Uninstall And Reset](UNINSTALL_RESET.md) before testing so you know how to
 remove rusage-owned beta state if needed.
@@ -43,12 +43,12 @@ remove rusage-owned beta state if needed.
    from before the rename unzip to `CodexPill.app`.
 4. Confirm the app opens without Gatekeeper bypass steps.
 5. Confirm the menu bar item appears.
-6. Check whether the active account and usage limits look believable.
-7. Add a second account.
-8. Confirm adding the account does not unexpectedly switch the active account.
-9. Switch between saved accounts.
-10. Confirm Codex uses the expected account after switching.
-11. Remove a test account if you are comfortable doing so.
+6. Check whether the account and usage limits look believable.
+7. If you are comfortable doing so, choose `Use Another Account…` in
+   `Settings › Accounts`, sign in, and cancel at the confirmation.
+8. Confirm cancelling does not change the Codex account.
+9. Sign in again and choose `Use on This Mac`.
+10. Confirm Codex uses the expected account after it restarts.
 
 ## What Feedback Is Most Useful
 
@@ -76,7 +76,7 @@ Never include these in public issues, screenshots, comments, or release
 discussion:
 
 - `~/.codex/auth.json` contents;
-- saved snapshot contents;
+- saved sign-ins an earlier version left under `~/Library/Application Support/rusage`;
 - tokens, refresh tokens, API keys, or signing credentials;
 - private hostnames;
 - private local paths;
@@ -88,6 +88,6 @@ public issue.
 ## Stop Testing And Report Privately If
 
 - the active Codex account changes unexpectedly;
-- an account snapshot appears lost or corrupted;
+- `~/.codex/auth.json` appears lost or corrupted;
 - a token, auth payload, or private account identifier appears in UI or logs;
 - Gatekeeper, signing, or notarization behavior looks suspicious.

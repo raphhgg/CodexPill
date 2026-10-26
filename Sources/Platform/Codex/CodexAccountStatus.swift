@@ -17,12 +17,3 @@ struct CodexAccountStatus: Equatable {
 protocol CodexAccountStatusClient: Sendable {
     func readCurrentAccountStatus() async throws -> CodexAccountStatus
 }
-
-struct SavedCodexAccountStatusRead {
-    let status: Result<CodexAccountStatus, Error>
-    let rotatedAuthData: Data?
-}
-
-protocol SavedCodexAccountStatusClient: Sendable {
-    func readSavedAccountStatus(authData: Data) async -> SavedCodexAccountStatusRead
-}

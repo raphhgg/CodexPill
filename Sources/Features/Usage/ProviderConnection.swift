@@ -46,10 +46,8 @@ enum ProviderAction: Hashable, Sendable {
     case connect
     case allowKeychainAccess
     case disconnect
-    /// Codex only, like adding, removing and using a reset: Claude Code and Cursor show only their live account.
-    case switchAccount(UUID)
+    /// Codex only, like using a reset: signs in to another account, which then replaces the one on this Mac.
     case addAccount
-    case removeAccount(UUID)
     /// Spends one reset credit on the active account.
     case useResetCredit
     /// rusage's own sign-in, for a tool that offers one.
@@ -62,9 +60,7 @@ enum ProviderAction: Hashable, Sendable {
         case .connect: "connect"
         case .allowKeychainAccess: "allowKeychainAccess"
         case .disconnect: "disconnect"
-        case .switchAccount: "switchAccount"
         case .addAccount: "addAccount"
-        case .removeAccount: "removeAccount"
         case .useResetCredit: "useResetCredit"
         case .signIn: "signIn"
         case .signOut: "signOut"
