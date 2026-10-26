@@ -39,9 +39,11 @@ struct TokenUsageMenuCard: Equatable {
     let period: CodexTokenUsagePeriod
     let days: [Date]
     let dayLabels: [String]
-    /// Connected tools in a fixed order, each with one entry per day.
+    /// The tools the menu shows, in the menu's order, each with one entry per day.
     let tools: [ToolTokenUsageSeries]
     let unavailableTools: [TokenUsageTool]
+    /// The menu's tool order, which the per-tool split follows too.
+    let toolOrder: [TokenUsageTool]
 
     var periodTokenCount: Int { tools.reduce(0) { $0 + $1.totalTokens } }
 
@@ -85,19 +87,19 @@ struct TokenUsageMenuCard: Equatable {
     }
 
     var toolSummaries: [ToolSummary] {
-        let ready = tools.map { series in
-            ToolSummary(
-                tool: series.tool,
-                todayTokenCount: days.indices.last.map { tokenCount(for: series.tool, onDay: $0) } ?? 0,
-                periodTokenCount: series.totalTokens,
-                models: Self.modelShares(of: series),
-                isUnavailable: false
-            )
+        toolOrder.compactMap { tool in
+            if let series = tools.first(where: { $0.tool == tool }) {
+                return ToolSummary(
+                    tool: tool,
+                    todayTokenCount: days.indices.last.map { tokenCount(for: tool, onDay: $0) } ?? 0,
+                    periodTokenCount: series.totalTokens,
+                    models: Self.modelShares(of: series),
+                    isUnavailable: false
+                )
+            }
+            guard unavailableTools.contains(tool) else { return nil }
+            return ToolSummary(tool: tool, todayTokenCount: 0, periodTokenCount: 0, models: [], isUnavailable: true)
         }
-        let unavailable = unavailableTools.map {
-            ToolSummary(tool: $0, todayTokenCount: 0, periodTokenCount: 0, models: [], isUnavailable: true)
-        }
-        return (ready + unavailable).sorted { $0.tool.order < $1.tool.order }
     }
 
     func share(of tool: TokenUsageTool) -> Double? {
@@ -121,6 +123,7 @@ struct TokenUsageMenuCard: Equatable {
     /// The same tools, each with the most the splits can show, so the card keeps one height while loading and after.
     var layoutTemplate: TokenUsageMenuCard {
         let toolSet = tools.map(\.tool) + unavailableTools
+        let templateTools: [TokenUsageTool] = toolSet.isEmpty ? [.codex] : toolSet
         let day = days.last ?? Date(timeIntervalSinceReferenceDate: 0)
         let models = Dictionary(uniqueKeysWithValues: (1...Self.topModelCount).map { ("model \($0)", $0) })
         return TokenUsageMenuCard(
@@ -128,10 +131,11 @@ struct TokenUsageMenuCard: Equatable {
             period: period,
             days: [day],
             dayLabels: [""],
-            tools: (toolSet.isEmpty ? [.codex] : toolSet).map {
+            tools: templateTools.map {
                 ToolTokenUsageSeries(tool: $0, days: [ToolDailyTokenUsage(day: day, tokensByModel: models)])
             },
-            unavailableTools: []
+            unavailableTools: [],
+            toolOrder: templateTools
         )
     }
 
@@ -182,9 +186,11 @@ struct TokenUsageMenuCard: Equatable {
         return shares
     }
 
+    /// `shownTools` are the tools the menu shows, in its order. Other tools' readings are left out.
     static func make(
         period: CodexTokenUsagePeriod,
         loadState: TokenUsageMenuLoadState,
+        shownTools: [TokenUsageTool],
         calendar: Calendar = .current,
         now: Date = Date()
     ) -> TokenUsageMenuCard {
@@ -221,10 +227,13 @@ struct TokenUsageMenuCard: Equatable {
             period: period,
             days: days,
             dayLabels: days.map(formatter.string(from:)),
-            tools: tools
-                .map { ToolTokenUsageSeries(tool: $0.tool, days: ToolTokenUsageDays.filled($0.days, in: interval, calendar: calendar)) }
-                .sorted { $0.tool.order < $1.tool.order },
-            unavailableTools: unavailableTools
+            tools: shownTools.compactMap { tool in
+                tools.first { $0.tool == tool }.map {
+                    ToolTokenUsageSeries(tool: tool, days: ToolTokenUsageDays.filled($0.days, in: interval, calendar: calendar))
+                }
+            },
+            unavailableTools: shownTools.filter(unavailableTools.contains),
+            toolOrder: shownTools
         )
     }
 }
@@ -242,16 +251,6 @@ final class TokenUsageCardModel {
         self.card = card
         self.theme = theme
         self.settings = settings
-    }
-}
-
-extension TokenUsageTool {
-    var order: Int {
-        switch self {
-        case .codex: 0
-        case .claudeCode: 1
-        case .cursor: 2
-        }
     }
 }
 

@@ -26,6 +26,19 @@ struct MenuBarSettings: SettingsGroup {
 }
 
 extension MenuBarSettings {
+    /// Written out because both `init(from:)` and `encode(to:)` are custom, so Swift doesn't synthesize it.
+    enum CodingKeys: String, CodingKey {
+        case statusBarIndicatorStyle
+        case statusBarDisplayMode
+        case sessionAccentColor
+        case weeklyAccentColor
+        case usesOneUsageColor
+        case usagePercentMode
+        case usageMeterLayout
+        case pacingMarkersEnabled
+        case revealStatusItemTitleShortcut
+    }
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let defaults = Self.defaults

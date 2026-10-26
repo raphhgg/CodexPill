@@ -37,6 +37,8 @@ Token Usage treats daily buckets as local-session scoped. It does not promise a 
 
 When Claude Code or Cursor is connected in rusage, the Token Usage card adds its daily tokens. Each tool is read only while it is connected, and a tool that can't be read shows `Unavailable` on its own line without hiding the others.
 
+The card shows the tools the menu shows, in the menu's order: a tool hidden from the menu, Codex included, is left out of the card, and `Move Up` or `Move Down` on a tool card reorders the chart stack and the split too. With the default order Claude Code comes first.
+
 Every tool counts the same way so days compare: input, cached input, cache writes, and output, all included. Dollars are not shown, because Codex and Claude plans are flat subscriptions.
 
 | Tool | Source | Scope | Model |
@@ -87,7 +89,7 @@ Menu card, in the main menu after the tool cards and before `Add Account`:
 - Title row: `Token Usage` and the chart toggle, three icons: bars, area, lines.
 - Subtitle: `Last 30 days · 10B · Today 390M`.
 - Chart, 44 pt high:
-  - `Bars`: one bar per day, stacked by tool, Codex at the bottom.
+  - `Bars`: one bar per day, stacked by tool, the menu's first tool at the bottom.
   - `Area`: the same stack as smoothed areas.
   - `Lines`: one line per tool, each against its own busiest day, so a small tool keeps its shape. The split gives the amounts.
   - Hovering a day shows a tooltip: `Oct 12: 390M tokens`, then each tool's tokens.
