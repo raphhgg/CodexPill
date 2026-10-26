@@ -15,6 +15,8 @@ final class SettingsWindowState {
     var isBusy = false
     /// Whether Codex is signed in on this Mac, so a hidden Codex card can come back without a new sign-in.
     var isSignedInToCodex = false
+    /// The provider Settings › Providers showed last, kept while rusage runs.
+    var selectedProvider: UsageProvider?
     /// Claude's settings change off the main actor too, so they aren't observed; this copy is.
     var showsModelLimits = true
 

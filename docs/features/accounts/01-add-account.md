@@ -18,7 +18,7 @@ As a rusage user, I want to sign in to another Codex account from rusage, so tha
 
 ## Entry Points
 
-- `Settings › Accounts › Codex › Use Another Account…`
+- `Settings › Providers › Codex › Use Another Account…`
 - `Sign In…` on that row when Codex is signed out.
 - The first-run prompt below.
 

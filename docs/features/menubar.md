@@ -20,11 +20,11 @@ Top to bottom, nothing else:
 3. The status message, only while an account operation runs.
 4. `Quit ⌘Q`
 
-Settings live in their own window ([Settings Window](#settings-window)); the menu keeps the quick actions. A tool with nothing set up has no card. Codex has a card while it is signed in on this Mac. Claude and Cursor have one once connected ([Claude Usage](claude-usage.md), [Cursor Usage](cursor-usage.md)). `Settings › Tools` hides a card.
+Settings live in their own window ([Settings Window](#settings-window)); the menu keeps the quick actions. A tool with nothing set up has no card. Codex has a card while it is signed in on this Mac. Claude and Cursor have one once connected ([Claude Usage](claude-usage.md), [Cursor Usage](cursor-usage.md)). `Settings › Providers` hides a card.
 
 With no card at all, on a first run or with every tool hidden, the menu starts at `Settings…`, where `Accounts` signs in to Codex and connects Claude and Cursor. On a first run with nothing connected, launch asks once: `Sign in to Codex?` / `Sign in to Codex in your browser.`
 
-The user orders the cards in `Settings › Tools`. The first card drives the menu bar icon ([Status Bar](status-bar.md)).
+The user orders the cards in `Settings › Providers`. The first card drives the menu bar icon ([Status Bar](status-bar.md)).
 
 ## Card
 
@@ -54,7 +54,7 @@ Hovering a card opens its side menu, which holds only:
 1. The email of the account in use, checked and disabled. For Claude and Cursor it is the account of the last reading: their own app's sign-in, or rusage's own Claude sign-in.
 2. Codex only, when the account has reset credits: `Use a Reset…`, then one disabled `Expires <date>` line per credit Codex listed ([Codex Reset Credits](codex-reset-credits.md)).
 
-Everything else about accounts lives in `Settings › Accounts`, and ordering and model limits in `Settings › Tools`.
+Everything else about accounts, ordering and model limits lives in `Settings › Providers`.
 
 `Hide Emails` masks every email the menu, its alerts and the tooltip show: `alex.side@example.com` reads `al•••e@example.com`. The domain stays visible.
 
@@ -73,13 +73,12 @@ One window of stock controls, with a toolbar pane per group. The title names the
 | Pane | Controls |
 |---|---|
 | General | `Refresh Every` (1 to 30 minutes), `Hide Emails`, `Theme` ([Theme](app-controls/02-theme.md)), `Launch at Login` ([Launch at Login](app-controls/01-launch-at-login.md)) |
-| Accounts | Per tool, in the menu's order: the account in use and where its sign-in comes from; `Allow Keychain Access…` when a read needs it. Codex: `Use Another Account…`, which replaces the Codex sign-in on this Mac ([Accounts](accounts/01-add-account.md)), and `Sign Out of Codex…`, which signs Codex out on this Mac after a confirmation. Claude: `Use Another Account…`, rusage's own browser sign-in, then `Sign Out of Claude` while that sign-in is in use, or `Disconnect` while Claude Code's is ([Claude Usage](claude-usage.md)). Cursor has no account actions. A tool not in the menu offers `Connect…`; Codex offers `Show` (`Not shown in the menu`) or, when signed out, `Sign In…` (`Signed out`) |
+| Providers | A sidebar of every provider in the menu's order, with its mark, its account's email (masked with Hide Emails) or `Hidden from the menu`, dimmed while hidden. Drag, or `Move Up` and `Move Down` from the context menu or VoiceOver, reorders them. The selected one shows `Show in Menu Bar`, then `Account`: its email and source (`Signed in with rusage`, `Uses Claude Code's sign-in`, `In use`) and its actions. Codex: `Use Another Account…`, which replaces the Codex sign-in on this Mac ([Accounts](accounts/01-add-account.md)), and `Sign Out…`, which signs Codex out on this Mac after a confirmation. Claude: `Use Another Account…`, rusage's own browser sign-in, then `Sign Out…` while that sign-in is in use, or `Disconnect` while Claude Code's is ([Claude Usage](claude-usage.md)). Cursor has no account actions. A provider not in the menu offers `Connect…`; Codex offers `Show` (`Not shown in the menu`) or, when signed out, `Sign In…` (`Signed out`). Claude adds `Options › Model Limits`. The pane remembers the provider shown last while rusage runs |
 | Menu Bar | `Menu Bar Label`, `Icon Style`, `Reveal Shortcut` ([Status Bar](status-bar.md)) |
 | Usage Bars | `% Used` or `% Left`, `Classic` or `Compact`, `Pace Markers`, `Session Color`, `Weekly Color`, `Same Color for Both`, `Use Theme Colors` |
-| Tools | A switch per tool in the menu's order, drag or `Move Up` and `Move Down` to reorder, and `Claude Model Limits` while Claude shows |
 | Token Usage | `Show` (`Graph, breakdown on hover`, `Graph and breakdown`, `Hidden`), `Chart`, `Breakdown` ([Token Usage](token-usage.md)) |
 
-The Tools switches are on while that tool's card shows:
+`Show in Menu Bar` is on while that provider's card shows:
 
 - Turning off `Claude` or `Cursor` disconnects it: the card goes and nothing is read, with no alert. Turning it on connects, through its consent alert.
 - Turning off `Codex` hides its card and stops the Codex reads. `auth.json` stays as it is. Turning it on shows the card and reads it again. When Codex is signed out, it signs in first.

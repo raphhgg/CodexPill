@@ -331,7 +331,7 @@ struct MenuBarMenuBuilderTests {
 
         coordinator.openSettings()
 
-        #expect(coordinator.settingsWindow.paneTitles == ["General", "Accounts", "Menu Bar", "Usage Bars", "Tools", "Token Usage"])
+        #expect(coordinator.settingsWindow.paneTitles == ["General", "Providers", "Menu Bar", "Usage Bars", "Token Usage"])
         coordinator.settingsWindow.window?.close()
         #expect(!coordinator.settingsWindow.isShown)
     }

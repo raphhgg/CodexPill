@@ -29,7 +29,7 @@ it again.
 
 It is fine if `defaults delete` says the domain does not exist.
 
-If you used `Sign in with Claude…`, choose `Sign Out of Claude` first, so
+If you used `Sign in with Claude…`, choose `Settings › Providers › Claude › Sign Out…` first, so
 Anthropic revokes the sign-in. Then remove rusage's own Claude sign-in and its
 lock file:
 
