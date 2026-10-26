@@ -36,6 +36,18 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
         window.makeKeyAndOrderFront(nil)
     }
 
+    /// The widest and the tallest pane, measured once each time the window opens.
+    private static func largestFittingSize(of panes: [SettingsPane]) -> CGSize {
+        panes.reduce(CGSize.zero) { largest, pane in
+            let fitting = NSHostingController(rootView: pane.view).view.fittingSize
+            return CGSize(width: max(largest.width, fitting.width), height: max(largest.height, fitting.height))
+        }
+    }
+
+    var paneSizes: [CGSize] {
+        (window?.contentViewController as? NSTabViewController)?.tabViewItems.compactMap { $0.viewController?.preferredContentSize } ?? []
+    }
+
     var paneTitles: [String] {
         (window?.contentViewController as? NSTabViewController)?.tabViewItems.map(\.label) ?? []
     }
@@ -44,9 +56,13 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
     private func makeWindow() -> NSWindow {
         let tabs = NSTabViewController()
         tabs.tabStyle = .toolbar
-        for pane in SettingsPane.all(settings: settings, state: state, actions: actions) {
-            let content = NSHostingController(rootView: pane.view)
-            content.sizingOptions = [.preferredContentSize]
+        let panes = SettingsPane.all(settings: settings, state: state, actions: actions)
+        let size = Self.largestFittingSize(of: panes)
+        for pane in panes {
+            // Top-aligned in the largest pane's size, so switching panes never resizes the window.
+            let content = NSHostingController(rootView: AnyView(pane.view.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)))
+            content.sizingOptions = []
+            content.preferredContentSize = size
             content.title = pane.title
             let item = NSTabViewItem(viewController: content)
             item.label = pane.title
