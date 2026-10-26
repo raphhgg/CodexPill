@@ -48,6 +48,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             rebuildMenuWhenSafe()
         }
     )
+    /// The tools the menu showed when it was last built, in its order.
+    private var tokenUsageTools = MenuDisplaySettingsStore.defaultToolOrder.map(\.tokenUsageTool)
     private lazy var tokenUsageCard = TokenUsageCardModel(card: makeTokenUsageCard(), theme: themePreferences.theme, preferences: tokenUsagePreferences)
     private let providerConnections: [any ProviderConnection]
     private lazy var providerUsageRuntime = ProviderUsageRuntime(
@@ -513,7 +515,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     func menuState() -> MenuBarMenuState {
-        MenuBarMenuState(
+        let state = MenuBarMenuState(
             activeAccount: accountsController.activeAccount,
             inactiveAccounts: accountsController.sortedInactiveAccounts,
             refreshIntervalMinutes: menuDisplaySettings.refreshIntervalMinutes,
@@ -532,7 +534,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             statusMessage: accountsController.statusMessage,
             loginItemState: loginItemController.state(),
             tokenUsageEnabled: tokenUsagePreferences.isEnabled,
-            tokenUsage: currentTokenUsageCard(),
+            tokenUsage: tokenUsagePreferences.isEnabled ? tokenUsageCard : nil,
             providerUsage: providerUsageRuntime.states,
             toolOrder: menuDisplaySettings.toolOrder,
             masksEmails: menuDisplaySettings.masksEmails,
@@ -541,14 +543,24 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             theme: themePreferences.theme,
             now: now()
         )
+        if state.tokenUsage != nil {
+            // The card shows the tools the menu shows, in the menu's order.
+            tokenUsageTools = state.toolSections.map(\.provider.tokenUsageTool)
+            updateTokenUsageCard()
+        }
+        return state
     }
 
     private func makeTokenUsageCard() -> TokenUsageMenuCard {
-        TokenUsageMenuCard.make(period: tokenUsagePreferences.period, loadState: tokenUsageRuntime.loadState, now: now())
+        TokenUsageMenuCard.make(
+            period: tokenUsagePreferences.period,
+            loadState: tokenUsageRuntime.loadState,
+            shownTools: tokenUsageTools,
+            now: now()
+        )
     }
 
-    private func currentTokenUsageCard() -> TokenUsageCardModel? {
-        guard tokenUsagePreferences.isEnabled else { return nil }
+    private func updateTokenUsageCard() {
         let card = makeTokenUsageCard()
         if tokenUsageCard.card != card {
             tokenUsageCard.card = card
@@ -556,7 +568,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         if tokenUsageCard.theme != themePreferences.theme {
             tokenUsageCard.theme = themePreferences.theme
         }
-        return tokenUsageCard
     }
 
     /// Token usage and provider usage only appear inside the menu, so opening it is the moment to bring them up to date.
