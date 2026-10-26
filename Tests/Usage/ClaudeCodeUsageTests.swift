@@ -18,7 +18,7 @@ struct ClaudeCodeUsageTests {
 
         await fixture.usage.connect()
 
-        #expect(ClaudeUsageSettingsStore(userDefaults: fixture.defaults).isEnabled == true)
+        #expect(Preferences(userDefaults: fixture.defaults).load(ClaudeSettings.self).isConnected == true)
         #expect(await fixture.usage.readUsage(now: now) == .snapshot(UsageSnapshot(
             provider: .claude,
             planName: "max",
@@ -31,7 +31,7 @@ struct ClaudeCodeUsageTests {
 
         await fixture.usage.disconnect()
 
-        #expect(ClaudeUsageSettingsStore(userDefaults: fixture.defaults).isEnabled == false)
+        #expect(Preferences(userDefaults: fixture.defaults).load(ClaudeSettings.self).isConnected == false)
         #expect(await fixture.usage.readUsage(now: now) == .notConnected)
         #expect(fixture.requestCount == 1)
     }
@@ -61,7 +61,7 @@ struct ClaudeCodeUsageTests {
         defer { fixture.remove() }
         fixture.signInToKeychain(expiresAt: now.addingTimeInterval(3_600), needsPermission: true)
         fixture.response = .success(Data(ClaudeUsageFixture.usageResponse.utf8))
-        fixture.settings.isEnabled = true
+        fixture.settings.update { $0.isConnected = true }
 
         #expect(await fixture.usage.readUsage(now: now) == .unavailable(.keychainAccessNeeded))
         #expect(await fixture.usage.readUsage(now: now) == .unavailable(.keychainAccessNeeded))
@@ -81,7 +81,7 @@ struct ClaudeCodeUsageTests {
     func anExpiredSignInIsNeverSentToAnthropic() async {
         let fixture = ClaudeUsageFixture()
         defer { fixture.remove() }
-        fixture.settings.isEnabled = true
+        fixture.settings.update { $0.isConnected = true }
         fixture.signInToKeychain(expiresAt: now)
         fixture.response = .success(Data(ClaudeUsageFixture.usageResponse.utf8))
 
@@ -93,7 +93,7 @@ struct ClaudeCodeUsageTests {
     func eachAnthropicProblemBecomesOneMenuState() async {
         let fixture = ClaudeUsageFixture()
         defer { fixture.remove() }
-        fixture.settings.isEnabled = true
+        fixture.settings.update { $0.isConnected = true }
 
         #expect(await fixture.usage.readUsage(now: now) == .unavailable(.signedOut))
 
@@ -125,7 +125,7 @@ struct ClaudeCodeUsageTests {
     func aRateLimitWaitsForRetryAfterBeforeTheNextRequest() async {
         let fixture = ClaudeUsageFixture()
         defer { fixture.remove() }
-        fixture.settings.isEnabled = true
+        fixture.settings.update { $0.isConnected = true }
         fixture.signInToKeychain(expiresAt: now.addingTimeInterval(7_200))
         fixture.response = .failure(.rateLimited(retryAfter: 900))
 
@@ -145,7 +145,7 @@ struct ClaudeCodeUsageTests {
     func aRateLimitWithoutRetryAfterWaitsFiveMinutes() async {
         let fixture = ClaudeUsageFixture()
         defer { fixture.remove() }
-        fixture.settings.isEnabled = true
+        fixture.settings.update { $0.isConnected = true }
         fixture.signInToKeychain(expiresAt: now.addingTimeInterval(7_200))
         fixture.response = .failure(.rateLimited(retryAfter: nil))
 

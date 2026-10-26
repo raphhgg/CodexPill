@@ -1,5 +1,12 @@
 import Foundation
 
+struct StatusItemAccentColor: Codable, Equatable, Sendable {
+    let red: Double
+    let green: Double
+    let blue: Double
+    let alpha: Double
+}
+
 /// How the menu bar icon and the usage bars on each tool card look.
 struct MenuBarSettings: SettingsGroup {
     static let key = "settings.menuBar.v1"

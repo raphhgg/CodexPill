@@ -6,13 +6,13 @@ struct CursorUsage: ProviderConnection {
     let staleAfter: TimeInterval = 15 * 60
     let refreshInterval: TimeInterval
 
-    let settings: CursorUsageSettingsStore
+    let settings: SettingsCell<CursorSettings>
     let client: CursorUsageClient
     /// Daily tokens for the Token Usage card, read from the same sign-in.
     let tokenUsageClient: CursorTokenUsageClient?
 
     init(
-        settings: CursorUsageSettingsStore,
+        settings: SettingsCell<CursorSettings>,
         client: CursorUsageClient,
         tokenUsageClient: CursorTokenUsageClient? = nil,
         refreshInterval: TimeInterval = ProviderUsageRuntime.refreshInterval
@@ -24,19 +24,19 @@ struct CursorUsage: ProviderConnection {
     }
 
     func connect() async {
-        settings.isEnabled = true
+        settings.update { $0.isConnected = true }
     }
 
     var isConnected: Bool {
-        settings.isEnabled
+        settings.value.isConnected
     }
 
     func disconnect() async {
-        settings.isEnabled = false
+        settings.update { $0.isConnected = false }
     }
 
     func readUsage(now _: Date) async -> UsageProviderReading {
-        guard settings.isEnabled else { return .notConnected }
+        guard settings.value.isConnected else { return .notConnected }
         return Self.reading(from: await client.refresh())
     }
 

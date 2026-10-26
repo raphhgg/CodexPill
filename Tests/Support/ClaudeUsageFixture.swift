@@ -14,7 +14,7 @@ final class ClaudeUsageFixture: ClaudeKeychainReading, ClaudeUsageWebClient, @un
      "seven_day_opus":{"utilization":80,"resets_at":"2026-10-14T09:00:00+00:00"}}
     """#
 
-    let settings: ClaudeUsageSettingsStore
+    let settings: SettingsCell<ClaudeSettings>
     let defaults: UserDefaults
     let configDirectory: URL
     private(set) var usage: ClaudeCodeUsage!
@@ -28,7 +28,7 @@ final class ClaudeUsageFixture: ClaudeKeychainReading, ClaudeUsageWebClient, @un
 
     init(refreshInterval: TimeInterval = ProviderUsageRuntime.refreshInterval) {
         defaults = UserDefaults(suiteName: suiteName)!
-        settings = ClaudeUsageSettingsStore(userDefaults: defaults)
+        settings = SettingsCell(preferences: Preferences(userDefaults: defaults))
         configDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("ClaudeUsageFixture-\(UUID().uuidString)", isDirectory: true)
         let ownSignInFiles = configDirectory.appendingPathComponent("rusage", isDirectory: true)

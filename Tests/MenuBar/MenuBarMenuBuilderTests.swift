@@ -471,7 +471,7 @@ struct MenuBarMenuBuilderTests {
         let suiteName = "MenuBarMenuBuilderTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = SettingsStores(userDefaults: defaults)
+        let settings = SettingsModel(userDefaults: defaults)
         let repository = try makeIsolatedRepository()
         let coordinator = MenuBarCoordinator.makeForTesting(
             statusItemRuntime: StatusItemRuntime(statusItem: NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)),
@@ -494,7 +494,7 @@ struct MenuBarMenuBuilderTests {
         select(.toolColors)
         select(.monochrome)
 
-        #expect(settings.themePreferences.theme == .monochrome)
+        #expect(SettingsModel(userDefaults: defaults).general.theme == .monochrome)
     }
 
     @Test
@@ -765,10 +765,7 @@ struct MenuBarMenuBuilderTests {
         let provider = TokenUsageMenuProviderProbe()
         let (coordinator, statusItem) = try makeCoordinatorWithStatusItem(
             tokenUsageProvider: provider,
-            configureTokenUsage: {
-                $0.isEnabled = true
-                $0.period = .last30Days
-            }
+            configureTokenUsage: { $0.isEnabled = true }
         )
         let menu = builder.makeMenu(
             state: makeState(
@@ -831,10 +828,7 @@ struct MenuBarMenuBuilderTests {
         let (coordinator, statusItem) = try makeCoordinatorWithStatusItem(
             loginItemController: loginItemController,
             tokenUsageProvider: provider,
-            configureTokenUsage: {
-                $0.isEnabled = true
-                $0.period = .last30Days
-            }
+            configureTokenUsage: { $0.isEnabled = true }
         )
         let menu = builder.makeMenu(
             state: makeState(
@@ -1209,7 +1203,7 @@ struct MenuBarMenuBuilderTests {
             cacheFile: FileManager.default.temporaryDirectory
                 .appendingPathComponent("MenuBarMenuBuilderTests-\(UUID().uuidString)/token-usage-cache.json")
         ),
-        configureTokenUsage: (TokenUsagePreferencesStore) -> Void = { _ in }
+        configureTokenUsage: (inout TokenUsageSettings) -> Void = { _ in }
     ) throws -> (MenuBarCoordinator, NSStatusItem) {
         let repository = try makeIsolatedRepository()
         let accountsController = AccountsFeatureFactory(
@@ -1221,8 +1215,8 @@ struct MenuBarMenuBuilderTests {
         let suiteName = "MenuBarMenuBuilderTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = SettingsStores(userDefaults: defaults)
-        configureTokenUsage(settings.tokenUsagePreferences)
+        let settings = SettingsModel(userDefaults: defaults)
+        configureTokenUsage(&settings.tokenUsage)
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         let statusItemRuntime = StatusItemRuntime(statusItem: statusItem)
         let coordinator = MenuBarCoordinator.makeForTesting(
@@ -1307,7 +1301,7 @@ struct MenuBarMenuBuilderTests {
             loginItemState: loginItemState,
             tokenUsageEnabled: tokenUsageEnabled,
             tokenUsage: tokenUsageCard.map {
-                TokenUsageCardModel(card: $0, preferences: TokenUsagePreferencesStore(userDefaults: UserDefaults(suiteName: "token-usage-\(UUID().uuidString)")!))
+                TokenUsageCardModel(card: $0, settings: SettingsModel(userDefaults: UserDefaults(suiteName: "token-usage-\(UUID().uuidString)")!))
             },
             providerUsage: providerUsage,
             toolOrder: toolOrder,

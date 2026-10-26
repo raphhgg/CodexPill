@@ -19,13 +19,13 @@ struct CursorUsageTests {
 
         await fixture.usage.connect()
 
-        #expect(CursorUsageSettingsStore(userDefaults: fixture.defaults).isEnabled == true)
+        #expect(Preferences(userDefaults: fixture.defaults).load(CursorSettings.self).isConnected == true)
         _ = await fixture.usage.readUsage(now: now)
         #expect(fixture.requestCount == 1)
 
         await fixture.usage.disconnect()
 
-        #expect(CursorUsageSettingsStore(userDefaults: fixture.defaults).isEnabled == false)
+        #expect(Preferences(userDefaults: fixture.defaults).load(CursorSettings.self).isConnected == false)
         #expect(await fixture.usage.readUsage(now: now) == .notConnected)
     }
 

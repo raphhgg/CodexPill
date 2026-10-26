@@ -19,7 +19,9 @@ protocol SettingsGroup: Codable, Equatable, Sendable {
 ///   "settings.codex.v1"       JSON CodexSettings
 ///   "settings.claude.v1"      JSON ClaudeSettings
 ///   "settings.cursor.v1"      JSON CursorSettings
-struct Preferences {
+/// `UserDefaults` is documented as thread-safe, so the usage sources may read and save their tool's settings off the
+/// main actor.
+struct Preferences: @unchecked Sendable {
     let userDefaults: UserDefaults
 
     init(userDefaults: UserDefaults) {
@@ -51,7 +53,7 @@ private let preferencesLogger = Logger(subsystem: "com.raphhgg.rusage", category
 
 extension KeyedDecodingContainer {
     /// The stored value, or `fallback` when it is missing or no longer decodes.
-    func value<Value: Decodable>(_ key: Key, or fallback: Value) -> Value {
-        (try? decodeIfPresent(Value.self, forKey: key)) ?? fallback
+    func value<Decoded: Decodable>(_ key: Key, or fallback: Decoded) -> Decoded {
+        (try? decodeIfPresent(Decoded.self, forKey: key)) ?? fallback
     }
 }

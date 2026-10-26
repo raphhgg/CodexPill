@@ -86,7 +86,7 @@ struct ClaudeOwnSignInUsageTests {
 
         try await fixture.usage.signIn()
 
-        #expect(fixture.settings.isEnabled && fixture.settings.usesOwnSignIn)
+        #expect(fixture.settings.value.isConnected && fixture.settings.value.usesOwnSignIn)
         #expect(fixture.usage.ownSignIn == .signedIn)
         guard case let .snapshot(snapshot) = await fixture.usage.readUsage(now: now) else {
             Issue.record("Expected usage with rusage's own sign-in")
@@ -112,7 +112,7 @@ struct ClaudeOwnSignInUsageTests {
         await #expect(throws: ProviderNotice(title: "Claude sign-in declined", detail: "Sign in again to see your limits.")) {
             try await declined.usage.signIn()
         }
-        #expect(!declined.settings.isEnabled && !declined.settings.usesOwnSignIn)
+        #expect(!declined.settings.value.isConnected && !declined.settings.value.usesOwnSignIn)
 
         let refused = ClaudeOwnSignInUsageFixture(usesOwnSignIn: false)
         defer { refused.remove() }
@@ -123,7 +123,7 @@ struct ClaudeOwnSignInUsageTests {
         await #expect(throws: ProviderNotice(title: "Claude sign-in not saved", detail: "It lasts until rusage quits.")) {
             try await refused.usage.signIn()
         }
-        #expect(refused.settings.usesOwnSignIn)
+        #expect(refused.settings.value.usesOwnSignIn)
         #expect(await refused.usage.readUsage(now: now).sessionPercent == 12)
     }
 
@@ -135,7 +135,7 @@ struct ClaudeOwnSignInUsageTests {
 
         await fixture.usage.disconnect()
 
-        #expect(!fixture.settings.isEnabled && !fixture.settings.usesOwnSignIn)
+        #expect(!fixture.settings.value.isConnected && !fixture.settings.value.usesOwnSignIn)
         #expect(fixture.files.store.read(allowingPrompt: false) == .notFound)
         #expect(fixture.tokenServer.revoked == ["r1"])
     }
@@ -157,7 +157,7 @@ private final class ClaudeOwnSignInUsageFixture: @unchecked Sendable {
     let store: RecordingClaudeSignInStore
     let tokenServer: FakeClaudeTokenServer
     let usageServer: FakeClaudeUsageServer
-    let settings: ClaudeUsageSettingsStore
+    let settings: SettingsCell<ClaudeSettings>
     let usage: ClaudeCodeUsage
     private let suiteName = "ClaudeOwnSignInUsageFixture-\(UUID().uuidString)"
 
@@ -166,9 +166,11 @@ private final class ClaudeOwnSignInUsageFixture: @unchecked Sendable {
         store = RecordingClaudeSignInStore(file: files.store, log: log)
         tokenServer = FakeClaudeTokenServer(generation: tokenGeneration, log: log)
         usageServer = FakeClaudeUsageServer(log: log)
-        settings = ClaudeUsageSettingsStore(userDefaults: UserDefaults(suiteName: suiteName)!)
-        settings.isEnabled = usesOwnSignIn
-        settings.usesOwnSignIn = usesOwnSignIn
+        settings = SettingsCell(preferences: Preferences(userDefaults: UserDefaults(suiteName: suiteName)!))
+        settings.update {
+            $0.isConnected = usesOwnSignIn
+            $0.usesOwnSignIn = usesOwnSignIn
+        }
         usage = ClaudeCodeUsage(
             settings: settings,
             client: ClaudeUsageClient(

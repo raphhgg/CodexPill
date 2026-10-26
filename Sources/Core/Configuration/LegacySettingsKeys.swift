@@ -39,7 +39,7 @@ extension MenuBarSettings {
         return settings
     }
 
-    private static func decoded<Value: Decodable>(_ type: Value.Type, _ userDefaults: UserDefaults, _ key: String) -> Value? {
+    private static func decoded<Decoded: Decodable>(_ type: Decoded.Type, _ userDefaults: UserDefaults, _ key: String) -> Decoded? {
         userDefaults.data(forKey: key).flatMap { try? JSONDecoder().decode(type, from: $0) }
     }
 }

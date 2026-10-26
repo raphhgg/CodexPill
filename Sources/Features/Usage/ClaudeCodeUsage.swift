@@ -8,12 +8,12 @@ struct ClaudeCodeUsage: ProviderConnection {
     let staleAfter: TimeInterval = 15 * 60
     let refreshInterval: TimeInterval
 
-    let settings: ClaudeUsageSettingsStore
+    let settings: SettingsCell<ClaudeSettings>
     let client: ClaudeUsageClient
     private let browserSignIn: ClaudeBrowserSignInSession
 
     init(
-        settings: ClaudeUsageSettingsStore,
+        settings: SettingsCell<ClaudeSettings>,
         client: ClaudeUsageClient,
         signInFlow: any ClaudeSignInAuthorizing,
         refreshInterval: TimeInterval = ProviderUsageRuntime.refreshInterval
@@ -26,24 +26,26 @@ struct ClaudeCodeUsage: ProviderConnection {
 
     /// Turns the feature on and lets the next read ask for Keychain access, since the user just asked for it.
     func connect() async {
-        settings.isEnabled = true
+        settings.update { $0.isConnected = true }
         await client.allowKeychainPromptOnNextRead()
     }
 
     var isConnected: Bool {
-        settings.isEnabled
+        settings.value.isConnected
     }
 
     /// Also signs out of rusage's own sign-in. Claude Code's sign-in is untouched.
     func disconnect() async {
         await browserSignIn.cancel()
-        settings.isEnabled = false
-        settings.usesOwnSignIn = false
+        settings.update {
+            $0.isConnected = false
+            $0.usesOwnSignIn = false
+        }
         _ = await client.signOut()
     }
 
     var ownSignIn: ProviderOwnSignIn {
-        settings.usesOwnSignIn ? .signedIn : .signedOut
+        settings.value.usesOwnSignIn ? .signedIn : .signedOut
     }
 
     func signIn() async throws(ProviderNotice) {
@@ -53,15 +55,16 @@ struct ClaudeCodeUsage: ProviderConnection {
     /// Reads go back to Claude Code's sign-in.
     func signOut() async throws(ProviderNotice) {
         await browserSignIn.cancel()
-        settings.usesOwnSignIn = false
+        settings.update { $0.usesOwnSignIn = false }
         guard await client.signOut() else {
             throw ProviderNotice(title: "Claude sign-in not removed", detail: "Remove it in Keychain Access.")
         }
     }
 
     func readUsage(now: Date) async -> UsageProviderReading {
-        guard settings.isEnabled else { return .notConnected }
-        return Self.reading(from: await client.refresh(now: now, using: settings.usesOwnSignIn ? .rusage : .claudeCode), fetchedAt: now)
+        let current = settings.value
+        guard current.isConnected else { return .notConnected }
+        return Self.reading(from: await client.refresh(now: now, using: current.usesOwnSignIn ? .rusage : .claudeCode), fetchedAt: now)
     }
 
     static func reading(from status: ClaudeUsageStatus, fetchedAt: Date) -> UsageProviderReading {
@@ -106,10 +109,10 @@ struct ClaudeCodeUsage: ProviderConnection {
 actor ClaudeBrowserSignInSession {
     private let flow: any ClaudeSignInAuthorizing
     private let client: ClaudeUsageClient
-    private let settings: ClaudeUsageSettingsStore
+    private let settings: SettingsCell<ClaudeSettings>
     private var running: Task<ClaudeSignIn, any Error>?
 
-    init(flow: any ClaudeSignInAuthorizing, client: ClaudeUsageClient, settings: ClaudeUsageSettingsStore) {
+    init(flow: any ClaudeSignInAuthorizing, client: ClaudeUsageClient, settings: SettingsCell<ClaudeSettings>) {
         self.flow = flow
         self.client = client
         self.settings = settings
@@ -134,8 +137,10 @@ actor ClaudeBrowserSignInSession {
         guard !task.isCancelled else { return }
         let saved = await client.store(signIn)
         guard !task.isCancelled else { return }
-        settings.isEnabled = true
-        settings.usesOwnSignIn = true
+        settings.update {
+            $0.isConnected = true
+            $0.usesOwnSignIn = true
+        }
         guard saved else {
             throw ProviderNotice(title: "Claude sign-in not saved", detail: "It lasts until rusage quits.")
         }

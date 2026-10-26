@@ -74,8 +74,8 @@ private final class ClaudeLiveSignInFixture: @unchecked Sendable {
     init() throws {
         root = FileManager.default.temporaryDirectory.appendingPathComponent("ClaudeLiveSignInFixture-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: root.appendingPathComponent(".claude"), withIntermediateDirectories: true)
-        let settings = ClaudeUsageSettingsStore(userDefaults: UserDefaults(suiteName: suiteName)!)
-        settings.isEnabled = true
+        let settings = SettingsCell<ClaudeSettings>(preferences: Preferences(userDefaults: UserDefaults(suiteName: suiteName)!))
+        settings.update { $0.isConnected = true }
         usage = ClaudeCodeUsage(
             settings: settings,
             client: ClaudeUsageClient(
