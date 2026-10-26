@@ -10,6 +10,7 @@ final class ProviderConnectionProbe: ProviderConnection {
         var reading: UsageProviderReading
         var readCount = 0
         var isDisconnected = false
+        var isShown = true
         var ownSignIn = ProviderOwnSignIn.unsupported
         var notice: ProviderNotice?
     }
@@ -29,6 +30,14 @@ final class ProviderConnectionProbe: ProviderConnection {
         self.staleAfter = staleAfter
         self.refreshInterval = refreshInterval
         state = OSAllocatedUnfairLock(initialState: State(reading: reading))
+    }
+
+    var isShown: Bool {
+        state.withLock { $0.isShown }
+    }
+
+    func setShown(_ isShown: Bool) {
+        state.withLock { $0.isShown = isShown }
     }
 
     func update(_ change: @Sendable (inout State) -> Void) {

@@ -71,6 +71,24 @@ struct MenuBarAlertFactory {
         }
     }
 
+    func makeRemoveProviderRequest(_ provider: UsageProvider, usesOwnSignIn: Bool) -> MenuBarConfirmationAlertRequest {
+        let copy = provider.copy
+        let detail = if provider == .codex {
+            "rusage stops reading Codex. Codex stays signed in on this Mac."
+        } else if usesOwnSignIn {
+            "rusage stops reading \(copy.sectionTitle) and signs out of its own \(copy.sectionTitle) sign-in."
+        } else {
+            "rusage stops reading \(copy.sectionTitle). \(copy.name) stays signed in."
+        }
+        return MenuBarConfirmationAlertRequest(
+            messageText: "Remove \(copy.sectionTitle)?",
+            informativeText: detail,
+            confirmTitle: "Remove",
+            cancelTitle: "Cancel",
+            isDestructive: true
+        )
+    }
+
     func makeCodexSignOutRequest() -> MenuBarConfirmationAlertRequest {
         MenuBarConfirmationAlertRequest(
             messageText: "Sign Out of Codex?",

@@ -6,6 +6,7 @@ struct SettingsPane {
     let symbol: String
     let view: AnyView
 
+    /// The narrowest a form pane gets. Every pane fills the window, which takes the largest pane's size.
     static let width: CGFloat = 480
     /// A pane taller than this scrolls, so the window fits a small display.
     static let maxHeight: CGFloat = 600
@@ -14,10 +15,9 @@ struct SettingsPane {
     static func all(settings: SettingsModel, state: SettingsWindowState, actions: any SettingsActions) -> [SettingsPane] {
         [
             SettingsPane(title: "General", symbol: "gearshape", view: AnyView(GeneralPane(settings: settings, state: state, actions: actions))),
-            SettingsPane(title: "Accounts", symbol: "person.crop.circle", view: AnyView(AccountsPane(settings: settings, state: state, actions: actions))),
+            SettingsPane(title: "Providers", symbol: "square.stack", view: AnyView(ProvidersPane(settings: settings, state: state, actions: actions))),
             SettingsPane(title: "Menu Bar", symbol: "menubar.rectangle", view: AnyView(MenuBarPane(settings: settings, state: state, actions: actions))),
             SettingsPane(title: "Usage Bars", symbol: "chart.bar.fill", view: AnyView(UsageBarsPane(settings: settings))),
-            SettingsPane(title: "Tools", symbol: "square.stack", view: AnyView(ToolsPane(settings: settings, state: state, actions: actions))),
             SettingsPane(title: "Token Usage", symbol: "chart.xyaxis.line", view: AnyView(TokenUsagePane(settings: settings, actions: actions))),
         ]
     }
@@ -64,85 +64,6 @@ struct GeneralPane: View {
             get: { state.loginItemState == .enabled || state.loginItemState == .requiresApproval },
             set: { actions.setLaunchAtLogin($0) }
         )
-    }
-}
-
-/// Each tool's account in the menu's order: the one it is signed in to, its sign-in and the actions the menu used to
-/// offer. Every action runs through the coordinator, so its alerts still show.
-struct AccountsPane: View {
-    let settings: SettingsModel
-    let state: SettingsWindowState
-    let actions: any SettingsActions
-
-    var body: some View {
-        Form {
-            ForEach(settings.general.toolOrder, id: \.self) { provider in
-                Section(provider.copy.sectionTitle) {
-                    if let section = state.toolSections.first(where: { $0.provider == provider }) {
-                        rows(for: section)
-                    } else {
-                        LabeledContent(notShownLabel(provider)) {
-                            Button(connectTitle(provider)) { actions.setTool(provider, shown: true) }
-                                .disabled(provider == .codex && state.isBusy)
-                        }
-                        .foregroundStyle(.secondary)
-                    }
-                }
-            }
-        }
-        .settingsPane()
-    }
-
-    @ViewBuilder
-    private func rows(for section: ToolSection) -> some View {
-        let provider = section.provider
-        if let label = section.activeLabel {
-            LabeledContent(label) {
-                Text(section.signInSourceLabel ?? "In use").foregroundStyle(.secondary)
-            }
-        } else {
-            Text(section.card.title ?? "No account in use").foregroundStyle(.secondary)
-        }
-        if let followUp = section.followUp, followUp.action != .signIn {
-            Button(followUp.title) { actions.perform(followUp.action, on: provider) }
-        }
-        if provider == .codex {
-            HStack {
-                Button("Use Another Account…") { actions.perform(.addAccount, on: provider) }
-                    .help("Replaces the Codex sign-in on this Mac.")
-                Button("Sign Out of Codex…") { actions.perform(.signOut, on: provider) }
-                    .help("Signs the Codex app and CLI out on this Mac.")
-            }
-            .disabled(state.isBusy)
-        } else if section.ownSignIn != .unsupported {
-            ownSignInRow(for: section)
-        }
-    }
-
-    /// rusage's own sign-in reads another account without touching the tool's own. Signing out of it goes back to the
-    /// tool's sign-in; while that one is in use, the tool can only be disconnected.
-    private func ownSignInRow(for section: ToolSection) -> some View {
-        let provider = section.provider
-        let name = provider.copy.sectionTitle
-        return HStack {
-            Button("Use Another Account…") { actions.perform(.signIn, on: provider) }
-                .help("Signs in with rusage's own \(name) sign-in. \(provider.copy.name) keeps its own.")
-            if section.ownSignIn == .signedIn {
-                Button("Sign Out of \(name)") { actions.perform(.signOut, on: provider) }
-            } else {
-                Button("Disconnect") { actions.setTool(provider, shown: false) }
-            }
-        }
-    }
-
-    private func notShownLabel(_ provider: UsageProvider) -> String {
-        provider == .codex && !state.isSignedInToCodex ? "Signed out" : "Not shown in the menu"
-    }
-
-    /// Codex signed out signs in first. Claude and Cursor ask for consent first.
-    private func connectTitle(_ provider: UsageProvider) -> String {
-        guard provider == .codex else { return "Connect…" }
-        return state.isSignedInToCodex ? "Show" : "Sign In…"
     }
 }
 
@@ -248,84 +169,6 @@ struct UsageBarsPane: View {
     }
 }
 
-/// Every tool in the menu's order, which drag or Move Up and Move Down change, each with a switch that connects or
-/// disconnects it.
-struct ToolsPane: View {
-    @Bindable var settings: SettingsModel
-    let state: SettingsWindowState
-    let actions: any SettingsActions
-    @State private var selection: UsageProvider?
-
-    var body: some View {
-        VStack(spacing: 0) {
-            List(selection: $selection) {
-                Section {
-                    ForEach(settings.general.toolOrder, id: \.self) { provider in
-                        row(provider)
-                    }
-                    .onMove { settings.general.toolOrder.move(fromOffsets: $0, toOffset: $1) }
-                } header: {
-                    Text("Drag to reorder. The first tool shown drives the menu bar icon.")
-                }
-                if state.shownTools.contains(.claude) {
-                    Section {
-                        HStack {
-                            Text("Claude Model Limits")
-                            Spacer()
-                            Toggle("Claude Model Limits", isOn: showsModelLimits)
-                                .toggleStyle(.switch)
-                                .labelsHidden()
-                        }
-                        .help("Weekly limits per model, such as Fable.")
-                    }
-                }
-            }
-            .listStyle(.inset)
-            Divider()
-            HStack {
-                Button("Move Up", systemImage: "chevron.up") { move(by: -1) }
-                    .disabled(!canMove(by: -1))
-                Button("Move Down", systemImage: "chevron.down") { move(by: 1) }
-                    .disabled(!canMove(by: 1))
-                Spacer()
-            }
-            .labelStyle(.titleAndIcon)
-            .padding(8)
-        }
-        .frame(width: SettingsPane.width, height: 300)
-    }
-
-    private func row(_ provider: UsageProvider) -> some View {
-        let name = provider.copy.sectionTitle
-        let isShown = state.shownTools.contains(provider)
-        return HStack {
-            Text(name)
-            Spacer()
-            Toggle(name, isOn: Binding(get: { isShown }, set: { actions.setTool(provider, shown: $0) }))
-                .toggleStyle(.switch)
-                .labelsHidden()
-                .disabled(provider == .codex && !isShown && state.isBusy)
-        }
-        .tag(provider)
-        .accessibilityElement(children: .contain)
-    }
-
-    private var showsModelLimits: Binding<Bool> {
-        Binding(get: { state.showsModelLimits }, set: { actions.setShowsModelLimits($0) })
-    }
-
-    private func canMove(by offset: Int) -> Bool {
-        guard let selection, let index = settings.general.toolOrder.firstIndex(of: selection) else { return false }
-        return settings.general.toolOrder.indices.contains(index + offset)
-    }
-
-    private func move(by offset: Int) {
-        guard let selection, let index = settings.general.toolOrder.firstIndex(of: selection),
-              settings.general.toolOrder.indices.contains(index + offset) else { return }
-        settings.general.toolOrder.swapAt(index, index + offset)
-    }
-}
-
 struct TokenUsagePane: View {
     @Bindable var settings: SettingsModel
     let actions: any SettingsActions
@@ -359,7 +202,7 @@ extension View {
     /// A grouped form as tall as its rows up to `SettingsPane.maxHeight`, so the window takes each pane's size.
     func settingsPane() -> some View {
         formStyle(.grouped)
-            .frame(width: SettingsPane.width)
+            .frame(minWidth: SettingsPane.width, maxWidth: .infinity)
             .frame(maxHeight: SettingsPane.maxHeight)
             .fixedSize(horizontal: false, vertical: true)
     }

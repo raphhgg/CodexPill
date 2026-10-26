@@ -20,11 +20,11 @@ Top to bottom, nothing else:
 3. The status message, only while an account operation runs.
 4. `Quit ⌘Q`
 
-Settings live in their own window ([Settings Window](#settings-window)); the menu keeps the quick actions. A tool with nothing set up has no card. Codex has a card while it is signed in on this Mac. Claude and Cursor have one once connected ([Claude Usage](claude-usage.md), [Cursor Usage](cursor-usage.md)). `Settings › Tools` hides a card.
+Settings live in their own window ([Settings Window](#settings-window)); the menu keeps the quick actions. A tool with nothing set up has no card. Codex has a card while it is signed in on this Mac. Claude and Cursor have one once connected ([Claude Usage](claude-usage.md), [Cursor Usage](cursor-usage.md)). `Settings › Providers` hides a card.
 
 With no card at all, on a first run or with every tool hidden, the menu starts at `Settings…`, where `Accounts` signs in to Codex and connects Claude and Cursor. On a first run with nothing connected, launch asks once: `Sign in to Codex?` / `Sign in to Codex in your browser.`
 
-The user orders the cards in `Settings › Tools`. The first card drives the menu bar icon ([Status Bar](status-bar.md)).
+The user orders the cards in `Settings › Providers`. The first card drives the menu bar icon ([Status Bar](status-bar.md)).
 
 ## Card
 
@@ -54,7 +54,7 @@ Hovering a card opens its side menu, which holds only:
 1. The email of the account in use, checked and disabled. For Claude and Cursor it is the account of the last reading: their own app's sign-in, or rusage's own Claude sign-in.
 2. Codex only, when the account has reset credits: `Use a Reset…`, then one disabled `Expires <date>` line per credit Codex listed ([Codex Reset Credits](codex-reset-credits.md)).
 
-Everything else about accounts lives in `Settings › Accounts`, and ordering and model limits in `Settings › Tools`.
+Everything else about accounts, ordering and model limits lives in `Settings › Providers`.
 
 `Hide Emails` masks every email the menu, its alerts and the tooltip show: `alex.side@example.com` reads `al•••e@example.com`. The domain stays visible.
 
@@ -73,16 +73,15 @@ One window of stock controls, with a toolbar pane per group. The title names the
 | Pane | Controls |
 |---|---|
 | General | `Refresh Every` (1 to 30 minutes), `Hide Emails`, `Theme` ([Theme](app-controls/02-theme.md)), `Launch at Login` ([Launch at Login](app-controls/01-launch-at-login.md)) |
-| Accounts | Per tool, in the menu's order: the account in use and where its sign-in comes from; `Allow Keychain Access…` when a read needs it. Codex: `Use Another Account…`, which replaces the Codex sign-in on this Mac ([Accounts](accounts/01-add-account.md)), and `Sign Out of Codex…`, which signs Codex out on this Mac after a confirmation. Claude: `Use Another Account…`, rusage's own browser sign-in, then `Sign Out of Claude` while that sign-in is in use, or `Disconnect` while Claude Code's is ([Claude Usage](claude-usage.md)). Cursor has no account actions. A tool not in the menu offers `Connect…`; Codex offers `Show` (`Not shown in the menu`) or, when signed out, `Sign In…` (`Signed out`) |
+| Providers | A sidebar of the providers added to rusage, in the menu's order, with each one's mark and account email (masked with Hide Emails). Drag, or `Move Up` and `Move Down` from the context menu or VoiceOver, reorders them; the first one shown drives the menu bar icon. `Add Provider` at the foot of the list adds one that isn't added yet, through its consent alert or sign-in, and is hidden once all three are added. `Remove <name>…`, at the bottom of the detail, in the row's context menu, or with Delete, removes it after `Remove <name>?` with a destructive `Remove` and `Cancel`: Claude and Cursor are disconnected, which also signs out of rusage's own sign-in, and Codex is removed from rusage but stays signed in on this Mac; `Add Provider` adds it back without a new sign-in. `Show in Menu Bar` only hides or shows the card: a hidden provider stays added and signed in, its row is dimmed, and rusage doesn't read it until it shows again. With nothing added, the detail says `Add a provider below the list.`. The selected one shows `Show in Menu Bar`, then `Account`: its email with `Signed in` beside it, and `From Claude Code` or `From the Cursor app` under it while rusage reads that tool's own sign-in, then its actions. Codex: `Use Another Account…`, which replaces the Codex sign-in on this Mac ([Accounts](accounts/01-add-account.md)), and `Sign Out…`, which signs Codex out on this Mac after a confirmation. Claude: `Use Another Account…`, rusage's own browser sign-in, then `Sign Out…` while that sign-in is in use, or `Disconnect` while Claude Code's is ([Claude Usage](claude-usage.md)). Claude adds `Options › Model Limits`. The pane remembers the provider shown last while rusage runs |
 | Menu Bar | `Menu Bar Label`, `Icon Style`, `Reveal Shortcut` ([Status Bar](status-bar.md)) |
 | Usage Bars | `% Used` or `% Left`, `Classic` or `Compact`, `Pace Markers`, `Session Color`, `Weekly Color`, `Same Color for Both`, `Use Theme Colors` |
-| Tools | A switch per tool in the menu's order, drag or `Move Up` and `Move Down` to reorder, and `Claude Model Limits` while Claude shows |
 | Token Usage | `Show` (`Graph, breakdown on hover`, `Graph and breakdown`, `Hidden`), `Chart`, `Breakdown` ([Token Usage](token-usage.md)) |
 
-The Tools switches are on while that tool's card shows:
+`Show in Menu Bar` is on while that provider's card shows:
 
-- Turning off `Claude` or `Cursor` disconnects it: the card goes and nothing is read, with no alert. Turning it on connects, through its consent alert.
-- Turning off `Codex` hides its card and stops the Codex reads. `auth.json` stays as it is. Turning it on shows the card and reads it again. When Codex is signed out, it signs in first.
+- Turning it off hides the card and stops reading the tool, with no alert. The tool stays added and signed in, and its sidebar row is dimmed. Turning it on shows the card and reads it again.
+- Only `+` connects (through the consent alert, or the Codex sign-in) and only `−` disconnects or removes.
 - Every tool can be hidden. The menu bar icon then shows the app's own glyph, and the menu is the first-run one.
 
 Settings that only store a value bind straight to `SettingsModel`, so the menu follows at once. Switches with side effects (connect and disconnect, Launch at Login, the shortcut, Token Usage) go through `MenuBarCoordinator`, the same path the menu takes. While the window shows, rusage has a Dock icon so the window can come forward. Closing the window drops its content, so nothing observes the settings while it is closed.

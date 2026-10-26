@@ -148,6 +148,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation, 
     private func signInToCodex() {
         recordMenuAction("signInToCodex")
         settings.codex.isConnected = true
+        settings.codex.isShown = true
         tasks.start { [weak self] in await self?.beginCodexSignIn() }
     }
 
@@ -171,6 +172,27 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation, 
 
     func setTool(_ provider: UsageProvider, shown: Bool) {
         perform(shown ? .connect : .disconnect, on: provider)
+    }
+
+    /// Only the card's visibility: the provider stays added and signed in. A hidden one isn't read.
+    func setShown(_ provider: UsageProvider, shown: Bool) {
+        recordMenuAction(shown ? "showProvider" : "hideProvider")
+        if provider == .codex {
+            settings.codex.isShown = shown
+            if shown { tasks.start { [weak self] in await self?.refreshCodex() } }
+            return
+        }
+        providerUsageRuntime.connection(for: provider)?.setShown(shown)
+        rebuildMenu()
+        statusItemRuntime.update(presentation: statusItemPresentation(for: menuState()))
+        if shown { refreshProviderUsageIfDue(forcing: provider) }
+    }
+
+    func removeProvider(_ provider: UsageProvider) {
+        let usesOwnSignIn = providerUsageRuntime.states.first { $0.provider == provider }?.ownSignIn == .signedIn
+        guard alertPresenter.presentConfirmation(alertFactory.makeRemoveProviderRequest(provider, usesOwnSignIn: usesOwnSignIn)) else { return }
+        recordMenuAction("removeProvider")
+        perform(.disconnect, on: provider)
     }
 
     /// Showing or hiding the card starts or stops its scan. Between the two visible modes the card redraws itself.
@@ -259,7 +281,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation, 
         case .connect:
             showCodex()
         case .disconnect:
-            recordMenuAction("hideCodex")
+            recordMenuAction("removeCodex")
             settings.codex.isConnected = false
         case .signOut:
             signOutOfCodex()
@@ -283,14 +305,15 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation, 
         }
     }
 
-    /// Shows a hidden Codex card and reads it again. Signed out of Codex, it signs in first.
+    /// Adds Codex back and reads it again, without a new sign-in. Signed out of Codex, it signs in first.
     private func showCodex() {
         guard accountsController.activeAccount != nil else {
             signInToCodex()
             return
         }
-        recordMenuAction("showCodex")
+        recordMenuAction("addCodex")
         settings.codex.isConnected = true
+        settings.codex.isShown = true
         tasks.start { [weak self] in await self?.refreshCodex() }
     }
 
@@ -429,7 +452,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation, 
             providerUsage: providerUsageRuntime.states,
             toolOrder: settings.general.toolOrder,
             masksEmails: settings.general.masksEmails,
-            hidesCodex: !settings.codex.isConnected,
+            hidesCodex: !(settings.codex.isConnected && settings.codex.isShown),
+            codexIsAdded: settings.codex.isConnected,
             showsModelLimits: settings.claude.value.showsModelLimits,
             theme: settings.general.theme,
             now: now()
@@ -636,7 +660,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation, 
 
     /// Reads the Codex limits unless the Codex card is hidden or Codex is signed out.
     func refreshCodex() async {
-        guard settings.codex.isConnected, !accountsController.isBusy, accountsController.activeAccount != nil else { return }
+        guard settings.codex.isConnected, settings.codex.isShown, !accountsController.isBusy, accountsController.activeAccount != nil else { return }
         switch await accountsController.refreshAccountData() {
         case .refreshed:
             diagnosticEventRecorder.recordRefresh(resultCategory: "refreshed")

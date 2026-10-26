@@ -45,7 +45,7 @@ remove rusage-owned beta state if needed.
 5. Confirm the menu bar item appears.
 6. Check whether the account and usage limits look believable.
 7. If you are comfortable doing so, choose `Use Another Account…` in
-   `Settings › Accounts`, sign in, and cancel at the confirmation.
+   `Settings › Providers`, sign in, and cancel at the confirmation.
 8. Confirm cancelling does not change the Codex account.
 9. Sign in again and choose `Use on This Mac`.
 10. Confirm Codex uses the expected account after it restarts.

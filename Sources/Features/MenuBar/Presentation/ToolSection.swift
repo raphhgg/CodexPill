@@ -7,8 +7,9 @@ struct ToolSection: Equatable {
     let card: ToolCard
     /// An action row under the card while its state lasts, such as "Allow Keychain Access…".
     let followUp: ToolFollowUp?
-    /// Which sign-in the reading came from, when it isn't rusage's own, such as "Uses Claude Code's sign-in".
-    var signInSourceLabel: String? = nil
+    /// Where the sign-in comes from when rusage reads the tool's own, such as "From Claude Code". Nil for rusage's
+    /// own sign-in and for Codex.
+    var signInSourceCaption: String? = nil
     /// The account the tool is signed in to, by email, masked when Hide Emails is on.
     var signedInLabel: String? = nil
     /// Whether the tool reads with rusage's own sign-in, for a tool that has one.
@@ -46,7 +47,7 @@ extension MenuBarMenuState {
             if provider == .codex {
                 return codexSection
             }
-            guard let usage = providerUsage.first(where: { $0.provider == provider }), usage.status != .notConnected else {
+            guard let usage = providerUsage.first(where: { $0.provider == provider }), usage.status != .notConnected, usage.isShown else {
                 return nil
             }
             return section(for: usage)
@@ -108,7 +109,7 @@ extension MenuBarMenuState {
             planTag: snapshot.flatMap { planTag(for: usage.provider, planName: $0.planName) },
             card: card,
             followUp: followUp,
-            signInSourceLabel: usage.ownSignIn == .signedOut && snapshot != nil ? "Uses \(copy.name)'s sign-in" : nil,
+            signInSourceCaption: usage.ownSignIn != .signedIn && snapshot != nil ? copy.toolSignInCaption : nil,
             signedInLabel: snapshot?.accountEmail.map { displayedEmail($0, masked: masksEmails) },
             ownSignIn: usage.ownSignIn
         )

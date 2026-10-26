@@ -24,7 +24,7 @@ accounts.
 1. The menu bar item appears, and the menu opens with one card per visible tool,
    then Settings…, Diagnostics, About and Quit. With no card, it starts at Settings….
 2. If the change touches Codex sign-in, run `Use Another Account…` in
-   `Settings › Accounts` once to the end and check that the Codex card follows
+   `Settings › Providers` once to the end and check that the Codex card follows
    the new account, and cancel it once at the confirmation and check that
    `auth.json` is unchanged.
 3. If the change touches the status item or Settings, open `Settings…` (⌘,),

@@ -15,6 +15,9 @@ protocol ProviderConnection: UsageProviderSource {
     /// asked. Calling it again, as "Allow Keychain Access…" does, only allows the prompt again.
     func connect() async
     func disconnect() async
+    /// Whether the menu shows its card. A hidden tool stays connected and isn't read.
+    var isShown: Bool { get }
+    func setShown(_ isShown: Bool)
     /// Whether rusage can sign in to this tool itself, and whether it is.
     var ownSignIn: ProviderOwnSignIn { get }
     /// Runs rusage's own sign-in. A cancelled sign-in ends without a notice.

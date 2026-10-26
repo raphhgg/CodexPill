@@ -20,16 +20,16 @@ rusage never reads or writes Claude Code's `settings.json`. Reading limits from 
 
 ## Menu
 
-The `Claude` card follows the shared card and side menu in [Menubar](menubar.md). The side menu shows only the signed-in email, checked and disabled. `Settings › Accounts › Claude` shows where the sign-in comes from and offers `Use Another Account…`, which runs rusage's own sign-in below and replaces an earlier one, then `Sign Out of Claude` while rusage's own sign-in is in use, or `Disconnect` while Claude Code's is. rusage never changes Claude Code's own sign-in. The browser signs in with whichever account claude.com is signed in to, so switch accounts there first to pick another one. `Settings › Tools › Claude` disconnects it.
+The `Claude` card follows the shared card and side menu in [Menubar](menubar.md). The side menu shows only the signed-in email, checked and disabled. `Settings › Providers › Claude` shows where the sign-in comes from and offers `Use Another Account…`, which runs rusage's own sign-in below and replaces an earlier one, then `Sign Out…` while rusage's own sign-in is in use. `−` under the sidebar disconnects Claude. rusage never changes Claude Code's own sign-in. The browser signs in with whichever account claude.com is signed in to, so switch accounts there first to pick another one. `Settings › Providers › Claude › Show in Menu Bar` disconnects it.
 
-- **Not connected.** There is no card. Turning on `Settings › Tools › Claude` connects. Choosing it opens a consent alert first. Nothing is read until the user confirms.
+- **Not connected.** There is no card. Turning on `Settings › Providers › Claude › Show in Menu Bar` connects. Choosing it opens a consent alert first. Nothing is read until the user confirms.
 - **Consent alert.** One short alert:
 
   > **Connect Claude Code?**
   > Uses Claude Code's sign-in to read your limits.
 
   Confirming saves the choice and reads at once.
-- **Connected.** The choice is saved in user defaults (`claudeUsageEnabled`, off by default). Turning off `Settings › Tools › Claude` turns the feature off at once with no alert, because it changes nothing outside rusage. Checking it again connects through the same consent alert.
+- **Connected.** The choice is saved in user defaults (`claudeUsageEnabled`, off by default). Turning off `Settings › Providers › Claude › Show in Menu Bar` turns the feature off at once with no alert, because it changes nothing outside rusage. Checking it again connects through the same consent alert.
 - **Current.** The plan tag (`Max x20`, read from `organizationRateLimitTier`, else `userRateLimitTier`, in Claude Code's `oauthAccount`, because the credentials' `rateLimitTier` keeps the tier from sign-in time; that one is used only when the account record has none), then `Session` and `Weekly` meters with their reset times, then one meter per model with its own weekly limit, such as `Fable this week`, unless the side menu's model limit toggle is off. When extra usage is on, one line follows: `$12.40 of $50.00 extra usage`, or `$12.40 extra usage` with no monthly limit. There is no reset-credit row. The meters use the same percent mode, layout, colors, and pacing markers as the Codex card.
 - **Waiting.** `Waiting for Claude Code usage`, with no second line. Anthropic answered but sent neither window, for example on a plan without subscription limits.
 - **Sign in with Claude.** Under the card, `Sign in with Claude…` appears while Claude Code is signed out or its sign-in expired, and while rusage's own sign-in needs a new sign-in. It and the side menu item open one short alert first:
@@ -53,7 +53,7 @@ The `Claude` card follows the shared card and side menu in [Menubar](menubar.md)
   | Any other status | `Anthropic is having trouble` | `Retrying in a few minutes.` |
   | A `200` that is not the usage shape | `Unexpected reply from Anthropic` | `Retrying in a few minutes.` |
 - **Stale.** A snapshot older than 15 minutes is dimmed. Its label still reads `As of …` until the next read.
-- **`Claude Model Limits`** in `Settings › Tools`, shown while Claude is connected. Model names come from `limits[].scope.model.display_name`. One switch covers every model, because the choice is one saved setting. Turning it off hides the per-model meters in the card. It never changes the menu bar icon, which uses only the session and weekly windows. It is on by default and saved in `settings.claude.v1`.
+- **`Claude Model Limits`** in `Settings › Providers`, shown while Claude is connected. Model names come from `limits[].scope.model.display_name`. One switch covers every model, because the choice is one saved setting. Turning it off hides the per-model meters in the card. It never changes the menu bar icon, which uses only the session and weekly windows. It is on by default and saved in `settings.claude.v1`.
 
 Reads happen when the menu opens or on the scheduled refresh, at most every 5 minutes. Connecting, `Allow Keychain Access…`, and disconnecting read at once.
 
@@ -96,7 +96,7 @@ Both hold the same JSON. rusage decodes only `claudeAiOauth.accessToken`, `claud
 
 A `401` on the usage request gets exactly one renewal and one retry, unless another process already renewed the token. A second `401` asks for a new sign-in.
 
-**Sign-out.** `Sign Out of Claude`, or disconnecting, deletes the item under the lock, then asks `https://platform.claude.com/v1/oauth/token/revoke` to revoke the refresh token, best effort. Reads go back to Claude Code's sign-in. If the item can't be deleted, one info alert says `Claude sign-in not removed`.
+**Sign-out.** `Settings › Providers › Claude › Sign Out…`, or disconnecting, deletes the item under the lock, then asks `https://platform.claude.com/v1/oauth/token/revoke` to revoke the refresh token, best effort. Reads go back to Claude Code's sign-in. If the item can't be deleted, one info alert says `Claude sign-in not removed`.
 
 **Logging.** `ClaudeSignIn` log lines carry a fixed category only: attempt, ok, invalid_grant, network, rejected, malformed, save_failed, unfinished, busy, and whether a sign-in was saved or removed.
 
@@ -143,8 +143,8 @@ The user-facing summary lives in [PRIVACY.md](../PRIVACY.md).
 - `ClaudeOAuthTests` and `ClaudeBrowserSignInTests` cover the RFC 7636 PKCE vector, the authorize URL, callback parsing, the `state` check, token parsing, the timeout, and the loopback listener. `ClaudeSignInStoreTests` and `ClaudeRefreshLockTests` cover the stored item with its marker and the lock.
 - `ClaudeOwnSignInTests` prove that a renewal that never saved its result is not retried on the next launch, that two processes renewing at once send the refresh token once, that a failed renewal keeps the token, and that sign-out deletes and revokes.
 - `ClaudeOwnSignInUsageTests` check the order mark, refresh, save, usage, a refused save retried without a second refresh, `invalid_grant` never falling back to Claude Code's sign-in, the one renewal after a `401`, and sign-in, sign-out and disconnect.
-- `ToolSectionTests` check which sign-in the section the Accounts pane shows reads with, and `MenuBarMenuBuilderTests` check `Sign in with Claude…` under the card and a side menu with only the email. A coordinator test checks the sign-in alert and the notice after a failed sign-in.
+- `ToolSectionTests` check which sign-in the section the Providers pane shows reads with, and `MenuBarMenuBuilderTests` check `Sign in with Claude…` under the card and a side menu with only the email. A coordinator test checks the sign-in alert and the notice after a failed sign-in.
 - `ClaudeCodeSecurityKeychainTests` check the `security` arguments and timeouts, text and hex passwords, and that each exit status reads as signed out, access needed or unreadable.
 - `UsageReadFailureTests` check that a failed read logs only its category, such as `http 503`.
-- A coordinator test walks the menu from `Settings › Tools › Claude` through declined consent, current usage, `Allow Keychain Access…`, and disconnect, reading the built `NSMenu`.
+- A coordinator test walks the menu from `Settings › Providers › Claude › Show in Menu Bar` through declined consent, current usage, `Allow Keychain Access…`, and disconnect, reading the built `NSMenu`.
 - No test touches the network or the real Keychain. rusage's own sign-in uses temp files and fake tokens.

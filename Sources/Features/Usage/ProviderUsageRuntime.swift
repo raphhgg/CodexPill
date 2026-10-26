@@ -46,7 +46,8 @@ final class ProviderUsageRuntime {
                         at: date,
                         staleAfter: connection.staleAfter
                     ),
-                    ownSignIn: connection.ownSignIn
+                    ownSignIn: connection.ownSignIn,
+                    isShown: connection.isShown
                 )
             }
         }
@@ -66,7 +67,10 @@ final class ProviderUsageRuntime {
         guard let connection = connection(for: provider) else { return nil }
         var notice: ProviderNotice?
         switch action {
-        case .connect, .allowKeychainAccess:
+        case .connect:
+            await connection.connect()
+            connection.setShown(true)
+        case .allowKeychainAccess:
             await connection.connect()
         case .disconnect:
             await connection.disconnect()
@@ -93,7 +97,8 @@ final class ProviderUsageRuntime {
     /// `forcing` reads that tool even inside its interval, for example right after the user connects it.
     func refreshIfDue(forcing forcedProvider: UsageProvider? = nil) async {
         let startedAt = now()
-        let dueConnections = connections.filter { connection in
+        // A hidden card isn't read; its last reading waits for it to show again.
+        let dueConnections = connections.filter(\.isShown).filter { connection in
             guard connection.provider != forcedProvider, let last = lastRefreshStartedAt[connection.provider] else { return true }
             return startedAt.timeIntervalSince(last) >= connection.refreshInterval
         }

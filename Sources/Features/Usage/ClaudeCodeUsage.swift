@@ -34,6 +34,14 @@ struct ClaudeCodeUsage: ProviderConnection {
         settings.value.isConnected
     }
 
+    var isShown: Bool {
+        settings.value.isShown
+    }
+
+    func setShown(_ isShown: Bool) {
+        settings.update { $0.isShown = isShown }
+    }
+
     /// Also signs out of rusage's own sign-in. Claude Code's sign-in is untouched.
     func disconnect() async {
         await browserSignIn.cancel()

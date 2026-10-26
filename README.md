@@ -29,12 +29,12 @@ rusage was called CodexPill before this release. See
 
 - See Codex, Claude Code and Cursor usage limits and when they reset.
 - See the account each tool is signed in to, and sign in to another Codex account
-  from `Settings › Accounts`.
+  from `Settings › Providers`.
 - Track local Codex token usage history from the menu bar.
 - Stay local-first: no cloud sync, no hidden browser automation, no account data upload.
 
 Claude Code and Cursor are optional. rusage reads the account each one is signed
-in to, only after you turn it on in `Settings › Tools`.
+in to, only after you turn it on in `Settings › Providers`.
 
 ## What's New
 
@@ -92,7 +92,7 @@ for maintainer packaging details.
 Install and sign in to at least one tool on your Mac: Codex (the app, the CLI or
 both), Claude Code or Cursor. rusage shows a Codex card while Codex is signed in
 on this Mac. Claude Code and Cursor appear once you turn them on in
-`Settings › Tools`.
+`Settings › Providers`.
 
 Token Usage is optional and local to this Mac. It reads local Codex session
 history, stores derived aggregate buckets, and does not upload prompt content,

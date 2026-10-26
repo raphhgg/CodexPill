@@ -7,6 +7,9 @@ import Observation
 final class SettingsWindowState {
     /// The tools with a card in the menu.
     var shownTools: [UsageProvider] = []
+    /// The providers added to rusage, shown or hidden, in the menu's order, and the hidden ones.
+    var addedProviders: [UsageProvider] = []
+    var hiddenProviders: Set<UsageProvider> = []
     /// Each shown tool's card, for the Accounts pane: its account, sign-in and actions.
     var toolSections: [ToolSection] = []
     var loginItemState = LoginItemState.unavailable
@@ -15,6 +18,8 @@ final class SettingsWindowState {
     var isBusy = false
     /// Whether Codex is signed in on this Mac, so a hidden Codex card can come back without a new sign-in.
     var isSignedInToCodex = false
+    /// The provider Settings › Providers showed last, kept while rusage runs.
+    var selectedProvider: UsageProvider?
     /// Claude's settings change off the main actor too, so they aren't observed; this copy is.
     var showsModelLimits = true
 
@@ -22,6 +27,8 @@ final class SettingsWindowState {
         let shownTools = state.toolSections.map(\.provider)
         if self.shownTools != shownTools { self.shownTools = shownTools }
         if toolSections != state.toolSections { toolSections = state.toolSections }
+        if addedProviders != state.addedProviders { addedProviders = state.addedProviders }
+        if hiddenProviders != state.hiddenProviders { hiddenProviders = state.hiddenProviders }
         if loginItemState != state.loginItemState { loginItemState = state.loginItemState }
         if canShowMenuBarText != state.hasStatusItemContentData { canShowMenuBarText = state.hasStatusItemContentData }
         if isBusy != state.isBusy { isBusy = state.isBusy }
@@ -36,6 +43,11 @@ final class SettingsWindowState {
 protocol SettingsActions: AnyObject {
     /// Through the tool's connect and disconnect actions, so their prompts still show.
     func setTool(_ provider: UsageProvider, shown: Bool)
+    /// Shows or hides the provider's card. It stays added and signed in either way.
+    func setShown(_ provider: UsageProvider, shown: Bool)
+    /// Asks first, then stops reading the provider: a disconnect, which also drops rusage's own sign-in, or for Codex,
+    /// hiding it. Codex stays signed in on this Mac.
+    func removeProvider(_ provider: UsageProvider)
     func setLaunchAtLogin(_ isOn: Bool)
     func openLoginItemsSettings()
     func recordRevealShortcut()

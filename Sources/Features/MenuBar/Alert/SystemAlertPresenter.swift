@@ -23,7 +23,7 @@ final class SystemAlertPresenter {
         alert.messageText = request.messageText
         alert.informativeText = request.informativeText
         alert.alertStyle = .informational
-        alert.addButton(withTitle: request.confirmTitle)
+        alert.addButton(withTitle: request.confirmTitle).hasDestructiveAction = request.isDestructive
         alert.addButton(withTitle: request.cancelTitle)
         return alert.runModal() == .alertFirstButtonReturn
     }

@@ -106,6 +106,71 @@ struct MenuBarCoordinatorTests {
     }
 
     @Test
+    func hidingAProviderKeepsItAddedButStopsShowingAndReadingIt() async throws {
+        let harness = try MenuBarCoordinatorHarness()
+        defer { harness.tearDown() }
+        harness.makeActiveAccount(email: "personal@example.com")
+        let codexReads = CountingAccountStatusClient()
+        let claude = ProviderConnectionProbe(provider: .claude, refreshInterval: 0, reading: .snapshot(UsageSnapshot(provider: .claude, planName: nil, windows: [], fetchedAt: Date())))
+        let coordinator = harness.makeCoordinator(providerConnections: [claude], accountStatusClient: codexReads)
+        coordinator.start()
+        await coordinator.performScheduledRefresh()
+        await coordinator.waitForPendingWork()
+
+        coordinator.setShown(.claude, shown: false)
+        coordinator.setShown(.codex, shown: false)
+        await coordinator.waitForPendingWork()
+        let (claudeReads, codexReadsWhenHidden) = (claude.readCount, codexReads.readCount)
+        await coordinator.performScheduledRefresh()
+        await coordinator.waitForPendingWork()
+
+        let state = coordinator.menuState()
+        #expect(cardAreaTitles(coordinator) == [])
+        #expect(state.addedProviders == [.claude, .codex])
+        #expect(state.hiddenProviders == [.claude, .codex])
+        #expect(claude.readCount == claudeReads)
+        #expect(codexReads.readCount == codexReadsWhenHidden)
+        #expect(harness.alertPresenter.confirmationRequests.isEmpty)
+
+        coordinator.setShown(.claude, shown: true)
+        coordinator.setShown(.codex, shown: true)
+        await coordinator.waitForPendingWork()
+
+        #expect(cardAreaTitles(coordinator) == ["Claude", "", "Codex"])
+        #expect(coordinator.menuState().hiddenProviders.isEmpty)
+    }
+
+    @Test
+    func removingAProviderAsksFirstThenStopsReadingIt() async throws {
+        let harness = try MenuBarCoordinatorHarness()
+        defer { harness.tearDown() }
+        harness.makeActiveAccount(email: "personal@example.com")
+        let claude = ProviderConnectionProbe(provider: .claude, refreshInterval: 0, reading: .snapshot(UsageSnapshot(provider: .claude, planName: nil, windows: [], fetchedAt: Date())))
+        let coordinator = harness.makeCoordinator(providerConnections: [claude])
+        coordinator.start()
+        await coordinator.performScheduledRefresh()
+        await coordinator.waitForPendingWork()
+        #expect(cardAreaTitles(coordinator) == ["Claude", "", "Codex"])
+
+        coordinator.removeProvider(.claude)
+        coordinator.removeProvider(.codex)
+        await coordinator.waitForPendingWork()
+
+        #expect(harness.alertPresenter.confirmationRequests.map(\.messageText) == ["Remove Claude?", "Remove Codex?"])
+        #expect(harness.alertPresenter.confirmationRequests.last?.informativeText == "rusage stops reading Codex. Codex stays signed in on this Mac.")
+        #expect(harness.alertPresenter.confirmationRequests.map(\.isDestructive) == [true, true])
+        #expect(cardAreaTitles(coordinator) == ["Claude", "", "Codex"])
+
+        harness.alertPresenter.confirmationResponse = true
+        coordinator.removeProvider(.claude)
+        coordinator.removeProvider(.codex)
+        await coordinator.waitForPendingWork()
+
+        #expect(cardAreaTitles(coordinator) == [])
+        #expect(FileManager.default.fileExists(atPath: harness.authFile.url.path))
+    }
+
+    @Test
     func signingInWithoutTheCodexAppReplacesTheAccountAndSaysCodexWasNotRestarted() async throws {
         let harness = try MenuBarCoordinatorHarness()
         defer { harness.tearDown() }
