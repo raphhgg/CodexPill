@@ -35,7 +35,7 @@ struct AllToolsTokenUsageMenuProviderTests {
         )
 
         let state = await provider.load(period: .last30Days, peakScope: .currentPeriod, forceRefresh: false) { _ in }
-        let card = TokenUsageMenuCard.make(period: .last30Days, loadState: state, calendar: calendar, now: now)
+        let card = TokenUsageMenuCard.make(period: .last30Days, loadState: state, shownTools: TokenUsageTool.allCases, calendar: calendar, now: now)
 
         #expect(card.days.count == 30)
         #expect(card.todayTokenCount == 400)
@@ -57,7 +57,7 @@ struct AllToolsTokenUsageMenuProviderTests {
         )
 
         let state = await provider.load(period: .last30Days, peakScope: .currentPeriod, forceRefresh: false) { _ in }
-        let card = TokenUsageMenuCard.make(period: .last30Days, loadState: state, calendar: calendar, now: day(2026, 10, 10))
+        let card = TokenUsageMenuCard.make(period: .last30Days, loadState: state, shownTools: TokenUsageTool.allCases, calendar: calendar, now: day(2026, 10, 10))
 
         #expect(card.toolSummaries.map(\.tool) == [.codex])
     }
@@ -74,7 +74,7 @@ struct AllToolsTokenUsageMenuProviderTests {
         )
 
         let state = await provider.load(period: .last30Days, peakScope: .currentPeriod, forceRefresh: false) { _ in }
-        let card = TokenUsageMenuCard.make(period: .last30Days, loadState: state, calendar: calendar, now: day(2026, 10, 10))
+        let card = TokenUsageMenuCard.make(period: .last30Days, loadState: state, shownTools: TokenUsageTool.allCases, calendar: calendar, now: day(2026, 10, 10))
 
         #expect(card.toolSummaries.map(\.tool) == [.codex, .claudeCode])
         #expect(card.toolSummaries.first?.isUnavailable == true)

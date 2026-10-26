@@ -206,6 +206,46 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
+    func tokenUsageCardFollowsTheMenuToolOrder() {
+        let card = makeTokenUsageCard(
+            loadState: .loaded(TokenUsageMenuLoadedData(
+                buckets: [],
+                allTimePeak: nil,
+                tools: [
+                    toolSeries(.codex, [0: ["gpt-5.6-sol": 4_000]]),
+                    toolSeries(.claudeCode, [0: ["claude-opus-5-5": 9_000]]),
+                ],
+                unavailableTools: [.cursor]
+            )),
+            shownTools: [.claudeCode, .cursor, .codex]
+        )
+
+        #expect(card.tools.map(\.tool) == [.claudeCode, .codex])
+        #expect(card.toolSummaries.map(\.tool) == [.claudeCode, .cursor, .codex])
+        #expect(card.tooltip(forDay: 29) == "May 20: 13K tokens\nClaude Code 9K · Codex 4K")
+    }
+
+    @Test
+    func tokenUsageCardLeavesOutToolsTheMenuHides() {
+        let card = makeTokenUsageCard(
+            loadState: .loaded(TokenUsageMenuLoadedData(
+                buckets: [],
+                allTimePeak: nil,
+                tools: [
+                    toolSeries(.codex, [0: ["gpt-5.6-sol": 4_000]]),
+                    toolSeries(.claudeCode, [0: ["claude-opus-5-5": 9_000]]),
+                ],
+                unavailableTools: [.cursor]
+            )),
+            shownTools: [.claudeCode]
+        )
+
+        #expect(card.toolSummaries.map(\.tool) == [.claudeCode])
+        #expect(card.subtitle == "Last 30 days · 9K · Today 9K")
+        #expect(card.topModels.map(\.name) == ["Opus 5.5"])
+    }
+
+    @Test
     func tokenUsageCardFirstRunShowsPlaceholderBarsAndOneLoadingLine() {
         let card = makeTokenUsageCard(loadState: .loading(TokenUsageScanProgress(scannedFiles: 8, totalFiles: 100)))
 
@@ -824,6 +864,29 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
+    func tokenUsageCardLeavesOutCodexWhenTheMenuHidesIt() async throws {
+        let provider = TokenUsageMenuProviderProbe()
+        let (coordinator, statusItem) = try makeCoordinatorWithStatusItem(
+            tokenUsageProvider: provider,
+            configureTokenUsage: { $0.isEnabled = true }
+        )
+        defer { NSStatusBar.system.removeStatusItem(statusItem) }
+        let menu = MenuBarMenuBuilder().makeMenu(state: coordinator.menuState(), target: coordinator)
+        statusItem.menu = menu
+        let liveCard = try #require(coordinator.menuState().tokenUsage)
+
+        coordinator.menuWillOpen(menu)
+        await waitUntil { await provider.loadCount == 1 }
+        await provider.finish(with: [dailyUsage(daysAgo: 0, totalTokens: 1_200)])
+        await waitUntil { liveCard.card.phase == .loaded }
+
+        // No saved Codex account, so the menu shows no Codex card and the Token Usage card leaves Codex out too.
+        #expect(coordinator.menuState().toolSections.isEmpty)
+        #expect(liveCard.card.tools.isEmpty)
+        #expect(!liveCard.card.hasData)
+    }
+
+    @Test
     func tokenUsageProgressWhileMenuClosedDefersMenuRebuildUntilNextOpen() async throws {
         let builder = MenuBarMenuBuilder()
         let provider = TokenUsageMenuProviderProbe()
@@ -1324,11 +1387,13 @@ struct MenuBarMenuBuilderTests {
 
     private func makeTokenUsageCard(
         period: CodexTokenUsagePeriod = .last30Days,
-        loadState: TokenUsageMenuLoadState
+        loadState: TokenUsageMenuLoadState,
+        shownTools: [TokenUsageTool] = TokenUsageTool.allCases
     ) -> TokenUsageMenuCard {
         TokenUsageMenuCard.make(
             period: period,
             loadState: loadState,
+            shownTools: shownTools,
             calendar: Calendar(identifier: .gregorian),
             now: tokenUsageNow
         )

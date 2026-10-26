@@ -14,13 +14,13 @@ struct ThemePalette {
         case .toolColors:
             return Self.toolColor(tool)
         case .monochrome:
-            return NSColor.labelColor.withAlphaComponent([0.88, 0.52, 0.26][tool.order])
+            return NSColor.labelColor.withAlphaComponent([0.88, 0.52, 0.26][tool.shade])
         default:
             let hue = hue
             return NSColor(
                 hue: hue.hue,
-                saturation: hue.saturation * [1, 0.7, 0.45][tool.order],
-                brightness: [0.95, 0.72, 0.5][tool.order],
+                saturation: hue.saturation * [1, 0.7, 0.45][tool.shade],
+                brightness: [0.95, 0.72, 0.5][tool.shade],
                 alpha: 1
             )
         }
@@ -78,6 +78,17 @@ extension UsageProvider {
         case .codex: .codex
         case .claude: .claudeCode
         case .cursor: .cursor
+        }
+    }
+}
+
+private extension TokenUsageTool {
+    /// Each tool keeps its shade whatever the menu's order, so a tool reads the same after a reorder.
+    var shade: Int {
+        switch self {
+        case .codex: 0
+        case .claudeCode: 1
+        case .cursor: 2
         }
     }
 }
