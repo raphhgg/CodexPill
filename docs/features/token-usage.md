@@ -66,7 +66,7 @@ Card:
 
 ## Happy Path
 
-1. User enables `Appearance › Show Token Usage`.
+1. User enables `Settings › Token Usage › Show Token Usage`.
 2. rusage starts scanning recent local Codex session JSONL files in the background.
 3. User can close the menu or continue working while the scan completes.
 4. rusage aggregates safe token totals by day and stores them in a derived cache.
@@ -74,9 +74,10 @@ Card:
 
 ## UI / Copy / States
 
-Appearance:
+`Settings › Token Usage`:
 
 - `Show Token Usage`
+- `Chart` (`Bars`, `Area`, `Lines`) and `Breakdown` (`By tool`, `Top models`), the same choices as the card's own toggles
 
 Default:
 
@@ -151,7 +152,7 @@ Expected behavior:
 
 ## Acceptance Criteria
 
-- Token Usage can be enabled and disabled from `Appearance`.
+- Token Usage can be enabled and disabled from `Settings › Token Usage`.
 - When disabled, the main menu does not show the Token Usage card.
 - When enabled, the main menu shows a compact Token Usage card inside the active account area, directly below the Session and Weekly limit rows.
 - The card displays the selected chart style for the selected period.

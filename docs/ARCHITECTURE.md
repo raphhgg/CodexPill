@@ -116,11 +116,11 @@ Its words go in `ProviderCopy` under its `UsageProvider` case. Nothing else chan
 - The port has no account methods: Claude Code and Cursor show only the account they are signed in to, and rusage never writes their sign-ins.
 - Codex is not a connection: its usage lives on each saved `CodexAccount` and adding an account is an interactive sign-in panel. The coordinator routes `.codex` actions to `AccountsController`, which refreshes the new active account after a switch and never runs a reset credit and an account change at the same time.
 
-`Features/AppControls` owns app-level controls the menu offers: Launch at Login through `LoginItemController` and the System Settings launcher.
+`Features/AppControls` owns app-level controls the Settings window offers: Launch at Login through `LoginItemController` and the System Settings launcher.
 
 `Features/Diagnostics` owns the diagnostic report: `DiagnosticEventRecorder` keeps recent menu actions and refresh results, `DiagnosticReportBuilder` turns them and the menu state into a redacted report, and `DiagnosticReportPresenter` saves it where the user chooses.
 
-`Features/MenuBar` owns menubar runtime, menu-state projection, menu rendering, native alert/panel presentation, and status-item behavior.
+`Features/MenuBar` owns menubar runtime, menu-state projection, menu rendering, the Settings window, native alert/panel presentation, and status-item behavior.
 
 Key boundaries:
 
@@ -128,6 +128,7 @@ Key boundaries:
 - `MenuBarAccounts`
 - `MenuBarAccountCatalogProjection`
 - `MenuBarMenuBuilder`
+- `SettingsWindow`, `SettingsPane` and `SettingsWindowState` (below)
 - `UsageMeterRow`, the SwiftUI row (label, bar, used percent, reset text) drawn for one `UsageWindow` in the account card
 - `MenuBarAlertFactory`
 - `AlertPresenter`
@@ -224,6 +225,16 @@ Settings are values with one owner, as rbar keeps them:
 | Whether Codex is read | `SettingsModel.codex` |
 | Whether Claude and Cursor are connected, Claude's sign-in source and model limits | `SettingsModel.claude` and `.cursor` |
 | Launch at Login | `SMAppService`, read each time and never stored |
+
+### Settings Window
+
+The menu is for glancing and quick actions; configuration lives in one window, modeled on rbar's. `SettingsWindow` owns our own `NSWindow`, not SwiftUI's `Settings` scene, which an accessory app can't reliably bring forward. Its `NSTabViewController` uses toolbar tabs, one per `SettingsPane`, each a grouped SwiftUI `Form` in an `NSHostingController` sized by `preferredContentSize`. The title follows the pane, minimize and zoom are off, and the last pane is restored.
+
+- `Settings…` (⌘,) runs `MenuBarCoordinator.openSettings()`. ⌘, fires while the menu still tracks, and an activation then is lost when it closes, so the coordinator opens the window from `menuDidClose`.
+- While the window shows, the app is `.regular` with a Dock icon and comes forward with `activate(ignoringOtherApps:)`. It goes back to `.accessory` when the window closes. A minimal main menu answers ⌘, ⌘W ⌘Q and text editing while the window is key.
+- Closing the window drops its content, so nothing observes the settings while it is closed.
+- Controls that only store a value bind straight to `SettingsModel`, and the coordinator's settings observation rebuilds the menu. Anything with side effects goes through `SettingsActions`, which the coordinator implements: showing or hiding a tool runs the same `.connect` and `.disconnect` actions the menu used, so their consent alerts still show, and Launch at Login, the reveal shortcut, Token Usage and Claude's model limits keep their coordinator paths.
+- `SettingsWindowState` is the `@Observable` copy of what the window shows that isn't a stored setting: the tools with a card, the login item state, whether the menu bar can show text, and Claude's model limits. The coordinator updates it from `MenuBarMenuState` each time it rebuilds the menu and when the window comes forward. Panes do no file I/O and start no processes.
 
 ## Boundary Notes
 

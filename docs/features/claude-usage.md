@@ -20,16 +20,16 @@ rusage never reads or writes Claude Code's `settings.json`. Reading limits from 
 
 ## Menu
 
-The `Claude` card follows the shared card and side menu in [Menubar](menubar.md). The side menu shows the signed-in email, checked and disabled, then `Sign in with Claude…` while rusage's own sign-in is off or `Sign Out of Claude` while it is on, then the model limit toggle and the moves. It has no other account actions. `Appearance › Show Tools › Claude` disconnects it.
+The `Claude` card follows the shared card and side menu in [Menubar](menubar.md). The side menu shows the signed-in email, checked and disabled, then `Sign in with Claude…` while rusage's own sign-in is off or `Sign Out of Claude` while it is on, then the model limit toggle and the moves. It has no other account actions. `Settings › Tools › Claude` disconnects it.
 
-- **Not connected.** There is no card. Checking `Appearance › Show Tools › Claude` connects. Choosing it opens a consent alert first. Nothing is read until the user confirms.
+- **Not connected.** There is no card. Turning on `Settings › Tools › Claude` connects. Choosing it opens a consent alert first. Nothing is read until the user confirms.
 - **Consent alert.** One short alert:
 
   > **Connect Claude Code?**
   > Uses Claude Code's sign-in to read your limits.
 
   Confirming saves the choice and reads at once.
-- **Connected.** The choice is saved in user defaults (`claudeUsageEnabled`, off by default). Unchecking `Appearance › Show Tools › Claude` turns the feature off at once with no alert, because it changes nothing outside rusage. Checking it again connects through the same consent alert.
+- **Connected.** The choice is saved in user defaults (`claudeUsageEnabled`, off by default). Unturning on `Settings › Tools › Claude` turns the feature off at once with no alert, because it changes nothing outside rusage. Checking it again connects through the same consent alert.
 - **Current.** The plan tag (`Max x20`, read from `organizationRateLimitTier`, else `userRateLimitTier`, in Claude Code's `oauthAccount`, because the credentials' `rateLimitTier` keeps the tier from sign-in time; that one is used only when the account record has none), then `Session` and `Weekly` meters with their reset times, then one meter per model with its own weekly limit, such as `Fable this week`, unless the side menu's model limit toggle is off. When extra usage is on, one line follows: `$12.40 of $50.00 extra usage`, or `$12.40 extra usage` with no monthly limit. There is no reset-credit row. The meters use the same percent mode, layout, colors, and pacing markers as the Codex card.
 - **Waiting.** `Waiting for Claude Code usage`, with no second line. Anthropic answered but sent neither window, for example on a plan without subscription limits.
 - **Sign in with Claude.** Under the card, `Sign in with Claude…` appears while Claude Code is signed out or its sign-in expired, and while rusage's own sign-in needs a new sign-in. It and the side menu item open one short alert first:
@@ -146,5 +146,5 @@ The user-facing summary lives in [PRIVACY.md](../PRIVACY.md).
 - `ToolSectionTests` and `MenuBarMenuBuilderTests` check `Sign in with Claude…` under the card and in the side menu, and `Sign Out of Claude`. A coordinator test checks the sign-in alert and the notice after a failed sign-in.
 - `ClaudeCodeSecurityKeychainTests` check the `security` arguments and timeouts, text and hex passwords, and that each exit status reads as signed out, access needed or unreadable.
 - `UsageReadFailureTests` check that a failed read logs only its category, such as `http 503`.
-- A coordinator test walks the menu from `Appearance › Show Tools › Claude` through declined consent, current usage, `Allow Keychain Access…`, and disconnect, reading the built `NSMenu`.
+- A coordinator test walks the menu from `Settings › Tools › Claude` through declined consent, current usage, `Allow Keychain Access…`, and disconnect, reading the built `NSMenu`.
 - No test touches the network or the real Keychain. rusage's own sign-in uses temp files and fake tokens.

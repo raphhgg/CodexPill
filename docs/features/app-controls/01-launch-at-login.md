@@ -8,42 +8,37 @@ opening the app every day.
 
 ## Product Contract
 
-rusage exposes a `Launch at Login` control in the main menu, under the tool cards.
+rusage exposes a `Launch at Login` switch in `Settings › General`.
 
 The setting controls the macOS login item for the main app. It must use the
-native macOS login item mechanism and reflect the current system state when the
-menu is built or refreshed.
+native macOS login item mechanism and reflect the current system state each
+time the menu is built and each time the Settings window comes forward.
 
 The product term is `Launch at Login`, not `Launch at Startup`.
 
 ## Happy Path
 
-1. The user opens the rusage menu.
-2. The user selects `Launch at Login`.
+1. The user opens `Settings… › General`.
+2. The user turns on `Launch at Login`.
 3. rusage explains that it will ask macOS to open the app automatically
    when the user logs in.
 4. The user confirms.
 5. rusage enables the macOS login item.
-6. The menu reflects the resulting checked state.
+6. The switch reflects the resulting state.
 
 ## UI / Copy / States
 
-The entry sits in the main menu, after `Hide Emails`:
+The switch is the last group of `Settings › General`:
 
 ```text
-Add Account
-----------------
-Appearance
-Refresh Every
-Hide Emails
-Launch at Login
+Launch at Login                      [switch]
 ```
 
 Normal states:
 
-- Checked `Launch at Login`: the login item is enabled.
-- Unchecked `Launch at Login`: the login item is disabled.
-- Selecting unchecked `Launch at Login` first shows:
+- On: the login item is enabled.
+- Off: the login item is disabled.
+- Turning it on first shows:
 
 ```text
 Launch rusage at Login?
@@ -51,49 +46,47 @@ Launch rusage at Login?
 rusage will ask macOS to open it automatically when you log in. You can turn
 this off here or in System Settings.
 ```
-- Selecting checked `Launch at Login` disables it directly.
+- Turning it off disables it directly.
 
-Blocked state:
+Blocked states add a row under the switch:
 
 ```text
-…
-Launch at Login…
+Launch at Login                      [switch]
+Needs approval in System Settings    [Open Login Items…]
 ```
 
-`Launch at Login…` means macOS needs external user action, such as approving or
-re-enabling the login item in System Settings. Selecting it opens System
-Settings to the relevant Login Items surface instead of trying to toggle again.
+While macOS waits for approval the switch stays on, and turning it on again
+opens System Settings instead. When the state can't be read or set here the
+switch is off and disabled, the row reads `Unavailable for this copy of rusage`,
+and `Open Login Items…` opens System Settings.
 
 ## Edge Cases
 
 - If enabling fails because macOS requires approval, rusage must not pretend
   the setting is enabled.
-- If the login item is disabled or blocked in System Settings, rusage shows
-  `Launch at Login…` and routes the user to System Settings.
+- If the login item is blocked in System Settings, rusage shows the approval
+  row and routes the user to System Settings.
 - If System Settings cannot be opened, rusage shows a short error and leaves
   the current login item state unchanged.
-- If rusage cannot determine the login item state, the menu should fail safe:
-  show `Launch at Login…`, keep it unchecked, and route to System Settings.
+- If rusage cannot determine the login item state, the window fails safe: the
+  switch is off and disabled, and the row routes to System Settings.
 
 ## Acceptance Criteria
 
-- The main menu includes `Launch at Login` after `Hide Emails`.
-- The normal row behaves like a native checkbox item.
-- Enabling the row requires explicit confirmation before registering rusage
+- `Settings › General` includes the `Launch at Login` switch.
+- Turning it on requires explicit confirmation before registering rusage
   as a macOS login item.
-- Disabling the row unregisters rusage as a macOS login item.
-- A blocked or requires-approval system state renders `Launch at Login…`.
-- Selecting `Launch at Login…` opens System Settings instead of toggling the
-  setting.
-- The menu state never claims launch at login is enabled when registration
-  failed or macOS reports the item as blocked.
+- Turning it off unregisters rusage as a macOS login item.
+- A requires-approval or unavailable system state shows its row and
+  `Open Login Items…`.
+- The switch never claims launch at login is enabled when registration
+  failed.
 
 ## Validation Targets
 
 - Unit or boundary tests for mapping macOS login item statuses to menu states.
-- Menu builder tests for checked, unchecked, blocked, and unavailable states.
 - Coordinator tests proving enabling asks for confirmation, disabling does not,
-  and blocked or unavailable rows open System Settings.
+  and blocked or unavailable states open System Settings.
 - Validation docs updated with the app-control invariant.
 - Manual QA on a real macOS app build to verify the login item appears in
   System Settings and survives relaunch/login behavior.
@@ -101,7 +94,6 @@ Settings to the relevant Login Items surface instead of trying to toggle again.
 ## Out Of Scope / Deferrals
 
 - No onboarding prompt asking users to enable launch at login.
-- No separate full Preferences window.
 - No automatic retry loop if macOS blocks the login item.
 - No support for helper-app login items unless the main-app mechanism proves
   insufficient.
@@ -114,7 +106,7 @@ Settings to the relevant Login Items surface instead of trying to toggle again.
 
 Manual QA on a signed or local macOS build:
 
-1. Toggle `Launch at Login` on.
+1. Turn `Launch at Login` on.
 2. Confirm rusage appears in macOS System Settings Login Items.
-3. Toggle it off.
+3. Turn it off.
 4. Confirm the System Settings entry is removed or disabled.

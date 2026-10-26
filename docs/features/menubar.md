@@ -13,10 +13,7 @@ Top to bottom, nothing else:
    ─────
    Add Account ›        Codex…
    ─────
-   Appearance ›
-   Refresh Every ›      1 minute … 30 minutes
-   Hide Emails
-   Launch at Login
+   Settings…            ⌘,
    ─────
    Diagnostics…
    About
@@ -25,7 +22,7 @@ Top to bottom, nothing else:
 3. The status message, only while an account operation runs.
 4. `Quit ⌘Q`
 
-There is no `Settings` submenu. A tool with nothing set up has no card. Codex has a card once one account is saved. Claude and Cursor have one once connected ([Claude Usage](claude-usage.md), [Cursor Usage](cursor-usage.md)). `Appearance › Show Tools` hides a card.
+Settings live in their own window ([Settings Window](#settings-window)); the menu keeps the quick actions. A tool with nothing set up has no card. Codex has a card once one account is saved. Claude and Cursor have one once connected ([Claude Usage](claude-usage.md), [Cursor Usage](cursor-usage.md)). `Settings › Tools` hides a card.
 
 With no card at all, on a first run or with every tool hidden, the menu starts at `Add Account ›`. It is the same list, so a new user sees where to begin first.
 
@@ -67,7 +64,7 @@ Hovering a card opens its side menu:
 6. Claude only: `Show Fable Limits`, named after the models with their own limit in the current reading (`Show Fable and Opus Limits` for two). Hidden when the reading has none. See [Claude Usage](claude-usage.md).
 7. Codex only: `Add Codex Account…`.
 
-Claude and Cursor have no other account rows: rusage reads one account at a time. A Cursor side menu with one card holds only the email. The Codex account in use has no remove item. `Appearance › Show Tools` hides a tool.
+Claude and Cursor have no other account rows: rusage reads one account at a time. A Cursor side menu with one card holds only the email. The Codex account in use has no remove item. `Settings › Tools` hides a tool.
 
 `Hide Emails` masks every email the menu, its alerts and the tooltip show: `alex.side@example.com` reads `al•••e@example.com`. The domain stays visible.
 
@@ -75,21 +72,31 @@ Every tool item carries a `ProviderMenuAction` and goes through `MenuBarCoordina
 
 ## App Items
 
-`Add Account ›` offers only `Codex…`. Adding a Codex account shows the Codex card again if it was hidden. Claude and Cursor have no accounts to add: `Show Tools` connects them.
+`Add Account ›` offers only `Codex…`. Adding a Codex account shows the Codex card again if it was hidden. Claude and Cursor have no accounts to add: `Settings › Tools` connects them.
 
-```text
-Appearance ›   Show Tools ›  Menu Bar Label ›  Icon Style ›  Usage Bars ›  Theme ›  ─  Show Token Usage
-```
-
-`Show Tools` has one checkmark item each for `Claude`, `Codex` and `Cursor`, checked while that tool's card shows.
-
-- Unchecking `Claude` or `Cursor` disconnects it: the card goes and nothing is read, with no alert. Checking it connects, through its consent alert.
-- Unchecking `Codex` hides its card and stops the Codex reads. Saved accounts and `auth.json` stay as they are. Checking it shows the card and reads it again. With no saved Codex account, checking it adds one. The choice is saved as `hidesCodex` in user defaults.
-- Every tool can be hidden. The menu bar icon then shows the app's own glyph, and the menu is the first-run one.
-
-`Theme` picks the usage bar colors and the Token Usage colors. [Theme](app-controls/02-theme.md) owns it.
+`Settings…` (⌘,) opens the [Settings Window](#settings-window) once the menu has closed.
 
 `Diagnostics…` first explains what the export contains, then writes a redacted JSON file only if the user confirms. The report holds allowlisted fields, per-export account aliases, every limit window each account reported (its kind, its menu title and a used-share category: available, limited or exhausted), summarized freshness states and recent rusage workflow events. It never includes raw logs, auth JSON, snapshots, raw UserDefaults, emails, hostnames, local paths, tokens, stable account IDs, prompt or session content, or raw stderr.
+
+## Settings Window
+
+One window of stock controls, with a toolbar pane per group. The title names the pane, the window takes each pane's size, minimize and zoom are off, and it reopens on the pane shown last.
+
+| Pane | Controls |
+|---|---|
+| General | `Refresh Every` (1 to 30 minutes), `Hide Emails`, `Theme` ([Theme](app-controls/02-theme.md)), `Launch at Login` ([Launch at Login](app-controls/01-launch-at-login.md)) |
+| Menu Bar | `Menu Bar Label`, `Icon Style`, `Reveal Shortcut` ([Status Bar](status-bar.md)) |
+| Usage Bars | `% Used` or `% Left`, `Classic` or `Compact`, `Pace Markers`, `Session Color`, `Weekly Color`, `Same Color for Both`, `Use Theme Colors` |
+| Tools | A switch per tool in the menu's order, drag or `Move Up` and `Move Down` to reorder, and `Claude Model Limits` while Claude shows |
+| Token Usage | `Show Token Usage`, `Chart`, `Breakdown` ([Token Usage](token-usage.md)) |
+
+The Tools switches are on while that tool's card shows:
+
+- Turning off `Claude` or `Cursor` disconnects it: the card goes and nothing is read, with no alert. Turning it on connects, through its consent alert.
+- Turning off `Codex` hides its card and stops the Codex reads. Saved accounts and `auth.json` stay as they are. Turning it on shows the card and reads it again. With no saved Codex account, it adds one.
+- Every tool can be hidden. The menu bar icon then shows the app's own glyph, and the menu is the first-run one.
+
+Settings that only store a value bind straight to `SettingsModel`, so the menu follows at once. Switches with side effects (connect and disconnect, Launch at Login, the shortcut, Token Usage) go through `MenuBarCoordinator`, the same path the menu takes. While the window shows, rusage has a Dock icon so the window can come forward. Closing the window drops its content, so nothing observes the settings while it is closed.
 
 ## Rendering
 
@@ -97,4 +104,4 @@ The menu is a native `NSMenu`. Each card is an `NSMenuItem` whose view is a `Men
 
 ## Validation Notes
 
-`ToolSectionTests` cover the card model per state: order, hidden windows, titles and lines, plan tags, masked emails and moves. `MenuBarMenuBuilderTests` build the `NSMenu` and assert item titles, order, submenus and the action each item sends. Coordinator flows live in `MenuBarCoordinatorTests`.
+`ToolSectionTests` cover the card model per state: order, hidden windows, titles and lines, plan tags, masked emails and moves. `MenuBarMenuBuilderTests` build the `NSMenu` and assert item titles, order, submenus and the action each item sends. Coordinator flows live in `MenuBarCoordinatorTests`. The builder tests also open the Settings window, check its panes, and close it.

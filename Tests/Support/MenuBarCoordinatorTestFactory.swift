@@ -36,6 +36,7 @@ extension MenuBarCoordinator {
             tokenUsageProvider: tokenUsageProvider,
             providerConnections: providerConnections,
             allowsEmptyStatePrompt: allowsEmptyStatePrompt,
+            bringsSettingsForward: false,
             now: now
         )
     }

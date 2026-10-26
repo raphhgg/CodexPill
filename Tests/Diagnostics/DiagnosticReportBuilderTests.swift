@@ -235,7 +235,6 @@ private func makeMenuState(
         activeAccount: activeAccount,
         inactiveAccounts: inactiveAccounts,
         refreshIntervalMinutes: 5,
-        refreshIntervalOptions: [5, 15],
         statusBarIndicatorStyle: .punchCard,
         statusBarDisplayMode: .iconOnly,
         isBusy: false,

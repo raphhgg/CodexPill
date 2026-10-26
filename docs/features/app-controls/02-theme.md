@@ -6,9 +6,9 @@ As a rusage user, I want to pick one look for rusage, so the usage bars and the 
 
 ## Product Contract
 
-`Appearance › Theme` sets two things together:
+`Settings › General › Theme` sets two things together:
 
-- **Usage bars** on every tool card. Session uses the theme's strong shade, and Weekly a softer one. Under Tool Colors each card uses its own tool's color: Codex teal, Claude Code orange, Cursor indigo. Custom colors from `Usage Bars` still override the theme.
+- **Usage bars** on every tool card. Session uses the theme's strong shade, and Weekly a softer one. Under Tool Colors each card uses its own tool's color: Codex teal, Claude Code orange, Cursor indigo. Custom colors from `Settings › Usage Bars` still override the theme.
 - **Token Usage.** Codex, Claude Code and Cursor are a strong, a middle and a soft shade of the theme, or their own colors under Tool Colors. Every theme also gives each tool a marker shape, a line dash and gaps between stacked parts, so color is never the only cue. See [Token Usage](../token-usage.md).
 
 The app icon and the menu bar icon stay the same in every theme.
@@ -22,26 +22,12 @@ rusage's icon is one glass lens in a porcelain ring, half full of cobalt: the pa
 ## UI / Copy / States
 
 ```text
-Appearance
-    Show Tools
-    Menu Bar Label
-    Icon Style
-    Usage Bars
-    Theme
-      ✓ Cobalt
-        Deep Teal
-        Emerald
-        Violet
-        Honey
-        Rose
-        ----------------
-        Monochrome
-        Tool Colors
-    ----------------
-    Show Token Usage
+Settings › General
+  Theme    [Cobalt ▾]    Cobalt, Deep Teal, Emerald, Violet, Honey, Rose, Monochrome, Tool Colors
+  Sets the icon, usage bar and Token Usage colors.
 ```
 
-The current theme has a checkmark.
+The picker shows the current theme.
 
 ## Edge Cases
 
@@ -54,7 +40,7 @@ The current theme has a checkmark.
 ## Acceptance Criteria
 
 - The built app shows the rusage icon in Finder and in the About alert, whatever the theme.
-- `Appearance › Theme` lists the eight themes in order, with Cobalt checked by
+- `Settings › General › Theme` lists the eight themes in order, with Cobalt selected by
   default.
 - Choosing a theme changes the usage bars and the Token Usage card at once.
 - The choice survives a relaunch.
@@ -62,6 +48,5 @@ The current theme has a checkmark.
 ## Validation Targets
 
 - Settings store tests for the default, persistence, and unknown stored values.
-- Menu builder tests for the submenu order and checked state.
-- Coordinator tests proving a selection persists.
+- Settings model tests proving a selection persists.
 - Manual QA on a built app for Finder, About, and an alert with each colour.

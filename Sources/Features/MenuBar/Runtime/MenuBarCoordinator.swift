@@ -5,7 +5,7 @@ import OSLog
 private let menuBarCoordinatorLogger = Logger(subsystem: "com.raphhgg.rusage", category: "MenuBarCoordinator")
 
 @MainActor
-final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
+final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation, SettingsActions {
     private let statusItemRuntime: StatusItemRuntime
     private let shortcutRuntime: GlobalShortcutRuntime
     private let accountsController: MenuBarAccounts
@@ -24,10 +24,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let accountActionFlow = AccountActionFlow()
     private let menuBuilder = MenuBarMenuBuilder()
     private var autoRefreshTimer: Timer?
-    private var colorPanelTarget: UsageColorTarget?
     private var wakeRefreshTask: Task<Void, Never>?
     private let tasks = TrackedTasks()
     private var rebuildsMenuAfterClose = false
+    private var opensSettingsAfterClose = false
     private var rebuildsMenuBeforeOpen = false
     private var menuBuiltAt: Date?
     private let now: () -> Date
@@ -52,10 +52,20 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         connections: providerConnections,
         onChange: { [weak self] in
             guard let self else { return }
-            statusItemRuntime.update(presentation: statusItemPresentation(for: menuState()))
+            let state = menuState()
+            statusItemRuntime.update(presentation: statusItemPresentation(for: state))
+            settingsWindowState.update(from: state)
             rebuildMenuWhenSafe()
         }
     )
+    let settingsWindowState = SettingsWindowState()
+    private(set) lazy var settingsWindow = SettingsWindow(
+        settings: settings,
+        state: settingsWindowState,
+        actions: self,
+        bringsAppForward: bringsSettingsForward
+    )
+    private let bringsSettingsForward: Bool
 
     init(
         statusItemRuntime: StatusItemRuntime,
@@ -72,6 +82,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         tokenUsageProvider: TokenUsageMenuProviding,
         providerConnections: [any ProviderConnection],
         allowsEmptyStatePrompt: Bool,
+        bringsSettingsForward: Bool = true,
         now: @escaping () -> Date = Date.init
     ) {
         self.statusItemRuntime = statusItemRuntime
@@ -88,6 +99,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         self.tokenUsageProvider = tokenUsageProvider
         self.providerConnections = providerConnections
         self.allowsEmptyStatePrompt = allowsEmptyStatePrompt
+        self.bringsSettingsForward = bringsSettingsForward
         self.now = now
     }
 
@@ -161,78 +173,43 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         }
     }
 
+    /// ⌘, runs the Settings item while the menu still tracks, and an activation then is lost when the menu closes, so
+    /// the window waits for that.
     @objc
-    func selectRefreshInterval(_ sender: NSMenuItem) {
-        recordMenuAction("selectRefreshInterval")
-        guard let minutes = sender.representedObject as? Int else { return }
-        settings.general.refreshIntervalMinutes = minutes
+    func openSettings() {
+        recordMenuAction("openSettings")
+        if statusItemRuntime.isMenuTrackingOpen {
+            opensSettingsAfterClose = true
+        } else {
+            settingsWindow.show()
+        }
     }
 
-    @objc
-    func selectStatusBarStyle(_ sender: NSMenuItem) {
-        recordMenuAction("selectStatusBarStyle")
-        guard
-            let rawValue = sender.representedObject as? String,
-            let style = StatusBarIndicatorStyle(rawValue: rawValue)
-        else {
-            return
-        }
-        settings.menuBar.statusBarIndicatorStyle = style
+    func setTool(_ provider: UsageProvider, shown: Bool) {
+        perform(shown ? .connect : .disconnect, on: provider)
     }
 
-    @objc
-    func selectStatusBarDisplayMode(_ sender: NSMenuItem) {
-        recordMenuAction("selectStatusBarDisplayMode")
-        guard
-            let rawValue = sender.representedObject as? String,
-            let mode = StatusBarDisplayMode(rawValue: rawValue)
-        else {
-            return
-        }
-        if !menuState().hasStatusItemContentData, mode != .iconOnly {
-            settings.menuBar.statusBarDisplayMode = .iconOnly
-            return
-        }
-        settings.menuBar.statusBarDisplayMode = mode
-    }
-
-    @objc
-    func toggleTokenUsage(_ sender: NSMenuItem) {
-        recordMenuAction("toggleTokenUsage")
-        settings.tokenUsage.isEnabled.toggle()
+    func setTokenUsageEnabled(_ isOn: Bool) {
+        guard settings.tokenUsage.isEnabled != isOn else { return }
+        recordMenuAction("setTokenUsageEnabled")
+        settings.tokenUsage.isEnabled = isOn
         tokenUsageRuntime.handleEnabledChange(
-            isEnabled: settings.tokenUsage.isEnabled,
+            isEnabled: isOn,
             period: Self.tokenUsagePeriod,
             peakScope: settings.tokenUsage.peakScope
         )
         rebuildMenu()
     }
 
+    func setShowsModelLimits(_ isOn: Bool) {
+        recordMenuAction("setShowsModelLimits")
+        settings.claude.update { $0.showsModelLimits = isOn }
+        rebuildMenu()
+    }
+
     @objc
     func toggleShowsModelLimits(_ sender: NSMenuItem) {
-        recordMenuAction("toggleShowsModelLimits")
-        settings.claude.update { $0.showsModelLimits.toggle() }
-        rebuildMenu()
-    }
-
-    @objc
-    func selectTheme(_ sender: NSMenuItem) {
-        recordMenuAction("selectTheme")
-        guard
-            let rawValue = sender.representedObject as? String,
-            let theme = AppTheme(rawValue: rawValue)
-        else {
-            return
-        }
-        settings.general.theme = theme
-        tokenUsageCard.theme = theme
-        rebuildMenu()
-    }
-
-    @objc
-    func toggleMasksEmails(_ sender: NSMenuItem) {
-        recordMenuAction("toggleMasksEmails")
-        settings.general.masksEmails.toggle()
+        setShowsModelLimits(!settings.claude.value.showsModelLimits)
     }
 
     @objc
@@ -242,66 +219,8 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         settings.general.toolOrder = order
     }
 
-    @objc
-    func selectUsagePercentMode(_ sender: NSMenuItem) {
-        recordMenuAction("selectUsagePercentMode")
-        guard
-            let rawValue = sender.representedObject as? String,
-            let mode = UsagePercentMode(rawValue: rawValue)
-        else {
-            return
-        }
-        settings.menuBar.usagePercentMode = mode
-    }
-
-    @objc
-    func selectUsageMeterLayout(_ sender: NSMenuItem) {
-        recordMenuAction("selectUsageMeterLayout")
-        guard
-            let rawValue = sender.representedObject as? String,
-            let layout = UsageMeterLayout(rawValue: rawValue)
-        else {
-            return
-        }
-        settings.menuBar.usageMeterLayout = layout
-    }
-
-    @objc
-    func chooseSessionAccentColor(_ sender: NSMenuItem) {
-        recordMenuAction("chooseSessionAccentColor")
-        presentUsageColorPanel(for: .session)
-    }
-
-    @objc
-    func chooseWeeklyAccentColor(_ sender: NSMenuItem) {
-        recordMenuAction("chooseWeeklyAccentColor")
-        presentUsageColorPanel(for: .weekly)
-    }
-
-    @objc
-    func toggleOneUsageColor(_ sender: NSMenuItem) {
-        recordMenuAction("toggleOneUsageColor")
-        settings.menuBar.usesOneUsageColor.toggle()
-    }
-
-    @objc
-    func resetUsageColors(_ sender: NSMenuItem) {
-        recordMenuAction("resetUsageColors")
-        settings.menuBar.resetUsageColors()
-        if let colorPanelTarget {
-            NSColorPanel.shared.color = resolvedUsageColor(for: colorPanelTarget)
-        }
-    }
-
-    @objc
-    func togglePacingMarkers(_ sender: NSMenuItem) {
-        recordMenuAction("togglePacingMarkers")
-        settings.menuBar.pacingMarkersEnabled.toggle()
-    }
-
-    @objc
-    func configureRevealStatusItemTitleShortcut(_ sender: NSMenuItem) {
-        recordMenuAction("configureRevealStatusItemTitleShortcut")
+    func recordRevealShortcut() {
+        recordMenuAction("recordRevealShortcut")
         let previousShortcut = settings.menuBar.revealStatusItemTitleShortcut
         try? shortcutRuntime.apply(shortcut: nil)
 
@@ -325,6 +244,10 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             }
         }
         rebuildMenu()
+    }
+
+    func settingsWindowDidBecomeKey() {
+        settingsWindowState.update(from: menuState())
     }
 
     /// The one entry point for every tool menu item: Codex, Claude Code and Cursor alike.
@@ -425,26 +348,26 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         }
     }
 
-    @objc
-    func toggleLaunchAtLogin(_ sender: NSMenuItem) {
-        recordMenuAction("toggleLaunchAtLogin")
-        switch loginItemController.state() {
-        case .enabled:
-            setLaunchAtLoginEnabled(false)
-        case .disabled:
+    /// Turning it on asks first. While it waits for approval or can't be set here, System Settings opens instead.
+    func setLaunchAtLogin(_ isOn: Bool) {
+        recordMenuAction("setLaunchAtLogin")
+        switch (loginItemController.state(), isOn) {
+        case (.disabled, true):
             guard alertPresenter.presentConfirmation(alertFactory.makeEnableLaunchAtLoginRequest()) else {
+                settingsWindowState.update(from: menuState())
                 return
             }
             setLaunchAtLoginEnabled(true)
-        case .requiresApproval:
-            openLoginItemsSettings(sender)
-        case .unavailable:
-            openLoginItemsSettings(sender)
+        case (.enabled, false), (.requiresApproval, false):
+            setLaunchAtLoginEnabled(false)
+        case (.requiresApproval, true), (.unavailable, _):
+            openLoginItemsSettings()
+        case (.enabled, true), (.disabled, false):
+            break
         }
     }
 
-    @objc
-    func openLoginItemsSettings(_ sender: NSMenuItem) {
+    func openLoginItemsSettings() {
         recordMenuAction("openLoginItemsSettings")
         if !loginItemsSettingsLauncher.openLoginItemsSettings() {
             alertPresenter.presentInfo(
@@ -477,21 +400,15 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             rebuildsMenuAfterClose = false
             rebuildMenu()
         }
+        if opensSettingsAfterClose {
+            opensSettingsAfterClose = false
+            settingsWindow.show()
+        }
     }
 
+    /// Items keep the enabled state the builder gave them.
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
-        guard menuItem.action == #selector(selectStatusBarDisplayMode(_:)) else {
-            return menuItem.isEnabled
-        }
-
-        guard
-            let rawValue = menuItem.representedObject as? String,
-            let mode = StatusBarDisplayMode(rawValue: rawValue)
-        else {
-            return false
-        }
-
-        return menuState().canSelectStatusBarDisplayMode(mode)
+        menuItem.isEnabled
     }
 
     private func rebuildMenu(using state: MenuBarMenuState? = nil) {
@@ -500,6 +417,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
         menuBuilder.populate(menu: menu, state: state, target: self)
         statusItemRuntime.menu = menu
         menuBuiltAt = state.now
+        settingsWindowState.update(from: state)
     }
 
     func menuState() -> MenuBarMenuState {
@@ -507,7 +425,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             activeAccount: accountsController.activeAccount,
             inactiveAccounts: accountsController.sortedInactiveAccounts,
             refreshIntervalMinutes: settings.general.refreshIntervalMinutes,
-            refreshIntervalOptions: GeneralSettings.refreshIntervalOptions,
             statusBarIndicatorStyle: settings.menuBar.statusBarIndicatorStyle,
             statusBarDisplayMode: settings.menuBar.statusBarDisplayMode,
             revealStatusItemTitleShortcut: settings.menuBar.revealStatusItemTitleShortcut,
@@ -877,66 +794,5 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation {
             displayMode: state.effectiveStatusBarDisplayMode,
             percentMode: state.usagePercentMode
         )
-    }
-
-    /// The color a usage bar shows: the custom one, otherwise the theme's color for Codex.
-    private func resolvedUsageColor(for target: UsageColorTarget) -> NSColor {
-        switch target {
-        case .session:
-            settings.menuBar.sessionAccentColor?.nsColor ?? themeUsageColor(for: .session)
-        case .weekly:
-            settings.menuBar.effectiveWeeklyAccentColor?.nsColor ?? themeUsageColor(for: .weekly)
-        }
-    }
-
-    private func themeUsageColor(for target: UsageColorTarget) -> NSColor {
-        let palette = ThemePalette(theme: settings.general.theme)
-        switch target {
-        case .session: return palette.sessionColor(for: .codex)
-        case .weekly: return palette.weeklyColor(for: .codex)
-        }
-    }
-
-    private func presentUsageColorPanel(for target: UsageColorTarget) {
-        colorPanelTarget = target
-        let panel = NSColorPanel.shared
-        panel.title = target.panelTitle
-        panel.showsAlpha = false
-        panel.isContinuous = true
-        panel.setTarget(self)
-        panel.setAction(#selector(handleUsageColorPanelChanged(_:)))
-        panel.color = resolvedUsageColor(for: target)
-        NSApp.activate(ignoringOtherApps: true)
-        panel.makeKeyAndOrderFront(nil)
-    }
-
-    @objc
-    private func handleUsageColorPanelChanged(_ sender: NSColorPanel) {
-        guard let colorPanelTarget else { return }
-        let color = sender.color.withAlphaComponent(1)
-        switch colorPanelTarget {
-        case .session:
-            settings.menuBar.sessionAccentColor = color.isEqualToStatusItemAccentColor(themeUsageColor(for: .session))
-                ? nil
-                : StatusItemAccentColor(nsColor: color)
-        case .weekly:
-            guard !color.isEqualToStatusItemAccentColor(resolvedUsageColor(for: .weekly)) else { return }
-            settings.menuBar.weeklyAccentColor = StatusItemAccentColor(nsColor: color)
-            settings.menuBar.usesOneUsageColor = false
-        }
-    }
-}
-
-private enum UsageColorTarget {
-    case session
-    case weekly
-
-    var panelTitle: String {
-        switch self {
-        case .session:
-            "Session Color"
-        case .weekly:
-            "Weekly Color"
-        }
     }
 }

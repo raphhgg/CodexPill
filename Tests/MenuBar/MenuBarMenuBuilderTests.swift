@@ -305,27 +305,63 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func statusItemContentOptionsAreDisabledWhenNoStatusDataExists() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active")),
-            target: coordinator
+    func settingsItemOpensTheSettingsWindowWithCommandComma() throws {
+        let menu = MenuBarMenuBuilder().makeMenu(
+            state: makeState(activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now))),
+            target: try makeCoordinator()
         )
 
-        let contentMenu = try #require(statusItemContentMenu(in: menu))
-        let iconOnly = try #require(contentMenu.items.first(where: { $0.title == "Icon Only" }))
-        let iconAndText = try #require(contentMenu.items.first(where: { $0.title == "Icon + Text" }))
-        let textOnHover = try #require(contentMenu.items.first(where: { $0.title == "Text on Hover" }))
+        let settings = try #require(menu.items.first { $0.title == "Settings…" })
 
-        #expect(iconOnly.isEnabled)
-        #expect(iconOnly.action != nil)
-        #expect(iconAndText.state == .off)
-        #expect(!iconAndText.isEnabled)
-        #expect(iconAndText.action == nil)
-        #expect(textOnHover.state == .off)
-        #expect(!textOnHover.isEnabled)
-        #expect(textOnHover.action == nil)
+        #expect(settings.action == #selector(MenuBarCoordinator.openSettings))
+        #expect(settings.keyEquivalent == ",")
+        #expect(settings.keyEquivalentModifierMask == .command)
+        #expect(settings.isEnabled)
+    }
+
+    @Test
+    func settingsWindowShowsItsPanesAndDropsTheirContentOnClose() throws {
+        let coordinator = try makeCoordinator()
+
+        coordinator.openSettings()
+
+        #expect(coordinator.settingsWindow.paneTitles == ["General", "Menu Bar", "Usage Bars", "Tools", "Token Usage"])
+        coordinator.settingsWindow.window?.close()
+        #expect(!coordinator.settingsWindow.isShown)
+    }
+
+    @Test
+    func settingsWindowStateFollowsWhatTheMenuShows() throws {
+        let state = SettingsWindowState()
+
+        state.update(from: makeState(
+            activeAccount: makeAccount(name: "Active"),
+            loginItemState: .requiresApproval,
+            providerUsage: [
+                ProviderUsageState(provider: .claude, status: .current(providerSnapshot(.claude))),
+                ProviderUsageState(provider: .cursor, status: .notConnected),
+            ]
+        ))
+
+        #expect(state.shownTools == [.claude, .codex])
+        #expect(state.loginItemState == .requiresApproval)
+        #expect(state.canShowMenuBarText)
+
+        state.update(from: makeState(activeAccount: makeAccount(name: "Active")))
+
+        #expect(state.shownTools == [.codex])
+        #expect(!state.canShowMenuBarText)
+    }
+
+    @Test
+    func turningOnTokenUsageFromSettingsAddsItsCard() throws {
+        let (coordinator, statusItem) = try makeCoordinatorWithStatusItem()
+        defer { NSStatusBar.system.removeStatusItem(statusItem) }
+
+        coordinator.setTokenUsageEnabled(true)
+
+        #expect(coordinator.menuState().tokenUsage != nil)
+        #expect(statusItem.menu?.items.contains { $0.title == "Token Usage" } == true)
     }
 
     @Test
@@ -386,259 +422,6 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func menuBarLabelOffersOnlyIconOnlyWhenActiveAccountHasNoUsageData() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let state = makeState(activeAccount: makeAccount(name: "Active"))
-        let menu = builder.makeMenu(state: state, target: coordinator)
-
-        let content = try #require(statusItemContentMenu(in: menu))
-        let iconOnly = try #require(content.items.first(where: { $0.title == "Icon Only" }))
-        let iconAndText = try #require(content.items.first(where: { $0.title == "Icon + Text" }))
-        let textOnHover = try #require(content.items.first(where: { $0.title == "Text on Hover" }))
-
-        #expect(iconOnly.isEnabled)
-        #expect(iconOnly.action == #selector(MenuBarCoordinator.selectStatusBarDisplayMode(_:)))
-        #expect(iconOnly.state == .on)
-        #expect(!iconAndText.isEnabled)
-        #expect(iconAndText.action == nil)
-        #expect(iconAndText.state == .off)
-        #expect(!textOnHover.isEnabled)
-        #expect(textOnHover.action == nil)
-        #expect(textOnHover.state == .off)
-    }
-
-    @Test
-    func statusItemContentOptionsStaySelectableWhenStatusDataExists() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now))),
-            target: coordinator
-        )
-
-        let contentMenu = try #require(statusItemContentMenu(in: menu))
-        let iconAndText = try #require(contentMenu.items.first(where: { $0.title == "Icon + Text" }))
-        let textOnHover = try #require(contentMenu.items.first(where: { $0.title == "Text on Hover" }))
-
-        #expect(iconAndText.isEnabled)
-        #expect(iconAndText.action != nil)
-        #expect(textOnHover.isEnabled)
-        #expect(textOnHover.action != nil)
-    }
-
-    @Test
-    func revealShortcutRowDisplaysShortcutWithNativeKeyEquivalent() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let shortcut = KeyboardShortcut(keyCode: 11, modifiers: [.control, .shift])
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
-                revealStatusItemTitleShortcut: shortcut
-            ),
-            target: coordinator
-        )
-
-        let contentMenu = try #require(statusItemContentMenu(in: menu))
-        let revealShortcut = try #require(contentMenu.items.first(where: { $0.title.hasPrefix("Reveal Shortcut…") }))
-
-        #expect(revealShortcut.attributedTitle?.string.isEmpty ?? true)
-        #expect(revealShortcut.keyEquivalent == "b")
-        #expect(revealShortcut.keyEquivalentModifierMask == [.control, .shift])
-        #expect(revealShortcut.action == #selector(MenuBarCoordinator.configureRevealStatusItemTitleShortcut(_:)))
-    }
-
-    @Test
-    func revealShortcutRowDisplaysNoneWhenShortcutIsCleared() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
-                revealStatusItemTitleShortcut: nil
-            ),
-            target: coordinator
-        )
-
-        let contentMenu = try #require(statusItemContentMenu(in: menu))
-        let revealShortcut = try #require(contentMenu.items.first(where: { $0.title.hasPrefix("Reveal Shortcut…") }))
-
-        #expect(revealShortcut.keyEquivalent == "")
-        #expect(revealShortcut.keyEquivalentModifierMask.isEmpty)
-    }
-
-    @Test
-    func statusItemMenuIncludesColorCustomizationAndReset() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now))),
-            target: coordinator
-        )
-
-        let preferencesMenu = try appearanceMenu(in: menu)
-        let usageBarsMenu = try #require(preferencesMenu.items.first(where: { $0.title == "Usage Bars" })?.submenu)
-        let session = try #require(usageBarsMenu.items.first(where: { $0.title == "Session Color…" }))
-        let weekly = try #require(usageBarsMenu.items.first(where: { $0.title == "Weekly Color…" }))
-        let sameColor = try #require(usageBarsMenu.items.first(where: { $0.title == "Same Color for Both" }))
-        let reset = try #require(usageBarsMenu.items.first(where: { $0.title == "Use Theme Colors" }))
-
-        #expect(session.action == #selector(MenuBarCoordinator.chooseSessionAccentColor(_:)))
-        #expect(session.image == nil)
-        #expect(weekly.action == #selector(MenuBarCoordinator.chooseWeeklyAccentColor(_:)))
-        #expect(sameColor.action == #selector(MenuBarCoordinator.toggleOneUsageColor(_:)))
-        #expect(sameColor.state == .on)
-        #expect(reset.action == #selector(MenuBarCoordinator.resetUsageColors(_:)))
-        #expect(!reset.isEnabled)
-    }
-
-    @Test
-    func themeMenuListsThemesWithCurrentOneChecked() throws {
-        let menu = MenuBarMenuBuilder().makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)), theme: .honey),
-            target: try makeCoordinator()
-        )
-
-        let themeMenu = try #require(appearanceMenu(in: menu).items.first(where: { $0.title == "Theme" })?.submenu)
-
-        #expect(themeMenu.items.map(\.title) == ["Cobalt", "Deep Teal", "Emerald", "Violet", "Honey", "Rose", "", "Monochrome", "Tool Colors"])
-        #expect(themeMenu.items.filter { $0.state == .on }.map(\.title) == ["Honey"])
-    }
-
-    @Test
-    func selectingAThemeSavesIt() throws {
-        let suiteName = "MenuBarMenuBuilderTests-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defaults.removePersistentDomain(forName: suiteName)
-        let settings = SettingsModel(userDefaults: defaults)
-        let repository = try makeIsolatedRepository()
-        let coordinator = MenuBarCoordinator.makeForTesting(
-            statusItemRuntime: StatusItemRuntime(statusItem: NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)),
-            accountsController: AccountsFeatureFactory(
-                repository: repository,
-                authService: CodexAuthSnapshotService(repository: repository),
-                codexAppProcessClient: CodexAppProcessProbe(),
-                accountStatusClient: DisabledAccountStatusClient()
-            ).makeController(),
-            settings: settings,
-            alertPresenter: AlertPresenterProbe()
-        )
-        func select(_ theme: AppTheme) {
-            let item = NSMenuItem()
-            item.representedObject = theme.rawValue
-            coordinator.selectTheme(item)
-        }
-
-        select(.violet)
-        select(.toolColors)
-        select(.monochrome)
-
-        #expect(SettingsModel(userDefaults: defaults).general.theme == .monochrome)
-    }
-
-    @Test
-    func appearanceMenuGroupsIconAndMarkerControls() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now))),
-            target: coordinator
-        )
-
-        let preferencesMenu = try appearanceMenu(in: menu)
-        let usageBarsMenu = try #require(preferencesMenu.items.first(where: { $0.title == "Usage Bars" })?.submenu)
-        let usageBarTitles = usageBarsMenu.items.map(\.title)
-        let showMarkers = try #require(usageBarsMenu.items.first(where: { $0.title == "Show Pace Markers" }))
-
-        #expect(preferencesMenu.items.map(\.title) == ["Show Tools", "Menu Bar Label", "Icon Style", "Usage Bars", "Theme", "", "Show Token Usage"])
-        #expect(usageBarTitles == [
-            "Show % Used", "Show % Left", "",
-            "Classic Layout", "Compact Layout", "",
-            "Show Pace Markers", "",
-            "Session Color…", "Weekly Color…", "Same Color for Both", "Use Theme Colors"
-        ])
-        #expect(preferencesMenu.items.first(where: { $0.title == "Menu Bar Label" })?.image == nil)
-        #expect(preferencesMenu.items.first(where: { $0.title == "Icon Style" })?.image == nil)
-        #expect(usageBarsMenu.items.first(where: { $0.title == "Show % Used" })?.state == .on)
-        #expect(usageBarsMenu.items.first(where: { $0.title == "Classic Layout" })?.state == .on)
-        #expect(showMarkers.action == #selector(MenuBarCoordinator.togglePacingMarkers(_:)))
-        #expect(showMarkers.state == .on)
-    }
-
-    @Test
-    func launchAtLoginPreferenceReflectsEnabledState() throws {
-        let menu = MenuBarMenuBuilder().makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
-                loginItemState: .enabled
-            ),
-            target: try makeCoordinator()
-        )
-
-        let item = try launchAtLoginItem(in: menu)
-
-        #expect(item.title == "Launch at Login")
-        #expect(item.action == #selector(MenuBarCoordinator.toggleLaunchAtLogin(_:)))
-        #expect(item.state == .on)
-        #expect(item.isEnabled)
-    }
-
-    @Test
-    func launchAtLoginPreferenceReflectsDisabledState() throws {
-        let menu = MenuBarMenuBuilder().makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
-                loginItemState: .disabled
-            ),
-            target: try makeCoordinator()
-        )
-
-        let item = try launchAtLoginItem(in: menu)
-
-        #expect(item.title == "Launch at Login")
-        #expect(item.action == #selector(MenuBarCoordinator.toggleLaunchAtLogin(_:)))
-        #expect(item.state == .off)
-        #expect(item.isEnabled)
-    }
-
-    @Test
-    func launchAtLoginPreferenceOpensSettingsWhenApprovalIsRequired() throws {
-        let menu = MenuBarMenuBuilder().makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
-                loginItemState: .requiresApproval
-            ),
-            target: try makeCoordinator()
-        )
-
-        let item = try launchAtLoginItem(in: menu)
-
-        #expect(item.title == "Launch at Login…")
-        #expect(item.action == #selector(MenuBarCoordinator.openLoginItemsSettings(_:)))
-        #expect(item.state == .off)
-        #expect(item.isEnabled)
-    }
-
-    @Test
-    func launchAtLoginPreferenceOpensSettingsWhenUnavailable() throws {
-        let menu = MenuBarMenuBuilder().makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
-                loginItemState: .unavailable
-            ),
-            target: try makeCoordinator()
-        )
-
-        let item = try launchAtLoginItem(in: menu)
-
-        #expect(item.title == "Launch at Login…")
-        #expect(item.action == #selector(MenuBarCoordinator.openLoginItemsSettings(_:)))
-        #expect(item.state == .off)
-        #expect(item.isEnabled)
-    }
-
-    @Test
     func coordinatorTogglesLaunchAtLoginFromDisabledToEnabled() throws {
         let loginItemController = LoginItemControllerProbe(currentState: .disabled)
         let alertPresenter = AlertPresenterProbe()
@@ -648,7 +431,7 @@ struct MenuBarMenuBuilderTests {
             loginItemController: loginItemController
         ).0
 
-        coordinator.toggleLaunchAtLogin(NSMenuItem())
+        coordinator.setLaunchAtLogin(true)
 
         #expect(alertPresenter.confirmationRequests.last?.messageText == "Launch rusage at Login?")
         #expect(loginItemController.setEnabledCalls == [true])
@@ -664,7 +447,7 @@ struct MenuBarMenuBuilderTests {
             loginItemController: loginItemController
         ).0
 
-        coordinator.toggleLaunchAtLogin(NSMenuItem())
+        coordinator.setLaunchAtLogin(true)
 
         #expect(alertPresenter.confirmationRequests.last?.messageText == "Launch rusage at Login?")
         #expect(loginItemController.setEnabledCalls.isEmpty)
@@ -680,7 +463,7 @@ struct MenuBarMenuBuilderTests {
             loginItemController: loginItemController
         ).0
 
-        coordinator.toggleLaunchAtLogin(NSMenuItem())
+        coordinator.setLaunchAtLogin(false)
 
         #expect(alertPresenter.confirmationRequests.isEmpty)
         #expect(loginItemController.setEnabledCalls == [false])
@@ -695,7 +478,7 @@ struct MenuBarMenuBuilderTests {
             loginItemsSettingsLauncher: settingsLauncher
         ).0
 
-        coordinator.toggleLaunchAtLogin(NSMenuItem())
+        coordinator.setLaunchAtLogin(true)
 
         #expect(loginItemController.setEnabledCalls.isEmpty)
         #expect(settingsLauncher.opens == 1)
@@ -710,7 +493,7 @@ struct MenuBarMenuBuilderTests {
             loginItemsSettingsLauncher: settingsLauncher
         ).0
 
-        coordinator.toggleLaunchAtLogin(NSMenuItem())
+        coordinator.setLaunchAtLogin(true)
 
         #expect(loginItemController.setEnabledCalls.isEmpty)
         #expect(settingsLauncher.opens == 1)
@@ -727,33 +510,12 @@ struct MenuBarMenuBuilderTests {
             loginItemController: loginItemController
         ).0
 
-        coordinator.toggleLaunchAtLogin(NSMenuItem())
+        coordinator.setLaunchAtLogin(true)
 
         #expect(loginItemController.setEnabledCalls.isEmpty)
         #expect(alertPresenter.confirmationRequests.last?.messageText == "Launch rusage at Login?")
         #expect(loginItemController.currentState == .disabled)
         #expect(alertPresenter.infoRequests.last?.informativeText == "Could not update Launch at Login. Open System Settings and try again.")
-    }
-
-    @Test
-    func statusItemMenuEnablesUseDefaultWhenCustomAccentColorExists() throws {
-        let builder = MenuBarMenuBuilder()
-        let coordinator = try makeCoordinator()
-        let menu = builder.makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
-                sessionAccentColor: NSColor(deviceRed: 0.12, green: 0.45, blue: 0.78, alpha: 1),
-                hasCustomUsageColors: true
-            ),
-            target: coordinator
-        )
-
-        let preferencesMenu = try appearanceMenu(in: menu)
-        let usageBarsMenu = try #require(preferencesMenu.items.first(where: { $0.title == "Usage Bars" })?.submenu)
-        let reset = try #require(usageBarsMenu.items.first(where: { $0.title == "Use Theme Colors" }))
-
-        #expect(reset.action == #selector(MenuBarCoordinator.resetUsageColors(_:)))
-        #expect(reset.isEnabled)
     }
 
     @Test
@@ -942,7 +704,7 @@ struct MenuBarMenuBuilderTests {
 
         #expect(menu.items.map(\.title) == [
             "Claude", "", "Codex", "", "Cursor", "",
-            "Add Account", "", "Appearance", "Refresh Every", "Hide Emails", "Launch at Login", "", "Diagnostics…", "About", "",
+            "Add Account", "", "Settings…", "", "Diagnostics…", "About", "",
             "Quit",
         ])
         #expect(!menu.items.contains { $0.title == "Settings" })
@@ -966,7 +728,7 @@ struct MenuBarMenuBuilderTests {
         let addAccount = try #require(menu.items.first?.submenu)
 
         #expect(menu.items.map(\.title) == [
-            "Add Account", "", "Appearance", "Refresh Every", "Hide Emails", "Launch at Login", "", "Diagnostics…", "About", "", "Quit",
+            "Add Account", "", "Settings…", "", "Diagnostics…", "About", "", "Quit",
         ])
         #expect(addAccount.items.map(\.title) == ["Codex…"])
         #expect(addAccount.items.map(providerAction) == [.addAccount])
@@ -1031,28 +793,6 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func showToolsChecksEachVisibleToolAndUncheckingIsDisconnect() throws {
-        let menu = MenuBarMenuBuilder().makeMenu(
-            state: makeState(
-                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
-                providerUsage: [
-                    ProviderUsageState(provider: .claude, status: .current(providerSnapshot(.claude))),
-                    ProviderUsageState(provider: .cursor, status: .notConnected),
-                ]
-            ),
-            target: try makeCoordinator()
-        )
-
-        let tools = try #require(try appearanceMenu(in: menu).items.first { $0.title == "Show Tools" }?.submenu)
-
-        #expect(tools.items.map(\.title) == ["Claude", "Codex", "Cursor"])
-        #expect(tools.items.map(\.state) == [.on, .on, .off])
-        #expect(tools.items.map(providerAction) == [.disconnect, .disconnect, .connect])
-        #expect(tools.items.allSatisfy { $0.isEnabled })
-        #expect(!menu.items.contains { $0.title.hasPrefix("Disconnect") })
-    }
-
-    @Test
     func claudeSideMenuShowsTheMaskedEmailOfItsLastReadingAndAKeychainStateAddsItsActionUnderTheCard() throws {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let lastUsage = UsageSnapshot(
@@ -1074,7 +814,7 @@ struct MenuBarMenuBuilderTests {
 
         let side = try #require(menu.items.first?.submenu)
 
-        #expect(menu.items.map(\.title) == ["Claude", "Allow Keychain Access…", "", "Codex", "", "Add Account", "", "Appearance", "Refresh Every", "Hide Emails", "Launch at Login", "", "Diagnostics…", "About", "", "Quit"])
+        #expect(menu.items.map(\.title) == ["Claude", "Allow Keychain Access…", "", "Codex", "", "Add Account", "", "Settings…", "", "Diagnostics…", "About", "", "Quit"])
         #expect(providerAction(menu.items[1]) == .allowKeychainAccess)
         #expect(side.items.map(\.title) == ["a•••x@example.com", "", "Move to Top", "Move Up", "Move Down"])
         #expect(side.items.filter { $0.title.hasPrefix("Move") }.map(\.isEnabled) == [false, false, true])
@@ -1154,26 +894,20 @@ struct MenuBarMenuBuilderTests {
         )
 
         let addAccount = try #require(menu.items.first { $0.title == "Add Account" }?.submenu)
-        let refresh = try #require(menu.items.first { $0.title == "Refresh Every" }?.submenu)
 
-        #expect(menu.items.map(\.title) == ["Claude", "", "Codex", "", "Add Account", "", "Appearance", "Refresh Every", "Hide Emails", "Launch at Login", "", "Diagnostics…", "About", "", "Quit"])
-        #expect(menu.items.first { $0.title == "Hide Emails" }?.state == .on)
+        #expect(menu.items.map(\.title) == ["Claude", "", "Codex", "", "Add Account", "", "Settings…", "", "Diagnostics…", "About", "", "Quit"])
         #expect(addAccount.items.map(\.title) == ["Codex…"])
         #expect(addAccount.items.map(providerAction) == [.addAccount])
-        #expect(refresh.items.map(\.title) == ["1 minute", "2 minutes", "5 minutes", "10 minutes", "15 minutes", "30 minutes"])
-        #expect(refresh.items.first { $0.state == .on }?.title == "5 minutes")
     }
 
     @Test
-    func hideEmailsAndSectionMovesPersistThroughTheCoordinator() throws {
+    func sectionMovesPersistThroughTheCoordinator() throws {
         let coordinator = try makeCoordinator()
         let move = NSMenuItem()
         move.representedObject = [UsageProvider.cursor, .codex, .claude]
 
-        coordinator.toggleMasksEmails(NSMenuItem())
         coordinator.reorderTools(move)
 
-        #expect(coordinator.menuState().masksEmails)
         #expect(coordinator.menuState().toolOrder == [.cursor, .codex, .claude])
     }
 
@@ -1239,18 +973,6 @@ struct MenuBarMenuBuilderTests {
             windows: [UsageWindow(kind: kind, usedPercent: 40, resetsAt: .now.addingTimeInterval(86_400), durationMinutes: nil)],
             fetchedAt: .now
         )
-    }
-
-    private func appearanceMenu(in menu: NSMenu) throws -> NSMenu {
-        try #require(menu.items.first(where: { $0.title == "Appearance" })?.submenu)
-    }
-
-    private func statusItemContentMenu(in menu: NSMenu) -> NSMenu? {
-        try? appearanceMenu(in: menu).items.first(where: { $0.title == "Menu Bar Label" })?.submenu
-    }
-
-    private func launchAtLoginItem(in menu: NSMenu) throws -> NSMenuItem {
-        try #require(menu.items.first(where: { $0.title.hasPrefix("Launch at Login") }))
     }
 
     private func makeCoordinator() throws -> MenuBarCoordinator {
@@ -1352,7 +1074,6 @@ struct MenuBarMenuBuilderTests {
             activeAccount: activeAccount,
             inactiveAccounts: inactiveAccounts,
             refreshIntervalMinutes: 5,
-            refreshIntervalOptions: [1, 2, 5, 10, 15, 30],
             statusBarIndicatorStyle: .moon,
             statusBarDisplayMode: .textOnHover,
             revealStatusItemTitleShortcut: revealStatusItemTitleShortcut,

@@ -40,10 +40,9 @@ struct MenuBarMenuBuilder {
         addSeparatorIfNeeded(to: menu)
         menu.addItem(addAccountMenuItem(state: state, target: target))
         menu.addItem(.separator())
-        menu.addItem(appearanceMenuItem(state: state, target: target))
-        menu.addItem(refreshIntervalMenuItem(state: state, target: target))
-        menu.addItem(toggleItem("Hide Emails", isOn: state.masksEmails, action: #selector(MenuBarCoordinator.toggleMasksEmails(_:)), target: target))
-        menu.addItem(launchAtLoginMenuItem(state: state, target: target))
+        let settings = actionItem("Settings…", action: #selector(MenuBarCoordinator.openSettings), target: target)
+        settings.keyEquivalent = ","
+        menu.addItem(settings)
         menu.addItem(.separator())
         menu.addItem(actionItem("Diagnostics…", action: #selector(MenuBarCoordinator.exportDiagnosticReport), isEnabled: !state.isBusy, target: target))
         menu.addItem(actionItem("About", action: #selector(MenuBarCoordinator.showAbout), isEnabled: !state.isBusy, target: target))
@@ -153,32 +152,6 @@ struct MenuBarMenuBuilder {
         return "Show \(models) Limits"
     }
 
-    private func appearanceMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let menu = NSMenu(title: "Appearance")
-        menu.addItem(showToolsMenuItem(state: state, target: target))
-        menu.addItem(statusBarDisplayMenuItem(state: state, target: target))
-        menu.addItem(statusBarStyleMenuItem(state: state, target: target))
-        menu.addItem(usageBarsMenuItem(state: state, target: target))
-        menu.addItem(themeMenuItem(state: state, target: target))
-        menu.addItem(.separator())
-        menu.addItem(toggleItem("Show Token Usage", isOn: state.tokenUsageEnabled, action: #selector(MenuBarCoordinator.toggleTokenUsage(_:)), target: target))
-        return submenuItem(menu)
-    }
-
-    /// Unchecking a tool hides its card and stops reading it. With every tool hidden the menu is the first-run one.
-    private func showToolsMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let menu = NSMenu(title: "Show Tools")
-        let visible = state.toolSections.map(\.provider)
-        for provider in [UsageProvider.claude, .codex, .cursor] {
-            let isVisible = visible.contains(provider)
-            let item = providerItem(title: provider.copy.sectionTitle, isVisible ? .disconnect : .connect, for: provider, target: target)
-            item.state = isVisible ? .on : .off
-            item.isEnabled = isVisible || provider != .codex || !state.isBusy
-            menu.addItem(item)
-        }
-        return submenuItem(menu)
-    }
-
     /// Only Codex has accounts to add. Claude and Cursor show the account their own app is signed in to, and
     /// `Show Tools` connects them.
     private func addAccountMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
@@ -187,94 +160,6 @@ struct MenuBarMenuBuilder {
         codex.isEnabled = !state.isBusy
         menu.addItem(codex)
         return submenuItem(menu)
-    }
-
-    private func refreshIntervalMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let menu = NSMenu(title: "Refresh Every")
-        for minutes in state.refreshIntervalOptions {
-            let option = NSMenuItem(title: minutes == 1 ? "1 minute" : "\(minutes) minutes", action: #selector(MenuBarCoordinator.selectRefreshInterval(_:)), keyEquivalent: "")
-            option.target = target
-            option.representedObject = minutes
-            option.state = state.refreshIntervalMinutes == minutes ? .on : .off
-            menu.addItem(option)
-        }
-        return submenuItem(menu)
-    }
-
-    private func launchAtLoginMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let action = switch state.loginItemState {
-        case .enabled, .disabled: #selector(MenuBarCoordinator.toggleLaunchAtLogin(_:))
-        case .requiresApproval, .unavailable: #selector(MenuBarCoordinator.openLoginItemsSettings(_:))
-        }
-        let item = actionItem(state.loginItemState.menuTitle, action: action, isEnabled: !state.isBusy, target: target)
-        item.state = state.loginItemState.isChecked ? .on : .off
-        return item
-    }
-
-    private func usageBarsMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let menu = NSMenu(title: "Usage Bars")
-        for mode in UsagePercentMode.allCases {
-            menu.addItem(optionItem(mode.menuTitle, value: mode.rawValue, isOn: state.usagePercentMode == mode, action: #selector(MenuBarCoordinator.selectUsagePercentMode(_:)), target: target))
-        }
-        menu.addItem(.separator())
-        for layout in UsageMeterLayout.allCases {
-            menu.addItem(optionItem(layout.menuTitle, value: layout.rawValue, isOn: state.usageMeterLayout == layout, action: #selector(MenuBarCoordinator.selectUsageMeterLayout(_:)), target: target))
-        }
-        menu.addItem(.separator())
-        menu.addItem(toggleItem("Show Pace Markers", isOn: state.pacingMarkersEnabled, action: #selector(MenuBarCoordinator.togglePacingMarkers(_:)), target: target))
-        menu.addItem(.separator())
-        menu.addItem(actionItem("Session Color…", action: #selector(MenuBarCoordinator.chooseSessionAccentColor(_:)), target: target))
-        menu.addItem(actionItem("Weekly Color…", action: #selector(MenuBarCoordinator.chooseWeeklyAccentColor(_:)), target: target))
-        menu.addItem(toggleItem("Same Color for Both", isOn: state.usesOneUsageColor, action: #selector(MenuBarCoordinator.toggleOneUsageColor(_:)), target: target))
-        menu.addItem(actionItem("Use Theme Colors", action: #selector(MenuBarCoordinator.resetUsageColors(_:)), isEnabled: state.hasCustomUsageColors, target: target))
-        return submenuItem(menu)
-    }
-
-    /// Sets the app icon, the usage bar colors and the Token Usage colors together.
-    private func themeMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let menu = NSMenu(title: "Theme")
-        for theme in AppTheme.allCases {
-            if theme == .monochrome {
-                menu.addItem(.separator())
-            }
-            menu.addItem(optionItem(theme.menuTitle, value: theme.rawValue, isOn: state.theme == theme, action: #selector(MenuBarCoordinator.selectTheme(_:)), target: target))
-        }
-        return submenuItem(menu)
-    }
-
-    private func statusBarStyleMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let menu = NSMenu(title: "Icon Style")
-        for style in StatusBarIndicatorStyle.allCases {
-            menu.addItem(optionItem(style.menuTitle, value: style.rawValue, isOn: state.statusBarIndicatorStyle == style, action: #selector(MenuBarCoordinator.selectStatusBarStyle(_:)), target: target))
-        }
-        return submenuItem(menu)
-    }
-
-    private func statusBarDisplayMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let menu = NSMenu(title: "Menu Bar Label")
-        for mode in StatusBarDisplayMode.allCases {
-            let option = state.canSelectStatusBarDisplayMode(mode)
-                ? optionItem(mode.menuTitle, value: mode.rawValue, isOn: false, action: #selector(MenuBarCoordinator.selectStatusBarDisplayMode(_:)), target: target)
-                : disabledItem(mode.menuTitle)
-            option.state = state.effectiveStatusBarDisplayMode == mode ? .on : .off
-            menu.addItem(option)
-        }
-        menu.addItem(.separator())
-        menu.addItem(revealShortcutMenuItem(state: state, target: target))
-        return submenuItem(menu)
-    }
-
-    private func revealShortcutMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = actionItem("Reveal Shortcut…", action: #selector(MenuBarCoordinator.configureRevealStatusItemTitleShortcut(_:)), isEnabled: !state.isBusy, target: target)
-        item.keyEquivalentModifierMask = []
-        if let shortcut = state.revealStatusItemTitleShortcut {
-            let presentation = KeyboardShortcutPresentation(shortcut: shortcut)
-            if let keyEquivalent = presentation.keyEquivalent {
-                item.keyEquivalent = keyEquivalent
-                item.keyEquivalentModifierMask = presentation.modifierFlags
-            }
-        }
-        return item
     }
 
     /// A saved account that is not in use, with its last limits on a second, smaller line.
@@ -307,12 +192,6 @@ struct MenuBarMenuBuilder {
     private func toggleItem(_ title: String, isOn: Bool, action: Selector, target: MenuBarCoordinator) -> NSMenuItem {
         let item = actionItem(title, action: action, target: target)
         item.state = isOn ? .on : .off
-        return item
-    }
-
-    private func optionItem(_ title: String, value: String, isOn: Bool, action: Selector, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = toggleItem(title, isOn: isOn, action: action, target: target)
-        item.representedObject = value
         return item
     }
 

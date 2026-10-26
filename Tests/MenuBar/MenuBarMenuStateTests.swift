@@ -32,9 +32,6 @@ struct MenuBarMenuStateTests {
 
         #expect(!state.hasStatusItemContentData)
         #expect(state.effectiveStatusBarDisplayMode == .iconOnly)
-        #expect(state.canSelectStatusBarDisplayMode(.iconOnly))
-        #expect(!state.canSelectStatusBarDisplayMode(.iconAndText))
-        #expect(!state.canSelectStatusBarDisplayMode(.textOnHover))
     }
 
     @Test
@@ -47,9 +44,6 @@ struct MenuBarMenuStateTests {
 
         #expect(state.hasStatusItemContentData)
         #expect(state.effectiveStatusBarDisplayMode == .textOnHover)
-        #expect(state.canSelectStatusBarDisplayMode(.iconOnly))
-        #expect(state.canSelectStatusBarDisplayMode(.iconAndText))
-        #expect(state.canSelectStatusBarDisplayMode(.textOnHover))
     }
 
     @Test
@@ -62,9 +56,6 @@ struct MenuBarMenuStateTests {
 
         #expect(!state.hasStatusItemContentData)
         #expect(state.effectiveStatusBarDisplayMode == .iconOnly)
-        #expect(state.canSelectStatusBarDisplayMode(.iconOnly))
-        #expect(!state.canSelectStatusBarDisplayMode(.iconAndText))
-        #expect(!state.canSelectStatusBarDisplayMode(.textOnHover))
     }
 
     @Test
@@ -172,7 +163,6 @@ struct MenuBarMenuStateTests {
             activeAccount: activeAccount,
             inactiveAccounts: inactiveAccounts,
             refreshIntervalMinutes: 5,
-            refreshIntervalOptions: [1, 5, 10],
             statusBarIndicatorStyle: .moon,
             statusBarDisplayMode: .textOnHover,
             isBusy: isBusy,
