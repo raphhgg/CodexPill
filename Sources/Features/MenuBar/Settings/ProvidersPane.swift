@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The providers added to rusage on the left, in the menu's order, which drag or Move Up and Move Down change, with +
-/// and − under them as in Mail's accounts. The selected one's switch, account and options are on the right. Every
+/// The providers added to rusage on the left, in the menu's order, which drag or Move Up and Move Down change, with
+/// Add Provider at the foot of the list as in Reminders. Remove is in the detail, the row's menu and on Delete. The selected one's switch, account and options are on the right. Every
 /// action runs through the coordinator, so its alerts still show.
 struct ProvidersPane: View {
     @Bindable var settings: SettingsModel
@@ -26,7 +26,7 @@ struct ProvidersPane: View {
                         .accessibilityHidden(!isSelected)
                 }
                 if selection == nil {
-                    Text("Add a provider with +")
+                    Text("Add a provider below the list.")
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
@@ -51,26 +51,25 @@ struct ProvidersPane: View {
     }
 
     private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            List(selection: Binding(get: { selection }, set: { state.selectedProvider = $0 })) {
-                ForEach(addedProviders, id: \.self) { provider in
-                    row(provider)
-                }
+        List(selection: Binding(get: { selection }, set: { state.selectedProvider = $0 })) {
+            ForEach(addedProviders, id: \.self) { provider in row(provider) }
                 .onMove(perform: moveAdded)
-            }
-            .listStyle(.sidebar)
-            .help("Drag to set the menu order. The first one shown drives the menu bar icon.")
-            .accessibilityHint("Drag to set the menu order. The first one shown drives the menu bar icon.")
-            Divider()
-            addRemoveBar
         }
+        .listStyle(.sidebar)
+        .help("Drag to set the menu order. The first one shown drives the menu bar icon.")
+        .accessibilityHint("Drag to set the menu order. The first one shown drives the menu bar icon.")
+        .onDeleteCommand {
+            if let selection { actions.removeProvider(selection) }
+        }
+        .safeAreaInset(edge: .bottom, alignment: .leading) { addButton }
         .frame(width: Self.sidebarWidth)
         .frame(maxHeight: .infinity)
     }
 
-    /// The standard + and − under a source list.
-    private var addRemoveBar: some View {
-        HStack(spacing: 0) {
+    /// Like Reminders' "Add List": a plain button at the foot of the sidebar, with the providers not added yet.
+    @ViewBuilder
+    private var addButton: some View {
+        if !notAddedProviders.isEmpty {
             Menu {
                 ForEach(notAddedProviders, id: \.self) { provider in
                     Button(provider.copy.sectionTitle) {
@@ -79,30 +78,15 @@ struct ProvidersPane: View {
                     }
                 }
             } label: {
-                Label("Add Provider", systemImage: "plus")
-                    .labelStyle(.iconOnly)
-                    .frame(width: 22, height: 22)
+                Label("Add Provider", systemImage: "plus.circle.fill")
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
             .fixedSize()
-            .disabled(notAddedProviders.isEmpty || state.isBusy)
-            .help("Add Provider")
-            Divider().frame(height: 14)
-            Button {
-                if let selection { actions.removeProvider(selection) }
-            } label: {
-                Label("Remove Provider", systemImage: "minus")
-                    .labelStyle(.iconOnly)
-                    .frame(width: 22, height: 22)
-            }
-            .buttonStyle(.borderless)
-            .disabled(selection == nil || state.isBusy)
-            .help("Remove Provider")
-            Spacer()
+            .disabled(state.isBusy)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
         }
-        .frame(height: 22)
-        .padding(.horizontal, 4)
     }
 
     /// Moves within the added providers keep the others where they are in the menu's order.
@@ -142,6 +126,9 @@ struct ProvidersPane: View {
         .contextMenu {
             Button("Move Up") { move(provider, by: -1) }.disabled(!canMoveUp)
             Button("Move Down") { move(provider, by: 1) }.disabled(!canMoveDown)
+            Divider()
+            Button("Remove \(provider.copy.sectionTitle)…", role: .destructive) { actions.removeProvider(provider) }
+                .disabled(state.isBusy)
         }
     }
 
@@ -198,6 +185,18 @@ struct ProvidersPane: View {
         .formStyle(.grouped)
         .scrollDisabled(true)
         .fixedSize(horizontal: false, vertical: true)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .safeAreaInset(edge: .bottom) {
+            if addedProviders.contains(provider) {
+                HStack {
+                    Spacer()
+                    Button("Remove \(provider.copy.sectionTitle)…", role: .destructive) { actions.removeProvider(provider) }
+                        .disabled(state.isBusy)
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 16)
+            }
+        }
     }
 
     @ViewBuilder
