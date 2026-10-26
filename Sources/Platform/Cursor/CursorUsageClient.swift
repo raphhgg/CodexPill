@@ -29,6 +29,8 @@ actor CursorUsageClient {
             lookup = try tokenSource.lookup()
         } catch CursorStateDatabaseError.busy {
             return .unavailable(.localStateBusy)
+        } catch CursorOwnSignInReadError.keychainAccessNeeded {
+            return .unavailable(.keychainAccessNeeded)
         } catch {
             UsageReadFailure.parse.log(for: .cursor)
             return .unavailable(.localStateUnreadable)

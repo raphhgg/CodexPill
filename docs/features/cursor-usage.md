@@ -8,7 +8,7 @@ As a rusage user who also codes in Cursor, I want to see how much of my Cursor p
 
 Cursor Usage is an optional menu bar feature. When connected, rusage shows the signed-in Cursor account's included-plan usage, any on-demand spend as extra usage, and the billing-cycle reset date.
 
-Reading usage never changes anything in Cursor. rusage never signs in to Cursor and never renews Cursor's session. If Cursor's sign-in is missing or expired, rusage says so and points the user back to Cursor. rusage shows only the account Cursor is signed in to, by the email Cursor cached. It never saves, adds, or switches Cursor accounts, never quits Cursor, and never writes Cursor's database or a Keychain item.
+Reading usage never changes anything in Cursor. rusage never renews the Cursor app's session. If Cursor's sign-in is missing or expired, rusage says so and points the user back to Cursor. By default rusage shows the account the Cursor app is signed in to, by the email Cursor cached. The user can instead sign in with rusage's own Cursor sign-in ([below](#rusages-own-cursor-sign-in)), kept in rusage's own Keychain item. rusage never quits Cursor and never writes Cursor's database or Keychain items.
 
 The feature is off by default. Connecting it is the user's consent for rusage to read Cursor's local sign-in token and send it to cursor.com.
 
@@ -16,7 +16,7 @@ Cursor usage is display-only. It never affects Codex or its account.
 
 ## Menu
 
-The `Cursor` card follows the shared card and side menu in [Menubar](menubar.md). The side menu shows the email Cursor is signed in to, checked and disabled, and has no account actions. `Settings › Providers › Cursor › Show in Menu Bar` disconnects it.
+The `Cursor` card follows the shared card and side menu in [Menubar](menubar.md). The side menu shows the email of the account it reads, checked and disabled. `Settings › Providers › Cursor` offers `Use Another Account…` and `Sign Out…`, as Claude does; `Sign Out…` shows while rusage's own Cursor sign-in is in use, and `−` under the sidebar disconnects Cursor. `Settings › Providers › Cursor › Show in Menu Bar` disconnects it.
 
 - **Not connected.** There is no card. Turning on `Settings › Providers › Cursor › Show in Menu Bar` connects. Choosing it opens a consent alert first. Nothing is read until the user confirms.
 - **Consent alert.** One short alert:
@@ -27,6 +27,7 @@ The `Cursor` card follows the shared card and side menu in [Menubar](menubar.md)
   Confirming saves the choice and reads at once.
 - **Connected.** The choice is saved in user defaults (`cursorUsageEnabled`, off by default). Turning off `Settings › Providers › Cursor › Show in Menu Bar` turns the feature off at once with no alert, because it changes nothing outside rusage. Checking it again connects through the same consent alert.
 - **Current.** The plan tag (`Pro`), one `Billing cycle` meter with `Resets 30 Oct`, and, when on-demand usage is enabled, a text line: `$12.34 of $50.00 extra usage`, or `$12.34 extra usage` with no cap. Spend is never drawn as a bar. The meter follows the percent mode, layout, pacing markers, and the weekly color.
+- **Own sign-in.** See below.
 - **No percent.** A plan with no included-usage percent, such as an unlimited plan, shows the header with no meter. It never shows 0%.
 - **Failures.** Each failure shows a title and at most one short line. Except for not installed and signed out, the last good values stay dimmed below it with their `As of` time.
 
@@ -45,6 +46,23 @@ The `Cursor` card follows the shared card and side menu in [Menubar](menubar.md)
 - **Stale.** A snapshot older than 15 minutes is dimmed. Its label still reads `As of …` until the next read.
 
 Reads happen when the menu opens or on the scheduled refresh, at most every 5 minutes. Connecting and disconnecting read at once.
+
+
+## rusage's Own Cursor Sign-In
+
+`Settings › Providers › Cursor › Use Another Account…` asks first:
+
+> **Sign in with Cursor?**
+> Opens your browser. rusage keeps this sign-in in its own Keychain item.
+
+It then signs in the way Cursor's own CLI (`cursor-agent login`) does:
+
+1. rusage makes a random PKCE verifier and opens `https://cursor.com/loginDeepControl?challenge=…&uuid=…&mode=login&redirectTarget=cli`.
+2. It polls `GET https://api2.cursor.sh/auth/poll?uuid=…&verifier=…` up to 150 times, a second apart at first and up to ten seconds, until Cursor answers with the tokens. A `404` means the browser sign-in isn't finished. Three other failures in a row stop the sign-in.
+3. It asks `POST https://api2.cursor.sh/aiserver.v1.DashboardService/GetMe` for the account email. Without one, the account reads as "Signed in with rusage".
+4. It saves the access token, the refresh token and the email in the `rusage Cursor sign-in` Keychain item (`cursor-own-sign-in.json` in an isolated run), replacing an earlier one, and reads with it from then on (`settings.cursor.v1` `usesOwnSignIn`).
+
+A day before the access token expires, rusage renews it the way the Cursor app does: `POST https://api2.cursor.sh/oauth/token` with `grant_type: refresh_token`, Cursor's client ID and the refresh token. When Cursor answers `shouldLogout`, rusage deletes its item and the card asks to sign in again. `Sign Out…` and disconnecting delete the item, and reads go back to the Cursor app's sign-in. Cursor has no revoke endpoint rusage knows of, so the token isn't revoked.
 
 ## Source Contract
 

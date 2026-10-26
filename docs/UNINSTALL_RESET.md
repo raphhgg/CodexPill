@@ -38,6 +38,12 @@ security delete-generic-password -s "rusage Claude sign-in"
 rm -f "$HOME/Library/Application Support/rusage/claude-sign-in.lock"
 ```
 
+If you used rusage's own Cursor sign-in, remove its item:
+
+```sh
+security delete-generic-password -s "rusage Cursor sign-in"
+```
+
 rusage never writes Claude Code's or Cursor's files or Keychain items, so
 there is nothing of theirs to remove. Test builds could save Claude Code and
 Cursor accounts. If you ran one, remove what it left. Run the first command

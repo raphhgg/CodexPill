@@ -53,6 +53,9 @@ struct CursorSettings: SettingsGroup {
     static let defaults = CursorSettings()
 
     var isConnected = false
+    /// Whether usage reads use rusage's own Cursor sign-in instead of the Cursor app's. On after a browser sign-in
+    /// succeeds, off after Sign Out or disconnect.
+    var usesOwnSignIn = false
     /// Whether its card shows in the menu. A hidden provider stays connected and isn't read.
     var isShown = true
 }
@@ -61,6 +64,7 @@ extension CursorSettings {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         isConnected = container.value(.isConnected, or: Self.defaults.isConnected)
+        usesOwnSignIn = container.value(.usesOwnSignIn, or: Self.defaults.usesOwnSignIn)
         isShown = container.value(.isShown, or: Self.defaults.isShown)
     }
 }

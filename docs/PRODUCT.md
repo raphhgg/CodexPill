@@ -10,7 +10,7 @@ It is for people who use Codex, often next to Claude Code and Cursor, and want t
 
 rusage shows one account per tool: the one each tool is signed in to on this Mac, by its email. For Codex that is the sign-in in `~/.codex/auth.json`. rusage keeps no list of saved accounts.
 
-Codex is on until the user signs out of it. Claude Code and Cursor are opt-in and read-only: each is read only after the user connects it. It never writes their files or Keychain items, and it never runs them. For Claude, the user can also opt in to rusage's own "Sign in with Claude", which rusage keeps in its own Keychain item and renews itself.
+Codex is on until the user signs out of it. Claude Code and Cursor are opt-in and read-only: each is read only after the user connects it. It never writes their files or Keychain items, and it never runs them. For Claude and Cursor, the user can also opt in to rusage's own sign-in, which rusage keeps in its own Keychain item and renews itself.
 
 Detailed product behavior and UX contracts live in [features](features/README.md).
 
