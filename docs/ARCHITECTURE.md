@@ -219,6 +219,8 @@ Settings persistence is split by feature boundary:
 
 App startup builds each store from one `UserDefaults` instance and injects the ones each runtime boundary needs. There is no shared settings facade.
 
+The stores are moving onto settings values, as rbar keeps them. Each group is one `SettingsGroup`: a `Codable`, `Equatable`, `Sendable` struct with `defaults`, stored as one JSON value under a versioned key. `GeneralSettings` holds the refresh interval, tool order, email masking and theme. `MenuBarSettings` holds the icon, label, usage bar and reveal-shortcut choices. `TokenUsageSettings` holds the Token Usage card's choices, and `CodexSettings`, `ClaudeSettings` and `CursorSettings` hold each tool's. `Preferences` is the only codec: a field that is missing or no longer decodes takes its default and keeps the rest of its group, and a group whose key is missing is read from the flat keys earlier versions stored (`LegacySettingsKeys.swift`), so nothing is migrated.
+
 ## Boundary Notes
 
 `AppComposition` is the App composition root. It chooses the production adapters, builds the `AccountsController`, and constructs `MenuBarCoordinator` with every collaborator passed in. `MenuBarCoordinator.init` has no production defaults, so a new collaborator is wired in one place. Tests build the coordinator through `Tests/Support/MenuBarCoordinatorTestFactory.swift`.

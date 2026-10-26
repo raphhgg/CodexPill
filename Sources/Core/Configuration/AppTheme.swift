@@ -1,7 +1,7 @@
 import Foundation
 
 /// The look of rusage: the usage bars on each tool card and the Token Usage chart.
-enum AppTheme: String, CaseIterable {
+enum AppTheme: String, CaseIterable, Codable {
     case cobalt
     case lagoon
     case emerald

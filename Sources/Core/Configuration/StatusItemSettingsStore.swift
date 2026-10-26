@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-struct StatusItemAccentColor: Codable, Equatable {
+struct StatusItemAccentColor: Codable, Equatable, Sendable {
     let red: Double
     let green: Double
     let blue: Double

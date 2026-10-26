@@ -1,6 +1,6 @@
 import Foundation
 
-enum StatusBarDisplayMode: String, CaseIterable, Identifiable {
+enum StatusBarDisplayMode: String, CaseIterable, Codable, Identifiable {
     case iconOnly
     case iconAndText
     case textOnHover
@@ -19,7 +19,7 @@ enum StatusBarDisplayMode: String, CaseIterable, Identifiable {
     }
 }
 
-enum StatusBarIndicatorStyle: String, CaseIterable, Identifiable {
+enum StatusBarIndicatorStyle: String, CaseIterable, Codable, Identifiable {
     case glasses
     case moon
     case punchCard
@@ -51,7 +51,7 @@ enum StatusBarIndicatorStyle: String, CaseIterable, Identifiable {
     }
 }
 
-enum UsagePercentMode: String, CaseIterable, Identifiable {
+enum UsagePercentMode: String, CaseIterable, Codable, Identifiable {
     case used
     case left
 
@@ -79,7 +79,7 @@ enum UsagePercentMode: String, CaseIterable, Identifiable {
     }
 }
 
-enum UsageMeterLayout: String, CaseIterable, Identifiable {
+enum UsageMeterLayout: String, CaseIterable, Codable, Identifiable {
     case classic
     case compact
 

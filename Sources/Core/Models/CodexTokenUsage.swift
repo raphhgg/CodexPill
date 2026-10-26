@@ -21,7 +21,7 @@ enum CodexTokenUsagePeriod: Int, CaseIterable, Codable, Hashable {
     }
 }
 
-enum TokenUsagePeakScope: String, CaseIterable, Equatable {
+enum TokenUsagePeakScope: String, CaseIterable, Codable, Equatable {
     case currentPeriod
     case allTime
 
