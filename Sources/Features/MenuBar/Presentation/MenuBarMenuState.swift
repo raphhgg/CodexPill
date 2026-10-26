@@ -1,9 +1,8 @@
 import AppKit
 
 struct MenuBarMenuState {
+    /// The Codex account `auth.json` signs in to. Nil while Codex is signed out.
     let activeAccount: CodexAccount?
-    /// Ranked by room left, best first.
-    let inactiveAccounts: [CodexAccount]
     let refreshIntervalMinutes: Int
     let statusBarIndicatorStyle: StatusBarIndicatorStyle
     let statusBarDisplayMode: StatusBarDisplayMode
@@ -33,7 +32,6 @@ struct MenuBarMenuState {
 
     init(
         activeAccount: CodexAccount?,
-        inactiveAccounts: [CodexAccount],
         refreshIntervalMinutes: Int = 5,
         statusBarIndicatorStyle: StatusBarIndicatorStyle = .glasses,
         statusBarDisplayMode: StatusBarDisplayMode = .iconOnly,
@@ -59,7 +57,6 @@ struct MenuBarMenuState {
         now: Date = .now
     ) {
         self.activeAccount = activeAccount
-        self.inactiveAccounts = inactiveAccounts
         self.refreshIntervalMinutes = refreshIntervalMinutes
         self.statusBarIndicatorStyle = statusBarIndicatorStyle
         self.statusBarDisplayMode = statusBarDisplayMode
@@ -83,15 +80,6 @@ struct MenuBarMenuState {
         self.showsModelLimits = showsModelLimits
         self.theme = theme
         self.now = now
-    }
-
-    var allSavedAccounts: [CodexAccount] {
-        [activeAccount].compactMap(\.self) + inactiveAccounts
-    }
-
-    func isAccountActiveLocally(_ account: CodexAccount) -> Bool {
-        guard let activeAccount else { return false }
-        return account.matchesSameAccount(as: activeAccount)
     }
 
     var shouldShowStatusMessage: Bool {

@@ -27,14 +27,20 @@ final class PanelPresenterProbe: PanelPresenter {
     private(set) var addAccountSignInRequests: [MenuBarAddAccountSignInPanelRequest] = []
 
     var addAccountSignInResult: MenuBarAddAccountSignInPanelResult = .cancelled
+    /// Waits for the sign-in the way the real panel does, instead of returning `addAccountSignInResult`.
+    var waitsForSignIn = false
 
     func presentAddAccountSignIn(
         _ request: MenuBarAddAccountSignInPanelRequest,
-        waitForCompletion _: @escaping () async -> Result<CodexAccount, Error>,
+        waitForCompletion: @escaping () async -> Result<CodexSignedInAccount, Error>,
         onCancel _: @escaping () -> Void
     ) async -> MenuBarAddAccountSignInPanelResult {
         addAccountSignInRequests.append(request)
-        return addAccountSignInResult
+        guard waitsForSignIn else { return addAccountSignInResult }
+        switch await waitForCompletion() {
+        case .success(let signedIn): return .completed(signedIn)
+        case .failure(let error): return .failed(error)
+        }
     }
 }
 
@@ -525,8 +531,7 @@ struct MenuBarMenuBuilderTests {
         let (coordinator, statusItem) = try makeCoordinatorWithStatusItem()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
-                inactiveAccounts: [makeAccount(name: "Business 3", usage: makeUsage(resettingAfter: .now))]
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now))
             ),
             target: coordinator
         )
@@ -543,8 +548,7 @@ struct MenuBarMenuBuilderTests {
         let (coordinator, statusItem) = try makeCoordinatorWithStatusItem()
         let menu = builder.makeMenu(
             state: makeState(
-                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now)),
-                inactiveAccounts: [makeAccount(name: "Business 3", usage: makeUsage(resettingAfter: .now))]
+                activeAccount: makeAccount(name: "Active", usage: makeUsage(resettingAfter: .now))
             ),
             target: coordinator
         )
@@ -744,7 +748,6 @@ struct MenuBarMenuBuilderTests {
         let menu = MenuBarMenuBuilder(locale: Locale(identifier: "en_GB"), timeZone: TimeZone(identifier: "GMT")!).makeMenu(
             state: makeState(
                 activeAccount: active,
-                inactiveAccounts: [first, second],
                 tokenUsageEnabled: true,
                 tokenUsageCard: makeTokenUsageCard(loadState: .loading(nil))
             ),
@@ -942,13 +945,16 @@ struct MenuBarMenuBuilderTests {
         ),
         configureTokenUsage: (inout TokenUsageSettings) -> Void = { _ in }
     ) throws -> (MenuBarCoordinator, NSStatusItem) {
-        let repository = try makeIsolatedRepository()
-        let accountsController = AccountsFeatureFactory(
-            repository: repository,
-            authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: CodexAppProcessProbe(),
-            accountStatusClient: DisabledAccountStatusClient()
-        ).makeController()
+        let authFile = makeCodexAuthFile()
+        let accountsController = AccountsController(
+            authFile: authFile,
+            accountStatusClient: DisabledAccountStatusClient(),
+            signInWorkflow: CodexSignInWorkflow(
+                authFile: authFile,
+                isolatedLoginClient: IsolatedCodexLoginProbe(authData: Data()),
+                codexAppProcessClient: CodexAppProcessProbe()
+            )
+        )
         let suiteName = "MenuBarMenuBuilderTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
@@ -968,14 +974,6 @@ struct MenuBarMenuBuilderTests {
             tokenUsageProvider: tokenUsageProvider
         )
         return (coordinator, statusItem)
-    }
-
-    private func makeIsolatedRepository() throws -> AccountRepository {
-        let appSupportDirectory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("MenuBarMenuBuilderTests-\(UUID().uuidString)", isDirectory: true)
-        return try AccountRepository(
-            isolatedRootDirectory: appSupportDirectory
-        )
     }
 
     private func waitUntil(
@@ -1006,7 +1004,6 @@ struct MenuBarMenuBuilderTests {
 
     private func makeState(
         activeAccount: CodexAccount?,
-        inactiveAccounts: [CodexAccount] = [],
         sessionAccentColor: NSColor? = nil,
         hasCustomUsageColors: Bool = false,
         usagePercentMode: UsagePercentMode = .used,
@@ -1024,7 +1021,6 @@ struct MenuBarMenuBuilderTests {
     ) -> MenuBarMenuState {
         MenuBarMenuState(
             activeAccount: activeAccount,
-            inactiveAccounts: inactiveAccounts,
             refreshIntervalMinutes: 5,
             statusBarIndicatorStyle: .moon,
             statusBarDisplayMode: .textOnHover,

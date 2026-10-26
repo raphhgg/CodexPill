@@ -27,14 +27,6 @@ final class DiagnosticEventRecorder {
         ))
     }
 
-    func recordSwitchAccount(targetAccountID: UUID) {
-        record(DiagnosticWorkflowEvent(
-            name: "switch_account",
-            category: .switchAccount,
-            fields: [.account(targetAccountID, redaction: .accountAlias)]
-        ))
-    }
-
     func recordRefresh(resultCategory: String) {
         record(DiagnosticWorkflowEvent(
             name: "refresh",
@@ -45,12 +37,10 @@ final class DiagnosticEventRecorder {
 
     private func diagnosticEventName(forMenuAction name: String) -> String {
         switch name {
-        case "addAccount":
-            return "add_account"
-        case "removeAccount":
-            return "remove_account"
-        case "switchAccount":
-            return "switch_account_menu"
+        case "signInToCodex":
+            return "codex_sign_in"
+        case "useSignedInCodexAccount":
+            return "codex_account_replaced"
         default:
             return "menu_action"
         }
@@ -58,12 +48,8 @@ final class DiagnosticEventRecorder {
 
     private func category(forMenuAction name: String) -> DiagnosticEventCategory {
         switch name {
-        case "addAccount":
+        case "signInToCodex", "useSignedInCodexAccount":
             return .addAccount
-        case "removeAccount":
-            return .removeAccount
-        case "switchAccount":
-            return .switchAccount
         default:
             return .menuAction
         }

@@ -41,108 +41,69 @@ struct MenuBarAlertFactoryTests {
     }
 
     @Test
-    func switchAccountWarningMentionsRunningCliSessions() {
-        let request = factory.makeSwitchAccountRequest(accountLabel: "work@example.com", runningCLISessions: 2)
-
-        #expect(request.informativeText.contains("switches This Mac to work@example.com"))
-        #expect(request.informativeText.contains("2 Codex terminals are running"))
-        #expect(request.informativeText.contains("Restart to use the new account."))
-    }
-
-    @Test
-    func addAccountSignInRequestCarriesDeviceCodeAndURL() {
+    func signInRequestCarriesDeviceCodeAndURL() {
         let prompt = IsolatedCodexLoginPrompt(
             url: URL(string: "https://auth.openai.com/codex/device")!,
             userCode: "ABCD-EFGH"
         )
 
-        let request = factory.makeAddAccountSignInRequest(prompt: prompt)
+        let request = factory.makeSignInRequest(prompt: prompt)
 
         #expect(request.userCode == "ABCD-EFGH")
         #expect(request.promptURL == URL(string: "https://auth.openai.com/codex/device")!)
     }
 
     @Test
-    func addAccountSuccessRequestOffersOptionalLocalSwitch() {
-        let request = factory.makeAddAccountSuccessRequest(accountLabel: "Business 2", runningCLISessions: 0)
+    func replacingTheCodexAccountNamesBothAccountsAndRunningTerminals() {
+        let request = factory.makeReplaceCodexAccountRequest(newLabel: "sam@example.com", currentLabel: "alex@example.com", runningCLISessions: 2)
 
-        #expect(request.messageText == "Account Added")
-        #expect(request.informativeText.contains("Business 2 was saved"))
-        #expect(request.informativeText.contains("This Mac was not changed"))
-        #expect(!request.informativeText.contains("Codex terminal is running"))
-        #expect(request.confirmTitle == "Use on This Mac")
-        #expect(request.cancelTitle == "Done")
-    }
-
-    @Test
-    func addAccountSuccessRequestMentionsRunningCliSessionsBeforeLocalSwitch() {
-        let request = factory.makeAddAccountSuccessRequest(accountLabel: "Business 2", runningCLISessions: 2)
-
+        #expect(request.messageText == "Use sam@example.com for Codex?")
+        #expect(request.informativeText.contains("sam@example.com replaces alex@example.com on this Mac"))
         #expect(request.informativeText.contains("2 Codex terminals are running"))
-        #expect(request.informativeText.contains("Restart them to use the new account."))
         #expect(request.confirmTitle == "Use on This Mac")
+        #expect(request.cancelTitle == "Cancel")
     }
 
     @Test
-    func addAccountFailureRequestsUseSpecificRecoveryCopy() {
-        let expired = factory.makeAddAccountSignInRetryRequest(outcome: .expiredCode)
+    func replacingASignedOutCodexSaysTheAccountBecomesTheOne() {
+        let request = factory.makeReplaceCodexAccountRequest(newLabel: "sam@example.com", currentLabel: nil, runningCLISessions: 0)
+
+        #expect(request.informativeText == "sam@example.com becomes the Codex account on this Mac, and Codex restarts.")
+    }
+
+    @Test
+    func signInFailureRequestsUseSpecificRecoveryCopy() {
+        let expired = factory.makeSignInRetryRequest(outcome: .expiredCode)
         #expect(expired.messageText == "Sign-In Expired")
         #expect(expired.informativeText.contains("enable device-code authorization"))
         #expect(expired.informativeText.contains("ChatGPT Security Settings"))
         #expect(expired.confirmTitle == "Try Again")
         #expect(expired.cancelTitle == "Cancel")
 
-        let duplicate = factory.makeAccountAlreadySavedRequest(accountLabel: "Business 4")
-        #expect(duplicate.messageText == "Account Already Saved")
-        #expect(duplicate.informativeText.contains("Business 4"))
-
-        #expect(factory.makeAddAccountSignInFailureRequest(outcome: .promptUnavailable(reason: nil)).messageText == "Couldn't Start Sign-In")
-        #expect(factory.makeAddAccountUnsafeAuthChangeRequest().messageText == "Couldn't Add Account")
-        #expect(factory.makeAddAccountSaveFailureRequest().messageText == "Couldn't Save Account")
+        #expect(factory.makeAccountAlreadyInUseRequest().messageText == "Already Signed In")
+        #expect(factory.makeSignInFailureRequest(outcome: .promptUnavailable(reason: nil)).messageText == "Couldn't Start Sign-In")
+        #expect(factory.makeSignInUnsafeAuthChangeRequest().messageText == "Couldn't Sign In")
     }
 
     @Test
-    func addAccountStartFailureCanIncludeSanitizedCodexReason() {
-        let request = factory.makeAddAccountSignInFailureRequest(
+    func signInStartFailureCanIncludeSanitizedCodexReason() {
+        let request = factory.makeSignInFailureRequest(
             outcome: .promptUnavailable(reason: "error sending request")
         )
 
         #expect(request.messageText == "Couldn't Start Sign-In")
         #expect(request.informativeText.contains("Check your network connection"))
-        #expect(request.informativeText.contains("enable device-code authorization"))
-        #expect(request.informativeText.contains("ChatGPT Security Settings"))
         #expect(request.informativeText.contains("Codex reported: error sending request"))
     }
 
     @Test
-    func addAccountSignInFailureOutcomesRenderWithoutPlatformErrors() {
-        let capture = factory.makeAddAccountSignInFailureRequest(outcome: .captureFailed)
-        #expect(capture.messageText == "Couldn't Add Account")
+    func signInFailureOutcomesRenderWithoutPlatformErrors() {
+        let capture = factory.makeSignInFailureRequest(outcome: .captureFailed)
+        #expect(capture.messageText == "Couldn't Sign In")
         #expect(capture.informativeText == "The Codex sign-in did not complete.")
 
-        let verification = factory.makeAddAccountSignInFailureRequest(outcome: .verificationFailed)
-        #expect(verification.messageText == "Couldn't Add Account")
+        let verification = factory.makeSignInFailureRequest(outcome: .verificationFailed)
         #expect(verification.informativeText == "rusage could not verify the signed-in account.")
-    }
-
-    @Test
-    func removeAccountRequestUsesPlainRemoveWhenAccountIsInactive() {
-        let request = factory.makeRemoveAccountRequest(accountLabel: "work@example.com")
-
-        #expect(request.informativeText.contains("removes work@example.com from rusage"))
-        #expect(request.confirmTitle == "Remove")
-    }
-
-    @Test
-    func removeAccountRequestRequiresSignOutWhenAccountIsActiveOnTargets() {
-        let request = factory.makeRemoveAccountRequest(
-            accountLabel: "Business 4",
-            activeTargets: ["This Mac", "debian-vm"]
-        )
-
-        #expect(request.messageText == "Business 4 is in use")
-        #expect(request.informativeText == "Sign out on This Mac and debian-vm before removing it?")
-        #expect(request.confirmTitle == "Sign Out and Remove")
     }
 
     @Test
@@ -161,7 +122,7 @@ struct MenuBarAlertFactoryTests {
         """)
 
         #expect(request.messageText == "rusage Error")
-        #expect(request.informativeText == "This saved Codex account needs to be signed in again before it can be used. Remove and add the account again, then retry.")
+        #expect(request.informativeText == "Codex needs you to sign in again. Sign in from Settings › Accounts, then retry.")
         #expect(!request.informativeText.contains("backend-api"))
         #expect(!request.informativeText.contains("token_invalidated"))
     }

@@ -7,44 +7,36 @@ import Testing
 @MainActor
 struct MenuBarCoordinatorTests {
     @Test
-    func removeAccountSignsOutThisMacBeforeDeletingSavedAccount() async throws {
-        let harness = try MenuBarCoordinatorHarness()
-        defer { harness.tearDown() }
-        let account = try harness.makeActiveAccount(email: "business-4@example.com")
-        harness.alertPresenter.confirmationResponse = true
-        let coordinator = harness.makeCoordinator()
-        coordinator.start()
-        await coordinator.waitForPendingWork()
-
-        harness.send(.removeAccount(account.id), for: .codex)
-        await coordinator.waitForPendingWork()
-
-        #expect(harness.alertPresenter.confirmationRequests.last?.messageText == "business-4@example.com is in use")
-        #expect(harness.alertPresenter.confirmationRequests.last?.informativeText == "Sign out on This Mac before removing it?")
-        #expect(harness.accountsController.accounts.isEmpty)
-        #expect(!FileManager.default.fileExists(atPath: harness.repository.paths.codexAuthFile.path))
-    }
-
-    @Test
-    func alertsNameAccountsAsTheSideMenuDoesWithEmailsHidden() async throws {
+    func signingInToAnotherCodexAccountAsksThenReplacesTheOneOnThisMac() async throws {
         let harness = try MenuBarCoordinatorHarness()
         defer { harness.tearDown() }
         harness.settings.general.masksEmails = true
-        let codexAccount = try harness.makeActiveAccount(email: "business-4@example.com")
+        harness.makeActiveAccount(email: "business-4@example.com")
+        let newAuth = makeCodexAuthData(email: "sam@example.com", accountID: "acct-2", userID: "user-2")
+        harness.login.authData = newAuth
+        harness.panelPresenter.waitsForSignIn = true
         let coordinator = harness.makeCoordinator()
         coordinator.start()
         await coordinator.waitForPendingWork()
 
-        harness.send(.switchAccount(codexAccount.id), for: .codex)
-        harness.send(.removeAccount(codexAccount.id), for: .codex)
+        harness.send(.addAccount, for: .codex)
         await coordinator.waitForPendingWork()
 
-        #expect(harness.alertPresenter.confirmationRequests.map(\.informativeText).first == "This switches This Mac to bu•••4@example.com and restarts Codex.")
-        #expect(harness.alertPresenter.confirmationRequests.map(\.messageText).dropFirst() == ["bu•••4@example.com is in use"])
+        #expect(harness.alertPresenter.confirmationRequests.map(\.messageText) == ["Use s•••m@example.com for Codex?"])
+        #expect(harness.alertPresenter.confirmationRequests.last?.informativeText.hasPrefix("s•••m@example.com replaces bu•••4@example.com on this Mac") == true)
+        #expect(try harness.authFile.read() != newAuth)
+
+        harness.alertPresenter.confirmationResponse = true
+        harness.send(.addAccount, for: .codex)
+        await coordinator.waitForPendingWork()
+
+        #expect(try harness.authFile.read() == newAuth)
+        #expect(harness.accountsController.activeAccount?.email == "sam@example.com")
+        #expect(harness.codexApp.relaunchCount == 1)
     }
 
     @Test
-    func firstRunAsksToAddACodexAccountOnlyWhenNoToolIsConnected() async throws {
+    func firstRunAsksToSignInToCodexOnlyWhenNoToolIsConnected() async throws {
         for (claudeReading, expectedPrompts) in [(UsageProviderReading.notConnected, 1), (.awaitingUsage, 0)] {
             let harness = try MenuBarCoordinatorHarness()
             defer { harness.tearDown() }
@@ -57,40 +49,8 @@ struct MenuBarCoordinatorTests {
             await coordinator.waitForPendingWork()
             await withCheckedContinuation { continuation in DispatchQueue.main.async { continuation.resume() } }
 
-            #expect(harness.alertPresenter.confirmationRequests.map(\.messageText) == Array(repeating: "Add a Codex account?", count: expectedPrompts))
+            #expect(harness.alertPresenter.confirmationRequests.map(\.messageText) == Array(repeating: "Sign in to Codex?", count: expectedPrompts))
         }
-    }
-
-    @Test
-    func fullyUsedProviderDoesNotChangeAccountRanking() async throws {
-        let harness = try MenuBarCoordinatorHarness()
-        defer { harness.tearDown() }
-        let now = Date()
-        var personal = try harness.makeActiveAccount(email: "personal@example.com")
-        personal.usage = makeUsage(resettingAfter: now, sessionUsedPercent: 20, weeklyUsedPercent: 20)
-        let busier = makeAccount(name: "Business 1", usage: makeUsage(resettingAfter: now, sessionUsedPercent: 30, weeklyUsedPercent: 30))
-        let quieter = makeAccount(name: "Business 2", usage: makeUsage(resettingAfter: now, sessionUsedPercent: 10, weeklyUsedPercent: 10))
-        try harness.repository.saveAccounts([personal, busier, quieter])
-        let claudeUsage = UsageSnapshot(
-            provider: .claude,
-            planName: nil,
-            windows: [
-                UsageWindow(kind: .session, usedPercent: 100, resetsAt: now.addingTimeInterval(3_600), durationMinutes: 300),
-                UsageWindow(kind: .weekly, usedPercent: 100, resetsAt: now.addingTimeInterval(86_400), durationMinutes: 10_080)
-            ],
-            fetchedAt: now
-        )
-        let coordinator = harness.makeCoordinator(
-            providerConnections: [ProviderConnectionProbe(provider: .claude, reading: .snapshot(claudeUsage))]
-        )
-
-        coordinator.start()
-        await coordinator.waitForPendingWork()
-
-        let state = coordinator.menuState()
-        #expect(state.providerUsage == [ProviderUsageState(provider: .claude, status: .current(claudeUsage))])
-        #expect(state.activeAccount?.email == "personal@example.com")
-        #expect(state.inactiveAccounts.map(\.email) == ["business 2@example.com", "business 1@example.com"])
     }
 
     @Test
@@ -99,18 +59,7 @@ struct MenuBarCoordinatorTests {
         defer { harness.tearDown() }
         let builtAt = Date(timeIntervalSince1970: 1_800_000_000)
         var clock = builtAt
-        let active = try harness.makeActiveAccount(email: "personal@example.com")
-        let limited = makeAccount(
-            name: "Business 2",
-            usage: makeUsage(
-                sessionUsedPercent: 100,
-                sessionResetsAt: builtAt.addingTimeInterval(2 * 60 * 60),
-                weeklyUsedPercent: 20,
-                weeklyResetsAt: builtAt.addingTimeInterval(3 * 24 * 60 * 60),
-                fetchedAt: builtAt
-            )
-        )
-        try harness.repository.saveAccounts([active, limited])
+        harness.makeActiveAccount(email: "personal@example.com")
         let coordinator = harness.makeCoordinator(now: { clock })
         coordinator.start()
         await coordinator.waitForPendingWork()
@@ -131,49 +80,25 @@ struct MenuBarCoordinatorTests {
     }
 
     @Test
-    func switchingWhileAResetCreditIsAppliedExplainsWhyInsteadOfAskingToSwitch() async throws {
+    func signingInWithoutTheCodexAppReplacesTheAccountAndSaysCodexWasNotRestarted() async throws {
         let harness = try MenuBarCoordinatorHarness()
         defer { harness.tearDown() }
-        let active = try harness.makeActiveAccount(email: "personal@example.com")
-        let work = makeAccount(name: "Work")
-        try harness.repository.saveAccounts([active, work])
-        let resetCredits = SuspendedResetCreditClient()
-        let coordinator = harness.makeCoordinator(resetCreditClient: resetCredits)
-        coordinator.start()
-        await coordinator.waitForPendingWork()
-
-        let reset = Task { await harness.accountsController.useResetCredit() }
-        await resetCredits.waitUntilCalled()
-        harness.send(.switchAccount(work.id), for: .codex)
-
-        #expect(harness.alertPresenter.confirmationRequests.isEmpty)
-        #expect(harness.alertPresenter.infoRequests.map(\.messageText) == ["Reset in progress"])
-        #expect(harness.alertPresenter.infoRequests.map(\.informativeText) == ["Switch accounts when it finishes."])
-
-        await resetCredits.answer(.nothingToReset)
-        _ = await reset.value
-    }
-
-    @Test
-    func switchingWithoutTheCodexAppSwitchesAndSaysCodexWasNotRestarted() async throws {
-        let harness = try MenuBarCoordinatorHarness()
-        defer { harness.tearDown() }
-        let active = try harness.makeActiveAccount(email: "personal@example.com")
-        let workAuth = Data("work-auth".utf8)
-        let work = try CodexAuthSnapshotService(repository: harness.repository).saveAuthSnapshot(workAuth)
-        try harness.repository.saveAccounts([active, work])
+        harness.makeActiveAccount(email: "personal@example.com")
+        let workAuth = makeCodexAuthData(email: "work@example.com", accountID: "acct-2", userID: "user-2")
+        harness.login.authData = workAuth
+        harness.panelPresenter.waitsForSignIn = true
         harness.codexApp.relaunchResult = .appNotFound
         harness.alertPresenter.confirmationResponse = true
         let coordinator = harness.makeCoordinator()
         coordinator.start()
         await coordinator.waitForPendingWork()
 
-        harness.send(.switchAccount(work.id), for: .codex)
+        harness.send(.addAccount, for: .codex)
         await coordinator.waitForPendingWork()
 
-        #expect(try Data(contentsOf: harness.repository.paths.codexAuthFile) == workAuth)
+        #expect(try harness.authFile.read() == workAuth)
         #expect(harness.alertPresenter.infoRequests.map(\.messageText) == ["Codex app not found"])
-        #expect(harness.alertPresenter.infoRequests.map(\.informativeText) == ["Switched. Codex uses the account when it opens."])
+        #expect(harness.alertPresenter.infoRequests.map(\.informativeText) == ["Signed in. Codex uses the account when it opens."])
     }
 
     @Test
@@ -336,7 +261,7 @@ struct MenuBarCoordinatorTests {
         let harness = try MenuBarCoordinatorHarness()
         defer { harness.tearDown() }
         harness.alertPresenter.confirmationResponse = true
-        _ = try harness.makeActiveAccount(email: "business-4@example.com")
+        harness.makeActiveAccount(email: "business-4@example.com")
         let codexReads = CountingAccountStatusClient()
         let claude = ProviderConnectionProbe(provider: .claude, refreshInterval: 0, reading: .snapshot(UsageSnapshot(provider: .claude, planName: nil, windows: [], fetchedAt: Date())))
         let coordinator = harness.makeCoordinator(providerConnections: [claude], accountStatusClient: codexReads)
@@ -371,7 +296,7 @@ struct MenuBarCoordinatorTests {
     func usingACodexResetAsksFirstThenReportsTheOutcome() async throws {
         let harness = try MenuBarCoordinatorHarness()
         defer { harness.tearDown() }
-        _ = try harness.makeActiveAccount(email: "personal@example.com")
+        harness.makeActiveAccount(email: "personal@example.com")
         let resetCredits = SuspendedResetCreditClient()
         let coordinator = harness.makeCoordinator(resetCreditClient: resetCredits)
         coordinator.start()
@@ -414,39 +339,35 @@ struct MenuBarCoordinatorTests {
 
 @MainActor
 private final class MenuBarCoordinatorHarness {
-    let repository: AccountRepository
+    let authFile = makeCodexAuthFile()
     let settings: SettingsModel
     let alertPresenter = AlertPresenterProbe()
     let panelPresenter = PanelPresenterProbe()
     let codexApp = CodexAppProcessProbe()
+    let login = IsolatedCodexLoginProbe(authData: Data())
     private(set) var accountsController: AccountsController!
     private var coordinator: MenuBarCoordinator?
-    private let repositoryDirectory = FileManager.default.temporaryDirectory
-        .appendingPathComponent("MenuBarCoordinatorTests-\(UUID().uuidString)", isDirectory: true)
     private let suiteName = "MenuBarCoordinatorTests-\(UUID().uuidString)"
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
     init() throws {
-        repository = try AccountRepository(isolatedRootDirectory: repositoryDirectory)
-        try repository.bootstrapStorage()
         settings = SettingsModel(userDefaults: UserDefaults(suiteName: suiteName)!)
     }
 
     func makeCoordinator(
         providerConnections: [any ProviderConnection] = [],
         allowsEmptyStatePrompt: Bool = false,
-        accountStatusClient: CodexAccountStatusClient & SavedCodexAccountStatusClient = DisabledAccountStatusClient(),
+        accountStatusClient: CodexAccountStatusClient = DisabledAccountStatusClient(),
         resetCreditClient: CodexResetCreditClient = UnavailableResetCreditClient(),
         now: @escaping () -> Date = Date.init
     ) -> MenuBarCoordinator {
-        accountsController = AccountsFeatureFactory(
-            repository: repository,
-            authService: CodexAuthSnapshotService(repository: repository),
-            codexAppProcessClient: codexApp,
+        accountsController = AccountsController(
+            authFile: authFile,
             accountStatusClient: accountStatusClient,
+            signInWorkflow: CodexSignInWorkflow(authFile: authFile, isolatedLoginClient: login, codexAppProcessClient: codexApp),
             resetCreditClient: resetCreditClient,
-            postSwitchRefreshDelay: .zero
-        ).makeController()
+            postSignInRefreshDelay: .zero
+        )
         accountsController.load()
         let coordinator = MenuBarCoordinator.makeForTesting(
             statusItemRuntime: StatusItemRuntime(statusItem: statusItem),
@@ -462,15 +383,9 @@ private final class MenuBarCoordinatorHarness {
         return coordinator
     }
 
-    func makeActiveAccount(email: String) throws -> CodexAccount {
-        let authData = Data("auth-\(UUID().uuidString)".utf8)
-        var account = try CodexAuthSnapshotService(repository: repository).saveAuthSnapshot(authData)
-        account.email = email
-        account.planType = "team"
-        account.identity.remoteIdentity = CodexRemoteAccountIdentity(emailAddress: email)
-        try repository.saveAccounts([account])
-        try authData.write(to: repository.paths.codexAuthFile, options: .atomic)
-        return account
+    /// Signs Codex in on this Mac to `email`.
+    func makeActiveAccount(email: String) {
+        try! authFile.write(makeCodexAuthData(email: email))
     }
 
     var menu: NSMenu? { statusItem.menu }
@@ -509,6 +424,6 @@ private final class MenuBarCoordinatorHarness {
         coordinator?.invalidate()
         NSStatusBar.system.removeStatusItem(statusItem)
         UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName)
-        try? FileManager.default.removeItem(at: repositoryDirectory)
+        try? FileManager.default.removeItem(at: authFile.url.deletingLastPathComponent())
     }
 }

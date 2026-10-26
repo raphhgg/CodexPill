@@ -5,7 +5,7 @@
 <h1 align="center">rusage</h1>
 
 <p align="center">
-  <i>A native macOS menubar app that shows when your AI coding limits refill, and switches accounts in a click.</i>
+  <i>A native macOS menubar app that shows when your AI coding limits refill.</i>
 </p>
 
 <p align="center">
@@ -28,8 +28,8 @@ rusage was called CodexPill before this release. See
 ## What It Does
 
 - See Codex, Claude Code and Cursor usage limits and when they reset.
-- Switch between saved Codex accounts.
-- Add Codex accounts without disrupting your current session.
+- See the account each tool is signed in to, and sign in to another Codex account
+  from `Settings › Accounts`.
 - Track local Codex token usage history from the menu bar.
 - Stay local-first: no cloud sync, no hidden browser automation, no account data upload.
 
@@ -90,28 +90,25 @@ for maintainer packaging details.
 ## Prerequisite
 
 Install and sign in to at least one tool on your Mac: Codex (the app, the CLI or
-both), Claude Code or Cursor. rusage shows a Codex card once you save a Codex account. Claude Code and
-Cursor appear once you turn them on in `Settings › Tools`.
+both), Claude Code or Cursor. rusage shows a Codex card while Codex is signed in
+on this Mac. Claude Code and Cursor appear once you turn them on in
+`Settings › Tools`.
 
 Token Usage is optional and local to this Mac. It reads local Codex session
 history, stores derived aggregate buckets, and does not upload prompt content,
 session rows or auth data.
-
-## Screenshots
-
-| Add Account | Codex Side Menu |
-| --- | --- |
-| <img src="docs/assets/rusage-add-account.png" width="420" alt="rusage Add Account dialog"> | <img src="docs/assets/rusage-account-actions.png" width="420" alt="rusage Codex side menu with account, reset and section actions"> |
 
 ## Local-First
 
 rusage works with Codex, Claude Code and Cursor state on your Mac. It does not
 run a cloud service.
 
-Saved Codex accounts stay on your Mac under
-`~/Library/Application Support/rusage`. They contain authentication material, so
-treat them like credentials. rusage only reads Claude Code's and Cursor's own
-sign-ins and never writes them.
+rusage reads the Codex sign-in in `~/.codex/auth.json` and replaces it only
+when you sign in to another Codex account from rusage and confirm. It keeps no
+copies of sign-ins. Earlier versions saved Codex accounts under
+`~/Library/Application Support/rusage`; this version no longer reads them, and
+[Uninstall And Reset](docs/UNINSTALL_RESET.md) shows how to remove them. rusage
+only reads Claude Code's and Cursor's own sign-ins and never writes them.
 
 rusage does not use browser cookies, hidden browser windows, Full Disk
 Access, Screen Recording or Accessibility permissions for normal use.
@@ -119,9 +116,10 @@ Access, Screen Recording or Accessibility permissions for normal use.
 ## Upgrading From CodexPill
 
 rusage is a new app to macOS, with its own bundle ID. Quit and delete
-`CodexPill.app` first. On its first launch rusage copies CodexPill's saved
-accounts, settings and Keychain items, unless rusage already has accounts of its
-own. macOS may ask once per Keychain item whether rusage can read it. Turn
+`CodexPill.app` first. On its first launch rusage copies CodexPill's folder,
+settings and Keychain items, unless rusage already has data of its own.
+CodexPill's saved Codex accounts come along but are no longer read: rusage shows
+the account Codex is signed in to. macOS may ask once per Keychain item whether rusage can read it. Turn
 Launch at Login back on if you used it. CodexPill's copies stay on this Mac as a
 backup. [Uninstall And Reset](docs/UNINSTALL_RESET.md#leftovers-from-codexpill)
 shows how to remove them.

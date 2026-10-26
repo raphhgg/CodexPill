@@ -4,6 +4,8 @@ import OSLog
 
 private let accountsControllerLogger = Logger(subsystem: "com.raphhgg.rusage", category: "AccountsController")
 
+/// The one Codex account on this Mac: the sign-in in `auth.json`, its last reading, its resets, and replacing it with
+/// another sign-in. rusage keeps no other Codex account.
 @MainActor
 @Observable
 final class AccountsController {
@@ -12,141 +14,91 @@ final class AccountsController {
         case failed(String)
     }
 
-    nonisolated static let inactiveSavedAccountsRefreshInterval: TimeInterval = 15 * 60
-
-    private let identityResolver: SavedAccountIdentityResolver
-    private let inactiveAccountAvailabilityRanking: InactiveAccountAvailabilityRanking
-    private let operationState: AccountOperationState
-    private let loadAccountsUseCase: LoadAccountsUseCase
-    private let refreshActiveAccountUseCase: RefreshActiveAccountUseCase
-    private let hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase
-    private let deleteSavedAccountUseCase: DeleteSavedAccountUseCase
-    private let accountCatalogStore: AccountCatalogStore
-    private let switchAccountWorkflow: SwitchAccountWorkflow
-    private let addAccountWorkflow: AddAccountWorkflow
+    private let authFile: CodexAuthFile
+    private let accountStatusClient: CodexAccountStatusClient
+    private let signInWorkflow: CodexSignInWorkflow
     private let resetCreditClient: CodexResetCreditClient
+    private let operationState: AccountOperationState
     private let makeIdempotencyKey: () -> UUID
-    private let now: () -> Date
-    private let postSwitchRefreshDelay: Duration
+    private let postSignInRefreshDelay: Duration
 
-    private var catalogState = AccountCatalogState()
-    private var savedAccountsRefresh: Task<Void, Never>?
-    private var isStoppingSavedAccountsRefresh = false
-    private var lastInactiveSavedAccountsRefreshAt: Date?
-    private var pendingResetCreditKeys: [UUID: UUID] = [:]
+    /// Nil while Codex is signed out on this Mac.
+    private(set) var activeAccount: CodexAccount?
+    private var pendingResetCreditKey: UUID?
     private(set) var isApplyingResetCredit = false
 
     init(
-        identityResolver: SavedAccountIdentityResolver,
-        inactiveAccountAvailabilityRanking: InactiveAccountAvailabilityRanking = InactiveAccountAvailabilityRanking(),
-        operationState: AccountOperationState = AccountOperationState(),
-        loadAccountsUseCase: LoadAccountsUseCase,
-        refreshActiveAccountUseCase: RefreshActiveAccountUseCase,
-        hydrateSavedAccountsMetadataUseCase: HydrateSavedAccountsMetadataUseCase,
-        deleteSavedAccountUseCase: DeleteSavedAccountUseCase,
-        accountCatalogStore: AccountCatalogStore,
-        switchAccountWorkflow: SwitchAccountWorkflow,
-        addAccountWorkflow: AddAccountWorkflow,
+        authFile: CodexAuthFile,
+        accountStatusClient: CodexAccountStatusClient,
+        signInWorkflow: CodexSignInWorkflow,
         resetCreditClient: CodexResetCreditClient = UnavailableResetCreditClient(),
+        operationState: AccountOperationState = AccountOperationState(),
         makeIdempotencyKey: @escaping () -> UUID = UUID.init,
-        now: @escaping () -> Date = Date.init,
-        postSwitchRefreshDelay: Duration = .seconds(2)
+        postSignInRefreshDelay: Duration = .seconds(2)
     ) {
-        self.identityResolver = identityResolver
-        self.inactiveAccountAvailabilityRanking = inactiveAccountAvailabilityRanking
-        self.operationState = operationState
-        self.loadAccountsUseCase = loadAccountsUseCase
-        self.refreshActiveAccountUseCase = refreshActiveAccountUseCase
-        self.hydrateSavedAccountsMetadataUseCase = hydrateSavedAccountsMetadataUseCase
-        self.deleteSavedAccountUseCase = deleteSavedAccountUseCase
-        self.accountCatalogStore = accountCatalogStore
-        self.switchAccountWorkflow = switchAccountWorkflow
-        self.addAccountWorkflow = addAccountWorkflow
+        self.authFile = authFile
+        self.accountStatusClient = accountStatusClient
+        self.signInWorkflow = signInWorkflow
         self.resetCreditClient = resetCreditClient
+        self.operationState = operationState
         self.makeIdempotencyKey = makeIdempotencyKey
-        self.now = now
-        self.postSwitchRefreshDelay = postSwitchRefreshDelay
+        self.postSignInRefreshDelay = postSignInRefreshDelay
     }
 
     func load() {
+        activeAccount = authFile.currentAccount()
+    }
+
+    /// Follows a sign-in Codex or the user changed outside rusage. The last reading stays while it is the same account.
+    func refreshActiveAccount() {
+        let fingerprint = authFile.currentFingerprint()
+        guard fingerprint != activeAccount?.identity.snapshotFingerprint else { return }
+        guard let current = authFile.currentAccount() else {
+            activeAccount = nil
+            return
+        }
+        // Codex rotates its tokens, which changes the file but not the account.
+        if var same = activeAccount, same.isSameAccount(as: current) {
+            same.identity = current.identity
+            activeAccount = same
+        } else {
+            activeAccount = current
+        }
+    }
+
+    /// Reads the signed-in account's limits from the Codex app-server.
+    func refreshAccountData() async -> BackgroundRefreshOutcome {
+        refreshActiveAccount()
+        guard let accountBeforeRead = activeAccount else { return .failed("Codex is signed out.") }
         do {
-            let result = try loadAccountsUseCase.run()
-            catalogState.applyLoad(result)
-            operationState.setIdleStatus("Loaded \(accounts.count) account(s)")
-            accountsControllerLogger.log("Loaded \(self.accounts.count, privacy: .public) saved account(s)")
-        } catch {
-            operationState.fail(error)
-            accountsControllerLogger.error("Failed to load store: \(error.localizedDescription, privacy: .public)")
-        }
-    }
-
-    func switchToAccount(_ account: CodexAccount) async -> SwitchToAccountOutcome {
-        var outcome = SwitchToAccountOutcome(didRefresh: false, relaunch: nil)
-        guard !isApplyingResetCredit else { return outcome }
-        await perform("Switching account...") {
-            try saveRotatedLiveAuth(switchingTo: account)
-            let result = try await switchAccountWorkflow.run(account: account, accounts: accounts)
-            catalogState.setActiveAccountID(result.activeAccountID)
-            outcome.relaunch = result.relaunch
-            outcome.didRefresh = await applySilentPostActionRefresh(after: postSwitchRefreshDelay)
-        }
-        return outcome
-    }
-
-    private func saveRotatedLiveAuth(switchingTo account: CodexAccount) throws {
-        guard let outgoingAccountID = activeAccountID, outgoingAccountID != account.id else { return }
-        if let result = try refreshActiveAccountUseCase.relinkCurrentAuthSnapshotIfNeeded(
-            accounts: accounts,
-            targetAccountID: outgoingAccountID
-        ) {
-            try applyRefreshed(result, activeAccountIDBeforeRefresh: activeAccountID)
-        }
-    }
-
-    // A switch can land while a refresh awaits, so the refresh moves the active ID only if nothing else did.
-    private func applyRefreshed(_ result: RefreshActiveAccountResult, activeAccountIDBeforeRefresh: UUID?) throws {
-        guard let updatedAccounts = try refreshActiveAccountUseCase.save(result, into: accounts) else { return }
-        catalogState.applyPersistedMetadata(updatedAccounts)
-        if activeAccountID == activeAccountIDBeforeRefresh {
-            catalogState.setActiveAccountID(result.update.accountID)
-        }
-    }
-
-    func removeSavedAccount(_ account: CodexAccount, signOutLocalAccount: Bool = false) async {
-        await perform("Removing account...") {
-            let result = try await deleteSavedAccountUseCase.run(
-                account: account,
-                accounts: accounts,
-                signOutLocalAccount: signOutLocalAccount
+            let remote = try await accountStatusClient.readCurrentAccountStatus()
+            // A sign-in can land while the read awaits; its numbers would belong to the old account.
+            guard activeAccount?.id == accountBeforeRead.id else { return .failed("The Codex sign-in changed.") }
+            var account = accountBeforeRead
+            account.applyRemoteMetadata(
+                email: remote.email,
+                planType: remote.planType,
+                usage: remote.usage ?? account.usage,
+                preferRateLimitPlan: remote.usage != nil
             )
-            catalogState.applyDeleted(result)
-        }
-    }
-
-    func refreshAccountData(for account: CodexAccount) async -> BackgroundRefreshOutcome {
-        let activeAccountIDBeforeRefresh = activeAccountID
-        do {
-            let result = try await refreshActiveAccountUseCase.run(accounts: accounts)
-            try applyRefreshed(result, activeAccountIDBeforeRefresh: activeAccountIDBeforeRefresh)
-            accountsControllerLogger.log("Background refresh completed for \(account.id.uuidString, privacy: .public)")
+            activeAccount = account
             return .refreshed
         } catch {
-            accountsControllerLogger.log("Background refresh skipped for \(account.id.uuidString, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            accountsControllerLogger.log("Codex refresh skipped: \(error.localizedDescription, privacy: .public)")
             return .failed(error.localizedDescription)
         }
     }
 
-    /// Spends one reset credit on the live Codex account, then refreshes its limits.
-    /// Each account keeps its attempt's idempotency key until Codex answers, so a retry after a
-    /// lost response cannot spend a second credit. A reset and an account change never overlap:
-    /// a reset is refused while one runs, and switching or removing waits for the reset.
+    /// Spends one reset credit on the signed-in account, then refreshes its limits. The attempt keeps its idempotency key
+    /// until Codex answers, so a retry after a lost response cannot spend a second credit. A reset and a sign-in never
+    /// overlap.
     func useResetCredit() async -> ResetCreditResult {
         guard !isBusy else { return .accountChangeInProgress }
-        guard let accountID = activeAccountID, !isApplyingResetCredit else { return .failed }
+        guard activeAccount != nil, !isApplyingResetCredit else { return .failed }
         isApplyingResetCredit = true
         defer { isApplyingResetCredit = false }
-        let key = pendingResetCreditKeys[accountID] ?? makeIdempotencyKey()
-        pendingResetCreditKeys[accountID] = key
+        let key = pendingResetCreditKey ?? makeIdempotencyKey()
+        pendingResetCreditKey = key
 
         let outcome: CodexResetCreditOutcome
         do {
@@ -158,60 +110,34 @@ final class AccountsController {
 
         let result = ResetCreditResult(outcome)
         if result != .unconfirmed {
-            pendingResetCreditKeys[accountID] = nil
+            pendingResetCreditKey = nil
         }
         accountsControllerLogger.log("Reset credit outcome: \(outcome.rawValue, privacy: .public)")
         if result == .reset || result == .unconfirmed {
-            _ = await applySilentPostActionRefresh(after: .zero)
+            _ = await refreshAccountData()
         }
         return result
     }
 
-    func persistAccountMetadata(_ account: CodexAccount) {
-        guard let index = accounts.firstIndex(where: { $0.id == account.id }) else { return }
-
-        var updatedAccounts = accounts
-        updatedAccounts[index] = account
+    func startSignIn() async throws -> CodexSignInSession {
+        guard !isBusy, !isApplyingResetCredit else { throw AccountsControllerError.operationAlreadyInProgress }
+        operationState.begin(status: "Signing in to Codex...")
         do {
-            try accountCatalogStore.saveAccounts(updatedAccounts)
-            catalogState.applyPersistedMetadata(updatedAccounts)
-        } catch {
-            accountsControllerLogger.log("Persisted metadata update skipped for \(account.id.uuidString, privacy: .public): \(error.localizedDescription, privacy: .public)")
-        }
-    }
-
-    func startIsolatedAddAccountFlow() async throws -> IsolatedAddAccountSignInSession {
-        guard !isBusy else {
-            throw AccountsControllerError.operationAlreadyInProgress
-        }
-        accountsControllerLogger.log("Starting isolated add-account flow")
-        operationState.begin(status: "Adding account...")
-        await finishSavedAccountsRefresh()
-        do {
-            return try await addAccountWorkflow.startIsolatedAddAccount()
+            return try await signInWorkflow.start()
         } catch {
             operationState.fail(error)
             throw error
         }
     }
 
-    func completeIsolatedAddAccount(_ session: IsolatedAddAccountSignInSession) async throws -> CodexAccount {
+    /// The account the browser sign-in returned. This Mac is unchanged until `use(_:)`.
+    func completeSignIn(_ session: CodexSignInSession) async throws -> CodexSignedInAccount {
         do {
-            let result = try await addAccountWorkflow.completeIsolatedAddAccount(
-                session,
-                existingAccounts: accounts,
-                activeAccountID: activeAccountID
-            )
-            catalogState.applySavedAccount(
-                result.savedAccount,
-                activeAccountID: result.activeAccountID
-            )
-            await refreshSavedAccountsMetadata(refreshExistingMetadata: false)
+            let signedIn = try await signInWorkflow.complete(session)
             operationState.succeed()
-            return result.savedAccount
+            return signedIn
         } catch {
-            if let workflowError = error as? AddAccountWorkflowError,
-               case .accountAlreadySaved = workflowError {
+            if error as? CodexSignInWorkflowError == .accountAlreadyInUse {
                 operationState.succeed()
             } else {
                 operationState.fail(error)
@@ -220,17 +146,31 @@ final class AccountsController {
         }
     }
 
-    func cancelIsolatedAddAccount(_ session: IsolatedAddAccountSignInSession) {
-        addAccountWorkflow.cancelIsolatedAddAccount(session)
+    func cancelSignIn(_ session: CodexSignInSession) {
+        signInWorkflow.cancel(session)
         operationState.succeed()
     }
 
-    var accounts: [CodexAccount] {
-        catalogState.accounts
-    }
-
-    var activeAccountID: UUID? {
-        catalogState.activeAccountID
+    /// Makes `signedIn` the Codex account on this Mac and relaunches Codex. Nil when replacing `auth.json` failed.
+    func use(_ signedIn: CodexSignedInAccount) async -> CodexRelaunch? {
+        guard !isApplyingResetCredit else {
+            operationState.fail(AccountsControllerError.resetCreditInProgress)
+            return nil
+        }
+        operationState.begin(status: "Switching Codex account...")
+        do {
+            let relaunch = try await signInWorkflow.use(signedIn)
+            activeAccount = authFile.currentAccount()
+            operationState.succeed()
+            if postSignInRefreshDelay > .zero {
+                try? await Task.sleep(for: postSignInRefreshDelay)
+            }
+            _ = await refreshAccountData()
+            return relaunch
+        } catch {
+            operationState.fail(error)
+            return nil
+        }
     }
 
     var pendingErrorMessage: String? {
@@ -245,135 +185,9 @@ final class AccountsController {
         operationState.isBusy
     }
 
-    func refreshActiveAccount() {
-        catalogState.resolveActiveAccountID(using: identityResolver)
-    }
-
-    func hydrateSavedAccountsMetadataIfNeeded() async {
-        guard accounts.contains(where: { $0.id != activeAccountID && $0.usage == nil }) else { return }
-        await runSavedAccountsRefresh(refreshExistingMetadata: false)
-    }
-
-    func refreshInactiveSavedAccountsMetadata() async {
-        guard canStartSavedAccountsRefresh else { return }
-        let startedAt = now()
-        if let lastInactiveSavedAccountsRefreshAt,
-           startedAt.timeIntervalSince(lastInactiveSavedAccountsRefreshAt) < Self.inactiveSavedAccountsRefreshInterval {
-            return
-        }
-
-        lastInactiveSavedAccountsRefreshAt = startedAt
-        await runSavedAccountsRefresh(refreshExistingMetadata: true)
-    }
-
-    private var canStartSavedAccountsRefresh: Bool {
-        !isBusy && savedAccountsRefresh == nil
-    }
-
-    private func runSavedAccountsRefresh(refreshExistingMetadata: Bool) async {
-        guard canStartSavedAccountsRefresh else { return }
-        let refresh = Task {
-            await refreshSavedAccountsMetadata(refreshExistingMetadata: refreshExistingMetadata)
-        }
-        savedAccountsRefresh = refresh
-        await refresh.value
-        savedAccountsRefresh = nil
-    }
-
-    // Lets the account being read finish, so a rotated token is saved before the operation touches auth.
-    private func finishSavedAccountsRefresh() async {
-        guard let savedAccountsRefresh else { return }
-        isStoppingSavedAccountsRefresh = true
-        await savedAccountsRefresh.value
-        isStoppingSavedAccountsRefresh = false
-    }
-
-    private func refreshSavedAccountsMetadata(refreshExistingMetadata: Bool) async {
-        let accountIDs = hydrateSavedAccountsMetadataUseCase.accountIDsToRefresh(
-            in: accounts,
-            activeAccountID: activeAccountID,
-            refreshExistingMetadata: refreshExistingMetadata
-        )
-        for accountID in accountIDs {
-            guard !isStoppingSavedAccountsRefresh else { return }
-            guard accountID != activeAccountID,
-                  let account = accounts.first(where: { $0.id == accountID }),
-                  let update = await hydrateSavedAccountsMetadataUseCase.refresh(account, among: accounts)
-            else { continue }
-
-            do {
-                if let updatedAccounts = try hydrateSavedAccountsMetadataUseCase.save(update, into: accounts) {
-                    catalogState.applyPersistedMetadata(updatedAccounts)
-                }
-            } catch {
-                accountsControllerLogger.log("Saved account metadata refresh skipped: \(error.localizedDescription, privacy: .public)")
-            }
-        }
-    }
-
-    func isActive(_ account: CodexAccount) -> Bool {
-        activeAccountID == account.id
-    }
-
-    var activeAccount: CodexAccount? {
-        catalogState.activeAccount
-    }
-
-    var inactiveAccounts: [CodexAccount] {
-        catalogState.inactiveAccounts
-    }
-
-    var sortedInactiveAccounts: [CodexAccount] {
-        inactiveAccountAvailabilityRanking.sort(inactiveAccounts)
-    }
-
     func consumePendingErrorMessage() -> String? {
         operationState.consumePendingErrorMessage()
     }
-
-    private func perform(_ status: String, operation: () async throws -> Void) async {
-        guard !isApplyingResetCredit else {
-            operationState.fail(AccountsControllerError.resetCreditInProgress)
-            return
-        }
-        accountsControllerLogger.log("Beginning operation with status: \(status, privacy: .public)")
-        operationState.begin(status: status)
-        await finishSavedAccountsRefresh()
-        do {
-            try await operation()
-            operationState.succeed()
-            accountsControllerLogger.log("Operation completed successfully for status: \(status, privacy: .public)")
-        } catch {
-            operationState.fail(error)
-            accountsControllerLogger.error("Operation failed for status \(status, privacy: .public): \(error.localizedDescription, privacy: .public)")
-        }
-    }
-
-    private func applySilentPostActionRefresh(after delay: Duration) async -> Bool {
-        let activeAccountIDBeforeRefresh = activeAccountID
-        guard activeAccountIDBeforeRefresh != nil else { return false }
-        let accountsBeforeDelay = accounts
-
-        if delay > .zero {
-            try? await Task.sleep(for: delay)
-        }
-
-        do {
-            let result = try await refreshActiveAccountUseCase.run(accounts: accountsBeforeDelay)
-            try applyRefreshed(result, activeAccountIDBeforeRefresh: activeAccountIDBeforeRefresh)
-            return true
-        } catch {
-            accountsControllerLogger.log("Silent post-action refresh skipped: \(error.localizedDescription, privacy: .public)")
-            return false
-        }
-    }
-
-}
-
-struct SwitchToAccountOutcome: Equatable {
-    var didRefresh: Bool
-    /// Nil when the switch failed before Codex was relaunched.
-    var relaunch: CodexRelaunch?
 }
 
 enum AccountsControllerError: LocalizedError, Equatable {

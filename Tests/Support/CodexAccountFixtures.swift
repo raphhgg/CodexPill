@@ -2,7 +2,7 @@ import Foundation
 
 @testable import RUsage
 
-/// Builds a saved account whose email is derived from its name, for example "Business 2" → "business 2@example.com".
+/// Builds a Codex account whose email is derived from its name, for example "Business 2" → "business 2@example.com".
 func makeAccount(
     id: UUID = UUID(),
     name: String = "Account",
@@ -11,8 +11,7 @@ func makeAccount(
     authPrincipalIdentity: CodexAuthPrincipalIdentity? = nil,
     workspaceIdentity: CodexWorkspaceIdentity? = nil,
     planType: String? = nil,
-    usage: UsageSnapshot? = nil,
-    updatedAt: Date = .distantPast
+    usage: UsageSnapshot? = nil
 ) -> CodexAccount {
     makeAccount(
         id: id,
@@ -22,12 +21,11 @@ func makeAccount(
         authPrincipalIdentity: authPrincipalIdentity,
         workspaceIdentity: workspaceIdentity,
         planType: planType,
-        usage: usage,
-        updatedAt: updatedAt
+        usage: usage
     )
 }
 
-/// Builds a saved account with an explicit email; pass `nil` for an account Codex has not reported an email for.
+/// Builds a Codex account with an explicit email; pass `nil` for an account Codex has not reported an email for.
 func makeAccount(
     id: UUID = UUID(),
     email: String?,
@@ -36,14 +34,10 @@ func makeAccount(
     authPrincipalIdentity: CodexAuthPrincipalIdentity? = nil,
     workspaceIdentity: CodexWorkspaceIdentity? = nil,
     planType: String? = nil,
-    usage: UsageSnapshot? = nil,
-    updatedAt: Date = .distantPast
+    usage: UsageSnapshot? = nil
 ) -> CodexAccount {
     CodexAccount(
         id: id,
-        snapshotFileName: "\(id.uuidString).json",
-        createdAt: updatedAt,
-        updatedAt: updatedAt,
         email: email,
         planType: planType,
         usage: usage,

@@ -223,8 +223,8 @@ struct UsagePresentationTests {
                 fetchedAt: now
             )
         )
-        let state = MenuBarMenuState(activeAccount: account, inactiveAccounts: [], now: now)
-        let masked = MenuBarMenuState(activeAccount: account, inactiveAccounts: [], masksEmails: true, now: now)
+        let state = MenuBarMenuState(activeAccount: account, now: now)
+        let masked = MenuBarMenuState(activeAccount: account, masksEmails: true, now: now)
 
         #expect(statusItemTooltipText(for: state.statusItemSource, now: now) == "Codex · Team\nbusiness@example.com\nSession resets in 4h00")
         #expect(statusItemTooltipText(for: masked.statusItemSource, now: now) == "Codex · Team\nbu•••s@example.com\nSession resets in 4h00")

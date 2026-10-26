@@ -14,14 +14,6 @@ struct AppPathsTests {
 
         #expect(normalizedDirectoryPath(paths.appSupportDirectory) == normalizedDirectoryPath(overrideDirectory))
         #expect(
-            paths.accountsFile.standardizedFileURL.path
-                == overrideDirectory.appendingPathComponent("accounts.json").standardizedFileURL.path
-        )
-        #expect(
-            normalizedDirectoryPath(paths.snapshotsDirectory)
-                == normalizedDirectoryPath(overrideDirectory.appendingPathComponent("snapshots", isDirectory: true))
-        )
-        #expect(
             paths.codexAuthFile.standardizedFileURL.path
                 == overrideDirectory
                 .appendingPathComponent("auth.json")

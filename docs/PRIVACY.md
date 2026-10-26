@@ -1,17 +1,17 @@
 # Privacy And Data Handling
 
-rusage is a local macOS menubar utility for Codex account switching and limit visibility. It can also show Claude Code and Cursor usage if you connect them. For those two tools it only reads. It never writes their files or Keychain items, and it never runs them. For Claude you can also opt in to rusage's own sign-in, which rusage keeps apart from Claude Code's. Its most sensitive data is Codex authentication state. Treat saved account snapshots as secrets.
+rusage is a local macOS menubar utility for Codex limit visibility. It can also show Claude Code and Cursor usage if you connect them. For those two tools it only reads. It never writes their files or Keychain items, and it never runs them. For Claude you can also opt in to rusage's own sign-in, which rusage keeps apart from Claude Code's. Its most sensitive data is Codex authentication state in `~/.codex/auth.json`. rusage keeps no copies of it.
 
-rusage was called CodexPill before. On its first launch rusage copies CodexPill's saved Codex accounts and settings into its own folder and preferences, unless rusage already has data. It does not copy Claude or Cursor accounts a test build may have saved. It never changes or deletes CodexPill's copies. [Uninstall And Reset](UNINSTALL_RESET.md) explains how to remove them.
+rusage was called CodexPill before. On its first launch rusage copies CodexPill's folder, including its saved Codex accounts, and settings into its own folder and preferences, unless rusage already has data. This version never reads those saved accounts. It does not copy Claude or Cursor accounts a test build may have saved. It never changes or deletes CodexPill's copies. [Uninstall And Reset](UNINSTALL_RESET.md) explains how to remove them.
 
 ## What rusage Reads
 
 During normal use, rusage may read:
 
-- `~/.codex/auth.json` to identify and save the currently active Codex account.
+- `~/.codex/auth.json` (or `$CODEX_HOME/auth.json`) to identify the Codex account signed in on this Mac.
 - Codex account metadata exposed by Codex, such as email address, plan type, account identity, rate-limit windows, credit balance, and limit reset credits.
 - Local Codex app-server status to refresh account and limit information.
-- Local process information to detect running Codex CLI sessions when a switch may require a restart or user action.
+- Local process information to detect running Codex CLI sessions when a new Codex sign-in may require a restart.
 - rusage-owned state under `~/Library/Application Support/rusage`.
 - Claude Code's sign-in, from `~/.claude/.credentials.json` or the `Claude Code-credentials` Keychain item, while Claude Code usage is connected. See [Claude Code](#claude-code).
 - Cursor's access token and cached email from Cursor's local database, while Cursor usage is connected. See [Cursor](#cursor).
@@ -20,17 +20,17 @@ During normal use, rusage may read:
 
 rusage writes and stores:
 
-- A local account catalog under `~/Library/Application Support/rusage`, with each account's last limits, credit balance, and reset credits.
-- Saved Codex auth snapshots under `~/Library/Application Support/rusage/snapshots`.
-- `~/.codex/auth.json` when switching the active local Codex account.
-- Temporary isolated `CODEX_HOME` state when capturing a new Codex sign-in without mutating the current account.
+- `~/.codex/auth.json`, only when you sign in to another Codex account from rusage and confirm `Use on This Mac`. rusage writes it with owner-only permissions and relaunches Codex. Until you confirm, the new sign-in exists only in rusage's memory.
+- Temporary isolated `CODEX_HOME` state while a new Codex sign-in runs. rusage deletes it when the sign-in ends, and removes any left by a crash at the next launch.
 - rusage's own Claude sign-in, only after you choose `Sign in with Claude…`, in the login Keychain item `rusage Claude sign-in`, and an empty lock file, `claude-sign-in.lock`, under `~/Library/Application Support/rusage`. See [rusage's own Claude sign-in](#rusages-own-claude-sign-in).
 
-Saved auth snapshots contain authentication material and must be handled like credentials. They should not be printed, logged, attached to issues, or committed to git.
+rusage keeps the Codex account and its last limits, credit balance, and reset credits in memory only. It writes no Codex sign-in to its own folder.
+
+Earlier versions saved Codex sign-ins in `~/Library/Application Support/rusage/accounts.json` and `~/Library/Application Support/rusage/snapshots/`. This version no longer reads them and never deletes them. They contain authentication material and must be handled like credentials: do not print, log, attach, or commit them, and delete them if you no longer need them ([Uninstall And Reset](UNINSTALL_RESET.md#saved-codex-accounts-from-earlier-versions)).
 
 ## Codex Auth Stays On This Mac
 
-rusage never copies Codex auth snapshots or Codex tokens to another machine or service. Earlier versions could copy a selected snapshot to an SSH host you configured. That feature is gone. [Uninstall And Reset](UNINSTALL_RESET.md) explains how to remove what it left on a host.
+rusage never copies Codex sign-ins or Codex tokens to another machine or service. Earlier versions could copy a selected snapshot to an SSH host you configured. That feature is gone. [Uninstall And Reset](UNINSTALL_RESET.md) explains how to remove what it left on a host.
 
 ## Claude Code
 
@@ -88,17 +88,17 @@ Normal rusage usage does not require:
 - Screen Recording;
 - Accessibility permissions.
 
-Accessibility may still be useful for development or validation tooling that inspects native UI, but it is not a product requirement for normal account switching or limit monitoring.
+Accessibility may still be useful for development or validation tooling that inspects native UI, but it is not a product requirement for normal use or limit monitoring.
 
 ## Network And External Services
 
-rusage talks to Codex through local Codex surfaces. When Claude Code usage is on, it also calls api.anthropic.com with Claude Code's own sign-in token. When you use rusage's own Claude sign-in, it calls platform.claude.com to sign in, renew and revoke, and api.anthropic.com with that sign-in's token. When Cursor usage is on, it calls cursor.com with Cursor's own sign-in token. It must not send Codex auth snapshots, raw auth payloads, or tokens to analytics services, crash-reporting systems, issue trackers, or any other third-party API. A token may go only to the service that issued it.
+rusage talks to Codex through local Codex surfaces. When Claude Code usage is on, it also calls api.anthropic.com with Claude Code's own sign-in token. When you use rusage's own Claude sign-in, it calls platform.claude.com to sign in, renew and revoke, and api.anthropic.com with that sign-in's token. When Cursor usage is on, it calls cursor.com with Cursor's own sign-in token. It must not send Codex sign-ins, raw auth payloads, or tokens to analytics services, crash-reporting systems, issue trackers, or any other third-party API. A token may go only to the service that issued it.
 
 If future features add status-page checks, diagnostics export, or usage statistics, they must keep the same rule: aggregate or redact data before it leaves the machine, and never include raw auth payloads or tokens.
 
 ## Logging And Diagnostics
 
-Logs and diagnostics may include high-level workflow events, rate-limit percentages, and error categories. Account identifiers, host names, and local paths should be treated as private by default in support artifacts. Logs and diagnostics must not include raw auth snapshots, token values, API keys, or complete auth payloads.
+Logs and diagnostics may include high-level workflow events, rate-limit percentages, and error categories. Account identifiers, host names, and local paths should be treated as private by default in support artifacts. Logs and diagnostics must not include raw sign-ins, token values, API keys, or complete auth payloads.
 
 When a Claude Code or Cursor usage read fails, rusage writes one line to the macOS log with the tool and the error category only: network, an HTTP status code, unauthorized, rate limited, parse, or Keychain access. It never logs a token, an email, an account ID, or a URL.
 
@@ -106,4 +106,4 @@ rusage's own Claude sign-in logs only what happened: a renewal attempt, its outc
 
 When sharing logs for debugging, review them first and redact account identifiers, host names, or paths when needed.
 
-rusage's user-initiated diagnostic report export is a redacted JSON support artifact. It uses per-export aliases for accounts, summarizes freshness and result categories, and includes a manifest of omitted, summarized, and rejected field classes. The export must be built from allowlisted fields and must not include raw logs, raw auth JSON, saved snapshots, raw UserDefaults, emails, hostnames, local paths, tokens, refresh tokens, stable account IDs, prompt/session content, or raw stderr.
+rusage's user-initiated diagnostic report export is a redacted JSON support artifact. It uses per-export aliases for accounts, summarizes freshness and result categories, and includes a manifest of omitted, summarized, and rejected field classes. The export must be built from allowlisted fields and must not include raw logs, raw auth JSON, sign-ins, raw UserDefaults, emails, hostnames, local paths, tokens, refresh tokens, stable account IDs, prompt/session content, or raw stderr.

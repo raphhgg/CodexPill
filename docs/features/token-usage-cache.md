@@ -47,7 +47,7 @@ Progress should be deliberately low-key. This is a menubar app, not a migration 
 ## Cache Contract
 
 Persist cache under `~/Library/Caches/rusage`, not Application Support, because the data is derived and can be rebuilt.
-The cache directory and file are owner-only, like the account catalog.
+The cache directory and file are owner-only.
 Isolated launches and automated-test runs keep the cache inside their isolated
 directory instead of the user's real cache.
 
@@ -205,7 +205,7 @@ Runtime behavior:
 - Backend `/api/codex/usage`.
 - Cost estimation.
 - Model breakdown.
-- Saved-account attribution.
+- Per-account attribution.
 - Remote-host token usage.
 - Full historical `All Time` view.
 - `Last 90 Days` in the public UI until cache behavior is proven.

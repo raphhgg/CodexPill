@@ -34,7 +34,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation, 
     private var hasPromptedForEmptyState = false
     private var isObservingSettings = false
     private var isObservingStore = false
-    private var activeIsolatedAddAccountSession: IsolatedAddAccountSignInSession?
+    private var activeCodexSignInSession: CodexSignInSession?
     private lazy var tokenUsageRuntime = TokenUsageMenuRuntime(
         provider: tokenUsageProvider,
         onStateChange: { [weak self] _ in
@@ -125,7 +125,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation, 
         autoRefreshTimer?.invalidate()
         wakeRefreshTask?.cancel()
         tokenUsageRuntime.cancel()
-        cancelActiveIsolatedAddAccountSession()
+        cancelActiveCodexSignIn()
         shortcutRuntime.invalidate()
         statusItemRuntime.invalidate()
     }
@@ -144,33 +144,17 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation, 
         }
     }
 
-    private func addCodexAccount() {
-        recordMenuAction("addAccount")
+    /// Signs in to another Codex account in the browser, then asks before it replaces the one on this Mac.
+    private func signInToCodex() {
+        recordMenuAction("signInToCodex")
         settings.codex.isConnected = true
-        menuBarCoordinatorLogger.log("Dispatching isolated add-account task to accounts controller")
-        tasks.start { [weak self] in await self?.beginIsolatedAddAccount() }
+        tasks.start { [weak self] in await self?.beginCodexSignIn() }
     }
 
-    /// What alerts call a saved Codex account: the label its side menu shows.
-    private func codexAccountLabel(_ id: UUID) -> String {
-        menuState().accountLabel(id, of: .codex) ?? "Saved account"
-    }
-
-    private func removeCodexAccount(_ id: UUID) {
-        recordMenuAction("removeAccount")
-        guard let account = accountsController.accounts.first(where: { $0.id == id }) else { return }
-
-        let state = menuState()
-        let shouldSignOutLocalAccount = state.isAccountActiveLocally(account)
-        let request = alertFactory.makeRemoveAccountRequest(
-            accountLabel: codexAccountLabel(account.id),
-            activeTargets: shouldSignOutLocalAccount ? ["This Mac"] : []
-        )
-
-        guard alertPresenter.presentConfirmation(request) else { return }
-        tasks.start { [weak self] in
-            await self?.removeSavedAccount(account, signOutLocalAccount: shouldSignOutLocalAccount)
-        }
+    /// What alerts call a Codex account: its email, masked with Hide Emails, else its plan.
+    private func codexAccountLabel(_ account: CodexAccount) -> String {
+        if let email = account.email { return displayedEmail(email, masked: settings.general.masksEmails) }
+        return planTag(for: .codex, planName: account.effectivePlanType).map { "Codex \($0)" } ?? "This Codex account"
     }
 
     /// ⌘, runs the Settings item while the menu still tracks, and an activation then is lost when the menu closes, so
@@ -263,18 +247,11 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation, 
         }
     }
 
-    /// Codex accounts are saved `auth.json` snapshots, switched and added through `AccountsController`.
+    /// Codex shows the one account `auth.json` signs in to, read and replaced through `AccountsController`.
     private func performCodexAction(_ action: ProviderAction) {
         switch action {
-        case let .switchAccount(id):
-            guard let account = accountsController.accounts.first(where: { $0.id == id }) else { return }
-            recordMenuAction("switchAccount")
-            diagnosticEventRecorder.recordSwitchAccount(targetAccountID: account.id)
-            requestSwitch(to: account)
         case .addAccount:
-            addCodexAccount()
-        case let .removeAccount(id):
-            removeCodexAccount(id)
+            signInToCodex()
         case .useResetCredit:
             useCodexResetCredit()
         case .connect:
@@ -287,15 +264,15 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation, 
         }
     }
 
-    /// Shows a hidden Codex card and reads it again. With no saved Codex account, adds one.
+    /// Shows a hidden Codex card and reads it again. Signed out of Codex, it signs in first.
     private func showCodex() {
-        guard !accountsController.accounts.isEmpty else {
-            addCodexAccount()
+        guard accountsController.activeAccount != nil else {
+            signInToCodex()
             return
         }
         recordMenuAction("showCodex")
         settings.codex.isConnected = true
-        tasks.start { [weak self] in await self?.refreshCodex(includingSavedAccounts: true) }
+        tasks.start { [weak self] in await self?.refreshCodex() }
     }
 
     private func useCodexResetCredit() {
@@ -414,7 +391,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation, 
     func menuState() -> MenuBarMenuState {
         let state = MenuBarMenuState(
             activeAccount: accountsController.activeAccount,
-            inactiveAccounts: accountsController.sortedInactiveAccounts,
             refreshIntervalMinutes: settings.general.refreshIntervalMinutes,
             statusBarIndicatorStyle: settings.menuBar.statusBarIndicatorStyle,
             statusBarDisplayMode: settings.menuBar.statusBarDisplayMode,
@@ -529,129 +505,96 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation, 
         }
     }
 
-    private func requestSwitch(to account: CodexAccount) {
-        guard !accountsController.isApplyingResetCredit else {
-            alertPresenter.presentInfo(alertFactory.makeResetInProgressRequest())
-            return
-        }
-        let runningCLISessions = cliProcessInspector.runningCLISessionCount()
-        let request = alertFactory.makeSwitchAccountRequest(
-            accountLabel: codexAccountLabel(account.id),
-            runningCLISessions: runningCLISessions
-        )
-
-        guard alertPresenter.presentConfirmation(request) else { return }
-        beginLocalSwitch(to: account)
-    }
-
-    private func beginIsolatedAddAccount() async {
+    private func beginCodexSignIn() async {
         do {
-            let session = try await accountsController.startIsolatedAddAccountFlow()
-            activeIsolatedAddAccountSession = session
+            let session = try await accountsController.startSignIn()
+            activeCodexSignInSession = session
 
-            let signInRequest = alertFactory.makeAddAccountSignInRequest(prompt: session.prompt)
             let result = await panelPresenter.presentAddAccountSignIn(
-                signInRequest,
+                alertFactory.makeSignInRequest(prompt: session.prompt),
                 waitForCompletion: { [accountsController] in
                     do {
-                        let account = try await accountsController.completeIsolatedAddAccount(session)
-                        return .success(account)
+                        return .success(try await accountsController.completeSignIn(session))
                     } catch {
                         return .failure(error)
                     }
                 },
                 onCancel: { [accountsController] in
-                    accountsController.cancelIsolatedAddAccount(session)
+                    accountsController.cancelSignIn(session)
                 }
             )
-            if activeIsolatedAddAccountSession === session {
-                activeIsolatedAddAccountSession = nil
+            if activeCodexSignInSession === session {
+                activeCodexSignInSession = nil
             }
-
-            handleAddAccountCompletion(result)
+            handleSignInCompletion(result)
         } catch {
-            handleAddAccountFailure(accountActionFlow.resolveAddAccountStartFailure(error))
+            handleSignInFailure(accountActionFlow.resolveSignInFailure(error))
         }
     }
 
-    private func cancelActiveIsolatedAddAccountSession() {
-        guard let session = activeIsolatedAddAccountSession else { return }
-        activeIsolatedAddAccountSession = nil
-        accountsController.cancelIsolatedAddAccount(session)
+    private func cancelActiveCodexSignIn() {
+        guard let session = activeCodexSignInSession else { return }
+        activeCodexSignInSession = nil
+        accountsController.cancelSignIn(session)
     }
 
-    private func presentAddAccountSuccess(for account: CodexAccount) {
-        let runningCLISessions = cliProcessInspector.runningCLISessionCount()
-        let request = alertFactory.makeAddAccountSuccessRequest(
-            accountLabel: codexAccountLabel(account.id),
-            runningCLISessions: runningCLISessions
-        )
-        let accepted = alertPresenter.presentConfirmation(request)
-        handleAddAccountSuccessConfirmation(
-            accountActionFlow.resolveAddAccountSuccessConfirmation(
-                account: account,
-                accepted: accepted
-            )
-        )
-    }
-
-    private func handleAddAccountCompletion(_ result: MenuBarAddAccountSignInPanelResult) {
-        let flowResult: AccountActionFlow.AddAccountResult
-        switch result {
-        case .completed(let account):
-            flowResult = .completed(account)
-        case .failed(let error):
-            flowResult = .failed(error)
-        case .cancelled:
-            flowResult = .cancelled
+    private func handleSignInCompletion(_ result: MenuBarAddAccountSignInPanelResult) {
+        let flowResult: AccountActionFlow.SignInResult = switch result {
+        case .completed(let signedIn): .completed(signedIn)
+        case .failed(let error): .failed(error)
+        case .cancelled: .cancelled
         }
 
-        switch accountActionFlow.resolveAddAccountCompletion(flowResult) {
-        case .offerLocalSwitch(let account):
-            presentAddAccountSuccess(for: account)
+        switch accountActionFlow.resolveSignInCompletion(flowResult) {
+        case .confirmReplace(let signedIn):
+            confirmReplacingCodexAccount(with: signedIn)
         case .handleFailure(let step):
-            handleAddAccountFailure(step)
+            handleSignInFailure(step)
         case .none:
             break
         }
     }
 
-    private func handleAddAccountSuccessConfirmation(_ step: AccountActionFlow.AddAccountConfirmationStep) {
-        switch step {
-        case .switchLocally(let account):
-            beginLocalSwitch(to: account)
-        case .none:
-            break
+    /// The new sign-in replaces `auth.json` only after the user agrees.
+    private func confirmReplacingCodexAccount(with signedIn: CodexSignedInAccount) {
+        guard !accountsController.isApplyingResetCredit else {
+            alertPresenter.presentInfo(alertFactory.makeResetInProgressRequest())
+            return
+        }
+        let request = alertFactory.makeReplaceCodexAccountRequest(
+            newLabel: codexAccountLabel(signedIn.account),
+            currentLabel: accountsController.activeAccount.map(codexAccountLabel),
+            runningCLISessions: cliProcessInspector.runningCLISessionCount()
+        )
+        guard alertPresenter.presentConfirmation(request) else { return }
+        recordMenuAction("useSignedInCodexAccount")
+        tasks.start { [weak self] in
+            guard let self else { return }
+            let relaunch = await accountsController.use(signedIn)
+            presentPendingErrorIfNeeded()
+            if relaunch == .appNotFound {
+                alertPresenter.presentInfo(alertFactory.makeCodexAppNotFoundAfterSignInRequest())
+            }
         }
     }
 
-    private func handleAddAccountFailure(_ step: AccountActionFlow.AddAccountFailureStep) {
+    private func handleSignInFailure(_ step: AccountActionFlow.SignInFailureStep) {
         _ = accountsController.consumePendingErrorMessage()
 
         switch step {
         case .showSignInFailure(let outcome):
-            alertPresenter.presentInfo(alertFactory.makeAddAccountSignInFailureRequest(outcome: outcome))
+            alertPresenter.presentInfo(alertFactory.makeSignInFailureRequest(outcome: outcome))
         case .offerSignInRetry(let outcome):
-            let request = alertFactory.makeAddAccountSignInRetryRequest(outcome: outcome)
-            guard alertPresenter.presentConfirmation(request) else { return }
-            tasks.start { [weak self] in await self?.beginIsolatedAddAccount() }
+            guard alertPresenter.presentConfirmation(alertFactory.makeSignInRetryRequest(outcome: outcome)) else { return }
+            tasks.start { [weak self] in await self?.beginCodexSignIn() }
         case .showError(let message):
             alertPresenter.presentInfo(alertFactory.makeErrorRequest(message: message))
         case .showCodexAppNotFound:
-            alertPresenter.presentInfo(alertFactory.makeCodexAppNotFoundForAddRequest())
+            alertPresenter.presentInfo(alertFactory.makeCodexAppNotFoundForSignInRequest())
         case .showUnsafeAuthChange:
-            alertPresenter.presentInfo(alertFactory.makeAddAccountUnsafeAuthChangeRequest())
-        case .showSaveFailure:
-            alertPresenter.presentInfo(alertFactory.makeAddAccountSaveFailureRequest())
-        case .showAccountAlreadySaved(let accountID):
-            alertPresenter.presentInfo(alertFactory.makeAccountAlreadySavedRequest(accountLabel: codexAccountLabel(accountID)))
-        }
-    }
-
-    private func beginLocalSwitch(to account: CodexAccount) {
-        tasks.start { [weak self] in
-            guard let self, await accountsController.switchToAccount(account).relaunch == .appNotFound else { return }
-            alertPresenter.presentInfo(alertFactory.makeCodexAppNotFoundAfterSwitchRequest())
+            alertPresenter.presentInfo(alertFactory.makeSignInUnsafeAuthChangeRequest())
+        case .showAccountAlreadyInUse:
+            alertPresenter.presentInfo(alertFactory.makeAccountAlreadyInUseRequest())
         }
     }
 
@@ -669,23 +612,17 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation, 
 
     func performScheduledRefresh() async {
         refreshProviderUsageIfDue()
-        await refreshCodex(includingSavedAccounts: true)
+        await refreshCodex()
     }
 
-    /// Reads the Codex limits unless the Codex card is hidden. At launch only the account in use is read.
-    func refreshCodex(includingSavedAccounts: Bool) async {
-        guard settings.codex.isConnected, !accountsController.isBusy else { return }
-        if let activeAccount = accountsController.activeAccount {
-            switch await accountsController.refreshAccountData(for: activeAccount) {
-            case .refreshed:
-                diagnosticEventRecorder.recordRefresh(resultCategory: "refreshed")
-            case .failed:
-                diagnosticEventRecorder.recordRefresh(resultCategory: "failed")
-            }
-        }
-
-        if includingSavedAccounts {
-            await accountsController.refreshInactiveSavedAccountsMetadata()
+    /// Reads the Codex limits unless the Codex card is hidden or Codex is signed out.
+    func refreshCodex() async {
+        guard settings.codex.isConnected, !accountsController.isBusy, accountsController.activeAccount != nil else { return }
+        switch await accountsController.refreshAccountData() {
+        case .refreshed:
+            diagnosticEventRecorder.recordRefresh(resultCategory: "refreshed")
+        case .failed:
+            diagnosticEventRecorder.recordRefresh(resultCategory: "failed")
         }
     }
 
@@ -697,8 +634,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation, 
 
     private func observeStoreChanges() {
         withObservationTracking {
-            _ = accountsController.accounts
-            _ = accountsController.activeAccountID
+            _ = accountsController.activeAccount
             _ = accountsController.pendingErrorMessage
             _ = accountsController.statusMessage
             _ = accountsController.isBusy
@@ -713,7 +649,7 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation, 
 
     private func handleStoreChange() {
         let state = menuState()
-        if !accountsController.accounts.isEmpty {
+        if accountsController.activeAccount != nil {
             hasPromptedForEmptyState = false
         }
         statusItemRuntime.update(presentation: statusItemPresentation(for: state))
@@ -750,12 +686,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation, 
         rebuildMenu(using: state)
     }
 
-    private func removeSavedAccount(_ account: CodexAccount, signOutLocalAccount: Bool) async {
-        await accountsController.removeSavedAccount(account, signOutLocalAccount: signOutLocalAccount)
-        presentPendingErrorIfNeeded()
-        rebuildMenu()
-    }
-
     private func presentPendingErrorIfNeeded() {
         guard let message = accountsController.consumePendingErrorMessage() else { return }
         alertPresenter.presentInfo(alertFactory.makeErrorRequest(message: message))
@@ -765,16 +695,16 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation, 
         promptForEmptyStateIfNeeded()
     }
 
-    /// Asks to add a Codex account only on a first run: no saved Codex account and no other tool connected.
+    /// Asks to sign in to Codex only on a first run: Codex signed out and no other tool connected.
     private func promptForEmptyStateIfNeeded() {
         guard allowsEmptyStatePrompt, !providerUsageRuntime.hasConnectedTool else { return }
-        guard accountsController.accounts.isEmpty, !accountsController.isBusy, !hasPromptedForEmptyState else { return }
+        guard accountsController.activeAccount == nil, !accountsController.isBusy, !hasPromptedForEmptyState else { return }
         hasPromptedForEmptyState = true
         DispatchQueue.main.async { [weak self] in
-            guard let self, self.accountsController.accounts.isEmpty, !self.accountsController.isBusy,
+            guard let self, self.accountsController.activeAccount == nil, !self.accountsController.isBusy,
                   !self.providerUsageRuntime.hasConnectedTool,
                   self.alertPresenter.presentConfirmation(self.alertFactory.makeFirstRunAddAccountRequest()) else { return }
-            self.addCodexAccount()
+            self.signInToCodex()
         }
     }
 

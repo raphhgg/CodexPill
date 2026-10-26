@@ -1,44 +1,47 @@
-# Add Account
+# Sign In To Another Codex Account
 
 ## User Story
 
-As a rusage user, I want to add another Codex account without changing This Mac, so that I can prepare accounts for later use without disrupting current Codex work.
+As a rusage user, I want to sign in to another Codex account from rusage, so that I can use that account for Codex on this Mac without signing out and in again by hand.
 
 ## Product Contract
 
-- `Add Account` saves a new account; it does not switch This Mac.
-- `Use on This Mac` remains the explicit action that switches the active local account.
-- Add Account captures the new sign-in through a temporary isolated `CODEX_HOME`.
+- rusage shows one Codex account. A new sign-in replaces it; rusage keeps no list of accounts.
+- The browser sign-in runs in a temporary isolated `CODEX_HOME`. Nothing on this Mac changes until the user confirms.
+- The finished sign-in is held in memory only. rusage never writes it anywhere but `~/.codex/auth.json`, and only after the user confirms.
 - Temporary isolated auth state is treated as sensitive and must be cleaned up after success, cancellation, timeout, or failure.
-- Only one Add Account sign-in may run at a time.
-- Add Account classifies isolated sign-in failures as account-domain outcomes before the menubar renders native alerts or retry panels.
-- After the account is saved, rusage attempts a best-effort isolated status read so the new account can show available session or weekly usage immediately. Returned windows are classified by duration instead of App Server `primary` / `secondary` field position.
-- An account is identified by its email, as the side menu shows it (masked with Hide Emails). Without an email it reads as its workspace, then its plan (`Plus account`), then `Saved account`. Users never type a name.
-- Duplicates are detected by account identity, never by label.
+- Only one sign-in may run at a time. A sign-in and a reset never overlap.
+- The sign-in classifies isolated failures as account-domain outcomes before the menubar renders native alerts or retry panels.
+- An account is identified by its email, masked with Hide Emails. Without an email it reads as its workspace, then its plan, then `Codex account`. Users never type a name.
+- Whether the new sign-in is the account already in use is decided by account identity, never by label.
 - rusage must not log or expose raw auth payloads.
+
+## Entry Points
+
+- `Settings › Accounts › Codex › Use Another Account…`
+- `Sign In…` on that row when Codex is signed out.
+- The first-run prompt below.
 
 ## Happy Path
 
-1. The user chooses `Add Account…`.
+1. The user chooses `Use Another Account…`.
 2. rusage starts an isolated Codex sign-in session.
 3. rusage shows a sign-in alert with the device code, `Copy Code`, and `Open Browser`.
 4. The user copies the code and opens the Codex device-auth page from the alert.
 5. The user completes sign-in in the browser.
-6. rusage captures the isolated auth snapshot and verifies it.
-7. rusage saves the account in the local catalog.
-8. rusage attempts to hydrate the saved account metadata and rate limits without switching local auth.
-9. rusage confirms that This Mac was not changed.
-10. rusage shows a success alert with `Done` and `Use on This Mac`.
+6. rusage captures the isolated sign-in, verifies it, and removes the temporary `CODEX_HOME`.
+7. rusage asks whether to use the new account on this Mac.
+8. On `Use on This Mac`, rusage writes `auth.json` (mode 0600), relaunches the Codex app, and refreshes.
 
 ## First Run
 
-With no saved Codex account and no other tool connected, rusage asks once at launch:
+With nothing connected, rusage asks once at launch:
 
-Title: `Add a Codex account?`
+Title: `Sign in to Codex?`
 
 Body: `Sign in to Codex in your browser.`
 
-Actions: `Not Now`, `Continue`. `Continue` starts the sign-in below. The `Add Account…` menu item starts it directly.
+Actions: `Not Now`, `Continue`. `Continue` starts the sign-in below.
 
 ## Sign-In Alert
 
@@ -56,7 +59,7 @@ Actions:
 
 - `Copy Code`: copies the code and keeps the alert open.
 - `Open Browser`: opens the Codex sign-in page and keeps the alert open.
-- `Cancel`: aborts the Add Account attempt.
+- `Cancel`: aborts the sign-in.
 
 Status:
 
@@ -64,22 +67,22 @@ Status:
 Waiting for browser sign-in...
 ```
 
-## Success Alert
+## Confirmation
 
-Title: `Account Added`
+Title: `Use work@example.com for Codex?`
 
 Body:
 
 ```text
-work@example.com was saved. This Mac was not changed.
+work@example.com replaces personal@example.com on this Mac, and Codex restarts.
 ```
+
+When Codex is signed out, the body reads `work@example.com becomes the Codex account on this Mac, and Codex restarts.` If Codex terminals are running, the body adds `2 Codex terminals are running. Restart to use the new account.`
 
 Actions:
 
-- `Use on This Mac`: switches to that saved account immediately without showing a second switch confirmation.
-- `Done`: dismisses the alert.
-
-If Codex terminals are running, the success alert should include the same restart warning used by normal local switch confirmations before the user chooses `Use on This Mac`.
+- `Use on This Mac`: writes `auth.json`, relaunches Codex, and refreshes.
+- `Cancel`: drops the sign-in. This Mac is unchanged.
 
 ## Acceptance Criteria
 
@@ -91,54 +94,56 @@ Given rusage starts isolated sign-in, when Codex provides a device code, then ru
 
 Given the sign-in alert is visible, when the user selects `Copy Code`, then the code is copied and the alert remains open while rusage continues waiting for browser sign-in.
 
-### Add Without Switching
+### Nothing Changes Before Confirmation
 
-Given the user completes browser sign-in, when rusage captures and saves the isolated account, then the saved account appears in the catalog and the live local Codex auth remains unchanged.
-
-### Post-Add Usage Hydration
-
-Given Add Account saves a new inactive account, when rusage can read that account's status through the isolated app-server path, then rusage updates the saved account with returned email, plan, and any usable rate-limit window before leaving the Add Account flow.
-
-If Codex returns only session or only weekly usage, rusage must preserve the returned usable window instead of treating the whole status as missing. Each window is named by its length, never its field. For example, a Free account returns one 30-day window as `secondary`; rusage shows it as `Monthly`, not weekly or session usage.
-
-If hydration fails, Add Account still succeeds and the account remains saved; rusage may show missing usage until a later refresh succeeds.
-
-### Overlapping Sign-In
-
-Given Add Account is already waiting for browser sign-in, when the user or runtime attempts to start another Add Account flow, then rusage rejects the second attempt without cancelling or clearing the first pending sign-in.
+Given the user completes browser sign-in, when the confirmation is visible or the user chooses `Cancel`, then `auth.json` is unchanged and the sign-in exists only in memory.
 
 ### Use On This Mac
 
-Given the success alert is visible, when the user selects `Use on This Mac`, then rusage switches to the saved account directly and does not show a second switch confirmation.
+Given the confirmation is visible, when the user chooses `Use on This Mac`, then rusage replaces `auth.json` with the new sign-in, relaunches Codex, and refreshes the account's limits.
 
-Given one or more Codex terminals are running, when the success alert is visible, then the alert warns that they must be restarted to use the new account.
+### Overlapping Sign-In
+
+Given a sign-in is already waiting for the browser, when the user or runtime attempts to start another, then rusage rejects the second attempt without cancelling or clearing the first.
 
 ### Cancel During Sign-In
 
-Given isolated sign-in is in progress, when the user selects `Cancel`, then rusage terminates the isolated Codex login process, deletes the temporary `CODEX_HOME`, clears pending Add Account state, saves no account, and does not switch local auth.
+Given isolated sign-in is in progress, when the user selects `Cancel`, then rusage terminates the isolated Codex login process, deletes the temporary `CODEX_HOME`, and does not change `auth.json`.
 
-### Duplicate Account Identity
+### Account Already In Use
 
-Given the user completes browser sign-in with an account that is already saved, when rusage resolves the captured account identity, then rusage does not save a duplicate snapshot and shows:
+Given the user completes browser sign-in with the account already in use, then rusage changes nothing and shows:
 
-Title: `Account Already Saved`
+Title: `Already Signed In`
 
 Body:
 
 ```text
-This Codex account is already saved as work@example.com.
+This Codex account is already the one on this Mac.
+```
+
+### Live Auth Mutation Guard
+
+Given a sign-in is running, when `auth.json` changes before it finishes, then rusage drops the new sign-in so it cannot overwrite a sign-in made elsewhere, and shows:
+
+Title: `Couldn't Sign In`
+
+Body:
+
+```text
+The Codex sign-in on this Mac changed meanwhile. Nothing was replaced.
 ```
 
 ### Expired Code
 
-Given isolated sign-in is waiting, when the device code expires before the account is added, then rusage clears pending state, cleans temporary auth state, and shows:
+Given isolated sign-in is waiting, when the device code expires before sign-in finishes, then rusage cleans temporary auth state and shows:
 
 Title: `Sign-In Expired`
 
 Body:
 
 ```text
-The Codex sign-in code expired before the account was added.
+The Codex sign-in code expired before you finished signing in.
 
 If ChatGPT asked you to enable device-code authorization, enable it in ChatGPT Security Settings, then try again.
 ```
@@ -152,7 +157,7 @@ Actions:
 
 ### Failed Before Code
 
-Given Codex cannot start a device-auth session, when no device code is available, then rusage clears pending state, cleans temporary auth state, and shows:
+Given Codex cannot start a device-auth session, when no device code is available, then rusage cleans temporary auth state and shows:
 
 Title: `Couldn't Start Sign-In`
 
@@ -170,33 +175,12 @@ Action:
 
 If Codex provides a startup error before the device code is available, rusage may append a sanitized `Codex reported: ...` diagnostic. Device codes and auth URL query strings must be redacted before any diagnostic is shown.
 
-### Live Auth Mutation Guard
-
-Given isolated Add Account starts, when rusage detects that live local auth changed during the flow, then rusage treats the attempt as unsafe, does not save the captured account, cleans temporary auth state, and shows:
-
-Title: `Couldn't Add Account`
-
-Body:
-
-```text
-rusage could not verify that This Mac stayed unchanged. No account was added.
-```
-
-### Catalog Save Failure
-
-Given isolated auth capture succeeds, when rusage cannot save the account to the catalog, then rusage cleans temporary auth state, does not switch local auth, and shows:
-
-Title: `Couldn't Save Account`
-
-Body:
-
-```text
-The sign-in completed, but rusage could not save the account. This Mac was not changed.
-```
-
 ### Codex App Not Found
 
-Sign-in runs the Codex CLI that the Codex app ships (`Contents/Resources/codex-cli/bin/codex` in ChatGPT.app, `Contents/Resources/codex` in earlier Codex.app builds). rusage finds the app by bundle ID, so its name does not matter. Given no Codex app is found, when the user adds an account, then rusage shows `Codex app not found` / `Install the Codex app, then add the account again.`
+Sign-in runs the Codex CLI that the Codex app ships (`Contents/Resources/codex-cli/bin/codex` in ChatGPT.app, `Contents/Resources/codex` in earlier Codex.app builds). rusage finds the app by bundle ID, so its name does not matter.
+
+- Given no Codex app is found, when the user starts a sign-in, then rusage shows `Codex app not found` / `Install the Codex app, then sign in again.`
+- Given the Codex app is gone when the user confirms, then rusage still writes `auth.json`, skips the relaunch, and shows `Codex app not found` / `Signed in. Codex uses the account when it opens.`
 
 ### Quit During Sign-In
 
@@ -204,23 +188,14 @@ Given isolated sign-in is in progress, when rusage quits, then rusage aborts the
 
 ### Crash Recovery Cleanup
 
-Given rusage crashes during isolated sign-in, when rusage next launches, then it removes stale isolated Add Account temporary homes older than a safe threshold.
+Given rusage crashes during isolated sign-in, when rusage next launches, then it removes stale isolated temporary homes older than a day.
 
 ## Validation Targets
 
-The Add Account acceptance criteria should drive unit and integration tests. At minimum, tests should cover:
+`Tests/Accounts/AccountsControllerTests.swift` and `Tests/Accounts/AccountActionFlowTests.swift` cover:
 
-- `add_account_shows_device_code_and_copy_action`
-- `add_account_copy_code_keeps_waiting`
-- `add_account_saves_without_switching`
-- `add_account_hydrates_saved_account_usage_after_save`
-- `add_account_rejects_overlapping_sign_in_without_clearing_pending_flow`
-- `add_account_use_on_this_mac_routes_existing_switch_flow`
-- `add_account_cancel_cleans_up`
-- `add_account_duplicate_identity_blocks_after_sign_in`
-- `add_account_expired_code_allows_try_again`
-- `add_account_failed_before_code_clears_state`
-- `add_account_live_auth_mutation_aborts`
-- `add_account_catalog_save_failure_does_not_switch`
-- `add_account_quit_cleans_up`
-- `add_account_startup_removes_stale_temp_homes`
+- a new sign-in replaces `auth.json` only when used, and relaunches Codex;
+- signing in to the account already in use changes nothing;
+- a sign-in made elsewhere during the browser sign-in is never overwritten;
+- a second sign-in is refused while one runs, and a reset is refused while a sign-in runs;
+- each failure maps to its own alert step: expired code offers a retry, a missing Codex app gets its own alert, and cancellation shows no error.

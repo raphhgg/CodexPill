@@ -1,6 +1,6 @@
 # Architecture
 
-rusage is a local-first macOS menubar app for Codex, Claude Code and Cursor usage limits and Codex account switching on this Mac. It was called CodexPill before.
+rusage is a local-first macOS menubar app for Codex, Claude Code and Cursor usage limits on this Mac. It was called CodexPill before.
 
 This document owns codebase structure and dependency boundaries. Product behavior and UX contracts live in [features](features/README.md).
 
@@ -35,8 +35,8 @@ Features -> Core
 
 A port lives in one of two places:
 
-- In Platform, next to its adapter, when the adapter is the only thing that implements it: `CodexAppProcessClient`, `CodexResetCreditClient`, `IsolatedCodexLoginClient`, `SecurityCommandRunning`.
-- In the Features file that uses it, when a feature needs a narrower view of a Platform type. The Platform type adopts it through an extension in that same Features file, so Platform stays unaware of it: `AccountCatalogStore`, `AccountCatalogLoader`, `CodexAuthActivator`, `LiveCodexAccountIdentitySource`.
+- In Platform, next to its adapter, when the adapter is the only thing that implements it: `CodexAccountStatusClient`, `CodexAppProcessClient`, `CodexResetCreditClient`, `IsolatedCodexLoginClient`, `SecurityCommandRunning`.
+- In the Features file that uses it, when a feature needs a narrower view of a Platform or Features type. The type adopts it through an extension in that same Features file, so its owner stays unaware of it: `MenuBarAccounts`.
 
 App injects the adapter either way.
 
@@ -52,21 +52,15 @@ It does not own menu composition, account workflows, file I/O policy, Codex proc
 
 `Sources/Features/` owns product behavior and presentation-neutral workflow policy.
 
-`Features/Accounts` owns saved-account state, active-account resolution, account availability, account workflows, and the account feature composition boundary.
+`Features/Accounts` owns the one Codex account on this Mac: following `auth.json`, refreshing its limits, using a reset credit, and signing in to another account.
 
 Key boundaries:
 
-- `AccountsFeatureFactory`
 - `AccountsController`
-- `AccountCatalogState`
 - `AccountOperationState`
-- `AccountAvailability`
-- `InactiveAccountAvailabilityRanking`
 - `AccountActionFlow`
-- `AddAccountWorkflow`
-- `SwitchAccountWorkflow`
-- account load/delete/refresh/hydration use cases
-- account identity matching and relinking utilities
+- `CodexSignInWorkflow`
+- `ResetCreditResult`
 
 `Features/TokenUsage` owns local token-usage history lifecycle and cache policy.
 
@@ -88,7 +82,7 @@ Key boundaries:
 - `ClaudeCodeUsage` and `CursorUsage`, the two connections. Each wraps its Platform adapter, maps its values onto `UsageSnapshot`, and owns the opt-in setting. `ClaudeCodeUsage` also runs one browser sign-in at a time (`ClaudeBrowserSignInSession`) and picks the sign-in each read uses from `claudeUsesOwnSignIn`.
 - `ProviderUsageRuntime`, which reads each connection at most once per its `refreshInterval` (5 minutes by default), however often the menu opens, and publishes one `ProviderUsageState` per tool: its status. A snapshot carries the email of the account the tool is signed in to, which the side menu shows. A snapshot older than `staleAfter` is published as `.stale`. When a tool is unavailable for a reason that keeps the same account, the runtime keeps the last good snapshot next to the reason. It also runs the actions the menu sends.
 
-Tool states only feed menu sections. They never reach `AccountAvailability` or `InactiveAccountAvailabilityRanking`: those read `CodexAccount.usage`. The runtime refuses a connection for `.codex`.
+Tool states only feed menu sections. They never reach `AccountsController`, which reads `CodexAccount.usage`. The runtime refuses a connection for `.codex`.
 
 ### How a tool plugs in
 
@@ -114,7 +108,7 @@ Its words go in `ProviderCopy` under its `UsageProvider` case. Nothing else chan
 - The runtime reads the tool again after every action. After a sign-in or sign-out it drops the tool's last snapshot first, because the account may have changed. A `ProviderNotice` from the action comes back to the coordinator, which shows it as an info alert.
 - rusage never renews a tool's own sign-in or starts the tool. The runtime logs when a reading becomes expired, signed out, or in need of a new sign-in, with the category only.
 - The port has no account methods: Claude Code and Cursor show only the account they are signed in to, and rusage never writes their sign-ins.
-- Codex is not a connection: its usage lives on each saved `CodexAccount` and adding an account is an interactive sign-in panel. The coordinator routes `.codex` actions to `AccountsController`, which refreshes the new active account after a switch and never runs a reset credit and an account change at the same time.
+- Codex is not a connection: its usage lives on the one `CodexAccount` and signing in to another account is an interactive sign-in panel. The coordinator routes `.codex` actions to `AccountsController`, which refreshes the account after a sign-in and never runs a reset credit and a sign-in at the same time.
 
 `Features/AppControls` owns app-level controls the Settings window offers: Launch at Login through `LoginItemController` and the System Settings launcher.
 
@@ -126,7 +120,6 @@ Key boundaries:
 
 - `MenuBarCoordinator`
 - `MenuBarAccounts`
-- `MenuBarAccountCatalogProjection`
 - `MenuBarMenuBuilder`
 - `SettingsWindow`, `SettingsPane` and `SettingsWindowState` (below)
 - `UsageMeterRow`, the SwiftUI row (label, bar, used percent, reset text) drawn for one `UsageWindow` in the account card
@@ -147,7 +140,7 @@ Key boundaries:
 
 `Platform/Codex` owns:
 
-- auth snapshot reading/writing;
+- reading and, after a confirmed sign-in, replacing `auth.json` (`CodexAuthFile`);
 - isolated Codex login process execution;
 - Codex app-server JSON-RPC I/O;
 - Codex CLI process inspection;
@@ -163,9 +156,9 @@ Reusable Codex app-server access is split into these platform boundaries:
 - `CodexAppServerAccountParser` and `CodexAppServerRateLimitParser` map raw app-server payload DTOs into generic app-server DTOs.
 - `RUsageAccountStatusMapper` maps generic app-server DTOs into rusage account and rate-limit models.
 
-Local app-server reads enter this session runner through `CodexAppServerClient`, which keeps local executable, environment, client-info, timeout, and saved-account strict rate-limit requirements in `CodexAppServerConfiguration`.
+Local app-server reads enter this session runner through `CodexAppServerClient`, which keeps local executable, environment, client-info, and timeout in `CodexAppServerConfiguration`.
 
-The active account's read is complete once it has the account and at least one limit window of any length. A Pro plan reports only a weekly window and a free plan only a monthly one. Only a read with no window runs the app-server again, once after 1 second with `refreshToken: true`. A failed read is tried again after 1 second, and once more after 3 seconds when Codex says the rate-limit read failed. Windows and account fields from the attempts merge, the newest winning.
+The account's read (`readCurrentAccountStatus`) is complete once it has the account and at least one limit window of any length. A Pro plan reports only a weekly window and a free plan only a monthly one. Only a read with no window runs the app-server again, once after 1 second with `refreshToken: true`. A failed read is tried again after 1 second, and once more after 3 seconds when Codex says the rate-limit read failed. Windows and account fields from the attempts merge, the newest winning.
 
 `Platform/Claude` owns everything rusage knows about Claude Code and Claude's OAuth. It never writes Claude Code's files or Keychain item. It owns:
 
@@ -189,10 +182,8 @@ The token leaves this module only as the usage request's cookie.
 
 `Platform/Persistence` owns:
 
-- rusage catalog paths;
-- account catalog persistence;
-- auth snapshot storage;
-- isolated `CODEX_HOME` session paths;
+- rusage paths, including where `auth.json` lives (`AppPaths.codexAuthFile`);
+- isolated `CODEX_HOME` session paths for sign-in;
 - `CodexPillMigration`, the one-time copy of CodexPill's folder, preferences and Keychain items at launch;
 - the token-usage cache file, `TokenUsageCacheFileStore` at `AppPaths.tokenUsageCacheFile(isolatedRootDirectory:)`.
 
@@ -202,9 +193,9 @@ Platform adapters are the only place where the app should know about live auth f
 
 `Sources/Core/` is models plus typed preferences:
 
-- `CodexAccount` and `LiveCodexAccountIdentity`
+- `CodexAccount`, the one Codex account, held in memory with its identity and last reading
 - `CodexRateLimits`, Codex plan-type rules and `UsageSnapshot.codex(planName:primary:secondary:fetchedAt:)`, the only place that turns Codex's positional primary and secondary windows into named windows, shortest first
-- `Usage`, the provider-neutral usage model: `UsageSnapshot` holds a provider, the plan name the provider reported, the signed-in email for Claude and Cursor, and `UsageWindow` values keyed by `UsageWindowKind` (session, weekly, monthly, billing cycle, or other with its length). `UsageWindowKind(durationMinutes:)` is the one rule that names a window by its length, with its tolerances. `UsageWindow.displayedUsedPercent(at:)` is the one rule for showing 0% once a window has reset. `CodexAccount.usage` and `CodexAccountStatus.usage` store it directly. `CodexAccount` reads and writes the `rateLimits` primary/secondary shape `accounts.json` has always used through a private storage type, so files from earlier versions still load and earlier versions can still read new files. Loading names each stored window by its length again.
+- `Usage`, the provider-neutral usage model: `UsageSnapshot` holds a provider, the plan name the provider reported, the signed-in email for Claude and Cursor, and `UsageWindow` values keyed by `UsageWindowKind` (session, weekly, monthly, billing cycle, or other with its length). `UsageWindowKind(durationMinutes:)` is the one rule that names a window by its length, with its tolerances. `UsageWindow.displayedUsedPercent(at:)` is the one rule for showing 0% once a window has reset. `CodexAccount.usage` and `CodexAccountStatus.usage` store it directly.
 - `StatusBarIndicatorStyle` and `StatusBarDisplayMode`, the persisted status-item choices
 - settings groups, their `Preferences` codec and the `SettingsModel` that owns them
 
@@ -233,32 +224,30 @@ The menu is for glancing and quick actions; configuration lives in one window, m
 - `Settings…` (⌘,) runs `MenuBarCoordinator.openSettings()`. ⌘, fires while the menu still tracks, and an activation then is lost when it closes, so the coordinator opens the window from `menuDidClose`.
 - While the window shows, the app is `.regular` with a Dock icon and comes forward with `activate(ignoringOtherApps:)`. It goes back to `.accessory` when the window closes. A minimal main menu answers ⌘, ⌘W ⌘Q and text editing while the window is key.
 - Closing the window drops its content, so nothing observes the settings while it is closed.
-- Controls that only store a value bind straight to `SettingsModel`, and the coordinator's settings observation rebuilds the menu. Anything with side effects goes through `SettingsActions`, which the coordinator implements: showing or hiding a tool runs the same `.connect` and `.disconnect` actions the menu used, so their consent alerts still show, the Accounts pane sends every account action (`Use`, `Remove…`, `Add Codex Account…`, sign-in, `Allow Keychain Access…`) through `perform(_:on:)`, the menu's own entry point, and Launch at Login, the reveal shortcut, Token Usage and Claude's model limits keep their coordinator paths.
+- Controls that only store a value bind straight to `SettingsModel`, and the coordinator's settings observation rebuilds the menu. Anything with side effects goes through `SettingsActions`, which the coordinator implements: showing or hiding a tool runs the same `.connect` and `.disconnect` actions the menu used, so their consent alerts still show, the Accounts pane sends every account action (`Use Another Account…`, sign-in, `Allow Keychain Access…`) through `perform(_:on:)`, the menu's own entry point, and Launch at Login, the reveal shortcut, Token Usage and Claude's model limits keep their coordinator paths.
 - `SettingsWindowState` is the `@Observable` copy of what the window shows that isn't a stored setting: the tools with a card and their `ToolSection`s, the login item state, whether the menu bar can show text, and Claude's model limits. The coordinator updates it from `MenuBarMenuState` each time it rebuilds the menu and when the window comes forward. Panes do no file I/O and start no processes.
 
 ## Boundary Notes
 
 `AppComposition` is the App composition root. It chooses the production adapters, builds the `AccountsController`, and constructs `MenuBarCoordinator` with every collaborator passed in. `MenuBarCoordinator.init` has no production defaults, so a new collaborator is wired in one place. Tests build the coordinator through `Tests/Support/MenuBarCoordinatorTestFactory.swift`.
 
-`AppRuntimeEnvironment` is read only in `Sources/App`. App turns the process environment into plain values and passes them in: the isolated app-support root for `AccountRepository` and the token-usage cache, the isolated defaults suite, and whether system alerts and panels suppress interactive prompts. Features and Platform code never read `AppRuntimeEnvironment`.
+`AppRuntimeEnvironment` is read only in `Sources/App`. App turns the process environment into plain values and passes them in: the isolated root for `AppPaths` (`auth.json` through `CODEX_HOME`) and the token-usage cache, the isolated defaults suite, and whether system alerts and panels suppress interactive prompts. Features and Platform code never read `AppRuntimeEnvironment`.
 
-`AccountsFeatureFactory` is the production composition boundary for the account feature. App startup chooses platform adapters such as `AccountRepository`, `CodexAuthSnapshotService`, `CodexAppProcessClient`, and `CodexAccountStatusClient`, then asks the factory for an `AccountsController`. App hands that controller to `MenuBarCoordinator` as `MenuBarAccounts`; the factory builds no MenuBar types.
+`AppComposition` builds the account feature: one `CodexAuthFile` for `AppPaths.codexAuthFile`, shared by `AccountsController` and `CodexSignInWorkflow`, with `CodexAppServerClient` as the `CodexAccountStatusClient` and `SystemCodexAppProcessClient` for relaunch. App hands the controller to `MenuBarCoordinator` as `MenuBarAccounts`.
 
-`AccountsController` is the account-session and catalog boundary. It coordinates feature-level state transitions, saved-account catalog updates, active-account resolution, mutation result application, metadata persistence, and the silent refresh after a local switch.
+`CodexAuthFile` (Platform) is the one Codex sign-in on this Mac: `~/.codex/auth.json`, or `$CODEX_HOME/auth.json` in isolated runs. It reads the file, builds a `CodexAccount` from it without a reading, fingerprints it, and writes it (0600) only for a confirmed sign-in.
 
-`AccountActionFlow` owns account action sequencing decisions that do not require AppKit access. It converts workflow outcomes into presentation-neutral next steps. Add Account sign-in failures cross this boundary as account-domain `AddAccountSignInFailureOutcome` values, such as prompt unavailable, expired code, capture failed, and verification failed; MenuBar renders those outcomes into alerts and retry panels without deriving recovery policy from platform login errors.
+`AccountsController` owns the one `CodexAccount`, in memory. It follows `auth.json`: rotated tokens keep the account and its last reading, a different sign-in replaces both, and a missing file means signed out. It refreshes limits with `readCurrentAccountStatus`, spends reset credits with an idempotency key kept until Codex answers, and runs sign-in. A reset and a sign-in never overlap.
 
-`AccountAvailability` reads one saved account's session usage and its fullest longer window (weekly, monthly, or other) with their reset times for ranking. It must not know menu rendering or AppKit exists.
+`CodexSignInWorkflow` runs the isolated device-code sign-in in a temporary `CODEX_HOME` and holds the result in memory. It refuses the account already in use and a sign-in during which `auth.json` changed. Only `use(_:)` writes `auth.json` and relaunches Codex.
 
-`InactiveAccountAvailabilityRanking` owns ordering and best-account comparison only.
+`AccountActionFlow` owns account action sequencing decisions that do not require AppKit access. It converts sign-in outcomes into presentation-neutral next steps: confirm the replacement, or one failure step (prompt unavailable, expired code with retry, capture failed, verification failed, Codex app not found, `auth.json` changed meanwhile, account already in use). MenuBar renders those steps into alerts and retry panels without deriving recovery policy from platform login errors.
 
 `TokenUsageMenuRuntime` is the token-usage feature boundary used by MenuBar. It owns background scan lifecycle, cache-first load state, duplicate-scan prevention, progress throttling, and disable-time cancellation. `MenuBarCoordinator` should only mutate Token Usage preferences, ask the runtime for current load state, and decide whether AppKit menu rebuilds are safe while a menu is being tracked.
 
 `MenuBarCoordinator` owns the `ProviderUsageRuntime` and exposes its states as `MenuBarMenuState.providerUsage`. It holds no tool-specific property or selector: tool actions arrive through `performProviderAction(_:)`. Token usage and provider usage share one path: startup and opening the menu ask both to refresh if due, the scheduled refresh also refreshes providers, and both report changes through `rebuildMenuWhenSafe()`, which waits until the menu is closed.
 
 `MenuBarAccounts` is the port MenuBar declares for account state and intents. It lists only the members the menu reads or calls, and `AccountsController` conforms to it directly. MenuBar never sees the account use cases or Platform adapters behind the controller.
-
-`MenuBarAccountCatalogProjection` owns menu-facing account projection: the active account first, then saved accounts ordered by `InactiveAccountAvailabilityRanking`.
 
 `MenuBarCoordinator` is the menu/application controller. It owns menu rebuilding, selector dispatch, alert/panel presentation, user-response plumbing, wake/timer refresh triggers, and coordination between account and status-item boundaries. Selector handlers and observation callbacks are synchronous, so the coordinator starts their async work through `TrackedTasks`. Tests call `waitForPendingWork()` instead of sleeping.
 
@@ -271,8 +260,7 @@ Reveal-shortcut capture, menu key-equivalent rendering, display formatting, and 
 
 The current truth sources are split by concern:
 
-- active local Codex auth: `~/.codex/auth.json`;
-- rusage catalog and saved snapshots: `~/Library/Application Support/rusage`;
+- the Codex account: `~/.codex/auth.json`;
 - local account metadata and rate limits: local `codex app-server`;
 - running CLI session observation: local process table inspection;
 - Claude Code usage: `api.anthropic.com/api/oauth/usage`, authenticated with Claude Code's local sign-in token, or with rusage's own sign-in once the user chose it;
@@ -281,7 +269,7 @@ The current truth sources are split by concern:
 
 Rules:
 
-- `~/Library/Application Support/rusage` is rusage-owned state, not the source of truth for the live Codex account.
+- `~/Library/Application Support/rusage` is rusage-owned state and holds no Codex sign-in rusage reads. `accounts.json` and `snapshots/` left there by earlier versions are never read or deleted; `CodexPillMigration` may still copy them over from CodexPill.
 - `~/Library/Application Support/Codex` is only an observation surface when needed.
 - Rate limits should come from app-server surfaces, not manual counters.
 - Tests must use temp paths and injected process clients.
@@ -293,7 +281,7 @@ Name boundaries by the role they play in the app, not by an implementation detai
 Preferred suffixes:
 
 - `Client` for an external service, process, or CLI.
-- `Store` for durable catalog or snapshot persistence.
+- `Store` for durable persistence.
 - `Source` for read-only values without ownership of persistence.
 - `Reconciler` for deterministic matching or merge policy.
 - `Presenter`, `Launcher`, `Locator`, and `Runner` for UI presentation, settings launch, path lookup, and command execution.
@@ -337,7 +325,7 @@ Do not add deeper `unit/integration/e2e` folders unless suite volume or tooling 
 
 If a change affects account workflows, token-usage lifecycle, menu behavior, or settings state, it belongs in `Features`, with token-usage lifecycle tests owned by `Tests/TokenUsage/`.
 
-If a change touches file paths, snapshot storage, Codex process control, app-server I/O, or process inspection, it belongs in `Platform`.
+If a change touches file paths, `auth.json`, Codex process control, app-server I/O, or process inspection, it belongs in `Platform`.
 
 If a type is shared domain data or app-wide configuration, it belongs in `Core`.
 

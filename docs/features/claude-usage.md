@@ -14,7 +14,7 @@ rusage's own sign-in is opt-in. It exists for the Claude desktop app, whose Clau
 
 The feature is off by default. Connecting it is the user's consent for rusage to read Claude Code's sign-in and send it to Anthropic.
 
-Claude usage is display-only. It never feeds account availability, ranking, or notifications, which stay Codex-only.
+Claude usage is display-only. It never affects Codex or its account.
 
 rusage never reads or writes Claude Code's `settings.json`. Reading limits from Anthropic, rather than from Claude Code's status line, means usage stays current when Claude Code runs in the Claude desktop app or remotely.
 

@@ -20,9 +20,9 @@ Top to bottom, nothing else:
 3. The status message, only while an account operation runs.
 4. `Quit ⌘Q`
 
-Settings live in their own window ([Settings Window](#settings-window)); the menu keeps the quick actions. A tool with nothing set up has no card. Codex has a card once one account is saved. Claude and Cursor have one once connected ([Claude Usage](claude-usage.md), [Cursor Usage](cursor-usage.md)). `Settings › Tools` hides a card.
+Settings live in their own window ([Settings Window](#settings-window)); the menu keeps the quick actions. A tool with nothing set up has no card. Codex has a card while it is signed in on this Mac. Claude and Cursor have one once connected ([Claude Usage](claude-usage.md), [Cursor Usage](cursor-usage.md)). `Settings › Tools` hides a card.
 
-With no card at all, on a first run or with every tool hidden, the menu starts at `Settings…`, where `Accounts` adds a Codex account and connects Claude and Cursor.
+With no card at all, on a first run or with every tool hidden, the menu starts at `Settings…`, where `Accounts` signs in to Codex and connects Claude and Cursor. On a first run with nothing connected, launch asks once: `Sign in to Codex?` / `Sign in to Codex in your browser.`
 
 The user orders the cards in `Settings › Tools`. The first card drives the menu bar icon ([Status Bar](status-bar.md)).
 
@@ -32,7 +32,7 @@ Every tool uses the same card. It is one hover cell with a side menu and no chev
 
 - **Header.** The tool's monochrome mark, its name, and the plan tag on the right: `Pro x20` or `Pro x5` for Codex, `Max x20` or `Max x5` for Claude, `Pro` for Cursor. The marks come from Lobe Icons (MIT, see `THIRD_PARTY_NOTICES.md`).
 - **Meters.** One per window the tool reports, shortest first, named by its length: `Session` (5 hours), `Weekly` (7 days), `Monthly` (28 to 31 days), or `Billing cycle` for Cursor. Any other length is titled by that length, such as `8 days`. Claude's per-model weekly limits follow `Weekly`, one meter each, titled `<model> this week`, such as `Fable this week`. The Claude side menu's `Show Fable Limits` hides them. A Codex Free account shows only `Monthly`. A window the tool does not report has no meter. Codex Pro and Pro Lite hide the session window. Each meter shows the bar with an even-pace tick placed by the window's real length, `11% used` on the left and `Resets in 2h53` in grey on the right. A reset more than a week away, and any billing cycle's, reads as a date: `Resets 30 Oct`. Meters follow the `Usage Bars` settings.
-- **Credits.** One line before the reset row when the tool reports credits or paid usage: `62,498 credits` or `Unlimited credits` for Codex, `$12.40 of $50.00 extra usage` (or `$12.40 extra usage` with no cap) for Claude extra usage and Cursor on-demand. A balance shows whole credits, rounded down. Nothing reported means no line, never `0`. Credits never change a meter or the account ranking.
+- **Credits.** One line before the reset row when the tool reports credits or paid usage: `62,498 credits` or `Unlimited credits` for Codex, `$12.40 of $50.00 extra usage` (or `$12.40 extra usage` with no cap) for Claude extra usage and Cursor on-demand. A balance shows whole credits, rounded down. Nothing reported means no line, never `0`. Credits never change a meter.
 - **Codex resets.** `2 resets available` with `Next expires 5 Nov` on the right, or `Expires 5 Nov` for one credit ([Codex Reset Credits](codex-reset-credits.md)). Claude has no reset row.
 - **Cursor.** An unlimited plan has no meter.
 - **States.** A title and at most one short line replace or precede the meters:
@@ -43,7 +43,6 @@ Every tool uses the same card. It is one hover cell with a side menu and no chev
   | Stale | none, meters dimmed | `As of 10:26` |
   | Read failed with an earlier reading | the failure title, meters dimmed | `As of 10:26` |
   | Read failed with no earlier reading | the failure title | the failure line |
-  | No Codex account in use | `No saved account in use` | `Pick one in this menu.` |
 
   Failure titles come from `ProviderCopy`, for example `Can't reach Anthropic` / `Retrying in a few minutes.`, `Cursor is busy`, `Cursor isn't installed`, `Allow Keychain access`. A Codex reading older than two refreshes, and at least 15 minutes, is stale.
 - **Action rows.** While a state lasts, one row sits under the card: `Allow Keychain Access…`.
@@ -65,7 +64,7 @@ Every tool item carries a `ProviderMenuAction` and goes through `MenuBarCoordina
 
 `Settings…` (⌘,) opens the [Settings Window](#settings-window) once the menu has closed.
 
-`Diagnostics…` first explains what the export contains, then writes a redacted JSON file only if the user confirms. The report holds allowlisted fields, per-export account aliases, every limit window each account reported (its kind, its menu title and a used-share category: available, limited or exhausted), summarized freshness states and recent rusage workflow events. It never includes raw logs, auth JSON, snapshots, raw UserDefaults, emails, hostnames, local paths, tokens, stable account IDs, prompt or session content, or raw stderr.
+`Diagnostics…` first explains what the export contains, then writes a redacted JSON file only if the user confirms. The report holds allowlisted fields, per-export account aliases, every limit window each account reported (its kind, its menu title and a used-share category: available, limited or exhausted), summarized freshness states and recent rusage workflow events. The Codex account appears once, with role `active_local`. A signed-out Codex reports the decision reason `codex_signed_out`, and a sign-in records the menu events `codex_sign_in` and `codex_account_replaced`. It never includes raw logs, auth JSON, saved sign-ins, raw UserDefaults, emails, hostnames, local paths, tokens, stable account IDs, prompt or session content, or raw stderr.
 
 ## Settings Window
 
@@ -74,7 +73,7 @@ One window of stock controls, with a toolbar pane per group. The title names the
 | Pane | Controls |
 |---|---|
 | General | `Refresh Every` (1 to 30 minutes), `Hide Emails`, `Theme` ([Theme](app-controls/02-theme.md)), `Launch at Login` ([Launch at Login](app-controls/01-launch-at-login.md)) |
-| Accounts | Per tool, in the menu's order: the account in use and where its sign-in comes from; Codex's other saved accounts with `Use` and `Remove…` and their last limits; `Allow Keychain Access…` when a read needs it; `Sign in with Claude…` or `Sign Out of Claude`; `Add Codex Account…`. A tool not in the menu offers `Connect…` (`Show` for Codex) |
+| Accounts | Per tool, in the menu's order: the account in use and where its sign-in comes from; `Allow Keychain Access…` when a read needs it; `Sign in with Claude…` or `Sign Out of Claude`; for Codex, `Use Another Account…`, which replaces the Codex sign-in on this Mac ([Accounts](accounts/01-add-account.md)). A tool not in the menu offers `Connect…`; Codex offers `Show` (`Not shown in the menu`) or, when signed out, `Sign In…` (`Signed out`) |
 | Menu Bar | `Menu Bar Label`, `Icon Style`, `Reveal Shortcut` ([Status Bar](status-bar.md)) |
 | Usage Bars | `% Used` or `% Left`, `Classic` or `Compact`, `Pace Markers`, `Session Color`, `Weekly Color`, `Same Color for Both`, `Use Theme Colors` |
 | Tools | A switch per tool in the menu's order, drag or `Move Up` and `Move Down` to reorder, and `Claude Model Limits` while Claude shows |
@@ -83,7 +82,7 @@ One window of stock controls, with a toolbar pane per group. The title names the
 The Tools switches are on while that tool's card shows:
 
 - Turning off `Claude` or `Cursor` disconnects it: the card goes and nothing is read, with no alert. Turning it on connects, through its consent alert.
-- Turning off `Codex` hides its card and stops the Codex reads. Saved accounts and `auth.json` stay as they are. Turning it on shows the card and reads it again. With no saved Codex account, it adds one.
+- Turning off `Codex` hides its card and stops the Codex reads. `auth.json` stays as it is. Turning it on shows the card and reads it again. When Codex is signed out, it signs in first.
 - Every tool can be hidden. The menu bar icon then shows the app's own glyph, and the menu is the first-run one.
 
 Settings that only store a value bind straight to `SettingsModel`, so the menu follows at once. Switches with side effects (connect and disconnect, Launch at Login, the shortcut, Token Usage) go through `MenuBarCoordinator`, the same path the menu takes. While the window shows, rusage has a Dock icon so the window can come forward. Closing the window drops its content, so nothing observes the settings while it is closed.

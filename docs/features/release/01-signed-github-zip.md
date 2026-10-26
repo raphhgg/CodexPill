@@ -59,8 +59,8 @@ Signed beta downloads are not available yet. Build from source for now.
 The README should include a short first-run note:
 
 - Codex must already be installed.
-- rusage reads local Codex auth state and stores saved account snapshots
-  locally.
+- rusage reads local Codex auth state and writes it only when the user
+  confirms a new Codex sign-in.
 
 ## Edge Cases
 

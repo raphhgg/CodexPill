@@ -13,6 +13,8 @@ final class SettingsWindowState {
     /// The menu bar shows text only once the first tool has a reading.
     var canShowMenuBarText = false
     var isBusy = false
+    /// Whether Codex is signed in on this Mac, so a hidden Codex card can come back without a new sign-in.
+    var isSignedInToCodex = false
     /// Claude's settings change off the main actor too, so they aren't observed; this copy is.
     var showsModelLimits = true
 
@@ -23,6 +25,7 @@ final class SettingsWindowState {
         if loginItemState != state.loginItemState { loginItemState = state.loginItemState }
         if canShowMenuBarText != state.hasStatusItemContentData { canShowMenuBarText = state.hasStatusItemContentData }
         if isBusy != state.isBusy { isBusy = state.isBusy }
+        if isSignedInToCodex != (state.activeAccount != nil) { isSignedInToCodex = state.activeAccount != nil }
         if showsModelLimits != state.showsModelLimits { showsModelLimits = state.showsModelLimits }
     }
 }

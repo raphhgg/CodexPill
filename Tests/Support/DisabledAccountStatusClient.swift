@@ -2,13 +2,9 @@ import Foundation
 
 @testable import RUsage
 
-struct DisabledAccountStatusClient: CodexAccountStatusClient, SavedCodexAccountStatusClient {
+struct DisabledAccountStatusClient: CodexAccountStatusClient {
     func readCurrentAccountStatus() async throws -> CodexAccountStatus {
         throw DisabledAccountStatusClientError.unexpectedRead
-    }
-
-    func readSavedAccountStatus(authData: Data) async -> SavedCodexAccountStatusRead {
-        SavedCodexAccountStatusRead(status: .failure(DisabledAccountStatusClientError.unexpectedRead), rotatedAuthData: nil)
     }
 }
 

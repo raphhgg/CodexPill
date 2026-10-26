@@ -5,28 +5,18 @@ struct ToolSection: Equatable {
     let provider: UsageProvider
     let planTag: String?
     let card: ToolCard
-    /// Saved Codex accounts. Labels are emails, masked when Hide Emails is on. Claude and Cursor have none.
-    let accounts: [ToolAccount]
     /// An action row under the card while its state lasts, such as "Allow Keychain Access…".
     let followUp: ToolFollowUp?
     /// "Sign in with Claude…" or "Sign Out of Claude" in the side menu, for a tool rusage can sign in to itself.
     var signInItem: ToolMenuItem? = nil
     /// Which sign-in the reading came from, when it isn't rusage's own, such as "Uses Claude Code's sign-in".
     var signInSourceLabel: String? = nil
-    /// The email Claude or Cursor is signed in to, masked when Hide Emails is on.
+    /// The account the tool is signed in to, by email, masked when Hide Emails is on.
     var signedInLabel: String? = nil
-
-    var activeAccount: ToolAccount? {
-        accounts.first(where: \.isActive)
-    }
 
     /// What the side menu and the tooltip call the account in use.
     var activeLabel: String? {
-        activeAccount?.label ?? signedInLabel
-    }
-
-    var otherAccounts: [ToolAccount] {
-        accounts.filter { !$0.isActive }
+        signedInLabel
     }
 }
 
@@ -43,14 +33,6 @@ struct ToolCard: Equatable {
     var credits: UsageCredits?
 }
 
-struct ToolAccount: Equatable {
-    let id: UUID
-    let label: String
-    let isActive: Bool
-    /// The account's last limits on one line, such as "Session 12% · Weekly 40% used". Nil before the first read.
-    var usageLine: String? = nil
-}
-
 struct ToolFollowUp: Equatable {
     let title: String
     let systemImage: String
@@ -63,7 +45,7 @@ struct ToolMenuItem: Equatable {
 }
 
 extension MenuBarMenuState {
-    /// One section per tool with a saved account or a connection, in the user's order. Codex can be hidden.
+    /// One section per tool that is signed in or connected, in the user's order. Codex can be hidden.
     var toolSections: [ToolSection] {
         toolOrder.compactMap { provider in
             if provider == .codex {
@@ -76,33 +58,24 @@ extension MenuBarMenuState {
         }
     }
 
-    /// What the side menu calls a saved account, so alerts name it the same way, Hide Emails included.
-    func accountLabel(_ id: UUID, of provider: UsageProvider) -> String? {
-        toolSections.first { $0.provider == provider }?.accounts.first { $0.id == id }?.label
-    }
-
     /// A Codex reading older than two refreshes, and at least 15 minutes old, is stale.
     var codexStaleAfter: TimeInterval {
         max(15 * 60, TimeInterval(2 * refreshIntervalMinutes * 60))
     }
 
     private var codexSection: ToolSection? {
-        guard !hidesCodex, !allSavedAccounts.isEmpty else { return nil }
-        let accounts = codexAccountLabels()
-
-        let card = if let activeAccount, let usage = activeAccount.usage {
+        guard !hidesCodex, let activeAccount else { return nil }
+        let card = if let usage = activeAccount.usage {
             usageCard(usage, isStale: usage.freshness(at: now, staleAfter: codexStaleAfter) == .stale)
-        } else if activeAccount != nil {
-            ToolCard(title: "Waiting for Codex usage")
         } else {
-            ToolCard(title: "No saved account in use", detail: "Pick one in this menu.")
+            ToolCard(title: "Waiting for Codex usage")
         }
         return ToolSection(
             provider: .codex,
-            planTag: activeAccount.flatMap { planTag(for: .codex, planName: $0.effectivePlanType) },
+            planTag: planTag(for: .codex, planName: activeAccount.effectivePlanType),
             card: card,
-            accounts: accounts,
-            followUp: nil
+            followUp: nil,
+            signedInLabel: codexAccountLabel(activeAccount)
         )
     }
 
@@ -146,7 +119,6 @@ extension MenuBarMenuState {
             provider: usage.provider,
             planTag: snapshot.flatMap { planTag(for: usage.provider, planName: $0.planName) },
             card: card,
-            accounts: [],
             followUp: followUp,
             signInItem: signInItem,
             signInSourceLabel: usage.ownSignIn == .signedOut && snapshot != nil ? "Uses \(copy.name)'s sign-in" : nil,
@@ -154,43 +126,12 @@ extension MenuBarMenuState {
         )
     }
 
-    /// A Codex account reads as its email, else its workspace or plan, else "Saved account". Labels that would repeat
-    /// get a number in saved order, so it does not move when the user switches: "Saved account", "Saved account 2".
-    /// A workspace name with an @ in it is skipped.
-    private func codexAccountLabels() -> [ToolAccount] {
-        let baseLabels = allSavedAccounts.map { account in
-            if let email = account.email { return displayedEmail(email, masked: masksEmails) }
-            let planLabel = planTag(for: .codex, planName: account.effectivePlanType).map { "\($0) account" }
-            let name = [account.identity.workspaceIdentity?.workspaceLabel, planLabel].compactMap(\.self).first { !$0.contains("@") }
-            return name ?? "Saved account"
-        }
-        var seen: [String: Int] = [:]
-        return zip(allSavedAccounts, baseLabels).map { account, label in
-            seen[label, default: 0] += 1
-            let count = seen[label] ?? 1
-            return ToolAccount(
-                id: account.id,
-                label: count > 1 ? "\(label) \(count)" : label,
-                isActive: account.id == activeAccount?.id,
-                usageLine: accountUsageLine(account.usage)
-            )
-        }
-    }
-
-    /// A saved Codex account's limits for its side-menu item, in the user's % used or % left. A reading older than two
-    /// inactive refreshes says when it was read: "Session 12% · Weekly 40% used · as of 10:26".
-    func accountUsageLine(_ snapshot: UsageSnapshot?) -> String? {
-        let windows = snapshot.map(displayedWindows) ?? []
-        guard let snapshot, !windows.isEmpty else { return nil }
-        let percents = windows.map { window in
-            let used = window.displayedUsedPercent(at: now)
-            return "\(window.kind.title) \(usagePercentMode == .used ? used : 100 - used)%"
-        }
-        var line = percents.joined(separator: " · ") + (usagePercentMode == .used ? " used" : " left")
-        if snapshot.freshness(at: now, staleAfter: 2 * AccountsController.inactiveSavedAccountsRefreshInterval) == .stale {
-            line += " · as of \(usageAsOfText(snapshot.fetchedAt, now: now))"
-        }
-        return line
+    /// The Codex account reads as its email, else its workspace or plan. A workspace name with an @ in it is skipped.
+    private func codexAccountLabel(_ account: CodexAccount) -> String {
+        if let email = account.email { return displayedEmail(email, masked: masksEmails) }
+        let planLabel = planTag(for: .codex, planName: account.effectivePlanType).map { "\($0) account" }
+        let name = [account.identity.workspaceIdentity?.workspaceLabel, planLabel].compactMap(\.self).first { !$0.contains("@") }
+        return name ?? "Codex account"
     }
 
     /// A reading that is not current keeps its meters, dimmed, under the time it was read.

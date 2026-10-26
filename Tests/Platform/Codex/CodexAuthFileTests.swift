@@ -3,7 +3,7 @@ import Testing
 
 @testable import RUsage
 
-struct CodexAuthSnapshotServiceTests {
+struct CodexAuthFileTests {
     @Test
     func authPrincipalIdentityParsesSubjectAndChatGPTUserIDFromIDToken() throws {
         let payload: [String: Any] = [
@@ -15,7 +15,7 @@ struct CodexAuthSnapshotServiceTests {
         ]
         let authData = try makeAuthData(idTokenPayload: payload)
 
-        let identity = CodexAuthSnapshotService.authPrincipalIdentity(for: authData)
+        let identity = CodexAuthDataParser.authPrincipalIdentity(from: authData)
 
         #expect(identity == CodexAuthPrincipalIdentity(
             subject: "auth0|principal-123",
@@ -44,7 +44,7 @@ struct CodexAuthSnapshotServiceTests {
         ]
         let authData = try makeAuthData(idTokenPayload: payload)
 
-        let identity = CodexAuthSnapshotService.workspaceIdentity(for: authData)
+        let identity = CodexAuthDataParser.workspaceIdentity(from: authData)
 
         #expect(identity == CodexWorkspaceIdentity(
             workspaceAccountID: "org-team",
@@ -61,7 +61,7 @@ struct CodexAuthSnapshotServiceTests {
         ]
         let authData = try makeAuthData(idTokenPayload: payload)
 
-        #expect(CodexAuthSnapshotService.workspaceIdentity(for: authData) == nil)
+        #expect(CodexAuthDataParser.workspaceIdentity(from: authData) == nil)
     }
 
     @Test
@@ -85,7 +85,7 @@ struct CodexAuthSnapshotServiceTests {
         ]
         let authData = try makeAuthData(idTokenPayload: payload)
 
-        let identity = CodexAuthSnapshotService.workspaceIdentity(for: authData)
+        let identity = CodexAuthDataParser.workspaceIdentity(from: authData)
 
         #expect(identity == CodexWorkspaceIdentity(
             workspaceAccountID: "org-team",
@@ -110,33 +110,40 @@ struct CodexAuthSnapshotServiceTests {
     }
 
     @Test
-    func activateRepairsCurrentAuthFilePermissions() throws {
-        let root = temporaryDirectory()
-        defer { try? FileManager.default.removeItem(at: root) }
-        let repository = try makeRepository(root: root)
-        let service = CodexAuthSnapshotService(repository: repository)
-        let account = makeAccount()
-        try repository.bootstrapStorage()
-        try repository.writeSnapshot(data: Data("saved auth".utf8), for: account)
+    func theAccountReadsFromTheSignInWithoutAReading() throws {
+        let authData = try makeAuthData(idTokenPayload: [
+            "email": "person@example.com",
+            "https://api.openai.com/auth": ["chatgpt_account_id": "acct-123", "chatgpt_plan_type": "plus"],
+        ])
 
-        try service.activate(account)
+        let account = CodexAuthFile.account(forAuthData: authData)
 
-        #expect(try posixPermissions(at: repository.paths.codexAuthFile) == 0o600)
+        #expect(account.email == "person@example.com")
+        #expect(account.planType == "plus")
+        #expect(account.usage == nil)
+        #expect(account.identity.snapshotFingerprint == CodexAuthFile.fingerprint(authData))
     }
 
     @Test
-    func restoreCurrentAuthDataRepairsPermissiveCurrentAuthFile() throws {
+    func writingTheSignInKeepsItPrivate() throws {
         let root = temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
-        let repository = try makeRepository(root: root)
-        let service = CodexAuthSnapshotService(repository: repository)
-        try repository.bootstrapStorage()
-        try Data("old auth".utf8).write(to: repository.paths.codexAuthFile)
-        try setPosixPermissions(0o644, at: repository.paths.codexAuthFile)
+        let file = CodexAuthFile(url: root.appendingPathComponent("auth.json"))
+        try Data("old auth".utf8).write(to: file.url)
+        try setPosixPermissions(0o644, at: file.url)
 
-        try service.restoreCurrentAuthData(Data("restored auth".utf8))
+        try file.write(Data("new auth".utf8))
 
-        #expect(try posixPermissions(at: repository.paths.codexAuthFile) == 0o600)
+        #expect(try file.read() == Data("new auth".utf8))
+        #expect(try posixPermissions(at: file.url) == 0o600)
+    }
+
+    @Test
+    func aMissingSignInIsSignedOut() {
+        let file = CodexAuthFile(url: temporaryDirectory().appendingPathComponent("auth.json"))
+
+        #expect(file.currentAccount() == nil)
+        #expect(file.currentFingerprint() == nil)
     }
 
     private func makeAuthData(idTokenPayload: [String: Any]) throws -> Data {
@@ -160,15 +167,10 @@ struct CodexAuthSnapshotServiceTests {
             .replacingOccurrences(of: "=", with: "")
     }
 
-    private func makeRepository(root: URL) throws -> AccountRepository {
-        try AccountRepository(
-            isolatedRootDirectory: root
-        )
-    }
-
     private func temporaryDirectory() -> URL {
-        FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        return url
     }
 
     private func posixPermissions(at url: URL) throws -> Int {

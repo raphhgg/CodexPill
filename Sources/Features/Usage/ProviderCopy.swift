@@ -20,7 +20,7 @@ struct ProviderCopy: Sendable {
         switch action {
         case .connect: connectPrompt
         case .signIn: signInPrompt
-        case .allowKeychainAccess, .disconnect, .switchAccount, .addAccount, .removeAccount, .useResetCredit, .signOut: nil
+        case .allowKeychainAccess, .disconnect, .addAccount, .useResetCredit, .signOut: nil
         }
     }
 

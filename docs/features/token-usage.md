@@ -10,7 +10,7 @@ Token Usage is an optional, local-first menu bar feature. When enabled, rusage s
 
 The scan should be treated as a background data-loading job, not as work owned by the transient menu view. Opening or closing the menu must not restart the scan. Once enough local history has been scanned, changing period or chart style should derive a new presentation from cached aggregate data instead of visibly re-scanning local session files.
 
-The feature is about local Codex usage history, not saved-account usage history. V1 must not imply that the graph is split by saved account, workspace, organization, or remote host.
+The feature is about local Codex usage history, not per-account usage history. V1 must not imply that the graph is split by account, workspace, organization, or remote host.
 
 For Codex, rusage must not use undocumented backend usage endpoints, browser cookies, hidden WebViews, ChatGPT dashboard scraping, or manual prompt token counters for this feature. Cursor is the one exception, described in [Other Tools](#other-tools): Cursor keeps usage only on its servers, so rusage reads it the way Cursor's own dashboard does.
 
@@ -196,7 +196,7 @@ RGR-360 compared chart variants inside the active account card and shipped `Dail
 - Inspecting an individual day.
 - Secondary metrics such as average per day.
 - Model breakdown beyond the top three models per tool.
-- Saved-account attribution.
+- Per-account attribution.
 - Remote-host usage history.
 - User-selectable periods.
 - Cost estimation.

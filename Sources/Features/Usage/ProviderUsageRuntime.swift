@@ -83,7 +83,7 @@ final class ProviderUsageRuntime {
             // The account may have changed, so the last numbers may belong to another one.
             readings[provider] = nil
             lastSnapshots[provider] = nil
-        case .switchAccount, .addAccount, .removeAccount, .useResetCredit:
+        case .addAccount, .useResetCredit:
             return nil
         }
         await refreshIfDue(forcing: provider)

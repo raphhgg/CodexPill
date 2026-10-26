@@ -13,23 +13,22 @@ struct AppComposition {
         let isIsolated = isolatedRootDirectory != nil || AppRuntimeEnvironment.isolatedDefaultsSuiteName(environment: environment) != nil
         launchNotice = isIsolated ? nil : Self.migrateCodexPillData(defaults: defaults)
         let suppressesInteractivePrompts = AppRuntimeEnvironment.isRunningAutomatedTests(environment: environment)
-        let repository = try! AccountRepository(isolatedRootDirectory: isolatedRootDirectory)
-        let authService = CodexAuthSnapshotService(repository: repository)
+        let paths = try! AppPaths(isolatedRootDirectory: isolatedRootDirectory)
+        let authFile = CodexAuthFile(url: paths.codexAuthFile)
         let codexAppServerClient = CodexAppServerClient()
-        accountsController = AccountsFeatureFactory(
-            repository: repository,
-            authService: authService,
-            codexAppProcessClient: SystemCodexAppProcessClient(),
+        accountsController = AccountsController(
+            authFile: authFile,
             accountStatusClient: codexAppServerClient,
+            signInWorkflow: CodexSignInWorkflow(authFile: authFile, codexAppProcessClient: SystemCodexAppProcessClient()),
             resetCreditClient: codexAppServerClient
-        ).makeController()
+        )
 
         let settings = SettingsModel(userDefaults: defaults)
         let claudeCodeUsage = Self.makeClaudeCodeUsage(
             environment: environment,
             settings: settings.claude,
             isolatedRootDirectory: isolatedRootDirectory,
-            appSupportDirectory: repository.paths.appSupportDirectory
+            appSupportDirectory: paths.appSupportDirectory
         )
         let cursorUsage = Self.makeCursorUsage(settings: settings.cursor, isolatedRootDirectory: isolatedRootDirectory)
         coordinator = MenuBarCoordinator(

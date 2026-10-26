@@ -12,7 +12,7 @@ Reading usage never changes anything in Cursor. rusage never signs in to Cursor 
 
 The feature is off by default. Connecting it is the user's consent for rusage to read Cursor's local sign-in token and send it to cursor.com.
 
-Cursor usage is display-only. It never feeds account availability, ranking, or notifications, which stay Codex-only.
+Cursor usage is display-only. It never affects Codex or its account.
 
 ## Menu
 

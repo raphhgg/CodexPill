@@ -189,6 +189,6 @@ struct StatusItemRuntimeTests {
     }
 
     private func primaryAccountSource() -> StatusItemSource {
-        MenuBarMenuState(activeAccount: makeAccount(name: "Primary", usage: makeUsage()), inactiveAccounts: []).statusItemSource
+        MenuBarMenuState(activeAccount: makeAccount(name: "Primary", usage: makeUsage())).statusItemSource
     }
 }

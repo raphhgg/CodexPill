@@ -13,7 +13,7 @@ make test
 Tests use temporary directories, injected clients, and fakes for process side
 effects. They never read or write the real `~/.codex/auth.json`, real rusage
 data, or a running Codex app. Tests and fixtures use synthetic accounts and
-emails, and never print auth snapshots, tokens, or device codes.
+emails, and never print sign-ins, tokens, or device codes.
 
 ## Manual Checklist
 
@@ -23,11 +23,11 @@ accounts.
 
 1. The menu bar item appears, and the menu opens with one card per visible tool,
    then Settings…, Diagnostics, About and Quit. With no card, it starts at Settings….
-2. If the change touches switching, switch from a card's side menu and check
-   that the card follows.
-3. If the change touches Add Account or Remove (in `Settings › Accounts`), run that flow once and cancel it
-   once.
-4. If the change touches the status item or Settings, open `Settings…` (⌘,),
+2. If the change touches Codex sign-in, run `Use Another Account…` in
+   `Settings › Accounts` once to the end and check that the Codex card follows
+   the new account, and cancel it once at the confirmation and check that
+   `auth.json` is unchanged.
+3. If the change touches the status item or Settings, open `Settings…` (⌘,),
    check that the window comes to the front, and check the changed setting in
    the menu and the menu bar label.
-5. Screenshots for a pull request show synthetic accounts only.
+4. Screenshots for a pull request show synthetic accounts only.
