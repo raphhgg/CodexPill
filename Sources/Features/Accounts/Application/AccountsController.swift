@@ -173,6 +173,26 @@ final class AccountsController {
         }
     }
 
+    /// Signs Codex out on this Mac. Nil when removing `auth.json` failed.
+    func signOut() async -> CodexRelaunch? {
+        guard !isApplyingResetCredit else {
+            operationState.fail(AccountsControllerError.resetCreditInProgress)
+            return nil
+        }
+        operationState.begin(status: "Signing out of Codex...")
+        do {
+            let relaunch = try await signInWorkflow.signOut()
+            activeAccount = nil
+            pendingResetCreditKey = nil
+            operationState.succeed()
+            return relaunch
+        } catch {
+            refreshActiveAccount()
+            operationState.fail(error)
+            return nil
+        }
+    }
+
     var pendingErrorMessage: String? {
         operationState.pendingErrorMessage
     }

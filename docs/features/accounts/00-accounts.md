@@ -36,7 +36,7 @@ The Codex card shows the signed-in account: its plan, its windows, its credits a
 
 The Codex side menu shows the account's email, then, when it has reset credits, `Use a Reset…` and its `Expires <date>` rows.
 
-`Settings › Accounts › Codex` shows the account and `Use Another Account…` (tooltip `Replaces the Codex sign-in on this Mac.`). When Codex is signed out, the row says `Signed out` with `Sign In…`. When Codex is signed in but hidden, it says `Not shown in the menu` with `Show`.
+`Settings › Accounts › Codex` shows the account, `Use Another Account…` (tooltip `Replaces the Codex sign-in on this Mac.`) and `Sign Out of Codex…`. Sign Out asks first (`Sign Out of Codex?` / `This signs Codex out on this Mac, including the Codex app and CLI.`, `Sign Out` / `Cancel`), then removes `auth.json` and relaunches Codex, so the app and the CLI are signed out too. It is refused while a reset runs. When Codex is signed out, the row says `Signed out` with `Sign In…`. When Codex is signed in but hidden, it says `Not shown in the menu` with `Show`.
 
 With nothing connected, the menu starts at `Settings…`, and launch asks once to sign in to Codex. Account actions are disabled while a sign-in runs. A reset and a sign-in never overlap.
 

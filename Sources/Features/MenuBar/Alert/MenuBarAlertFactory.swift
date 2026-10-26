@@ -71,6 +71,15 @@ struct MenuBarAlertFactory {
         }
     }
 
+    func makeCodexSignOutRequest() -> MenuBarConfirmationAlertRequest {
+        MenuBarConfirmationAlertRequest(
+            messageText: "Sign Out of Codex?",
+            informativeText: "This signs Codex out on this Mac, including the Codex app and CLI.",
+            confirmTitle: "Sign Out",
+            cancelTitle: "Cancel"
+        )
+    }
+
     func makeAccountAlreadyInUseRequest() -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
             messageText: "Already Signed In",
@@ -190,7 +199,7 @@ struct MenuBarAlertFactory {
     func makeResetInProgressRequest() -> MenuBarInfoAlertRequest {
         MenuBarInfoAlertRequest(
             messageText: "Reset in progress",
-            informativeText: "Use the new account when it finishes.",
+            informativeText: "Try again when it finishes.",
             style: .informational,
             buttonTitle: "OK"
         )

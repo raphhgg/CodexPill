@@ -72,6 +72,14 @@ struct CodexSignInWorkflow: Sendable {
     }
 }
 
+extension CodexSignInWorkflow {
+    /// Removes `auth.json` and relaunches Codex, so the app and the CLI are signed out too.
+    func signOut() async throws -> CodexRelaunch {
+        try authFile.remove()
+        return try await codexAppProcessClient.relaunchCodex()
+    }
+}
+
 enum CodexSignInWorkflowError: Equatable, LocalizedError {
     case liveAuthChanged
     case accountAlreadyInUse

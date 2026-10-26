@@ -33,6 +33,13 @@ struct CodexAuthFile: Sendable {
         try FilePermissionHardening.repairPrivateFile(at: url)
     }
 
+    /// Signs Codex out on this Mac, the app and the CLI alike.
+    func remove() throws {
+        codexAuthFileLogger.log("Removing the Codex sign-in")
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        try FileManager.default.removeItem(at: url)
+    }
+
     /// The account `authData` signs in to, read from its tokens, without a reading.
     static func account(forAuthData authData: Data, id: UUID = UUID()) -> CodexAccount {
         CodexAccount(

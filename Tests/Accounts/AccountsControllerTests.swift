@@ -156,6 +156,22 @@ struct AccountsControllerTests {
     }
 
     @Test
+    func signingOutRemovesAuthJSONAndRelaunchesCodex() async {
+        let authFile = makeCodexAuthFile(makeCodexAuthData(email: "alex@example.com"))
+        let codexApp = CodexAppProcessProbe()
+        let controller = makeController(authFile: authFile, codexApp: codexApp)
+        controller.load()
+
+        let relaunch = await controller.signOut()
+
+        #expect(relaunch == .relaunched)
+        #expect(!FileManager.default.fileExists(atPath: authFile.url.path))
+        #expect(controller.activeAccount == nil)
+        #expect(codexApp.relaunchCount == 1)
+        #expect(!controller.isBusy)
+    }
+
+    @Test
     func useResetCreditRefreshesLimitsAfterReset() async {
         var refreshedUsage = makeUsage()
         refreshedUsage.resetCredits = UsageResetCredits(availableCount: 1, credits: nil)

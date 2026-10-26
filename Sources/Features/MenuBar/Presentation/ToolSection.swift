@@ -7,12 +7,12 @@ struct ToolSection: Equatable {
     let card: ToolCard
     /// An action row under the card while its state lasts, such as "Allow Keychain Access…".
     let followUp: ToolFollowUp?
-    /// "Sign in with Claude…" or "Sign Out of Claude" in the side menu, for a tool rusage can sign in to itself.
-    var signInItem: ToolMenuItem? = nil
     /// Which sign-in the reading came from, when it isn't rusage's own, such as "Uses Claude Code's sign-in".
     var signInSourceLabel: String? = nil
     /// The account the tool is signed in to, by email, masked when Hide Emails is on.
     var signedInLabel: String? = nil
+    /// Whether the tool reads with rusage's own sign-in, for a tool that has one.
+    var ownSignIn: ProviderOwnSignIn = .unsupported
 
     /// What the side menu and the tooltip call the account in use.
     var activeLabel: String? {
@@ -36,11 +36,6 @@ struct ToolCard: Equatable {
 struct ToolFollowUp: Equatable {
     let title: String
     let systemImage: String
-    let action: ProviderAction
-}
-
-struct ToolMenuItem: Equatable {
-    let title: String
     let action: ProviderAction
 }
 
@@ -108,21 +103,14 @@ extension MenuBarMenuState {
                 followUp = ToolFollowUp(title: "Sign in with \(copy.sectionTitle)…", systemImage: "person.crop.circle", action: .signIn)
             }
         }
-        // A card that needs a sign-in already shows it as its follow-up, so the side menu doesn't repeat it.
-        let signInItem: ToolMenuItem? = switch usage.ownSignIn {
-        case .unsupported: nil
-        case .signedOut: followUp?.action == .signIn ? nil : ToolMenuItem(title: "Sign in with \(copy.sectionTitle)…", action: .signIn)
-        case .signedIn: ToolMenuItem(title: "Sign Out of \(copy.sectionTitle)", action: .signOut)
-        }
-
         return ToolSection(
             provider: usage.provider,
             planTag: snapshot.flatMap { planTag(for: usage.provider, planName: $0.planName) },
             card: card,
             followUp: followUp,
-            signInItem: signInItem,
             signInSourceLabel: usage.ownSignIn == .signedOut && snapshot != nil ? "Uses \(copy.name)'s sign-in" : nil,
-            signedInLabel: snapshot?.accountEmail.map { displayedEmail($0, masked: masksEmails) }
+            signedInLabel: snapshot?.accountEmail.map { displayedEmail($0, masked: masksEmails) },
+            ownSignIn: usage.ownSignIn
         )
     }
 

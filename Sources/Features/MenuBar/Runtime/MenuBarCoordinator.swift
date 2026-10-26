@@ -261,8 +261,25 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation, 
         case .disconnect:
             recordMenuAction("hideCodex")
             settings.codex.isConnected = false
-        case .allowKeychainAccess, .signIn, .signOut:
+        case .signOut:
+            signOutOfCodex()
+        case .allowKeychainAccess, .signIn:
             break
+        }
+    }
+
+    /// Asks first, since it signs the Codex app and CLI out too.
+    private func signOutOfCodex() {
+        guard !accountsController.isApplyingResetCredit else {
+            alertPresenter.presentInfo(alertFactory.makeResetInProgressRequest())
+            return
+        }
+        guard alertPresenter.presentConfirmation(alertFactory.makeCodexSignOutRequest()) else { return }
+        recordMenuAction("signOutOfCodex")
+        tasks.start { [weak self] in
+            guard let self else { return }
+            _ = await accountsController.signOut()
+            presentPendingErrorIfNeeded()
         }
     }
 

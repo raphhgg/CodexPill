@@ -130,15 +130,16 @@ struct ToolSectionTests {
     }
 
     @Test
-    func theClaudeSideMenuSignsInOrOutOfRUsagesOwnSignIn() throws {
-        func signInItem(_ ownSignIn: ProviderOwnSignIn) throws -> ToolMenuItem? {
+    func theClaudeSectionSaysWhichSignInItReadsWith() throws {
+        func section(_ ownSignIn: ProviderOwnSignIn) throws -> ToolSection {
             let usage = ProviderUsageState(provider: .claude, status: .current(claudeSnapshot()), ownSignIn: ownSignIn)
-            return try #require(state(providerUsage: [usage]).toolSections.first).signInItem
+            return try #require(state(providerUsage: [usage]).toolSections.first)
         }
 
-        #expect(try signInItem(.signedOut) == ToolMenuItem(title: "Sign in with Claude…", action: .signIn))
-        #expect(try signInItem(.signedIn) == ToolMenuItem(title: "Sign Out of Claude", action: .signOut))
-        #expect(try signInItem(.unsupported) == nil)
+        #expect(try section(.signedIn).ownSignIn == .signedIn)
+        #expect(try section(.signedIn).signInSourceLabel == nil)
+        #expect(try section(.signedOut).ownSignIn == .signedOut)
+        #expect(try section(.signedOut).signInSourceLabel == "Uses Claude Code's sign-in")
     }
 
     @Test

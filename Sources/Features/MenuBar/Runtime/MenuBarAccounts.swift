@@ -17,6 +17,7 @@ protocol MenuBarAccounts: AnyObject {
     func completeSignIn(_ session: CodexSignInSession) async throws -> CodexSignedInAccount
     func cancelSignIn(_ session: CodexSignInSession)
     func use(_ signedIn: CodexSignedInAccount) async -> CodexRelaunch?
+    func signOut() async -> CodexRelaunch?
 }
 
 extension AccountsController: MenuBarAccounts {}

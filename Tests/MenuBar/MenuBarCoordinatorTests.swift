@@ -80,6 +80,32 @@ struct MenuBarCoordinatorTests {
     }
 
     @Test
+    func signingOutOfCodexAsksFirstAndOnlyThenRemovesTheSignIn() async throws {
+        let harness = try MenuBarCoordinatorHarness()
+        defer { harness.tearDown() }
+        harness.makeActiveAccount(email: "personal@example.com")
+        let coordinator = harness.makeCoordinator()
+        coordinator.start()
+        await coordinator.waitForPendingWork()
+
+        harness.send(.signOut, for: .codex)
+        await coordinator.waitForPendingWork()
+
+        #expect(harness.alertPresenter.confirmationRequests.map(\.messageText) == ["Sign Out of Codex?"])
+        #expect(harness.alertPresenter.confirmationRequests.last?.informativeText == "This signs Codex out on this Mac, including the Codex app and CLI.")
+        #expect(FileManager.default.fileExists(atPath: harness.authFile.url.path))
+        #expect(harness.codexApp.relaunchCount == 0)
+
+        harness.alertPresenter.confirmationResponse = true
+        harness.send(.signOut, for: .codex)
+        await coordinator.waitForPendingWork()
+
+        #expect(!FileManager.default.fileExists(atPath: harness.authFile.url.path))
+        #expect(harness.codexApp.relaunchCount == 1)
+        #expect(cardAreaTitles(coordinator) == [])
+    }
+
+    @Test
     func signingInWithoutTheCodexAppReplacesTheAccountAndSaysCodexWasNotRestarted() async throws {
         let harness = try MenuBarCoordinatorHarness()
         defer { harness.tearDown() }

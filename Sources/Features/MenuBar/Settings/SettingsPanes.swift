@@ -103,16 +103,35 @@ struct AccountsPane: View {
         } else {
             Text(section.card.title ?? "No account in use").foregroundStyle(.secondary)
         }
-        if let followUp = section.followUp {
+        if let followUp = section.followUp, followUp.action != .signIn {
             Button(followUp.title) { actions.perform(followUp.action, on: provider) }
         }
-        if let signIn = section.signInItem {
-            Button(signIn.title) { actions.perform(signIn.action, on: provider) }
-        }
         if provider == .codex {
-            Button("Use Another Account…") { actions.perform(.addAccount, on: provider) }
-                .disabled(state.isBusy)
-                .help("Replaces the Codex sign-in on this Mac.")
+            HStack {
+                Button("Use Another Account…") { actions.perform(.addAccount, on: provider) }
+                    .help("Replaces the Codex sign-in on this Mac.")
+                Button("Sign Out of Codex…") { actions.perform(.signOut, on: provider) }
+                    .help("Signs the Codex app and CLI out on this Mac.")
+            }
+            .disabled(state.isBusy)
+        } else if section.ownSignIn != .unsupported {
+            ownSignInRow(for: section)
+        }
+    }
+
+    /// rusage's own sign-in reads another account without touching the tool's own. Signing out of it goes back to the
+    /// tool's sign-in; while that one is in use, the tool can only be disconnected.
+    private func ownSignInRow(for section: ToolSection) -> some View {
+        let provider = section.provider
+        let name = provider.copy.sectionTitle
+        return HStack {
+            Button("Use Another Account…") { actions.perform(.signIn, on: provider) }
+                .help("Signs in with rusage's own \(name) sign-in. \(provider.copy.name) keeps its own.")
+            if section.ownSignIn == .signedIn {
+                Button("Sign Out of \(name)") { actions.perform(.signOut, on: provider) }
+            } else {
+                Button("Disconnect") { actions.setTool(provider, shown: false) }
+            }
         }
     }
 
