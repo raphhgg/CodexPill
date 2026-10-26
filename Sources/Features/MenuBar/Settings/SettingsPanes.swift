@@ -6,8 +6,8 @@ struct SettingsPane {
     let symbol: String
     let view: AnyView
 
-    /// The Providers pane's sidebar needs this width, so every pane uses it and the window never changes size.
-    static let width: CGFloat = 680
+    /// The narrowest a form pane gets. Every pane fills the window, which takes the largest pane's size.
+    static let width: CGFloat = 480
     /// A pane taller than this scrolls, so the window fits a small display.
     static let maxHeight: CGFloat = 600
 
@@ -202,7 +202,7 @@ extension View {
     /// A grouped form as tall as its rows up to `SettingsPane.maxHeight`, so the window takes each pane's size.
     func settingsPane() -> some View {
         formStyle(.grouped)
-            .frame(width: SettingsPane.width)
+            .frame(minWidth: SettingsPane.width, maxWidth: .infinity)
             .frame(maxHeight: SettingsPane.maxHeight)
             .fixedSize(horizontal: false, vertical: true)
     }
