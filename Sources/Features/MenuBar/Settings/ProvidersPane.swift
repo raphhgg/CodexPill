@@ -8,21 +8,32 @@ struct ProvidersPane: View {
     @Bindable var state: SettingsWindowState
     let actions: any SettingsActions
 
-    static let size = CGSize(width: SettingsPane.width, height: 420)
+    static let sidebarWidth: CGFloat = 200
+    static let detailWidth: CGFloat = 380
 
+    /// Every provider's detail is laid out and only the selected one shows, so the pane is as tall as the longest one
+    /// and choosing another provider never resizes the window.
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(alignment: .top, spacing: 0) {
             sidebar
             Divider()
-            if let selection {
-                detail(for: selection)
-            } else {
-                Text("Add a provider with +")
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            ZStack(alignment: .top) {
+                ForEach(settings.general.toolOrder, id: \.self) { provider in
+                    let isSelected = provider == selection
+                    detail(for: provider)
+                        .opacity(isSelected ? 1 : 0)
+                        .allowsHitTesting(isSelected)
+                        .accessibilityHidden(!isSelected)
+                }
+                if selection == nil {
+                    Text("Add a provider with +")
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
+            .frame(width: Self.detailWidth)
         }
-        .frame(width: Self.size.width, height: Self.size.height)
+        .frame(minWidth: Self.sidebarWidth + 1 + Self.detailWidth, maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     /// Claude and Cursor while connected, Codex until it is removed, in the menu's order.
@@ -55,7 +66,8 @@ struct ProvidersPane: View {
             Divider()
             addRemoveBar
         }
-        .frame(width: 210)
+        .frame(width: Self.sidebarWidth)
+        .frame(maxHeight: .infinity)
     }
 
     /// The standard + and − under a source list.
@@ -174,7 +186,8 @@ struct ProvidersPane: View {
             }
         }
         .formStyle(.grouped)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .scrollDisabled(true)
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     @ViewBuilder
