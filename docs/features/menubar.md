@@ -68,7 +68,7 @@ Every tool item carries a `ProviderMenuAction` and goes through `MenuBarCoordina
 
 ## Settings Window
 
-One window of stock controls, with a toolbar pane per group. The title names the pane, the window takes each pane's size, minimize and zoom are off, and it reopens on the pane shown last.
+One window of stock controls, with a toolbar pane per group. The title names the pane, the window keeps one size, the largest pane's, so switching panes never resizes it, minimize and zoom are off, and it reopens on the pane shown last.
 
 | Pane | Controls |
 |---|---|
