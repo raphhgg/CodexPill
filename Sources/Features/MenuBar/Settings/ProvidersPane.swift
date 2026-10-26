@@ -11,6 +11,10 @@ struct ProvidersPane: View {
     static let sidebarWidth: CGFloat = 200
     static let detailWidth: CGFloat = 380
 
+    /// Temporary, for comparing add/remove designs: `defaults write <domain> debug.providersAddRemoveStyle classic`.
+    enum AddRemoveStyle: String { case footer, classic, header }
+    static let style = UserDefaults.standard.string(forKey: "debug.providersAddRemoveStyle").flatMap(AddRemoveStyle.init) ?? .footer
+
     /// Every provider's detail is laid out and only the selected one shows, so the pane is as tall as the longest one
     /// and choosing another provider never resizes the window.
     var body: some View {
@@ -26,7 +30,7 @@ struct ProvidersPane: View {
                         .accessibilityHidden(!isSelected)
                 }
                 if selection == nil {
-                    Text("Add a provider with +")
+                    Text("Add a provider below the list.")
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
@@ -50,27 +54,102 @@ struct ProvidersPane: View {
         state.selectedProvider.flatMap { addedProviders.contains($0) ? $0 : nil } ?? addedProviders.first
     }
 
+    @ViewBuilder
     private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            List(selection: Binding(get: { selection }, set: { state.selectedProvider = $0 })) {
-                ForEach(addedProviders, id: \.self) { provider in
-                    row(provider)
-                }
-                .onMove(perform: moveAdded)
+        switch Self.style {
+        case .footer:
+            list(header: false)
+                .listStyle(.sidebar)
+                .safeAreaInset(edge: .bottom, alignment: .leading) { addButton }
+                .frame(width: Self.sidebarWidth)
+                .frame(maxHeight: .infinity)
+        case .header:
+            list(header: true)
+                .listStyle(.sidebar)
+                .frame(width: Self.sidebarWidth)
+                .frame(maxHeight: .infinity)
+        case .classic:
+            VStack(spacing: 0) {
+                list(header: false)
+                    .listStyle(.bordered(alternatesRowBackgrounds: false))
+                Divider()
+                classicBar
             }
-            .listStyle(.sidebar)
-            .help("Drag to set the menu order. The first one shown drives the menu bar icon.")
-            .accessibilityHint("Drag to set the menu order. The first one shown drives the menu bar icon.")
-            Divider()
-            addRemoveBar
+            .overlay(RoundedRectangle(cornerRadius: 0).strokeBorder(Color(nsColor: .separatorColor)))
+            .padding(12)
+            .frame(width: Self.sidebarWidth)
+            .frame(maxHeight: .infinity)
         }
-        .frame(width: Self.sidebarWidth)
-        .frame(maxHeight: .infinity)
     }
 
-    /// The standard + and − under a source list.
-    private var addRemoveBar: some View {
+    private func list(header: Bool) -> some View {
+        List(selection: Binding(get: { selection }, set: { state.selectedProvider = $0 })) {
+            if header {
+                Section {
+                    ForEach(addedProviders, id: \.self) { provider in row(provider) }
+                        .onMove(perform: moveAdded)
+                } header: {
+                    HStack {
+                        Text("Providers")
+                        Spacer()
+                        addMenu { Image(systemName: "plus") }
+                            .help("Add Provider")
+                    }
+                }
+            } else {
+                ForEach(addedProviders, id: \.self) { provider in row(provider) }
+                    .onMove(perform: moveAdded)
+            }
+        }
+        .help("Drag to set the menu order. The first one shown drives the menu bar icon.")
+        .accessibilityHint("Drag to set the menu order. The first one shown drives the menu bar icon.")
+        .onDeleteCommand {
+            if let selection { actions.removeProvider(selection) }
+        }
+    }
+
+    private func addMenu(@ViewBuilder label: () -> some View) -> some View {
+        Menu {
+            ForEach(notAddedProviders, id: \.self) { provider in
+                Button(provider.copy.sectionTitle) {
+                    state.selectedProvider = provider
+                    actions.setTool(provider, shown: true)
+                }
+            }
+        } label: {
+            label()
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .disabled(notAddedProviders.isEmpty || state.isBusy)
+        .accessibilityLabel("Add Provider")
+    }
+
+    /// The AppKit source-list bar: joined square + and − buttons under a bordered list.
+    private var classicBar: some View {
         HStack(spacing: 0) {
+            addMenu { Image(systemName: "plus").frame(width: 24, height: 20) }
+            Divider()
+            Button {
+                if let selection { actions.removeProvider(selection) }
+            } label: {
+                Image(systemName: "minus").frame(width: 24, height: 20)
+            }
+            .buttonStyle(.borderless)
+            .disabled(selection == nil || state.isBusy)
+            .accessibilityLabel("Remove Provider")
+            Divider()
+            Spacer()
+        }
+        .frame(height: 22)
+        .background(Color(nsColor: .controlBackgroundColor))
+    }
+
+    /// Like Reminders' "Add List": a plain button at the foot of the sidebar, with the providers not added yet.
+    @ViewBuilder
+    private var addButton: some View {
+        if !notAddedProviders.isEmpty {
             Menu {
                 ForEach(notAddedProviders, id: \.self) { provider in
                     Button(provider.copy.sectionTitle) {
@@ -79,30 +158,15 @@ struct ProvidersPane: View {
                     }
                 }
             } label: {
-                Label("Add Provider", systemImage: "plus")
-                    .labelStyle(.iconOnly)
-                    .frame(width: 22, height: 22)
+                Label("Add Provider", systemImage: "plus.circle.fill")
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
             .fixedSize()
-            .disabled(notAddedProviders.isEmpty || state.isBusy)
-            .help("Add Provider")
-            Divider().frame(height: 14)
-            Button {
-                if let selection { actions.removeProvider(selection) }
-            } label: {
-                Label("Remove Provider", systemImage: "minus")
-                    .labelStyle(.iconOnly)
-                    .frame(width: 22, height: 22)
-            }
-            .buttonStyle(.borderless)
-            .disabled(selection == nil || state.isBusy)
-            .help("Remove Provider")
-            Spacer()
+            .disabled(state.isBusy)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
         }
-        .frame(height: 22)
-        .padding(.horizontal, 4)
     }
 
     /// Moves within the added providers keep the others where they are in the menu's order.
@@ -142,6 +206,9 @@ struct ProvidersPane: View {
         .contextMenu {
             Button("Move Up") { move(provider, by: -1) }.disabled(!canMoveUp)
             Button("Move Down") { move(provider, by: 1) }.disabled(!canMoveDown)
+            Divider()
+            Button("Remove \(provider.copy.sectionTitle)…", role: .destructive) { actions.removeProvider(provider) }
+                .disabled(state.isBusy)
         }
     }
 
@@ -198,6 +265,18 @@ struct ProvidersPane: View {
         .formStyle(.grouped)
         .scrollDisabled(true)
         .fixedSize(horizontal: false, vertical: true)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .safeAreaInset(edge: .bottom) {
+            if addedProviders.contains(provider), Self.style != .classic {
+                HStack {
+                    Spacer()
+                    Button("Remove \(provider.copy.sectionTitle)…", role: .destructive) { actions.removeProvider(provider) }
+                        .disabled(state.isBusy)
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 16)
+            }
+        }
     }
 
     @ViewBuilder
