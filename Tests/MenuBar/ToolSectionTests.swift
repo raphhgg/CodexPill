@@ -137,9 +137,9 @@ struct ToolSectionTests {
         }
 
         #expect(try section(.signedIn).ownSignIn == .signedIn)
-        #expect(try section(.signedIn).signInSourceLabel == nil)
+        #expect(try section(.signedIn).signInSourceCaption == nil)
         #expect(try section(.signedOut).ownSignIn == .signedOut)
-        #expect(try section(.signedOut).signInSourceLabel == "Uses Claude Code's sign-in")
+        #expect(try section(.signedOut).signInSourceCaption == "From Claude Code")
     }
 
     @Test

@@ -173,6 +173,13 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation, 
         perform(shown ? .connect : .disconnect, on: provider)
     }
 
+    func removeProvider(_ provider: UsageProvider) {
+        let usesOwnSignIn = providerUsageRuntime.states.first { $0.provider == provider }?.ownSignIn == .signedIn
+        guard alertPresenter.presentConfirmation(alertFactory.makeRemoveProviderRequest(provider, usesOwnSignIn: usesOwnSignIn)) else { return }
+        recordMenuAction("removeProvider")
+        perform(.disconnect, on: provider)
+    }
+
     /// Showing or hiding the card starts or stops its scan. Between the two visible modes the card redraws itself.
     func setTokenUsageDisplay(_ display: TokenUsageDisplay) {
         guard settings.tokenUsage.display != display else { return }

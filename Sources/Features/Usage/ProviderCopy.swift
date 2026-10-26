@@ -10,6 +10,8 @@ struct ProviderCopy: Sendable {
     let connectPrompt: ProviderPrompt?
     /// What the menu asks before rusage's own sign-in, for a tool that offers one.
     var signInPrompt: ProviderPrompt? = nil
+    /// Under the account in Settings while rusage reads the tool's own sign-in, such as "From Claude Code".
+    var toolSignInCaption: String? = nil
     /// What the card says when the tool is signed out. By default, sign in to the tool.
     var signedOutMessage: (title: String, detail: String?)? = nil
     /// What the card says when the sign-in expired. By default, open the tool to renew it.
@@ -63,6 +65,7 @@ extension UsageProvider {
                     detail: "Opens your browser. rusage keeps this sign-in in its own Keychain item.",
                     confirmTitle: "Sign In"
                 ),
+                toolSignInCaption: "From Claude Code",
                 signedOutMessage: ("Not signed in", "Sign in to see your limits."),
                 expiredMessage: ("Sign-in expired", "Sign in to keep your limits current.")
             )
@@ -75,7 +78,8 @@ extension UsageProvider {
                     title: "Connect Cursor?",
                     detail: "Uses Cursor's sign-in to read your usage.",
                     confirmTitle: "Connect"
-                )
+                ),
+                toolSignInCaption: "From the Cursor app"
             )
         }
     }
