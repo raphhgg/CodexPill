@@ -40,10 +40,13 @@ struct MenuBarMenuBuilder {
         addSeparatorIfNeeded(to: menu)
         let settings = actionItem("Settings…", action: #selector(MenuBarCoordinator.openSettings), target: target)
         settings.keyEquivalent = ","
-        // No other item has an icon, so the gear macOS adds to Settings… stays off.
+        // No other item has an icon, so the gear macOS adds to Settings… stays off. The API needs the macOS 27 SDK,
+        // which ships with Swift 6.4.
+        #if compiler(>=6.4)
         if #available(macOS 27.0, *) {
             settings.preferredImageVisibility = .hidden
         }
+        #endif
         menu.addItem(settings)
         menu.addItem(.separator())
         menu.addItem(actionItem("Diagnostics…", action: #selector(MenuBarCoordinator.exportDiagnosticReport), isEnabled: !state.isBusy, target: target))
