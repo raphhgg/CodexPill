@@ -81,22 +81,26 @@ struct ProvidersPane: View {
                     }
                 }
             } label: {
-                Image(systemName: "plus").frame(width: 22, height: 22)
+                Label("Add Provider", systemImage: "plus")
+                    .labelStyle(.iconOnly)
+                    .frame(width: 22, height: 22)
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
             .fixedSize()
             .disabled(notAddedProviders.isEmpty || state.isBusy)
-            .accessibilityLabel("Add Provider")
+            .help("Add Provider")
             Divider().frame(height: 14)
             Button {
                 if let selection { actions.removeProvider(selection) }
             } label: {
-                Image(systemName: "minus").frame(width: 22, height: 22)
+                Label("Remove Provider", systemImage: "minus")
+                    .labelStyle(.iconOnly)
+                    .frame(width: 22, height: 22)
             }
             .buttonStyle(.borderless)
             .disabled(selection == nil || state.isBusy)
-            .accessibilityLabel("Remove Provider")
+            .help("Remove Provider")
             Spacer()
         }
         .frame(height: 22)
