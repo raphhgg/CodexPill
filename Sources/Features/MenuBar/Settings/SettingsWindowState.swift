@@ -38,6 +38,9 @@ final class SettingsWindowState {
 protocol SettingsActions: AnyObject {
     /// Through the tool's connect and disconnect actions, so their prompts still show.
     func setTool(_ provider: UsageProvider, shown: Bool)
+    /// Asks first, then stops reading the provider: a disconnect, which also drops rusage's own sign-in, or for Codex,
+    /// hiding it. Codex stays signed in on this Mac.
+    func removeProvider(_ provider: UsageProvider)
     func setLaunchAtLogin(_ isOn: Bool)
     func openLoginItemsSettings()
     func recordRevealShortcut()

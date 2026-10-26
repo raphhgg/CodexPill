@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// Every provider in the menu's order on the left, which drag or Move Up and Move Down change, and the selected one's
-/// switch, account and options on the right. Every action runs through the coordinator, so its alerts still show.
+/// The providers added to rusage on the left, in the menu's order, which drag or Move Up and Move Down change, with +
+/// and − under them as in Mail's accounts. The selected one's switch, account and options are on the right. Every
+/// action runs through the coordinator, so its alerts still show.
 struct ProvidersPane: View {
     @Bindable var settings: SettingsModel
     @Bindable var state: SettingsWindowState
@@ -13,31 +14,89 @@ struct ProvidersPane: View {
         HStack(spacing: 0) {
             sidebar
             Divider()
-            detail(for: selection)
+            if let selection {
+                detail(for: selection)
+            } else {
+                Text("Add a provider with +")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         }
         .frame(width: Self.size.width, height: Self.size.height)
     }
 
-    /// The provider chosen last, kept while rusage runs, else the first in the menu's order.
-    private var selection: UsageProvider {
-        state.selectedProvider ?? settings.general.toolOrder.first ?? .claude
+    /// Claude and Cursor while connected, Codex until it is removed, in the menu's order.
+    private var addedProviders: [UsageProvider] {
+        settings.general.toolOrder.filter { provider in
+            provider == .codex ? settings.codex.isConnected : state.shownTools.contains(provider)
+        }
+    }
+
+    private var notAddedProviders: [UsageProvider] {
+        settings.general.toolOrder.filter { !addedProviders.contains($0) }
+    }
+
+    /// The provider chosen last, kept while rusage runs, else the first one added.
+    private var selection: UsageProvider? {
+        state.selectedProvider.flatMap { addedProviders.contains($0) ? $0 : nil } ?? addedProviders.first
     }
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
             List(selection: Binding(get: { selection }, set: { state.selectedProvider = $0 })) {
-                ForEach(settings.general.toolOrder, id: \.self) { provider in
+                ForEach(addedProviders, id: \.self) { provider in
                     row(provider)
                 }
-                .onMove { settings.general.toolOrder.move(fromOffsets: $0, toOffset: $1) }
+                .onMove(perform: moveAdded)
             }
             .listStyle(.sidebar)
-            Text("Drag to set the menu order. The first one shown drives the menu bar icon.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .padding(10)
+            .help("Drag to set the menu order. The first one shown drives the menu bar icon.")
+            .accessibilityHint("Drag to set the menu order. The first one shown drives the menu bar icon.")
+            Divider()
+            addRemoveBar
         }
         .frame(width: 210)
+    }
+
+    /// The standard + and − under a source list.
+    private var addRemoveBar: some View {
+        HStack(spacing: 0) {
+            Menu {
+                ForEach(notAddedProviders, id: \.self) { provider in
+                    Button(provider.copy.sectionTitle) {
+                        state.selectedProvider = provider
+                        actions.setTool(provider, shown: true)
+                    }
+                }
+            } label: {
+                Image(systemName: "plus").frame(width: 22, height: 22)
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .disabled(notAddedProviders.isEmpty || state.isBusy)
+            .accessibilityLabel("Add Provider")
+            Divider().frame(height: 14)
+            Button {
+                if let selection { actions.removeProvider(selection) }
+            } label: {
+                Image(systemName: "minus").frame(width: 22, height: 22)
+            }
+            .buttonStyle(.borderless)
+            .disabled(selection == nil || state.isBusy)
+            .accessibilityLabel("Remove Provider")
+            Spacer()
+        }
+        .frame(height: 22)
+        .padding(.horizontal, 4)
+    }
+
+    /// Moves within the added providers keep the others where they are in the menu's order.
+    private func moveAdded(from source: IndexSet, to destination: Int) {
+        var added = addedProviders
+        added.move(fromOffsets: source, toOffset: destination)
+        var remaining = added.makeIterator()
+        settings.general.toolOrder = settings.general.toolOrder.map { addedProviders.contains($0) ? remaining.next()! : $0 }
     }
 
     private func row(_ provider: UsageProvider) -> some View {
@@ -73,7 +132,9 @@ struct ProvidersPane: View {
     }
 
     private func subtitle(_ provider: UsageProvider) -> String {
-        guard let section = section(provider) else { return "Hidden from the menu" }
+        guard let section = section(provider) else {
+            return provider == .codex && !state.isSignedInToCodex ? "Signed out" : "Hidden from the menu"
+        }
         return section.activeLabel ?? section.card.title ?? ""
     }
 
@@ -120,8 +181,13 @@ struct ProvidersPane: View {
     private func accountRows(for section: ToolSection) -> some View {
         let provider = section.provider
         if let label = section.activeLabel {
-            LabeledContent(label) {
-                Text(source(of: section)).foregroundStyle(.secondary)
+            LabeledContent {
+                Text("Signed in").foregroundStyle(.secondary)
+            } label: {
+                Text(label)
+                if let caption = section.signInSourceCaption {
+                    Text(caption)
+                }
             }
         } else {
             Text(section.card.title ?? "No account in use").foregroundStyle(.secondary)
@@ -151,11 +217,6 @@ struct ProvidersPane: View {
         }
     }
 
-    private func source(of section: ToolSection) -> String {
-        if section.ownSignIn == .signedIn { return "Signed in with rusage" }
-        return section.signInSourceLabel ?? "In use"
-    }
-
     private func notShownLabel(_ provider: UsageProvider) -> String {
         provider == .codex && !state.isSignedInToCodex ? "Signed out" : "Not shown in the menu"
     }
@@ -167,12 +228,12 @@ struct ProvidersPane: View {
     }
 
     private func canMove(_ provider: UsageProvider, by offset: Int) -> Bool {
-        guard let index = settings.general.toolOrder.firstIndex(of: provider) else { return false }
-        return settings.general.toolOrder.indices.contains(index + offset)
+        guard let index = addedProviders.firstIndex(of: provider) else { return false }
+        return addedProviders.indices.contains(index + offset)
     }
 
     private func move(_ provider: UsageProvider, by offset: Int) {
-        guard canMove(provider, by: offset), let index = settings.general.toolOrder.firstIndex(of: provider) else { return }
-        settings.general.toolOrder.swapAt(index, index + offset)
+        guard canMove(provider, by: offset), let index = addedProviders.firstIndex(of: provider) else { return }
+        moveAdded(from: IndexSet(integer: index), to: offset > 0 ? index + offset + 1 : index + offset)
     }
 }
