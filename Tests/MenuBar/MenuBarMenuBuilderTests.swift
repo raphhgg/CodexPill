@@ -332,6 +332,9 @@ struct MenuBarMenuBuilderTests {
         coordinator.openSettings()
 
         #expect(coordinator.settingsWindow.paneTitles == ["General", "Providers", "Menu Bar", "Usage Bars", "Token Usage"])
+        let sizes = coordinator.settingsWindow.paneSizes
+        #expect(Set(sizes.map { "\($0.width)x\($0.height)" }).count == 1)
+        #expect(sizes.allSatisfy { $0.width >= SettingsPane.width && $0.height > 0 })
         coordinator.settingsWindow.window?.close()
         #expect(!coordinator.settingsWindow.isShown)
     }

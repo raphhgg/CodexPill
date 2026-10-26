@@ -6,7 +6,8 @@ struct SettingsPane {
     let symbol: String
     let view: AnyView
 
-    static let width: CGFloat = 480
+    /// The Providers pane's sidebar needs this width, so every pane uses it and the window never changes size.
+    static let width: CGFloat = 680
     /// A pane taller than this scrolls, so the window fits a small display.
     static let maxHeight: CGFloat = 600
 
