@@ -36,11 +36,9 @@ struct ProvidersPane: View {
         .frame(minWidth: Self.sidebarWidth + 1 + Self.detailWidth, maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    /// Claude and Cursor while connected, Codex until it is removed, in the menu's order.
+    /// Claude and Cursor while connected, Codex until it is removed, shown or hidden, in the menu's order.
     private var addedProviders: [UsageProvider] {
-        settings.general.toolOrder.filter { provider in
-            provider == .codex ? settings.codex.isConnected : state.shownTools.contains(provider)
-        }
+        state.addedProviders
     }
 
     private var notAddedProviders: [UsageProvider] {
@@ -116,7 +114,7 @@ struct ProvidersPane: View {
     }
 
     private func row(_ provider: UsageProvider) -> some View {
-        let isShown = state.shownTools.contains(provider)
+        let isShown = !state.hiddenProviders.contains(provider)
         let canMoveUp = canMove(provider, by: -1)
         let canMoveDown = canMove(provider, by: 1)
         return HStack(spacing: 8) {
@@ -148,8 +146,9 @@ struct ProvidersPane: View {
     }
 
     private func subtitle(_ provider: UsageProvider) -> String {
+        if state.hiddenProviders.contains(provider) { return "Hidden from the menu" }
         guard let section = section(provider) else {
-            return provider == .codex && !state.isSignedInToCodex ? "Signed out" : "Hidden from the menu"
+            return provider == .codex && !state.isSignedInToCodex ? "Signed out" : ""
         }
         return section.activeLabel ?? section.card.title ?? ""
     }
@@ -163,20 +162,27 @@ struct ProvidersPane: View {
         Form {
             Section {
                 Toggle("Show in Menu Bar", isOn: Binding(
-                    get: { state.shownTools.contains(provider) },
-                    set: { actions.setTool(provider, shown: $0) }
+                    get: { !state.hiddenProviders.contains(provider) },
+                    set: { actions.setShown(provider, shown: $0) }
                 ))
-                .disabled(provider == .codex && state.isBusy)
+                .disabled(!addedProviders.contains(provider))
             }
             Section("Account") {
                 if let section = section(provider) {
                     accountRows(for: section)
                 } else {
-                    LabeledContent(notShownLabel(provider)) {
-                        Button(connectTitle(provider)) { actions.setTool(provider, shown: true) }
-                            .disabled(provider == .codex && state.isBusy)
+                    if state.hiddenProviders.contains(provider) {
+                        LabeledContent("Hidden from the menu") {
+                            Button("Show") { actions.setShown(provider, shown: true) }
+                        }
+                        .foregroundStyle(.secondary)
+                    } else {
+                        LabeledContent(notShownLabel(provider)) {
+                            Button(connectTitle(provider)) { actions.setTool(provider, shown: true) }
+                                .disabled(provider == .codex && state.isBusy)
+                        }
+                        .foregroundStyle(.secondary)
                     }
-                    .foregroundStyle(.secondary)
                 }
             }
             if provider == .claude {
@@ -224,11 +230,9 @@ struct ProvidersPane: View {
             HStack {
                 Button("Use Another Account…") { actions.perform(.signIn, on: provider) }
                     .help("Signs in with rusage's own \(provider.copy.sectionTitle) sign-in. \(provider.copy.name) keeps its own.")
-                // While the tool's own sign-in is in use, rusage can't sign it out, only stop reading it.
+                // While the tool's own sign-in is in use, rusage can't sign it out; − under the list stops reading it.
                 if section.ownSignIn == .signedIn {
                     Button("Sign Out…") { actions.perform(.signOut, on: provider) }
-                } else {
-                    Button("Disconnect") { actions.setTool(provider, shown: false) }
                 }
             }
         }

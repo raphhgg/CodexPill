@@ -25,6 +25,8 @@ struct MenuBarMenuState {
     let toolOrder: [UsageProvider]
     let masksEmails: Bool
     let hidesCodex: Bool
+    /// Whether Codex is added to rusage, shown or hidden. False once the user removed it in Settings.
+    let codexIsAdded: Bool
     let showsModelLimits: Bool
     let theme: AppTheme
     /// The moment reset countdowns and elapsed times in the menu are measured from.
@@ -52,6 +54,7 @@ struct MenuBarMenuState {
         toolOrder: [UsageProvider] = GeneralSettings.defaultToolOrder,
         masksEmails: Bool = false,
         hidesCodex: Bool = false,
+        codexIsAdded: Bool = true,
         showsModelLimits: Bool = true,
         theme: AppTheme = .defaultTheme,
         now: Date = .now
@@ -77,9 +80,24 @@ struct MenuBarMenuState {
         self.toolOrder = toolOrder
         self.masksEmails = masksEmails
         self.hidesCodex = hidesCodex
+        self.codexIsAdded = codexIsAdded
         self.showsModelLimits = showsModelLimits
         self.theme = theme
         self.now = now
+    }
+
+    /// The providers added to rusage, shown or hidden, in the user's order.
+    var addedProviders: [UsageProvider] {
+        toolOrder.filter { provider in
+            provider == .codex ? codexIsAdded : providerUsage.contains { $0.provider == provider && $0.status != .notConnected }
+        }
+    }
+
+    /// Added providers whose card the user hid.
+    var hiddenProviders: Set<UsageProvider> {
+        Set(addedProviders.filter { provider in
+            provider == .codex ? hidesCodex : providerUsage.first { $0.provider == provider }?.isShown == false
+        })
     }
 
     var shouldShowStatusMessage: Bool {

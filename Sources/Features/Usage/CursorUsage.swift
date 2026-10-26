@@ -31,6 +31,14 @@ struct CursorUsage: ProviderConnection {
         settings.value.isConnected
     }
 
+    var isShown: Bool {
+        settings.value.isShown
+    }
+
+    func setShown(_ isShown: Bool) {
+        settings.update { $0.isShown = isShown }
+    }
+
     func disconnect() async {
         settings.update { $0.isConnected = false }
     }
