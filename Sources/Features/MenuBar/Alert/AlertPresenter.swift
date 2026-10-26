@@ -23,6 +23,8 @@ struct MenuBarConfirmationAlertRequest {
     let informativeText: String
     let confirmTitle: String
     let cancelTitle: String
+    /// Marks the confirm button as destructive, for actions that remove or sign out.
+    var isDestructive = false
 }
 
 struct MenuBarInfoAlertRequest {

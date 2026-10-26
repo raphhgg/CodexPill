@@ -156,8 +156,9 @@ struct MenuBarCoordinatorTests {
         coordinator.removeProvider(.codex)
         await coordinator.waitForPendingWork()
 
-        #expect(harness.alertPresenter.confirmationRequests.map(\.messageText) == ["Remove Claude from rusage?", "Remove Codex from rusage?"])
-        #expect(harness.alertPresenter.confirmationRequests.last?.informativeText == "rusage stops showing Codex. Codex stays signed in on this Mac.")
+        #expect(harness.alertPresenter.confirmationRequests.map(\.messageText) == ["Remove Claude?", "Remove Codex?"])
+        #expect(harness.alertPresenter.confirmationRequests.last?.informativeText == "rusage stops reading Codex. Codex stays signed in on this Mac.")
+        #expect(harness.alertPresenter.confirmationRequests.map(\.isDestructive) == [true, true])
         #expect(cardAreaTitles(coordinator) == ["Claude", "", "Codex"])
 
         harness.alertPresenter.confirmationResponse = true
