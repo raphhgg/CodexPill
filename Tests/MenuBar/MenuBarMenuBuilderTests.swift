@@ -325,7 +325,7 @@ struct MenuBarMenuBuilderTests {
 
         coordinator.openSettings()
 
-        #expect(coordinator.settingsWindow.paneTitles == ["General", "Menu Bar", "Usage Bars", "Tools", "Token Usage"])
+        #expect(coordinator.settingsWindow.paneTitles == ["General", "Accounts", "Menu Bar", "Usage Bars", "Tools", "Token Usage"])
         coordinator.settingsWindow.window?.close()
         #expect(!coordinator.settingsWindow.isShown)
     }
@@ -344,6 +344,7 @@ struct MenuBarMenuBuilderTests {
         ))
 
         #expect(state.shownTools == [.claude, .codex])
+        #expect(state.toolSections.map(\.provider) == [.claude, .codex])
         #expect(state.loginItemState == .requiresApproval)
         #expect(state.canShowMenuBarText)
 
@@ -358,7 +359,7 @@ struct MenuBarMenuBuilderTests {
         let (coordinator, statusItem) = try makeCoordinatorWithStatusItem()
         defer { NSStatusBar.system.removeStatusItem(statusItem) }
 
-        coordinator.setTokenUsageEnabled(true)
+        coordinator.setTokenUsageDisplay(.graphWithBreakdownOnHover)
 
         #expect(coordinator.menuState().tokenUsage != nil)
         #expect(statusItem.menu?.items.contains { $0.title == "Token Usage" } == true)
@@ -704,7 +705,7 @@ struct MenuBarMenuBuilderTests {
 
         #expect(menu.items.map(\.title) == [
             "Claude", "", "Codex", "", "Cursor", "",
-            "Add Account", "", "Settings…", "", "Diagnostics…", "About", "",
+            "Settings…", "", "Diagnostics…", "About", "",
             "Quit",
         ])
         #expect(!menu.items.contains { $0.title == "Settings" })
@@ -714,7 +715,7 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
-    func firstRunMenuOffersOnlyCodexUnderAddAccount() throws {
+    func firstRunMenuStartsAtSettings() throws {
         let menu = MenuBarMenuBuilder().makeMenu(
             state: makeState(
                 activeAccount: nil,
@@ -725,17 +726,12 @@ struct MenuBarMenuBuilderTests {
             ),
             target: try makeCoordinator()
         )
-        let addAccount = try #require(menu.items.first?.submenu)
 
-        #expect(menu.items.map(\.title) == [
-            "Add Account", "", "Settings…", "", "Diagnostics…", "About", "", "Quit",
-        ])
-        #expect(addAccount.items.map(\.title) == ["Codex…"])
-        #expect(addAccount.items.map(providerAction) == [.addAccount])
+        #expect(menu.items.map(\.title) == ["Settings…", "", "Diagnostics…", "About", "", "Quit"])
     }
 
     @Test
-    func codexSideMenuSwitchesAccountsAndUsesResetsWhileTokenUsageFollowsTheToolCards() throws {
+    func codexSideMenuShowsTheAccountAndItsResetsWhileTokenUsageFollowsTheToolCards() throws {
         let nov5 = Date(timeIntervalSince1970: 1_793_880_000)
         var usage = makeUsage(resettingAfter: .now)
         usage.resetCredits = UsageResetCredits(
@@ -756,25 +752,16 @@ struct MenuBarMenuBuilderTests {
         )
 
         let side = try #require(menu.items.first { $0.title == "Codex" }?.submenu)
-        let rows = try side.items[1...2].map { try #require($0.submenu) }
 
-        #expect(side.items.map(\.title) == [
-            "alex@example.com", "side@example.com", "team@example.com", "",
-            "Use a Reset…", "Expires 5 Nov", "Expires 20 Nov", "",
-            "Add Codex Account…",
-        ])
+        #expect(side.items.map(\.title) == ["alex@example.com", "", "Use a Reset…", "Expires 5 Nov", "Expires 20 Nov"])
         let codexIndex = try #require(menu.items.firstIndex { $0.title == "Codex" })
         let tokenUsageIndex = try #require(menu.items.firstIndex { $0.title == "Token Usage" })
-        let addAccountIndex = try #require(menu.items.firstIndex { $0.title.hasPrefix("Add Account") })
-        #expect(codexIndex < tokenUsageIndex && tokenUsageIndex < addAccountIndex)
+        let settingsIndex = try #require(menu.items.firstIndex { $0.title == "Settings…" })
+        #expect(codexIndex < tokenUsageIndex && tokenUsageIndex < settingsIndex)
         #expect(menu.items[tokenUsageIndex].view != nil && menu.items[tokenUsageIndex].submenu == nil)
         #expect(side.items[0].state == .on && !side.items[0].isEnabled && side.items[0].submenu == nil)
-        #expect(rows.map { $0.items.map(\.title) } == [["Use", "Remove…"], ["Use", "Remove…"]])
-        #expect(rows.map { $0.items.map(providerAction) } == [
-            [.switchAccount(first.id), .removeAccount(first.id)], [.switchAccount(second.id), .removeAccount(second.id)],
-        ])
-        #expect(side.items[5].isEnabled == false && side.items[5].indentationLevel == 1)
-        #expect(providerAction(side.items[4]) == .useResetCredit)
+        #expect(side.items[3].isEnabled == false && side.items[3].indentationLevel == 1)
+        #expect(providerAction(side.items[2]) == .useResetCredit)
     }
 
     @Test(arguments: [UsageProvider.claude, .cursor])
@@ -814,11 +801,9 @@ struct MenuBarMenuBuilderTests {
 
         let side = try #require(menu.items.first?.submenu)
 
-        #expect(menu.items.map(\.title) == ["Claude", "Allow Keychain Access…", "", "Codex", "", "Add Account", "", "Settings…", "", "Diagnostics…", "About", "", "Quit"])
+        #expect(menu.items.map(\.title) == ["Claude", "Allow Keychain Access…", "", "Codex", "", "Settings…", "", "Diagnostics…", "About", "", "Quit"])
         #expect(providerAction(menu.items[1]) == .allowKeychainAccess)
-        #expect(side.items.map(\.title) == ["a•••x@example.com", "", "Move to Top", "Move Up", "Move Down"])
-        #expect(side.items.filter { $0.title.hasPrefix("Move") }.map(\.isEnabled) == [false, false, true])
-        #expect(side.items[2...4].compactMap { $0.representedObject as? [UsageProvider] } == [[.codex, .claude, .cursor]])
+        #expect(side.items.map(\.title) == ["a•••x@example.com"])
     }
 
     @Test
@@ -833,13 +818,13 @@ struct MenuBarMenuBuilderTests {
 
         let side = try #require(menu.items.first?.submenu)
 
-        #expect(Array(menu.items.map(\.title).prefix(4)) == ["Claude", "Sign in with Claude…", "", "Add Account"])
+        #expect(Array(menu.items.map(\.title).prefix(4)) == ["Claude", "Sign in with Claude…", "", "Settings…"])
         #expect(providerAction(menu.items[1]) == .signIn)
         #expect(!side.items.contains { providerAction($0) == .signIn })
     }
 
     @Test
-    func claudeReadingClaudeCodesSignInSaysSoAndOffersRUsagesOwn() throws {
+    func claudeReadingClaudeCodesSignInShowsOnlyItsEmailInTheSideMenu() throws {
         var usage = providerSnapshot(.claude)
         usage.accountEmail = "alex@example.com"
         let menu = MenuBarMenuBuilder().makeMenu(
@@ -849,14 +834,12 @@ struct MenuBarMenuBuilderTests {
 
         let side = try #require(menu.items.first?.submenu)
 
-        #expect(Array(menu.items.map(\.title).prefix(3)) == ["Claude", "", "Add Account"])
-        #expect(side.items.map(\.title) == ["alex@example.com", "Uses Claude Code's sign-in", "", "Sign in with Claude…"])
-        #expect(side.items[1].isEnabled == false)
-        #expect(providerAction(side.items[3]) == .signIn)
+        #expect(Array(menu.items.map(\.title).prefix(3)) == ["Claude", "", "Settings…"])
+        #expect(side.items.map(\.title) == ["alex@example.com"])
     }
 
     @Test
-    func claudeSignedInWithRUsageShowsItsEmailThenSignOut() throws {
+    func claudeSignedInWithRUsageShowsItsEmail() throws {
         var usage = providerSnapshot(.claude)
         usage.accountEmail = "alex@example.com"
         let menu = MenuBarMenuBuilder().makeMenu(
@@ -866,9 +849,8 @@ struct MenuBarMenuBuilderTests {
 
         let side = try #require(menu.items.first?.submenu)
 
-        #expect(Array(menu.items.map(\.title).prefix(3)) == ["Claude", "", "Add Account"])
-        #expect(side.items.map(\.title) == ["alex@example.com", "", "Sign Out of Claude"])
-        #expect(providerAction(side.items[2]) == .signOut)
+        #expect(Array(menu.items.map(\.title).prefix(3)) == ["Claude", "", "Settings…"])
+        #expect(side.items.map(\.title) == ["alex@example.com"])
     }
 
     @Test(arguments: [UsageProvider.claude, .cursor])
@@ -878,7 +860,7 @@ struct MenuBarMenuBuilderTests {
             target: try makeCoordinator()
         )
 
-        #expect(Array(menu.items.map(\.title).prefix(3)) == [provider.copy.sectionTitle, "", "Add Account"])
+        #expect(Array(menu.items.map(\.title).prefix(3)) == [provider.copy.sectionTitle, "", "Settings…"])
         #expect(try #require(menu.items.first?.submenu).items.isEmpty)
     }
 
@@ -893,56 +875,26 @@ struct MenuBarMenuBuilderTests {
             target: try makeCoordinator()
         )
 
-        let addAccount = try #require(menu.items.first { $0.title == "Add Account" }?.submenu)
-
-        #expect(menu.items.map(\.title) == ["Claude", "", "Codex", "", "Add Account", "", "Settings…", "", "Diagnostics…", "About", "", "Quit"])
-        #expect(addAccount.items.map(\.title) == ["Codex…"])
-        #expect(addAccount.items.map(providerAction) == [.addAccount])
+        #expect(menu.items.map(\.title) == ["Claude", "", "Codex", "", "Settings…", "", "Diagnostics…", "About", "", "Quit"])
     }
 
     @Test
-    func sectionMovesPersistThroughTheCoordinator() throws {
+    func turningOffClaudeModelLimitsInSettingsHidesTheFableThisWeekMeter() throws {
         let coordinator = try makeCoordinator()
-        let move = NSMenuItem()
-        move.representedObject = [UsageProvider.cursor, .codex, .claude]
-
-        coordinator.reorderTools(move)
-
-        #expect(coordinator.menuState().toolOrder == [.cursor, .codex, .claude])
-    }
-
-    @Test
-    func claudeSideMenuNamesTheModelLimitToggleAfterTheReadingsModels() throws {
-        func sideMenuTitles(modelNames: [String]) throws -> [String] {
-            let menu = MenuBarMenuBuilder().makeMenu(state: claudeState(modelNames: modelNames), target: try makeCoordinator())
-            return try #require(menu.items.first?.submenu).items.map(\.title)
-        }
-
-        #expect(try sideMenuTitles(modelNames: ["Fable"]) == ["alex@example.com", "", "Show Fable Limits"])
-        #expect(try sideMenuTitles(modelNames: ["Fable", "Opus", "Sonnet"]) == ["alex@example.com", "", "Show Fable, Opus and Sonnet Limits"])
-        #expect(try sideMenuTitles(modelNames: []) == ["alex@example.com"])
-    }
-
-    @Test
-    func turningOffTheFableToggleHidesTheFableThisWeekMeter() throws {
-        let coordinator = try makeCoordinator()
-        func claudeMenu() throws -> (card: NSMenuItem, toggle: NSMenuItem) {
+        func claudeCard() throws -> NSMenuItem {
             let menu = MenuBarMenuBuilder().makeMenu(
                 state: claudeState(modelNames: ["Fable"], showsModelLimits: coordinator.menuState().showsModelLimits),
                 target: coordinator
             )
-            let card = try #require(menu.items.first)
-            let side = try #require(card.submenu)
-            return (card, try #require(side.items.first { $0.title == "Show Fable Limits" }))
+            return try #require(menu.items.first)
         }
 
-        let before = try claudeMenu()
-        NSApplication.shared.sendAction(try #require(before.toggle.action), to: before.toggle.target, from: before.toggle)
-        let after = try claudeMenu()
+        let before = try claudeCard()
+        coordinator.setShowsModelLimits(false)
+        let after = try claudeCard()
 
-        #expect(before.toggle.state == .on)
-        #expect(after.toggle.state == .off)
-        #expect(try #require(after.card.view).frame.height < (try #require(before.card.view).frame.height))
+        #expect(!coordinator.menuState().showsModelLimits)
+        #expect(try #require(after.view).frame.height < (try #require(before.view).frame.height))
     }
 
     /// A Claude reading with Session, Weekly and one weekly limit per model in `modelNames`.

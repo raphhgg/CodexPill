@@ -66,7 +66,7 @@ Card:
 
 ## Happy Path
 
-1. User enables `Settings › Token Usage › Show Token Usage`.
+1. User picks `Graph, breakdown on hover` or `Graph and breakdown` in `Settings › Token Usage › Show`.
 2. rusage starts scanning recent local Codex session JSONL files in the background.
 3. User can close the menu or continue working while the scan completes.
 4. rusage aggregates safe token totals by day and stores them in a derived cache.
@@ -76,7 +76,7 @@ Card:
 
 `Settings › Token Usage`:
 
-- `Show Token Usage`
+- `Show`: `Graph, breakdown on hover` (the breakdown and its toggle appear while the pointer is over the card), `Graph and breakdown`, or `Hidden` (no card). The card keeps its full height in both visible modes, so the menu never jumps. Settings saved before this choice existed map on to `Graph and breakdown` and off to `Hidden`.
 - `Chart` (`Bars`, `Area`, `Lines`) and `Breakdown` (`By tool`, `Top models`), the same choices as the card's own toggles
 
 Default:
@@ -85,7 +85,7 @@ Default:
 - The period is always `Last 30 days`.
 - Chart `Bars`, split `By tool`.
 
-Menu card, in the main menu after the tool cards and before `Add Account`:
+Menu card, in the main menu after the tool cards and before `Settings…`:
 
 - Title row: `Token Usage` and the chart toggle, three icons: bars, area, lines.
 - Subtitle: `Last 30 days · 10B · Today 390M`.

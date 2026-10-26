@@ -14,6 +14,7 @@ struct SettingsPane {
     static func all(settings: SettingsModel, state: SettingsWindowState, actions: any SettingsActions) -> [SettingsPane] {
         [
             SettingsPane(title: "General", symbol: "gearshape", view: AnyView(GeneralPane(settings: settings, state: state, actions: actions))),
+            SettingsPane(title: "Accounts", symbol: "person.crop.circle", view: AnyView(AccountsPane(settings: settings, state: state, actions: actions))),
             SettingsPane(title: "Menu Bar", symbol: "menubar.rectangle", view: AnyView(MenuBarPane(settings: settings, state: state, actions: actions))),
             SettingsPane(title: "Usage Bars", symbol: "chart.bar.fill", view: AnyView(UsageBarsPane(settings: settings))),
             SettingsPane(title: "Tools", symbol: "square.stack", view: AnyView(ToolsPane(settings: settings, state: state, actions: actions))),
@@ -63,6 +64,69 @@ struct GeneralPane: View {
             get: { state.loginItemState == .enabled || state.loginItemState == .requiresApproval },
             set: { actions.setLaunchAtLogin($0) }
         )
+    }
+}
+
+/// Each tool's account in the menu's order: the one in use, Codex's other saved accounts, sign-in and the actions
+/// the menu used to offer. Every action runs through the coordinator, so its alerts still show.
+struct AccountsPane: View {
+    let settings: SettingsModel
+    let state: SettingsWindowState
+    let actions: any SettingsActions
+
+    var body: some View {
+        Form {
+            ForEach(settings.general.toolOrder, id: \.self) { provider in
+                Section(provider.copy.sectionTitle) {
+                    if let section = state.toolSections.first(where: { $0.provider == provider }) {
+                        rows(for: section)
+                    } else {
+                        LabeledContent("Not shown in the menu") {
+                            Button(provider == .codex ? "Show" : "Connect…") { actions.setTool(provider, shown: true) }
+                                .disabled(provider == .codex && state.isBusy)
+                        }
+                        .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        .settingsPane()
+    }
+
+    @ViewBuilder
+    private func rows(for section: ToolSection) -> some View {
+        let provider = section.provider
+        if let label = section.activeLabel {
+            LabeledContent(label) {
+                Text(section.signInSourceLabel ?? "In use").foregroundStyle(.secondary)
+            }
+        } else {
+            Text(section.card.title ?? "No account in use").foregroundStyle(.secondary)
+        }
+        ForEach(section.otherAccounts, id: \.id) { account in
+            LabeledContent {
+                HStack {
+                    Button("Use") { actions.perform(.switchAccount(account.id), on: provider) }
+                    Button("Remove…") { actions.perform(.removeAccount(account.id), on: provider) }
+                }
+                .disabled(state.isBusy)
+            } label: {
+                Text(account.label)
+                if let usageLine = account.usageLine {
+                    Text(usageLine)
+                }
+            }
+        }
+        if let followUp = section.followUp {
+            Button(followUp.title) { actions.perform(followUp.action, on: provider) }
+        }
+        if let signIn = section.signInItem {
+            Button(signIn.title) { actions.perform(signIn.action, on: provider) }
+        }
+        if provider == .codex {
+            Button("Add Codex Account…") { actions.perform(.addAccount, on: provider) }
+                .disabled(state.isBusy)
+        }
     }
 }
 
@@ -253,7 +317,11 @@ struct TokenUsagePane: View {
     var body: some View {
         Form {
             Section {
-                Toggle("Show Token Usage", isOn: Binding(get: { settings.tokenUsage.isEnabled }, set: { actions.setTokenUsageEnabled($0) }))
+                Picker("Show", selection: Binding(get: { settings.tokenUsage.display }, set: { actions.setTokenUsageDisplay($0) })) {
+                    Text("Graph, breakdown on hover").tag(TokenUsageDisplay.graphWithBreakdownOnHover)
+                    Text("Graph and breakdown").tag(TokenUsageDisplay.graphAndBreakdown)
+                    Text("Hidden").tag(TokenUsageDisplay.hidden)
+                }
             } footer: {
                 Text("Tokens your tools used over the last 30 days.")
             }

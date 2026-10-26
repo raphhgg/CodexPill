@@ -11,8 +11,6 @@ Top to bottom, nothing else:
 
    ```text
    ─────
-   Add Account ›        Codex…
-   ─────
    Settings…            ⌘,
    ─────
    Diagnostics…
@@ -24,9 +22,9 @@ Top to bottom, nothing else:
 
 Settings live in their own window ([Settings Window](#settings-window)); the menu keeps the quick actions. A tool with nothing set up has no card. Codex has a card once one account is saved. Claude and Cursor have one once connected ([Claude Usage](claude-usage.md), [Cursor Usage](cursor-usage.md)). `Settings › Tools` hides a card.
 
-With no card at all, on a first run or with every tool hidden, the menu starts at `Add Account ›`. It is the same list, so a new user sees where to begin first.
+With no card at all, on a first run or with every tool hidden, the menu starts at `Settings…`, where `Accounts` adds a Codex account and connects Claude and Cursor.
 
-The user orders the cards from each side menu. The first card drives the menu bar icon ([Status Bar](status-bar.md)).
+The user orders the cards in `Settings › Tools`. The first card drives the menu bar icon ([Status Bar](status-bar.md)).
 
 ## Card
 
@@ -52,27 +50,18 @@ Every tool uses the same card. It is one hover cell with a side menu and no chev
 
 ## Side Menu
 
-Hovering a card opens its side menu:
+Hovering a card opens its side menu, which holds only:
 
 1. The email of the account in use, checked and disabled. For Claude and Cursor it is the account of the last reading: their own app's sign-in, or rusage's own Claude sign-in.
-2. Codex only: one row per other saved account, by email. Each row opens `Use` and `Remove…`. `Remove…` asks first. Removing a Codex account also signs this Mac out when `auth.json` still uses it.
-   An account without an email reads as its workspace, then its plan (`Plus account`), else `Saved account`. Repeated labels get a number in saved order: `Saved account 2`. Alerts name an account with the same label.
-   Each one carries that account's last limits on a second, smaller line, in the user's % used or % left: `Session 12% · Weekly 40% used`, `Weekly 17% used` for Codex Pro, or `Monthly 3% used` for Codex Free. A reading older than 30 minutes adds `· as of 10:26`.
-3. Claude only: `Sign in with Claude…` while rusage's own Claude sign-in is off, or `Sign Out of Claude` while it is on. See [Claude Usage](claude-usage.md#rusages-own-sign-in).
-4. Codex only: `Use a Reset…`, then one disabled `Expires <date>` line per credit Codex listed, and `Token Usage ›` when token usage is on ([Token Usage](token-usage.md)).
-5. `Move to Top`, `Move Up`, `Move Down`, when there is more than one card. Moves that do not apply are disabled.
-6. Claude only: `Show Fable Limits`, named after the models with their own limit in the current reading (`Show Fable and Opus Limits` for two). Hidden when the reading has none. See [Claude Usage](claude-usage.md).
-7. Codex only: `Add Codex Account…`.
+2. Codex only, when the account has reset credits: `Use a Reset…`, then one disabled `Expires <date>` line per credit Codex listed ([Codex Reset Credits](codex-reset-credits.md)).
 
-Claude and Cursor have no other account rows: rusage reads one account at a time. A Cursor side menu with one card holds only the email. The Codex account in use has no remove item. `Settings › Tools` hides a tool.
+Everything else about accounts lives in `Settings › Accounts`, and ordering and model limits in `Settings › Tools`.
 
 `Hide Emails` masks every email the menu, its alerts and the tooltip show: `alex.side@example.com` reads `al•••e@example.com`. The domain stays visible.
 
 Every tool item carries a `ProviderMenuAction` and goes through `MenuBarCoordinator.performProviderAction(_:)`.
 
 ## App Items
-
-`Add Account ›` offers only `Codex…`. Adding a Codex account shows the Codex card again if it was hidden. Claude and Cursor have no accounts to add: `Settings › Tools` connects them.
 
 `Settings…` (⌘,) opens the [Settings Window](#settings-window) once the menu has closed.
 
@@ -85,10 +74,11 @@ One window of stock controls, with a toolbar pane per group. The title names the
 | Pane | Controls |
 |---|---|
 | General | `Refresh Every` (1 to 30 minutes), `Hide Emails`, `Theme` ([Theme](app-controls/02-theme.md)), `Launch at Login` ([Launch at Login](app-controls/01-launch-at-login.md)) |
+| Accounts | Per tool, in the menu's order: the account in use and where its sign-in comes from; Codex's other saved accounts with `Use` and `Remove…` and their last limits; `Allow Keychain Access…` when a read needs it; `Sign in with Claude…` or `Sign Out of Claude`; `Add Codex Account…`. A tool not in the menu offers `Connect…` (`Show` for Codex) |
 | Menu Bar | `Menu Bar Label`, `Icon Style`, `Reveal Shortcut` ([Status Bar](status-bar.md)) |
 | Usage Bars | `% Used` or `% Left`, `Classic` or `Compact`, `Pace Markers`, `Session Color`, `Weekly Color`, `Same Color for Both`, `Use Theme Colors` |
 | Tools | A switch per tool in the menu's order, drag or `Move Up` and `Move Down` to reorder, and `Claude Model Limits` while Claude shows |
-| Token Usage | `Show Token Usage`, `Chart`, `Breakdown` ([Token Usage](token-usage.md)) |
+| Token Usage | `Show` (`Graph, breakdown on hover`, `Graph and breakdown`, `Hidden`), `Chart`, `Breakdown` ([Token Usage](token-usage.md)) |
 
 The Tools switches are on while that tool's card shows:
 

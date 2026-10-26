@@ -401,10 +401,10 @@ struct MenuBarCoordinatorTests {
         #expect(fireCount > 0)
     }
 
-    /// The main menu's titles above Add Account: the cards and their follow-up rows.
+    /// The main menu's titles above Settings…: the cards and their follow-up rows.
     private func cardAreaTitles(_ coordinator: MenuBarCoordinator) -> [String] {
         let titles = MenuBarMenuBuilder().makeMenu(state: coordinator.menuState(), target: coordinator).items.map(\.title)
-        var cardArea = Array(titles.prefix { $0 != "Add Account" })
+        var cardArea = Array(titles.prefix { $0 != "Settings…" })
         if cardArea.last == "" {
             cardArea.removeLast()
         }

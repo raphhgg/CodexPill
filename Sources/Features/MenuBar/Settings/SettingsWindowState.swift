@@ -7,6 +7,8 @@ import Observation
 final class SettingsWindowState {
     /// The tools with a card in the menu.
     var shownTools: [UsageProvider] = []
+    /// Each shown tool's card, for the Accounts pane: its account, sign-in and actions.
+    var toolSections: [ToolSection] = []
     var loginItemState = LoginItemState.unavailable
     /// The menu bar shows text only once the first tool has a reading.
     var canShowMenuBarText = false
@@ -17,6 +19,7 @@ final class SettingsWindowState {
     func update(from state: MenuBarMenuState) {
         let shownTools = state.toolSections.map(\.provider)
         if self.shownTools != shownTools { self.shownTools = shownTools }
+        if toolSections != state.toolSections { toolSections = state.toolSections }
         if loginItemState != state.loginItemState { loginItemState = state.loginItemState }
         if canShowMenuBarText != state.hasStatusItemContentData { canShowMenuBarText = state.hasStatusItemContentData }
         if isBusy != state.isBusy { isBusy = state.isBusy }
@@ -33,7 +36,9 @@ protocol SettingsActions: AnyObject {
     func setLaunchAtLogin(_ isOn: Bool)
     func openLoginItemsSettings()
     func recordRevealShortcut()
-    func setTokenUsageEnabled(_ isOn: Bool)
+    /// The same entry point as the menu's tool items, so account actions keep their alerts.
+    func perform(_ action: ProviderAction, on provider: UsageProvider)
+    func setTokenUsageDisplay(_ display: TokenUsageDisplay)
     func setShowsModelLimits(_ isOn: Bool)
     /// Login items change in System Settings, so the window rereads them when it comes forward.
     func settingsWindowDidBecomeKey()

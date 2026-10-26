@@ -38,7 +38,7 @@ struct PreferencesTests {
         menuBar.usageMeterLayout = .compact
         menuBar.pacingMarkersEnabled = false
         menuBar.revealStatusItemTitleShortcut = KeyboardShortcut(keyCode: 11, modifiers: [.command, .shift])
-        let tokenUsage = TokenUsageSettings(isEnabled: true, chartStyle: .lines, breakdown: .topModels, peakScope: .allTime)
+        let tokenUsage = TokenUsageSettings(display: .graphWithBreakdownOnHover, chartStyle: .lines, breakdown: .topModels, peakScope: .allTime)
         var claude = ClaudeSettings.defaults
         claude.isConnected = true
         claude.usesOwnSignIn = true
@@ -102,6 +102,19 @@ struct PreferencesTests {
     }
 
     @Test
+    func tokenUsageSavedBeforeItsDisplayChoiceKeepsShowingTheCard() {
+        let defaults = makeDefaults()
+        defaults.set(Data(#"{"isEnabled":true,"chartStyle":"lines"}"#.utf8), forKey: TokenUsageSettings.key)
+        let preferences = Preferences(userDefaults: defaults)
+
+        #expect(preferences.load(TokenUsageSettings.self).display == .graphAndBreakdown)
+        #expect(preferences.load(TokenUsageSettings.self).chartStyle == .lines)
+
+        defaults.set(Data(#"{"isEnabled":false}"#.utf8), forKey: TokenUsageSettings.key)
+        #expect(preferences.load(TokenUsageSettings.self).display == .hidden)
+    }
+
+    @Test
     func aSavedGroupWinsOverLegacyKeys() {
         let defaults = makeDefaults()
         defaults.set(true, forKey: "masksEmails")
@@ -152,7 +165,7 @@ struct PreferencesTests {
         #expect(menuBar.usagePercentMode == .left)
         #expect(menuBar.usageMeterLayout == .compact)
         #expect(!menuBar.pacingMarkersEnabled)
-        #expect(preferences.load(TokenUsageSettings.self) == TokenUsageSettings(isEnabled: true, chartStyle: .area, breakdown: .topModels, peakScope: .allTime))
+        #expect(preferences.load(TokenUsageSettings.self) == TokenUsageSettings(display: .graphAndBreakdown, chartStyle: .area, breakdown: .topModels, peakScope: .allTime))
         #expect(!preferences.load(CodexSettings.self).isConnected)
         #expect(claude == ClaudeSettings(isConnected: true, usesOwnSignIn: true, showsModelLimits: false))
         #expect(preferences.load(CursorSettings.self).isConnected)

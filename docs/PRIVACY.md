@@ -43,7 +43,7 @@ rusage never reads, sends, or renews Claude Code's refresh token, and it never w
 - reads the plan tier and your email from `oauthAccount` in Claude Code's global config (`$CLAUDE_CONFIG_DIR/.claude.json`, or `~/.claude.json`). The email shows in the Claude side menu, masked with Hide Emails;
 - sends the access token to one place, `GET https://api.anthropic.com/api/oauth/usage`, to fetch your 5-hour and weekly limits and any extra usage. Redirects to any other host, or to plain HTTP, are refused. The request has no cookies and no cache.
 
-If macOS refuses `security` access, for example while the Keychain is locked, the card keeps the last limits and offers `Allow Keychain Access…`. That retry gives you time to answer a macOS prompt. rusage never stores, logs, or displays the token, and it never reads browser cookies or Claude conversations. Unturning on `Settings › Tools › Claude` turns usage off and stops all reads.
+If macOS refuses `security` access, for example while the Keychain is locked, the card keeps the last limits and offers `Allow Keychain Access…`. That retry gives you time to answer a macOS prompt. rusage never stores, logs, or displays the token, and it never reads browser cookies or Claude conversations. Turning off `Settings › Tools › Claude` turns usage off and stops all reads.
 
 **No renewal.** rusage never starts `claude`. When Claude Code's token expires, the card says so until you run `claude`, which renews it, or you sign in with rusage's own sign-in. A background renewal could log Claude Code out, so rusage leaves Claude Code's sign-in to you.
 
@@ -56,7 +56,7 @@ This is optional and off until you choose `Sign in with Claude…` and confirm. 
 - The tokens go only to platform.claude.com, to sign in, renew and revoke, and to api.anthropic.com, to read your limits and, once after signing in, your plan and email from `/api/oauth/profile`.
 - While you are signed in this way, rusage reads limits with this sign-in only. If it stops working, the card asks you to sign in again. rusage never falls back to Claude Code's sign-in, which may be another account.
 - rusage renews the access token shortly before it expires. Before it sends a refresh token, it marks the Keychain item, and it clears the mark when it saves the new tokens. If rusage quits in between, it deletes the item at the next launch and asks you to sign in again, instead of sending a refresh token that may already be spent. A lock file, `claude-sign-in.lock`, keeps two copies of rusage from renewing at once.
-- `Sign Out of Claude` and unturning on `Settings › Tools › Claude` delete the item and ask Anthropic to revoke the refresh token.
+- `Sign Out of Claude` and turning off `Settings › Tools › Claude` delete the item and ask Anthropic to revoke the refresh token.
 
 ## Cursor
 
@@ -68,7 +68,7 @@ rusage never signs in to Cursor, never asks Cursor for a new token, and never se
 - uses the token only while it is more than a minute from expiry;
 - sends the token to one place, `GET https://cursor.com/api/usage-summary`, as Cursor's session cookie, to fetch your plan usage, on-demand spend, and billing cycle. Redirects are refused, and the request has no cookie store and no cache. After a `429`, nothing is read or sent until cursor.com's `Retry-After` passes.
 
-rusage never stores, logs, or displays the token, and it never reads browser cookies or Cursor projects. Unturning on `Settings › Tools › Cursor` turns usage off and stops all reads.
+rusage never stores, logs, or displays the token, and it never reads browser cookies or Cursor projects. Turning off `Settings › Tools › Cursor` turns usage off and stops all reads.
 
 ## Token Usage
 

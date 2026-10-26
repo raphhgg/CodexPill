@@ -189,12 +189,15 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation, 
         perform(shown ? .connect : .disconnect, on: provider)
     }
 
-    func setTokenUsageEnabled(_ isOn: Bool) {
-        guard settings.tokenUsage.isEnabled != isOn else { return }
-        recordMenuAction("setTokenUsageEnabled")
-        settings.tokenUsage.isEnabled = isOn
+    /// Showing or hiding the card starts or stops its scan. Between the two visible modes the card redraws itself.
+    func setTokenUsageDisplay(_ display: TokenUsageDisplay) {
+        guard settings.tokenUsage.display != display else { return }
+        recordMenuAction("setTokenUsageDisplay")
+        let wasEnabled = settings.tokenUsage.isEnabled
+        settings.tokenUsage.display = display
+        guard settings.tokenUsage.isEnabled != wasEnabled else { return }
         tokenUsageRuntime.handleEnabledChange(
-            isEnabled: isOn,
+            isEnabled: settings.tokenUsage.isEnabled,
             period: Self.tokenUsagePeriod,
             peakScope: settings.tokenUsage.peakScope
         )
@@ -205,18 +208,6 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation, 
         recordMenuAction("setShowsModelLimits")
         settings.claude.update { $0.showsModelLimits = isOn }
         rebuildMenu()
-    }
-
-    @objc
-    func toggleShowsModelLimits(_ sender: NSMenuItem) {
-        setShowsModelLimits(!settings.claude.value.showsModelLimits)
-    }
-
-    @objc
-    func reorderTools(_ sender: NSMenuItem) {
-        recordMenuAction("reorderTools")
-        guard let order = sender.representedObject as? [UsageProvider] else { return }
-        settings.general.toolOrder = order
     }
 
     func recordRevealShortcut() {

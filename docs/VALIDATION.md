@@ -22,10 +22,10 @@ Run these against a dev build started with the
 accounts.
 
 1. The menu bar item appears, and the menu opens with one card per visible tool,
-   then Add Account, Settings…, Diagnostics, About and Quit. With no card, it starts at Add Account.
+   then Settings…, Diagnostics, About and Quit. With no card, it starts at Settings….
 2. If the change touches switching, switch from a card's side menu and check
    that the card follows.
-3. If the change touches Add Account or Remove, run that flow once and cancel it
+3. If the change touches Add Account or Remove (in `Settings › Accounts`), run that flow once and cancel it
    once.
 4. If the change touches the status item or Settings, open `Settings…` (⌘,),
    check that the window comes to the front, and check the changed setting in

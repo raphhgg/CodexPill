@@ -38,10 +38,10 @@ The whole menu layout, including the Codex card and its side menu, is owned by [
 
 The Codex card shows the account in use: its plan, its windows, its credits and its reset credits. When rusage cannot match the live `auth.json` to a saved account, the card says `No saved account in use` instead of showing a saved account's numbers as current.
 
-The Codex side menu lists accounts by email, never by name:
+The Codex side menu shows the account in use, by email, then its reset credits. `Settings › Accounts › Codex` lists accounts by email, never by name:
 
-- The account in use, disabled, at the top.
-- One row per other account in the shared availability ranking, best first. Each opens `Use` and `Remove…`.
+- The account in use, at the top.
+- One row per other account in the shared availability ranking, best first, with `Use` and `Remove…`.
 - `Add Codex Account…`.
 
 Switch:
@@ -55,7 +55,7 @@ Remove:
 - If the removed account is active on This Mac, rusage signs it out before deleting the saved snapshot.
 - If the sign-out fails, rusage keeps the saved account so the user does not lose the main control surface for an active login.
 
-With no saved account and no other tool connected, the menu offers `Add Account ›` directly, and launch asks to add a Codex account once. Account actions are disabled while another account operation runs.
+With no saved account and no other tool connected, the menu starts at `Settings…`, and launch asks to add a Codex account once. Account actions are disabled while another account operation runs.
 
 ## Credits
 

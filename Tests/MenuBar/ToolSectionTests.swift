@@ -298,20 +298,6 @@ struct ToolSectionTests {
         #expect(planTag(for: .cursor, planName: "pro_plus") == "Pro Plus")
     }
 
-    @Test
-    func movingASectionStepsPastItsVisibleNeighborOnly() {
-        let codex = makeAccount(name: "Work", usage: makeUsage(fetchedAt: now))
-        let claude = ProviderUsageState(provider: .claude, status: .current(claudeSnapshot()))
-        let menu = state(activeAccount: codex, providerUsage: [claude], toolOrder: [.claude, .cursor, .codex])
-
-        #expect(menu.toolOrder(moving: .codex, .up) == [.codex, .claude, .cursor])
-        #expect(menu.toolOrder(moving: .codex, .toTop) == [.codex, .claude, .cursor])
-        #expect(menu.toolOrder(moving: .claude, .down) == [.cursor, .codex, .claude])
-        #expect(menu.toolOrder(moving: .claude, .up) == nil)
-        #expect(menu.toolOrder(moving: .codex, .down) == nil)
-        #expect(menu.toolOrder(moving: .cursor, .up) == nil)
-    }
-
     private func claudeSnapshot(fetchedAt: Date? = nil) -> UsageSnapshot {
         UsageSnapshot(
             provider: .claude,

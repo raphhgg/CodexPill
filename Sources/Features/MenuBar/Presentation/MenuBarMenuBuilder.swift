@@ -38,10 +38,12 @@ struct MenuBarMenuBuilder {
         }
 
         addSeparatorIfNeeded(to: menu)
-        menu.addItem(addAccountMenuItem(state: state, target: target))
-        menu.addItem(.separator())
         let settings = actionItem("Settings…", action: #selector(MenuBarCoordinator.openSettings), target: target)
         settings.keyEquivalent = ","
+        // No other item has an icon, so the gear macOS adds to Settings… stays off.
+        if #available(macOS 27.0, *) {
+            settings.preferredImageVisibility = .hidden
+        }
         menu.addItem(settings)
         menu.addItem(.separator())
         menu.addItem(actionItem("Diagnostics…", action: #selector(MenuBarCoordinator.exportDiagnosticReport), isEnabled: !state.isBusy, target: target))
@@ -77,37 +79,20 @@ struct MenuBarMenuBuilder {
         return item
     }
 
+    /// The account in use and, for Codex, its resets. Everything else about accounts lives in Settings › Accounts.
     private func sideMenu(for section: ToolSection, state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenu {
-        let provider = section.provider
-        let title = provider.copy.sectionTitle
-        let accountActionsEnabled = !state.isBusy
-        let menu = NSMenu(title: title)
+        let menu = NSMenu(title: section.provider.copy.sectionTitle)
 
         if let activeLabel = section.activeLabel {
             let item = disabledItem(activeLabel)
             item.state = .on
             menu.addItem(item)
         }
-        if let source = section.signInSourceLabel {
-            menu.addItem(disabledItem(source))
-        }
-        for other in section.otherAccounts {
-            let actions = NSMenu(title: other.label)
-            actions.addItem(providerItem(title: "Use", .switchAccount(other.id), for: provider, target: target))
-            actions.addItem(providerItem(title: "Remove…", .removeAccount(other.id), for: provider, target: target))
-            actions.items.forEach { $0.isEnabled = accountActionsEnabled }
-            menu.addItem(accountItem(other, submenu: actions))
-        }
-        addSeparatorIfNeeded(to: menu)
-
-        if let signIn = section.signInItem {
-            menu.addItem(providerItem(title: signIn.title, signIn.action, for: provider, target: target))
-            addSeparatorIfNeeded(to: menu)
-        }
 
         if let credits = section.card.resetCredits {
-            let use = providerItem(title: "Use a Reset…", .useResetCredit, for: provider, target: target)
-            use.isEnabled = accountActionsEnabled
+            addSeparatorIfNeeded(to: menu)
+            let use = providerItem(title: "Use a Reset…", .useResetCredit, for: section.provider, target: target)
+            use.isEnabled = !state.isBusy
             menu.addItem(use)
             for credit in (credits.credits ?? []).sorted(by: { ($0.expiresAt ?? .distantFuture) < ($1.expiresAt ?? .distantFuture) }) {
                 let expiry = disabledItem(credit.expiresAt.map { "Expires \(shortDate($0, locale: locale, timeZone: timeZone))" } ?? "No expiry")
@@ -115,65 +100,7 @@ struct MenuBarMenuBuilder {
                 menu.addItem(expiry)
             }
         }
-
-        let moves = ToolSectionMove.allCases.map { move in
-            let item = NSMenuItem(title: move.title, action: #selector(MenuBarCoordinator.reorderTools(_:)), keyEquivalent: "")
-            item.target = target
-            item.representedObject = state.toolOrder(moving: provider, move)
-            item.isEnabled = item.representedObject != nil
-            return item
-        }
-        if moves.contains(where: \.isEnabled) {
-            addSeparatorIfNeeded(to: menu)
-            moves.forEach(menu.addItem)
-        }
-
-        if let title = modelLimitsToggleTitle(section.modelLimitNames) {
-            addSeparatorIfNeeded(to: menu)
-            menu.addItem(toggleItem(title, isOn: state.showsModelLimits, action: #selector(MenuBarCoordinator.toggleShowsModelLimits(_:)), target: target))
-        }
-
-        if provider == .codex {
-            addSeparatorIfNeeded(to: menu)
-            let add = providerItem(title: "Add \(title) Account…", .addAccount, for: provider, target: target)
-            add.isEnabled = accountActionsEnabled
-            menu.addItem(add)
-        }
-        if menu.items.last?.isSeparatorItem == true {
-            menu.removeItem(at: menu.numberOfItems - 1)
-        }
         return menu
-    }
-
-    /// One toggle for every model limit in the reading: "Show Fable Limits", "Show Fable, Opus and Sonnet Limits".
-    private func modelLimitsToggleTitle(_ names: [String]) -> String? {
-        guard let last = names.last else { return nil }
-        let models = names.count == 1 ? last : names.dropLast().joined(separator: ", ") + " and " + last
-        return "Show \(models) Limits"
-    }
-
-    /// Only Codex has accounts to add. Claude and Cursor show the account their own app is signed in to, and
-    /// `Show Tools` connects them.
-    private func addAccountMenuItem(state: MenuBarMenuState, target: MenuBarCoordinator) -> NSMenuItem {
-        let menu = NSMenu(title: "Add Account")
-        let codex = providerItem(title: "\(UsageProvider.codex.copy.sectionTitle)…", .addAccount, for: .codex, target: target)
-        codex.isEnabled = !state.isBusy
-        menu.addItem(codex)
-        return submenuItem(menu)
-    }
-
-    /// A saved account that is not in use, with its last limits on a second, smaller line.
-    private func accountItem(_ account: ToolAccount, submenu: NSMenu) -> NSMenuItem {
-        let item = submenuItem(submenu)
-        if let usageLine = account.usageLine {
-            let attributed = NSMutableAttributedString(string: account.label, attributes: [.font: NSFont.menuFont(ofSize: 0)])
-            attributed.append(NSAttributedString(
-                string: "\n" + usageLine,
-                attributes: [.font: NSFont.menuFont(ofSize: NSFont.smallSystemFontSize), .foregroundColor: NSColor.secondaryLabelColor]
-            ))
-            item.attributedTitle = attributed
-        }
-        return item
     }
 
     private func providerItem(title: String, _ action: ProviderAction, for provider: UsageProvider, target: MenuBarCoordinator) -> NSMenuItem {
@@ -189,21 +116,9 @@ struct MenuBarMenuBuilder {
         return item
     }
 
-    private func toggleItem(_ title: String, isOn: Bool, action: Selector, target: MenuBarCoordinator) -> NSMenuItem {
-        let item = actionItem(title, action: action, target: target)
-        item.state = isOn ? .on : .off
-        return item
-    }
-
     private func disabledItem(_ title: String) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         item.isEnabled = false
-        return item
-    }
-
-    private func submenuItem(_ submenu: NSMenu) -> NSMenuItem {
-        let item = NSMenuItem(title: submenu.title, action: nil, keyEquivalent: "")
-        item.submenu = submenu
         return item
     }
 
