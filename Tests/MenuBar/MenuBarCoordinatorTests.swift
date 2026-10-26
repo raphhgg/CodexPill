@@ -29,7 +29,7 @@ struct MenuBarCoordinatorTests {
     func alertsNameAccountsAsTheSideMenuDoesWithEmailsHidden() async throws {
         let harness = try MenuBarCoordinatorHarness()
         defer { harness.tearDown() }
-        harness.settings.menuDisplaySettings.masksEmails = true
+        harness.settings.general.masksEmails = true
         let codexAccount = try harness.makeActiveAccount(email: "business-4@example.com")
         let coordinator = harness.makeCoordinator()
         coordinator.start()
@@ -197,7 +197,7 @@ struct MenuBarCoordinatorTests {
         await coordinator.waitForPendingWork()
 
         #expect(harness.alertPresenter.confirmationRequests.map(\.messageText) == ["Connect Claude Code?"])
-        #expect(fixture.settings.isEnabled == false)
+        #expect(fixture.settings.value.isConnected == false)
         #expect(fixture.keychainReadPrompts == [])
 
         harness.alertPresenter.confirmationResponse = true
@@ -239,7 +239,7 @@ struct MenuBarCoordinatorTests {
         await coordinator.waitForPendingWork()
 
         #expect(harness.alertPresenter.confirmationRequests.count == 2)
-        #expect(fixture.settings.isEnabled == false)
+        #expect(fixture.settings.value.isConnected == false)
         #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .claude, status: .notConnected, ownSignIn: .signedOut)])
         #expect(cardAreaTitles(coordinator) == [])
     }
@@ -298,7 +298,7 @@ struct MenuBarCoordinatorTests {
         await coordinator.waitForPendingWork()
 
         #expect(harness.alertPresenter.confirmationRequests.map(\.messageText) == ["Connect Cursor?"])
-        #expect(fixture.settings.isEnabled == false)
+        #expect(fixture.settings.value.isConnected == false)
         #expect(fixture.requestCount == 0)
 
         harness.alertPresenter.confirmationResponse = true
@@ -326,7 +326,7 @@ struct MenuBarCoordinatorTests {
         harness.click("Appearance", "Show Tools", "Cursor")
         await coordinator.waitForPendingWork()
 
-        #expect(fixture.settings.isEnabled == false)
+        #expect(fixture.settings.value.isConnected == false)
         #expect(coordinator.menuState().providerUsage == [ProviderUsageState(provider: .cursor, status: .notConnected)])
         #expect(cardAreaTitles(coordinator) == [])
     }
@@ -355,7 +355,7 @@ struct MenuBarCoordinatorTests {
         #expect(cardAreaTitles(coordinator) == [])
         #expect(claude.readCount == claudeReads)
         #expect(codexReads.readCount == codexReadsWhenHidden)
-        #expect(harness.settings.menuDisplaySettings.hidesCodex)
+        #expect(!harness.settings.codex.isConnected)
 
         harness.click("Appearance", "Show Tools", "Codex")
         harness.click("Appearance", "Show Tools", "Claude")
@@ -415,7 +415,7 @@ struct MenuBarCoordinatorTests {
 @MainActor
 private final class MenuBarCoordinatorHarness {
     let repository: AccountRepository
-    let settings: SettingsStores
+    let settings: SettingsModel
     let alertPresenter = AlertPresenterProbe()
     let panelPresenter = PanelPresenterProbe()
     let codexApp = CodexAppProcessProbe()
@@ -429,7 +429,7 @@ private final class MenuBarCoordinatorHarness {
     init() throws {
         repository = try AccountRepository(isolatedRootDirectory: repositoryDirectory)
         try repository.bootstrapStorage()
-        settings = SettingsStores(userDefaults: UserDefaults(suiteName: suiteName)!)
+        settings = SettingsModel(userDefaults: UserDefaults(suiteName: suiteName)!)
     }
 
     func makeCoordinator(

@@ -138,18 +138,18 @@ actor ClaudeCodeTokenUsageHistory {
 }
 
 extension TokenUsageToolSource {
-    static func claudeCode(history: ClaudeCodeTokenUsageHistory, settings: ClaudeUsageSettingsStore) -> TokenUsageToolSource {
+    static func claudeCode(history: ClaudeCodeTokenUsageHistory, settings: SettingsCell<ClaudeSettings>) -> TokenUsageToolSource {
         TokenUsageToolSource(
             tool: .claudeCode,
-            isConnected: { settings.isEnabled },
+            isConnected: { settings.value.isConnected },
             read: { interval in await history.read(interval) }
         )
     }
 
-    static func cursor(client: CursorTokenUsageClient, settings: CursorUsageSettingsStore) -> TokenUsageToolSource {
+    static func cursor(client: CursorTokenUsageClient, settings: SettingsCell<CursorSettings>) -> TokenUsageToolSource {
         TokenUsageToolSource(
             tool: .cursor,
-            isConnected: { settings.isEnabled },
+            isConnected: { settings.value.isConnected },
             read: { interval in
                 do {
                     return .days(try await client.dailyUsage(in: interval))

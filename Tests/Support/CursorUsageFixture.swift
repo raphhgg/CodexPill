@@ -4,7 +4,7 @@ import Foundation
 
 /// A `CursorUsage` over an isolated defaults suite, a settable token lookup, and a settable usage-summary response.
 final class CursorUsageFixture: CursorAccessTokenSource, CursorUsageWebClient, @unchecked Sendable {
-    let settings: CursorUsageSettingsStore
+    let settings: SettingsCell<CursorSettings>
     let defaults: UserDefaults
     private(set) var usage: CursorUsage!
     private let suiteName = "CursorUsageFixture-\(UUID().uuidString)"
@@ -23,7 +23,7 @@ final class CursorUsageFixture: CursorAccessTokenSource, CursorUsageWebClient, @
 
     init(now: @escaping @Sendable () -> Date = Date.init, refreshInterval: TimeInterval = ProviderUsageRuntime.refreshInterval) {
         defaults = UserDefaults(suiteName: suiteName)!
-        settings = CursorUsageSettingsStore(userDefaults: defaults)
+        settings = SettingsCell(preferences: Preferences(userDefaults: defaults))
         usage = CursorUsage(
             settings: settings,
             client: CursorUsageClient(tokenSource: self, webClient: self, now: now),

@@ -10,7 +10,7 @@ struct TokenUsageMenuContent: View {
     @State private var hoveredDay: Int?
 
     private var card: TokenUsageMenuCard { model.card }
-    private var preferences: TokenUsagePreferencesStore { model.preferences }
+    private var settings: TokenUsageSettings { model.settings.tokenUsage }
     private var palette: TokenUsagePalette { TokenUsagePalette(theme: model.theme) }
 
     var body: some View {
@@ -58,11 +58,11 @@ struct TokenUsageMenuContent: View {
     private func splits(for card: TokenUsageMenuCard, palette: TokenUsagePalette) -> some View {
         ZStack(alignment: .topLeading) {
             TokenUsageByToolSplit(card: card, palette: palette)
-                .opacity(preferences.breakdown == .byTool ? 1 : 0)
-                .accessibilityHidden(preferences.breakdown != .byTool)
+                .opacity(settings.breakdown == .byTool ? 1 : 0)
+                .accessibilityHidden(settings.breakdown != .byTool)
             TokenUsageTopModelsSplit(card: card, palette: palette)
-                .opacity(preferences.breakdown == .topModels ? 1 : 0)
-                .accessibilityHidden(preferences.breakdown != .topModels)
+                .opacity(settings.breakdown == .topModels ? 1 : 0)
+                .accessibilityHidden(settings.breakdown != .topModels)
         }
     }
 
@@ -73,8 +73,8 @@ struct TokenUsageMenuContent: View {
                 Spacer()
                 TokenUsageSegmented(
                     items: TokenUsageChartStyle.allCases,
-                    selection: preferences.chartStyle,
-                    select: { preferences.chartStyle = $0 },
+                    selection: settings.chartStyle,
+                    select: { model.settings.tokenUsage.chartStyle = $0 },
                     accessibilityName: \.accessibilityName
                 ) { Image(systemName: $0.symbolName).font(.system(size: 10, weight: .semibold)) }
             }
@@ -88,15 +88,15 @@ struct TokenUsageMenuContent: View {
     private var breakdownPicker: some View {
         TokenUsageSegmented(
             items: TokenUsageBreakdown.allCases,
-            selection: preferences.breakdown,
-            select: { preferences.breakdown = $0 },
+            selection: settings.breakdown,
+            select: { model.settings.tokenUsage.breakdown = $0 },
             accessibilityName: \.title
         ) { Text($0.title).font(.system(size: 11, weight: .medium)) }
     }
 
     @ViewBuilder
     private var chart: some View {
-        switch preferences.chartStyle {
+        switch settings.chartStyle {
         case .bars:
             TokenUsageBarsChart(card: card, palette: palette, hoveredDay: card.isLoading ? nil : hoveredDay)
         case .area:

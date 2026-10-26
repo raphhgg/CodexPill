@@ -24,22 +24,19 @@ struct AppComposition {
             resetCreditClient: codexAppServerClient
         ).makeController()
 
+        let settings = SettingsModel(userDefaults: defaults)
         let claudeCodeUsage = Self.makeClaudeCodeUsage(
             environment: environment,
-            defaults: defaults,
+            settings: settings.claude,
             isolatedRootDirectory: isolatedRootDirectory,
             appSupportDirectory: repository.paths.appSupportDirectory
         )
-        let cursorUsage = Self.makeCursorUsage(defaults: defaults, isolatedRootDirectory: isolatedRootDirectory)
+        let cursorUsage = Self.makeCursorUsage(settings: settings.cursor, isolatedRootDirectory: isolatedRootDirectory)
         coordinator = MenuBarCoordinator(
             statusItemRuntime: StatusItemRuntime(),
             shortcutRuntime: GlobalShortcutRuntime(),
             accountsController: accountsController,
-            menuDisplaySettings: MenuDisplaySettingsStore(userDefaults: defaults),
-            statusItemSettings: StatusItemSettingsStore(userDefaults: defaults),
-            tokenUsagePreferences: TokenUsagePreferencesStore(userDefaults: defaults),
-            claudeUsageSettings: claudeCodeUsage.settings,
-            themePreferences: ThemePreferencesStore(userDefaults: defaults),
+            settings: settings,
             cliProcessInspector: CodexCLIProcessInspector(),
             alertPresenter: SystemAlertPresenter(suppressesInteractivePrompts: suppressesInteractivePrompts),
             panelPresenter: SystemPanelPresenter(suppressesInteractivePrompts: suppressesInteractivePrompts),
@@ -70,7 +67,7 @@ struct AppComposition {
     /// `claude-sign-in.json` inside the isolated root instead of its Keychain item.
     private static func makeClaudeCodeUsage(
         environment: [String: String],
-        defaults: UserDefaults,
+        settings: SettingsCell<ClaudeSettings>,
         isolatedRootDirectory: URL?,
         appSupportDirectory: URL
     ) -> ClaudeCodeUsage {
@@ -105,7 +102,7 @@ struct AppComposition {
             lock: ClaudeRefreshLock(fileURL: appSupportDirectory.appendingPathComponent("claude-sign-in.lock"))
         )
         return ClaudeCodeUsage(
-            settings: ClaudeUsageSettingsStore(userDefaults: defaults),
+            settings: settings,
             client: ClaudeUsageClient(credentials: credentials, ownSignIn: ownSignIn, webClient: URLSessionClaudeUsageWebClient()),
             signInFlow: ClaudeBrowserSignIn(
                 tokenEndpoint: tokenEndpoint,
@@ -121,7 +118,7 @@ struct AppComposition {
     private static func makeTokenUsageProvider(
         environment: [String: String],
         isolatedRootDirectory: URL?,
-        claudeSettings: ClaudeUsageSettingsStore,
+        claudeSettings: SettingsCell<ClaudeSettings>,
         cursorUsage: CursorUsage
     ) -> any TokenUsageMenuProviding {
         let cacheFile = AppPaths.tokenUsageCacheFile(isolatedRootDirectory: isolatedRootDirectory)
@@ -147,13 +144,13 @@ struct AppComposition {
     }
 
     /// An isolated run never reads Cursor's real sign-in: it reads `Cursor/state.vscdb` inside the isolated root.
-    private static func makeCursorUsage(defaults: UserDefaults, isolatedRootDirectory: URL?) -> CursorUsage {
+    private static func makeCursorUsage(settings: SettingsCell<CursorSettings>, isolatedRootDirectory: URL?) -> CursorUsage {
         let tokenSource = isolatedRootDirectory.map {
             CursorStateDatabaseTokenSource(databaseURL: CursorStateDatabase.isolatedURL(root: $0))
         } ?? CursorStateDatabaseTokenSource()
         let webClient = URLSessionCursorUsageWebClient()
         return CursorUsage(
-            settings: CursorUsageSettingsStore(userDefaults: defaults),
+            settings: settings,
             client: CursorUsageClient(tokenSource: tokenSource, webClient: webClient),
             tokenUsageClient: CursorTokenUsageClient(tokenSource: tokenSource, webClient: webClient)
         )

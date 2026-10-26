@@ -239,18 +239,18 @@ struct TokenUsageMenuCard: Equatable {
 }
 
 /// The card's live model: the coordinator replaces `card` as data arrives, so an open menu updates in place,
-/// and the toggles write straight to the preferences.
+/// and the toggles write straight to the settings.
 @MainActor
 @Observable
 final class TokenUsageCardModel {
     var card: TokenUsageMenuCard
     var theme: AppTheme
-    let preferences: TokenUsagePreferencesStore
+    let settings: SettingsModel
 
-    init(card: TokenUsageMenuCard, theme: AppTheme = .defaultTheme, preferences: TokenUsagePreferencesStore) {
+    init(card: TokenUsageMenuCard, theme: AppTheme = .defaultTheme, settings: SettingsModel) {
         self.card = card
         self.theme = theme
-        self.preferences = preferences
+        self.settings = settings
     }
 }
 

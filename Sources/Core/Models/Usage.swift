@@ -1,6 +1,6 @@
 import Foundation
 
-enum UsageProvider: String, CaseIterable, Hashable {
+enum UsageProvider: String, CaseIterable, Codable, Hashable {
     case codex
     case claude
     case cursor

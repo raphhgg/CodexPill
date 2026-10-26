@@ -205,19 +205,25 @@ Platform adapters are the only place where the app should know about live auth f
 - `CodexRateLimits`, Codex plan-type rules and `UsageSnapshot.codex(planName:primary:secondary:fetchedAt:)`, the only place that turns Codex's positional primary and secondary windows into named windows, shortest first
 - `Usage`, the provider-neutral usage model: `UsageSnapshot` holds a provider, the plan name the provider reported, the signed-in email for Claude and Cursor, and `UsageWindow` values keyed by `UsageWindowKind` (session, weekly, monthly, billing cycle, or other with its length). `UsageWindowKind(durationMinutes:)` is the one rule that names a window by its length, with its tolerances. `UsageWindow.displayedUsedPercent(at:)` is the one rule for showing 0% once a window has reset. `CodexAccount.usage` and `CodexAccountStatus.usage` store it directly. `CodexAccount` reads and writes the `rateLimits` primary/secondary shape `accounts.json` has always used through a private storage type, so files from earlier versions still load and earlier versions can still read new files. Loading names each stored window by its length again.
 - `StatusBarIndicatorStyle` and `StatusBarDisplayMode`, the persisted status-item choices
-- typed `UserDefaults`-backed settings stores
+- settings groups, their `Preferences` codec and the `SettingsModel` that owns them
 
 Core models should remain free of process control, storage policy, AppKit, SwiftUI, and Codex protocol mechanics.
 
-Settings persistence is split by feature boundary:
+Settings are values with one owner, as rbar keeps them:
 
-- `MenuDisplaySettingsStore` owns menu refresh cadence and visible inactive-account count options.
-- `StatusItemSettingsStore` owns status-item indicator style, display mode, pacing marker visibility, progress accent color helpers, and persisted reveal-shortcut values.
-- `TokenUsagePreferencesStore` owns token-usage visibility and the fixed 30-day period. Its stored chart style, loading animation and peak scope have no menu control anymore and keep their defaults.
-- `ClaudeUsageSettingsStore` owns whether Claude usage is connected (`claudeUsageEnabled`) and whether reads use rusage's own sign-in (`claudeUsesOwnSignIn`). Both are off by default.
-- `CursorUsageSettingsStore` owns whether Cursor usage is connected (`cursorUsageEnabled`). It is off by default.
+- Each group is one `SettingsGroup`: a `Codable`, `Equatable`, `Sendable` struct with `defaults`, stored as one JSON value under a versioned key. `GeneralSettings` holds the refresh interval, tool order, email masking and theme. `MenuBarSettings` holds the icon, label, usage bar and reveal-shortcut choices. `TokenUsageSettings` holds whether the Token Usage card shows and how it draws. `CodexSettings`, `ClaudeSettings` and `CursorSettings` hold whether each tool is connected, and Claude's sign-in source and model limits.
+- `Preferences` is the only code that reads or writes settings in `UserDefaults`. A field that is missing or no longer decodes takes its default and keeps the rest of its group. A group whose key is missing is read from the flat keys earlier versions stored (`LegacySettingsKeys.swift`), so nothing is migrated.
+- `SettingsModel` is the single writer. It is `@Observable` on the main actor, saves each group as it changes, and `MenuBarCoordinator` observes `general`, `menuBar` and `codex` whole, so a new field needs no new observation. Token Usage is left out because its card redraws itself and a rebuild would make an open menu jump.
+- Claude's and Cursor's groups are `SettingsCell`s, because their usage sources read and change them off the main actor. A cell takes a lock for every read and change and saves before releasing it. App startup gives each source the model's own cell, so there is one copy of each group.
 
-App startup builds each store from one `UserDefaults` instance and injects the ones each runtime boundary needs. There is no shared settings facade.
+| State | Single writer |
+| --- | --- |
+| Refresh interval, tool order, email masking, theme | `SettingsModel.general` |
+| Menu bar icon, label, usage bars, reveal shortcut | `SettingsModel.menuBar` |
+| Token Usage card on or off, chart style, breakdown, peak scope | `SettingsModel.tokenUsage` |
+| Whether Codex is read | `SettingsModel.codex` |
+| Whether Claude and Cursor are connected, Claude's sign-in source and model limits | `SettingsModel.claude` and `.cursor` |
+| Launch at Login | `SMAppService`, read each time and never stored |
 
 ## Boundary Notes
 
