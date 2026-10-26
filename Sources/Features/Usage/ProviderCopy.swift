@@ -75,6 +75,11 @@ extension UsageProvider {
                     title: "Connect Cursor?",
                     detail: "Uses Cursor's sign-in to read your usage.",
                     confirmTitle: "Connect"
+                ),
+                signInPrompt: ProviderPrompt(
+                    title: "Sign in with Cursor?",
+                    detail: "Opens your browser. rusage keeps this sign-in in its own Keychain item.",
+                    confirmTitle: "Sign In"
                 )
             )
         }

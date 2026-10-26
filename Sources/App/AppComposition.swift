@@ -142,16 +142,27 @@ struct AppComposition {
         )
     }
 
-    /// An isolated run never reads Cursor's real sign-in: it reads `Cursor/state.vscdb` inside the isolated root.
+    /// An isolated run never reads Cursor's real sign-in: it reads `Cursor/state.vscdb` inside the isolated root, and
+    /// keeps rusage's own Cursor sign-in in `cursor-own-sign-in.json` there instead of the Keychain.
     private static func makeCursorUsage(settings: SettingsCell<CursorSettings>, isolatedRootDirectory: URL?) -> CursorUsage {
-        let tokenSource = isolatedRootDirectory.map {
+        let cursorApp = isolatedRootDirectory.map {
             CursorStateDatabaseTokenSource(databaseURL: CursorStateDatabase.isolatedURL(root: $0))
         } ?? CursorStateDatabaseTokenSource()
+        let store: any CursorSignInStoring = isolatedRootDirectory.map {
+            FileCursorSignInStore(fileURL: $0.appendingPathComponent("cursor-own-sign-in.json"))
+        } ?? SystemCursorSignInKeychain()
+        let tokenSource = CursorSignInTokenSource(
+            usesOwnSignIn: { settings.value.usesOwnSignIn },
+            store: store,
+            cursorApp: cursorApp
+        )
         let webClient = URLSessionCursorUsageWebClient()
         return CursorUsage(
             settings: settings,
             client: CursorUsageClient(tokenSource: tokenSource, webClient: webClient),
-            tokenUsageClient: CursorTokenUsageClient(tokenSource: tokenSource, webClient: webClient)
+            tokenUsageClient: CursorTokenUsageClient(tokenSource: tokenSource, webClient: webClient),
+            ownSignInClient: CursorOwnSignIn(store: store, openURL: { url in Task { @MainActor in NSWorkspace.shared.open(url) } }),
+            tokenSource: tokenSource
         )
     }
 }

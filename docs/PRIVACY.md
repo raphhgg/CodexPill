@@ -60,7 +60,7 @@ This is optional and off until you choose `Sign in with Claude…` or `Settings 
 
 ## Cursor
 
-rusage never signs in to Cursor, never asks Cursor for a new token, and never sends Cursor's refresh token anywhere. It only uses the sign-in Cursor already has. Cursor keeps it in a SQLite database, `~/Library/Application Support/Cursor/User/globalStorage/state.vscdb`, and rusage reads it only by key, never by scanning.
+Unless you use rusage's own Cursor sign-in (below), rusage never signs in to Cursor, never asks Cursor for a new token, and never sends the Cursor app's refresh token anywhere. It only uses the sign-in Cursor already has. Cursor keeps it in a SQLite database, `~/Library/Application Support/Cursor/User/globalStorage/state.vscdb`, and rusage reads it only by key, never by scanning.
 
 **Usage (optional, off by default).** Turning on `Settings › Providers › Cursor › Show in Menu Bar` asks for consent before anything is read. While it is connected, each read:
 
@@ -68,7 +68,9 @@ rusage never signs in to Cursor, never asks Cursor for a new token, and never se
 - uses the token only while it is more than a minute from expiry;
 - sends the token to one place, `GET https://cursor.com/api/usage-summary`, as Cursor's session cookie, to fetch your plan usage, on-demand spend, and billing cycle. Redirects are refused, and the request has no cookie store and no cache. After a `429`, nothing is read or sent until cursor.com's `Retry-After` passes.
 
-rusage never stores, logs, or displays the token, and it never reads browser cookies or Cursor projects. Turning off `Settings › Providers › Cursor › Show in Menu Bar` turns usage off and stops all reads.
+rusage never stores, logs, or displays the Cursor app's token, and it never reads browser cookies or Cursor projects.
+
+**rusage's own Cursor sign-in (optional).** `Settings › Providers › Cursor › Use Another Account…` signs in through cursor.com in your browser, as Cursor's CLI does. rusage keeps the access token, the refresh token and your email only in its own login Keychain item, `rusage Cursor sign-in`, never in Cursor's database. It sends them only to api2.cursor.sh, to finish the sign-in, read your email and renew the token, and to cursor.com, to read your usage. `Sign Out…` and disconnecting delete the item. Turning off `Settings › Providers › Cursor › Show in Menu Bar` turns usage off and stops all reads.
 
 ## Token Usage
 

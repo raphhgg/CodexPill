@@ -11,6 +11,8 @@ enum CursorUsageStatus: Equatable, Sendable {
 
 enum CursorUsageFailure: Equatable, Sendable {
     case localStateUnreadable
+    /// macOS needs the user to allow rusage to read its own Cursor sign-in.
+    case keychainAccessNeeded
     /// Cursor is writing its database right now, so the sign-in can't be read until it finishes.
     case localStateBusy
     case network

@@ -174,6 +174,7 @@ The access token leaves this module only as an `Authorization` header to api.ant
 
 - `CursorStateDatabase`, keyed read-only access to `state.vscdb`. It never scans. A read opens the database with `immutable=1` only when no `-wal`, `-shm`, or `-journal` file sits next to it, so it never reads a writer's uncommitted pages;
 - `CursorStateDatabaseTokenSource`, the read-only lookup of the token and the cached email used for usage, and `CursorAccessToken`, which prints redacted;
+- rusage's own Cursor sign-in (`CursorOwnSignIn`): Cursor's CLI browser login (`loginDeepControl` and `auth/poll`), the email from `GetMe`, the Cursor app's token refresh at `api2.cursor.sh/oauth/token`, and its `rusage Cursor sign-in` Keychain item (`SystemCursorSignInKeychain`, or `FileCursorSignInStore` in isolated runs). `CursorSignInTokenSource` gives reads that sign-in while `usesOwnSignIn` is on, else the Cursor app's;
 - the `cursor.com/api/usage-summary` request, its redirect rule, its `Retry-After` wait, and parsing its response (`URLSessionCursorUsageWebClient`, `CursorUsageClient`, `CursorUsageSummaryParser`).
 
 The token leaves this module only as the usage request's cookie.
