@@ -72,6 +72,14 @@ struct CursorUsage: ProviderConnection {
         settings.value.isConnected
     }
 
+    var isShown: Bool {
+        settings.value.isShown
+    }
+
+    func setShown(_ isShown: Bool) {
+        settings.update { $0.isShown = isShown }
+    }
+
     /// Also drops rusage's own sign-in, so nothing is kept for a tool the user turned off.
     func disconnect() async {
         let usedOwnSignIn = settings.value.usesOwnSignIn

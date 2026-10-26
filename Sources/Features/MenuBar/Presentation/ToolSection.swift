@@ -47,7 +47,7 @@ extension MenuBarMenuState {
             if provider == .codex {
                 return codexSection
             }
-            guard let usage = providerUsage.first(where: { $0.provider == provider }), usage.status != .notConnected else {
+            guard let usage = providerUsage.first(where: { $0.provider == provider }), usage.status != .notConnected, usage.isShown else {
                 return nil
             }
             return section(for: usage)

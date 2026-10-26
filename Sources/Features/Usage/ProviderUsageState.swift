@@ -6,6 +6,8 @@ struct ProviderUsageState: Equatable {
     let status: ProviderUsageStatus
     /// Whether the menu can offer rusage's own sign-in for this tool, and which way.
     var ownSignIn: ProviderOwnSignIn = .unsupported
+    /// False while the user hid the tool's card. It stays connected.
+    var isShown = true
 }
 
 enum ProviderUsageStatus: Equatable {
