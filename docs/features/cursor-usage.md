@@ -16,7 +16,7 @@ Cursor usage is display-only. It never affects Codex or its account.
 
 ## Menu
 
-The `Cursor` card follows the shared card and side menu in [Menubar](menubar.md). The side menu shows the email of the account it reads, checked and disabled. `Settings › Providers › Cursor` offers `Use Another Account…` and `Sign Out…` (or `Disconnect` while the Cursor app's sign-in is in use), as Claude does. `Settings › Providers › Cursor › Show in Menu Bar` disconnects it.
+The `Cursor` card follows the shared card and side menu in [Menubar](menubar.md). The side menu shows the email of the account it reads, checked and disabled. `Settings › Providers › Cursor` offers `Use Another Account…` and `Sign Out…`, as Claude does; `Sign Out…` shows while rusage's own Cursor sign-in is in use, and `−` under the sidebar disconnects Cursor. `Settings › Providers › Cursor › Show in Menu Bar` disconnects it.
 
 - **Not connected.** There is no card. Turning on `Settings › Providers › Cursor › Show in Menu Bar` connects. Choosing it opens a consent alert first. Nothing is read until the user confirms.
 - **Consent alert.** One short alert:
