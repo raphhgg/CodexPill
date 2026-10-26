@@ -372,6 +372,21 @@ struct MenuBarMenuBuilderTests {
     }
 
     @Test
+    func breakdownOnHoverMovesTheBreakdownIntoTheCardsSideMenu() throws {
+        let (coordinator, statusItem) = try makeCoordinatorWithStatusItem()
+        defer { NSStatusBar.system.removeStatusItem(statusItem) }
+
+        coordinator.setTokenUsageDisplay(.graphWithBreakdownOnHover)
+        let onHover = try #require(statusItem.menu?.items.first { $0.title == "Token Usage" })
+        #expect(onHover.submenu?.items.map(\.title) == ["Breakdown"])
+        #expect(onHover.submenu?.items.first?.view != nil)
+
+        coordinator.setTokenUsageDisplay(.graphAndBreakdown)
+        let both = try #require(statusItem.menu?.items.first { $0.title == "Token Usage" })
+        #expect(both.submenu == nil)
+    }
+
+    @Test
     func mainMenuIncludesDiagnosticReportExportActionNearAbout() throws {
         let builder = MenuBarMenuBuilder()
         let coordinator = try makeCoordinator()

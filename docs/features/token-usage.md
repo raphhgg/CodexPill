@@ -76,7 +76,7 @@ Card:
 
 `Settings › Token Usage`:
 
-- `Show`: `Graph, breakdown on hover` (the breakdown and its toggle appear while the pointer is over the card), `Graph and breakdown`, or `Hidden` (no card). The card keeps its full height in both visible modes, so the menu never jumps. Settings saved before this choice existed map on to `Graph and breakdown` and off to `Hidden`.
+- `Show`: `Graph, breakdown on hover` (the menu shows the chart, and highlighting the card opens a side menu with the breakdown and its toggle), `Graph and breakdown` (both in the menu), or `Hidden` (no card). Settings saved before this choice existed map on to `Graph and breakdown` and off to `Hidden`.
 - `Chart` (`Bars`, `Area`, `Lines`) and `Breakdown` (`By tool`, `Top models`), the same choices as the card's own toggles
 
 Default:

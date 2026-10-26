@@ -1,15 +1,19 @@
-import AppKit
-import SwiftUI
-
-/// The Token Usage card: a chart and a split, each with its own toggle, in the theme's colors. The split shows
-/// always or only on hover, as Settings › Token Usage says.
+/// The Token Usage card: a chart and a split, each with its own toggle, in the theme's colors. With the breakdown on
+/// hover, the main menu shows the chart and the card's side menu shows the split, as Settings › Token Usage says.
 ///
 /// It reads a live model, so new data and toggle changes redraw it while the menu is open. Every state keeps
 /// the same layout, so the menu item never needs to change height.
 struct TokenUsageMenuContent: View {
+    /// Which part of the card this view draws.
+    enum Part {
+        case graphAndBreakdown
+        case graph
+        case breakdown
+    }
+
     let model: TokenUsageCardModel
+    var part = Part.graphAndBreakdown
     @State private var hoveredDay: Int?
-    @State private var isHovered = false
 
     private var card: TokenUsageMenuCard { model.card }
     private var settings: TokenUsageSettings { model.settings.tokenUsage }
@@ -17,25 +21,18 @@ struct TokenUsageMenuContent: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            header
-            chartArea.frame(height: 44)
-            breakdown
-                // Hidden, not removed, so the card keeps its height and the menu never jumps.
-                .opacity(showsBreakdown ? 1 : 0)
-                .accessibilityHidden(!showsBreakdown)
-                .animation(.easeOut(duration: 0.15), value: showsBreakdown)
+            if part != .breakdown {
+                header
+                chartArea.frame(height: 44)
+            }
+            if part != .graph {
+                breakdown
+            }
         }
         .padding(.horizontal, 14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
-        .onHover { isHovered = $0 }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(card.accessibilitySummary)
-    }
-
-    /// Always, or only while the pointer is over the card.
-    private var showsBreakdown: Bool {
-        settings.display == .graphAndBreakdown || isHovered
     }
 
     private var breakdown: some View {
@@ -43,7 +40,7 @@ struct TokenUsageMenuContent: View {
             breakdownPicker
                 .modifier(TokenUsagePlaceholder(isActive: card.isLoading))
                 .opacity(card.showsSplits || card.isLoading ? 1 : 0)
-                .disabled(!card.showsSplits || !showsBreakdown)
+                .disabled(!card.showsSplits)
                 .accessibilityHidden(!card.showsSplits)
             ZStack(alignment: .topLeading) {
                 splits(for: card.layoutTemplate, palette: TokenUsagePalette(theme: model.theme, isPlaceholder: true))

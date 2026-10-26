@@ -32,9 +32,7 @@ struct MenuBarMenuBuilder {
 
         if let tokenUsage = state.tokenUsage {
             addSeparatorIfNeeded(to: menu)
-            let item = NSMenuItem(title: "Token Usage", action: nil, keyEquivalent: "")
-            item.view = hostedView(TokenUsageMenuContent(model: tokenUsage).padding(.vertical, 8), width: Self.menuContentWidth)
-            menu.addItem(item)
+            menu.addItem(tokenUsageItem(for: tokenUsage))
         }
 
         addSeparatorIfNeeded(to: menu)
@@ -79,6 +77,22 @@ struct MenuBarMenuBuilder {
             width: Self.menuContentWidth
         )
         item.submenu = sideMenu(for: section, state: state, target: target)
+        return item
+    }
+
+    /// The whole card, or with the breakdown on hover, the chart with the breakdown in its side menu.
+    private func tokenUsageItem(for model: TokenUsageCardModel) -> NSMenuItem {
+        let item = NSMenuItem(title: "Token Usage", action: nil, keyEquivalent: "")
+        guard model.settings.tokenUsage.display == .graphWithBreakdownOnHover else {
+            item.view = hostedView(TokenUsageMenuContent(model: model).padding(.vertical, 8), width: Self.menuContentWidth)
+            return item
+        }
+        item.view = MenuCardItemView(TokenUsageMenuContent(model: model, part: .graph).padding(.vertical, 8), width: Self.menuContentWidth)
+        let submenu = NSMenu(title: "Token Usage")
+        let breakdown = NSMenuItem(title: "Breakdown", action: nil, keyEquivalent: "")
+        breakdown.view = hostedView(TokenUsageMenuContent(model: model, part: .breakdown).padding(.vertical, 8), width: Self.menuContentWidth)
+        submenu.addItem(breakdown)
+        item.submenu = submenu
         return item
     }
 

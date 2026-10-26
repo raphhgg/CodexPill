@@ -179,12 +179,14 @@ final class MenuBarCoordinator: NSObject, NSMenuDelegate, NSMenuItemValidation, 
         recordMenuAction("setTokenUsageDisplay")
         let wasEnabled = settings.tokenUsage.isEnabled
         settings.tokenUsage.display = display
-        guard settings.tokenUsage.isEnabled != wasEnabled else { return }
-        tokenUsageRuntime.handleEnabledChange(
-            isEnabled: settings.tokenUsage.isEnabled,
-            period: Self.tokenUsagePeriod,
-            peakScope: settings.tokenUsage.peakScope
-        )
+        if settings.tokenUsage.isEnabled != wasEnabled {
+            tokenUsageRuntime.handleEnabledChange(
+                isEnabled: settings.tokenUsage.isEnabled,
+                period: Self.tokenUsagePeriod,
+                peakScope: settings.tokenUsage.peakScope
+            )
+        }
+        // On hover moves the breakdown into a side menu, so every change rebuilds the menu.
         rebuildMenu()
     }
 
