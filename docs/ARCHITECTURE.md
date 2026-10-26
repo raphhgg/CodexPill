@@ -219,7 +219,7 @@ Settings are values with one owner, as rbar keeps them:
 
 ### Settings Window
 
-The menu is for glancing and quick actions; configuration lives in one window, modeled on rbar's. `SettingsWindow` owns our own `NSWindow`, not SwiftUI's `Settings` scene, which an accessory app can't reliably bring forward. Its `NSTabViewController` uses toolbar tabs, one per `SettingsPane`, each a grouped SwiftUI `Form` in an `NSHostingController` sized by `preferredContentSize`. The title follows the pane, minimize and zoom are off, and the last pane is restored.
+The menu is for glancing and quick actions; configuration lives in one window, modeled on rbar's. `SettingsWindow` owns our own `NSWindow`, not SwiftUI's `Settings` scene, which an accessory app can't reliably bring forward. Its `NSTabViewController` uses toolbar tabs, one per `SettingsPane`, each a grouped SwiftUI `Form` in an `NSHostingController`. Every pane gets the same `preferredContentSize`, the widest and tallest pane's fitting size measured when the window opens, with its content top-aligned, so switching panes never resizes the window. The title follows the pane, minimize and zoom are off, and the last pane is restored.
 
 - `Settings…` (⌘,) runs `MenuBarCoordinator.openSettings()`. ⌘, fires while the menu still tracks, and an activation then is lost when it closes, so the coordinator opens the window from `menuDidClose`.
 - While the window shows, the app is `.regular` with a Dock icon and comes forward with `activate(ignoringOtherApps:)`. It goes back to `.accessory` when the window closes. A minimal main menu answers ⌘, ⌘W ⌘Q and text editing while the window is key.
